@@ -6,7 +6,9 @@ import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
+import dk.sdu.cloud.auth.services.TwoFactorException
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
@@ -94,6 +96,48 @@ class LoginResponder<DBSession>(
             }
         } else {
             handleCompletedLogin(call, service, user)
+        }
+    }
+
+    suspend fun handleUnsuccessful2FA(
+        call: ApplicationCall,
+        submittedViaForm: Boolean,
+        exception: RPCException?,
+        challengeId: String?
+    ) {
+        log.info("Failing")
+        if (submittedViaForm && call.request.accept()?.contains(ContentType.Application.Json.toString()) != true) {
+            log.info("Bad path")
+            val params = ArrayList<Pair<String, String>>()
+
+            if (exception is TwoFactorException.InvalidChallenge) {
+                // Make them go back through the entire thing (hopefully)
+                call.respondRedirect("/")
+            } else {
+                if (exception != null) {
+                    params.add("message" to exception.why)
+                } else {
+                    params.add("invalid" to "true")
+                }
+
+                call.respondRedirect("/auth/2fa" +
+                        "?challengeId=$challengeId&" +
+                        params.joinToString("&") { it.first.urlEncoded + "=" + it.second.urlEncoded }
+                )
+            }
+        } else {
+            log.info("Good path")
+            if (exception != null) {
+                call.respond(exception.httpStatusCode, exception.why)
+            } else {
+                call.respond(
+                    HttpStatusCode.Unauthorized,
+                    TextContent(
+                        defaultMapper.writeValueAsString(CommonErrorMessage("Incorrect code")),
+                        ContentType.Application.Json
+                    )
+                )
+            }
         }
     }
 

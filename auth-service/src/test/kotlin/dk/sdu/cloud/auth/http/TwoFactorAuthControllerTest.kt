@@ -78,12 +78,19 @@ class TwoFactorAuthControllerTest {
         return principal
     }
 
+    // TODO Refactor this code.
     private fun runTest(
-        kafka: KafkaServices = KafkaServices(Properties(), Properties(), mockk(relaxed = true), mockk(relaxed = true)),
-        loginResponder: LoginResponder<HibernateSession> = mockk(relaxed = true),
+        kafka: KafkaServices = KafkaServices(
+            Properties(),
+            Properties(),
+            mockk(relaxed = true),
+            mockk(relaxed = true)
+        ),
+        userDAO: UserDAO<HibernateSession> = UserHibernateDAO(
+            passwordHashingService
+        ),
 
         twoFactorDAO: TwoFactorDAO<HibernateSession> = TwoFactorHibernateDAO(),
-        userDAO: UserDAO<HibernateSession> = UserHibernateDAO(passwordHashingService),
         totpService: TOTPService = WSTOTPService(),
         qrService: QRService = ZXingQRService(),
 
@@ -100,11 +107,13 @@ class TwoFactorAuthControllerTest {
         consumer: TestApplicationEngine.(TestContext) -> Unit
     ) {
         lateinit var twoFactorService: TwoFactorChallengeService<HibernateSession>
+        lateinit var loginResponder: LoginResponder<HibernateSession>
 
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
                 twoFactorService = twoFactorChallengeService(micro.hibernateDatabase)
+                loginResponder = LoginResponder(mockk(relaxed = true), twoFactorService)
                 listOf(TwoFactorAuthController(twoFactorService, loginResponder))
             },
             test = {

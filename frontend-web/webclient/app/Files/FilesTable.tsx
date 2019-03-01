@@ -43,7 +43,7 @@ const FilesTable = ({
             </FilesTableHeader>
             <TableBody>
                 {files.map((file, i) => (
-                    <TableRow highlighted={file.isChecked} key={i} data-tag={"fileRow"}>
+                    <TableRow highlighted={file.isChecked} key={file.path} data-tag={"fileRow"}>
                         <FilenameAndIcons
                             onNavigationClick={onNavigationClick}
                             file={file}
@@ -52,7 +52,6 @@ const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
-
                         <TableCell>
                             <SensitivityIcon sensitivity={file.sensitivityLevel} />
                         </TableCell>
@@ -212,6 +211,7 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }: PredicatedCheckbox)
 
 const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
     <Icon
+        data-tag="fileFavorite"
         size="1em" ml=".7em"
         color={item.favorited ? "blue" : "gray"}
         name={item.favorited ? "starFilled" : "starEmpty"}
@@ -240,7 +240,7 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
     }
 
     const badge = <SensitivityBadge bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip top mb={"50px"} trigger={badge}>{def.text}</Tooltip>
+    return <Tooltip top mb="50px" trigger={badge}>{def.text}</Tooltip>
 }
 
 const SensitivityBadge = styled.div<{ bg: string }>`
@@ -290,7 +290,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             width="100%"
             autoFocus
             data-tag="renameField"
-            onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
+            onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as HTMLInputElement).value) }}
         />
         <Icon size={"1em"} color="red" ml="9px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
     </>);

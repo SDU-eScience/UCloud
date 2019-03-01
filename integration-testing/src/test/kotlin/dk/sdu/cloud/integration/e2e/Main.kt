@@ -19,54 +19,63 @@ lateinit var driver: WebDriver
 class EndToEndTest {
     @Test
     fun runTest() {
-        val (username, password) = File("/tmp/cloud-test.txt").readLines()
+        val (username, password) = File("${System.getProperty("user.home")}/cloud-test.txt").readLines()
         driver = FirefoxDriver()
         with(driver) {
-            get(HOST)
-            await { driver.currentUrl.contains("login") }
+            try {
+                get(HOST)
+                await { driver.currentUrl.contains("login") }
 
-            login(username, password)
-            goToFiles()
+                login(username, password)
+                goToFiles()
 
-            val folderName = UUID.randomUUID().toString()
-            createDirectory(folderName)
-            openFolder(folderName)
-            uploadFile()
-            uploadArchive()
+                val folderName = UUID.randomUUID().toString()
+                createDirectory(folderName)
+                openFolder(folderName)
+                uploadFile()
+                uploadArchive()
+
+                val folderName2 = "Other"
+                createDirectory(folderName2)
+                checkFile(folderName2)
+                createLinkForFile(folderName2)
+            } finally {
+                close()
+            }
         }
     }
 
-    fun WebDriver.login(username: String, password: String) {
+    private fun WebDriver.login(username: String, password: String) {
         findElement(By.id("username")).sendKeys(username)
         findElement(By.id("password")).sendKeys(password)
         findElement(By.tagName("button")).click()
         await { !currentUrl.contains("login") }
     }
 
-    fun WebDriver.goToFiles() {
+    private fun WebDriver.goToFiles() {
         get("$HOST/app/files")
         val selector = byTag("fileRow")
         println(selector)
         awaitElements(selector)
     }
 
-    fun WebDriver.createDirectory(name: String) {
+    private fun WebDriver.createDirectory(name: String) {
         findElement(byTag("newFolder")).click()
         val inputField = awaitElement(byTag("renameField"))
         inputField.sendKeys(name + Keys.ENTER)
     }
 
-    fun WebDriver.openFolder(name: String) {
+    private fun WebDriver.openFolder(name: String) {
         retrySection {
             val rows = findElements(byTag("fileRow"))
-            val row = rows.find { it.findElementOrNull(byTag("fileName"))?.text == name }!!
-            val findElement = row.findElement(By.tagName("a")).findElement(By.tagName("div"))
+            val row = FileRow(rows.find { it.findElementOrNull(byTag("fileName"))?.text == name }!!)
+            val findElement = row.path?.findElement(By.tagName("div"))
             // Correct element will for some reason not be clicked
-            findElement.click()
+            findElement?.click()
         }
     }
 
-    fun WebDriver.uploadFile() {
+    private fun WebDriver.uploadFile() {
         with(UploadDialog) {
             open()
             val flag = Files.createTempFile("file", ".txt").toFile().also { it.writeText("Hi!") }
@@ -82,7 +91,7 @@ class EndToEndTest {
         }
     }
 
-    fun WebDriver.uploadArchive() {
+    private fun WebDriver.uploadArchive() {
         val file = Files.createTempFile("archive", ".tar.gz").toFile()
         file.outputStream().use { outs ->
             javaClass.classLoader.getResourceAsStream("complex.tar.gz").use { it.copyTo(outs) }
@@ -101,6 +110,22 @@ class EndToEndTest {
         }
     }
 
+    private fun WebDriver.createLinkForFile(name: String) {
+        retrySection {
+            val rows = findElements(byTag("fileRow"))
+            val fileRow = FileRow(rows.find { it.findElementOrNull(byTag("fileName"))?.text == name }!!)
+            fileRow.openDropdown()
+            fileRow.clickDropdownOption(DropdownOption.CREATE_LINK)
+        }
+    }
+
+    private fun WebDriver.checkFile(name: String) {
+        retrySection {
+            val rows = findElements(byTag("fileRow"))
+            val fileRow = FileRow(rows.find { it.findElementOrNull(byTag("fileName"))?.text == name }!!)
+            fileRow.checkBox?.click()
+        }
+    }
 }
 
 fun byTag(tag: String): By = By.cssSelector("[data-tag=\"$tag\"]")
@@ -135,14 +160,58 @@ object UploadDialog {
     }
 }
 
-class UploadRow(val element: WebElement) {
-    val startButton: WebElement?
+class FileRow(private val element: WebElement) {
+    val checkBox: WebElement?
+        get() = element.findElementOrNull(By.tagName("label"))
+
+    val path: WebElement?
+        get() = element.findElementOrNull(By.tagName("a"))
+
+    val leftSortingRow: WebElement?
+        get() = element.findElementOrNull(byTag("sortingLeft"))
+
+    val rightSortingRow: WebElement?
+        get() = element.findElementOrNull(byTag("sortingRight"))
+
+    private val dropdown: WebElement?
+        get() = element.findElementOrNull(byTag("dropdown"))
+
+    val favorite: WebElement?
+        get() = element.findElementOrNull(byTag(("fileFavorite")))
+
+    fun openDropdown() {
+        dropdown!!.click()
+    }
+
+    fun clickDropdownOption(option: DropdownOption) {
+        val dropdownOptions = dropdown?.findElements(By.tagName("div"))!!
+        dropdownOptions.find {el ->
+            el.findElement(By.tagName("span"))?.text == option.option
+        }!!.click()
+    }
+}
+
+enum class DropdownOption(val option: String) {
+    RENAME("Rename"),
+    SHARE("Share"),
+    DOWNLOAD("Download"),
+    SENSITIVITY("Sensitivity"),
+    COPY("Copy"),
+    MOVE("Move"),
+    MOVE_TO_TRASH("Move to Trash"),
+    PROPERTIES("Properties"),
+    CREATE_PROJECT("Create Project"),
+    CREATE_LINK("Create link")
+}
+
+class UploadRow(private val element: WebElement) {
+    private val startButton: WebElement?
         get() = element.findElementOrNull(byTag("startUpload"))
 
-    val removeButton: WebElement?
+    private val removeButton: WebElement?
         get() = element.findElementOrNull(byTag("removeUpload"))
 
-    val cancelButton: WebElement?
+    private val cancelButton: WebElement?
         get() = element.findElementOrNull(byTag("cancelButton"))
 
     fun start() {

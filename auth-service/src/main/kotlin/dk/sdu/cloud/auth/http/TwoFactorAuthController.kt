@@ -42,24 +42,25 @@ class TwoFactorAuthController<DBSession>(
 
         implement(TwoFactorAuthDescriptions.answerChallengeViaForm) {
             with(ctx as HttpCall) {
+                okContentAlreadyDelivered()
+
                 val params = try {
                     call.receiveParameters().toMap()
                 } catch (ex: Exception) {
-                    return@implement call.respondRedirect("/auth/login?invalid")
+                    return@implement loginResponder.handleUnsuccessful2FA(call, true, null, null)
                 }
 
                 val challengeId = params["challengeId"]?.firstOrNull()
                 val verificationCode = params["verificationCode"]?.firstOrNull()
 
                 if (challengeId == null || verificationCode == null) {
-                    return@implement call.respondRedirect("/auth/login?invalid")
+                    log.debug("Bad request")
+                    return@implement loginResponder.handleUnsuccessful2FA(call, true, null, null)
                 }
-
-                okContentAlreadyDelivered()
 
                 val codeAsInt =
                     verificationCode.toIntOrNull()
-                        ?: return@implement call.respondRedirect("/auth/2fa?challengeId=$challengeId&invalid")
+                        ?: return@implement loginResponder.handleUnsuccessful2FA(call, true, null, challengeId)
 
                 verifyChallenge(call, challengeId, codeAsInt, submittedViaForm = true)
             }
@@ -85,37 +86,7 @@ class TwoFactorAuthController<DBSession>(
         }
 
         suspend fun fail() {
-            if (submittedViaForm && call.request.accept()?.contains(ContentType.Application.Json.toString()) != true) {
-                val params = ArrayList<Pair<String, String>>()
-
-                if (exception is TwoFactorException.InvalidChallenge) {
-                    // Make them go back through the entire thing (hopefully)
-                    call.respondRedirect("/")
-                } else {
-                    if (exception != null) {
-                        params.add("message" to exception.why)
-                    } else {
-                        params.add("invalid" to "true")
-                    }
-
-                    call.respondRedirect("/auth/2fa" +
-                            "?challengeId=$challengeId&" +
-                            params.joinToString("&") { it.first.urlEncoded + "=" + it.second.urlEncoded }
-                    )
-                }
-            } else {
-                if (exception != null) {
-                    call.respond(exception.httpStatusCode, exception.why)
-                } else {
-                    call.respond(
-                        HttpStatusCode.Unauthorized,
-                        TextContent(
-                            defaultMapper.writeValueAsString(CommonErrorMessage("Incorrect code")),
-                            ContentType.Application.Json
-                        )
-                    )
-                }
-            }
+            loginResponder.handleUnsuccessful2FA(call, submittedViaForm, exception, challengeId)
         }
 
         if (!verified && challenge == null) {
