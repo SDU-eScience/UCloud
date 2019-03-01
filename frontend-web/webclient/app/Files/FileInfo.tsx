@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { toLowerCaseAndCapitalize, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
+import { capitalized, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
 import { sizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
@@ -69,7 +69,7 @@ class FileInfo extends React.Component<FileInfo> {
                 header={
                     <>
                         <Heading.h2>{fileName}</Heading.h2>
-                        <Heading.h5 color="gray">{toLowerCaseAndCapitalize(file.fileType)}</Heading.h5>
+                        <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
                     </>}
                 main={
                     <>

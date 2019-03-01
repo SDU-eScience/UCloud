@@ -37,7 +37,7 @@ import { responsiveBP } from "ui-components/theme";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 
-export const inDevEnvironment = process.env.NODE_ENV === "development"
+export const inDevEnvironment = () => process.env.NODE_ENV !== "development";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,

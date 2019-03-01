@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, Box, Icon, ExternalLink } from "ui-components";
-import { toLowerCaseAndCapitalize } from "UtilityFunctions";
+import { capitalized } from "UtilityFunctions";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { fetchPublications, setZenodoLoading, setErrorMessage } from "./Redux/ZenodoActions";
@@ -108,7 +108,7 @@ const PublicationRow = ({ publication }) => {
         <TableRow>
             <TableCell>{publication.id}</TableCell>
             <TableCell>{publication.name}</TableCell>
-            <TableCell>{toLowerCaseAndCapitalize(publication.status)}</TableCell>
+            <TableCell>{capitalized(publication.status)}</TableCell>
             <TableCell>{dateToString(publication.modifiedAt)}</TableCell>
             <TableCell>
                 <ClickableDropdown width="145px" trigger={<Icon name="ellipsis" />}>
