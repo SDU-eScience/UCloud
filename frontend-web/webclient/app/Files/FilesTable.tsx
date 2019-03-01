@@ -191,14 +191,22 @@ export const ContextBar = ({ files, ...props }: ContextBarProps) => (
     </Box>
 );
 
+const SidebarContent = styled.div`
+    grid: auto-flow;
+    & > * {
+        margin-left: 5px;
+        margin-right: 5px;
+    }
+`;
+
 export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
     <VerticalButtonGroup>
         {!inTrashFolder ?
-            <>
-                <Button color="blue" onClick={showUploader} data-tag="uploadButton">Upload Files</Button>
-                <OutlineButton color="blue" onClick={createFolder} data-tag="newFolder">New folder</OutlineButton>
-            </> :
-            <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
+            <SidebarContent>
+                <Button color="blue" style={{ maxWidth: "201px" }} onClick={showUploader} data-tag="uploadButton">Upload Files</Button>
+                <OutlineButton color="blue" style={{ maxWidth: "201px" }} onClick={createFolder} data-tag="newFolder">New folder</OutlineButton>
+            </SidebarContent> :
+            <Button color="red" style={{ maxWidth: "201px" }} onClick={() => clearTrash(Cloud, () => toHome())}>
                 Empty trash
             </Button>}
     </VerticalButtonGroup>
