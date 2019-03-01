@@ -554,9 +554,10 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
 
 function updateSensitivity(files: File[], cloud: SDUCloud, onSensitivityChange?: () => void) {
     UF.sensitivitySwal().then(input => {
+        if (!!input.dismiss) return;
         Promise.all(
             files.map(file => reclassifyFile(file, input.value as SensitivityLevelMap, cloud))
-        ).catch(e => 
+        ).catch(e =>
             UF.errorMessageOrDefault(e, "Could not reclassify file")
         ).then(() => !!onSensitivityChange ? onSensitivityChange() : null);
     });

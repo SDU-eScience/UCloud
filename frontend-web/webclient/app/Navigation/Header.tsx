@@ -87,7 +87,7 @@ class Header extends React.Component<HeaderProps, any> {
 }
 
 export const Refresh = ({ onClick, spin }: { onClick?: () => void, spin: boolean }) => !!onClick ?
-    <RefreshIcon name="refresh" spin={spin} onClick={() => onClick()} /> : <Box width="24px" />
+    <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin} onClick={() => onClick()} /> : <Box width="24px" />
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
