@@ -17,7 +17,7 @@ import java.util.*
 class ManagementTest {
 
     private val node = ""
-    private val mount = ""
+    private val mount = "path/to/something"
 
     private val elastic = RestHighLevelClient(
         RestClient.builder(
@@ -118,6 +118,13 @@ class ManagementTest {
         val backupService = BackupService(elastic, mount)
         backupService.start()
         backupService.deleteBackup()
+    }
+
+    @Ignore
+    @Test
+    fun `test Settings`() {
+        val service = AutoSettingsService(elastic)
+        service.removeFloodLimitationOnAll()
     }
 
 }

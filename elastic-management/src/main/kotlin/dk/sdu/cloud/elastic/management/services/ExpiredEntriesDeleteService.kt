@@ -38,6 +38,11 @@ class ExpiredEntriesDeleteService(
             RequestOptions.DEFAULT
         ).count
 
+        if (expiredCount == 0L) {
+            log.info("Nothing expired in index - moving on")
+            return
+        }
+
         if (sizeOfIndex == expiredCount) {
             log.info("All doc expired - faster to delete index")
             deleteFullIndex(index)
@@ -61,6 +66,7 @@ class ExpiredEntriesDeleteService(
     fun cleanUp() {
         val list = elastic.indices().get(GetIndexRequest().indices("*"), RequestOptions.DEFAULT).indices
         list.forEach {
+            log.info("Finding expired entries in $it")
             deleteExpired(it)
         }
     }

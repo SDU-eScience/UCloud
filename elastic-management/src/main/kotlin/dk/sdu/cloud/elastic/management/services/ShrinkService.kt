@@ -64,21 +64,20 @@ class ShrinkService(
 
 
     fun shrink() {
-        val yesterday = LocalDate.now().minusDays(1).toString().replace("-","." )
-        val list = elastic.indices().get(GetIndexRequest().indices("*-$yesterday"), RequestOptions.DEFAULT).indices
+        val yesterdayPeriodFormat = LocalDate.now().minusDays(1).toString().replace("-","." )
+        val list = elastic.indices().get(GetIndexRequest().indices("*-$yesterdayPeriodFormat"), RequestOptions.DEFAULT).indices
 
         list.forEach {
+            var counter = 0
+            log.info("Shrinking $it")
             prepareSourceIndex(it)
-        }
-
-        val indices = list.joinToString().replace("\\s".toRegex(), "")
-        log.debug("Working on $indices")
-        while (elastic.cluster().health(ClusterHealthRequest(indices), RequestOptions.DEFAULT).relocatingShards > 0) {
-            log.info("Waiting for relocate")
-            Thread.sleep(500)
-        }
-
-        list.forEach {
+            while (elastic.cluster().health(ClusterHealthRequest(it), RequestOptions.DEFAULT).relocatingShards > 0) {
+                if (counter % 10 == 0) {
+                    log.info("Waiting for relocate")
+                }
+                counter++
+                Thread.sleep(500)
+            }
             shrinkIndex(it)
             deleteIndex(it)
         }
