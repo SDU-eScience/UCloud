@@ -226,8 +226,10 @@ class Search extends React.Component<SearchProps> {
     }
 };
 
+// FIXME: Move to own file. 
 export const SearchOptions = styled(Flex)`
     border-bottom: 1px solid ${theme.colors.lightGray};
+    cursor: pointer;
 `;
 
 SearchOptions.defaultProps = {

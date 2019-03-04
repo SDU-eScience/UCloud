@@ -7,17 +7,16 @@ import PromiseKeeper from "PromiseKeeper";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
-import { Input, Icon, Button, Divider, Flex, OutlineButton } from "ui-components";
+import { Input, Icon, Button, Flex, Box } from "ui-components";
 import * as ReactModal from "react-modal";
-import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
 import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 import { addTrailingSlash, errorMessageOrDefault } from "UtilityFunctions";
 import styled from "styled-components";
-import { SpaceProps } from "styled-system";
 import { Refresh } from "Navigation/Header";
 import { Page } from "Types";
+import { SelectableText, SearchOptions } from "Search/Search";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -131,21 +130,22 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
     <ReactModal isOpen={props.show} shouldCloseOnEsc ariaHideApp={false} onRequestClose={props.onHide}
         style={FileSelectorModalStyle}
     >
-        <Spacer alignItems="center"
-            left={<Heading.h3>File selector</Heading.h3>}
-            right={<><FavoritesButton mr="15px" toFavorites={props.toFavorites} /><Icon name="close" onClick={props.onHide} /></>}
-        />
-        <Divider />
+        <SearchOptions>
+            <SelectableText cursor="pointer" mr="1em" selected={!props.isFavorites} onClick={() => props.fetchFiles(Cloud.homeFolder, props.page.pageNumber, props.page.itemsPerPage)}>
+                Browse
+            </SelectableText>
+            <SelectableText cursor="pointer" onClick={() => props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage)} selected={props.isFavorites} >
+                Favorites
+            </SelectableText>
+            <Box mr="auto" />
+            <Icon name="close" onClick={props.onHide} />
+        </SearchOptions>
         <Spacer height={"3em"} alignItems="center"
             left={<BreadCrumbs
                 homeFolder={Cloud.homeFolder}
                 currentPath={props.path}
                 navigate={path => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />}
-            right={<>
-                {props.isFavorites ? <Icon name="ftFolder" cursor="pointer" mr="10px" title="To home" onClick={() => props.fetchFiles(Cloud.homeFolder, props.page.pageNumber, props.page.itemsPerPage)} /> :
-                    <Icon name="starFilled" cursor="pointer" mr="10px" title="Show favorites" onClick={() => props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage)} />}
-                <Refresh spin={props.loading} onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />
-            </>}
+            right={<Refresh spin={props.loading} onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />}
         />
         <PaginationList
             errorMessage={props.errorMessage}
@@ -168,11 +168,6 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
         />
     </ReactModal>
 );
-
-type FavoritesButton = { toFavorites?: () => void } & SpaceProps;
-const FavoritesButton = ({ toFavorites, ...props }: FavoritesButton) => toFavorites != null ? (
-    <OutlineButton {...props} onClick={() => toFavorites()}>View Favorites</OutlineButton>
-) : null;
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;

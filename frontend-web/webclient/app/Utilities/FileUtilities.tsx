@@ -1,6 +1,6 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType, FileOperation } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, FileType, FileOperation } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal, { SweetAlertResult } from "sweetalert2";
