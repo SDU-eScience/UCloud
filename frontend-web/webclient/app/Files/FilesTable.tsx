@@ -314,7 +314,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             <Truncate cursor={cursor} mr="5px">{fileName}</Truncate>
         </Flex>
         :
-        <Box width="100%" >
+        <Box title={file.path} width="100%" >
             <FileLink file={file}>
                 <Flex alignItems="center">
                     {icon}
