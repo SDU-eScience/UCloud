@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.client.HttpClientConverter
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.HttpServerConverter
+import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -54,6 +55,11 @@ data class DeleteNotificationRequest(
 data class DeleteResponse(val failures: List<Long>)
 data class MarkResponse(val failures: List<Long>)
 
+typealias SubscriptionRequest = Unit
+typealias SubscriptionResponse = Notification
+
+data class InternalNotificationRequest(val user: String, val notification: Notification)
+typealias InternalNotificationResponse = Unit
 
 object NotificationDescriptions : CallDescriptionContainer("notifications") {
     const val baseContext = "/api/notifications"
@@ -144,4 +150,22 @@ object NotificationDescriptions : CallDescriptionContainer("notifications") {
             }
         }
     }
+
+    val subscription = call<SubscriptionRequest, SubscriptionResponse, CommonErrorMessage>("subscription") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
+    }
+
+    internal val internalNotification =
+        call<InternalNotificationRequest, InternalNotificationResponse, CommonErrorMessage>("internalNotification") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ
+            }
+
+            websocket(baseContext)
+        }
 }

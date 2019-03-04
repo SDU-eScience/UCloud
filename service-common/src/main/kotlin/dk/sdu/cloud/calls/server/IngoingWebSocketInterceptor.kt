@@ -60,9 +60,9 @@ class WSCall internal constructor(
 }
 
 class WSSession internal constructor(val id: String, val underlyingSession: WebSocketServerSession) {
-    internal val onCloseHandlers = ArrayList<() -> Unit>()
+    internal val onCloseHandlers = ArrayList<suspend () -> Unit>()
 
-    fun addOnCloseHandler(handler: () -> Unit) {
+    fun addOnCloseHandler(handler: suspend () -> Unit) {
         onCloseHandlers.add(handler)
     }
 
@@ -263,6 +263,8 @@ val CallDescription<*, *, *>.wsServerConfig: WebsocketServerCallConfig
     }
 
 // TODO This is not using the correct writer
-suspend fun <S : Any> CallHandler<*, S, *>.sendWSMessage(ctx: WSCall, message: S) {
-    ctx.sendMessage(message, description.successType)
+suspend fun <S : Any> CallHandler<*, S, *>.sendWSMessage(message: S) {
+    withContext<WSCall> {
+        ctx.sendMessage(message, description.successType)
+    }
 }

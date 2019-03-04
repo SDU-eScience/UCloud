@@ -123,6 +123,13 @@ data class AuthenticatedClient(
     }
 }
 
+fun AuthenticatedClient.withFixedHost(hostInfo: HostInfo): AuthenticatedClient {
+    return AuthenticatedClient(client, companion) {
+        authenticator(it)
+        it.attributes.outgoingTargetHost = hostInfo
+    }
+}
+
 fun AuthenticatedClient.withoutAuthentication(): ClientAndBackend = ClientAndBackend(client, companion)
 
 suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.call(
