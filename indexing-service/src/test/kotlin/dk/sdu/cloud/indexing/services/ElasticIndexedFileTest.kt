@@ -39,7 +39,7 @@ class ElasticIndexedFileTest {
         assertEquals(123456, materializedElasticFile.size)
         assertFalse(materializedElasticFile.link)
         assertEquals("P", materializedElasticFile.annotations.first())
-        assertEquals(SensitivityLevel.CONFIDENTIAL, materializedElasticFile.sensitivityLevel)
+        assertEquals(SensitivityLevel.CONFIDENTIAL, materializedElasticFile.ownSensitivityLevel)
 
         assertEquals("id", ElasticIndexedFile.ID_FIELD)
         assertEquals("path", ElasticIndexedFile.PATH_FIELD)

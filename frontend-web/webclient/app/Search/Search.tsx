@@ -28,19 +28,14 @@ import { SidebarPages } from "ui-components/Sidebar";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { Spacer } from "ui-components/Spacer";
 import { Cloud } from "Authentication/SDUCloudObject";
-
-interface SearchPane {
-    headerType: HeaderSearchType
-    menuItem: string
-    render: () => JSX.Element
-}
+import { prettierString } from "UtilityFunctions";
+import { inDevEnvironment } from "App";
 
 class Search extends React.Component<SearchProps> {
 
     componentDidMount() {
         this.props.toggleAdvancedSearch();
         this.props.setActivePage();
-
         const query = this.query;
         this.props.setSearch(query);
         this.props.setPrioritizedSearch(this.props.match.params.priority as HeaderSearchType);
@@ -120,7 +115,7 @@ class Search extends React.Component<SearchProps> {
         props.setError();
         props.searchFiles({ ...this.fileSearchBody, fileName: search, itemsPerPage: itemsPerPage || this.props.files.itemsPerPage });
         props.searchApplications(search, this.props.applications.pageNumber, itemsPerPage || this.props.applications.itemsPerPage);
-        props.searchProjects(search, this.props.projects.pageNumber, itemsPerPage || this.props.projects.itemsPerPage);
+        if (inDevEnvironment) props.searchProjects(search, this.props.projects.pageNumber, itemsPerPage || this.props.projects.itemsPerPage);
     }
 
     search() {
@@ -137,82 +132,71 @@ class Search extends React.Component<SearchProps> {
             onDeleted: () => refreshFiles(),
             onExtracted: () => refreshFiles(),
             onLinkCreate: () => refreshFiles(),
+            onSensitivityChange: () => refreshFiles(),
             setLoading: () => this.props.setFilesLoading(true)
         });
-        // FIXME: Search Pane approach is obsolete
-        const panes: SearchPane[] = [
-            {
-                headerType: "files",
-                menuItem: "Files",
-                render: () => (
-                    <Pagination.List
-                        loading={filesLoading}
-                        pageRenderer={page => (
-                            <FilesTable
-                                files={page.items}
-                                sortOrder={SortOrder.ASCENDING}
-                                sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY]}
-                                sortFiles={() => undefined}
-                                onCheckFile={() => undefined}
-                                refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
-                                sortBy={SortBy.PATH}
-                                onFavoriteFile={files => this.props.setFilesPage(favoriteFileFromPage(this.props.files, files, Cloud))}
-                                fileOperations={fileOperations}
-                            />
-                        )}
-                        page={files}
-                        onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
-                    />
-                )
-            },
-            {
-                headerType: "projects",
-                menuItem: "Projects",
-                render: () => (
-                    <Pagination.List
-                        loading={projectsLoading}
-                        pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
-                        page={projects}
-                        onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
-                    />
-                )
-            },
-            {
-                headerType: "applications",
-                menuItem: "Applications",
-                render: () => (
-                    <Pagination.List
-                        loading={applicationsLoading}
-                        pageRenderer={({ items }) =>
-                            <GridCardGroup>
-                                {items.map(app =>
-                                    <ApplicationCard
-                                        key={`${app.metadata.name}${app.metadata.version}`}
-                                        app={app}
-                                        isFavorite={app.favorite}
-                                    />)}
-                            </GridCardGroup>
-                        }
-                        page={applications}
-                        onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
-                    />
-                )
-            }
-        ];
-        const activeIndex = SearchPriorityToNumber(this.props.match.params.priority);
 
-        const Tab = ({ pane, index }: { pane: SearchPane, index: number }): JSX.Element => (
+        const Tab = ({ searchType }: { searchType: HeaderSearchType }): JSX.Element => (
             <SelectableText
-                key={index}
                 cursor="pointer"
                 fontSize={2}
-                onClick={() => this.setPath(pane.headerType)}
-                selected={activeIndex === index}
+                onClick={() => this.setPath(searchType)}
+                selected={priority === searchType}
                 mr="1em"
             >
-                {pane.menuItem}
+                {prettierString(searchType)}
             </SelectableText>
         );
+
+        const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
+        if (inDevEnvironment()) allowedSearchTypes.push("projects");
+
+        let main;
+        const { priority } = this.props.match.params;
+        if (priority === "files") {
+            main = <Pagination.List
+                loading={filesLoading}
+                pageRenderer={page => (
+                    <FilesTable
+                        files={page.items}
+                        sortOrder={SortOrder.ASCENDING}
+                        sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY]}
+                        sortFiles={() => undefined}
+                        onCheckFile={() => undefined}
+                        refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
+                        sortBy={SortBy.PATH}
+                        onFavoriteFile={files => this.props.setFilesPage(favoriteFileFromPage(this.props.files, files, Cloud))}
+                        fileOperations={fileOperations}
+                    />
+                )}
+                page={files}
+                onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
+            />
+        } else if (priority === "applications") {
+            main = <Pagination.List
+                loading={applicationsLoading}
+                pageRenderer={({ items }) =>
+                    <GridCardGroup>
+                        {items.map(app =>
+                            <ApplicationCard
+                                key={`${app.metadata.name}${app.metadata.version}`}
+                                app={app}
+                                isFavorite={app.favorite}
+                            />)}
+                    </GridCardGroup>
+                }
+                page={applications}
+                onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
+            />
+        } else if (priority === "projects" && allowedSearchTypes.includes("projects")) {
+            main = <Pagination.List
+                loading={projectsLoading}
+                pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
+                page={projects}
+                onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
+            />
+        }
+
         return (
             <MainContainer
                 header={
@@ -224,20 +208,20 @@ class Search extends React.Component<SearchProps> {
                             </form>
                         </Hide>
                         <SearchOptions>
-                            {panes.map((pane, index) => <Tab pane={pane} index={index} key={index} />)}
+                            {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
                         </SearchOptions>
                         <Spacer left={null} right={<Pagination.EntriesPerPageSelector
                             onChange={itemsPerPage => this.fetchAll(this.props.search, itemsPerPage)}
-                            content={`${panes[activeIndex].menuItem} per page`}
+                            content={`${prettierString(priority)} per page`}
                             entriesPerPage={
-                                activeIndex === 0 ? this.props.files.itemsPerPage : (
-                                    activeIndex === 1 ? this.props.projects.itemsPerPage :
+                                priority === "files" ? this.props.files.itemsPerPage : (
+                                    priority === "applications" ? this.props.projects.itemsPerPage :
                                         this.props.applications.itemsPerPage)
                             }
                         />} />
                     </React.Fragment>
                 }
-                main={panes[activeIndex].render()}
+                main={main}
             />
         );
     }
@@ -257,12 +241,6 @@ export const SelectableText = styled(Text) <{ selected: boolean }>`
 
 SelectableText.defaultProps = {
     theme
-}
-
-const SearchPriorityToNumber = (search: string): number => {
-    if (search.toLocaleLowerCase() === "projects") return 1;
-    else if (search.toLocaleLowerCase() === "applications") return 2;
-    return 0;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({

@@ -92,7 +92,7 @@ export const LoginPage = (props: { history: History }) => {
             setLoading(true);
             const formData = new FormData();
             formData.append("challengeId", challengeId);
-            formData.append("verificationCodes", verificationCode);
+            formData.append("verificationCode", verificationCode);
             const response = await fetch(`/auth/2fa/challenge/form`, {
                 method: "POST",
                 headers: {
@@ -102,7 +102,6 @@ export const LoginPage = (props: { history: History }) => {
             });
             if (!response.ok) throw response;
             const result = await response.json();
-            console.log(result);
             Cloud.setTokens(result.accessToken, result.csrfToken);
             props.history.push("/loginRedirect");
         } catch (e) {

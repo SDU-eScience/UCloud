@@ -93,4 +93,3 @@ class RefreshingJWTAuthenticator(
         override val log = logger()
     }
 }
-

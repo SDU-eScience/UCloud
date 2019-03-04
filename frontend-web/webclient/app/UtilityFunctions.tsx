@@ -16,7 +16,7 @@ import { HTTP_STATUS_CODES } from "Utilities/XHRUtils";
  * @param str string to be lowercased and capitalized
  * @return {string}
  */
-export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+export const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
 /**
  * Returns a string based on the amount of users associated with the ACL
@@ -127,6 +127,25 @@ export function shareSwal() {
     });
 }
 
+export function sensitivitySwal() {
+    return swal({
+        title: "Change Sensitivity",
+        input: "select",
+        inputOptions: {
+            "INHERIT": "Inherit",
+            "PRIVATE": "Private",
+            "CONFIDENTIAL": "Confidential",
+            "SENSITIVE": "Sensitive"
+        },
+        showCloseButton: true,
+        showCancelButton: true,
+        focusConfirm: false,
+        inputValidator: (value: string) => {
+            return null;
+        }
+    });
+}
+
 export const elementValue = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
 export const selectValue = (id: string): string => (document.getElementById(id) as HTMLSelectElement).value;
 
@@ -137,13 +156,13 @@ export const inputSwal = (inputName: string) => ({
     showCancelButton: true,
     inputPlaceholder: `Enter ${inputName}...`,
     focusConfirm: false,
-    inputValidator: (value: string) => (!value && `${toLowerCaseAndCapitalize(inputName)} missing`)
+    inputValidator: (value: string) => (!value && `${capitalized(inputName)} missing`)
 });
 
 export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     switch (sortBy) {
         case SortBy.TYPE:
-            return toLowerCaseAndCapitalize(file.fileType);
+            return capitalized(file.fileType);
         case SortBy.PATH:
             return getFilenameFromPath(file.path);
         case SortBy.CREATED_AT:
@@ -323,7 +342,7 @@ export const ifPresent = (f: any, handler: (f: any) => void) => {
 export const downloadAllowed = (files: File[]) =>
     files.length === 1 && files.every(f => f.sensitivityLevel !== "SENSITIVE")
 
-export const prettierString = (str: string) => toLowerCaseAndCapitalize(str).replace(/_/g, " ")
+export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ")
 
 export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }): number {
     let request: XMLHttpRequest = error.request;

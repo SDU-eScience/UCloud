@@ -1,4 +1,4 @@
-package dk.sdu.cloud.integration
+package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.ChartRequest
@@ -40,6 +40,8 @@ import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
 import dk.sdu.cloud.file.trash.api.TrashRequest
 import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
 import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
+import dk.sdu.cloud.integration.adminClient
+import dk.sdu.cloud.integration.client
 import dk.sdu.cloud.notification.api.ListNotificationRequest
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
@@ -135,25 +137,25 @@ class FileTesting {
         awaitFSReady(users)
 
         with(users[0]) {
-//            createDirectoryTest()
+            createDirectoryTest()
             smallFileUploadTest()
-//            largeFileUploadTest()
-//            copyFilesTest()
-//            moveFilesTest()
-//            deleteDirectTest()
-//            deleteTrashTest()
-//            simpleArchiveTest()
-//            complexArchiveTest()
-//            favoritesTest()
-//            sensitivityTest()
-//            singleDownloadTest()
-//            bulkDownloadTest()
-//            accountingTest()
-//            searchTest()
-//            activityTest()
+            largeFileUploadTest()
+            copyFilesTest()
+            moveFilesTest()
+            deleteDirectTest()
+            deleteTrashTest()
+            simpleArchiveTest()
+            complexArchiveTest()
+            favoritesTest()
+            sensitivityTest()
+            singleDownloadTest()
+            bulkDownloadTest()
+            accountingTest()
+            searchTest()
+            activityTest()
         }
 
-//        shareTest(users[0], users[1])
+        shareTest(users[0], users[1])
 
         return@runBlocking
     }
@@ -194,17 +196,19 @@ class FileTesting {
     private suspend fun UserAndClient.createDirectoryTest() {
         log.info("Testing creation of directories")
 
-        createDir(DirectoryTest.DIR)
-        repeat(DirectoryTest.DIR_COUNT) {
-            createDir(DirectoryTest.DIR, "$it")
+        createDir(Companion.DirectoryTest.DIR)
+        repeat(Companion.DirectoryTest.DIR_COUNT) {
+            createDir(Companion.DirectoryTest.DIR, "$it")
         }
 
         run {
             val homeDir = listAt()
-            requireFile(homeDir, FileType.DIRECTORY, DirectoryTest.DIR)
+            requireFile(homeDir, FileType.DIRECTORY,
+                Companion.DirectoryTest.DIR
+            )
 
-            val dir = listAt(DirectoryTest.DIR)
-            repeat(DirectoryTest.DIR_COUNT) {
+            val dir = listAt(Companion.DirectoryTest.DIR)
+            repeat(Companion.DirectoryTest.DIR_COUNT) {
                 requireFile(dir, FileType.DIRECTORY, "$it")
             }
         }
@@ -221,7 +225,10 @@ class FileTesting {
         MultiPartUploadDescriptions.upload.call(
             StreamingRequest.Outgoing(
                 UploadRequest(
-                    joinPath(homeFolder, DIR, NAME),
+                    joinPath(homeFolder,
+                        DIR,
+                        NAME
+                    ),
                     upload = StreamingFile.fromFile(fileToUpload)
                 )
             ),
@@ -229,8 +236,12 @@ class FileTesting {
         ).orThrow()
 
         run {
-            requireFile(listAt(), FileType.DIRECTORY, DIR)
-            requireFile(listAt(DIR), FileType.FILE, NAME)
+            requireFile(listAt(), FileType.DIRECTORY,
+                DIR
+            )
+            requireFile(listAt(DIR), FileType.FILE,
+                NAME
+            )
         }
 
         log.info("Small file uploaded!")
@@ -248,8 +259,14 @@ class FileTesting {
         log.info("Testing copy of file")
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, SmallFileUpload.DIR, SmallFileUpload.NAME),
-                newPath = joinPath(homeFolder, DIR, FILE_NAME)
+                path = joinPath(homeFolder,
+                    Companion.SmallFileUpload.DIR,
+                    Companion.SmallFileUpload.NAME
+                ),
+                newPath = joinPath(homeFolder,
+                    DIR,
+                    FILE_NAME
+                )
             ),
             client
         ).orThrow()
@@ -258,8 +275,11 @@ class FileTesting {
         log.info("Testing copy of directory")
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, SmallFileUpload.DIR),
-                newPath = joinPath(homeFolder, DIR, FOLDER_NAME)
+                path = joinPath(homeFolder, Companion.SmallFileUpload.DIR),
+                newPath = joinPath(homeFolder,
+                    DIR,
+                    FOLDER_NAME
+                )
             ),
             client
         ).orThrow()
@@ -269,20 +289,35 @@ class FileTesting {
 
             val list = listAt(DIR)
             requireFile(list, FileType.FILE, FILE_NAME)
-            requireFile(list, FileType.DIRECTORY, FOLDER_NAME)
+            requireFile(list, FileType.DIRECTORY,
+                FOLDER_NAME
+            )
 
-            requireFile(listAt(DIR, FOLDER_NAME), FileType.FILE, SmallFileUpload.NAME)
+            requireFile(listAt(
+                DIR,
+                FOLDER_NAME
+            ), FileType.FILE, Companion.SmallFileUpload.NAME
+            )
         }
         log.info("Directory copied!")
     }
 
     private suspend fun UserAndClient.moveFilesTest(): Unit = with(Move) {
         createDir(DIR)
-        createDir(DIR, FILE_BEFORE)
+        createDir(
+            DIR,
+            FILE_BEFORE
+        )
         FileDescriptions.move.call(
             MoveRequest(
-                path = joinPath(homeFolder, DIR, FILE_BEFORE),
-                newPath = joinPath(homeFolder, DIR, FILE_AFTER)
+                path = joinPath(homeFolder,
+                    DIR,
+                    FILE_BEFORE
+                ),
+                newPath = joinPath(homeFolder,
+                    DIR,
+                    FILE_AFTER
+                )
             ),
             client
         ).orThrow()
@@ -291,18 +326,29 @@ class FileTesting {
             requireFile(listAt(), FileType.DIRECTORY, DIR)
 
             val list = listAt(DIR)
-            requireFile(list, FileType.DIRECTORY, FILE_AFTER)
+            requireFile(list, FileType.DIRECTORY,
+                FILE_AFTER
+            )
         }
     }
 
     private suspend fun UserAndClient.deleteDirectTest(): Unit = with(DeleteDirect) {
         createDir(DIR)
-        val fileToDelete = joinPath(homeFolder, DIR, FILE_TO_DELETE)
-        val dirToDelete = joinPath(homeFolder, DIR, DIR_TO_DELETE)
+        val fileToDelete = joinPath(homeFolder,
+            DIR,
+            FILE_TO_DELETE
+        )
+        val dirToDelete = joinPath(homeFolder,
+            DIR,
+            DIR_TO_DELETE
+        )
 
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, SmallFileUpload.DIR, SmallFileUpload.NAME),
+                path = joinPath(homeFolder,
+                    Companion.SmallFileUpload.DIR,
+                    Companion.SmallFileUpload.NAME
+                ),
                 newPath = fileToDelete
             ),
             client
@@ -310,7 +356,7 @@ class FileTesting {
 
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, SmallFileUpload.DIR),
+                path = joinPath(homeFolder, Companion.SmallFileUpload.DIR),
                 newPath = dirToDelete
             ),
             client
@@ -327,7 +373,9 @@ class FileTesting {
         ).orThrow()
 
         run {
-            requireFile(listAt(), FileType.DIRECTORY, DIR)
+            requireFile(listAt(), FileType.DIRECTORY,
+                DIR
+            )
             val list = listAt(DIR)
             if (list.isNotEmpty()) throw IllegalArgumentException("Some files were not deleted correctly!")
         }
@@ -335,12 +383,21 @@ class FileTesting {
 
     private suspend fun UserAndClient.deleteTrashTest(): Unit = with(DeleteTrash) {
         createDir(DIR)
-        val fileToDelete = joinPath(homeFolder, DIR, FILE_TO_DELETE)
-        val dirToDelete = joinPath(homeFolder, DIR, DIR_TO_DELETE)
+        val fileToDelete = joinPath(homeFolder,
+            DIR,
+            FILE_TO_DELETE
+        )
+        val dirToDelete = joinPath(homeFolder,
+            DIR,
+            DIR_TO_DELETE
+        )
 
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, SmallFileUpload.DIR, SmallFileUpload.NAME),
+                path = joinPath(homeFolder,
+                    Companion.SmallFileUpload.DIR,
+                    Companion.SmallFileUpload.NAME
+                ),
                 newPath = fileToDelete
             ),
             client
@@ -348,7 +405,7 @@ class FileTesting {
 
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, SmallFileUpload.DIR),
+                path = joinPath(homeFolder, Companion.SmallFileUpload.DIR),
                 newPath = dirToDelete
             ),
             client
@@ -362,7 +419,9 @@ class FileTesting {
         FileTrashDescriptions.clear.call(Unit, client).orThrow()
 
         run {
-            requireFile(listAt(), FileType.DIRECTORY, DIR)
+            requireFile(listAt(), FileType.DIRECTORY,
+                DIR
+            )
             val list = listAt(DIR)
             if (list.isNotEmpty()) throw IllegalArgumentException("Some files were not deleted correctly!")
         }
@@ -370,8 +429,14 @@ class FileTesting {
 
     private suspend fun UserAndClient.simpleArchiveTest(): Unit = with(SimpleArchive) {
         createDir(DIR)
-        createDir(DIR, DIR_ZIP)
-        createDir(DIR, DIR_TGZ)
+        createDir(
+            DIR,
+            DIR_ZIP
+        )
+        createDir(
+            DIR,
+            DIR_TGZ
+        )
 
         run {
             log.info("Uploading zip file")
@@ -381,7 +446,10 @@ class FileTesting {
             MultiPartUploadDescriptions.bulkUpload.call(
                 StreamingRequest.Outgoing(
                     BulkUploadRequest(
-                        location = joinPath(homeFolder, DIR, DIR_ZIP),
+                        location = joinPath(homeFolder,
+                            DIR,
+                            DIR_ZIP
+                        ),
                         policy = WriteConflictPolicy.OVERWRITE,
                         format = "zip",
                         upload = StreamingFile.fromFile(zipFile)
@@ -400,7 +468,10 @@ class FileTesting {
             MultiPartUploadDescriptions.bulkUpload.call(
                 StreamingRequest.Outgoing(
                     BulkUploadRequest(
-                        location = joinPath(homeFolder, DIR, DIR_TGZ),
+                        location = joinPath(homeFolder,
+                            DIR,
+                            DIR_TGZ
+                        ),
                         policy = WriteConflictPolicy.OVERWRITE,
                         format = "tgz",
                         upload = StreamingFile.fromFile(tgzFile)
@@ -412,15 +483,23 @@ class FileTesting {
         }
 
         run {
-            requireFile(listAt(), FileType.DIRECTORY, DIR)
+            requireFile(listAt(), FileType.DIRECTORY,
+                DIR
+            )
 
             retrySection {
-                val zipList = listAt(DIR, DIR_ZIP)
+                val zipList = listAt(
+                    DIR,
+                    DIR_ZIP
+                )
                 (1..10).forEach {
                     requireFile(zipList, FileType.FILE, "$it")
                 }
 
-                val tgzList = listAt(DIR, DIR_TGZ)
+                val tgzList = listAt(
+                    DIR,
+                    DIR_TGZ
+                )
                 (1..10).forEach {
                     requireFile(tgzList, FileType.FILE, "$it")
                 }
@@ -430,8 +509,14 @@ class FileTesting {
 
     private suspend fun UserAndClient.complexArchiveTest(): Unit = with(ComplexArchive) {
         createDir(DIR)
-        createDir(DIR, DIR_ZIP)
-        createDir(DIR, DIR_TGZ)
+        createDir(
+            DIR,
+            DIR_ZIP
+        )
+        createDir(
+            DIR,
+            DIR_TGZ
+        )
 
         run {
             log.info("Uploading zip file")
@@ -441,7 +526,10 @@ class FileTesting {
             MultiPartUploadDescriptions.bulkUpload.call(
                 StreamingRequest.Outgoing(
                     BulkUploadRequest(
-                        location = joinPath(homeFolder, DIR, DIR_ZIP),
+                        location = joinPath(homeFolder,
+                            DIR,
+                            DIR_ZIP
+                        ),
                         policy = WriteConflictPolicy.OVERWRITE,
                         format = "zip",
                         upload = StreamingFile.fromFile(zipFile)
@@ -460,7 +548,10 @@ class FileTesting {
             MultiPartUploadDescriptions.bulkUpload.call(
                 StreamingRequest.Outgoing(
                     BulkUploadRequest(
-                        location = joinPath(homeFolder, DIR, DIR_TGZ),
+                        location = joinPath(homeFolder,
+                            DIR,
+                            DIR_TGZ
+                        ),
                         policy = WriteConflictPolicy.OVERWRITE,
                         format = "tgz",
                         upload = StreamingFile.fromFile(tgzFile)
@@ -472,11 +563,17 @@ class FileTesting {
         }
 
         run {
-            requireFile(listAt(), FileType.DIRECTORY, DIR)
+            requireFile(listAt(), FileType.DIRECTORY,
+                DIR
+            )
 
             val list = listAt(DIR)
-            requireFile(list, FileType.DIRECTORY, DIR_ZIP)
-            requireFile(list, FileType.DIRECTORY, DIR_TGZ)
+            requireFile(list, FileType.DIRECTORY,
+                DIR_ZIP
+            )
+            requireFile(list, FileType.DIRECTORY,
+                DIR_TGZ
+            )
 
             suspend fun testDir(vararg components: String) {
                 val path1 = listOf("A", "B", "C", "D", "foo")
@@ -500,8 +597,14 @@ class FileTesting {
             }
 
             retrySection {
-                testDir(DIR, DIR_ZIP)
-                testDir(DIR, DIR_TGZ)
+                testDir(
+                    DIR,
+                    DIR_ZIP
+                )
+                testDir(
+                    DIR,
+                    DIR_TGZ
+                )
             }
         }
     }
@@ -510,7 +613,9 @@ class FileTesting {
         log.info("Toggling favorites")
         repeat(3) {
             FileFavoriteDescriptions.toggleFavorite.call(
-                ToggleFavoriteRequest(joinPath(homeFolder, FILE_TO_FAVORITE)),
+                ToggleFavoriteRequest(joinPath(homeFolder,
+                    FILE_TO_FAVORITE
+                )),
                 client
             ).orThrow()
         }
@@ -520,10 +625,16 @@ class FileTesting {
     private suspend fun UserAndClient.sensitivityTest(): Unit = with(SensitivityTest) {
         createDir(DIR)
 
-        val filePath = joinPath(homeFolder, DIR, FILE_TO_TEST)
+        val filePath = joinPath(homeFolder,
+            DIR,
+            FILE_TO_TEST
+        )
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, SmallFileUpload.DIR, SmallFileUpload.NAME),
+                path = joinPath(homeFolder,
+                    Companion.SmallFileUpload.DIR,
+                    Companion.SmallFileUpload.NAME
+                ),
                 newPath = filePath
             ),
             client
@@ -546,7 +657,10 @@ class FileTesting {
             val newSensitivity = FileDescriptions.stat.call(FindByPath(filePath), client).orThrow().sensitivityLevel
             assertEquals(SensitivityLevel.SENSITIVE, newSensitivity)
 
-            val copyPath = joinPath(homeFolder, DIR, FILE_COPY)
+            val copyPath = joinPath(homeFolder,
+                DIR,
+                FILE_COPY
+            )
             FileDescriptions.copy.call(
                 CopyRequest(
                     path = filePath,
@@ -585,7 +699,10 @@ class FileTesting {
         val outputFile = Files.createTempFile("", "").toFile()
         FileDescriptions.download
             .call(
-                DownloadByURI(joinPath(homeFolder, SmallFileUpload.DIR, SmallFileUpload.NAME), token = null),
+                DownloadByURI(joinPath(homeFolder,
+                    Companion.SmallFileUpload.DIR,
+                    Companion.SmallFileUpload.NAME
+                ), token = null),
                 client
             )
             .orThrow()
@@ -595,9 +712,9 @@ class FileTesting {
             .copyTo(outputFile.outputStream())
 
         val readText = outputFile.readText()
-        if (readText != SmallFileUpload.CONTENTS) {
+        if (readText != Companion.SmallFileUpload.CONTENTS) {
             throw IllegalStateException(
-                "Expected file to contain '${SmallFileUpload.CONTENTS}' but instead it " +
+                "Expected file to contain '${Companion.SmallFileUpload.CONTENTS}' but instead it " +
                         "contains '$readText'"
             )
         }
@@ -607,7 +724,9 @@ class FileTesting {
         val outputFile = Files.createTempFile("", ".zip").toFile()
         FileDescriptions.download
             .call(
-                DownloadByURI(joinPath(homeFolder, SimpleArchive.DIR), token = null),
+                DownloadByURI(joinPath(homeFolder,
+                    Companion.SimpleArchive.DIR
+                ), token = null),
                 client
             )
             .orThrow()
@@ -638,7 +757,7 @@ class FileTesting {
     private suspend fun UserAndClient.searchTest() {
         val searchResults = FileSearchDescriptions.advancedSearch.call(
             AdvancedSearchRequest(
-                fileName = SmallFileUpload.NAME.fileName(),
+                fileName = Companion.SmallFileUpload.NAME.fileName(),
                 fileTypes = listOf(FileType.FILE),
                 itemsPerPage = 100,
                 page = 0,
@@ -651,14 +770,19 @@ class FileTesting {
             client
         ).orThrow()
 
-        requireFile(searchResults.items, FileType.FILE, SmallFileUpload.NAME)
+        requireFile(searchResults.items, FileType.FILE,
+            Companion.SmallFileUpload.NAME
+        )
     }
 
     private suspend fun UserAndClient.activityTest() {
         run {
             val feed = ActivityDescriptions.listByPath.call(
                 ListActivityByPathRequest(
-                    joinPath(homeFolder, SmallFileUpload.DIR, SmallFileUpload.NAME),
+                    joinPath(homeFolder,
+                        Companion.SmallFileUpload.DIR,
+                        Companion.SmallFileUpload.NAME
+                    ),
                     itemsPerPage = 100,
                     page = 0
                 ),
@@ -682,7 +806,9 @@ class FileTesting {
         }
     }
 
-    private suspend fun shareTest(owner: UserAndClient, otherUser: UserAndClient): Unit = with(SendShare) {
+    private suspend fun shareTest(owner: UserAndClient, otherUser: UserAndClient): Unit = with(
+        SendShare
+    ) {
         with(owner) {
             createDir(DIR)
 
@@ -721,14 +847,19 @@ class FileTesting {
                 client
             ).orThrow()
 
-            createDir(DIR, ITEM_TO_CREATE)
+            createDir(
+                DIR,
+                ITEM_TO_CREATE
+            )
         }
 
         with(owner) {
             FileDescriptions.move.call(
                 MoveRequest(
                     path = joinPath(homeFolder, DIR),
-                    newPath = joinPath(homeFolder, RENAME)
+                    newPath = joinPath(homeFolder,
+                        RENAME
+                    )
                 ),
                 client
             ).orThrow()
@@ -741,7 +872,10 @@ class FileTesting {
         }
 
         with (owner) {
-            listAt(RENAME, ITEM_TO_CREATE)
+            listAt(
+                RENAME,
+                ITEM_TO_CREATE
+            )
         }
     }
 
@@ -801,7 +935,7 @@ class FileTesting {
         }
 
         object Favorites {
-            const val FILE_TO_FAVORITE = DirectoryTest.DIR
+            const val FILE_TO_FAVORITE = Companion.DirectoryTest.DIR
         }
 
         object SensitivityTest {

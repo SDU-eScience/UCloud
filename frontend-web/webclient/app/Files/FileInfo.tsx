@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { toLowerCaseAndCapitalize, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
+import { capitalized, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
 import { sizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
@@ -69,14 +69,17 @@ class FileInfo extends React.Component<FileInfo> {
                 header={
                     <>
                         <Heading.h2>{fileName}</Heading.h2>
-                        <Heading.h5 color="gray">{toLowerCaseAndCapitalize(file.fileType)}</Heading.h5>
+                        <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
                     </>}
                 main={
                     <>
                         <FileView
                             file={file}
                             onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
-                            onReclassify={async level => props.receiveFileStat(await reclassifyFile(file, level, Cloud))} />
+                            onReclassify={async level => {
+                                props.receiveFileStat(await reclassifyFile(file, level, Cloud))
+                                props.fetchFileStat(this.path)
+                            }} />
                         {activity.items.length ? (
                             <Flex flexDirection="row" justifyContent="center">
                                 <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
@@ -123,12 +126,14 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
                         color="blue"
                     />
                 </Attribute>
+                <Attribute name="Shared with" value={`${file.acl !== undefined ? file.acl.length : 0} people`} />
             </AttributeBox>
             <AttributeBox>
                 <Attribute name="Sensitivity">
                     <ClickableDropdown
                         chevron
-                        trigger={SensitivityLevel[file.sensitivityLevel]}
+                        trigger={SensitivityLevel[!!file.ownSensitivityLevel ? 
+                            file.ownSensitivityLevel : SensitivityLevelMap.INHERIT]}
                         onChange={e => onReclassify(e as SensitivityLevelMap)}
                         options={
                             Object.keys(SensitivityLevel).map(key => ({
@@ -137,8 +142,8 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
                             }))
                         } />
                 </Attribute>
+                <Attribute name="Computed sensitivity" value={SensitivityLevel[file.sensitivityLevel]} />
                 <Attribute name="Size" value={sizeToString(file.size)} />
-                <Attribute name="Shared with" value={`${file.acl !== undefined ? file.acl.length : 0} people`} />
             </AttributeBox>
         </Flex >
     );

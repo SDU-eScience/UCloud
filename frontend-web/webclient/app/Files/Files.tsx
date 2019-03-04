@@ -121,8 +121,9 @@ class Files extends React.Component<FilesProps> {
             fileSelectorOps: this.fileSelectorOperations,
             onDeleted: this.refetch,
             onExtracted: this.refetch,
+            onSensitivityChange: this.refetch,
             onClearTrash: () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
-            onLinkCreate: (p) => this.props.fetchPageFromPath(p, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
+            onLinkCreate: p => this.props.fetchPageFromPath(p, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
             history: this.props.history,
             setLoading: () => this.props.setLoading(true)
         })
@@ -211,15 +212,15 @@ class Files extends React.Component<FilesProps> {
         return (
             <MainContainer
                 header={header}
-                main={main}
-                sidebar={sidebar}
+                main={<>{props.responsive!.lessThan.xl ? sidebar : null}{main}</>}
+                sidebar={props.responsive!.lessThan.xl ? null : sidebar}
                 additional={additional}
             />
         );
     }
 }
 
-const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
+const mapStateToProps = ({ files, responsive }: ReduxObject): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown, invalidPath,
         fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns, fileSelectorIsFavorites } = files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
@@ -228,7 +229,8 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     return {
         error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath, invalidPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
-        renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], fileSelectorIsFavorites
+        renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], fileSelectorIsFavorites,
+        responsive
     }
 };
 

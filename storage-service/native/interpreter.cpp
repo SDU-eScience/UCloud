@@ -498,7 +498,7 @@ int main(int argc, char **argv) {
             auto attribute = NEXT_ARGUMENT(1);
             verify_path_or_fatal(path);
 
-            printf("%d\n", xattr_delete_command(path, attribute));
+            printf("EXIT:%d\n", xattr_delete_command(path, attribute));
         } else if (IS_COMMAND("stat")) {
             auto path = NEXT_ARGUMENT(0);
             auto mode = (uint64_t) NEXT_ARGUMENT_INT(1);

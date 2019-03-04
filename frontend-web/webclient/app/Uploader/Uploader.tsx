@@ -30,7 +30,7 @@ const newUpload = (file: File): Upload => ({
     file,
     conflictFile: undefined,
     resolution: UploadPolicy.RENAME,
-    sensitivity: "PRIVATE",
+    sensitivity: "INHERIT",
     isUploading: false,
     progressPercentage: 0,
     extractArchive: false,
@@ -240,56 +240,58 @@ class Uploader extends React.Component<UploaderProps> {
             <Modal isOpen={props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.setUploaderVisible(false)}
                 style={this.modalStyle}
             >
-                <Spacer
-                    left={<Heading>Upload Files</Heading>}
-                    right={props.loading ? <Refresh onClick={() => undefined} spin /> : null}
-                />
-                <Divider />
-                {props.error ?
-                    <Box pt="0.5em" pr="0.5em" pl="0.5em">
-                        <Error error={props.error} clearError={() => props.setUploaderError()} />
-                    </Box> : null}
-                {finishedUploads(uploads) > 0 ? (<OutlineButton mt="4px" mb="4px" color="green" fullWidth onClick={() => this.clearFinishedUploads()}>
-                    Clear finished uploads
+                <div data-tag={"uploadModal"}>
+                    <Spacer
+                        left={<Heading>Upload Files</Heading>}
+                        right={props.loading ? <Refresh onClick={() => undefined} spin /> : null}
+                    />
+                    <Divider />
+                    {props.error ?
+                        <Box pt="0.5em" pr="0.5em" pl="0.5em">
+                            <Error error={props.error} clearError={() => props.setUploaderError()} />
+                        </Box> : null}
+                    {finishedUploads(uploads) > 0 ? (<OutlineButton mt="4px" mb="4px" color="green" fullWidth onClick={() => this.clearFinishedUploads()}>
+                        Clear finished uploads
                 </OutlineButton>) : null}
-                {uploads.filter(it => !it.isUploading).length >= 5 ?
-                    <OutlineButton color="blue" fullWidth mt="4px" mb="4px" onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}>
-                        Clear unstarted uploads
+                    {uploads.filter(it => !it.isUploading).length >= 5 ?
+                        <OutlineButton color="blue" fullWidth mt="4px" mb="4px" onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}>
+                            Clear unstarted uploads
                     </OutlineButton> : null}
-                <Box>
-                    {uploads.map((upload, index) => (
-                        <React.Fragment key={index}>
-                            <UploaderRow
-                                upload={upload}
-                                setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
-                                onExtractChange={value => this.onExtractChange(index, value)}
-                                onUpload={() => this.startUpload(index)}
-                                onDelete={it => (it.preventDefault(), this.removeUpload(index))}
-                                onAbort={it => (it.preventDefault(), this.abort(index))}
-                                onClear={it => (it.preventDefault(), this.clearUpload(index))}
-                                setRewritePolicy={policy => this.setRewritePolicy(index, policy)}
-                            />
-                            <Divider />
-                        </React.Fragment>
-                    ))}
-                    {uploads.filter(it => !it.isUploading).length > 1 ?
-                        <Button fullWidth color="green" onClick={this.startAllUploads}>
-                            <Icon name={"upload"} />{" "}Start all!</Button> : null}
-                    <ReactDropzone onDrop={this.onFilesAdded}>
-                        {({ getRootProps, getInputProps }) =>
-                            <DropZoneBox {...getRootProps()}>
-                                <input {...getInputProps()} />
-                                <p>
-                                    <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
-                                    <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
-                                </p>
-                                <p>
-                                    <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
-                                </p>
-                            </DropZoneBox>
-                        }
-                    </ReactDropzone>
-                </Box>
+                    <Box>
+                        {uploads.map((upload, index) => (
+                            <React.Fragment key={index}>
+                                <UploaderRow
+                                    upload={upload}
+                                    setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
+                                    onExtractChange={value => this.onExtractChange(index, value)}
+                                    onUpload={() => this.startUpload(index)}
+                                    onDelete={it => (it.preventDefault(), this.removeUpload(index))}
+                                    onAbort={it => (it.preventDefault(), this.abort(index))}
+                                    onClear={it => (it.preventDefault(), this.clearUpload(index))}
+                                    setRewritePolicy={policy => this.setRewritePolicy(index, policy)}
+                                />
+                                <Divider />
+                            </React.Fragment>
+                        ))}
+                        {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ?
+                            <Button fullWidth color="green" onClick={this.startAllUploads}>
+                                <Icon name={"upload"} />{" "}Start all!</Button> : null}
+                        <ReactDropzone onDrop={this.onFilesAdded}>
+                            {({ getRootProps, getInputProps }) =>
+                                <DropZoneBox {...getRootProps()}>
+                                    <input {...getInputProps()} />
+                                    <p>
+                                        <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
+                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
+                                    </p>
+                                    <p>
+                                        <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
+                                    </p>
+                                </DropZoneBox>
+                            }
+                        </ReactDropzone>
+                    </Box>
+                </div>
             </Modal>
 
         );
@@ -311,6 +313,7 @@ const DropZoneBox = styled(Box)`
 `;
 
 const privacyOptions = [
+    { text: "Inherit", value: "INHERIT" },
     { text: "Private", value: "PRIVATE" },
     { text: "Confidential", value: "CONFIDENTIAL" },
     { text: "Sensitive", value: "SENSITIVE" }
@@ -339,7 +342,7 @@ const UploaderRow = (p: {
                 />
                 <br />
                 {isArchiveExtension(p.upload.file.name) ?
-                    <Flex>
+                    <Flex data-tag={"extractArchive"}>
                         <label>Extract archive?</label>
                         <Box ml="0.5em" />
                         <Toggle
@@ -350,12 +353,20 @@ const UploaderRow = (p: {
             </Box>
             <Box width={0.3}>
                 <ButtonGroup width="100%">
-                    {!p.upload.isPending ? <Button
-                        color="green"
-                        onClick={e => ifPresent(p.onUpload, c => c(e))}
-                    ><Icon name="cloud upload" />Upload</Button> :
-                        <Button color="blue" disabled>Pending</Button>}
-                    <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))}><Icon name="close" /></Button>
+                    {!p.upload.isPending ?
+                        <Button
+                            data-tag={"startUpload"}
+                            color="green"
+                            onClick={e => ifPresent(p.onUpload, c => c(e))}
+                        >
+                            <Icon name="cloud upload" />Upload
+                        </Button>
+                        :
+                        <Button color="blue" disabled>Pending</Button>
+                    }
+                    <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
+                        <Icon name="close" />
+                    </Button>
                 </ButtonGroup>
                 <Flex justifyContent="center" pt="0.3em">
                     <ClickableDropdown
@@ -380,15 +391,22 @@ const UploaderRow = (p: {
             </Box>
             <ProgressBar upload={p.upload} />
             <Box width={0.22}>
-                {!isFinishedUploading(p.upload.uploadXHR) ? <Button
-                    fullWidth
-                    color="red"
-                    onClick={e => ifPresent(p.onAbort, c => c(e))}
-                >Cancel</Button> : <Button
-                    fullWidth
-                    color="red"
-                    onClick={e => ifPresent(p.onClear, c => c(e))}
-                >
+                {!isFinishedUploading(p.upload.uploadXHR) ?
+                    <Button
+                        fullWidth
+                        color="red"
+                        onClick={e => ifPresent(p.onAbort, c => c(e))}
+                        data-tag={"cancelUpload"}
+                    >
+                        Cancel
+                    </Button>
+                    :
+                    <Button
+                        fullWidth
+                        color="red"
+                        onClick={e => ifPresent(p.onClear, c => c(e))}
+                        data-tag={"removeUpload"}
+                    >
                         <Icon name="close" />
                     </Button>}
             </Box>
@@ -396,7 +414,7 @@ const UploaderRow = (p: {
     }
 
     return (
-        <Flex flexDirection="row">
+        <Flex flexDirection="row" data-tag={"uploadRow"}>
             <Box width={0.04} textAlign="center">
                 <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
             </Box>

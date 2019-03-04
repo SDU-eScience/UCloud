@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.joinPath
@@ -33,7 +34,9 @@ sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: 
         contextFactory: suspend () -> Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,
-        stream: InputStream
+        stream: InputStream,
+        sensitivity: SensitivityLevel?,
+        sensitivityService: FileSensitivityService<Ctx>
     ): List<String>
 
     companion object {
@@ -59,40 +62,50 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
         contextFactory: suspend () -> UnixFSCommandRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
-        stream: InputStream
+        stream: InputStream,
+        sensitivity: SensitivityLevel?,
+        sensitivityService: FileSensitivityService<UnixFSCommandRunner>
     ): List<String> {
-        return BasicUploader.uploadFromSequence(serviceCloud, path, fs, contextFactory, conflictPolicy, sequence {
-            yield(ArchiveEntry.Directory(path))
+        return BasicUploader.uploadFromSequence(
+            serviceCloud,
+            path,
+            fs,
+            contextFactory,
+            conflictPolicy,
+            sensitivity,
+            sensitivityService,
+            sequence {
+                yield(ArchiveEntry.Directory(path))
 
-            ZipInputStream(stream).use { zipStream ->
-                var entry: ZipEntry? = zipStream.nextEntry
-                while (entry != null) {
-                    val initialTargetPath = joinPath(path, entry.name)
-                    if (entry.name.contains("__MACOSX")) {
-                        log.debug("Skipping Entry: " + entry.name)
-                        entry = zipStream.nextEntry
-                    } else {
-                        if (entry.isDirectory) {
-
-                            val allComponents = initialTargetPath.components()
-                            val paths = (2..allComponents.size).map { i ->
-                                joinPath(*allComponents.take(i).toTypedArray())
-                            }
-                            paths.forEach {
-                                yield(ArchiveEntry.Directory(it))
-                            }
+                ZipInputStream(stream).use { zipStream ->
+                    var entry: ZipEntry? = zipStream.nextEntry
+                    while (entry != null) {
+                        val initialTargetPath = joinPath(path, entry.name)
+                        if (entry.name.contains("__MACOSX")) {
+                            log.debug("Skipping Entry: " + entry.name)
+                            entry = zipStream.nextEntry
                         } else {
-                            yield(ArchiveEntry.File(
-                                path = initialTargetPath,
-                                stream = zipStream,
-                                dispose = { zipStream.closeEntry() }
-                            ))
+                            if (entry.isDirectory) {
+
+                                val allComponents = initialTargetPath.components()
+                                val paths = (2..allComponents.size).map { i ->
+                                    joinPath(*allComponents.take(i).toTypedArray())
+                                }
+                                paths.forEach {
+                                    yield(ArchiveEntry.Directory(it))
+                                }
+                            } else {
+                                yield(ArchiveEntry.File(
+                                    path = initialTargetPath,
+                                    stream = zipStream,
+                                    dispose = { zipStream.closeEntry() }
+                                ))
+                            }
+                            entry = zipStream.nextEntry
                         }
-                        entry = zipStream.nextEntry
                     }
                 }
-            }
-        })
+            })
     }
 }
 
@@ -106,36 +119,46 @@ object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRun
         contextFactory: suspend () -> UnixFSCommandRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
-        stream: InputStream
+        stream: InputStream,
+        sensitivity: SensitivityLevel?,
+        sensitivityService: FileSensitivityService<UnixFSCommandRunner>
     ): List<String> {
-        return BasicUploader.uploadFromSequence(serviceCloud, path, fs, contextFactory, conflictPolicy, sequence {
-            TarInputStream(GZIPInputStream(stream)).use {
-                var entry: TarEntry? = it.nextEntry
-                while (entry != null) {
-                    val initialTargetPath = joinPath(path, entry.name)
-                    val cappedStream = CappedInputStream(it, entry.size)
-                    if (entry.name.contains("PaxHeader/")) {
-                        // This is some meta data stuff in the tarball. We don't want this
-                        log.debug("Skipping entry: ${entry.name}")
-                        cappedStream.skipRemaining()
-                    } else {
-                        if (entry.isDirectory) {
-                            yield(ArchiveEntry.Directory(initialTargetPath))
+        return BasicUploader.uploadFromSequence(
+            serviceCloud,
+            path,
+            fs,
+            contextFactory,
+            conflictPolicy,
+            sensitivity,
+            sensitivityService,
+            sequence {
+                TarInputStream(GZIPInputStream(stream)).use {
+                    var entry: TarEntry? = it.nextEntry
+                    while (entry != null) {
+                        val initialTargetPath = joinPath(path, entry.name)
+                        val cappedStream = CappedInputStream(it, entry.size)
+                        if (entry.name.contains("PaxHeader/")) {
+                            // This is some meta data stuff in the tarball. We don't want this
+                            log.debug("Skipping entry: ${entry.name}")
+                            cappedStream.skipRemaining()
                         } else {
-                            yield(
-                                ArchiveEntry.File(
-                                    path = initialTargetPath,
-                                    stream = cappedStream,
-                                    dispose = { cappedStream.skipRemaining() }
+                            if (entry.isDirectory) {
+                                yield(ArchiveEntry.Directory(initialTargetPath))
+                            } else {
+                                yield(
+                                    ArchiveEntry.File(
+                                        path = initialTargetPath,
+                                        stream = cappedStream,
+                                        dispose = { cappedStream.skipRemaining() }
+                                    )
                                 )
-                            )
+                            }
                         }
-                    }
 
-                    entry = it.nextEntry
+                        entry = it.nextEntry
+                    }
                 }
-            }
-        })
+            })
     }
 }
 
@@ -163,6 +186,8 @@ private object BasicUploader : Loggable {
         fs: CoreFileSystemService<Ctx>,
         contextFactory: suspend () -> Ctx,
         conflictPolicy: WriteConflictPolicy,
+        sensitivity: SensitivityLevel?,
+        sensitivityService: FileSensitivityService<Ctx>,
         sequence: Sequence<ArchiveEntry>
     ): List<String> {
         val rejectedFiles = ArrayList<String>()
@@ -250,6 +275,9 @@ private object BasicUploader : Loggable {
                                 is ArchiveEntry.Directory -> {
                                     createdDirectories += targetPath
                                     fs.makeDirectory(ctx, targetPath)
+                                    if (sensitivity != null) {
+                                        sensitivityService.setSensitivityLevel(ctx, targetPath, sensitivity)
+                                    }
                                 }
 
                                 is ArchiveEntry.File -> {
@@ -258,12 +286,16 @@ private object BasicUploader : Loggable {
                                         createdDirectories += parentDir
                                         try {
                                             fs.makeDirectory(ctx, parentDir)
+                                            if (sensitivity != null) {
+                                                sensitivityService.setSensitivityLevel(ctx, parentDir, sensitivity)
+                                            }
                                         } catch (ex: FSException.AlreadyExists) {
                                             log.debug("Parent directory already exists")
                                         }
                                     }
 
-                                    fs.write(ctx, targetPath, conflictPolicy) { entry.stream.copyTo(this) }
+                                    val newFile = fs.write(ctx, targetPath, conflictPolicy) { entry.stream.copyTo(this) }
+                                    if (sensitivity != null) sensitivityService.setSensitivityLevel(ctx, newFile, sensitivity)
                                 }
                             }
                         } catch (ex: FSException.PermissionException) {

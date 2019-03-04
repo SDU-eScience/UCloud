@@ -219,10 +219,6 @@ static void print_sensitivity(std::ostream &stream, const char *path) {
     GETXATTR(path, "user.sensitivity", &xattr_buffer, 32);
 
     char *sensitivity_result = xattr_buffer;
-    if (strlen(xattr_buffer) == 0) {
-        sensitivity_result = const_cast<char *>("PRIVATE");
-    }
-
     EMIT_STAT(sensitivity_result);
 }
 

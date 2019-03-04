@@ -5,19 +5,19 @@ import { SortBy, SortOrder, Acl } from "Files";
 // TO LOWER CASE AND CAPITALIZE
 
 test("All upper case and numbers", () => {
-    expect(UF.toLowerCaseAndCapitalize("ABACUS 2.0")).toBe("Abacus 2.0");
+    expect(UF.capitalized("ABACUS 2.0")).toBe("Abacus 2.0");
 });
 
 test("All lower case", () => {
-    expect(UF.toLowerCaseAndCapitalize("abacus")).toBe("Abacus");
+    expect(UF.capitalized("abacus")).toBe("Abacus");
 });
 
 test("Mixed case and special characters", () => {
-    expect(UF.toLowerCaseAndCapitalize("aBaCuS 2.0 !@#$%^&*()")).toBe("Abacus 2.0 !@#$%^&*()")
+    expect(UF.capitalized("aBaCuS 2.0 !@#$%^&*()")).toBe("Abacus 2.0 !@#$%^&*()")
 });
 
 test("Empty string", () => {
-    expect(UF.toLowerCaseAndCapitalize("")).toBe("");
+    expect(UF.capitalized("")).toBe("");
 });
 
 // Add trailing slash
@@ -340,7 +340,7 @@ describe("sortingColumnToValue", () => {
     const favoritedFile = mockFiles_SensitivityConfidential.items[1];
 
     test("TYPE", () => {
-        expect(UF.sortingColumnToValue(SortBy.TYPE, file)).toBe(UF.toLowerCaseAndCapitalize(file.fileType))
+        expect(UF.sortingColumnToValue(SortBy.TYPE, file)).toBe(UF.capitalized(file.fileType))
     })
     test("PATH", () => {
         expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path))

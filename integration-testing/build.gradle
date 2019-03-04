@@ -30,6 +30,7 @@ dependencies {
     compile "dk.sdu.cloud:activity-api:1.0.0"
     compile "dk.sdu.cloud:notification-api:1.0.0"
     compile "dk.sdu.cloud:file-trash-api:1.1.0"
+    compile 'org.seleniumhq.selenium:selenium-server:3.141.59'
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 

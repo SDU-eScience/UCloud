@@ -3,17 +3,18 @@ import { File, FileOperation, PredicatedOperation } from "Files";
 import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
 import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate } from "ui-components";
+import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate, Tooltip } from "ui-components";
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
 import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
-import { KeyCode, ReduxObject } from "DefaultObjects";
+import { KeyCode, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import styled from "styled-components";
 import { SpaceProps } from "styled-system";
 import { connect } from "react-redux";
+import Theme from "ui-components/theme";
 
 const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, onDropdownSelect, sortingColumns,
@@ -23,8 +24,7 @@ const FilesTable = ({
     const checkedFiles = files.filter(it => it.isChecked);
     const checkedCount = checkedFiles.length;
     const columns = responsiveState!.greaterThan.md && sortingColumns.length === 2 ?
-        (responsiveState!.greaterThan.lg ? sortingColumns : [sortingColumns[1]])
-        : []; //on md or smaller display 0 columns
+        (responsiveState!.greaterThan.lg ? sortingColumns : [sortingColumns[1]]) : []; //on md or smaller display 0 columns
     return (
         <Table>
             <FilesTableHeader
@@ -43,7 +43,7 @@ const FilesTable = ({
             </FilesTableHeader>
             <TableBody>
                 {files.map((file, i) => (
-                    <TableRow highlighted={file.isChecked} key={i}>
+                    <TableRow highlighted={file.isChecked} key={file.path} data-tag={"fileRow"}>
                         <FilenameAndIcons
                             onNavigationClick={onNavigationClick}
                             file={file}
@@ -52,7 +52,10 @@ const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
-                        {sortingColumns.filter(it => it != null).map((sC, i) => (
+                        <TableCell>
+                            <SensitivityIcon sensitivity={file.sensitivityLevel} />
+                        </TableCell>
+                        {columns.filter(it => it != null).map((sC, i) => (
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
                         <TableCell textAlign="center">
@@ -94,20 +97,20 @@ const ResponsiveTableColumn = ({
     sortOrder,
     notSticky
 }: ResponsiveTableColumnProps) => (
-    <FileTableHeaderCell notSticky={notSticky} width="10rem" >
-        <Flex alignItems="center" cursor="pointer" justifyContent="left">
-            <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
-                <Arrow name={iconName} />
-            </Box>
-            <SortByDropdown
-                isSortedBy={isSortedBy}
-                onSelect={onSelect}
-                asDropdown={asDropdown}
-                currentSelection={currentSelection}
-                sortOrder={sortOrder} />
-        </Flex>
-    </FileTableHeaderCell>
-);
+        <FileTableHeaderCell notSticky={notSticky} width="10rem" >
+            <Flex alignItems="center" cursor="pointer" justifyContent="left">
+                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
+                    <Arrow name={iconName} />
+                </Box>
+                <SortByDropdown
+                    isSortedBy={isSortedBy}
+                    onSelect={onSelect}
+                    asDropdown={asDropdown}
+                    currentSelection={currentSelection}
+                    sortOrder={sortOrder} />
+            </Flex>
+        </FileTableHeaderCell>
+    );
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
@@ -134,6 +137,9 @@ const FilesTableHeader = ({
                         <Arrow name={toSortingIcon(SortBy.PATH)} />
                         <Box cursor="pointer">Filename</Box>
                     </Flex>
+                </FileTableHeaderCell>
+                <FileTableHeaderCell notSticky={notStickyHeader} width={"3em"}>
+                    <Flex />
                 </FileTableHeaderCell>
                 {sortingColumns.filter(it => it != null).map((sC, i) => (
                     <ResponsiveTableColumn
@@ -185,11 +191,23 @@ export const ContextBar = ({ files, ...props }: ContextBarProps) => (
     </Box>
 );
 
+const SidebarContent = styled.div`
+    grid: auto-flow;
+    & > * {
+        min-width: 75px;
+        max-width: 175px;
+        margin-left: 5px;
+        margin-right: 5px;
+    }
+`;
+
 export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
     <VerticalButtonGroup>
         {!inTrashFolder ?
-            <><Button color="blue" onClick={showUploader}>Upload Files</Button>
-                <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton></> :
+            <SidebarContent>
+                <Button color="blue" onClick={showUploader} data-tag="uploadButton">Upload Files</Button>
+                <OutlineButton color="blue" onClick={createFolder} data-tag="newFolder">New folder</OutlineButton>
+            </SidebarContent> :
             <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
                 Empty trash
             </Button>}
@@ -203,6 +221,7 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }: PredicatedCheckbox)
 
 const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
     <Icon
+        data-tag="fileFavorite"
         size="1em" ml=".7em"
         color={item.favorited ? "blue" : "gray"}
         name={item.favorited ? "starFilled" : "starEmpty"}
@@ -214,6 +233,36 @@ const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
 
 interface Groupicon { isProject: boolean }
 const GroupIcon = ({ isProject }: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
+
+const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
+    type IconDef = { color: string, text: string, shortText: string };
+    let def: IconDef;
+
+    switch (props.sensitivity) {
+        case SensitivityLevelMap.CONFIDENTIAL:
+            def = { color: Theme.colors.purple, text: "Confidential", shortText: "C" };
+            break;
+        case SensitivityLevelMap.SENSITIVE:
+            def = { color: "#ff0004", text: "Sensitive", shortText: "S" };
+            break;
+        default:
+            return null;
+    }
+
+    const badge = <SensitivityBadge bg={def.color}>{def.shortText}</SensitivityBadge>;
+    return <Tooltip top mb="50px" trigger={badge}>{def.text}</Tooltip>
+}
+
+const SensitivityBadge = styled.div<{ bg: string }>`
+    content: '';
+    height: 2em;
+    width: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0.2em solid ${props => props.bg};
+    border-radius: 0.2em;
+`;
 
 const FileLink = ({ file, children }: { file: File, children: any }) => {
     if (isDirectory(file)) {
@@ -250,7 +299,8 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             type="text"
             width="100%"
             autoFocus
-            onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
+            data-tag="renameField"
+            onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as HTMLInputElement).value) }}
         />
         <Icon size={"1em"} color="red" ml="9px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
     </>);
@@ -274,7 +324,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
         </Box>;
 
     const fileBox = (<>
-        <Flex flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
+        <Flex data-tag={"fileName"} flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
             {nameLink}
         </Flex>
         <GroupIcon isProject={isProject(file)} />

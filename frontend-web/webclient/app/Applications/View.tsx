@@ -18,7 +18,7 @@ import * as Heading from "ui-components/Heading"
 import ContainerForText from "ui-components/ContainerForText";
 
 import { dateToString } from "Utilities/DateUtilities";
-import { toLowerCaseAndCapitalize } from "UtilityFunctions"
+import { capitalized } from "UtilityFunctions"
 import { LoadingMainContainer } from "MainContainer/MainContainer";
 import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
 import { AppLogo, hashF } from "./Card";
@@ -272,7 +272,7 @@ function Information({ application }: { application: WithAppMetadata & WithAppIn
 
             <InfoAttribute
                 name="Container Type"
-                value={toLowerCaseAndCapitalize(application.invocation.tool.tool.description.backend)} />
+                value={capitalized(application.invocation.tool.tool.description.backend)} />
         </InfoAttributes>
     </>;
 }

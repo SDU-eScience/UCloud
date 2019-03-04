@@ -310,6 +310,7 @@ class UnixFileSystem(
         return ctx.runCommand(
             InterpreterCommand.DELETE_XATTR,
             absolutePath,
+            attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it"},
             consumer = this::consumeStatusCode
         )
     }
@@ -531,7 +532,7 @@ class UnixFileSystem(
             .let { it + (if (isDirectory) "/" else "") }
 
         if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) throw IllegalArgumentException(
-            "path is not in user-root"
+            "path ($path) is not in user-root"
         )
         if (path.contains("\n")) throw IllegalArgumentException("Path cannot contain new-lines")
         if (path.length >= PATH_MAX) throw IllegalArgumentException("Path is too long")

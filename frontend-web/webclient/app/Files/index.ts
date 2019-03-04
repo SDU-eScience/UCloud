@@ -23,6 +23,7 @@ export interface File {
     acl?: Acl[]
     favorited?: boolean
     sensitivityLevel: SensitivityLevelMap
+    ownSensitivityLevel?: SensitivityLevelMap
     isChecked?: boolean
     beingRenamed?: boolean
     link: boolean
@@ -75,6 +76,7 @@ export interface FilesStateProps { // Redux Props
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
     invalidPath: boolean
+    responsive?: ResponsiveReduxObject 
 }
 
 export interface FilesOperations { // Redux operations

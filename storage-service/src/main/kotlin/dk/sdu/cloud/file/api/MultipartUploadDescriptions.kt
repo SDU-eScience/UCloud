@@ -14,12 +14,12 @@ import io.ktor.http.HttpMethod
 
 data class UploadRequest(
     val location: String,
-    val sensitivity: SensitivityLevel = SensitivityLevel.PRIVATE,
+    val sensitivity: SensitivityLevel? = null,
     val policy: WriteConflictPolicy? = null,
     val upload: StreamingFile?
 )
 
-data class UploadRequestAudit(val path: String, val sensitivityLevel: SensitivityLevel, val owner: String)
+data class UploadRequestAudit(val path: String, val sensitivityLevel: SensitivityLevel?, val owner: String)
 
 data class MultiPartUploadAudit(val request: UploadRequestAudit?)
 
@@ -27,6 +27,7 @@ data class BulkUploadRequest(
     val location: String,
     val policy: WriteConflictPolicy,
     val format: String,
+    val sensitivity: SensitivityLevel? = null,
     val upload: StreamingFile
 )
 

@@ -69,7 +69,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
         const emptyChildren = React.Children.map(children, it => it).length === 0;
         let width = this.props.fullWidth ? "100%" : this.props.width;
         return (
-            <Dropdown ref={this.ref} fullWidth={this.props.fullWidth}>
+            <Dropdown data-tag="dropdown" ref={this.ref} fullWidth={this.props.fullWidth}>
                 <Text.TextSpan cursor="pointer" onClick={() => this.setState(() => ({ open: !this.state.open }))}>
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em" /> : null}
                 </Text.TextSpan>

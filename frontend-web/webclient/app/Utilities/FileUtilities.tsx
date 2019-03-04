@@ -1,6 +1,6 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType, FileOperation } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal, { SweetAlertResult } from "sweetalert2";
@@ -154,9 +154,9 @@ export const createFileLink = (file: File, cloud: SDUCloud, setLoading: () => vo
 };
 
 /**
- * @returns Share and Download operations for files
+ * @returns Stateless operations for files
  */
-export const StateLessOperations = (setLoading: () => void): Operation[] => [
+export const StateLessOperations = (setLoading: () => void, onSensitivityChange?: () => void): Operation[] => [
     {
         text: "Share",
         onClick: (files: File[], cloud: SDUCloud) => shareFiles(files, setLoading, cloud),
@@ -169,6 +169,13 @@ export const StateLessOperations = (setLoading: () => void): Operation[] => [
         onClick: (files: File[], cloud: SDUCloud) => downloadFiles(files, setLoading, cloud),
         disabled: (files: File[], cloud: SDUCloud) => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files),
         icon: "download",
+        color: undefined
+    },
+    {
+        text: "Sensitivity",
+        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity(files, cloud, onSensitivityChange),
+        disabled: (files: File[], cloud: SDUCloud) => false,
+        icon: "verified",
         color: undefined
     }
 ];
@@ -253,37 +260,40 @@ export const ClearTrashOperations = (toHome: () => void): Operation[] => [
 /**
  * @returns Properties and Project Operations for files.
  */
-export const HistoryFilesOperations = (history: History): [Operation, PredicatedOperation] => [
-    {
+export const HistoryFilesOperations = (history: History): FileOperation[] => {
+    let ops: FileOperation[] = [{
         text: "Properties",
         onClick: (files: File[], cloud: SDUCloud) => history.push(fileInfoPage(files[0].path)),
         disabled: (files: File[], cloud: SDUCloud) => files.length !== 1,
         icon: "properties", color: "blue"
-    },
-    {
-        predicate: (files: File[], cloud: SDUCloud) => isProject(files[0]),
-        onTrue: {
-            text: "Edit Project",
-            onClick: (files: File[], cloud: SDUCloud) => history.push(projectViewPage(files[0].path)),
-            disabled: (files: File[], cloud: SDUCloud) => !canBeProject(files, cloud.homeFolder),
-            icon: "projects", color: "blue"
-        },
-        onFalse: {
-            text: "Create Project",
-            onClick: (files: File[], cloud: SDUCloud) =>
-                UF.createProject(
-                    files[0].path,
-                    cloud,
-                    projectPath => history.push(projectViewPage(projectPath))
-                ),
-            disabled: (files: File[], cloud: SDUCloud) =>
-                files.length !== 1 || !canBeProject(files, cloud.homeFolder) ||
-                !allFilesHasAccessRight("READ", files) || !allFilesHasAccessRight("WRITE", files),
-            icon: "projects",
-            color: "blue"
-        },
-    }
-];
+    }]
+
+    if (process.env.NODE_ENV === "development")
+        ops.push({
+            predicate: (files: File[], cloud: SDUCloud) => isProject(files[0]),
+            onTrue: {
+                text: "Edit Project",
+                onClick: (files: File[], cloud: SDUCloud) => history.push(projectViewPage(files[0].path)),
+                disabled: (files: File[], cloud: SDUCloud) => !canBeProject(files, cloud.homeFolder),
+                icon: "projects", color: "blue"
+            },
+            onFalse: {
+                text: "Create Project",
+                onClick: (files: File[], cloud: SDUCloud) =>
+                    UF.createProject(
+                        files[0].path,
+                        cloud,
+                        projectPath => history.push(projectViewPage(projectPath))
+                    ),
+                disabled: (files: File[], cloud: SDUCloud) =>
+                    files.length !== 1 || !canBeProject(files, cloud.homeFolder) ||
+                    !allFilesHasAccessRight("READ", files) || !allFilesHasAccessRight("WRITE", files),
+                icon: "projects",
+                color: "blue"
+            },
+        });
+    return ops;
+}
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
 export const filePreviewPage = (path: string) => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
@@ -297,6 +307,7 @@ interface AllFileOperations {
     onExtracted?: () => void
     onClearTrash?: () => void
     onLinkCreate?: (p: string) => void
+    onSensitivityChange?: () => void
     history?: History,
     setLoading: () => void
 }
@@ -308,9 +319,10 @@ export function AllFileOperations({
     onClearTrash,
     onLinkCreate,
     history,
-    setLoading
+    setLoading,
+    onSensitivityChange
 }: AllFileOperations) {
-    const stateLessOperations = stateless ? StateLessOperations(setLoading) : [];
+    const stateLessOperations = stateless ? StateLessOperations(setLoading, onSensitivityChange) : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps, setLoading) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
@@ -459,12 +471,13 @@ export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<Fi
 const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
 export const reclassifyFile = async (file: File, sensitivity: SensitivityLevelMap, cloud: SDUCloud): Promise<File> => {
-    const callResult = await unwrap(cloud.post<void>("/files/reclassify", { path: file.path, sensitivity }));
+    const serializedSensitivity = sensitivity === SensitivityLevelMap.INHERIT ? null : sensitivity;
+    const callResult = await unwrap(cloud.post<void>("/files/reclassify", { path: file.path, sensitivity: serializedSensitivity }));
     if (isError(callResult)) {
         UF.failureNotification((callResult as ErrorMessage).errorMessage)
         return file;
     }
-    return { ...file, sensitivityLevel: sensitivity };
+    return { ...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity };
 }
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>
@@ -541,6 +554,17 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
         }));
 }
 
+
+function updateSensitivity(files: File[], cloud: SDUCloud, onSensitivityChange?: () => void) {
+    UF.sensitivitySwal().then(input => {
+        if (!!input.dismiss) return;
+        Promise.all(
+            files.map(file => reclassifyFile(file, input.value as SensitivityLevelMap, cloud))
+        ).catch(e =>
+            UF.errorMessageOrDefault(e, "Could not reclassify file")
+        ).then(() => !!onSensitivityChange ? onSensitivityChange() : null);
+    });
+}
 
 export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
     const token = await cloud.createOneTimeTokenWithPermission("files.download:read");
