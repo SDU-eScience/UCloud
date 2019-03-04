@@ -311,7 +311,7 @@ interface AllFileOperations {
     history?: History,
     setLoading: () => void
 }
-export function AllFileOperations({
+export function allFileOperations({
     stateless,
     fileSelectorOps,
     onDeleted,

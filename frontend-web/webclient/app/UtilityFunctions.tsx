@@ -414,3 +414,5 @@ export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: 
     if (err.response.why) return err.response.why;
     return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
 }
+
+export const inDevEnvironment = () => process.env.NODE_ENV === "development";

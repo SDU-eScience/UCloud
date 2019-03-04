@@ -19,13 +19,12 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import { Dropdown } from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch"
-import { prettierString, infoNotification } from "UtilityFunctions";
+import { prettierString, infoNotification, inDevEnvironment } from "UtilityFunctions";
 import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
 import { EllipsedText } from "ui-components/Text";
-import { inDevEnvironment } from "App";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History

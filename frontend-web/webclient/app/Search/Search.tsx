@@ -3,7 +3,7 @@ import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { ApplicationCard } from "Applications/Card";
 import { SearchItem } from "Project/Search";
-import { AllFileOperations, favoriteFileFromPage } from "Utilities/FileUtilities";
+import { allFileOperations, favoriteFileFromPage } from "Utilities/FileUtilities";
 import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
 import { HeaderSearchType, ReduxObject, emptyPage } from "DefaultObjects";
 import { setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/HeaderActions";
@@ -28,8 +28,7 @@ import { SidebarPages } from "ui-components/Sidebar";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { Spacer } from "ui-components/Spacer";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { prettierString } from "UtilityFunctions";
-import { inDevEnvironment } from "App";
+import { prettierString, inDevEnvironment } from "UtilityFunctions";
 
 class Search extends React.Component<SearchProps> {
 
@@ -126,7 +125,7 @@ class Search extends React.Component<SearchProps> {
     render() {
         const refreshFiles = () => this.props.searchFiles({ ...this.fileSearchBody })
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
-        const fileOperations = AllFileOperations({
+        const fileOperations = allFileOperations({
             stateless: true,
             history: this.props.history,
             onDeleted: () => refreshFiles(),

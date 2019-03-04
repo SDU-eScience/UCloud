@@ -13,10 +13,10 @@ import { MasterCheckbox } from "UtilityComponents";
 import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation } from ".";
 import { setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import {
-    startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
+    startRenamingFiles, allFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
     getParentPath, moveFile, createFolder, fileTablePage
 } from "Utilities/FileUtilities";
-import { Box } from "ui-components";
+import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import { Dispatch } from "redux";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
@@ -116,7 +116,7 @@ class Files extends React.Component<FilesProps> {
             icon: "rename",
             color: undefined
         },
-        ...AllFileOperations({
+        ...allFileOperations({
             stateless: true,
             fileSelectorOps: this.fileSelectorOperations,
             onDeleted: this.refetch,
