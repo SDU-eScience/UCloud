@@ -25,10 +25,9 @@ function randImage() {
 }
 
 const FullPageImage = styled(Image)`
-    max-height: 100vh;
-    max-width: 100vw;
-    min-height: 100vh;
-    min-width: 100vw;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
 `;
 
 const inDevEnvironment = process.env.NODE_ENV === "development"
