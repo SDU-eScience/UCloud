@@ -55,7 +55,8 @@ describe("Uploader actions", () => {
             extractArchive: false,
             uploadXHR: new XMLHttpRequest(),
             isPending: false,
-            conflictError: false
+            conflictError: false,
+            parentPath: ""
         }]));
         expect(store.getState().uploader.uploads.length).toBe(1);
     });

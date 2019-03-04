@@ -4,7 +4,7 @@ import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, S
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal, inRange } from "UtilityFunctions";
-import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery } from "Utilities/FileUtilities";
+import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject, Sensitivity } from "DefaultObjects";
@@ -21,12 +21,13 @@ import { FileIcon } from "UtilityComponents";
 import { Spacer } from "ui-components/Spacer";
 import { File as SDUCloudFile } from "Files";
 import { Refresh } from "Navigation/Header";
+import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
 const isFinishedUploading = (xhr?: XMLHttpRequest): boolean => !!xhr && xhr.readyState === XMLHttpRequest.DONE;
 
-const newUpload = (file: File): Upload => ({
+const newUpload = (file: File, location: string): Upload => ({
     file,
     conflictFile: undefined,
     resolution: UploadPolicy.RENAME,
@@ -37,7 +38,8 @@ const newUpload = (file: File): Upload => ({
     uploadXHR: undefined,
     uploadEvents: [],
     isPending: false,
-    conflictError: false
+    conflictError: false,
+    parentPath: location
 });
 
 const addProgressEvent = (upload: Upload, e: ProgressEvent) => {
@@ -67,7 +69,7 @@ class Uploader extends React.Component<UploaderProps> {
     private onFilesAdded = async (files: File[]) => {
         if (files.some(it => it.size === 0)) infoNotification("It is not possible to upload empty files.");
         if (files.some(it => it.name.length > 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
-        const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it));
+        const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it, this.props.location));
         if (filteredFiles.length == 0) return;
 
         this.props.setLoading(true);
@@ -138,7 +140,7 @@ class Uploader extends React.Component<UploaderProps> {
         window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
             multipartUpload(
-                `${this.props.location}/${upload.file.name}`,
+                `${upload.parentPath}/${upload.file.name}`,
                 upload.file,
                 upload.sensitivity,
                 upload.resolution,
@@ -150,7 +152,7 @@ class Uploader extends React.Component<UploaderProps> {
             ).then(xhr => this.onUploadFinished(upload, xhr)); // FIXME Add error handling
         } else {
             bulkUpload(
-                this.props.location,
+                upload.parentPath,
                 upload.file,
                 upload.sensitivity,
                 upload.resolution,
@@ -261,6 +263,7 @@ class Uploader extends React.Component<UploaderProps> {
                         {uploads.map((upload, index) => (
                             <React.Fragment key={index}>
                                 <UploaderRow
+                                    location={props.location}
                                     upload={upload}
                                     setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
                                     onExtractChange={value => this.onExtractChange(index, value)}
@@ -321,6 +324,7 @@ const privacyOptions = [
 
 const UploaderRow = (p: {
     upload: Upload,
+    location: string,
     setSensitivity: (key: Sensitivity) => void,
     onExtractChange?: (value: boolean) => void,
     onUpload?: (e: React.MouseEvent<any>) => void,
@@ -330,7 +334,15 @@ const UploaderRow = (p: {
     setRewritePolicy?: (policy: UploadPolicy) => void
     onCheck?: (checked: boolean) => void
 }) => {
-    const fileTitle = <span><b>{p.upload.file.name}</b> ({sizeToString(p.upload.file.size)})<ConflictFile file={p.upload.conflictFile} /></span>;
+
+    let fileInfo = p.location !== p.upload.parentPath ? (<Dropdown>
+        <Icon style={{ pointer: "cursor" }} ml="10px" name="info" color="white" color2="black" />
+        <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
+            Will be uploaded to: {replaceHomeFolder(p.location, Cloud.homeFolder)}{p.upload.file.name}
+        </DropdownContent>
+    </Dropdown>) : null;
+
+    const fileTitle = <span><b>{p.upload.file.name}</b> ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} /></span>;
     let body;
 
     if (!p.upload.isUploading) {

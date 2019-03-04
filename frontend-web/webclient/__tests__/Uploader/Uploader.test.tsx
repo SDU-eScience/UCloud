@@ -63,7 +63,8 @@ describe("Uploader", () => {
             extractArchive: false,
             uploadXHR: undefined,
             isPending: false,
-            conflictError: false
+            conflictError: false,
+            parentPath: ""
         }]));
         expect(create(
             <Provider store={store}>
