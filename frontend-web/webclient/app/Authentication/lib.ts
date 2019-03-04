@@ -85,9 +85,8 @@ export default class SDUCloud {
      * @param {string} context - the base of the request (e.g. "/api")
      * @return {Promise} promise
      */
-    async call(method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> {
+    async call(method: string, path: string, body?: object, context: string = this.apiContext, maxRetries: number = 5): Promise<any> {
         if (path.indexOf("/") !== 0) path = "/" + path;
-        let baseContext = this.context;
         return this.receiveAccessTokenOrRefreshIt().then(token => {
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
@@ -95,7 +94,17 @@ export default class SDUCloud {
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
-                req.onload = () => {
+
+                const rejectOrRetry = (parsedResponse?) => {
+                    if (maxRetries >= 1 && is5xxStatusCode(req.status)) {
+                        this.call(method, path, body, context, maxRetries - 1)
+                            .catch(e => reject(e)).then(e => resolve(e));
+                    } else {
+                        reject({ request: req, response: parsedResponse });
+                    }
+                }
+
+                req.onload = async () => {
                     try {
                         let responseContentType = req.getResponseHeader("content-type");
                         let parsedResponse = req.response.length === 0 ? "{}" : req.response;
@@ -114,12 +123,13 @@ export default class SDUCloud {
                                 request: req,
                             });
                         } else {
-                            reject({ request: req, response: parsedResponse });
+                            rejectOrRetry(parsedResponse);
                         }
                     } catch (e) {
-                        reject({ request: e.req, response: e.response })
+                        rejectOrRetry();
                     }
                 };
+
                 if (body) {
                     req.send(JSON.stringify(body));
                 } else {
