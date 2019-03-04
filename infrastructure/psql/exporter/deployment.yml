@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: psql-exporter
+  namespace: stolon
+  labels:
+    app: psql-exporter
+spec:
+  selector:
+    matchLabels:
+      app: psql-exporter
+  template:
+    metadata:
+      labels:
+        app: psql-exporter
+      annotations:
+        prometheus.io/port: "9187"
+        prometheus.io/scrape: "true"
+
+    spec:
+      containers:
+        - name: psql-exporter
+          image: wrouesnel/postgres_exporter:v0.4.7
+          env:
+            - name: DATA_SOURCE_URI
+              value: stolon-proxy/postgres?sslmode=disable
+            - name: DATA_SOURCE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: psql-backup-user
+                  key: username
+            - name: DATA_SOURCE_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: psql-backup-user
+                  key: password
+
