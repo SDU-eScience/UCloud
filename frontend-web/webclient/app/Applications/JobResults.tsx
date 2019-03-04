@@ -1,5 +1,5 @@
 import * as React from "react";
-import { toLowerCaseAndCapitalize, shortUUID } from "UtilityFunctions"
+import { capitalized, shortUUID } from "UtilityFunctions"
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "ui-components";
@@ -111,7 +111,7 @@ const Analysis = ({ analysis, to }) => {
         <TableRow cursor="pointer" onClick={() => to()}>
             <TableCell>{analysis.appName}@{analysis.appVersion}</TableCell>
             <TableCell><span title={jobIdField}>{shortUUID(jobIdField)}</span></TableCell>
-            <TableCell>{toLowerCaseAndCapitalize(analysis.state)}</TableCell>
+            <TableCell>{capitalized(analysis.state)}</TableCell>
             <TableCell>{analysis.status}</TableCell>
             <TableCell>{formatDate(analysis.createdAt)}</TableCell>
             <TableCell>{formatDate(analysis.modifiedAt)}</TableCell>

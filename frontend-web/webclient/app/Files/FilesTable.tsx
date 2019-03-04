@@ -7,7 +7,7 @@ import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, L
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
-import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage } from "Utilities/FileUtilities";
+import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage, replaceHomeFolder } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
 import { KeyCode, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
@@ -191,13 +191,23 @@ export const ContextBar = ({ files, ...props }: ContextBarProps) => (
     </Box>
 );
 
+const SidebarContent = styled.div`
+    grid: auto-flow;
+    & > * {
+        min-width: 75px;
+        max-width: 175px;
+        margin-left: 5px;
+        margin-right: 5px;
+    }
+`;
+
 export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
     <VerticalButtonGroup>
         {!inTrashFolder ?
-            <>
+            <SidebarContent>
                 <Button color="blue" onClick={showUploader} data-tag="uploadButton">Upload Files</Button>
                 <OutlineButton color="blue" onClick={createFolder} data-tag="newFolder">New folder</OutlineButton>
-            </> :
+            </SidebarContent> :
             <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
                 Empty trash
             </Button>}
@@ -304,7 +314,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             <Truncate cursor={cursor} mr="5px">{fileName}</Truncate>
         </Flex>
         :
-        <Box width="100%" >
+        <Box title={replaceHomeFolder(file.path, Cloud.homeFolder)} width="100%" >
             <FileLink file={file}>
                 <Flex alignItems="center">
                     {icon}

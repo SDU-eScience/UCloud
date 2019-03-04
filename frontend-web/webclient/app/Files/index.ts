@@ -76,6 +76,7 @@ export interface FilesStateProps { // Redux Props
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
     invalidPath: boolean
+    responsive?: ResponsiveReduxObject 
 }
 
 export interface FilesOperations { // Redux operations

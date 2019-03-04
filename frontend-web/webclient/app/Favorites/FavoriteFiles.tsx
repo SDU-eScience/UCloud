@@ -2,7 +2,7 @@ import * as React from "react";
 import { List } from "Pagination/List";
 import { MainContainer } from "MainContainer/MainContainer";
 import { connect } from "react-redux";
-import { favoriteFileAsync, AllFileOperations } from "Utilities/FileUtilities";
+import { favoriteFileAsync, allFileOperations } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { SortBy, SortOrder, File } from "Files";
@@ -45,7 +45,7 @@ class FavoriteFiles extends React.Component<FavoritesOperations & ReduxType & { 
     }
 
     public render() {
-        const fileoperations = AllFileOperations({
+        const fileoperations = allFileOperations({
             stateless: true,
             history: this.props.history,
             onDeleted: () => undefined,

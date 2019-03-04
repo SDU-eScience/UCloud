@@ -1,5 +1,5 @@
 import {
-    AllFileOperations,
+    allFileOperations,
     sizeToString,
     toFileText,
     getFilenameFromPath,
@@ -22,7 +22,7 @@ test("silencer", () => {});
 
 /* describe("File Operations", () => {
     test("No file operations", () =>
-        expect(AllFileOperations(false, false, false, false, false, false)).toEqual([])
+        expect(allFileOperations(false, false, false, false, false, false)).toEqual([])
     );
 })
 

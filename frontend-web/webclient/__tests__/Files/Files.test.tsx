@@ -11,7 +11,7 @@ import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { createMemoryHistory } from "history";
 import files from "Files/Redux/FilesReducer";
-import { AllFileOperations } from "Utilities/FileUtilities";
+import { allFileOperations } from "Utilities/FileUtilities";
 import { configureStore, responsive } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
 import { configure, mount } from "enzyme";
@@ -38,7 +38,7 @@ const createMockStore = (filesPage?: Page<File>) => {
 const mockHistory = createMemoryHistory();
 const nullOp = () => null;
 
-const fileOperations = AllFileOperations({
+const fileOperations = allFileOperations({
     stateless: true,
     fileSelectorOps: {
         setFileSelectorCallback: nullOp,

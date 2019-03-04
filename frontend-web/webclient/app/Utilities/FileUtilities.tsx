@@ -1,6 +1,6 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType, FileOperation } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal, { SweetAlertResult } from "sweetalert2";
@@ -260,37 +260,40 @@ export const ClearTrashOperations = (toHome: () => void): Operation[] => [
 /**
  * @returns Properties and Project Operations for files.
  */
-export const HistoryFilesOperations = (history: History): [Operation, PredicatedOperation] => [
-    {
+export const HistoryFilesOperations = (history: History): FileOperation[] => {
+    let ops: FileOperation[] = [{
         text: "Properties",
         onClick: (files: File[], cloud: SDUCloud) => history.push(fileInfoPage(files[0].path)),
         disabled: (files: File[], cloud: SDUCloud) => files.length !== 1,
         icon: "properties", color: "blue"
-    },
-    {
-        predicate: (files: File[], cloud: SDUCloud) => isProject(files[0]),
-        onTrue: {
-            text: "Edit Project",
-            onClick: (files: File[], cloud: SDUCloud) => history.push(projectViewPage(files[0].path)),
-            disabled: (files: File[], cloud: SDUCloud) => !canBeProject(files, cloud.homeFolder),
-            icon: "projects", color: "blue"
-        },
-        onFalse: {
-            text: "Create Project",
-            onClick: (files: File[], cloud: SDUCloud) =>
-                UF.createProject(
-                    files[0].path,
-                    cloud,
-                    projectPath => history.push(projectViewPage(projectPath))
-                ),
-            disabled: (files: File[], cloud: SDUCloud) =>
-                files.length !== 1 || !canBeProject(files, cloud.homeFolder) ||
-                !allFilesHasAccessRight("READ", files) || !allFilesHasAccessRight("WRITE", files),
-            icon: "projects",
-            color: "blue"
-        },
-    }
-];
+    }]
+
+    if (process.env.NODE_ENV === "development")
+        ops.push({
+            predicate: (files: File[], cloud: SDUCloud) => isProject(files[0]),
+            onTrue: {
+                text: "Edit Project",
+                onClick: (files: File[], cloud: SDUCloud) => history.push(projectViewPage(files[0].path)),
+                disabled: (files: File[], cloud: SDUCloud) => !canBeProject(files, cloud.homeFolder),
+                icon: "projects", color: "blue"
+            },
+            onFalse: {
+                text: "Create Project",
+                onClick: (files: File[], cloud: SDUCloud) =>
+                    UF.createProject(
+                        files[0].path,
+                        cloud,
+                        projectPath => history.push(projectViewPage(projectPath))
+                    ),
+                disabled: (files: File[], cloud: SDUCloud) =>
+                    files.length !== 1 || !canBeProject(files, cloud.homeFolder) ||
+                    !allFilesHasAccessRight("READ", files) || !allFilesHasAccessRight("WRITE", files),
+                icon: "projects",
+                color: "blue"
+            },
+        });
+    return ops;
+}
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
 export const filePreviewPage = (path: string) => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
@@ -308,7 +311,7 @@ interface AllFileOperations {
     history?: History,
     setLoading: () => void
 }
-export function AllFileOperations({
+export function allFileOperations({
     stateless,
     fileSelectorOps,
     onDeleted,

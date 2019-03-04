@@ -32,7 +32,7 @@ import Favorites from "Favorites/Favorites";
 import { LoginPage } from "Login/Login";
 import Wayf from "Login/Wayf";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { DispatchUserAction, onLogin } from "App";
+import { dispatchUserAction, onLogin } from "App";
 import { USER_LOGIN } from "Navigation/Redux/HeaderReducer";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
@@ -89,7 +89,7 @@ const Core = () => (
 );
 
 const LoginEndpoint = props => {
-    DispatchUserAction(USER_LOGIN);
+    dispatchUserAction(USER_LOGIN);
     onLogin();
     props.history.push("/");
     return null;

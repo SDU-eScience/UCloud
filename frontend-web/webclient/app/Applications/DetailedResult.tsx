@@ -11,7 +11,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { ReduxObject, DetailedResultReduxObject, emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations, AppState } from ".";
 import { File, SortBy, SortOrder } from "Files";
-import { AllFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
+import { allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
@@ -75,7 +75,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.props.receivePage(emptyPage);
     }
 
-    fileOperations = () => AllFileOperations({
+    fileOperations = () => allFileOperations({
         stateless: true,
         history: this.props.history,
         fileSelectorOps: {

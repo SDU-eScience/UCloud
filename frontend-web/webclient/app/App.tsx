@@ -37,8 +37,6 @@ import { responsiveBP } from "ui-components/theme";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 
-export const inDevEnvironment = process.env.NODE_ENV === "development"
-
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
     files,
@@ -69,7 +67,7 @@ const store = configureStore(initObject(Cloud.homeFolder), {
         { infinity: "xxl" }),
 }, responsiveStoreEnhancer);
 
-export function DispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
+export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
     store.dispatch({ type })
 }
 

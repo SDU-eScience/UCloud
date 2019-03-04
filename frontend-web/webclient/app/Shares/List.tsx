@@ -22,7 +22,7 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { useState } from "react";
 import { SearchOptions, SelectableText } from "Search/Search";
 
-class List extends React.Component<ListProps & SharesReduxObject & SharesOperations, { a: string }> {
+class List extends React.Component<ListProps & SharesReduxObject & SharesOperations> {
     constructor(props: Readonly<ListProps & SharesReduxObject & SharesOperations>) {
         super(props);
         // FIXME potentially move following to a parent component

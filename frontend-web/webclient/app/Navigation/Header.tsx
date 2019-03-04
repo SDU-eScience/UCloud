@@ -8,7 +8,7 @@ import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { ReduxObject, KeyCode, HeaderSearchType } from "DefaultObjects";
-import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, OutlineButton } from "ui-components";
+import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support } from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -19,7 +19,7 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import { Dropdown } from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch"
-import { prettierString, infoNotification } from "UtilityFunctions";
+import { prettierString, infoNotification, inDevEnvironment } from "UtilityFunctions";
 import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
@@ -162,6 +162,8 @@ interface Search {
     setSearchType: (st: HeaderSearchType) => void
 }
 const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
+    const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
+    if (inDevEnvironment()) allowedSearchTypes.push("projects");
     return (<Relative>
         <SearchInput>
             <Input
@@ -179,7 +181,7 @@ const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
             </Absolute>
             <ClickableDropdown
                 overflow={"visible"}
-                left={-350}
+                left={-450}
                 top={15}
                 width="450px"
                 colorOnHover={false}
@@ -192,7 +194,7 @@ const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
                 }>
                 <SearchOptions>
                     <Box ml="auto" />
-                    {searchTypes.map(it =>
+                    {allowedSearchTypes.map(it =>
                         <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em" selected={it === searchType}>
                             {prettierString(it)}
                         </SelectableText>
@@ -237,10 +239,8 @@ export const UserAvatar = ({ avatar }: UserAvatar) => (
         />
     </ClippedBox>);
 
-const inDevEnvironment = process.env.NODE_ENV === "development"
-
 const ContextSwitcher = props => {
-    if (!inDevEnvironment) return null;
+    if (!inDevEnvironment()) return null;
     const [userContext, setUserContext] = React.useState(Cloud.username);
     return (<Box ml="6px">
         <ClickableDropdown trigger={

@@ -17,7 +17,7 @@
       "^.+\\.(tsx?|jsx?)$": "ts-jest"
     },
     "moduleNameMapper": {
-      "^.+\\.(png|ttf)$": "file-loader",
+      "^.+\\.(png|ttf|jpg)$": "file-loader",
       "^.+\\.css$": "css-loader",
       "Authentication/SDUCloudObject": "<rootDir>/__tests__/mock/Cloud.ts"
     },
@@ -47,8 +47,8 @@
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rm -rf dist/",
     "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
-    "install": "napa && npm run prepare-icons",
-    "test": "npm run prepare-icons && jest --no-cache",
+    "install": "napa",
+    "test": "jest --no-cache",
     "prepare-icons": "npm run icons-clean && npm run icons-components && npm run icons-index",
     "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
     "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components",

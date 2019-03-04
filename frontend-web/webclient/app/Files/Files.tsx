@@ -13,10 +13,10 @@ import { MasterCheckbox } from "UtilityComponents";
 import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation } from ".";
 import { setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import {
-    startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
+    startRenamingFiles, allFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
     getParentPath, moveFile, createFolder, fileTablePage
 } from "Utilities/FileUtilities";
-import { Box } from "ui-components";
+import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import { Dispatch } from "redux";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
@@ -116,7 +116,7 @@ class Files extends React.Component<FilesProps> {
             icon: "rename",
             color: undefined
         },
-        ...AllFileOperations({
+        ...allFileOperations({
             stateless: true,
             fileSelectorOps: this.fileSelectorOperations,
             onDeleted: this.refetch,
@@ -212,15 +212,15 @@ class Files extends React.Component<FilesProps> {
         return (
             <MainContainer
                 header={header}
-                main={main}
-                sidebar={sidebar}
+                main={<>{props.responsive!.lessThan.xl ? sidebar : null}{main}</>}
+                sidebar={props.responsive!.lessThan.xl ? null : sidebar}
                 additional={additional}
             />
         );
     }
 }
 
-const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
+const mapStateToProps = ({ files, responsive }: ReduxObject): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown, invalidPath,
         fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns, fileSelectorIsFavorites } = files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
@@ -229,7 +229,8 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     return {
         error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath, invalidPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
-        renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], fileSelectorIsFavorites
+        renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], fileSelectorIsFavorites,
+        responsive
     }
 };
 
