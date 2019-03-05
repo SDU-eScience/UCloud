@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Modal from "react-modal";
 import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
-import * as ReactDropzone from "react-dropzone/dist/index";
+import Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal, inRange } from "UtilityFunctions";
 import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder } from "Utilities/FileUtilities";
@@ -279,7 +279,7 @@ class Uploader extends React.Component<UploaderProps> {
                         {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ?
                             <Button fullWidth color="green" onClick={this.startAllUploads}>
                                 <Icon name={"upload"} />{" "}Start all!</Button> : null}
-                        <ReactDropzone onDrop={this.onFilesAdded}>
+                        <Dropzone onDrop={this.onFilesAdded}>
                             {({ getRootProps, getInputProps }) =>
                                 <DropZoneBox {...getRootProps()}>
                                     <input {...getInputProps()} />
@@ -292,7 +292,7 @@ class Uploader extends React.Component<UploaderProps> {
                                     </p>
                                 </DropZoneBox>
                             }
-                        </ReactDropzone>
+                        </Dropzone>
                     </Box>
                 </div>
             </Modal>
