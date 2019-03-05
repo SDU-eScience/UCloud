@@ -92,6 +92,7 @@ const TextParameter = (props) => {
                 placeholder={placeholder}
                 required={!props.parameter.optional}
                 type="text" onChange={e => internalOnChange(e)}
+                value={props.value}
             />
         </GenericParameter>
     );

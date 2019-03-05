@@ -176,7 +176,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     private exportParameters() {
         const { application, schedulingOptions } = this.state;
         if (!application) return;
-        const appInfo = application.metadata.description;
+        const appInfo = application.metadata;
 
         const jobInfo = this.extractJobInfo(schedulingOptions);
         const element = document.createElement("a");
