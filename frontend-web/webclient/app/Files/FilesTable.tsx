@@ -10,7 +10,7 @@ import { TextSpan } from "ui-components/Text";
 import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage, replaceHomeFolder } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
-import { KeyCode, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
+import { KeyCode, ReduxObject, SensitivityLevelMap, ResponsiveReduxObject } from "DefaultObjects";
 import styled from "styled-components";
 import { SpaceProps } from "styled-system";
 import { connect } from "react-redux";
@@ -363,8 +363,8 @@ export const FileOperations = ({ files, fileOperations, As, ...props }/* :FileOp
         ) : null;
     }) : null;
 
-const mapStateToProps = ({ responsive }: ReduxObject) => ({
-    responsiveState: responsive
+const mapStateToProps = ({ responsive }: ReduxObject): { responsiveState: ResponsiveReduxObject } => ({
+    responsiveState: responsive!
 })
 
 const ft = connect<{ responsiveState: any }>(mapStateToProps)(FilesTable);

@@ -15,7 +15,6 @@ import Text from "ui-components/Text";
 import Flex from "ui-components/Flex";
 import Hide from "ui-components/Hide";
 import theme from "ui-components/theme";
-import Input from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
 import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions";
@@ -29,6 +28,9 @@ import { setActivePage } from "Navigation/Redux/StatusActions";
 import { Spacer } from "ui-components/Spacer";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { prettierString, inDevEnvironment } from "UtilityFunctions";
+import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
+import DetailedFileSearch from "Files/DetailedFileSearch";
+import DetailedProjectSearch from "Project/DetailedProjectSearch";
 
 class Search extends React.Component<SearchProps> {
 
@@ -153,47 +155,62 @@ class Search extends React.Component<SearchProps> {
         let main;
         const { priority } = this.props.match.params;
         if (priority === "files") {
-            main = <Pagination.List
-                loading={filesLoading}
-                pageRenderer={page => (
-                    <FilesTable
-                        files={page.items}
-                        sortOrder={SortOrder.ASCENDING}
-                        sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY]}
-                        sortFiles={() => undefined}
-                        onCheckFile={() => undefined}
-                        refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
-                        sortBy={SortBy.PATH}
-                        onFavoriteFile={files => this.props.setFilesPage(favoriteFileFromPage(this.props.files, files, Cloud))}
-                        fileOperations={fileOperations}
-                    />
-                )}
-                page={files}
-                onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
-            />
+            main = <>
+                <Hide xxl xl lg>
+                    <DetailedFileSearch cantHide  />
+                </Hide>
+                <Pagination.List
+                    loading={filesLoading}
+                    pageRenderer={page => (
+                        <FilesTable
+                            files={page.items}
+                            sortOrder={SortOrder.ASCENDING}
+                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY]}
+                            sortFiles={() => undefined}
+                            onCheckFile={() => undefined}
+                            refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
+                            sortBy={SortBy.PATH}
+                            onFavoriteFile={files => this.props.setFilesPage(favoriteFileFromPage(this.props.files, files, Cloud))}
+                            fileOperations={fileOperations}
+                        />
+                    )}
+                    page={files}
+                    onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
+                />
+            </>
         } else if (priority === "applications") {
-            main = <Pagination.List
-                loading={applicationsLoading}
-                pageRenderer={({ items }) =>
-                    <GridCardGroup>
-                        {items.map(app =>
-                            <ApplicationCard
-                                key={`${app.metadata.name}${app.metadata.version}`}
-                                app={app}
-                                isFavorite={app.favorite}
-                            />)}
-                    </GridCardGroup>
-                }
-                page={applications}
-                onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
-            />
+            main = <>
+                <Hide xxl xl lg>
+                    <DetailedApplicationSearch />
+                </Hide>
+                <Pagination.List
+                    loading={applicationsLoading}
+                    pageRenderer={({ items }) =>
+                        <GridCardGroup>
+                            {items.map(app =>
+                                <ApplicationCard
+                                    key={`${app.metadata.name}${app.metadata.version}`}
+                                    app={app}
+                                    isFavorite={app.favorite}
+                                />)}
+                        </GridCardGroup>
+                    }
+                    page={applications}
+                    onPageChanged={pageNumber => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
+                />
+            </>
         } else if (priority === "projects" && allowedSearchTypes.includes("projects")) {
-            main = <Pagination.List
-                loading={projectsLoading}
-                pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
-                page={projects}
-                onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
-            />
+            main = <>
+                <Hide xxl xl lg>
+                    <DetailedProjectSearch />
+                </Hide>
+                <Pagination.List
+                    loading={projectsLoading}
+                    pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
+                    page={projects}
+                    onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
+                />
+            </>
         }
 
         return (
@@ -201,11 +218,6 @@ class Search extends React.Component<SearchProps> {
                 header={
                     <React.Fragment>
                         <Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />
-                        <Hide xxl xl md>
-                            <form onSubmit={e => (e.preventDefault(), this.search())}>
-                                <Input onChange={({ target: { value } }) => this.props.setSearch(value)} />
-                            </form>
-                        </Hide>
                         <SearchOptions>
                             {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
                         </SearchOptions>
@@ -226,11 +238,11 @@ class Search extends React.Component<SearchProps> {
     }
 };
 
-// FIXME: Move to own file. 
+// FIXME: Move to own file.
 export const SearchOptions = styled(Flex)`
     border-bottom: 1px solid ${theme.colors.lightGray};
-    cursor: pointer;
-`;
+                cursor: pointer;
+            `;
 
 SearchOptions.defaultProps = {
     theme
@@ -238,7 +250,7 @@ SearchOptions.defaultProps = {
 
 export const SelectableText = styled(Text) <{ selected: boolean }>`
     border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
-`;
+            `;
 
 SelectableText.defaultProps = {
     theme

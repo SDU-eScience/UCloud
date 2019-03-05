@@ -8,7 +8,7 @@ import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { ReduxObject, KeyCode, HeaderSearchType } from "DefaultObjects";
-import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support } from "ui-components";
+import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide } from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -31,7 +31,7 @@ interface HeaderProps extends HeaderStateToProps, HeaderOperations {
 }
 
 // NOTE: Ideal for hooks, if useRouter ever happens
-class Header extends React.Component<HeaderProps, any> {
+class Header extends React.Component<HeaderProps> {
 
     private searchRef = React.createRef<HTMLInputElement>();
 
@@ -48,14 +48,19 @@ class Header extends React.Component<HeaderProps, any> {
         return (
             <HeaderContainer color="headerText" bg="headerBg">
                 <Logo />
-                <ContextSwitcher />
+                {/* <ContextSwitcher /> */}
                 <Box ml="auto" />
-                <Search
-                    searchType={this.props.prioritizedSearch}
-                    navigate={() => history.push(searchPage(prioritizedSearch, this.searchRef.current && this.searchRef.current.value || ""))}
-                    searchRef={this.searchRef}
-                    setSearchType={st => this.props.setSearchType(st)}
-                />
+                <Hide sm md>
+                    <Search
+                        searchType={this.props.prioritizedSearch}
+                        navigate={() => history.push(searchPage(prioritizedSearch, this.searchRef.current && this.searchRef.current.value || ""))}
+                        searchRef={this.searchRef}
+                        setSearchType={st => this.props.setSearchType(st)}
+                    />
+                </Hide>
+                <Hide lg xxl xl>
+                    <Icon name="search" size="32" mr="3px" cursor="pointer" onClick={() => this.props.history.push("/search/files")} />
+                </Hide>
                 <Box mr="auto" />
                 <BackgroundTask />
                 <Refresh spin={spin} onClick={refresh} />
@@ -211,8 +216,6 @@ const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
     )
 };
 
-const searchTypes: HeaderSearchType[] = ["files", "projects", "applications"]
-
 const ClippedBox = styled(Flex)`
     align-items: center;
     overflow: hidden;
@@ -239,7 +242,7 @@ export const UserAvatar = ({ avatar }: UserAvatar) => (
         />
     </ClippedBox>);
 
-const ContextSwitcher = props => {
+const ContextSwitcher = () => {
     if (!inDevEnvironment()) return null;
     const [userContext, setUserContext] = React.useState(Cloud.username);
     return (<Box ml="6px">
@@ -271,9 +274,10 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     setSearchType: st => dispatch(setPrioritizedSearch(st))
 });
 
-const mapStateToProps = ({ header, avatar, ...rest }: ReduxObject): HeaderStateToProps => ({
+const mapStateToProps = ({ header, avatar, responsive, ...rest }: ReduxObject): HeaderStateToProps => ({
     ...header,
     avatar,
+    responsive: responsive!,
     spin: anyLoading(rest as ReduxObject)
 });
 

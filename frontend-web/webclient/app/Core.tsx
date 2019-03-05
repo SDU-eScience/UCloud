@@ -34,8 +34,9 @@ import Wayf from "Login/Wayf";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { dispatchUserAction, onLogin } from "App";
 import { USER_LOGIN } from "Navigation/Redux/HeaderReducer";
+import { MainContainer } from "MainContainer/MainContainer";
 
-const NotFound = () => (<div><h1>Not found.</h1></div>);
+const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
 const Core = () => (
     <>

@@ -40,7 +40,7 @@ export const LoginPage = (props: { history: History }) => {
         return <div />;
     }
     const [bg] = useState(randImage());
-    const [challengeId, setChallengeID] = useState<string>("");
+    const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
     const passwordInput = useRef<HTMLInputElement>(null);
