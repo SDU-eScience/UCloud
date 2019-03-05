@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Absolute } from "ui-components";
+import { Box, Absolute, Hide } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { LoadableContent } from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -39,14 +39,16 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
                     </HeaderContainer>
                 }
                 {sidebar &&
-                    <SidebarContainer
-                        height="100%" pt={topMenuSize + mainYpad}
-                        top="0" right="0"
-                        px={pad}
-                        width={sidebarSize}
-                    >
-                        {sidebar}
-                    </SidebarContainer>
+                    <Hide sm xs md>
+                        <SidebarContainer
+                            height="100%" pt={topMenuSize + mainYpad}
+                            top="0" right="0"
+                            px={pad}
+                            width={sidebarSize}
+                        >
+                            {sidebar}
+                        </SidebarContainer>
+                    </Hide>
                 }
                 <Box pt={mainYpad} pr={mainXpad}>
                     {main}

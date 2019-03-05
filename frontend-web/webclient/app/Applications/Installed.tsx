@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, StatusActions } from "Navigation/Redux/StatusActions";
 import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { WithAppMetadata, WithAppFavorite } from "Applications";
 import { Page } from "Types";
