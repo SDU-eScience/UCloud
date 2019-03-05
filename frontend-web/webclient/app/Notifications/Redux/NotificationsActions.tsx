@@ -1,4 +1,4 @@
-import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT, NOTIFICATIONS_ERROR, READ_ALL, SET_NOTIFICATIONS_ERROR } from "./NotificationsReducer";
+import { RECEIVE_SINGLE_NOTIFICATION, RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT, NOTIFICATIONS_ERROR, READ_ALL, SET_NOTIFICATIONS_ERROR } from "./NotificationsReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Page, ReceivePage, PayloadAction } from "Types";
 import { Action } from "redux";
@@ -6,15 +6,35 @@ import { failureNotification, inSuccessRange } from "UtilityFunctions";
 import { Notification } from ".."
 import { notificationsQuery, readNotificationQuery, readAllNotificationsQuery } from "Utilities/NotificationUtilities";
 
-export type NotificationActions = ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> | SetRedirectToAction |
-    ReadAction | { type: typeof NOTIFICATIONS_ERROR } | ReadAllAction
+export type NotificationActions = 
+    ReceiveNotificationAction |
+    ReceiveSingleNotificationAction |
+    SetRedirectToAction |
+    ReadAction | 
+    { type: typeof NOTIFICATIONS_ERROR } | 
+    ReadAllAction;
+
+interface ReceiveSingleNotificationAction {
+    type: typeof RECEIVE_SINGLE_NOTIFICATION,
+    payload: { item: Notification }
+}
+
+export const receiveSingleNotification = (notification: Notification): ReceiveSingleNotificationAction => ({
+    type: RECEIVE_SINGLE_NOTIFICATION,
+    payload: { item: notification }
+});
+
+interface ReceiveNotificationAction {
+    type: typeof RECEIVE_NOTIFICATIONS,
+    payload: { items: Notification[] }
+}
 /**
  * Returns the action for receiving the notifications
  * @param {Page<Notification>} page Page of notifications received
  */
-export const receiveNotifications = (page: Page<Notification>): ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> => ({
+export const receiveNotifications = (page: Page<Notification>): ReceiveNotificationAction => ({
     type: RECEIVE_NOTIFICATIONS,
-    payload: { page }
+    payload: { items: page.items }
 })
 
 /**

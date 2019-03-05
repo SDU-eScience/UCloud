@@ -107,27 +107,43 @@ data class ClientAndBackend(
 data class AuthenticatedClient(
     val client: RpcClient,
     val companion: OutgoingCallCompanion<*>,
+    val afterFilters: (suspend (OutgoingCall) -> Unit)? = null,
     val authenticator: suspend (OutgoingCall) -> Unit
 ) {
     companion object {
         fun <Ctx : OutgoingCall, Companion : OutgoingCallCompanion<Ctx>> create(
             client: RpcClient,
             companion: Companion,
-            authenticator: suspend (Ctx) -> Unit
+            authenticator: suspend (Ctx) -> Unit,
+            afterFilters: (suspend (Ctx) -> Unit)? = null
         ): AuthenticatedClient {
-            return AuthenticatedClient(client, companion) {
-                @Suppress("UNCHECKED_CAST")
-                authenticator(it as Ctx)
-            }
+            return AuthenticatedClient(
+                client,
+                companion,
+                authenticator = {
+                    @Suppress("UNCHECKED_CAST")
+                    authenticator(it as Ctx)
+                },
+                afterFilters = {
+                    @Suppress("UNCHECKED_CAST")
+                    afterFilters?.invoke(it as Ctx)
+                }
+            )
         }
     }
 }
 
 fun AuthenticatedClient.withFixedHost(hostInfo: HostInfo): AuthenticatedClient {
-    return AuthenticatedClient(client, companion) {
-        authenticator(it)
-        it.attributes.outgoingTargetHost = hostInfo
-    }
+    return AuthenticatedClient(
+        client,
+        companion,
+        authenticator = {
+            authenticator(it)
+        },
+        afterFilters = {
+            it.attributes.outgoingTargetHost = hostInfo
+        }
+    )
 }
 
 fun AuthenticatedClient.withoutAuthentication(): ClientAndBackend = ClientAndBackend(client, companion)
@@ -141,6 +157,7 @@ suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.call(
         this,
         request,
         authenticatedBackend.companion as OutgoingCallCompanion<OutgoingCall>,
-        authenticatedBackend.authenticator
+        authenticatedBackend.authenticator,
+        authenticatedBackend.afterFilters
     )
 }

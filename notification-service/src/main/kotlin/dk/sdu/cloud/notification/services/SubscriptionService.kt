@@ -3,7 +3,6 @@ package dk.sdu.cloud.notification.services
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withFixedHost
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
@@ -16,11 +15,13 @@ import dk.sdu.cloud.notification.api.SubscriptionResponse
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.Closeable
 import java.util.*
 
 data class LocalSubscription(
@@ -34,14 +35,28 @@ class SubscriptionService<Session>(
     private val wsServiceClient: AuthenticatedClient,
     private val db: DBSessionFactory<Session>,
     private val subscriptionDao: SubscriptionDao<Session>
-) {
+): Closeable {
+    private var isRunning: Boolean = true
+
     init {
         localhost.port ?: throw NullPointerException("localhost.port == null")
+
+        GlobalScope.launch {
+            while (isActive && isRunning) {
+                log.info("Cleaning up")
+                db.withTransaction { subscriptionDao.refreshSessions(it, localhost.host, localhost.port!!) }
+                delay(3000)
+            }
+        }
     }
 
     private val internalSessions = HashMap<WSSession, LocalSubscription>()
     private val internalSubscriptions = HashMap<Long, LocalSubscription>()
     private val lock = Mutex()
+
+    override fun close() {
+        isRunning = false
+    }
 
     suspend fun onConnection(user: String, handler: CallHandler<*, SubscriptionResponse, *>) {
         db.withTransaction { session ->
@@ -101,25 +116,25 @@ class SubscriptionService<Session>(
 
         // Deal with remote subscriptions
         run {
-            coroutineScope {
+            GlobalScope.launch {
                 subscriptions
                     .filter { it.host != localhost }
                     .map { subscription ->
                         val client = wsServiceClient.withFixedHost(subscription.host)
-                        async {
+                        launch {
                             NotificationDescriptions.internalNotification.call(
                                 InternalNotificationRequest(user, notification),
                                 client
                             )
                         }
                     }
-                    .awaitAll()
-                    .forEach { it.orThrow() }
             }
         }
     }
 
     companion object : Loggable {
         override val log = logger()
+
+        const val MAX_MS_SINCE_LAST_PING = 10_000
     }
 }

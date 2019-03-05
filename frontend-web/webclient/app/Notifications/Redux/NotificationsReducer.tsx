@@ -1,6 +1,7 @@
 import { NotificationsReduxObject, initNotifications } from "DefaultObjects";
 import { NotificationActions } from "./NotificationsActions";
 
+export const RECEIVE_SINGLE_NOTIFICATION = "RECEIVE_SINGLE_NOTIFICATION";
 export const RECEIVE_NOTIFICATIONS = "RECEIVE_NOTIFICATIONS";
 export const NOTIFICATION_READ = "NOTIFICATION_READ";
 export const SET_REDIRECT = "SET_REDIRECT";
@@ -14,26 +15,25 @@ const Notifications = (state: NotificationsReduxObject = initNotifications(), ac
         case RECEIVE_NOTIFICATIONS: {
             return { ...state, ...action.payload };
         }
+        case RECEIVE_SINGLE_NOTIFICATION: {
+            return { ...state, items: [action.payload.item].concat(state.items) };
+        }
         case NOTIFICATION_READ: {
             return {
-                ...state, page: {
-                    ...state.page,
-                    items: state.page.items.map((n) => {
-                        if (n.id === action.payload.id) n.read = true;
-                        return n;
-                    })
-                }
+                ...state,
+                items: state.items.map((n) => {
+                    if (n.id === action.payload.id) n.read = true;
+                    return n;
+                })
             }
         }
         case READ_ALL: {
             return {
-                ...state, page: {
-                    ...state.page,
-                    items: state.page.items.map((n) => {
-                        n.read = true;
-                        return n;
-                    })
-                }
+                ...state,
+                items: state.items.map((n) => {
+                    n.read = true;
+                    return n;
+                })
             }
         }
         case NOTIFICATIONS_ERROR:

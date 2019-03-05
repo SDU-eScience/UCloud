@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.notification.api.DeleteResponse
 import dk.sdu.cloud.notification.api.FindByNotificationId
@@ -101,6 +102,11 @@ class NotificationController<DBSession>(
             while (true) {
                 delay(1000)
             }
+        }
+
+        implement(NotificationDescriptions.internalNotification) {
+            subscriptionService.onNotification(request.user, request.notification)
+            ok(Unit)
         }
     }
 

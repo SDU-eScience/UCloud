@@ -192,7 +192,7 @@ fun main(args: Array<String>) {
         )
 
     val httpClient = ClientAndBackend(client, OutgoingHttpCall)
-    val authenticatedClient = AuthenticatedClient(client, OutgoingHttpCall, {
+    val authenticatedClient = AuthenticatedClient(client, OutgoingHttpCall, authenticator = {
         (it as OutgoingHttpCall).builder.header(HttpHeaders.JobId, UUID.randomUUID().toString())
     })
 

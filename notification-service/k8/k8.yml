@@ -29,7 +29,11 @@ spec:
           name: psql-secrets
         - mountPath: /etc/refresh-token
           name: refresh-token
-
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
       volumes:
       - name: psql-secrets
         secret:
@@ -38,6 +42,9 @@ spec:
       - name: refresh-token
         secret:
           secretName: notification-refresh-token
+
+
+
 
       imagePullSecrets:
         - name: esci-docker

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject"
+import { Cloud, WSFactory } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
@@ -266,7 +266,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
 
 const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({
     ...state.dashboard,
-    notifications: state.notifications.page.items,
+    notifications: state.notifications.items,
     favoriteFilesLength: state.dashboard.favoriteFiles.length // Hack to ensure re-rendering
 });
 
