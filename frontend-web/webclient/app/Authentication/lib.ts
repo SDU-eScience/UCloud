@@ -139,7 +139,7 @@ export default class SDUCloud {
         });
     }
 
-    private computeURL(context: string, path: string): string {
+    computeURL(context: string, path: string): string {
         let absolutePath = context + path;
         for (let i = 0; i < this.overrides.length; i++) {
             let override = this.overrides[i];

@@ -4,7 +4,7 @@ import * as moment from "moment";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { Page } from "Types";
-import { fetchNotifications, notificationRead, readAllNotifications } from "./Redux/NotificationsActions";
+import { fetchNotifications, notificationRead, readAllNotifications, receiveSingleNotification } from "./Redux/NotificationsActions";
 import { History } from "history";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { Dispatch } from "redux";
@@ -14,9 +14,11 @@ import { TextSpan } from "ui-components/Text";
 import styled from "styled-components";
 import { IconName } from "ui-components/Icon";
 import { ReduxObject } from "DefaultObjects";
+import { WebSocketConnection } from "Authentication/ws";
+import { WSFactory } from "Authentication/SDUCloudObject";
 
 interface NotificationProps {
-    page: Page<Notification>
+    items: Notification[]
     redirectTo: string
     fetchNotifications: Function,
     notificationRead: Function,
@@ -25,13 +27,27 @@ interface NotificationProps {
 }
 
 class Notifications extends React.Component<NotificationProps & NotificationsDispatchToProps> {
+    private conn: WebSocketConnection;
+
     constructor(props) {
         super(props);
     }
 
     public componentDidMount() {
         this.reload();
-        setInterval(() => this.reload(), 30_000);
+        this.conn = WSFactory.open("/notifications", {
+            init: conn => {
+                conn.subscribe("notifications.subscription", {}, message => {
+                    if (message.type === "message") {
+                        this.props.receiveNotification(message.payload);
+                    }
+                });
+            }
+        })
+    }
+
+    public componentWillUnmount() {
+        this.conn.close();
     }
 
     private reload() {
@@ -53,8 +69,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
     }
 
     public render() {
-        const { page } = this.props;
-        const entries: JSX.Element[] = page.items.map((notification, index) =>
+        const entries: JSX.Element[] = this.props.items.map((notification, index) =>
             <NotificationEntry
                 key={index}
                 notification={notification}
@@ -67,7 +82,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             return <Redirect to={this.props.redirectTo} />
         }
 
-        const unreadLength = page.items.filter((e) => !e.read).length;
+        const unreadLength = this.props.items.filter((e) => !e.read).length;
         const readAllButton = unreadLength ? (
             <>
                 <Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
@@ -75,7 +90,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             </>) : null;
         const badgeCount = unreadLength;
         return (
-            <ClickableDropdown top="37px" width={"380px"} left={"-270px"} trigger={
+            <ClickableDropdown colorOnHover={false} top="37px" width={"380px"} left={"-270px"} trigger={
                 <Flex>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="48px">
@@ -87,11 +102,19 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                     </Relative>
                 </Flex>
             }>
-                {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
+                <ContentWrapper>
+                    {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
+                </ContentWrapper>
             </ClickableDropdown>
         );
     }
 }
+
+const ContentWrapper = styled(Box)`
+    height: 600px;
+    overflow-y: auto;
+    padding: 5px;
+`;
 
 const NoNotifications = () => <TextSpan>No notifications</TextSpan>
 
@@ -161,12 +184,14 @@ const NotificationWrapper = styled(Flex)`
 `;
 
 interface NotificationsDispatchToProps {
+    receiveNotification: (notification: Notification) => void
     fetchNotifications: () => void
     notificationRead: (id: number) => void
     showUploader: () => void
     readAll: () => void
 }
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
+    receiveNotification: (notification) => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     showUploader: () => dispatch(setUploaderVisible(true)),

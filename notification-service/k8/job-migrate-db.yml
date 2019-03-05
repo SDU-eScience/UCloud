@@ -18,9 +18,11 @@ spec:
         - /etc/service
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/tokenvalidation
         - --run-script
         - migrate-db
-        image: registry.cloud.sdu.dk/sdu-cloud/notification-service:0.3.0
+        image: registry.cloud.sdu.dk/sdu-cloud/notification-service:1.1.0-RC.8
         name: notification-migration
 
         volumeMounts:
@@ -28,6 +30,8 @@ spec:
           name: vol1
         - mountPath: /etc/refresh-token
           name: vol2
+        - mountPath: /etc/tokenvalidation
+          name: tokenvalidation
 
       imagePullSecrets:
         - name: esci-docker
@@ -41,3 +45,6 @@ spec:
       - name: vol2
         secret:
           secretName: notification-refresh-token
+      - name: tokenvalidation
+        configMap:
+          name: token-validation

@@ -26,6 +26,7 @@ import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationCall
+import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -34,7 +35,7 @@ import kotlin.test.assertTrue
 class NotificationTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         micro.install(HibernateFeature)
-        listOf(NotificationController(micro.hibernateDatabase, NotificationHibernateDAO()))
+        listOf(NotificationController(micro.hibernateDatabase, NotificationHibernateDAO(), mockk(relaxed = true)))
     }
 
     private fun KtorApplicationTestContext.listPage(user: SecurityPrincipal): Page<Notification> {

@@ -141,8 +141,11 @@ export interface FileInfoReduxObject {
 
 export type AnalysisReduxObject = ComponentWithPage<Analysis>;
 
-export interface NotificationsReduxObject extends ComponentWithPage<Notification> {
+export interface NotificationsReduxObject {
     redirectTo: string
+    items: Notification[] 
+    loading: boolean
+    error?: string
 }
 
 export interface ZenodoReduxObject extends ComponentWithPage<Publication> {
@@ -247,7 +250,7 @@ export const initActivity = (): ActivityReduxObject => ({
 });
 
 export const initNotifications = (): NotificationsReduxObject => ({
-    page: emptyPage,
+    items: [],
     loading: false,
     redirectTo: "",
     error: undefined

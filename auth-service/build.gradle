@@ -1,17 +1,17 @@
 group 'dk.sdu.cloud'
-version '1.18.5-FIX.1'
+version '1.18.6'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.6/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.7/sdu-cloud.gradle"
 
 repositories {
     jcenter()
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.0.1"
+    ext.serviceCommonVersion = "1.1.7"
 }
 
 dependencies {

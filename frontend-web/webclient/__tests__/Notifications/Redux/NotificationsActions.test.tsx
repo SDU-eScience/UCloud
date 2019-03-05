@@ -7,9 +7,9 @@ import { notifications as mockNotifications } from "../../mock/Notifications"
 describe("Notifications Actions", () => {
     test("Receive notifications", () => {
         const store = configureStore({ notifications: initNotifications() }, { notifications });
-        expect(store.getState().notifications.page.items.length).toBe(0);
+        expect(store.getState().notifications.items.length).toBe(0);
         store.dispatch(NotificationsActions.receiveNotifications(mockNotifications));
-        expect(store.getState().notifications.page.items.length).toBe(mockNotifications.items.length);
+        expect(store.getState().notifications.items.length).toBe(mockNotifications.items.length);
     });
 
     test("Set Redirect", () => {
@@ -22,9 +22,9 @@ describe("Notifications Actions", () => {
     test.skip("Read notification", async () => {
         const store = configureStore({ notifications: initNotifications() }, { notifications });
         store.dispatch(NotificationsActions.receiveNotifications(mockNotifications));
-        expect(store.getState().notifications.page.items[0].read).toBe(false);
+        expect(store.getState().notifications.items[0].read).toBe(false);
         const action = await NotificationsActions.notificationRead(mockNotifications.items[0].id)
         store.dispatch(action);
-        expect(store.getState().notifications.page.items[0].read).toBe(true);
+        expect(store.getState().notifications.items[0].read).toBe(true);
     });
 });

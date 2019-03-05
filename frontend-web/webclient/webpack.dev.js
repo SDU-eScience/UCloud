@@ -39,6 +39,7 @@ module.exports = webpackMerge(commonConfig, {
     ],
 
     devServer: {
+        disableHostCheck: true,
         historyApiFallback: true,
         stats: "minimal",
         contentBase: path.join(process.cwd(), "/dist"),
@@ -55,6 +56,7 @@ module.exports = webpackMerge(commonConfig, {
             target: "https://cloud.sdu.dk",
             secure: false,
             changeOrigin: true,
+            ws: true,
             onProxyRes(proxyRes, req, res) {
                 if ("set-cookie" in proxyRes.headers) {
                     for (let i = 0; i < proxyRes.headers["set-cookie"].length; i++) {

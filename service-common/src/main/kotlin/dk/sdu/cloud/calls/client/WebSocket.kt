@@ -77,7 +77,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
         // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
         // when redirected from WS to WSS.
-        val port = 80
+        val port = targetHost.takeIf { it.port != 443 }?.port ?: 80
         val scheme = "ws"
 
         val path = call.websocket.path.removePrefix("/")
@@ -102,7 +102,9 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             )
         )
         val subscription = session.subscribe(streamId)
-        session.underlyingSession.outgoing.send(Frame.Text(writer.writeValueAsString(wsRequest)))
+        val text = writer.writeValueAsString(wsRequest)
+        log.debug("[$callId] -> $text")
+        session.underlyingSession.outgoing.send(Frame.Text(text))
 
         val handler = ctx.attributes.getOrNull(OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY)
 
@@ -257,6 +259,7 @@ internal class WSConnectionPool {
             if (existingAfterLock != null) return existingAfterLock
 
             val url = URLBuilder(location).build()
+            log.info("Building new websocket connection to $url")
             val session = client.webSocketRawSession(
                 host = url.host,
                 port = url.port,
@@ -268,6 +271,10 @@ internal class WSConnectionPool {
             wrappedSession.startProcessing(GlobalScope)
             return wrappedSession
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
