@@ -50,7 +50,7 @@ class Header extends React.Component<HeaderProps> {
                 <Logo />
                 {/* <ContextSwitcher /> */}
                 <Box ml="auto" />
-                <Hide sm md>
+                <Hide xs sm md>
                     <Search
                         searchType={this.props.prioritizedSearch}
                         navigate={() => history.push(searchPage(prioritizedSearch, this.searchRef.current && this.searchRef.current.value || ""))}
@@ -277,7 +277,6 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
 const mapStateToProps = ({ header, avatar, responsive, ...rest }: ReduxObject): HeaderStateToProps => ({
     ...header,
     avatar,
-    responsive: responsive!,
     spin: anyLoading(rest as ReduxObject)
 });
 

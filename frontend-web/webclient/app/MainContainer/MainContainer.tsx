@@ -51,6 +51,9 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
                     </Hide>
                 }
                 <Box pt={mainYpad} pr={mainXpad}>
+                    <Hide lg xl xxl>
+                        {sidebar}
+                    </Hide>
                     {main}
                 </Box>
                 {additional}
