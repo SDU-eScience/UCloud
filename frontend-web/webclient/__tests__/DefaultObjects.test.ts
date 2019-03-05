@@ -1,6 +1,8 @@
 import * as Defaults from "DefaultObjects";
 import { SortOrder, SortBy } from "Files";
 import { SidebarPages } from "ui-components/Sidebar";
+import { Analysis } from "Applications";
+import { DashboardStateProps } from "Dashboard";
 
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
@@ -13,7 +15,7 @@ describe("Initialize Redux Objects", () => {
             recentLoading: false,
             analysesLoading: false,
             errors: []
-        })
+        } as DashboardStateProps)
     });
 
     test("Files", () => {
@@ -36,7 +38,7 @@ describe("Initialize Redux Objects", () => {
             fileSelectorError: undefined,
             fileSelectorIsFavorites: false,
             disallowedPaths: []
-        })))
+        })) as Defaults.FilesReduxObject)
     });
 
     test("Status", () =>
@@ -44,22 +46,22 @@ describe("Initialize Redux Objects", () => {
             status: Defaults.DefaultStatus,
             title: "",
             page: SidebarPages.None
-        })
+        } as Defaults.StatusReduxObject)
     );
 
     test("Header", () =>
         expect(Defaults.initHeader()).toEqual({
             prioritizedSearch: "files"
-        })
+        } as Defaults.HeaderSearchReduxObject)
     );
 
     test("Notifications", () =>
         expect(Defaults.initNotifications()).toEqual({
-            page: Defaults.emptyPage,
+            items: [],
             loading: false,
             redirectTo: "",
             error: undefined
-        })
+        } as Defaults.NotificationsReduxObject)
     );
 
     test("Analyses", () =>
@@ -67,7 +69,7 @@ describe("Initialize Redux Objects", () => {
             page: Defaults.emptyPage,
             loading: false,
             error: undefined
-        })
+        } as Defaults.ComponentWithPage<Analysis>)
     );
 
     test("Zenodo", () =>
@@ -76,7 +78,7 @@ describe("Initialize Redux Objects", () => {
             loading: false,
             page: Defaults.emptyPage,
             error: undefined
-        })
+        } as Defaults.ZenodoReduxObject)
     );
 
     test("Sidebar", () =>
@@ -84,7 +86,7 @@ describe("Initialize Redux Objects", () => {
             kcCount: 0,
             pp: false,
             options: []
-        })
+        } as Defaults.SidebarReduxObject)
     );
 
     test("Uploads", () =>
@@ -95,6 +97,6 @@ describe("Initialize Redux Objects", () => {
             visible: false,
             allowMultiple: false,
             onFilesUploaded: () => null
-        })))
+        })) as Defaults.UploaderReduxObject)
     );
 });
