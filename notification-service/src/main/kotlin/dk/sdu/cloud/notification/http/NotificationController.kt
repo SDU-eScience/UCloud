@@ -4,13 +4,11 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.notification.api.DeleteResponse
 import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.MarkResponse
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.notification.api.SubscriptionResponse
 import dk.sdu.cloud.notification.services.NotificationDAO
 import dk.sdu.cloud.notification.services.SubscriptionService
 import dk.sdu.cloud.service.Controller
@@ -18,7 +16,9 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.slf4j.Logger
 
 class NotificationController<DBSession>(
@@ -70,7 +70,15 @@ class NotificationController<DBSession>(
         implement(NotificationDescriptions.create) {
             val result =
                 db.withTransaction { FindByNotificationId(source.create(it, request.user, request.notification)) }
-            subscriptionService.onNotification(request.user, request.notification.copy(id = result.id))
+
+            GlobalScope.launch {
+                subscriptionService.onNotification(
+                    request.user,
+                    request.notification.copy(id = result.id),
+                    allowRemoteCalls = true
+                )
+            }
+
             ok(result)
         }
 
@@ -105,7 +113,7 @@ class NotificationController<DBSession>(
         }
 
         implement(NotificationDescriptions.internalNotification) {
-            subscriptionService.onNotification(request.user, request.notification)
+            subscriptionService.onNotification(request.user, request.notification, allowRemoteCalls = false)
             ok(Unit)
         }
     }

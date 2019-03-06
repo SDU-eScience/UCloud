@@ -35,7 +35,7 @@ class SubscriptionService<Session>(
     private val wsServiceClient: AuthenticatedClient,
     private val db: DBSessionFactory<Session>,
     private val subscriptionDao: SubscriptionDao<Session>
-): Closeable {
+) : Closeable {
     private var isRunning: Boolean = true
 
     init {
@@ -85,7 +85,7 @@ class SubscriptionService<Session>(
         if (id != null) db.withTransaction { subscriptionDao.close(it, id) }
     }
 
-    suspend fun onNotification(user: String, notification: Notification) {
+    suspend fun onNotification(user: String, notification: Notification, allowRemoteCalls: Boolean) {
         val subscriptions = db.withTransaction {
             subscriptionDao.findConnections(it, user)
         }
@@ -98,7 +98,11 @@ class SubscriptionService<Session>(
                 if (localSubscription == null) {
                     invalidSubscriptions.add(subscription.id)
                 } else {
-                    localSubscription.handler.sendWSMessage(notification)
+                    try {
+                        localSubscription.handler.sendWSMessage(notification)
+                    } catch (ex: Throwable) {
+                        invalidSubscriptions.add(subscription.id)
+                    }
                 }
 
                 Unit
@@ -114,20 +118,22 @@ class SubscriptionService<Session>(
             }
         }
 
-        // Deal with remote subscriptions
-        run {
-            GlobalScope.launch {
-                subscriptions
-                    .filter { it.host != localhost }
-                    .map { subscription ->
-                        val client = wsServiceClient.withFixedHost(subscription.host)
-                        launch {
-                            NotificationDescriptions.internalNotification.call(
-                                InternalNotificationRequest(user, notification),
-                                client
-                            )
+        if (allowRemoteCalls) {
+            // Deal with remote subscriptions
+            run {
+                GlobalScope.launch {
+                    subscriptions
+                        .filter { it.host != localhost }
+                        .map { subscription ->
+                            val client = wsServiceClient.withFixedHost(subscription.host)
+                            launch {
+                                NotificationDescriptions.internalNotification.call(
+                                    InternalNotificationRequest(user, notification),
+                                    client
+                                )
+                            }
                         }
-                    }
+                }
             }
         }
     }
