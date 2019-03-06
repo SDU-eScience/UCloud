@@ -6,6 +6,7 @@ import dk.sdu.cloud.alerting.services.ElasticAlerting
 import dk.sdu.cloud.alerting.services.SlackNotifier
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.apache.http.HttpHost
@@ -36,7 +37,7 @@ class Server(
 
         val alertService = AlertingService(listOf(SlackNotifier(config.notifiers.slack?.hook!!)))
 
-        /*GlobalScope.launch {
+        GlobalScope.launch {
             try {
                 ElasticAlerting(elastic, alertService).alertOnClusterHealth()
             } catch (ex: Exception) {
@@ -44,22 +45,13 @@ class Server(
                 alertService.createAlert(Alert("WARNING: Alert on cluster health caught exception: ${ex.message}."))
                 exitProcess(1)
             }
-        }*/
-/*
+        }
+
         GlobalScope.launch {
             try {
                 ElasticAlerting(elastic, alertService).alertOnStatusCode()
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on StatusCode caught exception: ${ex.message}.")
-                exitProcess(1)
-            }
-        }*/
-
-        GlobalScope.launch {
-            try {
-                ElasticAlerting(elastic, alertService).storageAlert()
-            } catch (ex: Exception) {
-                log.warn("WARNING: Alert on liveness check caught exception: ${ex.message}.")
                 exitProcess(1)
             }
         }
