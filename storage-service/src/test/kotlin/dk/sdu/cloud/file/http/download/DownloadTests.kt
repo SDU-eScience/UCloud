@@ -2,9 +2,12 @@ package dk.sdu.cloud.file.http.download
 
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.file.api.BulkDownloadRequest
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.http.SimpleDownloadController
+import dk.sdu.cloud.file.http.files.FileControllerContext
 import dk.sdu.cloud.file.http.files.configureServerWithFileController
 import dk.sdu.cloud.file.services.BulkDownloadService
+import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
@@ -50,13 +53,16 @@ class DownloadTests {
         )
     }
 
-    private fun KtorApplicationTestSetupContext.configureWithDownloadController(): List<Controller> {
+    private fun KtorApplicationTestSetupContext.configureWithDownloadController(
+        additional: ((FileControllerContext) -> Unit)? = null
+    ): List<Controller> {
         return configureServerWithFileController {
             val tokenValidation = micro.tokenValidation as TokenValidationJWT
             val jwt = tokenValidation.validate(TokenValidationMock.createTokenForPrincipal(TestUsers.user))
             mockkStatic("dk.sdu.cloud.auth.api.ValidationUtilsKt")
             coEvery { tokenValidation.validateAndClaim(any(), any(), any()) } returns jwt
             val bulk = BulkDownloadService(it.coreFs)
+            additional?.invoke(it)
             listOf(
                 SimpleDownloadController(
                     it.authenticatedClient,
@@ -141,6 +147,35 @@ class DownloadTests {
 
                 //Should be OK since non existing files are filtered away.
                 assertEquals(HttpStatusCode.OK, response.status())
+            }
+        )
+    }
+
+    @Test
+    fun `test download with dead symlink`() {
+        val linkPath = "/home/user1/deadlink"
+        withKtorTest(
+            setup = {
+                configureWithDownloadController {
+                    it.runner.withBlockingContext(TestUsers.user.username) { ctx ->
+                        val path = "/home/user1/notfound"
+                        it.coreFs.write(ctx, path, WriteConflictPolicy.OVERWRITE) { write(42) }
+                        it.coreFs.createSymbolicLink(ctx, path, linkPath)
+                        it.coreFs.delete(ctx, path)
+                    }
+                }
+            },
+
+            test = {
+                val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
+                val response =
+                    sendRequest(
+                        HttpMethod.Get,
+                        "/api/files/download?path=$linkPath&token=$token",
+                        TestUsers.user
+                    ).response
+
+                assertEquals(HttpStatusCode.NotFound, response.status())
             }
         )
     }

@@ -24,6 +24,7 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -85,7 +86,15 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
                     stat = run {
                         val stat = fs.stat(ctx, request.path, mode)
-                        if (stat.isLink) fs.stat(ctx, stat.linkTarget, mode) else stat
+
+                        if (stat.isLink) {
+                            // If the link is dead the linkTarget will be equal to "/"
+                            if (stat.linkTarget == "/") throw FSException.NotFound()
+
+                            fs.stat(ctx, stat.linkTarget, mode)
+                        } else {
+                            stat
+                        }
                     }
 
                     filesDownloaded.add(stat.inode)
