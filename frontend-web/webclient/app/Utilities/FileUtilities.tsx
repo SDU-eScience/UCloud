@@ -270,7 +270,7 @@ export const HistoryFilesOperations = (history: History): FileOperation[] => {
 
     if (process.env.NODE_ENV === "development")
         ops.push({
-            predicate: (files: File[], cloud: SDUCloud) => isProject(files[0]),
+            predicate: (files: File[], cloud: SDUCloud) => false /* FIXME */,
             onTrue: {
                 text: "Edit Project",
                 onClick: (files: File[], cloud: SDUCloud) => history.push(projectViewPage(files[0].path)),
@@ -399,7 +399,6 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
     isChecked: false,
     beingRenamed,
     link: false,
-    annotations: [],
     isMockFolder: true
 });
 
@@ -484,8 +483,6 @@ export const canBeProject = (files: File[], homeFolder: string): boolean =>
     files.length === 1 && files.every(f => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
 
 export const previewSupportedExtension = (path: string) => false;
-
-export const isProject = (file: File) => file.fileType === "DIRECTORY" && file.annotations.some(it => it === "P");
 
 export const toFileText = (selectedFiles: File[]): string =>
     `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`

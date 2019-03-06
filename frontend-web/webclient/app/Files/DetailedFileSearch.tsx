@@ -102,6 +102,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
         const request: AdvancedSearchRequest = {
             fileName,
             extensions: [...this.props.extensions],
+            sensitivity: [...this.props.sensitivities],
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
             modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
@@ -286,7 +287,7 @@ const extensionPresets = [
 ];
 
 const sensitivityOptions = [
-    { text: "Open Access", value: "Open Access" },
+    { text: "Private", value: "Private" },
     { text: "Confidential", value: "Confidential" },
     { text: "Sensitive", value: "Sensitive" }
 ];

@@ -16,7 +16,7 @@ exports[`Zenodo Publish Mount Zenodo component 1`] = `
   padding-right: 14px;
 }
 
-.c2 {
+.c3 {
   -webkit-font-smoothing: antialiased;
   display: inline-block;
   vertical-align: middle;
@@ -38,18 +38,36 @@ exports[`Zenodo Publish Mount Zenodo component 1`] = `
   padding: 9.5px 18px;
 }
 
-.c2:disabled {
+.c3:disabled {
   opacity: 0.25;
 }
 
-.c2:focus {
+.c3:focus {
   outline: none;
 }
 
-.c2:hover {
+.c3:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c2 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c2 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c2 {
+    display: none;
+  }
 }
 
 <div
@@ -60,11 +78,14 @@ exports[`Zenodo Publish Mount Zenodo component 1`] = `
     className="c1"
     cursor="auto"
   >
+    <div
+      className="c2"
+    />
     <h1>
       You are not connected to Zenodo
     </h1>
     <button
-      className="c2"
+      className="c3"
       color="blue"
       onClick={[Function]}
     >

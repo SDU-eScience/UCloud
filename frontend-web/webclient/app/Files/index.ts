@@ -27,7 +27,6 @@ export interface File {
     isChecked?: boolean
     beingRenamed?: boolean
     link: boolean
-    annotations: string[]
     isMockFolder?: boolean
     content?: any
 }
@@ -268,7 +267,7 @@ export interface DetailedFileSearchOperations {
 
 export type DetailedFileSearchProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
 
-export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
+export type SensitivityLevel = "Private" | "Confidential" | "Sensitive";
 
 export interface DetailedFileSearchReduxState {
     hidden: boolean
@@ -309,11 +308,11 @@ export interface FileInfoState {
 
 export type AdvancedSearchRequest = {
     fileName?: string
-    extensions?: Array<String>
+    extensions?: String[]
     fileTypes: [FileType?, FileType?]
     createdAt?: { after?: number, before?: number }
     modifiedAt?: { after?: number, before?: number }
-    sensitivity?: Array<SensitivityLevel>
+    sensitivity?: SensitivityLevel[]
     itemsPerPage?: number
     page?: number
 };
