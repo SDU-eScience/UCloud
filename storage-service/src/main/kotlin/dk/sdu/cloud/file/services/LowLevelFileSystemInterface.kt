@@ -87,7 +87,8 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         attribute: String,
-        value: String
+        value: String,
+        allowOverwrite: Boolean = true
     ): FSResult<Unit>
 
     suspend fun listExtendedAttribute(

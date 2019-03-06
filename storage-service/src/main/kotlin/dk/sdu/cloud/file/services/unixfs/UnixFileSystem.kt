@@ -272,7 +272,8 @@ class UnixFileSystem(
         ctx: UnixFSCommandRunner,
         path: String,
         attribute: String,
-        value: String
+        value: String,
+        allowOverwrite: Boolean
     ): FSResult<Unit> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
@@ -280,6 +281,7 @@ class UnixFileSystem(
             absolutePath,
             attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it" },
             value,
+            if (allowOverwrite) "1" else "0",
             consumer = this::consumeStatusCode
         )
     }

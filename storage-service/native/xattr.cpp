@@ -6,9 +6,13 @@
 #define XATTR_MAX_VALUES 128
 #define XATTR_KEY_MAX_SIZE 256
 
-int xattr_set_command(const char *path, const char *attribute, const char *value) {
+int xattr_set_command(const char *path, const char *attribute, const char *value, bool allow_overwrite) {
     auto size = strlen(value);
-    if (SETXATTR(path, attribute, value, size) != 0) {
+
+    int options = 0;
+    if (!allow_overwrite) options |= XATTR_CREATE;
+
+    if (SETXATTR(path, attribute, value, size, options) != 0) {
         return -errno;
     }
     return 0;

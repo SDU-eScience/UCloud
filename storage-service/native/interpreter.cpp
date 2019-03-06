@@ -252,6 +252,7 @@ int write_open_command(char *path, bool allow_overwrite) {
 
     fstat(file_opened_for_writing, &s);
     print_file_information(std::cout, path, &s, CREATED_OR_MODIFIED);
+
     return 0;
 }
 
@@ -485,9 +486,10 @@ int main(int argc, char **argv) {
             auto path = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
             auto value = NEXT_ARGUMENT(2);
+            auto allow_overwrite = NEXT_ARGUMENT_INT(3) == 1;
             verify_path_or_fatal(path);
 
-            printf("EXIT:%d\n", xattr_set_command(path, attribute, value));
+            printf("EXIT:%d\n", xattr_set_command(path, attribute, value, allow_overwrite));
         } else if (IS_COMMAND(("list-xattr"))) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);

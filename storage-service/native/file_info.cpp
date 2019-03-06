@@ -94,9 +94,19 @@ static void print_basic(std::ostream &stream, const char *path, const struct sta
     }
 
     if ((mode & TIMESTAMPS) != 0) {
+        char birth_buffer[32];
+        memset(birth_buffer, 0, 32);
+        GETXATTR(path, "user.birth", &birth_buffer, 32);
+
         EMIT_STAT(stat_inp->st_atime);
         EMIT_STAT(stat_inp->st_mtime);
-        EMIT_STAT(stat_inp->st_ctime);
+
+        if (strlen(birth_buffer) > 0) {
+            EMIT_STAT(birth_buffer);
+        } else {
+            // Modified time seems like the most correct fallback value.
+            EMIT_STAT(stat_inp->st_mtime);
+        }
     }
 
     if ((mode & PATH) != 0) {
