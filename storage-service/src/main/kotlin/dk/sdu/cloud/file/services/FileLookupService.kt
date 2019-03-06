@@ -136,7 +136,10 @@ class FileLookupService<Ctx : FSUserContext>(
             ownerName = row.xowner.takeIf { it.isNotBlank() } ?: row.owner,
             size = row.size,
             acl = row.shares,
-            sensitivityLevel = lookupInheritedSensitivity(ctx, row.path, cache),
+            sensitivityLevel = run {
+                if (row.isLink) lookupInheritedSensitivity(ctx, row.path, cache)
+                else row.sensitivityLevel ?: lookupInheritedSensitivity(ctx, row.path.parent(), cache)
+            },
             ownSensitivityLevel = row.sensitivityLevel,
             link = row.isLink,
             annotations = row.annotations,
