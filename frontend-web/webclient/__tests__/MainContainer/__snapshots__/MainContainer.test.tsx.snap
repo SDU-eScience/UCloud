@@ -32,6 +32,24 @@ exports[`Main container Main container with header 1`] = `
   z-index: 50;
 }
 
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c3 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c3 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c3 {
+    display: none;
+  }
+}
+
 <div
   className="c0"
   cursor="auto"
@@ -48,6 +66,9 @@ exports[`Main container Main container with header 1`] = `
     className="c2"
     cursor="auto"
   >
+    <div
+      className="c3"
+    />
     <div />
   </div>
 </div>
@@ -63,13 +84,13 @@ exports[`Main container Main container with sidebar 1`] = `
   padding-right: 0;
 }
 
-.c2 {
+.c3 {
   cursor: auto;
   padding-top: 14px;
   padding-right: 240px;
 }
 
-.c1 {
+.c2 {
   cursor: auto;
   padding-top: 62px;
   padding-left: 14px;
@@ -84,22 +105,67 @@ exports[`Main container Main container with sidebar 1`] = `
   z-index: 45;
 }
 
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c4 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c4 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c4 {
+    display: none;
+  }
+}
+
+@media screen and (max-width:511px) {
+  .c1 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:512px) and (max-width:639px) {
+  .c1 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:640px) and (max-width:767px) {
+  .c1 {
+    display: none;
+  }
+}
+
 <div
   className="c0"
   cursor="auto"
 >
   <div
     className="c1"
-    cursor="auto"
-    height="100%"
-    width={240}
   >
-    <div />
+    <div
+      className="c2"
+      cursor="auto"
+      height="100%"
+      width={240}
+    >
+      <div />
+    </div>
   </div>
   <div
-    className="c2"
+    className="c3"
     cursor="auto"
   >
+    <div
+      className="c4"
+    >
+      <div />
+    </div>
     <div />
   </div>
 </div>
@@ -121,6 +187,24 @@ exports[`Main container Only main container 1`] = `
   padding-right: 14px;
 }
 
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c2 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c2 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c2 {
+    display: none;
+  }
+}
+
 <div
   className="c0"
   cursor="auto"
@@ -129,6 +213,9 @@ exports[`Main container Only main container 1`] = `
     className="c1"
     cursor="auto"
   >
+    <div
+      className="c2"
+    />
     <div />
   </div>
 </div>

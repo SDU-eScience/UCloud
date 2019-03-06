@@ -22,7 +22,7 @@ exports[`UserCreation Mount 1`] = `
   margin: 0;
 }
 
-.c6 {
+.c7 {
   -webkit-font-smoothing: antialiased;
   display: inline-block;
   vertical-align: middle;
@@ -44,21 +44,21 @@ exports[`UserCreation Mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c6:disabled {
+.c7:disabled {
   opacity: 0.25;
 }
 
-.c6:focus {
+.c7:focus {
   outline: none;
 }
 
-.c6:hover {
+.c7:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c4 {
+.c5 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -73,7 +73,7 @@ exports[`UserCreation Mount 1`] = `
   font-weight: 700;
 }
 
-.c5 {
+.c6 {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -95,31 +95,31 @@ exports[`UserCreation Mount 1`] = `
   border-radius: 5px;
 }
 
-.c5::-webkit-input-placeholder {
+.c6::-webkit-input-placeholder {
   color: #8393A7;
 }
 
-.c5::-moz-placeholder {
+.c6::-moz-placeholder {
   color: #8393A7;
 }
 
-.c5:-ms-input-placeholder {
+.c6:-ms-input-placeholder {
   color: #8393A7;
 }
 
-.c5::placeholder {
+.c6::placeholder {
   color: #8393A7;
 }
 
-.c5::-ms-clear {
+.c6::-ms-clear {
   display: none;
 }
 
-.c5:focus {
+.c6:focus {
   outline: none;
 }
 
-.c5:focus {
+.c6:focus {
   outline: 0;
   border-color: #8393A7;
   box-shadow: 0 0 0 2px #8393A7;
@@ -139,6 +139,24 @@ exports[`UserCreation Mount 1`] = `
   left: 0;
   position: fixed;
   z-index: 50;
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c4 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c4 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c4 {
+    display: none;
+  }
 }
 
 <div
@@ -166,18 +184,21 @@ exports[`UserCreation Mount 1`] = `
     className="c3"
     cursor="auto"
   >
+    <div
+      className="c4"
+    />
     <form
       onSubmit={[Function]}
     >
       <label
-        className="c4"
+        className="c5"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Username
         <input
-          className="c5"
+          className="c6"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -186,14 +207,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="c4"
+        className="c5"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Password
         <input
-          className="c5"
+          className="c6"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -203,14 +224,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="c4"
+        className="c5"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Repeat password
         <input
-          className="c5"
+          className="c6"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -220,7 +241,7 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <button
-        className="c6"
+        className="c7"
         color="green"
         content="Create user"
         type="submit"

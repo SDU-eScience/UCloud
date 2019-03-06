@@ -141,10 +141,10 @@ const mockAcls: Acl[] = [
 ]
 
 test("Get multiple owners from Acls", () =>
-    expect(UF.getOwnerFromAcls(mockAcls)).toBe("2 members")
+    expect(UF.getOwnerFromAcls(mockAcls)).toBe("1 members")
 );
 
-test("Get multiple owners from Acls", () =>
+test("Get single owner from Acls", () =>
     expect(UF.getOwnerFromAcls([])).toBe("Only You")
 );
 
