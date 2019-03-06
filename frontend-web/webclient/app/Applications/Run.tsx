@@ -210,7 +210,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const header = (
             <Flex ml="12%">
-                <AppHeader application={application} />
+                <AppHeader slim application={application} />
             </Flex>
         );
 
@@ -265,7 +265,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         return (
             <MainContainer
                 header={header}
-                headerSize={192}
+                headerSize={64}
                 main={main}
                 sidebar={sidebar}
             />
