@@ -203,7 +203,6 @@ const GenericParameter = ({ parameter, children }: { parameter: ApplicationParam
             <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
         </Label>
         {children}
-        <OptionalText optional={parameter.optional} />
         <Markdown source={parameter.description} />
     </>
 );
