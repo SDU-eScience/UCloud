@@ -33,7 +33,12 @@
         "path": {
           "type": "text",
           "analyzer": "path-analyzer",
-          "search_analyzer": "keyword"
+          "search_analyzer": "keyword",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "fileName": {
           "type": "text",

@@ -42,5 +42,14 @@
         <Logger name="io.mockk.impl" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="dk.sdu.cloud.kafka" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="dk.sdu.cloud.service.ClassDiscovery" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="dk.sdu.cloud.micro" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

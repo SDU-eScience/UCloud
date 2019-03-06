@@ -3,6 +3,7 @@ package dk.sdu.cloud.indexing.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.ReverseLookupService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.TokenValidationMock
@@ -26,7 +27,7 @@ fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.
 }
 
 
-private fun configureLookupServer(reverseLookupService: ReverseLookupService): List<Controller> {
+private fun configureLookupServer(reverseLookupService: ElasticQueryService): List<Controller> {
     return listOf(LookupController(reverseLookupService))
 }
 
@@ -37,7 +38,7 @@ class LookupTest {
     fun `Lookup Test`() {
         withKtorTest(
             setup = {
-                val reverseLookupService = mockk<ReverseLookupService>()
+                val reverseLookupService = mockk<ElasticQueryService>()
                 every { reverseLookupService.reverseLookupBatch(any()) } returns listOf("This is what I found")
                 configureLookupServer(reverseLookupService)
             },
@@ -63,7 +64,7 @@ class LookupTest {
     fun `Lookup test - to many files exception thrown`() {
         withKtorTest(
             setup = {
-                val reverseLookupService = mockk<ReverseLookupService>()
+                val reverseLookupService = mockk<ElasticQueryService>()
                 every { reverseLookupService.reverseLookupBatch(any()) } answers {
                     throw RPCException("Bad request. Too many file IDs", HttpStatusCode.BadRequest)
                 }

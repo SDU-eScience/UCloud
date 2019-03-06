@@ -21,4 +21,6 @@ interface IndexQueryService {
     ): Page<StorageFile>
 
     fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse
+
+    fun lookupInheritedSensitivity(results: List<StorageFile>): List<StorageFile>
 }

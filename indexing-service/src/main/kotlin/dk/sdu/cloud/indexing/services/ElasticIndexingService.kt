@@ -128,8 +128,6 @@ class ElasticIndexingService(
             checksum = event.checksum,
 
             fileIsLink = event.isLink,
-            linkTarget = event.linkTarget,
-            linkTargetId = event.linkTargetId,
 
             sensitivity = event.sensitivityLevel,
 

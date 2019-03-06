@@ -3,7 +3,12 @@ package dk.sdu.cloud.indexing.services
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.components
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.parents
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
 import dk.sdu.cloud.indexing.api.ComparisonOperator
@@ -16,6 +21,8 @@ import dk.sdu.cloud.indexing.api.SortRequest
 import dk.sdu.cloud.indexing.api.SortableField
 import dk.sdu.cloud.indexing.api.StatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsResponse
+import dk.sdu.cloud.indexing.util.mapped
+import dk.sdu.cloud.indexing.util.parent
 import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -28,8 +35,6 @@ import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.action.get.GetRequest
-import org.elasticsearch.action.search.MultiSearchRequest
-import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.search.aggregations.AggregationBuilders
@@ -41,7 +46,6 @@ import org.elasticsearch.search.aggregations.metrics.percentiles.Percentiles
 import org.elasticsearch.search.aggregations.metrics.sum.Sum
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
-import java.security.Principal
 
 /**
  * An implementation of [IndexQueryService] and [ReverseLookupService] using an Elasticsearch backend.
@@ -49,7 +53,7 @@ import java.security.Principal
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient
 ) : IndexQueryService, ReverseLookupService {
-    private val mapper = jacksonObjectMapper()
+    private val mapper = defaultMapper
 
     override fun findFileByIdOrNull(id: String): StorageFile? {
         return elasticClient[GetRequest(FILES_INDEX, DOC_TYPE, id)]
@@ -113,12 +117,39 @@ class ElasticQueryService(
         }.mapItems { it.toMaterializedFile() }
     }
 
-    private fun multiSearch(users: List<Principal>) {
-        val multiSearchRequest = MultiSearchRequest()
-        users.forEach {
-            multiSearchRequest.add(SearchRequest())
+    override fun lookupInheritedSensitivity(results: List<StorageFile>): List<StorageFile> {
+        val allParents =
+            results.flatMap { it.path.parents() }.map { it.normalize() }.filter { it.components().size > 2 }.toSet()
+        val allParentFiles = elasticClient
+            .search(FILES_INDEX) {
+                source(SearchSourceBuilder().apply {
+                    size(allParents.size)
+                    query(
+                        bool {
+                            filter {
+                                terms {
+                                    ElasticIndexedFile.PATH_KEYWORD to allParents.toList()
+                                }
+                            }
+                        }
+                    )
+                })
+
+                log.debug(source().toString())
+            }
+            .mapped<ElasticIndexedFile>(mapper)
+            .map { it.path to it.sensitivity }
+            .toMap()
+
+        fun lookupSensitivity(path: String): SensitivityLevel {
+            if (path.components().size <= 2) return SensitivityLevel.PRIVATE
+            return allParentFiles[path.normalize()] ?: lookupSensitivity(path.parent())
         }
 
+        return results.map {
+            val sensitivity = it.ownSensitivityLevel ?: lookupSensitivity(it.path.parent())
+            it.withSensitivity(sensitivity)
+        }
     }
 
     private fun searchBasedOnQuery(fileQuery: FileQuery): QueryBuilder {
@@ -153,8 +184,6 @@ class ElasticQueryService(
                     modifiedAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
                     sensitivity.addClausesIfExists(list, ElasticIndexedFile.SENSITIVITY_FIELD)
                     annotations.addClausesIfExists(list, ElasticIndexedFile.ANNOTATIONS_FIELD)
-                    linkTarget.addClausesIfExists(list, ElasticIndexedFile.LINK_TARGET_FIELD)
-                    linkTargetId.addClausesIfExists(list, ElasticIndexedFile.LINK_TARGET_ID_FIELD)
                     size.addClausesIfExists(list, ElasticIndexedFile.SIZE_FIELD)
 
                     if (fileIsLink != null) {

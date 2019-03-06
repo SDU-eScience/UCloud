@@ -47,8 +47,6 @@ val elasticFile = ElasticIndexedFile(
     Timestamps(12345678, 1234567, 12345678),
     FileChecksum("SHA", "checksumForFile"),
     false,
-    null,
-    null,
     SensitivityLevel.CONFIDENTIAL,
     setOf("P")
 )

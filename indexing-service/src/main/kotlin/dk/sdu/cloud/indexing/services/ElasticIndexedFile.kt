@@ -32,8 +32,6 @@ data class ElasticIndexedFile(
     val checksum: FileChecksum,
 
     val fileIsLink: Boolean,
-    val linkTarget: String?,
-    val linkTargetId: String?,
 
     val sensitivity: SensitivityLevel?,
 
@@ -57,6 +55,7 @@ data class ElasticIndexedFile(
         // Refactoring safe without most of the performance penalty
         val ID_FIELD = ElasticIndexedFile::id.name
         val PATH_FIELD = ElasticIndexedFile::path.name
+        val PATH_KEYWORD = ElasticIndexedFile::path.name + ".keyword"
         val FILE_NAME_FIELD = ElasticIndexedFile::fileName.name
         val FILE_NAME_KEYWORD = ElasticIndexedFile::fileName.name + ".keyword"
         val FILE_NAME_EXTENSION = ElasticIndexedFile::fileName.name + ".extension"
@@ -72,12 +71,23 @@ data class ElasticIndexedFile(
 
         val CHECKSUM_FIELD = ElasticIndexedFile::checksum.name
         val FILE_IS_LINK_FIELD = ElasticIndexedFile::fileIsLink.name
-        val LINK_TARGET_FIELD = ElasticIndexedFile::linkTarget.name
-
-        val LINK_TARGET_ID_FIELD = ElasticIndexedFile::linkTargetId.name
 
         val SENSITIVITY_FIELD = ElasticIndexedFile::sensitivity.name
         val ANNOTATIONS_FIELD = ElasticIndexedFile::annotations.name
 
     }
 }
+
+fun StorageFile.withSensitivity(level: SensitivityLevel): StorageFile = StorageFile(
+    fileId = fileId,
+    path = path,
+    ownerName = ownerName,
+    fileType = fileType,
+    createdAt = createdAt,
+    modifiedAt = modifiedAt,
+    size = size,
+    link = link,
+    annotations = annotations,
+    ownSensitivityLevel = ownSensitivityLevel,
+    sensitivityLevel = level
+)

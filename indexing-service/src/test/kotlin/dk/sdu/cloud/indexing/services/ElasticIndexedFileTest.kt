@@ -24,8 +24,6 @@ class ElasticIndexedFileTest {
             Timestamps(123456789, 12345, 1234567),
             FileChecksum("sha", "checksum"),
             false,
-            null,
-            null,
             SensitivityLevel.CONFIDENTIAL,
             setOf("P")
         )
@@ -56,8 +54,6 @@ class ElasticIndexedFileTest {
         assertEquals("fileTimestamps.accessed", ElasticIndexedFile.TIMESTAMP_ACCESSED_FIELD)
         assertEquals("checksum", ElasticIndexedFile.CHECKSUM_FIELD)
         assertEquals("fileIsLink", ElasticIndexedFile.FILE_IS_LINK_FIELD)
-        assertEquals("linkTarget", ElasticIndexedFile.LINK_TARGET_FIELD)
-        assertEquals("linkTargetId", ElasticIndexedFile.LINK_TARGET_ID_FIELD)
         assertEquals("sensitivity", ElasticIndexedFile.SENSITIVITY_FIELD)
         assertEquals("annotations", ElasticIndexedFile.ANNOTATIONS_FIELD)
 

@@ -6,6 +6,7 @@ import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Page
 
 /**
  * A controller for [QueryDescriptions]
@@ -15,11 +16,18 @@ class QueryController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(QueryDescriptions.query) {
+            val results = queryService.query(
+                request.query.copy(roots = request.query.roots.map { it.normalizePath() }),
+                request.normalize(),
+                request.sortBy
+            )
+
             ok(
-                queryService.query(
-                    request.query.copy(roots = request.query.roots.map { it.normalizePath() }),
-                    request.normalize(),
-                    request.sortBy
+                Page(
+                    itemsInTotal = results.itemsInTotal,
+                    itemsPerPage = results.itemsPerPage,
+                    pageNumber = results.pageNumber,
+                    items = queryService.lookupInheritedSensitivity(results.items)
                 )
             )
         }

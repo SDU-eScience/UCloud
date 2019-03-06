@@ -1,5 +1,6 @@
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsRequest
@@ -38,6 +39,11 @@ class QueryTest {
                     val returnpage = Page(1, 25, 1, listOf(eventMatStorFile))
                     returnpage
                 }
+
+                every { indexQueryService.lookupInheritedSensitivity(any()) } answers {
+                    it.invocation.args.first() as List<StorageFile>
+                }
+
                 configureQueryServer(indexQueryService)
             },
 
