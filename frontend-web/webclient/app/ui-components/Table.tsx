@@ -49,7 +49,7 @@ export const TableHeader = styled.thead`
     padding-bottom: 11px;
 `;
 
-export const TableHeaderCell = styled.th<TextAlignProps & WidthProps >`
+export const TableHeaderCell = styled.th<TextAlignProps & WidthProps>`
     border-spacing: 0;
     border: 0px;
     ${textAlign};
