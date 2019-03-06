@@ -212,8 +212,8 @@ class Files extends React.Component<FilesProps> {
         return (
             <MainContainer
                 header={header}
-                main={<>{props.responsive!.lessThan.xl ? sidebar : null}{main}</>}
-                sidebar={props.responsive!.lessThan.xl ? null : sidebar}
+                main={main}
+                sidebar={sidebar}
                 additional={additional}
             />
         );

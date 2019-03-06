@@ -23,7 +23,7 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
     const pad = 14; //padding unit
 
     const mainYpad = header ? headerSize : pad;
-    const mainXpad = sidebar ? sidebarSize : pad;
+    const mainXpad = sidebar && responsiveState!.greaterThan.md ? sidebarSize : pad;
 
 
     return (
