@@ -198,31 +198,6 @@ static void print_shares(std::ostream &stream, const char *path) {
     }
 }
 
-static void print_annotations(std::ostream &stream, const char *path) {
-    char xattr_buffer[32];
-    size_t attr_name_buffer_size = 1024 * 32;
-    char attr_name_buffer[attr_name_buffer_size];
-    auto list_size = LISTXATTR(path, attr_name_buffer, attr_name_buffer_size);
-
-    const char *annotate_prefix = "user.annotate";
-    size_t annotate_prefix_length = strlen(annotate_prefix);
-
-    char *key = attr_name_buffer;
-    while (list_size > 0) {
-        memset(&xattr_buffer, 0, 32);
-
-        if (strncmp(annotate_prefix, key, annotate_prefix_length) == 0) {
-            GETXATTR(path, key, &xattr_buffer, 32);
-            stream << xattr_buffer;
-        }
-
-        size_t key_length = strlen(key) + 1;
-        list_size -= key_length;
-        key += key_length;
-    }
-    stream << std::endl;
-}
-
 static void print_sensitivity(std::ostream &stream, const char *path) {
     char xattr_buffer[32];
     memset(&xattr_buffer, 0, 32);
@@ -230,19 +205,6 @@ static void print_sensitivity(std::ostream &stream, const char *path) {
 
     char *sensitivity_result = xattr_buffer;
     EMIT_STAT(sensitivity_result);
-}
-
-static void print_checksum(std::ostream &stream, const char *path) {
-    char checksum_buffer[CHECKSUM_MAX];
-    char checksum_type_buffer[CHECKSUM_TYPE_MAX];
-    memset(checksum_buffer, 0, CHECKSUM_MAX);
-    memset(checksum_type_buffer, 0, CHECKSUM_TYPE_MAX);
-
-    GETXATTR(path, "user.checksum", checksum_buffer, CHECKSUM_MAX);
-    GETXATTR(path, "user.checksum_type", checksum_type_buffer, CHECKSUM_TYPE_MAX);
-
-    EMIT_STAT(checksum_buffer);
-    EMIT_STAT(checksum_type_buffer);
 }
 
 int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode) {
@@ -253,8 +215,6 @@ int print_file_information(std::ostream &stream, const char *path, const struct 
 
     print_basic(stream, path, stat_inp, mode);
     if ((mode & SHARES) != 0) print_shares(stream, path);
-    if ((mode & ANNOTATIONS) != 0) print_annotations(stream, path);
-    if ((mode & CHECKSUM) != 0) print_checksum(stream, path);
     if ((mode & SENSITIVITY) != 0) print_sensitivity(stream, path);
     return 0;
 }

@@ -85,8 +85,8 @@ bool std_starts_with(const std::string &str, const std::string &prefix);
 #define INODE           (1 << 10)
 #define SIZE            (1 << 11)
 #define SHARES          (1 << 12)
-#define ANNOTATIONS     (1 << 13)
-#define CHECKSUM        (1 << 14)
+#define NOT_IN_USE_ANNOTATIONS     (1 << 13)
+#define NOT_IN_USE_CHECKSUM        (1 << 14)
 #define SENSITIVITY     (1 << 15)
 #define NOT_IN_USE_XOWNER          (1 << 16) // NO LONGER USED
 
@@ -95,8 +95,8 @@ bool std_starts_with(const std::string &str, const std::string &prefix);
 #define CHECKSUM_MAX 256
 #define CHECKSUM_TYPE_MAX 256
 
-#define CREATED_OR_MODIFIED (FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER | SIZE | CHECKSUM | \
-    IS_LINK | LINK_TARGET |LINK_INODE | ANNOTATIONS | SENSITIVITY)
+#define CREATED_OR_MODIFIED (FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER | SIZE | \
+    IS_LINK | LINK_TARGET |LINK_INODE | SENSITIVITY)
 
 int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode);
 

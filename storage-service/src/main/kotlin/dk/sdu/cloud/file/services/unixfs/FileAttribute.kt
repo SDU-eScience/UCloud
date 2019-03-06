@@ -53,8 +53,6 @@ class FileAttributeParser(
             var inode: String? = null
             var size: Long? = null
             var shares: List<AccessEntry>? = null
-            var annotations: Set<String>? = null
-            var checksum: FileChecksum? = null
             var sensitivityLevel: SensitivityLevel? = null
             var linkInode: String? = null
 
@@ -139,17 +137,6 @@ class FileAttributeParser(
                         }
                     }
 
-                    FileAttribute.ANNOTATIONS -> {
-                        annotations = currentLine.toCharArray().map { it.toString() }.toSet()
-                    }
-
-                    FileAttribute.CHECKSUM -> {
-                        val sum = currentLine
-                        val type = next()
-
-                        checksum = FileChecksum(algorithm = type, checksum = sum)
-                    }
-
                     FileAttribute.SENSITIVITY -> {
                         sensitivityLevel = if (currentLine.isBlank()) {
                             null
@@ -187,8 +174,6 @@ class FileAttributeParser(
                         inode,
                         size,
                         shares,
-                        annotations,
-                        checksum,
                         sensitivityLevel,
                         linkInode,
                         null

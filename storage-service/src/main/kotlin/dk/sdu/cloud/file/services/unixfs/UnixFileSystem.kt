@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.services.unixfs
 import dk.sdu.cloud.file.SERVICE_UNIX_USER
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.joinPath
@@ -508,17 +509,17 @@ class UnixFileSystem(
 
             fileTimestamps = it.timestamps,
             size = it.size,
-            checksum = it.checksum,
 
             isLink = it.isLink,
             linkTarget = if (it.isLink) it.linkTarget else null,
             linkTargetId = if (it.isLink) it.linkInode else null,
 
-            annotations = it.annotations,
-
             sensitivityLevel = it.sensitivityLevel,
 
-            eventCausedBy = eventCausedBy
+            eventCausedBy = eventCausedBy,
+
+            annotations = emptySet(),
+            checksum = FileChecksum("", "")
         )
     }
 
@@ -607,8 +608,6 @@ class UnixFileSystem(
             _inode,
             _size,
             _shares?.let { normalizeShares(it) },
-            _annotations,
-            _checksum,
             _sensitivityLevel,
             _linkInode,
             realOwner
@@ -655,11 +654,9 @@ class UnixFileSystem(
             FileAttribute.OWNER,
             FileAttribute.XOWNER,
             FileAttribute.SIZE,
-            FileAttribute.CHECKSUM,
             FileAttribute.IS_LINK,
             FileAttribute.LINK_TARGET,
             FileAttribute.LINK_INODE,
-            FileAttribute.ANNOTATIONS,
             FileAttribute.SENSITIVITY
         )
 

@@ -7,10 +7,8 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
@@ -22,8 +20,7 @@ class ActionController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
-    private val fileLookupService: FileLookupService<Ctx>,
-    private val annotationService: FileAnnotationService<Ctx>
+    private val fileLookupService: FileLookupService<Ctx>
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.createDirectory) {
@@ -117,13 +114,7 @@ class ActionController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.annotate) {
             audit(SingleFileAudit(null, request))
-
-            commandRunnerFactory.withCtx(this, user = request.proxyUser) {
-                val stat = coreFs.stat(it, request.path, setOf(FileAttribute.INODE))
-                annotationService.annotateFiles(it, request.path, request.annotatedWith)
-                audit(SingleFileAudit(stat.inode, request))
-                ok(Unit)
-            }
+            ok(Unit)
         }
 
         implement(FileDescriptions.createLink) {

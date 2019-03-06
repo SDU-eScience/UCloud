@@ -22,7 +22,6 @@ import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
-import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FileSensitivityService
@@ -40,12 +39,10 @@ import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.WithKafkaStreams
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import org.apache.kafka.streams.KafkaStreams
@@ -95,7 +92,6 @@ class Server(
 
         // Metadata services
         val aclService = ACLService(fs)
-        val annotationService = FileAnnotationService(fs, storageEventProducer)
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
         val homeFolderService = HomeFolderService(cloud)
 
@@ -139,8 +135,7 @@ class Server(
                     commandRunnerForCalls,
                     coreFileSystem,
                     sensitivityService,
-                    fileLookupService,
-                    annotationService
+                    fileLookupService
                 ),
 
                 LookupController(

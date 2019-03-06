@@ -417,6 +417,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     /**
      * Annotates a file with metadata. Privileged API.
      */
+    @Deprecated("No longer in use")
     val annotate = call<AnnotateFileRequest, Unit, CommonErrorMessage>("annotate") {
         audit<SingleFileAudit<AnnotateFileRequest>>()
 
