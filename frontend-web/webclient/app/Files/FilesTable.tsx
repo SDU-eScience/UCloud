@@ -277,7 +277,6 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={!!file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     const cursor = isDirectory(file) && !file.path.endsWith("/.") ? "pointer" : undefined;
-    if (file.acl!.length) console.log(file.path, file.acl);
     const icon = (
         <Box mr="10px" cursor="inherit">
             <FileIcon
