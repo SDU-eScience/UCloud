@@ -26,7 +26,7 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
 export const getOwnerFromAcls = (acls?: Acl[]): string => {
     if (acls === undefined) return "N/A";
     if (acls.length > 0) {
-        return `${acls.length + 1} members`;
+        return `${acls.length} members`;
     } else {
         return "Only You";
     }
