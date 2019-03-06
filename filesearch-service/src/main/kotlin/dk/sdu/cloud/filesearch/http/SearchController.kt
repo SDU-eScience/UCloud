@@ -73,7 +73,9 @@ class SearchController(
 
                         fileNameQuery = request.fileName?.let { listOf(it) },
 
-                        extensions = request.annotations?.let { AnyOf.with(*it.toTypedArray()) },
+                        extensions = request.extensions?.let { exts ->
+                            AnyOf.with(*exts.map { it.removePrefix(".") }.toTypedArray())
+                        },
                         fileTypes = request.fileTypes?.let { AnyOf.with(*it.toTypedArray()) },
                         annotations = request.annotations?.let { AnyOf.with(*it.toTypedArray()) },
                         sensitivity = request.sensitivity?.let { AnyOf.with(*it.toTypedArray()) },

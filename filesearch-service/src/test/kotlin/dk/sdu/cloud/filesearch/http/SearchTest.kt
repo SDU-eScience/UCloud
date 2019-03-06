@@ -3,11 +3,12 @@ package dk.sdu.cloud.filesearch.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
 import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
@@ -38,22 +39,17 @@ class SearchTest {
         listOf(SearchController(cloud))
     }
 
-    private val file = EventMaterializedStorageFile(
-        "1",
-        "path",
-        "owner",
-        FileType.FILE,
-        Timestamps(12342431, 12345, 12345),
-        1234,
-        FileChecksum(
-            "SHA1",
-            "checksum"
-        ),
-        false,
-        null,
-        null,
-        emptySet(),
-        SensitivityLevel.PRIVATE
+    private val file: StorageFileImpl = StorageFileImpl(
+        fileId = "1",
+        path = "path",
+        ownerName = "owner",
+        creator = "owner",
+        fileType = FileType.FILE,
+        createdAt = 12342431, modifiedAt = 12345,
+        size = 1234,
+        link = false,
+        ownSensitivityLevel = SensitivityLevel.PRIVATE,
+        sensitivityLevel = SensitivityLevel.PRIVATE
     )
 
     private val queryResponse = QueryResponse(
