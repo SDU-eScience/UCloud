@@ -36,7 +36,7 @@ const FilesTable = ({
                 toSortingIcon={sortingIcon}
                 sortFiles={sortFiles}
                 sortBy={sortBy}
-                customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal thi is lenght=1
+                customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal this is lenght=1
             >
             </FilesTableHeader>
             <TableBody>

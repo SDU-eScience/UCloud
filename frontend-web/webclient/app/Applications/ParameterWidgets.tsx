@@ -3,8 +3,11 @@ import { File } from "Files";
 import FileSelector from "Files/FileSelector";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { ParameterTypes, ApplicationParameter } from ".";
-import { Box, Flex, Label, Text, Select, Markdown } from "ui-components";
+import { Box, Flex, Label, Text, Select, Markdown, IconButton, Button, Icon } from "ui-components";
 import Input from "ui-components/Input";
+import { EllipsedText } from "ui-components/Text";
+import styled from "styled-components";
+import BaseLink from "ui-components/BaseLink";
 
 const parameterTypeToComponent = (type) => {
     switch (type) {
@@ -207,5 +210,68 @@ const GenericParameter = ({ parameter, children }: { parameter: ApplicationParam
     </>
 );
 
-const OptionalText = ({ optional }) =>
-    optional ? (<span><b>Optional</b></span>) : null;
+export class OptionalParameter extends React.Component<{ parameter: ApplicationParameter }, { open: boolean }> {
+    constructor(props) {
+        super(props);
+        this.state = { open: false };
+    }
+
+    private static Base = styled(Flex)`
+        align-items: center;
+        cursor: pointer;
+
+        strong, & > ${EllipsedText} {
+            user-select: none;
+        }
+
+        strong {
+            margin-right: 16px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        & > ${EllipsedText} {
+            color: ${(props) => props.theme.colors.gray};
+            flex-grow: 1;
+        }
+
+        & > ${EllipsedText} > p {
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        & > ${Button} {
+            margin-left: 16px;
+            flex-shrink: 0;
+        }
+    `;
+
+    render() {
+        const { parameter } = this.props;
+        const { open } = this.state;
+
+        return (
+            <Box mb={8}>
+                <OptionalParameter.Base onClick={(e) => { e.preventDefault(); this.setState({ open: !open }) }}>
+                    <strong>{parameter.title}</strong>
+                    {!open ?
+                        <EllipsedText>
+                            <Markdown
+                                source={parameter.description}
+                                allowedTypes={["text", "root", "paragraph"]} />
+                        </EllipsedText>
+                        : <Box flexGrow={1} />}
+
+                    <Button
+                        lineHeight={"16px"}
+                        onClick={() => console.log("Add this item")}>
+                        Use
+                </Button>
+                </OptionalParameter.Base>
+                {open ? <Markdown source={parameter.description} /> : null}
+            </Box>
+        );
+    }
+}

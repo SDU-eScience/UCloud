@@ -5,16 +5,17 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, WithAppInvocation, WithAppMetadata } from "."
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, WithAppInvocation, WithAppMetadata, Application, WithAppFavorite } from "."
 import { Dispatch } from "redux";
-import { ReduxObject } from "DefaultObjects";
 import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Parameter } from "./ParameterWidgets";
+import { Parameter, OptionalParameter } from "./ParameterWidgets";
 import { extractParameters, hpcFavoriteApp, hpcJobQueryPost } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
+import * as Heading from "ui-components/Heading";
+import styled from "styled-components";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -125,12 +126,18 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.state.promises.makeCancelable(
             Cloud.get(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
         ).promise.then((req) => {
-            const app = req.response;
+            const app: (WithAppMetadata & WithAppInvocation & WithAppFavorite) = req.response;
+            const toolDescription = app.invocation.tool.tool.description;
 
             this.setState(() => ({
                 application: app,
                 loading: false,
-                favorite: app.favorite
+                favorite: app.favorite,
+                schedulingOptions: {
+                    maxTime: toolDescription.defaultMaxTime,
+                    numberOfNodes: toolDescription.defaultNumberOfNodes,
+                    tasksPerNode: toolDescription.defaultTasksPerNode
+                }
             }));
         }).catch(() => this.setState(() => ({
             loading: false,
@@ -286,10 +293,22 @@ interface ParameterProps {
     onSubmit: (e: React.FormEvent) => void,
     onJobSchedulingParamsChange: (field, value, subField) => void,
 }
+
+const OptionalParamsBox = styled(Box)`
+    max-height: 500px;
+    padding-top: 8px;
+    padding-right: 8px;
+    padding-bottom: 8px;
+    overflow-y: auto;
+`;
+
 const Parameters = (props: ParameterProps) => {
     if (!props.parameters) return null
 
-    let parametersList = props.parameters.map((parameter, index) => {
+    const mandatory = props.parameters.filter(parameter => !parameter.optional);
+    const optional = props.parameters.filter(parameter => parameter.optional);
+
+    const mapParamToComponent = (parameter: ApplicationParameter, index: number) => {
         let value = props.values[parameter.name];
         return (
             <Parameter
@@ -299,16 +318,37 @@ const Parameters = (props: ParameterProps) => {
                 value={value}
             />
         );
-    });
+    }
+
+    let mandatoryParams = mandatory.map(mapParamToComponent);
+    let optionalParams = optional.map((p, i) => <OptionalParameter parameter={p} key={i} />);
 
     return (
         <form onSubmit={props.onSubmit}>
-            {parametersList}
+            <Heading.h4>Mandatory Parameters ({mandatoryParams.length})</Heading.h4>
+            {mandatoryParams}
+
+            <Heading.h4>Scheduling</Heading.h4>
             <JobSchedulingOptions
                 onChange={props.onJobSchedulingParamsChange}
                 options={props.schedulingOptions}
                 app={props.app}
             />
+
+            {optionalParams.length > 0 ?
+                <>
+                    <Flex mb={16} alignItems={"center"}>
+                        <Box flexGrow={1}>
+                            <Heading.h4>Optional Parameters ({optionalParams.length})</Heading.h4>
+                        </Box>
+                        <Box flexShrink={0}>
+                            <Input placeholder={"Search..."} />
+                        </Box>
+                    </Flex>
+                    <OptionalParamsBox>{optionalParams}</OptionalParamsBox>
+                </>
+                : null
+            }
         </form>
     )
 };
@@ -348,29 +388,24 @@ const SchedulingField: React.StatelessComponent<SchedulingFieldProps> = props =>
 interface JobSchedulingOptionsProps { onChange: (a, b, c) => void, options: any, app: WithAppMetadata & WithAppInvocation }
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
-    const { tool } = props.app.invocation;
     const { maxTime, numberOfNodes, tasksPerNode } = props.options;
-    const { defaultMaxTime } = tool.tool.description;
     return (
         <>
             <Flex mb="1em">
-                {!props.app.invocation.resources.multiNodeSupport ? null :
-                    <>
-                        <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" defaultValue={tool.tool.description.defaultNumberOfNodes} value={numberOfNodes} onChange={props.onChange} />
-                        <Box ml="5px" />
-                        <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" defaultValue={tool.tool.description.defaultTasksPerNode} value={tasksPerNode} onChange={props.onChange} />
-                    </>
-                }
+                <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" value={maxTime.hours} onChange={props.onChange} />
+                <Box ml="4px" />
+                <SchedulingField min={0} field="maxTime" subField="minutes" text="Minutes" value={maxTime.minutes} onChange={props.onChange} />
+                <Box ml="4px" />
+                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" value={maxTime.seconds} onChange={props.onChange} />
             </Flex>
 
-            <Label>Maximum time allowed</Label>
-            <Flex mb="1em">
-                <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" defaultValue={defaultMaxTime.hours} value={maxTime.hours} onChange={props.onChange} />
-                <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="minutes" text="Minutes" defaultValue={defaultMaxTime.minutes} value={maxTime.minutes} onChange={props.onChange} />
-                <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" defaultValue={defaultMaxTime.seconds} value={maxTime.seconds} onChange={props.onChange} />
-            </Flex>
+            {!props.app.invocation.resources.multiNodeSupport ? null :
+                <Flex mb="1em">
+                    <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" value={numberOfNodes} onChange={props.onChange} />
+                    <Box ml="5px" />
+                    <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" value={tasksPerNode} onChange={props.onChange} />
+                </Flex>
+            }
         </>)
 };
 
