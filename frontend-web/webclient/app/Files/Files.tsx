@@ -22,7 +22,7 @@ import { Dispatch } from "redux";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
-import { FilesTable, ContextBar } from "./FilesTable";
+import FilesTable, { ContextBar } from "./FilesTable";
 import { MainContainer } from "MainContainer/MainContainer";
 import { setFileSelectorLoading } from "./Redux/FilesActions";
 import { SidebarPages } from "ui-components/Sidebar";
@@ -212,8 +212,8 @@ class Files extends React.Component<FilesProps> {
         return (
             <MainContainer
                 header={header}
-                main={<>{props.responsive!.lessThan.xl ? sidebar : null}{main}</>}
-                sidebar={props.responsive!.lessThan.xl ? null : sidebar}
+                main={main}
+                sidebar={sidebar}
                 additional={additional}
             />
         );

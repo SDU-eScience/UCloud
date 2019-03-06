@@ -1,4 +1,4 @@
-import { HeaderSearchType, ResponsiveReduxObject } from "DefaultObjects";
+import { HeaderSearchType } from "DefaultObjects";
 import { Upload } from "Uploader";
 import { defaultAvatar } from "UserSettings/Avataaar";
 // declare module "*.png";
@@ -13,7 +13,6 @@ export interface Status {
 
 interface HeaderStateToProps {
     prioritizedSearch: HeaderSearchType
-    responsive: ResponsiveReduxObject
     refresh?: () => void
     avatar: typeof defaultAvatar
     spin: boolean

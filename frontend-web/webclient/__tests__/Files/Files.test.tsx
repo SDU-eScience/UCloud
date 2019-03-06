@@ -3,7 +3,7 @@ import * as Renderer from "react-test-renderer";
 import { emptyPage, KeyCode } from "DefaultObjects";
 import { updateFiles } from "Files/Redux/FilesActions";
 import Files from "Files/Files";
-import { FilesTable, FileOperations } from "Files/FilesTable";
+import FilesTable, { FileOperations } from "Files/FilesTable";
 import { setLoading } from "Files/Redux/FilesActions"
 import { SortOrder, SortBy, Operation, PredicatedOperation, File } from "Files";
 import { mockFiles_SensitivityConfidential } from "../mock/Files"

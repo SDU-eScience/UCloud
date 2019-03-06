@@ -38,8 +38,6 @@ const FilesTable = ({
                 sortBy={sortBy}
                 customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal thi is lenght=1
             >
-                {/* FIXME: Figure out how to handle responsiveness for FileOperations */}
-                {checkedCount === -1 ? <FileOperationsWrapper fileOperations={fileOperations} files={checkedFiles} /> : null}
             </FilesTableHeader>
             <TableBody>
                 {files.map((file, i) => (
@@ -279,6 +277,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={!!file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     const cursor = isDirectory(file) && !file.path.endsWith("/.") ? "pointer" : undefined;
+    if (file.acl!.length) console.log(file.path, file.acl);
     const icon = (
         <Box mr="10px" cursor="inherit">
             <FileIcon
@@ -367,6 +366,4 @@ const mapStateToProps = ({ responsive }: ReduxObject): { responsiveState: Respon
     responsiveState: responsive!
 })
 
-const ft = connect<{ responsiveState: any }>(mapStateToProps)(FilesTable);
-
-export { ft as FilesTable };
+export default connect(mapStateToProps)(FilesTable);

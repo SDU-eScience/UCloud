@@ -4,7 +4,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { shortUUID, failureNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { Link } from "react-router-dom";
-import { FilesTable } from "Files/FilesTable";
+import FilesTable from "Files/FilesTable";
 import { List as PaginationList } from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
