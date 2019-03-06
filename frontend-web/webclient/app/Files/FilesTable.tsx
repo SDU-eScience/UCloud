@@ -7,7 +7,7 @@ import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, L
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
-import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage, replaceHomeFolder } from "Utilities/FileUtilities";
+import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, toFileText, filePreviewPage, replaceHomeFolder } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
 import { KeyCode, ReduxObject, SensitivityLevelMap, ResponsiveReduxObject } from "DefaultObjects";
@@ -325,7 +325,6 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
         <Flex data-tag={"fileName"} flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
             {nameLink}
         </Flex>
-        <GroupIcon isProject={isProject(file)} />
         <PredicatedFavorite predicate={!!onFavoriteFile} item={file} onClick={onFavoriteFile} />
     </>);
 

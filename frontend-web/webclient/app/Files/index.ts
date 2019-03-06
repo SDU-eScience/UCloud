@@ -27,7 +27,6 @@ export interface File {
     isChecked?: boolean
     beingRenamed?: boolean
     link: boolean
-    annotations: string[]
     isMockFolder?: boolean
     content?: any
 }
