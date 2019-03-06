@@ -8,7 +8,7 @@ import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { SortBy, SortOrder, File } from "Files";
 import { emptyPage, ReduxObject } from "DefaultObjects";
 import * as Heading from "ui-components/Heading";
-import { FilesTable, FileOptions } from "Files/FilesTable";
+import FilesTable, { FileOptions } from "Files/FilesTable";
 import { Dispatch } from "redux";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { fetchFavorites, setLoading, receiveFavorites } from "./Redux/FavoritesActions";

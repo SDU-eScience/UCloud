@@ -10,7 +10,7 @@ import { filepathQuery } from "Utilities/FileUtilities";
 import { Input, Icon, Button, Flex, Box } from "ui-components";
 import * as ReactModal from "react-modal";
 import { Spacer } from "ui-components/Spacer";
-import { FilesTable } from "./FilesTable";
+import FilesTable from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 import { addTrailingSlash, errorMessageOrDefault } from "UtilityFunctions";
 import styled from "styled-components";

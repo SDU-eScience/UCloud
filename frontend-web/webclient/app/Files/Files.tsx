@@ -22,7 +22,7 @@ import { Dispatch } from "redux";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
-import { FilesTable, ContextBar } from "./FilesTable";
+import FilesTable, { ContextBar } from "./FilesTable";
 import { MainContainer } from "MainContainer/MainContainer";
 import { setFileSelectorLoading } from "./Redux/FilesActions";
 import { SidebarPages } from "ui-components/Sidebar";

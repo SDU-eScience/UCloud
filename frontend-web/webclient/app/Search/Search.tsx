@@ -18,7 +18,7 @@ import theme from "ui-components/theme";
 import { MainContainer } from "MainContainer/MainContainer";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
 import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions";
-import { FilesTable } from "Files/FilesTable";
+import FilesTable from "Files/FilesTable";
 import { searchPage } from "Utilities/SearchUtilities";
 import { getQueryParamOrElse } from "Utilities/URIUtilities";
 import styled from "styled-components";
