@@ -29,7 +29,6 @@ export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps,
 }
 
 const Input = styled.input<InputProps>`
-  appearance: none;
   display: block;
   width: 100%;
   font-family: inherit;

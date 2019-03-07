@@ -3,7 +3,7 @@ import { File } from "Files";
 import FileSelector from "Files/FileSelector";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { ParameterTypes, ApplicationParameter } from ".";
-import { Box, Flex, Label, Text, Select, Markdown, IconButton, Button, Icon } from "ui-components";
+import { Box, Flex, Label, Text, Select, Markdown, Button } from "ui-components";
 import Input from "ui-components/Input";
 import { EllipsedText } from "ui-components/Text";
 import styled from "styled-components";
@@ -135,7 +135,7 @@ const BooleanParameter = (props: BooleanParameter) => {
 };
 
 const GenericNumberParameter = (props) => {
-    const internalOnChange = event => {
+    const internalOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         event.preventDefault();
 
         if (event.target.value === "") {
