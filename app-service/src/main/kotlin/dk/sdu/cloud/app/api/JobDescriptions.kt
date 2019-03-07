@@ -174,6 +174,7 @@ data class FollowStdStreamsResponse(
     /**
      * [NameAndVersion] for the application running.
      */
+    @Deprecated("Should no longer be used. Use metadata instead")
     val application: NameAndVersion,
 
     /**
@@ -196,8 +197,10 @@ data class FollowStdStreamsResponse(
      */
     val id: String,
 
-    val outputFolder: String? = null
-)
+    val outputFolder: String? = null,
+
+    override val metadata: ApplicationMetadata
+) : WithAppMetadata
 
 data class InternalFollowStdStreamsRequest(
     val job: VerifiedJob,

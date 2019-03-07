@@ -113,10 +113,7 @@ export interface DetailedResultState {
     complete: boolean
     appState: AppState
     status: string
-    app: {
-        name: string
-        version: string
-    }
+    app?: ApplicationMetadata
     stdout: string
     stderr: string
     stdoutLine: number
@@ -133,6 +130,7 @@ export interface DetailedResultState {
     fsDisallowedPaths: string[]
     fsCallback: Function
     fsIsFavorite: boolean
+    outputFolder?: string
 }
 
 export type StdElement = { scrollTop: number, scrollHeight: number } | null

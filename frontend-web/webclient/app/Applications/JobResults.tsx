@@ -6,7 +6,7 @@ import { Link } from "ui-components";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
-import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } from ".";
+import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps, ApplicationMetadata } from ".";
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
@@ -19,6 +19,7 @@ import * as Heading from "ui-components/Heading";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { EntriesPerPageSelector } from "Pagination";
 import { Spacer } from "ui-components/Spacer";
+import * as moment from "moment";
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
@@ -93,10 +94,9 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
 const Header = ({ hide }: { hide: boolean }) => (
     <TableHeader>
         <TableRow>
-            <TableHeaderCell textAlign="left">App Name</TableHeaderCell>
-            {hide ? null : <TableHeaderCell textAlign="left">Job Id</TableHeaderCell>}
+            <TableHeaderCell textAlign="left">Application</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Version</TableHeaderCell>
             <TableHeaderCell textAlign="left">State</TableHeaderCell>
-            {hide ? null : <TableHeaderCell textAlign="left">Status</TableHeaderCell>}
             {hide ? null : <TableHeaderCell textAlign="left">Started at</TableHeaderCell>}
             <TableHeaderCell textAlign="left">Last updated at</TableHeaderCell>
         </TableRow>
@@ -105,24 +105,19 @@ const Header = ({ hide }: { hide: boolean }) => (
 
 // FIXME: Typesafety. But how has this worked setting Link as title?
 const Analysis = ({ analysis, to, hide }) => {
-    const jobIdField = analysis.status === "COMPLETE" ?
-        (<Link to={fileTablePage(`${Cloud.jobFolder}/${analysis.jobId}`)}>{analysis.jobId}</Link>) : analysis.jobId;
+    const metadata: ApplicationMetadata = analysis.metadata;
     return (
         <TableRow cursor="pointer" onClick={() => to()}>
-            <TableCell>{analysis.appName}@{analysis.appVersion}</TableCell>
-            {hide ? null : <TableCell><span title={jobIdField}>{shortUUID(jobIdField)}</span></TableCell>}
+            <TableCell>{metadata.title}</TableCell>
+            <TableCell>{metadata.version}</TableCell>
             <TableCell>{capitalized(analysis.state)}</TableCell>
-            {hide ? null : <TableCell>{analysis.status}</TableCell>}
             {hide ? null : <TableCell>{formatDate(analysis.createdAt)}</TableCell>}
             <TableCell>{formatDate(analysis.modifiedAt)}</TableCell>
         </TableRow>)
 };
 
 const formatDate = (millis: number) => {
-    let d = new Date(millis);
-    return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/` +
-        `${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:` +
-        `${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`;
+    return moment(new Date(millis)).fromNow();
 };
 
 const pad = (value: string | number, length: number) =>

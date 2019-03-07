@@ -37,7 +37,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             complete: false,
             appState: AppState.VALIDATED,
             status: "",
-            app: { name: "", version: "" },
             stdout: "",
             stderr: "",
             stdoutLine: 0,
@@ -126,10 +125,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     stdoutLine: response.stdoutNextLine,
                     stderrLine: response.stderrNextLine,
 
-                    app: response.application,
+                    app: response.metadata,
                     status: response.status,
                     appState: response.state,
-                    complete: response.complete
+                    complete: response.complete,
+                    outputFolder: response.outputFolder
                 }));
 
                 this.scrollIfNeeded();
@@ -154,7 +154,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
-        this.props.fetchPage(this.jobId, pageNumber, itemsPerPage);
+        this.props.fetchPage(this.state.outputFolder!!, pageNumber, itemsPerPage);
         window.clearTimeout(this.state.reloadIntervalId);
     }
 
@@ -215,9 +215,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     );
 
     renderInfoPanel() {
+        const { app } = this.state;
+        if (app === undefined) return null;
+
         let entries = [
-            { key: "Application Name", value: this.state.app.name },
-            { key: "Application Version", value: this.state.app.version },
+            { key: "Application", value: `${app.title} v${app.version}` },
             { key: "Status", value: this.state.status },
         ];
 
@@ -228,35 +230,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 domEntries.push(
                     <Box key={AppState.SUCCESS} pt="0.8em" pb="0.8em">
                         Application has completed successfully.
-                        Click <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}>here</Link> to go to the output.
-                    </Box>
-                );
-                break;
-            case AppState.SCHEDULED:
-                domEntries.push(
-                    <Box key={AppState.SCHEDULED} pt="0.8em" pb="0.8em">
-                        Your application is currently in the Slurm queue on ABC2 <LoadingIcon size={18} />
-                    </Box>
-                );
-                break;
-            case AppState.PREPARED:
-                domEntries.push(
-                    <Box key={AppState.PREPARED} pt="0.8em" pb="0.8em">
-                        We are currently transferring your job from SDUCloud to ABC2 <LoadingIcon size={18} />
-                    </Box>
-                );
-                break;
-            case AppState.RUNNING:
-                domEntries.push(
-                    <Box key={AppState.RUNNING} pt="0.8em" pb="0.8em">
-                        Your job is currently being executed on ABC2 <LoadingIcon size={18} />
-                    </Box>
-                );
-                break;
-            case AppState.FAILURE:
-                domEntries.push(
-                    <Box key={AppState.FAILURE} pt="0.8em" pb="0.8em">
-                        Job failed
+                        Click <Link to={fileTablePage(this.state.outputFolder!!)}>here</Link> to go to the output.
                     </Box>
                 );
                 break;
@@ -264,7 +238,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
         return (
             <Box mb="0.5em">
-                <h4>Job Information</h4>
+                <Heading.h4>Job Information</Heading.h4>
                 <Card height="auto" p="14px 14px 14px 14px">
                     <List>
                         {domEntries}
@@ -278,7 +252,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
         return (
             <Box width="100%">
-                <h4>
+                <Heading.h4>
                     Standard Streams
                     &nbsp;
                     <Dropdown>
@@ -287,14 +261,14 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             <span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>
                         </DropdownContent>
                     </Dropdown>
-                </h4>
+                </Heading.h4>
                 <Flex flexDirection="row">
                     <Box width={1 / 2}>
-                        <h4>Output</h4>
+                        <Heading.h5>Output</Heading.h5>
                         <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
                     </Box>
                     <Box width={1 / 2}>
-                        <h4>Information</h4>
+                        <Heading.h5>Information</Heading.h5>
                         <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
                     </Box>
                 </Flex>
@@ -322,7 +296,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             refetchFiles={() => null}
                             sortFiles={() => null}
                             onCheckFile={() => null}
-                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
+                            sortingColumns={[SortBy.TYPE, SortBy.SIZE]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
@@ -417,9 +391,9 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),
     setPageTitle: jobId => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
     receivePage: page => dispatch(receivePage(page)),
-    fetchPage: async (jobId, pageNumber, itemsPerPage) => {
+    fetchPage: async (folder, pageNumber, itemsPerPage) => {
         dispatch(setLoading(true));
-        dispatch(await fetchPage(Cloud.username || "", jobId, pageNumber, itemsPerPage));
+        dispatch(await fetchPage(folder, pageNumber, itemsPerPage));
     },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });

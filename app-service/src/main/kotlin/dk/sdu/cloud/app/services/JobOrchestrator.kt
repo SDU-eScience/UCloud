@@ -233,7 +233,8 @@ class JobOrchestrator<DBSession>(
             job.status,
             job.currentState.isFinal(),
             job.id,
-            jobFileService.jobFolder(job)
+            jobFileService.jobFolder(job),
+            job.application.metadata
         )
     }
 
