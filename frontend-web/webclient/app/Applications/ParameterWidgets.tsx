@@ -10,7 +10,7 @@ import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
 
-const parameterTypeToComponent = (type) => {
+const parameterTypeToComponent = (type: ParameterTypes) => {
     switch (type) {
         case ParameterTypes.InputFile:
             return InputFileParameter;
