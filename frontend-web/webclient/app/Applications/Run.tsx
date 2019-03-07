@@ -10,7 +10,7 @@ import { Dispatch } from "redux";
 import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Parameter, OptionalParameter } from "./ParameterWidgets";
+import { Parameter, OptionalParameter, OptionalParameters } from "./ParameterWidgets";
 import { extractParameters, hpcFavoriteApp, hpcJobQueryPost } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
@@ -101,9 +101,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
         const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
         if (maxTime != null && (maxTime.hours != null || maxTime.minutes != null || maxTime.seconds != null)) {
-            extractedJobInfo.maxTime.hours = maxTime.hours ? maxTime.hours : null;
-            extractedJobInfo.maxTime.minutes = maxTime.minutes ? maxTime.minutes : null;
-            extractedJobInfo.maxTime.seconds = maxTime.seconds ? maxTime.seconds : null;
+            extractedJobInfo.maxTime.hours = maxTime.hours ? maxTime.hours : 0;
+            extractedJobInfo.maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
+            extractedJobInfo.maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
         }
         extractedJobInfo.numberOfNodes = numberOfNodes;
         extractedJobInfo.tasksPerNode = tasksPerNode;
@@ -235,6 +235,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     schedulingOptions={schedulingOptions}
                     app={application}
                     onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
+                    onParameterUsed={(p) => {
+                        p.visible = true;
+                        this.setState(() => ({ application: this.state.application }));
+                    }}
                 />
             </ContainerForText>
         );
@@ -285,28 +289,22 @@ interface ParameterValues {
 }
 
 interface ParameterProps {
-    values: ParameterValues,
-    parameters: ApplicationParameter[],
-    schedulingOptions: JobSchedulingOptionsForInput,
-    app: WithAppMetadata & WithAppInvocation,
-    onChange: (name: string, value: any) => void,
-    onSubmit: (e: React.FormEvent) => void,
-    onJobSchedulingParamsChange: (field, value, subField) => void,
+    values: ParameterValues
+    parameters: ApplicationParameter[]
+    schedulingOptions: JobSchedulingOptionsForInput
+    app: WithAppMetadata & WithAppInvocation
+    onChange: (name: string, value: any) => void
+    onSubmit: (e: React.FormEvent) => void
+    onJobSchedulingParamsChange: (field, value, subField) => void
+    onParameterUsed: (parameter: ApplicationParameter) => void
 }
-
-const OptionalParamsBox = styled(Box)`
-    max-height: 500px;
-    padding-top: 8px;
-    padding-right: 8px;
-    padding-bottom: 8px;
-    overflow-y: auto;
-`;
 
 const Parameters = (props: ParameterProps) => {
     if (!props.parameters) return null
 
     const mandatory = props.parameters.filter(parameter => !parameter.optional);
-    const optional = props.parameters.filter(parameter => parameter.optional);
+    const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values[parameter.name] != null));
+    const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values[parameter.name] == null);
 
     const mapParamToComponent = (parameter: ApplicationParameter, index: number) => {
         let value = props.values[parameter.name];
@@ -321,12 +319,20 @@ const Parameters = (props: ParameterProps) => {
     }
 
     let mandatoryParams = mandatory.map(mapParamToComponent);
-    let optionalParams = optional.map((p, i) => <OptionalParameter parameter={p} key={i} />);
+    let visibleParams = visible.map(mapParamToComponent);
 
     return (
         <form onSubmit={props.onSubmit}>
             <Heading.h4>Mandatory Parameters ({mandatoryParams.length})</Heading.h4>
             {mandatoryParams}
+
+            {visibleParams.length > 0 ?
+                <>
+                    <Heading.h4>Additional Parameters Used</Heading.h4>
+                    {visibleParams}
+                </>
+                : null
+            }
 
             <Heading.h4>Scheduling</Heading.h4>
             <JobSchedulingOptions
@@ -335,18 +341,8 @@ const Parameters = (props: ParameterProps) => {
                 app={props.app}
             />
 
-            {optionalParams.length > 0 ?
-                <>
-                    <Flex mb={16} alignItems={"center"}>
-                        <Box flexGrow={1}>
-                            <Heading.h4>Optional Parameters ({optionalParams.length})</Heading.h4>
-                        </Box>
-                        <Box flexShrink={0}>
-                            <Input placeholder={"Search..."} />
-                        </Box>
-                    </Flex>
-                    <OptionalParamsBox>{optionalParams}</OptionalParamsBox>
-                </>
+            {optional.length > 0 ?
+                <OptionalParameters parameters={optional} onUse={p => props.onParameterUsed(p)} />
                 : null
             }
         </form>

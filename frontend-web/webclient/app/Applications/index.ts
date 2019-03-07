@@ -211,9 +211,11 @@ interface BaseParameter {
     title: string
     description: string
     unitName?: string | null
+    type: string
+    visible?: boolean
 }
 
-export type ApplicationParameter = InputFileParameter | InputDirectoryParameter | NumberParameter | BooleanParameter | TextParameter
+export type ApplicationParameter = InputFileParameter | InputDirectoryParameter | NumberParameter | BooleanParameter | TextParameter;
 
 type Invocation = WordInvocation | VarInvocation
 

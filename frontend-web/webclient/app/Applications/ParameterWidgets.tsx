@@ -7,7 +7,8 @@ import { Box, Flex, Label, Text, Select, Markdown, IconButton, Button, Icon } fr
 import Input from "ui-components/Input";
 import { EllipsedText } from "ui-components/Text";
 import styled from "styled-components";
-import BaseLink from "ui-components/BaseLink";
+import * as Heading from "ui-components/Heading";
+import * as Fuse from "fuse.js";
 
 const parameterTypeToComponent = (type) => {
     switch (type) {
@@ -210,7 +211,94 @@ const GenericParameter = ({ parameter, children }: { parameter: ApplicationParam
     </>
 );
 
-export class OptionalParameter extends React.Component<{ parameter: ApplicationParameter }, { open: boolean }> {
+interface OptionalParameterProps {
+    parameters: ApplicationParameter[]
+    onUse: (ApplicationParameter) => void
+}
+
+interface OptionalParametersState {
+    results: ApplicationParameter[]
+}
+
+const OptionalParamsBox = styled(Box)`
+    max-height: 35em;
+    padding-top: 8px;
+    padding-right: 8px;
+    padding-bottom: 8px;
+    overflow-y: auto;
+`;
+
+export class OptionalParameters extends React.Component<OptionalParameterProps, OptionalParametersState> {
+    private fuse: Fuse<ApplicationParameter>;
+    private currentTimeout: number = -1;
+    private searchField = React.createRef<HTMLInputElement>();
+
+    constructor(props: OptionalParameterProps) {
+        super(props);
+        this.state = { results: props.parameters };
+        this.initFuse();
+    }
+
+    private initFuse() {
+        this.fuse = new Fuse(this.props.parameters, {
+            shouldSort: true,
+            threshold: 0.6,
+            location: 0,
+            distance: 100,
+            maxPatternLength: 32,
+            minMatchCharLength: 1,
+            keys: [
+                "title",
+                "description"
+            ]
+        });
+
+    }
+
+    componentDidUpdate(prevProps: OptionalParameterProps) {
+        if (this.props.parameters !== prevProps.parameters) {
+            this.initFuse();
+            const current = this.searchField.current;
+            if (current != null) this.search(current.value);
+        }
+    }
+
+    private search(searchTerm: string) {
+        if (this.currentTimeout !== -1) clearTimeout(this.currentTimeout);
+
+        if (searchTerm === "") {
+            this.setState({ results: this.props.parameters });
+        } else {
+            this.currentTimeout = setTimeout(() => {
+                const results = this.fuse.search(searchTerm);
+                this.setState({ results });
+            }, 300);
+        }
+    }
+
+    render() {
+        const { onUse } = this.props;
+        const { results } = this.state;
+        const components = results.map((p, i) => <OptionalParameter key={i} parameter={p} onUse={() => onUse(p)} />);
+
+        return (
+            <>
+                <Flex mb={16} alignItems={"center"}>
+                    <Box flexGrow={1}>
+                        <Heading.h4>Optional Parameters ({results.length})</Heading.h4>
+                    </Box>
+                    <Box flexShrink={0}>
+                        <Input placeholder={"Search..."} ref={this.searchField} onChange={e => this.search(e.target.value)} />
+                    </Box>
+                </Flex>
+                <OptionalParamsBox>{components}</OptionalParamsBox>
+            </>
+        );
+
+    }
+}
+
+export class OptionalParameter extends React.Component<{ parameter: ApplicationParameter, onUse: () => void }, { open: boolean }> {
     constructor(props) {
         super(props);
         this.state = { open: false };
@@ -249,7 +337,7 @@ export class OptionalParameter extends React.Component<{ parameter: ApplicationP
     `;
 
     render() {
-        const { parameter } = this.props;
+        const { parameter, onUse } = this.props;
         const { open } = this.state;
 
         return (
@@ -266,7 +354,11 @@ export class OptionalParameter extends React.Component<{ parameter: ApplicationP
 
                     <Button
                         lineHeight={"16px"}
-                        onClick={() => console.log("Add this item")}>
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onUse();
+                        }}>
                         Use
                 </Button>
                 </OptionalParameter.Base>
