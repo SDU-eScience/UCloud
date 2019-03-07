@@ -16,7 +16,6 @@ int stat_command(const char *path, uint64_t mode) {
                SHARES |
                SENSITIVITY |
                IS_LINK |
-               ANNOTATIONS |
                INODE |
                PATH;
     }

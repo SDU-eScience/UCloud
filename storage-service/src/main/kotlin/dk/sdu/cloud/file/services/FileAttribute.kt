@@ -69,12 +69,12 @@ enum class FileAttribute(val value: Long) {
     /**
      * Annotations of the file
      */
-    ANNOTATIONS(1 shl 13),
+//    ANNOTATIONS(1 shl 13),
 
     /**
      * Checksum information (if computed)
      */
-    CHECKSUM(1 shl 14),
+//    CHECKSUM(1 shl 14),
 
     /**
      * Sensitivity information

@@ -21,8 +21,6 @@ class FileRow(
     val _inode: String?,
     val _size: Long?,
     val _shares: List<AccessEntry>?,
-    val _annotations: Set<String>?,
-    val _checksum: FileChecksum?,
     val _sensitivityLevel: SensitivityLevel?,
     val _linkInode: String?,
     val _xowner: String?
@@ -39,8 +37,6 @@ class FileRow(
     val inode: String get() = _inode!!
     val size: Long get() = _size!!
     val shares: List<AccessEntry> get() = _shares!!
-    val annotations: Set<String> get() = _annotations!!
-    val checksum: FileChecksum get() = _checksum!!
     val sensitivityLevel: SensitivityLevel? get() = _sensitivityLevel
     val linkInode: String get() = _linkInode!!
     val xowner: String get() = _xowner!!

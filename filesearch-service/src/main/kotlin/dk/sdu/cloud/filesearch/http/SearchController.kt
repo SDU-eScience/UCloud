@@ -73,12 +73,12 @@ class SearchController(
 
                         fileNameQuery = request.fileName?.let { listOf(it) },
 
-                        extensions = request.extensions?.let { exts ->
+                        extensions = request.extensions?.takeIf { it.isNotEmpty() }?.let { exts ->
                             AnyOf.with(*exts.map { it.removePrefix(".") }.toTypedArray())
                         },
-                        fileTypes = request.fileTypes?.let { AnyOf.with(*it.toTypedArray()) },
-                        annotations = request.annotations?.let { AnyOf.with(*it.toTypedArray()) },
-                        sensitivity = request.sensitivity?.let { AnyOf.with(*it.toTypedArray()) },
+                        fileTypes = request.fileTypes?.takeIf { it.isNotEmpty() }?.let { AnyOf.with(*it.toTypedArray()) },
+                        annotations = request.annotations?.takeIf { it.isNotEmpty() }?.let { AnyOf.with(*it.toTypedArray()) },
+                        sensitivity = request.sensitivity?.takeIf { it.isNotEmpty() }?.let { AnyOf.with(*it.toTypedArray()) },
 
                         createdAt = request.createdAt?.toPredicateCollection(),
                         modifiedAt = request.modifiedAt?.toPredicateCollection()

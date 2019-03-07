@@ -31,6 +31,20 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         storageEventExceptionHandler = handler
     }
 
+    private suspend fun writeTimeOfBirth(
+        ctx: Ctx,
+        path: String
+    ) {
+        // Note: We don't unwrap as this is expected to fail due to it already being present.
+        fs.setExtendedAttribute(
+            ctx,
+            path,
+            "birth",
+            (System.currentTimeMillis() / 1000).toString(),
+            allowOverwrite = false
+        )
+    }
+
     suspend fun write(
         ctx: Ctx,
         path: String,
@@ -42,6 +56,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+        writeTimeOfBirth(ctx, targetPath)
         fs.write(ctx, writer).emitAll()
         return targetPath
     }
@@ -67,6 +82,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         if (fromStat.fileType != FileType.DIRECTORY) {
             val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
             fs.copy(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+            writeTimeOfBirth(ctx, targetPath)
             return targetPath
         } else {
             val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
@@ -84,6 +100,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                         val targetPath = renameAccordingToPolicy(ctx, desired, conflictPolicy)
 
                         fs.copy(ctx, currentPath, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+                        writeTimeOfBirth(ctx, targetPath)
                     }
                 )
             }
@@ -140,6 +157,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         path: String
     ) {
         fs.makeDirectory(ctx, path).emitAll()
+        writeTimeOfBirth(ctx, path)
     }
 
     suspend fun move(

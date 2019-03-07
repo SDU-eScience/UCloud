@@ -7,16 +7,9 @@ import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.services.ACLService
-import dk.sdu.cloud.file.services.CommandRunner
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.service.Controller
 
 class LookupController<Ctx : FSUserContext>(

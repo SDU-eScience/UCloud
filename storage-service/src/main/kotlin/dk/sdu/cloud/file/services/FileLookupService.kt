@@ -142,7 +142,6 @@ class FileLookupService<Ctx : FSUserContext>(
             },
             ownSensitivityLevel = row.sensitivityLevel,
             link = row.isLink,
-            annotations = row.annotations,
             fileId = row.inode,
             creator = row.owner
         )
@@ -183,7 +182,6 @@ class FileLookupService<Ctx : FSUserContext>(
             FileAttribute.SIZE,
             FileAttribute.SHARES,
             FileAttribute.SENSITIVITY,
-            FileAttribute.ANNOTATIONS,
             FileAttribute.INODE,
             FileAttribute.IS_LINK,
             FileAttribute.XOWNER

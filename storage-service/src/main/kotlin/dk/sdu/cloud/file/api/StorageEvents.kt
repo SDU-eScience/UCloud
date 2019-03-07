@@ -101,12 +101,14 @@ sealed class StorageEvent {
 
         val fileTimestamps: Timestamps,
         val size: Long,
+        @Deprecated("No longer in use")
         val checksum: FileChecksum,
 
         val isLink: Boolean,
         val linkTarget: String?,
         val linkTargetId: String?,
 
+        @Deprecated("No longer in use")
         val annotations: Set<String>,
 
         val sensitivityLevel: SensitivityLevel?,
@@ -135,6 +137,7 @@ sealed class StorageEvent {
      *
      * A complete refresh of all annotations are sent, not just new/deleted ones.
      */
+    @Deprecated("No longer in use")
     data class AnnotationsUpdated(
         override val id: String,
         override val path: String,

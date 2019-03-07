@@ -17,7 +17,6 @@ import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
@@ -56,7 +55,6 @@ data class FileControllerContext(
     val runner: UnixFSCommandRunnerFactory,
     val fs: UnixFileSystem,
     val coreFs: CoreFileSystemService<UnixFSCommandRunner>,
-    val annotationService: FileAnnotationService<UnixFSCommandRunner>,
     val eventProducer: StorageEventProducer,
     val lookupService: FileLookupService<UnixFSCommandRunner>
 )
@@ -90,7 +88,6 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
         fs = fs,
         eventProducer = eventProducer,
         coreFs = coreFs,
-        annotationService = FileAnnotationService(fs, eventProducer),
         lookupService = FileLookupService(coreFs)
     )
 
@@ -100,8 +97,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
                 callRunner,
                 coreFs,
                 sensitivityService,
-                lookupService,
-                annotationService
+                lookupService
             ),
 
             LookupController(

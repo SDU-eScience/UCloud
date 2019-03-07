@@ -54,7 +54,6 @@ int tree_command(const char *path, uint64_t mode) {
                 SIZE |
                 TIMESTAMPS |
                 INODE |
-                CHECKSUM |
                 PATH;
     }
 

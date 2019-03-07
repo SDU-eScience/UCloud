@@ -219,7 +219,6 @@ class IndexingService<Ctx : FSUserContext>(
                 }
 
                 if (
-                    referenceFile.annotations.sorted() != realFile.annotations.sorted() ||
                     referenceFile.fileType != realFile.fileType ||
                     referenceFile.ownerName != realFile.owner ||
                     referenceFile.ownSensitivityLevel != realFile.sensitivityLevel ||
