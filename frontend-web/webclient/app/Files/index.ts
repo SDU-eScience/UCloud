@@ -138,7 +138,7 @@ export interface FilesTableProps {
     sortBy: SortBy
     onFavoriteFile?: (f: File[]) => void
     fileOperations: FileOperation[]
-    responsiveState?: ResponsiveReduxObject
+    responsive: ResponsiveReduxObject
     notStickyHeader?: boolean
 }
 
