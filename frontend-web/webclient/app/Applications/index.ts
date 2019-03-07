@@ -3,7 +3,7 @@ import { Page } from "Types";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
-import { DetailedResultReduxObject } from "DefaultObjects";
+import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 
 export interface Analysis {
     status: string
@@ -21,6 +21,7 @@ export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { 
 export interface AnalysesStateProps {
     page: Page<Analysis>
     loading: boolean
+    responsive: ResponsiveReduxObject
     error?: string
 }
 
@@ -211,9 +212,11 @@ interface BaseParameter {
     title: string
     description: string
     unitName?: string | null
+    type: string
+    visible?: boolean
 }
 
-export type ApplicationParameter = InputFileParameter | InputDirectoryParameter | NumberParameter | BooleanParameter | TextParameter
+export type ApplicationParameter = InputFileParameter | InputDirectoryParameter | NumberParameter | BooleanParameter | TextParameter;
 
 type Invocation = WordInvocation | VarInvocation
 

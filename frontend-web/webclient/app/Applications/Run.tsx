@@ -5,16 +5,17 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, WithAppInvocation, WithAppMetadata } from "."
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, WithAppInvocation, WithAppMetadata, Application, WithAppFavorite } from "."
 import { Dispatch } from "redux";
-import { ReduxObject } from "DefaultObjects";
 import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Parameter } from "./ParameterWidgets";
+import { Parameter, OptionalParameter, OptionalParameters } from "./ParameterWidgets";
 import { extractParameters, hpcFavoriteApp, hpcJobQueryPost } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
+import * as Heading from "ui-components/Heading";
+import styled from "styled-components";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -100,9 +101,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
         const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
         if (maxTime != null && (maxTime.hours != null || maxTime.minutes != null || maxTime.seconds != null)) {
-            extractedJobInfo.maxTime.hours = maxTime.hours ? maxTime.hours : null;
-            extractedJobInfo.maxTime.minutes = maxTime.minutes ? maxTime.minutes : null;
-            extractedJobInfo.maxTime.seconds = maxTime.seconds ? maxTime.seconds : null;
+            extractedJobInfo.maxTime.hours = maxTime.hours ? maxTime.hours : 0;
+            extractedJobInfo.maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
+            extractedJobInfo.maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
         }
         extractedJobInfo.numberOfNodes = numberOfNodes;
         extractedJobInfo.tasksPerNode = tasksPerNode;
@@ -125,12 +126,18 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.state.promises.makeCancelable(
             Cloud.get(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
         ).promise.then((req) => {
-            const app = req.response;
+            const app: (WithAppMetadata & WithAppInvocation & WithAppFavorite) = req.response;
+            const toolDescription = app.invocation.tool.tool.description;
 
             this.setState(() => ({
                 application: app,
                 loading: false,
-                favorite: app.favorite
+                favorite: app.favorite,
+                schedulingOptions: {
+                    maxTime: toolDescription.defaultMaxTime,
+                    numberOfNodes: toolDescription.defaultNumberOfNodes,
+                    tasksPerNode: toolDescription.defaultTasksPerNode
+                }
             }));
         }).catch(() => this.setState(() => ({
             loading: false,
@@ -210,7 +217,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const header = (
             <Flex ml="12%">
-                <AppHeader application={application} />
+                <AppHeader slim application={application} />
             </Flex>
         );
 
@@ -228,6 +235,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     schedulingOptions={schedulingOptions}
                     app={application}
                     onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
+                    onParameterUsed={(p) => {
+                        p.visible = true;
+                        this.setState(() => ({ application: this.state.application }));
+                    }}
                 />
             </ContainerForText>
         );
@@ -265,7 +276,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         return (
             <MainContainer
                 header={header}
-                headerSize={192}
+                headerSize={64}
                 main={main}
                 sidebar={sidebar}
             />
@@ -278,18 +289,24 @@ interface ParameterValues {
 }
 
 interface ParameterProps {
-    values: ParameterValues,
-    parameters: ApplicationParameter[],
-    schedulingOptions: JobSchedulingOptionsForInput,
-    app: WithAppMetadata & WithAppInvocation,
-    onChange: (name: string, value: any) => void,
-    onSubmit: (e: React.FormEvent) => void,
-    onJobSchedulingParamsChange: (field, value, subField) => void,
+    values: ParameterValues
+    parameters: ApplicationParameter[]
+    schedulingOptions: JobSchedulingOptionsForInput
+    app: WithAppMetadata & WithAppInvocation
+    onChange: (name: string, value: any) => void
+    onSubmit: (e: React.FormEvent) => void
+    onJobSchedulingParamsChange: (field, value, subField) => void
+    onParameterUsed: (parameter: ApplicationParameter) => void
 }
+
 const Parameters = (props: ParameterProps) => {
     if (!props.parameters) return null
 
-    let parametersList = props.parameters.map((parameter, index) => {
+    const mandatory = props.parameters.filter(parameter => !parameter.optional);
+    const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values[parameter.name] != null));
+    const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values[parameter.name] == null);
+
+    const mapParamToComponent = (parameter: ApplicationParameter, index: number) => {
         let value = props.values[parameter.name];
         return (
             <Parameter
@@ -299,16 +316,35 @@ const Parameters = (props: ParameterProps) => {
                 value={value}
             />
         );
-    });
+    }
+
+    let mandatoryParams = mandatory.map(mapParamToComponent);
+    let visibleParams = visible.map(mapParamToComponent);
 
     return (
         <form onSubmit={props.onSubmit}>
-            {parametersList}
+            <Heading.h4>Mandatory Parameters ({mandatoryParams.length})</Heading.h4>
+            {mandatoryParams}
+
+            {visibleParams.length > 0 ?
+                <>
+                    <Heading.h4>Additional Parameters Used</Heading.h4>
+                    {visibleParams}
+                </>
+                : null
+            }
+
+            <Heading.h4>Scheduling</Heading.h4>
             <JobSchedulingOptions
                 onChange={props.onJobSchedulingParamsChange}
                 options={props.schedulingOptions}
                 app={props.app}
             />
+
+            {optional.length > 0 ?
+                <OptionalParameters parameters={optional} onUse={p => props.onParameterUsed(p)} />
+                : null
+            }
         </form>
     )
 };
@@ -348,29 +384,24 @@ const SchedulingField: React.StatelessComponent<SchedulingFieldProps> = props =>
 interface JobSchedulingOptionsProps { onChange: (a, b, c) => void, options: any, app: WithAppMetadata & WithAppInvocation }
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
-    const { tool } = props.app.invocation;
     const { maxTime, numberOfNodes, tasksPerNode } = props.options;
-    const { defaultMaxTime } = tool.tool.description;
     return (
         <>
             <Flex mb="1em">
-                {!props.app.invocation.resources.multiNodeSupport ? null :
-                    <>
-                        <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" defaultValue={tool.tool.description.defaultNumberOfNodes} value={numberOfNodes} onChange={props.onChange} />
-                        <Box ml="5px" />
-                        <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" defaultValue={tool.tool.description.defaultTasksPerNode} value={tasksPerNode} onChange={props.onChange} />
-                    </>
-                }
+                <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" value={maxTime.hours} onChange={props.onChange} />
+                <Box ml="4px" />
+                <SchedulingField min={0} field="maxTime" subField="minutes" text="Minutes" value={maxTime.minutes} onChange={props.onChange} />
+                <Box ml="4px" />
+                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" value={maxTime.seconds} onChange={props.onChange} />
             </Flex>
 
-            <Label>Maximum time allowed</Label>
-            <Flex mb="1em">
-                <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" defaultValue={defaultMaxTime.hours} value={maxTime.hours} onChange={props.onChange} />
-                <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="minutes" text="Minutes" defaultValue={defaultMaxTime.minutes} value={maxTime.minutes} onChange={props.onChange} />
-                <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" defaultValue={defaultMaxTime.seconds} value={maxTime.seconds} onChange={props.onChange} />
-            </Flex>
+            {!props.app.invocation.resources.multiNodeSupport ? null :
+                <Flex mb="1em">
+                    <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" value={numberOfNodes} onChange={props.onChange} />
+                    <Box ml="5px" />
+                    <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" value={tasksPerNode} onChange={props.onChange} />
+                </Flex>
+            }
         </>)
 };
 

@@ -122,9 +122,9 @@ class ActionController<Ctx : FSUserContext>(
 
             commandRunnerFactory.withCtx(this) { ctx ->
                 val created = coreFs.createSymbolicLink(ctx, request.linkTargetPath, request.linkPath)
-                audit(SingleFileAudit(coreFs.stat(ctx, request.linkPath, setOf(FileAttribute.INODE)).inode, request))
-
-                ok(fileLookupService.stat(ctx, created.path))
+                val result = fileLookupService.stat(ctx, created.path)
+                audit(SingleFileAudit(result.fileId, request))
+                ok(result)
             }
         }
     }

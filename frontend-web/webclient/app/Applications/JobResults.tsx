@@ -36,8 +36,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
             this.getAnalyses(true)
         }, 10_000);
         this.setState({ reloadIntervalId });
-        const { setRefresh } = this.props;
-        setRefresh(() => this.getAnalyses(false));
+        this.props.setRefresh(() => this.getAnalyses(false));
     }
 
     componentWillReceiveProps(nextProps: AnalysesProps) {
@@ -57,18 +56,19 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
     }
 
     render() {
-        const { page, loading, fetchAnalyses, error, onErrorDismiss, history } = this.props;
+        const { page, loading, fetchAnalyses, error, onErrorDismiss, history, responsive } = this.props;
+        const hide = responsive.lessThan.lg;
         const content = <List
             customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
             loading={loading}
             onErrorDismiss={onErrorDismiss}
             errorMessage={error}
-            pageRenderer={(page) =>
+            pageRenderer={page =>
                 <Table>
-                    <Header />
+                    <Header hide={hide} />
                     <TableBody>
                         {page.items.map((a, i) => <Analysis
-                            to={() => history.push(`/applications/results/${a.jobId}`)} analysis={a} key={i}
+                            hide={hide} to={() => history.push(`/applications/results/${a.jobId}`)} analysis={a} key={i}
                         />)}
                     </TableBody>
                 </Table>
@@ -90,30 +90,30 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
     }
 }
 
-const Header = () => (
+const Header = ({ hide }: { hide: boolean }) => (
     <TableHeader>
         <TableRow>
             <TableHeaderCell textAlign="left">App Name</TableHeaderCell>
-            <TableHeaderCell textAlign="left">Job Id</TableHeaderCell>
+            {hide ? null : <TableHeaderCell textAlign="left">Job Id</TableHeaderCell>}
             <TableHeaderCell textAlign="left">State</TableHeaderCell>
-            <TableHeaderCell textAlign="left">Status</TableHeaderCell>
-            <TableHeaderCell textAlign="left">Started at</TableHeaderCell>
+            {hide ? null : <TableHeaderCell textAlign="left">Status</TableHeaderCell>}
+            {hide ? null : <TableHeaderCell textAlign="left">Started at</TableHeaderCell>}
             <TableHeaderCell textAlign="left">Last updated at</TableHeaderCell>
         </TableRow>
     </TableHeader>
 );
 
 // FIXME: Typesafety. But how has this worked setting Link as title?
-const Analysis = ({ analysis, to }) => {
+const Analysis = ({ analysis, to, hide }) => {
     const jobIdField = analysis.status === "COMPLETE" ?
         (<Link to={fileTablePage(`${Cloud.jobFolder}/${analysis.jobId}`)}>{analysis.jobId}</Link>) : analysis.jobId;
     return (
         <TableRow cursor="pointer" onClick={() => to()}>
             <TableCell>{analysis.appName}@{analysis.appVersion}</TableCell>
-            <TableCell><span title={jobIdField}>{shortUUID(jobIdField)}</span></TableCell>
+            {hide ? null : <TableCell><span title={jobIdField}>{shortUUID(jobIdField)}</span></TableCell>}
             <TableCell>{capitalized(analysis.state)}</TableCell>
-            <TableCell>{analysis.status}</TableCell>
-            <TableCell>{formatDate(analysis.createdAt)}</TableCell>
+            {hide ? null : <TableCell>{analysis.status}</TableCell>}
+            {hide ? null : <TableCell>{formatDate(analysis.createdAt)}</TableCell>}
             <TableCell>{formatDate(analysis.modifiedAt)}</TableCell>
         </TableRow>)
 };
@@ -137,5 +137,5 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
-const mapStateToProps = ({ analyses }: ReduxObject): AnalysesStateProps => analyses;
+const mapStateToProps = ({ analyses, responsive }: ReduxObject): AnalysesStateProps => ({ ...analyses, responsive: responsive! });
 export default connect(mapStateToProps, mapDispatchToProps)(JobResults);

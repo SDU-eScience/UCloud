@@ -19,12 +19,12 @@ import Theme from "ui-components/theme";
 const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, onDropdownSelect, sortingColumns,
     fileOperations, sortOrder, onFavoriteFile, sortBy, onNavigationClick, notStickyHeader,
-    responsiveState
+    responsive
 }: FilesTableProps) => {
     const checkedFiles = files.filter(it => it.isChecked);
     const checkedCount = checkedFiles.length;
-    const columns = responsiveState!.greaterThan.md && sortingColumns.length === 2 ?
-        (responsiveState!.greaterThan.lg ? sortingColumns : [sortingColumns[1]]) : []; //on md or smaller display 0 columns
+    const columns = responsive.greaterThan.md && sortingColumns.length === 2 ?
+        (responsive.greaterThan.lg ? sortingColumns : [sortingColumns[1]]) : []; //on md or smaller display 0 columns
     return (
         <Table>
             <FilesTableHeader
@@ -36,7 +36,7 @@ const FilesTable = ({
                 toSortingIcon={sortingIcon}
                 sortFiles={sortFiles}
                 sortBy={sortBy}
-                customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal thi is lenght=1
+                customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal this is lenght=1
             >
             </FilesTableHeader>
             <TableBody>
@@ -360,8 +360,8 @@ export const FileOperations = ({ files, fileOperations, As, ...props }/* :FileOp
         ) : null;
     }) : null;
 
-const mapStateToProps = ({ responsive }: ReduxObject): { responsiveState: ResponsiveReduxObject } => ({
-    responsiveState: responsive!
+const mapStateToProps = ({ responsive }: ReduxObject): { responsive: ResponsiveReduxObject } => ({
+    responsive: responsive!
 })
 
 export default connect(mapStateToProps)(FilesTable);
