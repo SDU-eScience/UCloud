@@ -32,11 +32,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         };
     }
 
-    componentDidMount() {
-        const { page } = this.state;
-        this.fetchFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
-    }
-
     componentWillUnmount = () => this.state.promises.cancelPromises();
 
     setSelectedFile = (file: File) => {
@@ -126,48 +121,85 @@ const FileSelectorModalStyle = {
     }
 }
 
-export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => (
-    <ReactModal isOpen={props.show} shouldCloseOnEsc ariaHideApp={false} onRequestClose={props.onHide}
-        style={FileSelectorModalStyle}
-    >
-        <SearchOptions>
-            <SelectableText cursor="pointer" mr="1em" selected={!props.isFavorites} onClick={() => props.fetchFiles(Cloud.homeFolder, props.page.pageNumber, props.page.itemsPerPage)}>
-                Browse
-            </SelectableText>
-            <SelectableText cursor="pointer" onClick={() => props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage)} selected={props.isFavorites} >
-                Favorites
-            </SelectableText>
-            <Box mr="auto" />
-            <Icon name="close" onClick={props.onHide} />
-        </SearchOptions>
-        <Spacer height={"3em"} alignItems="center"
-            left={<BreadCrumbs
-                homeFolder={Cloud.homeFolder}
-                currentPath={props.path}
-                navigate={path => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />}
-            right={<Refresh spin={props.loading} onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />}
-        />
-        <PaginationList
-            errorMessage={props.errorMessage}
-            onErrorDismiss={props.onErrorDismiss}
-            pageRenderer={page =>
-                <FileSelectorBody
-                    omitRelativeFolders={props.isFavorites}
-                    canSelectFolders={!!canSelectFolders}
-                    {...props}
-                    page={page}
-                    fetchFiles={path => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
-                />
-            }
-            loading={props.loading}
-            page={props.page}
-            onPageChanged={pageNumber => !props.isFavorites ?
-                props.fetchFiles(props.path, pageNumber, props.page.itemsPerPage) :
-                props.fetchFavorites(pageNumber, props.page.itemsPerPage)
-            }
-        />
-    </ReactModal>
-);
+export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => {
+    const fetchFiles = (settings: { path?: string, pageNumber?: number, itemsPerPage?: number }) => {
+        const path = !!settings.path ? settings.path : props.path;
+        const pageNumber = settings.pageNumber !== undefined ? settings.pageNumber : props.page.pageNumber;
+        const itemsPerPage = settings.itemsPerPage !== undefined ? settings.itemsPerPage : props.page.itemsPerPage;
+
+        props.fetchFiles(path, pageNumber, itemsPerPage);
+    }
+
+    return (
+        <ReactModal
+            isOpen={props.show}
+            shouldCloseOnEsc
+            ariaHideApp={false}
+            onRequestClose={props.onHide}
+            onAfterOpen={() => fetchFiles({})}
+            style={FileSelectorModalStyle}
+        >
+            <SearchOptions>
+                <SelectableText
+                    cursor="pointer"
+                    mr="1em"
+                    selected={!props.isFavorites}
+                    onClick={() => fetchFiles({ path: Cloud.homeFolder, pageNumber: 0 })}
+                >Browse</SelectableText>
+
+                <SelectableText
+                    cursor="pointer"
+                    onClick={() => props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage)}
+                    selected={props.isFavorites}
+                >Favorites</SelectableText>
+
+                <Box mr="auto" />
+                <Icon name="close" onClick={props.onHide} />
+            </SearchOptions>
+
+            <Spacer
+                height={"3em"}
+                alignItems="center"
+                left={
+                    <BreadCrumbs
+                        homeFolder={Cloud.homeFolder}
+                        currentPath={props.path}
+                        navigate={path => fetchFiles({ path })}
+                    />
+                }
+                right={
+                    <Refresh
+                        spin={props.loading}
+                        onClick={() => fetchFiles({})}
+                    />
+                }
+            />
+
+            <PaginationList
+                errorMessage={props.errorMessage}
+                onErrorDismiss={props.onErrorDismiss}
+                pageRenderer={page =>
+                    <FileSelectorBody
+                        omitRelativeFolders={props.isFavorites}
+                        canSelectFolders={!!canSelectFolders}
+                        {...props}
+                        page={page}
+                        fetchFiles={path => fetchFiles({ path })}
+                    />
+                }
+                loading={props.loading}
+                page={props.page}
+                onPageChanged={pageNumber => {
+                    if (props.isFavorites) {
+                        props.fetchFavorites(pageNumber, props.page.itemsPerPage);
+                    } else {
+                        fetchFiles({});
+                    }
+                }}
+            />
+        </ReactModal>
+    );
+}
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
