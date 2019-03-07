@@ -43,7 +43,7 @@ class Activity extends React.Component<ActivityProps> {
                     loading={loading}
                     errorMessage={error}
                     onErrorDismiss={setError}
-                    pageRenderer={page => <ActivityFeedGrouped activity={groupedEntries ? groupedEntries : []} />}
+                    pageRenderer={() => <ActivityFeedGrouped activity={groupedEntries ? groupedEntries : []} />}
                     page={page}
                     // FIXME: setting refresh in "componentWillReceiveProps" causes infinite rerenders. Likely some other error not immediately evident in other components
                     onPageChanged={pageNumber => (fetchActivity(pageNumber, page.itemsPerPage), this.props.setRefresh(() => fetchActivity(pageNumber, page.itemsPerPage)))}
@@ -168,25 +168,18 @@ interface EventIconAndColor {
 
 const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
     switch (operation) {
-        case Module.ActivityType.FAVORITE: {
+        case Module.ActivityType.FAVORITE:
             return { icon: "starFilled", color: "blue" };
-        }
-        case Module.ActivityType.DOWNLOAD: {
+        case Module.ActivityType.DOWNLOAD:
             return { icon: "download", color: "blue" };
-        }
-        case Module.ActivityType.UPDATED: {
+        case Module.ActivityType.UPDATED:
             return { icon: "refresh", color: "green" };
-        }
-        case Module.ActivityType.DELETED: {
+        case Module.ActivityType.DELETED:
             return { icon: "close", color: "red" };
-        }
-        case Module.ActivityType.MOVED: {
+        case Module.ActivityType.MOVED:
             return { icon: "move", color: "green" };
-        }
-
-        default: {
+        default:
             return { icon: "ellipsis", color: "blue" }
-        }
     }
 }
 

@@ -197,7 +197,6 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) =
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            <Clock />
             {Cloud.isLoggedIn ? <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
                 <Tooltip top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard(Cloud.username, "Username copied to clipboard")} width={"140px"}>{Cloud.username}</EllipsedText>}>
                     {`Click to copy "${Cloud.username}" to clipboard`}
@@ -213,14 +212,6 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) =
         </SidebarContainer>
     );
 };
-
-const Clock = () => {
-    const [time, setTime] = React.useState(new Date());
-    React.useEffect(() => {
-        setInterval(() => setTime(new Date()), 1000);
-    }, []);
-    return (<Text color="gray" fontSize="1" ml="22px">{time.toLocaleTimeString("en-GBt")}</Text>);
-}
 
 function copyToClipboard(value: string | undefined, message: string) {
     const input = document.createElement("input");

@@ -19,7 +19,6 @@ import * as Heading from "ui-components/Heading";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { EntriesPerPageSelector } from "Pagination";
 import { Spacer } from "ui-components/Spacer";
-import { responsive } from "Utilities/ReduxUtilities";
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
@@ -58,7 +57,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
 
     render() {
         const { page, loading, fetchAnalyses, error, onErrorDismiss, history, responsive } = this.props;
-        const hide = responsive!.lessThan.lg;
+        const hide = responsive.lessThan.lg;
         const content = <List
             customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
             loading={loading}
