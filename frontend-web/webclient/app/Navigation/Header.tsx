@@ -122,8 +122,8 @@ const Login = () => (
 
 const SearchInput = styled(Flex)`
     min-width: 250px;
-    width: 450px;
-    max-width: 450px;
+    width: 425px;
+    max-width: 425px;
     height: 36px;
     align-items: center;
     color: white;
@@ -186,9 +186,9 @@ const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
             </Absolute>
             <ClickableDropdown
                 overflow={"visible"}
-                left={-450}
+                left={-425}
                 top={15}
-                width="450px"
+                width="425px"
                 colorOnHover={false}
                 keepOpenOnClick
                 squareTop

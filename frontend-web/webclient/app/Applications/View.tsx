@@ -106,8 +106,8 @@ const AppHeaderBase = styled.div`
     flex-direction: row;
 
     & > ${Image} {
-        width: 128px;
-        height: 128px;
+        //width: 128px;
+        //height: 128px;
         border-radius: 8px;
         object-fit: cover;
         margin-right: 16px;
@@ -123,20 +123,31 @@ const AppHeaderDetails = styled.div`
     }
 `;
 
-export const AppHeader: React.StatelessComponent<MainContentProps> = props => (
-    <AppHeaderBase>
-        {/* <Image src={props.application.imageUrl} /> */}
-        <Box mr={16} >
-            <AppLogo size={"128px"} hash={hashF(props.application.metadata.title)} />
-        </Box>
-        <AppHeaderDetails>
-            <Heading.h2>{props.application.metadata.title}</Heading.h2>
-            <Heading.h3>v{props.application.metadata.version}</Heading.h3>
-            <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
-            <Tags tags={props.application.metadata.tags} />
-        </AppHeaderDetails>
-    </AppHeaderBase>
-);
+export const AppHeader: React.StatelessComponent<MainContentProps & { slim?: boolean }> = props => {
+    const isSlim = props.slim === true;
+    const size = isSlim ? "32px" : "128px";
+    return (
+        <AppHeaderBase>
+            <Box mr={16} >
+                <AppLogo size={size} hash={hashF(props.application.metadata.title)} />
+            </Box>
+            <AppHeaderDetails>
+                {isSlim ?
+                    <>
+                        <Heading.h3>{props.application.metadata.title} <small>({props.application.metadata.version})</small></Heading.h3>
+                    </>
+                    :
+                    <>
+                        <Heading.h2>{props.application.metadata.title}</Heading.h2>
+                        <Heading.h3>v{props.application.metadata.version}</Heading.h3>
+                        <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
+                        <Tags tags={props.application.metadata.tags} />
+                    </>
+                }
+            </AppHeaderDetails>
+        </AppHeaderBase>
+    );
+};
 
 const Sidebar: React.StatelessComponent<MainContentProps> = props => (
     <VerticalButtonGroup>

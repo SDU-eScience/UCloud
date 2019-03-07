@@ -27,14 +27,15 @@ class List extends React.Component<ListProps & SharesReduxObject & SharesOperati
         super(props);
         // FIXME potentially move following to a parent component
         if (!props.innerComponent) {
-            this.props.updatePageTitle();
+            props.updatePageTitle();
+            props.setError();
             props.setActivePage();
         }
     }
 
     public componentDidMount = () => {
         this.reload();
-        if (!this.props.innerComponent) { this.props.setRefresh(() => this.reload()) }
+        if (!this.props.innerComponent) { this.props.setRefresh(() => (this.reload(), this.props.setError())) }
     }
 
     public componentWillUnmount = () => {

@@ -1,5 +1,4 @@
 import * as AnalysesActions from "Applications/Redux/AnalysesActions";
-import { analyses } from "../../mock/Analyses";
 import analysesReducer from "Applications/Redux/AnalysesReducer"
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initAnalyses } from "DefaultObjects";
