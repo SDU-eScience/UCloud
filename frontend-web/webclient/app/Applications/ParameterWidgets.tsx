@@ -9,7 +9,6 @@ import { EllipsedText } from "ui-components/Text";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
-import BaseLink from "ui-components/BaseLink";
 
 const parameterTypeToComponent = (type) => {
     switch (type) {
@@ -205,13 +204,7 @@ const FloatingParameter = (props) => {
 const GenericParameter = ({ parameter, children }: { parameter: ApplicationParameter, children: any }) => (
     <>
         <Label fontSize={1} htmlFor={parameter.name}>
-            <Flex>
-                {parameter.title}
-                {parameter.optional ?
-                    <>&nbsp;<BaseLink href="#">(Remove)</BaseLink></> :
-                    <Text ml="4px" bold color="red">*</Text>
-                }
-            </Flex>
+            <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
         </Label>
         {children}
         <Markdown source={parameter.description} />
