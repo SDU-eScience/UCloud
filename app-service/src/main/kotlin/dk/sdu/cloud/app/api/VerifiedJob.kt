@@ -13,5 +13,6 @@ data class VerifiedJob(
     val currentState: JobState,
     val status: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val modifiedAt: Long = System.currentTimeMillis()
+    val modifiedAt: Long = System.currentTimeMillis(),
+    val archiveInCollection: String
 )

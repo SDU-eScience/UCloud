@@ -103,6 +103,9 @@ data class JobInformationEntity(
     @Column(length = 4096)
     var accessToken: String,
 
+    @Column(length = 1024)
+    var archiveInCollection: String,
+
     override var createdAt: Date,
 
     override var modifiedAt: Date
@@ -133,6 +136,7 @@ class JobHibernateDao(
             job.maxTime.seconds,
             job.backend,
             token,
+            job.archiveInCollection,
             Date(System.currentTimeMillis()),
             Date(System.currentTimeMillis())
         )
@@ -234,7 +238,8 @@ class JobHibernateDao(
                 state,
                 status,
                 createdAt.time,
-                modifiedAt.time
+                modifiedAt.time,
+                archiveInCollection
             ),
             accessToken
         )

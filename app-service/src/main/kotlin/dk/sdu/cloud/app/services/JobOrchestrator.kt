@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.api.FollowStdStreamsResponse
 import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
@@ -11,6 +10,7 @@ import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.StartJobRequest
 import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.http.JOB_MAX_TIME
@@ -104,7 +104,7 @@ class JobOrchestrator<DBSession>(
     }
 
     suspend fun startJob(
-        req: AppRequest.Start,
+        req: StartJobRequest,
         principal: DecodedJWT,
         cloud: AuthenticatedClient
     ): String {
@@ -115,7 +115,7 @@ class JobOrchestrator<DBSession>(
     }
 
     private suspend fun validateJob(
-        req: AppRequest.Start,
+        req: StartJobRequest,
         principal: DecodedJWT,
         userCloud: AuthenticatedClient
     ): Pair<JobStateChange, VerifiedJobWithAccessToken> {
@@ -232,7 +232,8 @@ class JobOrchestrator<DBSession>(
             job.currentState,
             job.status,
             job.currentState.isFinal(),
-            job.id
+            job.id,
+            jobFileService.jobFolder(job)
         )
     }
 
