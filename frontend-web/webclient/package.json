@@ -103,7 +103,7 @@
     "@types/styled-system": "^3.2.2",
     "compression-webpack-plugin": "^2.0.0",
     "copy-webpack-plugin": "5.0.0",
-    "css-loader": "^2.1.0",
+    "css-loader": "^2.1.1",
     "empty-module": "~0.0.2",
     "enzyme": "^3.9.0",
     "enzyme-adapter-react-16": "^1.10.0",
