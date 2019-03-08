@@ -35,7 +35,8 @@ class JobOrchestratorTest {
         JobState.SCHEDULED,
         "scheduled",
         12345678,
-        123456789
+        123456789,
+        archiveInCollection = normAppDesc.metadata.title
     )
 
     @Test

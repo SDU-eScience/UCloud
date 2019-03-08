@@ -103,6 +103,9 @@ data class JobInformationEntity(
     @Column(length = 4096)
     var accessToken: String,
 
+    @Column(length = 1024)
+    var archiveInCollection: String,
+
     override var createdAt: Date,
 
     override var modifiedAt: Date
@@ -133,6 +136,7 @@ class JobHibernateDao(
             job.maxTime.seconds,
             job.backend,
             token,
+            job.archiveInCollection,
             Date(System.currentTimeMillis()),
             Date(System.currentTimeMillis())
         )
@@ -145,6 +149,7 @@ class JobHibernateDao(
             where = { entity[JobInformationEntity::systemId] equal systemId },
             setProperties = {
                 criteria.set(entity[JobInformationEntity::status], status)
+                criteria.set(entity[JobInformationEntity::modifiedAt], Date(System.currentTimeMillis()))
             }
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
@@ -153,6 +158,7 @@ class JobHibernateDao(
         session.updateCriteria<JobInformationEntity>(
             where = { entity[JobInformationEntity::systemId] equal systemId },
             setProperties = {
+                criteria.set(entity[JobInformationEntity::modifiedAt], Date(System.currentTimeMillis()))
                 criteria.set(entity[JobInformationEntity::state], state)
                 if (status != null) {
                     criteria.set(entity[JobInformationEntity::status], status)
@@ -234,7 +240,8 @@ class JobHibernateDao(
                 state,
                 status,
                 createdAt.time,
-                modifiedAt.time
+                modifiedAt.time,
+                archiveInCollection
             ),
             accessToken
         )

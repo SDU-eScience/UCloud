@@ -66,7 +66,7 @@ class MultipartUploadTest {
 
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
         val controller = MultiPartUploadController(
-            AuthenticatedClient(micro.client, OutgoingHttpCall, {}),
+            AuthenticatedClient(micro.client, OutgoingHttpCall) {},
             runner,
             coreFs,
             sensitivityService

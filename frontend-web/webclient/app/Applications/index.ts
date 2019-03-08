@@ -27,15 +27,14 @@ export interface AnalysesStateProps {
 
 export interface AnalysesOperations {
     onErrorDismiss: () => void
-    updatePageTitle: (title: string) => void
+    updatePageTitle: () => void
     setLoading: (loading: boolean) => void
-    fetchAnalyses: (itemsPerPage: number, pageNumber: number) => void
+    fetchJobs: (itemsPerPage: number, pageNumber: number) => void
     setActivePage: () => void
     setRefresh: (refresh?: () => void) => void
 }
 
 export interface AnalysesState {
-    reloadIntervalId: number
 }
 
 export interface DetailedResultOperations {
@@ -113,10 +112,7 @@ export interface DetailedResultState {
     complete: boolean
     appState: AppState
     status: string
-    app: {
-        name: string
-        version: string
-    }
+    app?: ApplicationMetadata
     stdout: string
     stderr: string
     stdoutLine: number
@@ -133,6 +129,7 @@ export interface DetailedResultState {
     fsDisallowedPaths: string[]
     fsCallback: Function
     fsIsFavorite: boolean
+    outputFolder?: string
 }
 
 export type StdElement = { scrollTop: number, scrollHeight: number } | null

@@ -154,43 +154,6 @@ const Tag = ({ label }: { label: string }) => (
     <RatingBadge mr={"3px"} bg={"darkGray"}><Heading.h6>{label}</Heading.h6></RatingBadge>
 )
 
-// function hslToHex(h, s, l) {
-//     h /= 360;
-//     s /= 100;
-//     l /= 100;
-//     let r, g, b;
-//     if (s === 0) {
-//         r = g = b = l; // achromatic
-//     } else {
-//         const hue2rgb = (p, q, t) => {
-//             if (t < 0) t += 1;
-//             if (t > 1) t -= 1;
-//             if (t < 1 / 6) return p + (q - p) * 6 * t;
-//             if (t < 1 / 2) return q;
-//             if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-//             return p;
-//         };
-//         const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-//         const p = 2 * l - q;
-//         r = hue2rgb(p, q, h + 1 / 3);
-//         g = hue2rgb(p, q, h);
-//         b = hue2rgb(p, q, h - 1 / 3);
-//     }
-//     const toHex = x => {
-//         const hex = Math.round(x * 255).toString(16);
-//         return hex.length === 1 ? '0' + hex : hex;
-//     };
-//     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-// }
-
-// const hues = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]; 
-// //const hues = [...Array(12).keys()].map( x=> (360/12)*x);
-
-// const appColors2 = hues.map( x=> ( 
-//     [ hslToHex(x,60,70), hslToHex(x,60,55), hslToHex(x,60,40) ]
-// ));
-
-
 const appColors = theme.appColors;
 
 const nColors = appColors.length;
@@ -230,235 +193,11 @@ const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
     </svg>
 );
 
-const AppBg2 = ({ color1, color2 }: { color1: string, color2: string }) => {
-
-    const s32 = Math.sqrt(3) * .5;
-    const s15 = 1.5;
-    const rot60 = "rotate(60 0 0)";
-
-    const rots = [0, 60, 120, 180, 240, 300].map(x => (` rotate(${x} 0 0)`));
-    const r = [1, 2, 4, 2,
-        5, 4, 2, 3,
-        4, 1, 0, 3,
-        4, 5, 2, 1
-    ];
-
-    return (
-        <svg height={"128px"} viewBox="0 0 100 128" >
-            <use xlinkHref="#bg_card___" fill={"url(#appbg_svg___" + color1 + "_" + color2} />
-            <g clipPath="url(#bg_clip___)">
-                <g transform="scale(20)">
-                    <use xlinkHref="#hex_tile1___" transform={"translate(0.0," + (4 * s32) + ")" + rots[r[0]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(0.0," + (6 * s32) + ")" + rots[r[1]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(0.0," + (8 * s32) + ")" + rots[r[2]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(1.5," + (1 * s32) + ")" + rots[r[3]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(1.5," + (3 * s32) + ")" + rots[r[4]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(1.5," + (5 * s32) + ")" + rots[r[5]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(1.5," + (7 * s32) + ")" + rots[r[6]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (0 * s32) + ")" + rots[r[7]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (2 * s32) + ")" + rots[r[8]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (4 * s32) + ")" + rots[r[9]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (6 * s32) + ")" + rots[r[10]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (8 * s32) + ")" + rots[r[11]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(4.5," + (1 * s32) + ")" + rots[r[12]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(4.5," + (3 * s32) + ")" + rots[r[13]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(4.5," + (5 * s32) + ")" + rots[r[14]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(4.5," + (7 * s32) + ")" + rots[r[15]]} />
-                </g> </g>
-            <defs>
-                <linearGradient
-                    id={"appbg_svg___" + color1 + "_" + color2}
-                    x1={25} x2={100} y1={0} y2={128}
-                    gradientUnits="userSpaceOnUse"
-                >
-                    <stop offset={0} stopColor={color1} />
-                    <stop offset={1} stopColor={color2} />
-                </linearGradient>
-                <path id="bg_card___" d="M 25,0 h 75 v 128 h -100 z" />
-                <clipPath id="bg_clip___">
-                    <use xlinkHref="#bg_card___" />
-                </clipPath>
-                <path id="hex_l1___" d={"M0 " + s32 + "Q 0 0 0.75 -" + (s32 * 0.5)} fill="none" />
-                <path id="hex_l2___" d={"M0 -" + s32 + "Q 0 0 -0.75 -" + (s32 * 0.5)} fill="none" />
-                <g id="hex_tile1___">
-                    {/* <use xlinkHref="#hex_th___" fill="#fff"/> */}
-                    <use xlinkHref="#hex_l1___" stroke="black" strokeWidth="0.15" />
-                    <use xlinkHref="#hex_l1___" stroke="white" strokeWidth="0.1" />
-                    <use xlinkHref="#hex_l1___" stroke="black" strokeWidth="0.15" transform={rot60} />
-                    <use xlinkHref="#hex_l1___" stroke="white" strokeWidth="0.1" transform={rot60} />
-                    <use xlinkHref="#hex_l2___" stroke="black" strokeWidth="0.15" />
-                    <use xlinkHref="#hex_l2___" stroke="white" strokeWidth="0.1" />
-                </g>
-            </defs>
-        </svg>
-    );
-}
-const AppBg2_1 = ({ color1, color2 }: { color1: string, color2: string }) => {
-
-    const s32 = Math.sqrt(3) * .5;
-    const s15 = 1.5;
-    const rot60 = "rotate(60 0 0)";
-
-    const rots = [0, 60, 120, 180, 240, 300].map(x => (` rotate(${x} 0 0)`));
-    const r = [1, 2, 4, 2,
-        5, 4, 2, 3,
-        4, 1, 0, 3,
-        4, 5, 2, 1
-    ];
-
-    return (
-        <svg height={"128px"} viewBox="-200 0 300 128" >
-            <g >
-                <g transform="scale(20)">
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-10.5," + (1 * s32) + ")" + rots[r[12]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-10.5," + (3 * s32) + ")" + rots[r[13]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-10.5," + (5 * s32) + ")" + rots[r[14]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-10.5," + (7 * s32) + ")" + rots[r[15]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-9.0," + (0 * s32) + ")" + rots[r[7]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-9.0," + (2 * s32) + ")" + rots[r[8]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-9.0," + (4 * s32) + ")" + rots[r[9]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-9.0," + (6 * s32) + ")" + rots[r[10]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-9.0," + (8 * s32) + ")" + rots[r[11]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-7.5," + (1 * s32) + ")" + rots[r[12]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-7.5," + (3 * s32) + ")" + rots[r[13]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-7.5," + (5 * s32) + ")" + rots[r[14]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-7.5," + (7 * s32) + ")" + rots[r[15]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-6.0," + (0 * s32) + ")" + rots[r[7]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-6.0," + (2 * s32) + ")" + rots[r[8]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-6.0," + (4 * s32) + ")" + rots[r[9]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-6.0," + (6 * s32) + ")" + rots[r[10]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-6.0," + (8 * s32) + ")" + rots[r[11]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-4.5," + (1 * s32) + ")" + rots[r[12]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-4.5," + (3 * s32) + ")" + rots[r[13]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-4.5," + (5 * s32) + ")" + rots[r[14]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-4.5," + (7 * s32) + ")" + rots[r[15]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-3.0," + (0 * s32) + ")" + rots[r[7]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-3.0," + (2 * s32) + ")" + rots[r[8]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-3.0," + (4 * s32) + ")" + rots[r[9]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-3.0," + (6 * s32) + ")" + rots[r[10]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-3.0," + (8 * s32) + ")" + rots[r[11]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-1.5," + (1 * s32) + ")" + rots[r[3]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-1.5," + (3 * s32) + ")" + rots[r[4]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-1.5," + (5 * s32) + ")" + rots[r[5]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(-1.5," + (7 * s32) + ")" + rots[r[6]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(0.0," + (0 * s32) + ")" + rots[r[0]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(0.0," + (2 * s32) + ")" + rots[r[0]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(0.0," + (4 * s32) + ")" + rots[r[0]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(0.0," + (6 * s32) + ")" + rots[r[1]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(0.0," + (8 * s32) + ")" + rots[r[2]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(1.5," + (1 * s32) + ")" + rots[r[3]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(1.5," + (3 * s32) + ")" + rots[r[4]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(1.5," + (5 * s32) + ")" + rots[r[5]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(1.5," + (7 * s32) + ")" + rots[r[6]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (0 * s32) + ")" + rots[r[7]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (2 * s32) + ")" + rots[r[8]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (4 * s32) + ")" + rots[r[9]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (6 * s32) + ")" + rots[r[10]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(3.0," + (8 * s32) + ")" + rots[r[11]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(4.5," + (1 * s32) + ")" + rots[r[12]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(4.5," + (3 * s32) + ")" + rots[r[13]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(4.5," + (5 * s32) + ")" + rots[r[14]]} />
-                    <use xlinkHref="#hex_tile1___" transform={"translate(4.5," + (7 * s32) + ")" + rots[r[15]]} />
-                </g> </g>
-            <defs>
-                <linearGradient
-                    id={"appbg_svg___" + color1 + "_" + color2}
-                    x1={25} x2={100} y1={0} y2={128}
-                    gradientUnits="userSpaceOnUse"
-                >
-                    <stop offset={0} stopColor={color1} />
-                    <stop offset={1} stopColor={color2} />
-                </linearGradient>
-                <path id="bg_card___" d="M 25,0 h 75 v 128 h -100 z" />
-                <clipPath id="bg_clip___">
-                    <use xlinkHref="#bg_card___" />
-                </clipPath>
-                <path id="hex_l1___" d={"M0 " + s32 + "Q 0 0 0.75 -" + (s32 * 0.5)} fill="none" />
-                <path id="hex_l2___" d={"M0 -" + s32 + "Q 0 0 -0.75 -" + (s32 * 0.5)} fill="none" />
-                <g id="hex_tile1___">
-                    {/* <use xlinkHref="#hex_th___" fill="#fff"/> */}
-                    <use xlinkHref="#hex_l1___" stroke="black" strokeWidth="0.15" />
-                    <use xlinkHref="#hex_l1___" stroke="white" strokeWidth="0.1" />
-                    <use xlinkHref="#hex_l1___" stroke="black" strokeWidth="0.15" transform={rot60} />
-                    <use xlinkHref="#hex_l1___" stroke="white" strokeWidth="0.1" transform={rot60} />
-                    <use xlinkHref="#hex_l2___" stroke="black" strokeWidth="0.15" />
-                    <use xlinkHref="#hex_l2___" stroke="white" strokeWidth="0.1" />
-                </g>
-            </defs>
-        </svg>
-    );
-}
-
-const AppBg3 = ({ color1, color2 }: { color1: string, color2: string }) => {
-
-    const s32 = Math.sqrt(3) * .5;
-    const fill = "url(#appbg_svg___" + color1 + "_" + color2 + ") #fff";
-    const hexRxy = (r: number, dx: number, dy: number) => ("M" + (-r + dx) + " " + (dy) + "L" + (-0.5 * r + dx) + " " + (s32 * r + dy) + "H" + (0.5 * r + dx) + "L" + (r + dx) + " " + (dy) + "L" + (0.5 * r + dx) + " " + (-s32 * r + dy) + "H" + (-0.5 * r + dx) + "Z")
-
-    const hR = 22;
-    const hScale = (s: number) => (1 - 0.05 * s);
-    const dX = hR * 1.5;
-    const dY = hR * s32;
-
-    const hPath = (x: number, y: number) => (hexRxy(hR * hScale(3 - x), x * dX, y * dY));
-
-    return (
-        <svg height={"128px"} viewBox="0 0 100 128" >
-            <g fill={fill} clipPath="url(#bg_clip___)">
-                {/* <use xlinkHref="#bg_card___" /> */}
-                <path d={hPath(0, 1)} />
-                <path d={hPath(0, 3)} />
-                <path d={hPath(0, 5)} />
-                <path d={hPath(0, 7)} />
-                <path d={hPath(0, 9)} />
-                <path d={hPath(1, 0)} />
-                <path d={hPath(1, 2)} />
-                <path d={hPath(1, 4)} />
-                <path d={hPath(1, 6)} />
-                <path d={hPath(1, 8)} />
-                <path d={hPath(2, 1)} />
-                <path d={hPath(2, 3)} />
-                <path d={hPath(2, 5)} />
-                <path d={hPath(2, 7)} />
-                <path d={hPath(2, 9)} />
-                <path d={hPath(3, 0)} />
-                <path d={hPath(3, 2)} />
-                <path d={hPath(3, 4)} />
-                <path d={hPath(3, 6)} />
-                <path d={hPath(3, 8)} />
-            </g>
-
-            <defs>
-                <linearGradient
-                    id={`appbg_svg___${color1}_${color2}`}
-                    x1={25} x2={100} y1={0} y2={128}
-                    gradientUnits="userSpaceOnUse"
-                >
-                    <stop offset={0} stopColor={color1} />
-                    <stop offset={1} stopColor={color2} />
-                </linearGradient>
-                <path id="bg_card___" d="M 25,0 h 75 v 128 h -100 z" />
-                <path id="hex_th1___" d={"M-1 0L-0.5" + (s32) + "H0.5L1 0L0.5 -" + (s32) + "H-0.5Z"} />
-                <clipPath id="bg_clip___" >
-                    <use xlinkHref="#bg_card___" />
-                </clipPath>
-            </defs>
-        </svg>
-    );
-}
-
-export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
-    const i1 = (hash >>> 30) & 3;
-    const i2 = (hash >>> 20) & 3;
-    const c1 = [i1 % 3, (i1 + 1) % 3, (i1 + 2) % 3];
-    const c2 = [i2 % 3, (i2 + 1) % 3, (i2 + 2) % 3];
-    const appC = appColor(hash);
+export const AppLogoRaw = ({ rot, color1Offset, color2Offset, appC, size }: { color1Offset: number, color2Offset: number, appC: number, rot: number, size: string }) => {
+    const c1 = [color1Offset % 3, (color1Offset + 1) % 3, (color1Offset + 2) % 3];
+    const c2 = [color2Offset % 3, (color2Offset + 1) % 3, (color2Offset + 2) % 3];
     const centerC = nColors - 1;
     //const centerC = appC;
-
-    const rot = [0, 15, 30];
-    const i3 = (hash >>> 10) % rot.length;
-
 
     const s32 = Math.sqrt(3) * .5;
     const r1 = 0.5; //inner radius of outer element (outer radius is 1)
@@ -480,7 +219,7 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
                 <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fill-opacity=".55" />
                 <path id="hex_th___" d={"M-" + r3 + " 0L-" + (0.5 * r3) + " " + (s32 * r3) + "H" + (0.5 * r3) + "L" + r3 + " 0L" + (0.5 * r3) + " -" + (s32 * r3) + "H-" + (0.5 * r3) + "Z"} />
             </defs>
-            <g transform={`rotate(${rot[i3]} 0 0)`} >
+            <g transform={`rotate(${rot} 0 0)`} >
                 <use xlinkHref="#hex_th___" fill="#fff" />
                 <use xlinkHref="#hex_to___" fill={appColors[appC][c1[0]]} />
                 <use xlinkHref="#hex_to___" fill={appColors[appC][c1[1]]} transform={rot120} />
@@ -491,6 +230,15 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
             </g>
         </svg>
     );
+}
+export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
+    const i1 = (hash >>> 30) & 3;
+    const i2 = (hash >>> 20) & 3;
+    const rot = [0, 15, 30];
+    const i3 = (hash >>> 10) % rot.length;
+    const appC = appColor(hash);
+
+    return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />
 }
 
 

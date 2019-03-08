@@ -11,9 +11,6 @@ import dk.sdu.cloud.app.services.VerifiedJobWithAccessToken
 import dk.sdu.cloud.app.services.normAppDesc
 import dk.sdu.cloud.app.services.withInvocation
 import dk.sdu.cloud.app.services.withNameAndVersion
-import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -23,7 +20,6 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
@@ -72,7 +68,8 @@ class JobTest {
             VerifiedJobInput(emptyMap()),
             "abacus",
             JobState.SUCCESS,
-            "Prepared"
+            "Prepared",
+            archiveInCollection = app.metadata.title
         ),
         "accessToken"
     )

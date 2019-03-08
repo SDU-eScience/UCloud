@@ -17,15 +17,21 @@ import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
-import { Flex, Box, List, Card } from "ui-components";
+import { Flex, Box, List, Card, ContainerForText } from "ui-components";
 import { Step, StepGroup } from "ui-components/Step";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
-import Icon, { IconName } from "ui-components/Icon";
+import Icon from "ui-components/Icon";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { FileSelectorModal } from "Files/FileSelector";
 import { Page } from "Types";
 import * as Heading from "ui-components/Heading";
+import { JobStateIcon } from "./JobStateIcon";
+import { MainContainer } from "MainContainer/MainContainer";
+
+const Panel = styled(Box)`
+    margin-bottom: 1em;
+`;
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -37,7 +43,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             complete: false,
             appState: AppState.VALIDATED,
             status: "",
-            app: { name: "", version: "" },
             stdout: "",
             stderr: "",
             stdoutLine: 0,
@@ -126,10 +131,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     stdoutLine: response.stdoutNextLine,
                     stderrLine: response.stderrNextLine,
 
-                    app: response.application,
+                    app: response.metadata,
                     status: response.status,
                     appState: response.state,
-                    complete: response.complete
+                    complete: response.complete,
+                    outputFolder: response.outputFolder
                 }));
 
                 this.scrollIfNeeded();
@@ -154,7 +160,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
-        this.props.fetchPage(this.jobId, pageNumber, itemsPerPage);
+        this.props.fetchPage(this.state.outputFolder!!, pageNumber, itemsPerPage);
         window.clearTimeout(this.state.reloadIntervalId);
     }
 
@@ -177,47 +183,33 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private readonly favoriteFile = async (file: File) => this.props.receivePage(await favoriteFileFromPage(this.props.page, [file], Cloud));
 
     renderProgressPanel = () => (
-        <div>
-            <h4>Progress</h4>
+        <Panel>
             <StepGroup>
                 <StepTrackerItem
-                    icon="checkDouble"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.VALIDATED)}
-                    complete={this.isStateComplete(AppState.VALIDATED)}
-                    title="Validated" />
+                    stateToDisplay={AppState.VALIDATED}
+                    currentState={this.state.appState} />
                 <StepTrackerItem
-                    icon="hourglass"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.PREPARED)}
-                    complete={this.isStateComplete(AppState.PREPARED)}
-                    title="Pending" />
+                    stateToDisplay={AppState.PREPARED}
+                    currentState={this.state.appState} />
                 <StepTrackerItem
-                    icon="calendar"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.SCHEDULED)}
-                    complete={this.isStateComplete(AppState.SCHEDULED)}
-                    title="Scheduled" />
+                    stateToDisplay={AppState.SCHEDULED}
+                    currentState={this.state.appState} />
                 <StepTrackerItem
-                    icon="chrono"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.RUNNING)}
-                    complete={this.isStateComplete(AppState.RUNNING)}
-                    title="Running" />
+                    stateToDisplay={AppState.RUNNING}
+                    currentState={this.state.appState} />
                 <StepTrackerItem
-                    icon="move"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.TRANSFER_SUCCESS)}
-                    complete={this.isStateComplete(AppState.TRANSFER_SUCCESS)}
-                    title="Transferring" />
+                    stateToDisplay={AppState.TRANSFER_SUCCESS}
+                    currentState={this.state.appState} />
             </StepGroup>
-        </div>
+        </Panel>
     );
 
     renderInfoPanel() {
+        const { app } = this.state;
+        if (app === undefined) return null;
+
         let entries = [
-            { key: "Application Name", value: this.state.app.name },
-            { key: "Application Version", value: this.state.app.version },
+            { key: "Application", value: `${app.title} v${app.version}` },
             { key: "Status", value: this.state.status },
         ];
 
@@ -228,57 +220,29 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 domEntries.push(
                     <Box key={AppState.SUCCESS} pt="0.8em" pb="0.8em">
                         Application has completed successfully.
-                        Click <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}>here</Link> to go to the output.
-                    </Box>
-                );
-                break;
-            case AppState.SCHEDULED:
-                domEntries.push(
-                    <Box key={AppState.SCHEDULED} pt="0.8em" pb="0.8em">
-                        Your application is currently in the Slurm queue on ABC2 <LoadingIcon size={18} />
-                    </Box>
-                );
-                break;
-            case AppState.PREPARED:
-                domEntries.push(
-                    <Box key={AppState.PREPARED} pt="0.8em" pb="0.8em">
-                        We are currently transferring your job from SDUCloud to ABC2 <LoadingIcon size={18} />
-                    </Box>
-                );
-                break;
-            case AppState.RUNNING:
-                domEntries.push(
-                    <Box key={AppState.RUNNING} pt="0.8em" pb="0.8em">
-                        Your job is currently being executed on ABC2 <LoadingIcon size={18} />
-                    </Box>
-                );
-                break;
-            case AppState.FAILURE:
-                domEntries.push(
-                    <Box key={AppState.FAILURE} pt="0.8em" pb="0.8em">
-                        Job failed
+                        Click <Link to={fileTablePage(this.state.outputFolder!!)}>here</Link> to go to the output.
                     </Box>
                 );
                 break;
         }
 
         return (
-            <Box mb="0.5em">
-                <h4>Job Information</h4>
+            <Panel>
+                <Heading.h4>Job Information</Heading.h4>
                 <Card height="auto" p="14px 14px 14px 14px">
                     <List>
                         {domEntries}
                     </List>
                 </Card>
-            </Box>
+            </Panel>
         );
     }
 
     renderStreamPanel() {
         if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
         return (
-            <Box width="100%">
-                <h4>
+            <Panel width="100%">
+                <Heading.h4>
                     Standard Streams
                     &nbsp;
                     <Dropdown>
@@ -287,18 +251,18 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             <span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>
                         </DropdownContent>
                     </Dropdown>
-                </h4>
+                </Heading.h4>
                 <Flex flexDirection="row">
                     <Box width={1 / 2}>
-                        <h4>Output</h4>
+                        <Heading.h5>Output</Heading.h5>
                         <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
                     </Box>
                     <Box width={1 / 2}>
-                        <h4>Information</h4>
+                        <Heading.h5>Information</Heading.h5>
                         <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
                     </Box>
                 </Flex>
-            </Box>
+            </Panel>
         );
     }
 
@@ -307,7 +271,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         if (!page.items.length) return null;
         const { state } = this;
         return (
-            <Box>
+            <Panel>
                 <Heading.h4>Output Files</Heading.h4>
                 <PaginationList
                     loading={this.props.loading}
@@ -322,7 +286,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             refetchFiles={() => null}
                             sortFiles={() => null}
                             onCheckFile={() => null}
-                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
+                            sortingColumns={[SortBy.TYPE, SortBy.SIZE]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
@@ -343,7 +307,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     setSelectedFile={state.fsCallback}
                     disallowedPaths={state.fsDisallowedPaths}
                 />
-            </Box>
+            </Panel>
         );
     }
     fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
@@ -353,55 +317,69 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     render = () => (
-        <Flex alignItems="center" flexDirection="column">
-            <Box width={0.7}>
-                <Box>{this.renderProgressPanel()}</Box>
-                <Box>{this.renderInfoPanel()}</Box>
-                <Box>{this.renderFilePanel()}</Box>
-                <Box>{this.renderStreamPanel()}</Box>
-            </Box>
-        </Flex>);
-
-    static stateToOrder(state: AppState): 0 | 1 | 2 | 3 | 4 | 5 {
-        switch (state) {
-            case AppState.VALIDATED:
-                return 0;
-            case AppState.PREPARED:
-                return 1;
-            case AppState.SCHEDULED:
-                return 2;
-            case AppState.RUNNING:
-                return 3;
-            case AppState.TRANSFER_SUCCESS:
-                return 4;
-            case AppState.SUCCESS:
-                return 5;
-            case AppState.FAILURE:
-                return 5;
-            default:
-                return 0;
-        }
-    }
-
-    isStateComplete = (queryState: AppState) =>
-        DetailedResult.stateToOrder(queryState) < DetailedResult.stateToOrder(this.state.appState);
-
-    isStateFailure = () => this.state.appState === AppState.FAILURE
-
-    isStateActive = (queryState: AppState) =>
-        DetailedResult.stateToOrder(this.state.appState) === DetailedResult.stateToOrder(queryState);
+        <MainContainer
+            main={
+                <ContainerForText>
+                    {this.renderProgressPanel()}
+                    {this.renderInfoPanel()}
+                    {this.renderFilePanel()}
+                    {this.renderStreamPanel()}
+                </ContainerForText>
+            } />
+    )
 }
 
-const StepTrackerItem = (props: { failed: boolean, complete: boolean, active: boolean, title: string, icon: IconName }) => (
-    <Step active={props.active}>
-        {props.complete ?
-            <Icon name={props.failed ? "close" : "check"} color={props.failed ? "red" : "green"} mr="0.7em" size="30px" /> :
-            <Icon name={props.icon} mr="0.7em" size="30px" color="iconColor" color2="iconColor2" />
-        }
-        <TextSpan fontSize={3}>{props.title}</TextSpan>
-    </Step>
-);
+const stateToOrder = (state: AppState): 0 | 1 | 2 | 3 | 4 | 5 => {
+    switch (state) {
+        case AppState.VALIDATED:
+            return 0;
+        case AppState.PREPARED:
+            return 1;
+        case AppState.SCHEDULED:
+            return 2;
+        case AppState.RUNNING:
+            return 3;
+        case AppState.TRANSFER_SUCCESS:
+            return 4;
+        case AppState.SUCCESS:
+            return 5;
+        case AppState.FAILURE:
+            return 5;
+        default:
+            return 0;
+    }
+}
 
+const isStateComplete = (state: AppState, currentState: AppState) =>
+    stateToOrder(state) < stateToOrder(currentState);
+
+const stateToTitle = (state: AppState): string => {
+    switch (state) {
+        case AppState.FAILURE: return "Failure";
+        case AppState.PREPARED: return "Pending";
+        case AppState.RUNNING: return "Running";
+        case AppState.SCHEDULED: return "Scheduled";
+        case AppState.SUCCESS: return "Success";
+        case AppState.TRANSFER_SUCCESS: return "Transferring";
+        case AppState.VALIDATED: return "Validated";
+        default: return "Unknown";
+    }
+}
+
+const StepTrackerItem: React.StatelessComponent<{ stateToDisplay: AppState, currentState: AppState }> = ({ stateToDisplay, currentState }) => {
+    const active = stateToDisplay === currentState;
+    const complete = isStateComplete(stateToDisplay, currentState);
+    const failed = currentState === AppState.FAILURE;
+    return (
+        <Step active={active}>
+            {complete ?
+                <Icon name={failed ? "close" : "check"} color={failed ? "red" : "green"} mr="0.7em" size="30px" /> :
+                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px" />
+            }
+            <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
+        </Step>
+    );
+};
 
 const Stream = styled.pre`
     height: 500px;
@@ -417,9 +395,9 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),
     setPageTitle: jobId => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
     receivePage: page => dispatch(receivePage(page)),
-    fetchPage: async (jobId, pageNumber, itemsPerPage) => {
+    fetchPage: async (folder, pageNumber, itemsPerPage) => {
         dispatch(setLoading(true));
-        dispatch(await fetchPage(Cloud.username || "", jobId, pageNumber, itemsPerPage));
+        dispatch(await fetchPage(folder, pageNumber, itemsPerPage));
     },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });

@@ -4,8 +4,8 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { Page } from "Types";
 import { File } from "Files";
 
-export const fetchPage = (username: string, jobId: string, pageNumber: number, itemsPerPage: number): Promise<any> =>
-    Cloud.get(filepathQuery(`/home/${username}/Jobs/${jobId}`, pageNumber, itemsPerPage)).then(({ response }) => 
+export const fetchPage = (folder: string, pageNumber: number, itemsPerPage: number): Promise<any> =>
+    Cloud.get(filepathQuery(folder, pageNumber, itemsPerPage)).then(({ response }) => 
         receivePage(response)
     ).catch(() =>
         detailedResultError("An error occurred fetching files")

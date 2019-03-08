@@ -103,7 +103,8 @@ class JobController<DBSession>(
             job.application.metadata.name,
             job.application.metadata.version,
             job.createdAt,
-            job.modifiedAt
+            job.modifiedAt,
+            job.application.metadata
         )
     }
 }

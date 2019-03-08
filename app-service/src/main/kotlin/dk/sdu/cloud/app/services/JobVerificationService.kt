@@ -1,12 +1,12 @@
 package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.Application
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.api.FileTransferDescription
 import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.app.api.StartJobRequest
 import dk.sdu.cloud.app.api.ToolReference
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.api.VerifiedJob
@@ -27,7 +27,7 @@ import java.net.URI
 import java.util.*
 
 data class UnverifiedJob(
-    val request: AppRequest.Start,
+    val request: StartJobRequest,
     val principal: DecodedJWT
 )
 
@@ -60,19 +60,22 @@ class JobVerificationService<DBSession>(
         val tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode
         val maxTime = unverifiedJob.request.maxTime ?: tool.description.defaultMaxTime
 
+        val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
+
         return VerifiedJobWithAccessToken(
             VerifiedJob(
-                application,
-                files,
-                jobId,
-                unverifiedJob.principal.subject,
-                numberOfJobs,
-                tasksPerNode,
-                maxTime,
-                verifiedParameters,
-                resolveBackend(unverifiedJob.request.backend),
-                JobState.VALIDATED,
-                "Validated"
+                application = application,
+                files = files,
+                id = jobId,
+                owner = unverifiedJob.principal.subject,
+                nodes = numberOfJobs,
+                tasksPerNode = tasksPerNode,
+                maxTime = maxTime,
+                jobInput = verifiedParameters,
+                backend = resolveBackend(unverifiedJob.request.backend),
+                currentState = JobState.VALIDATED,
+                status = "Validated",
+                archiveInCollection = archiveInCollection
             ),
             unverifiedJob.principal.token
         )

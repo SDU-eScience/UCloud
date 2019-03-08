@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.bearerAuth
@@ -14,11 +15,16 @@ import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.UploadRequest
 import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.ContentType
 import io.ktor.http.defaultForFilePath
 import kotlinx.coroutines.io.ByteReadChannel
 import java.io.File
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.*
 
 class JobFileService(
     private val client: AuthenticatedClient
@@ -33,8 +39,15 @@ class JobFileService(
         val (job, accessToken) = jobWithToken
 
         val userCloud = client.bearerAuth(accessToken)
+
+        val path = jobFolder(job)
         FileDescriptions.createDirectory.call(
-            CreateDirectoryRequest(jobFolder(job.id, job.owner), null),
+            CreateDirectoryRequest(path.parent(), null),
+            userCloud
+        )
+
+        FileDescriptions.createDirectory.call(
+            CreateDirectoryRequest(path, null),
             userCloud
         ).orThrow()
     }
@@ -57,7 +70,7 @@ class JobFileService(
 
         log.debug("The relative path is $relativePath")
 
-        val rootDestination = File(jobFolder(jobWithToken.job.id, jobWithToken.job.owner))
+        val rootDestination = File(jobFolder(jobWithToken.job))
         val destPath = File(rootDestination, relativePath)
 
         log.debug("The destination path is ${destPath.path}")
@@ -84,16 +97,25 @@ class JobFileService(
         )
     }
 
-    private suspend fun jobFolder(jobId: String, user: String): String {
+    suspend fun jobFolder(job: VerifiedJob): String {
         val homeFolder = FileDescriptions.findHomeFolder.call(
-            FindHomeFolderRequest(user),
+            FindHomeFolderRequest(job.owner),
             client
         ).orThrow().path
-        return joinPath(homeFolder, "Jobs", jobId)
+
+        return joinPath(
+            homeFolder,
+            "Jobs",
+            job.archiveInCollection,
+            timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+        )
     }
 
 
     companion object : Loggable {
         override val log = logger()
+
+        private val zoneId = ZoneId.of("Europe/Copenhagen")
+        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS")
     }
 }

@@ -264,9 +264,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val extension = findExtension(fileName)
 
         val parentPath = desiredPath.parent()
-        val names = listDirectory(ctx, parentPath, setOf(FileAttribute.PATH)).map { it.path.fileName() }
+        val listDirectory = listDirectory(ctx, parentPath, setOf(FileAttribute.PATH))
+        val paths = listDirectory.map { it.path }
+        val names = listDirectory.map { it.path.fileName() }
 
-        return if (names.isEmpty()) {
+        return if (!paths.contains(desiredPath)) {
             desiredPath
         } else {
             val namesMappedAsIndices = names.mapNotNull {

@@ -47,7 +47,8 @@ class JobHibernateDaoTest {
                     VerifiedJobInput(emptyMap()),
                     "abacus",
                     JobState.VALIDATED,
-                    "Unknown"
+                    "Unknown",
+                    archiveInCollection = app.metadata.title
                 ),
                 "token"
             )
