@@ -1,5 +1,6 @@
 package dk.sdu.cloud.alerting.services
 
+import dk.sdu.cloud.alerting.Configuration
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.delay
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
@@ -8,6 +9,7 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
+import java.net.ConnectException
 import java.time.LocalDate
 import java.util.*
 
@@ -15,7 +17,6 @@ private const val FIFTEEN_SEC = 15 * 1000L
 private const val THIRTY_SEC = 30 * 1000L
 private const val FIVE_MIN = 5 * 60 * 1000L
 private const val FIFTEEN_MIN = 15 * 60 * 1000L
-private const val LIMIT_5XX_PERCENTAGE = 10
 
 enum class Status(val isError: Boolean, val failuresForATrigger: Int) {
     RED(isError = true, failuresForATrigger = 2),
@@ -53,11 +54,11 @@ class ElasticAlerting(
                     }
                     return
                 }
-            } catch (ex: java.net.ConnectException) {
+            } catch (ex: ConnectException) {
                 delay(FIFTEEN_SEC)
             }
         }
-        throw java.net.ConnectException("Lost connection to Elasticsearch")
+        throw ConnectException("Lost connection to Elasticsearch")
     }
 
     suspend fun alertOnClusterHealth() {
@@ -82,12 +83,13 @@ class ElasticAlerting(
         }
     }
 
-    suspend fun alertOnStatusCode() {
+    suspend fun alertOnStatusCode(configuration: Configuration) {
         var alertOnStatus = false
+        val limit5xxPercentage = configuration.limits?.percentLimit500Status ?: 10.0
         var numberOfRetries = 0
         while (true) {
             if (numberOfRetries == 3) {
-                throw java.net.ConnectException("Lost connection to Elasticsearch")
+                throw ConnectException("Lost connection to Elasticsearch")
             }
             //Period Format = YYYY.MM.dd
             val yesterdayPeriodFormat = LocalDate.now().minusDays(1).toString().replace("-", ".")
@@ -114,7 +116,7 @@ class ElasticAlerting(
             )
             val numberOf5XXStatusCodes = try {
                 elastic.search(requestFor5xxCodes, RequestOptions.DEFAULT).hits.totalHits.toDouble()
-            } catch (ex: java.net.ConnectException) {
+            } catch (ex: ConnectException) {
                 numberOfRetries++
                 delay(FIFTEEN_SEC)
                 continue
@@ -139,7 +141,7 @@ class ElasticAlerting(
 
             val totalNumberOfEntries = try {
                     elastic.search(totalNumberOfEntriesRequest, RequestOptions.DEFAULT).hits.totalHits.toDouble()
-                } catch (ex: java.net.ConnectException) {
+                } catch (ex: ConnectException) {
                     numberOfRetries++
                     delay(FIFTEEN_SEC)
                     continue
@@ -150,17 +152,20 @@ class ElasticAlerting(
                 continue
             }
             val percentage = numberOf5XXStatusCodes / totalNumberOfEntries * 100
-            log.debug("Current percentage is: $percentage")
-            if (percentage > LIMIT_5XX_PERCENTAGE && !alertOnStatus) {
+            log.debug("Current percentage is: $percentage, with limit: $limit5xxPercentage." +
+                    " NUmber of entries: $totalNumberOfEntries")
+            if (percentage > limit5xxPercentage && !alertOnStatus) {
                 val message = "ALERT: Too many 5XX status codes\n" +
                         "Entries last 15 min: $totalNumberOfEntries \n" +
                         "Number of 5XX status codes: $numberOf5XXStatusCodes \n" +
-                        "Percentage: ${percentage}% (Limit is $LIMIT_5XX_PERCENTAGE %)"
+                        "Percentage: ${percentage}% (Limit is $limit5xxPercentage %)"
                 alertService.createAlert(Alert(message))
                 alertOnStatus = true
             }
-            if (percentage < LIMIT_5XX_PERCENTAGE && alertOnStatus) {
+            if (percentage < limit5xxPercentage && alertOnStatus) {
                 val message = "OK: 5XX statusCodes percentage back below limit"
+                println(message)
+
                 alertService.createAlert(Alert(message))
                 alertOnStatus = false
             }

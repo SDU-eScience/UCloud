@@ -37,8 +37,9 @@ class Server(
 
         val alertService = AlertingService(listOf(SlackNotifier(config.notifiers.slack?.hook!!)))
 
-        GlobalScope.launch {
+       GlobalScope.launch {
             try {
+                log.info("Alert on clusterheath - starting up")
                 ElasticAlerting(elastic, alertService).alertOnClusterHealth()
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
@@ -49,7 +50,8 @@ class Server(
 
         GlobalScope.launch {
             try {
-                ElasticAlerting(elastic, alertService).alertOnStatusCode()
+                log.info("Alert on 500 statuscodes - starting up")
+                ElasticAlerting(elastic, alertService).alertOnStatusCode(config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on StatusCode caught exception: ${ex.message}.")
                 exitProcess(1)

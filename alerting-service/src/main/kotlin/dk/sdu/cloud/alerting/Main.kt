@@ -9,16 +9,21 @@ import java.net.InetAddress
 import java.net.UnknownHostException
 
 data class Configuration (
-    val notifiers: Notifiers = Notifiers()
+    val notifiers: Notifiers = Notifiers(),
+    val limits: Limits? = null
 )
 
-    data class Notifiers(
-        val slack: SlackNotifierConfig? = null
-    )
+data class Limits(
+    val percentLimit500Status: Double
+)
 
-    data class SlackNotifierConfig(
-        val hook: String
-    )
+data class Notifiers(
+    val slack: SlackNotifierConfig? = null
+)
+
+data class SlackNotifierConfig(
+    val hook: String
+)
 
 data class ElasticHostAndPort(
     val host: String,
