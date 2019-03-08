@@ -74,9 +74,6 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c6 {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
   display: block;
   width: 100%;
   font-family: inherit;

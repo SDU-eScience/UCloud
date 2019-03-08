@@ -2,45 +2,56 @@ import * as React from "react";
 import { File } from "Files";
 import FileSelector from "Files/FileSelector";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
-import { ParameterTypes, ApplicationParameter } from ".";
-import { Box, Flex, Label, Text, Select, Markdown, IconButton, Button, Icon } from "ui-components";
+import * as Types from ".";
+import { Box, Flex, Label, Text, Select, Markdown, Button } from "ui-components";
 import Input from "ui-components/Input";
 import { EllipsedText } from "ui-components/Text";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
 
-const parameterTypeToComponent = (type) => {
-    switch (type) {
-        case ParameterTypes.InputFile:
-            return InputFileParameter;
-        case ParameterTypes.InputDirectory:
-            return InputDirectoryParameter;
-        case ParameterTypes.Integer:
-            return IntegerParameter;
-        case ParameterTypes.FloatingPoint:
-            return FloatingParameter;
-        case ParameterTypes.Text:
-            return TextParameter;
-        case ParameterTypes.Boolean:
-            return BooleanParameter;
-        default:
-            console.warn(`Unknown parameter type: ${type}`);
-            return GenericNumberParameter; // Must be a constructor or have call signatures
-    }
-};
 
 interface ParameterProps {
-    parameter: ApplicationParameter
+    parameter: Types.ApplicationParameter
     onChange: (name: string, value: any) => void
-    value: string | number | object
+    value: string | number | InputValue
 }
+
 export const Parameter = (props: ParameterProps) => {
-    let Component = parameterTypeToComponent(props.parameter.type);
-    return (<><Component {...props} /><Box pb="1em" /></>);
+    let component = <div />
+    switch (props.parameter.type) {
+        case Types.ParameterTypes.InputFile:
+            component = <InputFileParameter onChange={props.onChange} value={props.value as InputValue} parameter={props.parameter} />;
+            break;
+        case Types.ParameterTypes.InputDirectory:
+            component = <InputDirectoryParameter onChange={props.onChange} value={props.value as InputValue} parameter={props.parameter} />;
+            break;
+        case Types.ParameterTypes.Integer:
+            component = <IntegerParameter onChange={props.onChange} value={props.value} parameter={props.parameter} />;
+            break;
+        case Types.ParameterTypes.FloatingPoint:
+            component = <FloatingParameter onChange={props.onChange} value={props.value} parameter={props.parameter} />;
+            break;
+        case Types.ParameterTypes.Text:
+            component = <TextParameter onChange={props.onChange} value={props.value as string} parameter={props.parameter as Types.TextParameter} />;
+            break;
+        case Types.ParameterTypes.Boolean:
+            component = <BooleanParameter onChange={props.onChange} parameter={props.parameter} />;
+            break;
+    }
+    return (<>{component}<Box pb="1em" /></>);
 };
 
-const InputFileParameter = (props) => {
+interface InputValue {
+    source: string
+    destination: string
+}
+
+interface InputFileParameterProps extends ParameterProps {
+    value: InputValue
+}
+
+const InputFileParameter = (props: InputFileParameterProps) => {
     const internalOnChange = (file: { path: string }) => {
         props.onChange(props.parameter.name, file.path ? {
             source: file.path,
@@ -61,8 +72,8 @@ const InputFileParameter = (props) => {
     );
 };
 
-const InputDirectoryParameter = (props) => {
-    const internalOnChange = file => {
+const InputDirectoryParameter = (props: InputFileParameterProps) => {
+    const internalOnChange = (file: { path: string }) => {
         props.onChange(props.parameter.name, {
             source: file.path,
             destination: getFilenameFromPath(file.path)
@@ -82,8 +93,14 @@ const InputDirectoryParameter = (props) => {
     )
 }
 
-const TextParameter = (props) => {
-    const internalOnChange = event => {
+interface TextParameterProps {
+    parameter: Types.TextParameter
+    value: string
+    onChange: (name: string, value: string) => void
+}
+
+const TextParameter = (props: TextParameterProps) => {
+    const internalOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         event.preventDefault();
         props.onChange(props.parameter.name, event.target.value);
     };
@@ -105,14 +122,14 @@ const TextParameter = (props) => {
 
 type BooleanParameterOption = { value?: boolean, display: string }
 
-interface BooleanParameter { parameter: ApplicationParameter, onChange: (name: string, value?: boolean) => void }
+interface BooleanParameter { parameter: Types.ApplicationParameter, onChange: (name: string, value?: boolean) => void }
 const BooleanParameter = (props: BooleanParameter) => {
     let options: BooleanParameterOption[] = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
     if (props.parameter.optional) {
         options.unshift({ value: undefined, display: "" });
     }
 
-    const internalOnChange = event => {
+    const internalOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         let value: boolean | undefined;
         switch (event.target.value) {
             case "Yes": value = true; break;
@@ -125,7 +142,7 @@ const BooleanParameter = (props: BooleanParameter) => {
 
     return (
         <GenericParameter parameter={props.parameter}>
-            <Select id="select" onChange={e => internalOnChange(e)} defaultValue="">
+            <Select id="select" onChange={(e: React.ChangeEvent<HTMLInputElement>) => internalOnChange(e)} defaultValue="">
                 <option></option>
                 <option>Yes</option>
                 <option>No</option>
@@ -135,7 +152,7 @@ const BooleanParameter = (props: BooleanParameter) => {
 };
 
 const GenericNumberParameter = (props) => {
-    const internalOnChange = event => {
+    const internalOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         event.preventDefault();
 
         if (event.target.value === "") {
@@ -149,7 +166,6 @@ const GenericNumberParameter = (props) => {
     };
 
     let value = (props.value != null) ? props.value : "";
-
 
     let placeholder = typeof props.parameter.defaultValue === "number" ? props.parameter.defaultValue.value : undefined;
 
@@ -201,7 +217,7 @@ const FloatingParameter = (props) => {
     return <GenericNumberParameter {...childProps} />;
 };
 
-const GenericParameter = ({ parameter, children }: { parameter: ApplicationParameter, children: any }) => (
+const GenericParameter = ({ parameter, children }: { parameter: Types.ApplicationParameter, children: any }) => (
     <>
         <Label fontSize={1} htmlFor={parameter.name}>
             <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
@@ -212,12 +228,12 @@ const GenericParameter = ({ parameter, children }: { parameter: ApplicationParam
 );
 
 interface OptionalParameterProps {
-    parameters: ApplicationParameter[]
-    onUse: (ApplicationParameter) => void
+    parameters: Types.ApplicationParameter[]
+    onUse: (aP: Types.ApplicationParameter) => void
 }
 
 interface OptionalParametersState {
-    results: ApplicationParameter[]
+    results: Types.ApplicationParameter[]
 }
 
 const OptionalParamsBox = styled(Box)`
@@ -229,7 +245,7 @@ const OptionalParamsBox = styled(Box)`
 `;
 
 export class OptionalParameters extends React.Component<OptionalParameterProps, OptionalParametersState> {
-    private fuse: Fuse<ApplicationParameter>;
+    private fuse: Fuse<Types.ApplicationParameter>;
     private currentTimeout: number = -1;
     private searchField = React.createRef<HTMLInputElement>();
 
@@ -298,7 +314,7 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
     }
 }
 
-export class OptionalParameter extends React.Component<{ parameter: ApplicationParameter, onUse: () => void }, { open: boolean }> {
+export class OptionalParameter extends React.Component<{ parameter: Types.ApplicationParameter, onUse: () => void }, { open: boolean }> {
     constructor(props) {
         super(props);
         this.state = { open: false };
@@ -342,7 +358,7 @@ export class OptionalParameter extends React.Component<{ parameter: ApplicationP
 
         return (
             <Box mb={8}>
-                <OptionalParameter.Base onClick={(e) => { e.preventDefault(); this.setState({ open: !open }) }}>
+                <OptionalParameter.Base onClick={(e) => (e.preventDefault(), this.setState({ open: !open }))}>
                     <strong>{parameter.title}</strong>
                     {!open ?
                         <EllipsedText>

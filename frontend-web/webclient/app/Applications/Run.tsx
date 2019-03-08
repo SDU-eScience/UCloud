@@ -5,17 +5,16 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, WithAppInvocation, WithAppMetadata, Application, WithAppFavorite } from "."
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite } from "."
 import { Dispatch } from "redux";
 import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Parameter, OptionalParameter, OptionalParameters } from "./ParameterWidgets";
+import { Parameter, OptionalParameters } from "./ParameterWidgets";
 import { extractParameters, hpcFavoriteApp, hpcJobQueryPost } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
-import styled from "styled-components";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -244,8 +243,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         );
 
         const requiredKeys = application.invocation.parameters.filter(it => !it.optional).map(it => ({ name: it.name, title: it.title }));
-        let disabled = requiredKeys.map(it => it.name).some(it => !parameterValues[it]);
-        const title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`
+        const disabled = requiredKeys.map(it => it.name).some(it => !parameterValues[it]);
+        /* FIXME: Finds all required fields, not just the required ones missing an input value */
+        const title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`;
 
         const sidebar = (
             <VerticalButtonGroup>

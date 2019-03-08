@@ -25,6 +25,7 @@ import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
 import { EllipsedText } from "ui-components/Text";
+import { AppLogo, AppLogoRaw } from "Applications/Card";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
@@ -109,9 +110,10 @@ const HeaderContainer = styled(Flex)`
 
 const Logo = () => (
     <Link to={"/"}>
-        <Text color="headerText" fontSize={4} ml="24px">
-            SDUCloud
-        </Text>
+        <Flex alignItems={"center"} ml="18px">
+            <AppLogoRaw color1Offset={2} color2Offset={2} appC={10} rot={150} size={"32px"} />
+            <Text color="headerText" fontSize={3} ml={"8px"}>SDUCloud</Text>
+        </Flex>
     </Link>
 );
 

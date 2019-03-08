@@ -178,29 +178,29 @@ export interface NumberParameter extends BaseParameter {
     min: number | null
     max: number | null
     step: number | null
-    type: "integer" | "floating_point"
+    type: ParameterTypes.Integer | ParameterTypes.FloatingPoint
 }
 
 export interface BooleanParameter extends BaseParameter {
     defaultValue: { value: boolean, type: "bool" } | null
     trueValue?: string | null
     falseValue?: string | null
-    type: "boolean"
+    type: ParameterTypes.Boolean
 }
 
 export interface InputFileParameter extends BaseParameter {
     defaultValue: string | null
-    type: "input_file"
+    type: ParameterTypes.InputFile
 }
 
 export interface InputDirectoryParameter extends BaseParameter {
     defaultValue: string | null
-    type: "input_directory"
+    type: ParameterTypes.InputDirectory
 }
 
 export interface TextParameter extends BaseParameter {
     defaultValue: { value: string, type: "string" } | null
-    type: "text"
+    type: ParameterTypes.Text
 }
 
 interface BaseParameter {
