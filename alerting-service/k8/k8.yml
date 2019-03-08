@@ -24,11 +24,15 @@ spec:
         - /etc/refresh-token
         - --config-dir
         - /etc/token-validation
+        - --config-dir
+        - /etc/alerting
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
         - mountPath: /etc/token-validation
           name: token-validation
+        - mountPath: /etc/alerting
+          name: alerting
         env:
         - name: POD_IP
           valueFrom:
@@ -43,6 +47,10 @@ spec:
       - name: token-validation
         configMap:
           name: token-validation
+      - name: alerting
+        secret:
+          optional: false
+          secretName: alerting-tokens
 
       imagePullSecrets:
         - name: esci-docker
