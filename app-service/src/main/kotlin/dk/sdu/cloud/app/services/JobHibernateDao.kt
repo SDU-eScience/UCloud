@@ -149,6 +149,7 @@ class JobHibernateDao(
             where = { entity[JobInformationEntity::systemId] equal systemId },
             setProperties = {
                 criteria.set(entity[JobInformationEntity::status], status)
+                criteria.set(entity[JobInformationEntity::modifiedAt], Date(System.currentTimeMillis()))
             }
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
@@ -157,6 +158,7 @@ class JobHibernateDao(
         session.updateCriteria<JobInformationEntity>(
             where = { entity[JobInformationEntity::systemId] equal systemId },
             setProperties = {
+                criteria.set(entity[JobInformationEntity::modifiedAt], Date(System.currentTimeMillis()))
                 criteria.set(entity[JobInformationEntity::state], state)
                 if (status != null) {
                     criteria.set(entity[JobInformationEntity::status], status)
