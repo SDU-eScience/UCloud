@@ -383,18 +383,18 @@ class RpcServer {
             }
 
             val statusCode = (ex as? RPCException)?.httpStatusCode ?: HttpStatusCode.InternalServerError
-            if (call.errorType.type == CommonErrorMessage::class.java && ex is RPCException) {
+            val callResult = if (call.errorType.type == CommonErrorMessage::class.java && ex is RPCException) {
                 val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) CommonErrorMessage(ex.why)
                 else CommonErrorMessage("Internal Server Error")
 
                 @Suppress("UNCHECKED_CAST")
-                source.produceResponse(
-                    ctx, call,
-                    OutgoingCallResponse.Error(errorMessage as E, statusCode)
-                )
+                OutgoingCallResponse.Error(errorMessage as E, statusCode)
             } else {
-                source.produceResponse(ctx, call, OutgoingCallResponse.Error<S, E>(null, statusCode))
+                OutgoingCallResponse.Error<S, E>(null, statusCode)
             }
+
+            source.produceResponse(ctx, call, callResult)
+            response = callResult
         }
 
         val responseOrDefault = response ?: OutgoingCallResponse.Error<S, E>(
