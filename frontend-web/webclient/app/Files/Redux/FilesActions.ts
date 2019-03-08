@@ -14,7 +14,8 @@ import {
     SET_FILE_SELECTOR_ERROR,
     CHECK_ALL_FILES,
     CHECK_FILE,
-    CREATE_FOLDER
+    CREATE_FOLDER,
+    FILES_INVALID_PATH
 } from "./FilesReducer";
 import { getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath, favoritesQuery } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
@@ -23,12 +24,11 @@ import { Action } from "redux";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
 import { errorMessageOrDefault } from "UtilityFunctions";
 
-
 export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage<typeof UPDATE_FILES, File> |
     SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
     ReceiveFileSelectorFilesAction | Action<typeof SET_FILE_SELECTOR_LOADING> | SetFileSelectorCallbackAction |
     Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction | CheckAllFilesAction |
-    CheckFileAction | CreateFolderAction
+    CheckFileAction | CreateFolderAction | InvalidPathAction
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -38,13 +38,15 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 * @param {Page<File>} page number of the page to be fetched
 */
 
-type FetchFiles = Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError>
+type FetchFiles = Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError | InvalidPathAction>
 export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): FetchFiles => {
     try {
         const response = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy));
         return receiveFiles(response.response, path, order, sortBy)
     } catch (e) {
-        return setErrorMessage(errorMessageOrDefault(e, "An error occurred fetching contents of folder."))
+        const error = errorMessageOrDefault(e, "An error occurred fetching contents of folder.");
+        if (e.request.status === 404) return setInvalidPath(error);
+        return setErrorMessage(e);
     }
 }
 type FilesError = Error<typeof FILES_ERROR>
@@ -151,7 +153,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string, fileSel
  * @param {SortOrder} order the order to sort by, either ascending or descending
  * @param {SortBy} sortBy the field to be sorted by
  */
-export async function fetchPageFromPath(path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> {
+export async function fetchPageFromPath(path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR> | InvalidPathAction> {
     try {
         const { response } = await Cloud.get<Page<File>>(fileLookupQuery(path, itemsPerPage, order, sortBy))
         const resolvedPath = resolvePath(path);
@@ -159,9 +161,16 @@ export async function fetchPageFromPath(path: string, itemsPerPage: number, orde
         response.items[i].isChecked = true;
         return receiveFiles(response, getParentPath(resolvedPath), order, sortBy)
     } catch (e) {
+        if (e.request.status === 404) return setInvalidPath("Not found");
         return setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
     }
 }
+
+type InvalidPathAction = PayloadAction<typeof FILES_INVALID_PATH, { invalidPath: true, loading: false, error?: string }>
+export const setInvalidPath = (error?: string): InvalidPathAction => ({
+    type: FILES_INVALID_PATH,
+    payload: { invalidPath: true, loading: false, error }
+});
 
 /**
  * 
