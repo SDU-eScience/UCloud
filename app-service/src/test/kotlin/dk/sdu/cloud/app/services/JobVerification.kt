@@ -1,12 +1,10 @@
 package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.app.api.StartJobRequest
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -23,7 +21,7 @@ import kotlin.test.assertTrue
 class JobVerification {
 
     val unverifiedJob = UnverifiedJob(
-        AppRequest.Start(
+        StartJobRequest(
             NameAndVersion("name", "2.2"),
             mapOf("int" to 5, "great" to "mojn", "missing" to 23),
             1,
@@ -65,7 +63,7 @@ class JobVerification {
     }
 
     val unverifiedJobWithWrongParamType = UnverifiedJob(
-        AppRequest.Start(
+        StartJobRequest(
             NameAndVersion("name", "2.2"),
             mapOf("int" to 2, "missing" to "NotAnInt"),
             1,
@@ -98,7 +96,7 @@ class JobVerification {
     }
 
     val unverifiedJobWithMissingNonOptional = UnverifiedJob(
-        AppRequest.Start(
+        StartJobRequest(
             NameAndVersion("name", "2.2"),
             mapOf("great" to "mojn"),
             1,

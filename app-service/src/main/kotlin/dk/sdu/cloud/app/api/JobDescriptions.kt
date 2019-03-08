@@ -21,14 +21,8 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
     /**
      * Finds a job by it's ID.
      *
-     * __Request:__ [FindByStringId]
-     *
-     * __Response:__ [JobWithStatus]
-     *
      * Queries a job by its ID and returns the resulting job along with its status. Only the user who
      * owns the job is allowed to receive the result.
-     *
-     * __Example:__ `http :42200/api/hpc/jobs/<jobId>`
      */
     val findById = call<FindByStringId, JobWithStatus, CommonErrorMessage>("findById") {
         auth {
@@ -45,12 +39,6 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
 
     /**
      * Lists a user's recent jobs, sorted by the modified at timestamp.
-     *
-     * __Request:__ [PaginationRequest]
-     *
-     * __Response:__ [Page] with [JobWithStatus]
-     *
-     * __Example:__ `http :42200/api/hpc/jobs?page=0&itemsPerPage=10`
      */
     val listRecent = call<PaginationRequest, Page<JobWithStatus>, CommonErrorMessage>("listRecent") {
         auth {
@@ -71,14 +59,8 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
 
     /**
      * Starts a job.
-     *
-     * __Request:__ [AppRequest.Start]
-     *
-     * __Response:__ [JobStartedResponse]
-     *
-     * __Example:__ `http :42200/api/hpc/jobs?page=0&itemsPerPage=10`
      */
-    val start = call<AppRequest.Start, JobStartedResponse, CommonErrorMessage>("start") {
+    val start = call<StartJobRequest, JobStartedResponse, CommonErrorMessage>("start") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -98,10 +80,6 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
 
     /**
      * Follows the std streams of a job.
-     *
-     * __Request:__ [FollowStdStreamsRequest]
-     *
-     * __Response:__ [FollowStdStreamsResponse]
      */
     val follow = call<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage>("follow") {
         auth {
@@ -196,6 +174,7 @@ data class FollowStdStreamsResponse(
     /**
      * [NameAndVersion] for the application running.
      */
+    @Deprecated("Should no longer be used. Use metadata instead")
     val application: NameAndVersion,
 
     /**
@@ -216,8 +195,12 @@ data class FollowStdStreamsResponse(
     /**
      * The job ID
      */
-    val id: String
-)
+    val id: String,
+
+    val outputFolder: String? = null,
+
+    override val metadata: ApplicationMetadata
+) : WithAppMetadata
 
 data class InternalFollowStdStreamsRequest(
     val job: VerifiedJob,

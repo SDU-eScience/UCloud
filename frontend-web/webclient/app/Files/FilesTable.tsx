@@ -180,7 +180,7 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
                 {UF.sortByToPrettierString(sortByKey)}
             </Box>
         ))}
-    </ClickableDropdown>) : <>{UF.prettierString(currentSelection)}</>;
+    </ClickableDropdown>) : <>{UF.sortByToPrettierString(currentSelection)}</>;
 
 export const ContextBar = ({ files, ...props }: ContextBarProps) => (
     <Box>
