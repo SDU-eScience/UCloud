@@ -17,15 +17,21 @@ import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
-import { Flex, Box, List, Card } from "ui-components";
+import { Flex, Box, List, Card, ContainerForText } from "ui-components";
 import { Step, StepGroup } from "ui-components/Step";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
-import Icon, { IconName } from "ui-components/Icon";
+import Icon from "ui-components/Icon";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { FileSelectorModal } from "Files/FileSelector";
 import { Page } from "Types";
 import * as Heading from "ui-components/Heading";
+import { JobStateIcon } from "./JobStateIcon";
+import { MainContainer } from "MainContainer/MainContainer";
+
+const Panel = styled(Box)`
+    margin-bottom: 1em;
+`;
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -177,41 +183,25 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private readonly favoriteFile = async (file: File) => this.props.receivePage(await favoriteFileFromPage(this.props.page, [file], Cloud));
 
     renderProgressPanel = () => (
-        <div>
-            <h4>Progress</h4>
+        <Panel>
             <StepGroup>
                 <StepTrackerItem
-                    icon="checkDouble"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.VALIDATED)}
-                    complete={this.isStateComplete(AppState.VALIDATED)}
-                    title="Validated" />
+                    stateToDisplay={AppState.VALIDATED}
+                    currentState={this.state.appState} />
                 <StepTrackerItem
-                    icon="hourglass"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.PREPARED)}
-                    complete={this.isStateComplete(AppState.PREPARED)}
-                    title="Pending" />
+                    stateToDisplay={AppState.PREPARED}
+                    currentState={this.state.appState} />
                 <StepTrackerItem
-                    icon="calendar"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.SCHEDULED)}
-                    complete={this.isStateComplete(AppState.SCHEDULED)}
-                    title="Scheduled" />
+                    stateToDisplay={AppState.SCHEDULED}
+                    currentState={this.state.appState} />
                 <StepTrackerItem
-                    icon="chrono"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.RUNNING)}
-                    complete={this.isStateComplete(AppState.RUNNING)}
-                    title="Running" />
+                    stateToDisplay={AppState.RUNNING}
+                    currentState={this.state.appState} />
                 <StepTrackerItem
-                    icon="move"
-                    failed={this.isStateFailure()}
-                    active={this.isStateActive(AppState.TRANSFER_SUCCESS)}
-                    complete={this.isStateComplete(AppState.TRANSFER_SUCCESS)}
-                    title="Transferring" />
+                    stateToDisplay={AppState.TRANSFER_SUCCESS}
+                    currentState={this.state.appState} />
             </StepGroup>
-        </div>
+        </Panel>
     );
 
     renderInfoPanel() {
@@ -237,21 +227,21 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         }
 
         return (
-            <Box mb="0.5em">
+            <Panel>
                 <Heading.h4>Job Information</Heading.h4>
                 <Card height="auto" p="14px 14px 14px 14px">
                     <List>
                         {domEntries}
                     </List>
                 </Card>
-            </Box>
+            </Panel>
         );
     }
 
     renderStreamPanel() {
         if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
         return (
-            <Box width="100%">
+            <Panel width="100%">
                 <Heading.h4>
                     Standard Streams
                     &nbsp;
@@ -272,7 +262,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
                     </Box>
                 </Flex>
-            </Box>
+            </Panel>
         );
     }
 
@@ -281,7 +271,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         if (!page.items.length) return null;
         const { state } = this;
         return (
-            <Box>
+            <Panel>
                 <Heading.h4>Output Files</Heading.h4>
                 <PaginationList
                     loading={this.props.loading}
@@ -317,7 +307,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     setSelectedFile={state.fsCallback}
                     disallowedPaths={state.fsDisallowedPaths}
                 />
-            </Box>
+            </Panel>
         );
     }
     fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
@@ -327,55 +317,69 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     render = () => (
-        <Flex alignItems="center" flexDirection="column">
-            <Box width={0.7}>
-                <Box>{this.renderProgressPanel()}</Box>
-                <Box>{this.renderInfoPanel()}</Box>
-                <Box>{this.renderFilePanel()}</Box>
-                <Box>{this.renderStreamPanel()}</Box>
-            </Box>
-        </Flex>);
-
-    static stateToOrder(state: AppState): 0 | 1 | 2 | 3 | 4 | 5 {
-        switch (state) {
-            case AppState.VALIDATED:
-                return 0;
-            case AppState.PREPARED:
-                return 1;
-            case AppState.SCHEDULED:
-                return 2;
-            case AppState.RUNNING:
-                return 3;
-            case AppState.TRANSFER_SUCCESS:
-                return 4;
-            case AppState.SUCCESS:
-                return 5;
-            case AppState.FAILURE:
-                return 5;
-            default:
-                return 0;
-        }
-    }
-
-    isStateComplete = (queryState: AppState) =>
-        DetailedResult.stateToOrder(queryState) < DetailedResult.stateToOrder(this.state.appState);
-
-    isStateFailure = () => this.state.appState === AppState.FAILURE
-
-    isStateActive = (queryState: AppState) =>
-        DetailedResult.stateToOrder(this.state.appState) === DetailedResult.stateToOrder(queryState);
+        <MainContainer
+            main={
+                <ContainerForText>
+                    {this.renderProgressPanel()}
+                    {this.renderInfoPanel()}
+                    {this.renderFilePanel()}
+                    {this.renderStreamPanel()}
+                </ContainerForText>
+            } />
+    )
 }
 
-const StepTrackerItem = (props: { failed: boolean, complete: boolean, active: boolean, title: string, icon: IconName }) => (
-    <Step active={props.active}>
-        {props.complete ?
-            <Icon name={props.failed ? "close" : "check"} color={props.failed ? "red" : "green"} mr="0.7em" size="30px" /> :
-            <Icon name={props.icon} mr="0.7em" size="30px" color="iconColor" color2="iconColor2" />
-        }
-        <TextSpan fontSize={3}>{props.title}</TextSpan>
-    </Step>
-);
+const stateToOrder = (state: AppState): 0 | 1 | 2 | 3 | 4 | 5 => {
+    switch (state) {
+        case AppState.VALIDATED:
+            return 0;
+        case AppState.PREPARED:
+            return 1;
+        case AppState.SCHEDULED:
+            return 2;
+        case AppState.RUNNING:
+            return 3;
+        case AppState.TRANSFER_SUCCESS:
+            return 4;
+        case AppState.SUCCESS:
+            return 5;
+        case AppState.FAILURE:
+            return 5;
+        default:
+            return 0;
+    }
+}
 
+const isStateComplete = (state: AppState, currentState: AppState) =>
+    stateToOrder(state) < stateToOrder(currentState);
+
+const stateToTitle = (state: AppState): string => {
+    switch (state) {
+        case AppState.FAILURE: return "Failure";
+        case AppState.PREPARED: return "Pending";
+        case AppState.RUNNING: return "Running";
+        case AppState.SCHEDULED: return "Scheduled";
+        case AppState.SUCCESS: return "Success";
+        case AppState.TRANSFER_SUCCESS: return "Transferring";
+        case AppState.VALIDATED: return "Validated";
+        default: return "Unknown";
+    }
+}
+
+const StepTrackerItem: React.StatelessComponent<{ stateToDisplay: AppState, currentState: AppState }> = ({ stateToDisplay, currentState }) => {
+    const active = stateToDisplay === currentState;
+    const complete = isStateComplete(stateToDisplay, currentState);
+    const failed = currentState === AppState.FAILURE;
+    return (
+        <Step active={active}>
+            {complete ?
+                <Icon name={failed ? "close" : "check"} color={failed ? "red" : "green"} mr="0.7em" size="30px" /> :
+                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px" />
+            }
+            <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
+        </Step>
+    );
+};
 
 const Stream = styled.pre`
     height: 500px;

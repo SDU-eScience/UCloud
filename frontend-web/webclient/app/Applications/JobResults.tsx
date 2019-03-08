@@ -1,8 +1,7 @@
 import * as React from "react";
-import { capitalized, shortUUID } from "UtilityFunctions"
+import { capitalized } from "UtilityFunctions"
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { Link } from "ui-components";
+import { ContainerForText } from "ui-components";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
@@ -10,7 +9,6 @@ import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps, A
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
-import { fileTablePage } from "Utilities/FileUtilities";
 import { MainContainer } from "MainContainer/MainContainer";
 import { History } from "history";
 import { ReduxObject } from "DefaultObjects";
@@ -20,44 +18,45 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { EntriesPerPageSelector } from "Pagination";
 import { Spacer } from "ui-components/Spacer";
 import * as moment from "moment";
+import { JobStateIcon } from "./JobStateIcon";
+
+interface FetchJobsOptions {
+    itemsPerPage?: number
+    pageNumber?: number
+}
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
         super(props);
-        this.state = {
-            reloadIntervalId: -1
-        };
         props.setActivePage();
-        props.updatePageTitle("Results");
+        props.updatePageTitle();
     }
 
     componentDidMount() {
-        this.getAnalyses(false);
-        let reloadIntervalId = window.setInterval(() => {
-            this.getAnalyses(true)
-        }, 10_000);
-        this.setState({ reloadIntervalId });
-        this.props.setRefresh(() => this.getAnalyses(false));
+        this.fetchJobs();
+        this.props.setRefresh(() => this.fetchJobs());
     }
 
     componentWillReceiveProps(nextProps: AnalysesProps) {
         const { setRefresh } = nextProps;
-        setRefresh(() => this.getAnalyses(false));
+        setRefresh(() => this.fetchJobs());
     }
 
     componentWillUnmount() {
-        clearInterval(this.state.reloadIntervalId);
-        this.props.setRefresh();
+        this.props.setRefresh(undefined);
     }
 
-    getAnalyses(silent: boolean) {
-        const { page } = this.props;
-        if (!silent) this.props.setLoading(true);
-        this.props.fetchAnalyses(page.itemsPerPage, page.pageNumber);
+    fetchJobs(options?: FetchJobsOptions) {
+        const opts = options || {};
+        const { page, setLoading } = this.props;
+        const itemsPerPage = opts.itemsPerPage !== undefined ? opts.itemsPerPage : page.itemsPerPage;
+        const pageNumber = opts.pageNumber !== undefined ? opts.pageNumber : page.pageNumber;
+        setLoading(true);
+        this.props.fetchJobs(itemsPerPage, pageNumber);
     }
 
     render() {
-        const { page, loading, fetchAnalyses, error, onErrorDismiss, history, responsive } = this.props;
+        const { page, loading, error, onErrorDismiss, history, responsive } = this.props;
         const hide = responsive.lessThan.lg;
         const content = <List
             customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
@@ -65,27 +64,40 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
             onErrorDismiss={onErrorDismiss}
             errorMessage={error}
             pageRenderer={page =>
-                <Table>
-                    <Header hide={hide} />
-                    <TableBody>
-                        {page.items.map((a, i) => <Analysis
-                            hide={hide} to={() => history.push(`/applications/results/${a.jobId}`)} analysis={a} key={i}
-                        />)}
-                    </TableBody>
-                </Table>
+                <ContainerForText>
+                    <Table>
+                        <Header hide={hide} />
+                        <TableBody>
+                            {page.items.map((a, i) =>
+                                <Row
+                                    hide={hide}
+                                    to={() => history.push(`/applications/results/${a.jobId}`)}
+                                    analysis={a}
+                                    key={i}
+                                />)
+                            }
+                        </TableBody>
+                    </Table>
+                </ContainerForText>
             }
             page={page}
-            onPageChanged={pageNumber => fetchAnalyses(page.itemsPerPage, pageNumber)}
+            onPageChanged={pageNumber => this.fetchJobs({ pageNumber })}
         />;
 
         return (<MainContainer
-            header={<Spacer left={<Heading.h1>Job Results</Heading.h1>} right={
-                <EntriesPerPageSelector
-                    content="Jobs per page"
-                    entriesPerPage={page.itemsPerPage}
-                    onChange={itemsPerPage => fetchAnalyses(itemsPerPage, page.pageNumber)}
+            header={
+                <Spacer
+                    left={null}
+                    right={
+                        <EntriesPerPageSelector
+                            content="Jobs per page"
+                            entriesPerPage={page.itemsPerPage}
+                            onChange={itemsPerPage => this.fetchJobs({ itemsPerPage })}
+                        />
+                    }
                 />
-            } />}
+            }
+            headerSize={48}
             main={content}
         />);
     }
@@ -94,40 +106,31 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
 const Header = ({ hide }: { hide: boolean }) => (
     <TableHeader>
         <TableRow>
-            <TableHeaderCell textAlign="left">Application</TableHeaderCell>
-            <TableHeaderCell textAlign="left">Version</TableHeaderCell>
             <TableHeaderCell textAlign="left">State</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Application</TableHeaderCell>
             {hide ? null : <TableHeaderCell textAlign="left">Started at</TableHeaderCell>}
-            <TableHeaderCell textAlign="left">Last updated at</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Last update</TableHeaderCell>
         </TableRow>
     </TableHeader>
 );
 
-// FIXME: Typesafety. But how has this worked setting Link as title?
-const Analysis = ({ analysis, to, hide }) => {
+// FIXME: Typesafety.
+const Row = ({ analysis, to, hide }) => {
     const metadata: ApplicationMetadata = analysis.metadata;
     return (
         <TableRow cursor="pointer" onClick={() => to()}>
-            <TableCell>{metadata.title}</TableCell>
-            <TableCell>{metadata.version}</TableCell>
-            <TableCell>{capitalized(analysis.state)}</TableCell>
-            {hide ? null : <TableCell>{formatDate(analysis.createdAt)}</TableCell>}
-            <TableCell>{formatDate(analysis.modifiedAt)}</TableCell>
+            <TableCell><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}</TableCell>
+            <TableCell>{metadata.title} v{metadata.version}</TableCell>
+            {hide ? null : <TableCell>{moment(analysis.createdAt).calendar()}</TableCell>}
+            <TableCell>{moment(analysis.modifiedAt).calendar()}</TableCell>
         </TableRow>)
 };
 
-const formatDate = (millis: number) => {
-    return moment(new Date(millis)).fromNow();
-};
-
-const pad = (value: string | number, length: number) =>
-    (value.toString().length < length) ? pad("0" + value, length) : value;
-
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage(undefined)),
-    updatePageTitle: () => dispatch(updatePageTitle("Results")),
+    updatePageTitle: () => dispatch(updatePageTitle("My Results")),
     setLoading: loading => dispatch(setLoading(loading)),
-    fetchAnalyses: async (itemsPerPage, pageNumber) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
+    fetchJobs: async (itemsPerPage, pageNumber) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.MyResults)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
