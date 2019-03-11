@@ -7,7 +7,7 @@ mainClassName = "dk.sdu.cloud.integration.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.6/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.1.1"
+    ext.serviceCommonVersion = '1.1.9'
 }
 
 repositories {
