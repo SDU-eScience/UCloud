@@ -38,16 +38,10 @@ class Files extends React.Component<FilesProps> {
             (path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
         );
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
-        this.props.setRefresh(() => props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
     }
 
     componentWillUnmount() {
-        this.props.setRefresh();
-    }
-
-    componentWillReceiveProps(nextProps: FilesProps) {
-        const { page, fetchFiles, sortBy, sortOrder } = nextProps;
-        this.props.setRefresh(() => fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
+        this.props.clearRefresh();
     }
 
     private urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
@@ -239,15 +233,23 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError({})),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     createFolder: () => dispatch(Actions.createFolder()),
-    fetchFiles: async (path, itemsPerPage, pageNumber, sortOrder, sortBy, index?) => {
+    fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, index?) => {
         dispatch(Actions.updatePath(path));
-        dispatch(Actions.setLoading(true));
+        const fetch = async () => {
+            dispatch(Actions.setLoading(true));
+            dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));
+        };
         if (index != null) dispatch(Actions.setSortingColumn(sortBy, index));
-        dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));
+        fetch();
+        dispatch(setRefreshFunction(fetch));
     },
-    fetchPageFromPath: async (path, itemsPerPage, sortOrder, sortBy) => {
-        dispatch(Actions.setLoading(true));
-        dispatch(await Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
+    fetchPageFromPath: (path, itemsPerPage, sortOrder, sortBy) => {
+        const fetch = async () => {
+            dispatch(Actions.setLoading(true));
+            dispatch(await Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
+        };
+        fetch();
+        dispatch(setRefreshFunction(fetch))
     },
     setLoading: loading => dispatch(Actions.setLoading(loading)),
     updatePath: path => dispatch(Actions.updatePath(path)),
@@ -269,7 +271,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     showUploader: () => dispatch(setUploaderVisible(true)),
     setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Files)),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    clearRefresh: () => dispatch(setRefreshFunction())
 });
 
 export default connect<FilesStateProps, FilesOperations>(mapStateToProps, mapDispatchToProps)(Files);
