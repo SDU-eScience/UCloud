@@ -51,7 +51,6 @@ describe("Zenodo Publish", () => {
             </Provider>
         );
 
-        //console.log(publishWrapper.find(Button).findWhere(it => it.props().children === "Add file"));
         expect((publishWrapper.find(ZenodoPublish).children().instance().state as any).files.length).toBe(1);
 
         publishWrapper.find(Button).findWhere(it => it.props().children === "Add file").simulate("click");
