@@ -29,23 +29,17 @@ interface StateProps {
 interface Operations {
     refresh: () => void
     fetchEvents: (itemsPerPage: number, page: number) => void
-    setRefresh: (refresh?: () => void) => void
 }
 
 class DetailedPage extends React.Component<DetailedPageProps> {
     componentDidMount() {
         this.props.refresh();
-        this.props.setRefresh(() => this.props.setRefresh());
     }
 
     componentDidUpdate(prevProps: DetailedPageProps) {
         if (this.props.match !== prevProps.match) {
             this.props.refresh();
         }
-    }
-
-    componentWillReceiveProps(nextProps: DetailedPageProps) {
-        this.props.setRefresh(() => nextProps.setRefresh());
     }
 
     render() {
@@ -90,18 +84,21 @@ class DetailedPage extends React.Component<DetailedPageProps> {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | SetRefreshFunction>, ownProps: OwnProps): Operations => ({
-    refresh: async () => {
+    refresh: () => {
         const { resource, subResource } = ownProps.match.params;
-        dispatch(await Actions.fetchEvents(resource, subResource));
-        dispatch(await Actions.fetchChart(resource, subResource));
+        const fetch = async () => {
+            dispatch(Actions.clearResource(resource, subResource));
+            dispatch(await Actions.fetchEvents(resource, subResource));
+            dispatch(await Actions.fetchChart(resource, subResource));
+        };
+        fetch();
+        dispatch(setRefreshFunction(fetch));
     },
 
     fetchEvents: async (itemsPerPage, page) => {
         const { resource, subResource } = ownProps.match.params;
         dispatch(await Actions.fetchEvents(resource, subResource, itemsPerPage, page));
-    },
-
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    }
 });
 
 const mapStateToProps = (state: ReduxObject, ownProps: OwnProps): StateProps => {

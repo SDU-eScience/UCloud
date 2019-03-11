@@ -1,7 +1,7 @@
 import { Reducer as ReduxReducer } from "redux";
 import { Type as ActionType, Tag } from "./AccountingActions";
 import { Type as ReduxType, init, ResourceState } from "./AccountingObject";
-import { loadableEventToContent } from "LoadableContent";
+import { loadableEventToContent, emptyLoadableContent } from "LoadableContent";
 import { emptyResourceState } from "./AccountingObject";
 
 export interface Reducer {
@@ -18,6 +18,14 @@ function genericReduce(state: ReduxType, resource: string, newPartialState: Part
 
 const reducer = (state: ReduxType = init().accounting, action: ActionType): ReduxType => {
     switch (action.type) {
+        case Tag.CLEAR_RESOURCE: {
+            return genericReduce(state, action.payload.resource, {
+                chart: emptyLoadableContent(),
+                usage: emptyLoadableContent(),
+                events: emptyLoadableContent()
+            })
+        }
+
         case Tag.RECEIVE_CHART: {
             return genericReduce(state, action.payload.resource,
                 { chart: loadableEventToContent(action.payload.event) });
