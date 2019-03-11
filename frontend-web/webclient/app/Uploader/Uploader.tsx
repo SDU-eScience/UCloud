@@ -361,6 +361,7 @@ const UploaderRow = (p: {
                         <label>Extract archive?</label>
                         <Box ml="0.5em" />
                         <Toggle
+                            scale={1.3}
                             checked={p.upload.extractArchive}
                             onChange={() => ifPresent(p.onExtractChange, c => c(!p.upload.extractArchive))}
                         />

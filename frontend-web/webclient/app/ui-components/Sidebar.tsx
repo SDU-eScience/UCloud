@@ -15,7 +15,7 @@ import RBox from "./RBox";
 import { ReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
 import { FlexCProps } from "./Flex";
-import { successNotification, inDevEnvironment } from "UtilityFunctions";
+import { successNotification, inDevEnvironment, copyToClipboard } from "UtilityFunctions";
 
 const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
     justify-content: left;
@@ -212,16 +212,6 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) =
         </SidebarContainer>
     );
 };
-
-function copyToClipboard(value: string | undefined, message: string) {
-    const input = document.createElement("input");
-    input.value = value || "";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
-    successNotification(message);
-}
 
 const mapStateToProps = ({ status }: ReduxObject): SidebarStateProps => ({
     page: status.page

@@ -410,6 +410,16 @@ export function humanReadableNumber(
         .replace(regex, '$&' + sectionDelim);
 }
 
+export function copyToClipboard(value: string | undefined, message: string) {
+    const input = document.createElement("input");
+    input.value = value || "";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    document.body.removeChild(input);
+    successNotification(message);
+}
+
 export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any } | { status: number, response: string }, defaultMessage: string): string {
     if ("status" in err) {
         return err.response;
