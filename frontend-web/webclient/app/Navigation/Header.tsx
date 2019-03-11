@@ -25,7 +25,7 @@ import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
 import { EllipsedText } from "ui-components/Text";
-import { AppLogo, AppLogoRaw } from "Applications/Card";
+import { AppLogoRaw } from "Applications/Card";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
@@ -287,6 +287,7 @@ const anyLoading = (rO: ReduxObject): boolean =>
     || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
-    || rO.shares.loading
+    || rO.shares.loading || rO.accounting.resources["compute/timeUsed"].events.loading
+    || rO.accounting.resources["storage/bytesUsed"].events.loading
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));
