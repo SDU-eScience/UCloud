@@ -19,6 +19,7 @@ internal val storageFile: StorageFileImpl = StorageFileImpl(
     link = false,
     annotations = setOf("P"),
     fileId = "ID",
-    creator = "Owner"
+    creator = "Owner",
+    ownSensitivityLevel = SensitivityLevel.PRIVATE
 )
 

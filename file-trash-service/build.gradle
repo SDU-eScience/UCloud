@@ -1,10 +1,10 @@
 group 'dk.sdu.cloud'
-version '1.1.0'
+version '1.1.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.trash.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.6/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.7/sdu-cloud.gradle"
 
 repositories {
     jcenter()
@@ -17,8 +17,8 @@ buildscript {
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
-    compile 'dk.sdu.cloud:auth-api:1.18.1'
-    compile "dk.sdu.cloud:file-api:1.1.0"
+    compile 'dk.sdu.cloud:auth-api:1.18.6'
+    compile "dk.sdu.cloud:file-api:1.2.7"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 

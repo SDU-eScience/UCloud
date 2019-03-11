@@ -27,6 +27,6 @@ object JobData {
         VerifiedJobInput(emptyMap()),
         "abacus",
         JobState.TRANSFER_SUCCESS,
-        ""
-    )
+        "",
+        archiveInCollection = application.metadata.title)
 }

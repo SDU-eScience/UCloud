@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.stats.services
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.stats.storageFile
+import dk.sdu.cloud.file.stats.storageFile2
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.QueryResponse
 import dk.sdu.cloud.service.test.ClientMock
@@ -22,7 +23,7 @@ class RecentFilesTest {
                 0,
                 listOf(
                     storageFile,
-                    storageFile.copy(fileId = "id2")
+                    storageFile2
                 )
             )
         )
