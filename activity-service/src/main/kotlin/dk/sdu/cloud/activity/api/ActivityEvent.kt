@@ -44,6 +44,7 @@ sealed class ActivityEvent {
     // When adding new entries here, you will also need to add entries in:
     // ActivityEventDao
 
+    abstract val id: Long?
     abstract val timestamp: Long
     abstract val fileId: String
     abstract val username: String
@@ -55,14 +56,16 @@ sealed class ActivityEvent {
         override val username: String,
         override val timestamp: Long,
         override val fileId: String,
-        override val originalFilePath: String
+        override val originalFilePath: String,
+        override val id: Long? = null
     ) : ActivityEvent()
 
     data class Updated(
         override val username: String,
         override val timestamp: Long,
         override val fileId: String,
-        override val originalFilePath: String
+        override val originalFilePath: String,
+        override val id: Long? = null
     ) : ActivityEvent()
 
     data class Favorite(
@@ -70,14 +73,16 @@ sealed class ActivityEvent {
         val isFavorite: Boolean,
         override val timestamp: Long,
         override val fileId: String,
-        override val originalFilePath: String
+        override val originalFilePath: String,
+        override val id: Long? = null
     ) : ActivityEvent()
 
     data class Inspected(
         override val username: String,
         override val timestamp: Long,
         override val fileId: String,
-        override val originalFilePath: String
+        override val originalFilePath: String,
+        override val id: Long? = null
     ) : ActivityEvent()
 
     data class Moved(
@@ -85,20 +90,32 @@ sealed class ActivityEvent {
         val newName: String,
         override val timestamp: Long,
         override val fileId: String,
-        override val originalFilePath: String
+        override val originalFilePath: String,
+        override val id: Long? = null
     ) : ActivityEvent()
 
     data class Deleted(
         override val timestamp: Long,
         override val fileId: String,
         override val username: String,
-        override val originalFilePath: String
+        override val originalFilePath: String,
+        override val id: Long? = null
     ) : ActivityEvent()
+}
+
+val ActivityEvent.type: ActivityEventType get() = when (this) {
+    is ActivityEvent.Download -> ActivityEventType.download
+    is ActivityEvent.Updated -> ActivityEventType.updated
+    is ActivityEvent.Favorite -> ActivityEventType.favorite
+    is ActivityEvent.Inspected -> ActivityEventType.inspected
+    is ActivityEvent.Moved -> ActivityEventType.moved
+    is ActivityEvent.Deleted -> ActivityEventType.deleted
 }
 
 data class ActivityEventGroup(
     val type: ActivityEventType,
-    val earliestTimestamp: Long,
+    val newestTimestamp: Long,
+    val numberOfHiddenResults: Long?,
     val items: List<ActivityEvent>
 )
 

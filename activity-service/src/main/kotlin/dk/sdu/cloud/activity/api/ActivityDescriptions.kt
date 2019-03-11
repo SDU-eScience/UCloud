@@ -7,7 +7,6 @@ import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.service.ScrollResult
 import dk.sdu.cloud.service.WithScrollRequest
 import dk.sdu.cloud.service.WithScrollResult
 import io.ktor.http.HttpMethod
@@ -93,21 +92,23 @@ object Activity : CallDescriptionContainer("activity") {
                 +boundTo(BrowseByUser.Request::user)
                 +boundTo(BrowseByUser.Request::offset)
                 +boundTo(BrowseByUser.Request::scrollSize)
+                +boundTo(BrowseByUser.Request::collapseAt)
             }
         }
     }
 
     object BrowseByUser {
         data class Request(
-            val user: String,
-            override val offset: Long?,
+            val user: String?,
+            val collapseAt: Int?,
+            override val offset: Int?,
             override val scrollSize: Int?
-        ) : WithScrollRequest<Long>
+        ) : WithScrollRequest<Int>
 
         data class Response(
             override val endOfScroll: Boolean,
-            override val items: List<ActivityEvent>,
-            override val nextOffset: Long
-        ) : WithScrollResult<ActivityEvent, Long>
+            override val items: List<ActivityEventGroup>,
+            override val nextOffset: Int
+        ) : WithScrollResult<ActivityEventGroup, Int>
     }
 }

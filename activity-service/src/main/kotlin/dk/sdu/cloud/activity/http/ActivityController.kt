@@ -1,5 +1,7 @@
 package dk.sdu.cloud.activity.http
 
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.activity.api.Activity
 import dk.sdu.cloud.activity.api.ActivityDescriptions
 import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.calls.server.HttpCall
@@ -39,7 +41,11 @@ class ActivityController<DBSession>(
         }
 
         implement(ActivityDescriptions.browseByUser) {
+            val user = request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
+                ?: ctx.securityPrincipal.username
 
+            val result = activityService.browseForUser(request.normalize(), user, request.collapseAt ?: 20)
+            ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
         }
     }
 

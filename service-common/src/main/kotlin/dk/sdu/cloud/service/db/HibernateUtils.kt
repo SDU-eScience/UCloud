@@ -110,6 +110,14 @@ abstract class CriteriaBuilderGeneralContext {
         }
     }
 
+    inline infix fun <reified E : Comparable<E>> Expression<E>.greaterThanEquals(value: E): Predicate {
+        return builder.greaterThanOrEqualTo(this, value)
+    }
+
+    inline infix fun <reified E : Comparable<E>> Expression<E>.greaterThanEquals(value: Expression<E>): Predicate {
+        return builder.greaterThanOrEqualTo(this, value)
+    }
+
     inline infix fun <reified E : Comparable<E>> Expression<E>.lessThan(value: E): Predicate {
         return if (isNumberType(E::class.java)) {
             @Suppress("UNCHECKED_CAST")
@@ -117,6 +125,14 @@ abstract class CriteriaBuilderGeneralContext {
         } else {
             builder.lessThan(this, value)
         }
+    }
+
+    inline infix fun <reified E : Comparable<E>> Expression<E>.lessThanEquals(value: E): Predicate {
+        return builder.lessThanOrEqualTo(this, value)
+    }
+
+    inline infix fun <reified E : Comparable<E>> Expression<E>.lessThanEquals(value: Expression<E>): Predicate {
+        return builder.lessThanOrEqualTo(this, value)
     }
 
     inline infix fun <reified E : Comparable<E>> Expression<E>.greaterThan(value: Expression<E>): Predicate {
