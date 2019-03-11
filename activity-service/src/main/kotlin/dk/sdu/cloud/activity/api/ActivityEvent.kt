@@ -25,7 +25,7 @@ sealed class ActivityEvent {
     // events related to file activity
 
     // When adding new entries here, you will also need to add entries in:
-    // ActivityEventDao, ActivityStream and ActivityStreamDao
+    // ActivityEventDao
 
     abstract val timestamp: Long
     abstract val fileId: String

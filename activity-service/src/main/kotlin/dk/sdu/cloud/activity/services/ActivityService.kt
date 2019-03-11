@@ -1,30 +1,12 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
-import dk.sdu.cloud.activity.api.ActivityStreamEntry
-import dk.sdu.cloud.activity.api.CountedFileActivityOperation
-import dk.sdu.cloud.activity.api.StreamFileReference
-import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
-import dk.sdu.cloud.activity.api.UserReference
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.indexing.api.LookupDescriptions
-import dk.sdu.cloud.indexing.api.ReverseLookupRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.mapItems
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-
-private const val CHUNK_SIZE = 100
 
 class ActivityService<DBSession>(
     private val activityDao: ActivityEventDao<DBSession>,
-    private val streamDao: ActivityStreamDao<DBSession>,
-    private val fileLookupService: FileLookupService,
-    private val cloud: AuthenticatedClient
+    private val fileLookupService: FileLookupService
 ) {
     fun insert(
         session: DBSession,
@@ -38,70 +20,6 @@ class ActivityService<DBSession>(
         events: List<ActivityEvent>
     ) {
         activityDao.insertBatch(session, events)
-
-        val byFileId = events.groupBy { it.fileId }.mapValues { it.value.toStreamEntries() }
-        val byUsername = events.groupBy { it.username }.mapValues { it.value.toStreamEntries() }
-
-        byFileId.forEach { fileId, entries ->
-            val stream = ActivityStream(ActivityStreamSubject.File(fileId))
-            streamDao.createStreamIfNotExists(session, stream)
-            streamDao.insertBatchIntoStream(session, stream, entries)
-        }
-
-        byUsername.forEach { username, entries ->
-            val stream = ActivityStream(ActivityStreamSubject.User(username))
-            streamDao.createStreamIfNotExists(session, stream)
-            streamDao.insertBatchIntoStream(session, stream, entries)
-        }
-    }
-
-    private fun List<ActivityEvent>.toStreamEntries(): List<ActivityStreamEntry<*>> {
-        // TODO Here we currently assume they all should go in the same timestamp. This will work almost all of the time
-        val timestamp = minBy { it.timestamp }!!.timestamp
-        val byType = groupBy { it.javaClass }
-
-        return byType.flatMap { (_, allEventsOfType) ->
-            // All events have the same operation, so we use the first event to determine operation.
-            val firstEvent = allEventsOfType.first()
-
-            val users = allEventsOfType
-                .asSequence()
-                .map { it.username }
-                .map { UserReference(it) }
-                .toSet()
-
-            CountedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val eventsByFileId = allEventsOfType.groupBy { it.fileId }
-
-                val counts = eventsByFileId.map { (fileId, eventsForFile) ->
-                    fileId to eventsForFile.size
-                }
-
-                return@flatMap listOf(
-                    ActivityStreamEntry.Counted(
-                        operation,
-                        timestamp,
-                        counts.asSequence().map {
-                            StreamFileReference.WithOpCount(
-                                it.first,
-                                null,
-                                it.second
-                            )
-                        }.toSet(),
-                        users
-                    )
-                )
-            }
-
-            TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val fileReferences =
-                    allEventsOfType.asSequence().map { StreamFileReference.Basic(it.fileId, null) }.toSet()
-
-                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, timestamp, fileReferences, users))
-            }
-
-            return@flatMap emptyList<ActivityStreamEntry<*>>()
-        }
     }
 
     suspend fun findEventsForPath(
@@ -129,97 +47,6 @@ class ActivityService<DBSession>(
         user: String
     ): Page<ActivityEvent> {
         return activityDao.findByUser(session, pagination, user)
-    }
-
-    suspend fun findStreamForUser(
-        session: DBSession,
-        pagination: NormalizedPaginationRequest,
-        user: String
-    ): Page<ActivityStreamEntry<*>> {
-        return loadStreamWithFileLookup(session, pagination, ActivityStream(ActivityStreamSubject.User(user)))
-    }
-
-    suspend fun findStreamForPath(
-        session: DBSession,
-        pagination: NormalizedPaginationRequest,
-        path: String,
-        userAccessToken: String,
-        causedBy: String? = null
-    ): Page<ActivityStreamEntry<*>> {
-        val fileStat = fileLookupService.lookupFile(path, userAccessToken, causedBy)
-        return findStreamForFileId(session, pagination, fileStat.fileId)
-    }
-
-    suspend fun findStreamForFileId(
-        session: DBSession,
-        pagination: NormalizedPaginationRequest,
-        fileId: String
-    ): Page<ActivityStreamEntry<*>> {
-        return loadStreamWithFileLookup(
-            session,
-            pagination,
-            ActivityStream(ActivityStreamSubject.File(fileId))
-        )
-    }
-
-    private suspend fun loadStreamWithFileLookup(
-        session: DBSession,
-        pagination: NormalizedPaginationRequest,
-        stream: ActivityStream
-    ): Page<ActivityStreamEntry<*>> {
-        val resultFromDao = streamDao.loadStream(session, stream, pagination)
-        val fileIdsInChunks = resultFromDao.items.flatMap { entry ->
-            when (entry) {
-                is ActivityStreamEntry.Counted -> {
-                    entry.files.map { it.id }
-                }
-
-                is ActivityStreamEntry.Tracked -> {
-                    entry.files.map { it.id }
-                }
-            }
-        }.asSequence().toSet().asSequence().chunked(CHUNK_SIZE).toList()
-
-        val fileIdToCanonicalPath = coroutineScope {
-            fileIdsInChunks
-                .map { chunkOfIds ->
-                    async {
-                        chunkOfIds.zip(
-                            LookupDescriptions.reverseLookup
-                                .call(
-                                    ReverseLookupRequest(chunkOfIds),
-                                    cloud
-                                )
-                                .orThrow()
-                                .canonicalPath
-                        )
-                    }
-                }
-                .awaitAll()
-                .flatten()
-                .toMap()
-        }
-
-        return resultFromDao.mapItems { entry ->
-            when (entry) {
-                is ActivityStreamEntry.Counted -> {
-                    entry.copy(
-                        files = entry.files
-                            .asSequence()
-                            .map { it.withPath(path = fileIdToCanonicalPath[it.id]) }
-                            .toSet()
-                    )
-                }
-
-                is ActivityStreamEntry.Tracked -> {
-                    entry.copy(
-                        files = entry.files.asSequence().map {
-                            StreamFileReference.Basic(it.id, fileIdToCanonicalPath[it.id])
-                        }.toSet()
-                    )
-                }
-            }
-        }
     }
 }
 

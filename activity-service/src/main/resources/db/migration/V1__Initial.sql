@@ -4,7 +4,8 @@ create sequence hibernate_sequence
   start with 1
   increment by 1;
 
-create table activity_events (
+create table activity_events
+(
   dtype     varchar(31) not null,
   id        bigint      not null,
   file_id   varchar(255),
@@ -15,7 +16,8 @@ create table activity_events (
   primary key (id)
 );
 
-create table activity_stream_entries (
+create table activity_stream_entries
+(
   dtype        varchar(31)  not null,
   id           varchar(255) not null,
   operation    varchar(255) not null,
@@ -24,7 +26,8 @@ create table activity_stream_entries (
   primary key (id, operation, subject_type, timestamp)
 );
 
-create table activity_stream_entries_counted_entries (
+create table activity_stream_entries_counted_entries
+(
   hactivity_stream_entry$counted_id           varchar(255) not null,
   hactivity_stream_entry$counted_operation    varchar(255) not null,
   hactivity_stream_entry$counted_subject_type integer      not null,
@@ -32,23 +35,27 @@ create table activity_stream_entries_counted_entries (
   entries_id                                  bigint       not null
 );
 
-create table activity_stream_entries_file_references (
+create table activity_stream_entries_file_references
+(
   hactivity_stream_entry$tracked_id           varchar(255) not null,
   hactivity_stream_entry$tracked_operation    varchar(255) not null,
   hactivity_stream_entry$tracked_subject_type integer      not null,
   hactivity_stream_entry$tracked_timestamp    timestamp    not null,
   file_ids_id                                 bigint       not null,
-  primary key (hactivity_stream_entry$tracked_id, hactivity_stream_entry$tracked_operation, hactivity_stream_entry$tracked_subject_type, hactivity_stream_entry$tracked_timestamp, file_ids_id)
+  primary key (hactivity_stream_entry$tracked_id, hactivity_stream_entry$tracked_operation,
+               hactivity_stream_entry$tracked_subject_type, hactivity_stream_entry$tracked_timestamp, file_ids_id)
 );
 
-create table counted_entries (
+create table counted_entries
+(
   id      bigint  not null,
   count   integer not null,
   file_id varchar(255),
   primary key (id)
 );
 
-create table file_references (
+create table file_references
+(
   id      bigint not null,
   file_id varchar(255),
   primary key (id)
@@ -65,20 +72,22 @@ alter table activity_stream_entries_file_references
 
 alter table activity_stream_entries_counted_entries
   add constraint FKo4s05cn421nashnakwubsvh2p
-foreign key (entries_id)
-references counted_entries;
+    foreign key (entries_id)
+      references counted_entries;
 
 alter table activity_stream_entries_counted_entries
   add constraint FKd04sq01bwhkjcy4na4ldorui4
-foreign key (hactivity_stream_entry$counted_id, hactivity_stream_entry$counted_operation, hactivity_stream_entry$counted_subject_type, hactivity_stream_entry$counted_timestamp)
-references activity_stream_entries;
+    foreign key (hactivity_stream_entry$counted_id, hactivity_stream_entry$counted_operation,
+                 hactivity_stream_entry$counted_subject_type, hactivity_stream_entry$counted_timestamp)
+      references activity_stream_entries;
 
 alter table activity_stream_entries_file_references
   add constraint FKogkyprcrpv4loietebe2txxe5
-foreign key (file_ids_id)
-references file_references;
+    foreign key (file_ids_id)
+      references file_references;
 
 alter table activity_stream_entries_file_references
   add constraint FKelbo8w287miqg7h70rw8chf7
-foreign key (hactivity_stream_entry$tracked_id, hactivity_stream_entry$tracked_operation, hactivity_stream_entry$tracked_subject_type, hactivity_stream_entry$tracked_timestamp)
-references activity_stream_entries;
+    foreign key (hactivity_stream_entry$tracked_id, hactivity_stream_entry$tracked_operation,
+                 hactivity_stream_entry$tracked_subject_type, hactivity_stream_entry$tracked_timestamp)
+      references activity_stream_entries;

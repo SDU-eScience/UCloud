@@ -69,43 +69,4 @@ object ActivityDescriptions : CallDescriptionContainer("activity") {
             }
         }
     }
-
-    val streamByPath = call<StreamByPathRequest, StreamByPathResponse, CommonErrorMessage>("streamByPath") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-                +"stream"
-                +"by-path"
-            }
-
-            params {
-                +boundTo(StreamByPathRequest::path)
-                +boundTo(StreamByPathRequest::itemsPerPage)
-                +boundTo(StreamByPathRequest::page)
-            }
-        }
-    }
-
-    val streamForUser = call<StreamForUserRequest, StreamForUserResponse, CommonErrorMessage>("streamForUser") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-                +"stream"
-            }
-
-            params {
-                +boundTo(StreamForUserRequest::user)
-                +boundTo(StreamForUserRequest::itemsPerPage)
-                +boundTo(StreamForUserRequest::page)
-            }
-        }
-    }
 }
