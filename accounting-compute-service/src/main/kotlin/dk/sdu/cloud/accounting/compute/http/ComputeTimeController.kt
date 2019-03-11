@@ -33,7 +33,7 @@ class ComputeTimeController<DBSession>(
 
             ok(
                 ChartResponse(
-                    chart = ChartingHelpers.absoluteChartFromEvents(
+                    chart = ChartingHelpers.sumChartFromEvents(
                         events,
                         dataType = ChartDataTypes.DURATION,
                         dataTitle = "Compute Time Used",

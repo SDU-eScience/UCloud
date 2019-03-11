@@ -1,20 +1,20 @@
 group 'dk.sdu.cloud'
-version '1.0.0'
+version '1.0.2'
 
 apply plugin: "application"
 mainClassName = "dk.sdu.cloud.accounting.compute.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.6/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.7/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.0.0"
+    ext.serviceCommonVersion = "1.1.9"
     ext.accountingVersion = "1.0.0"
 }
 
 dependencies {
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
-    compile "dk.sdu.cloud:app-api:1.0.0"
-    compile "dk.sdu.cloud:auth-api:1.17.0"
+    compile "dk.sdu.cloud:app-api:1.1.0"
+    compile "dk.sdu.cloud:auth-api:1.18.6"
     compile "dk.sdu.cloud:accounting-api:${accountingVersion}"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
