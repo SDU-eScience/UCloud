@@ -1,52 +1,60 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
+import dk.sdu.cloud.activity.api.ActivityEventGroup
 import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.NormalizedScrollRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.ScrollResult
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 
 class ActivityService<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
     private val activityDao: ActivityEventDao<DBSession>,
     private val fileLookupService: FileLookupService
 ) {
-    fun insert(
-        session: DBSession,
-        event: ActivityEvent
-    ) {
-        insertBatch(session, listOf(event))
-    }
-
-    fun insertBatch(
-        session: DBSession,
-        events: List<ActivityEvent>
-    ) {
-        activityDao.insertBatch(session, events)
+    fun insertBatch(events: List<ActivityEvent>) {
+        db.withTransaction { session ->
+            activityDao.insertBatch(session, events)
+        }
     }
 
     suspend fun findEventsForPath(
-        session: DBSession,
         pagination: NormalizedPaginationRequest,
         path: String,
         userAccessToken: String,
         causedBy: String? = null
     ): Page<ActivityEvent> {
         val fileStat = fileLookupService.lookupFile(path, userAccessToken, causedBy)
-        return findEventsForFileId(session, pagination, fileStat.fileId)
+        return db.withTransaction { session ->
+            activityDao.findByFileId(session, pagination, fileStat.fileId)
+        }
     }
 
     fun findEventsForFileId(
-        session: DBSession,
         pagination: NormalizedPaginationRequest,
         fileId: String
     ): Page<ActivityEvent> {
-        return activityDao.findByFileId(session, pagination, fileId)
+        return db.withTransaction { session ->
+            activityDao.findByFileId(session, pagination, fileId)
+        }
     }
 
     fun findEventsForUser(
-        session: DBSession,
         pagination: NormalizedPaginationRequest,
         user: String
     ): Page<ActivityEvent> {
-        return activityDao.findByUser(session, pagination, user)
+        return db.withTransaction { session ->
+            activityDao.findByUser(session, pagination, user)
+        }
+    }
+
+    fun browseForUser(
+        scroll: NormalizedScrollRequest<Long>,
+        user: String
+    ): ScrollResult<ActivityEventGroup, Long> {
+        TODO()
     }
 }
 

@@ -9,10 +9,16 @@ package dk.sdu.cloud.service
  * to produce more stable results than traditional pagination.
  */
 data class ScrollResult<Item, OffsetType : Any>(
-    val items: List<Item>,
-    val nextOffset: OffsetType,
+    override val items: List<Item>,
+    override val nextOffset: OffsetType,
+    override val endOfScroll: Boolean
+) : WithScrollResult<Item, OffsetType>
+
+interface WithScrollResult<Item, OffsetType : Any> {
+    val items: List<Item>
+    val nextOffset: OffsetType
     val endOfScroll: Boolean
-)
+}
 
 /**
  * A request for a [ScrollResult].
@@ -20,9 +26,14 @@ data class ScrollResult<Item, OffsetType : Any>(
  * Should only be used for user-facing requests. Must be [normalize]d before use.
  */
 data class ScrollRequest<OffsetType : Any>(
-    val offset: OffsetType? = null,
-    val scrollSize: Int? = null
-) {
+    override val offset: OffsetType? = null,
+    override val scrollSize: Int? = null
+) : WithScrollRequest<OffsetType>
+
+interface WithScrollRequest<OffsetType : Any> {
+    val offset: OffsetType?
+    val scrollSize: Int?
+
     fun normalize(): NormalizedScrollRequest<OffsetType> = NormalizedScrollRequest(offset, scrollSize)
 }
 

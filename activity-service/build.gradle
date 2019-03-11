@@ -7,7 +7,7 @@ mainClassName = "dk.sdu.cloud.activity.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.7/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.2.0-PAGINATION.0"
+    ext.serviceCommonVersion = "1.2.0-PAGINATION.3"
 }
 
 dependencies {

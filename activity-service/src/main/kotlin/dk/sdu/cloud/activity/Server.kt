@@ -38,17 +38,17 @@ class Server(
         log.info("Creating core services")
         val activityEventDao = HibernateActivityEventDao()
         val fileLookupService = FileLookupService(client)
-        val activityService = ActivityService(activityEventDao, fileLookupService)
+        val activityService = ActivityService(db, activityEventDao, fileLookupService)
         log.info("Core services constructed")
 
         log.info("Creating stream processors")
-        addProcessors(StorageAuditProcessor(kafka, db, activityService).init())
-        addProcessors(StorageEventProcessor(kafka, db, activityService).init())
+        addProcessors(StorageAuditProcessor(kafka, activityService).init())
+        addProcessors(StorageEventProcessor(kafka, activityService).init())
         log.info("Stream processors constructed")
 
         with(micro.server) {
             configureControllers(
-                ActivityController(db, activityService)
+                ActivityController(activityService)
             )
         }
 
