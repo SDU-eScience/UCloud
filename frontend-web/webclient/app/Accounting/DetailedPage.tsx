@@ -29,6 +29,7 @@ interface StateProps {
 interface Operations {
     refresh: () => void
     fetchEvents: (itemsPerPage: number, page: number) => void
+    clearRefresh: () => void
 }
 
 class DetailedPage extends React.Component<DetailedPageProps> {
@@ -41,6 +42,8 @@ class DetailedPage extends React.Component<DetailedPageProps> {
             this.props.refresh();
         }
     }
+
+    componentWillUnmount = () => this.props.clearRefresh();
 
     render() {
         return <LoadingMainContainer
@@ -98,7 +101,9 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | SetRefreshFunction
     fetchEvents: async (itemsPerPage, page) => {
         const { resource, subResource } = ownProps.match.params;
         dispatch(await Actions.fetchEvents(resource, subResource, itemsPerPage, page));
-    }
+    },
+
+    clearRefresh: () => dispatch(setRefreshFunction())
 });
 
 const mapStateToProps = (state: ReduxObject, ownProps: OwnProps): StateProps => {

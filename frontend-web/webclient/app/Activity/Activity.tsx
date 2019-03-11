@@ -25,13 +25,12 @@ import { Spacer } from "ui-components/Spacer";
 class Activity extends React.Component<ActivityProps> {
     public componentDidMount() {
         this.props.setPageTitle();
-        this.props.fetchActivity(0, 100);
         this.props.setActivePage();
-        this.props.setRefresh(() => this.props.fetchActivity(0, 100));
+        this.props.fetchActivity(0, 100);
     }
 
     public componentWillUnmount() {
-        this.props.setRefresh();
+        this.props.clearRefresh();
     }
 
     render() {
@@ -45,15 +44,14 @@ class Activity extends React.Component<ActivityProps> {
                     onErrorDismiss={setError}
                     pageRenderer={() => <ActivityFeedGrouped activity={groupedEntries ? groupedEntries : []} />}
                     page={page}
-                    // FIXME: setting refresh in "componentWillReceiveProps" causes infinite rerenders. Likely some other error not immediately evident in other components
-                    onPageChanged={pageNumber => (fetchActivity(pageNumber, page.itemsPerPage), this.props.setRefresh(() => fetchActivity(pageNumber, page.itemsPerPage)))}
+                    onPageChanged={pageNumber => fetchActivity(pageNumber, page.itemsPerPage)}
                 />
             </React.StrictMode>
         );
 
         const header = (<Spacer left={<Heading.h2>File Activity</Heading.h2>} right={
             <Pagination.EntriesPerPageSelector
-                onChange={itemsPerPage => (fetchActivity(page.pageNumber, itemsPerPage), this.props.setRefresh(() => fetchActivity(page.pageNumber, itemsPerPage)))}
+                onChange={itemsPerPage => fetchActivity(page.pageNumber, itemsPerPage)}
                 content="Activity per page"
                 entriesPerPage={page.itemsPerPage}
             />
@@ -229,14 +227,18 @@ const mapStateToProps = ({ activity }: ReduxObject): ActivityReduxObject & Modul
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
-    fetchActivity: async (pageNumber, pageSize) => {
-        dispatch(setLoading(true));
-        dispatch(await fetchActivity(pageNumber, pageSize));
+    fetchActivity: (pageNumber, pageSize) => {
+        const fetch = async () => {
+            dispatch(setLoading(true));
+            dispatch(await fetchActivity(pageNumber, pageSize));
+        };
+        fetch();
+        dispatch(setRefreshFunction(fetch))
     },
     setError: error => dispatch(setErrorMessage(error)),
     setPageTitle: () => dispatch(updatePageTitle("Activity")),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Activity)),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    clearRefresh: () => dispatch(setRefreshFunction())
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Activity);
