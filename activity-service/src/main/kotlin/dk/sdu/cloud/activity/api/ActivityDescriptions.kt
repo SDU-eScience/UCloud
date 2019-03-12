@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.service.WithScrollRequest
 import dk.sdu.cloud.service.WithScrollResult
 import io.ktor.http.HttpMethod
@@ -93,6 +94,9 @@ object Activity : CallDescriptionContainer("activity") {
                 +boundTo(BrowseByUser.Request::offset)
                 +boundTo(BrowseByUser.Request::scrollSize)
                 +boundTo(BrowseByUser.Request::collapseAt)
+                +boundTo(BrowseByUser.Request::type)
+                +boundTo(BrowseByUser.Request::minTimestamp)
+                +boundTo(BrowseByUser.Request::maxTimestamp)
             }
         }
     }
@@ -101,6 +105,9 @@ object Activity : CallDescriptionContainer("activity") {
         data class Request(
             val user: String?,
             val collapseAt: Int?,
+            val type: ActivityEventType?,
+            val minTimestamp: Long?,
+            val maxTimestamp: Long?,
             override val offset: Int?,
             override val scrollSize: Int?
         ) : WithScrollRequest<Int>

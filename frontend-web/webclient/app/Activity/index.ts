@@ -9,6 +9,13 @@ export enum ActivityType {
     MOVED = "moved"
 }
 
+export interface ActivityGroup {
+    type: ActivityType
+    newestTimestamp: number
+    numberOfHiddenResults: number | null
+    items: Activity[]
+}
+
 export interface Activity {
     type: ActivityType
     timestamp: number
@@ -27,21 +34,14 @@ export interface MovedActivity extends Activity {
 
 
 export interface ActivityDispatchProps {
-    fetchActivity: (pageNumber: number, pageSize: number) => void
+    fetchActivity: (offset: number | null, pageSize: number) => void
     setError: (error?: string) => void
     setPageTitle: () => void
     setActivePage: () => void
     setRefresh: (refresh?: () => void) => void
 }
 
-export interface GroupedActivity {
-    timestamp: number
-    type: ActivityType
-    entries: Activity[]
-}
-
 export interface ActivityOwnProps {
-    groupedEntries?: GroupedActivity[]
 }
 
 export type ActivityProps = ActivityReduxObject & ActivityDispatchProps & ActivityOwnProps;

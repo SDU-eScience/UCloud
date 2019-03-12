@@ -14,8 +14,6 @@ data class ActivityEventFilter(
     val offset: Int? = null
 )
 
-data class CountAggregation(val count: Long, val maxId: Long)
-
 interface ActivityEventDao<Session> {
     fun findByFileId(
         session: Session,
@@ -38,7 +36,7 @@ interface ActivityEventDao<Session> {
     fun countEvents(
         session: Session,
         filter: ActivityEventFilter
-    ): CountAggregation
+    ): Long
 
     fun insertBatch(
         session: Session,

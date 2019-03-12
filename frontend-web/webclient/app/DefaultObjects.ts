@@ -1,4 +1,4 @@
-import { SidebarOption, Page } from "Types";
+import { SidebarOption, Page, ScrollResult } from "Types";
 import { Status } from "Navigation";
 import { Analysis, DetailedApplicationSearchReduxState } from "Applications";
 import { File, DetailedFileSearchReduxState } from "Files";
@@ -7,7 +7,7 @@ import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
 import { Upload } from "Uploader";
-import { Activity } from "Activity";
+import { Activity, ActivityGroup } from "Activity";
 import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
@@ -173,7 +173,11 @@ export interface RunApplicationReduxObject {
 
 }
 
-export type ActivityReduxObject = ComponentWithPage<Activity>
+export type ActivityReduxObject =  {
+    error?: string
+    loading: boolean
+    page: ScrollResult<ActivityGroup, number>
+}
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 
@@ -244,7 +248,7 @@ export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & Account
 
 
 export const initActivity = (): ActivityReduxObject => ({
-    page: emptyPage,
+    page: { endOfScroll: true, items: [], nextOffset: 0 },
     error: undefined,
     loading: false
 });

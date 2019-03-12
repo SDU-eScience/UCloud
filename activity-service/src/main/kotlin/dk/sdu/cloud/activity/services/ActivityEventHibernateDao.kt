@@ -287,16 +287,11 @@ class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
             .map { it.toModel() }
     }
 
-    override fun countEvents(session: HibernateSession, filter: ActivityEventFilter): CountAggregation {
-        val row = session.createCriteriaBuilder<Array<Any>, ActivityEventEntity>().run {
-            criteria.multiselect(count(entity), max(entity.get<Long>(ActivityEventEntity::id.name)))
+    override fun countEvents(session: HibernateSession, filter: ActivityEventFilter): Long {
+        return session.createCriteriaBuilder<Long, ActivityEventEntity>().run {
+            criteria.select(count(entity))
             criteria.where(applyFilter(filter))
         }.createQuery(session).list().first()
-
-        val count = row[0] as Long
-        val maxId = row[1] as Long
-
-        return CountAggregation(count, maxId)
     }
 
     override fun insertBatch(session: HibernateSession, events: List<ActivityEvent>) {

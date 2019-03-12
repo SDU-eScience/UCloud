@@ -1,6 +1,6 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { GroupedActivity, ActivityProps, ActivityDispatchProps } from "Activity";
+import { ActivityProps, ActivityDispatchProps, ActivityGroup } from "Activity";
 import * as Module from "Activity";
 import * as Pagination from "Pagination";
 import * as moment from "moment";
@@ -27,7 +27,7 @@ class Activity extends React.Component<ActivityProps> {
         this.props.setPageTitle();
         this.props.fetchActivity(0, 100);
         this.props.setActivePage();
-        this.props.setRefresh(() => this.props.fetchActivity(0, 100));
+        this.props.setRefresh(() => this.props.fetchActivity(null, 100));
     }
 
     public componentWillUnmount() {
@@ -35,11 +35,11 @@ class Activity extends React.Component<ActivityProps> {
     }
 
     render() {
-        const { fetchActivity, page, error, setError, loading, groupedEntries } = this.props;
+        const { fetchActivity, page, error, setError, loading } = this.props;
 
         const main = (
             <React.StrictMode>
-                <Pagination.List
+                {/* <Pagination.List
                     loading={loading}
                     errorMessage={error}
                     onErrorDismiss={setError}
@@ -47,15 +47,17 @@ class Activity extends React.Component<ActivityProps> {
                     page={page}
                     // FIXME: setting refresh in "componentWillReceiveProps" causes infinite rerenders. Likely some other error not immediately evident in other components
                     onPageChanged={pageNumber => (fetchActivity(pageNumber, page.itemsPerPage), this.props.setRefresh(() => fetchActivity(pageNumber, page.itemsPerPage)))}
-                />
+                /> */}
+
+                <ActivityFeedGrouped activity={page.items} />
             </React.StrictMode>
         );
 
         const header = (<Spacer left={<Heading.h2>File Activity</Heading.h2>} right={
             <Pagination.EntriesPerPageSelector
-                onChange={itemsPerPage => (fetchActivity(page.pageNumber, itemsPerPage), this.props.setRefresh(() => fetchActivity(page.pageNumber, itemsPerPage)))}
+                onChange={itemsPerPage => (fetchActivity(page.nextOffset, itemsPerPage), this.props.setRefresh(() => fetchActivity(page.nextOffset, itemsPerPage)))}
                 content="Activity per page"
-                entriesPerPage={page.itemsPerPage}
+                entriesPerPage={100} // TODO This can't change
             />
         } />);
 
@@ -69,7 +71,7 @@ class Activity extends React.Component<ActivityProps> {
 }
 
 
-const ActivityFeedGrouped = ({ activity }: { activity: GroupedActivity[] }) => activity.length ? (
+const ActivityFeedGrouped = ({ activity }: { activity: ActivityGroup[] }) => activity.length ? (
     <Table>
         <TableHeader>
             <TFRow>
@@ -125,13 +127,13 @@ const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props
 
 );
 
-const TrackedFeedActivity = ({ activity }: { activity: GroupedActivity }) => (
+const TrackedFeedActivity = ({ activity }: { activity: ActivityGroup }) => (
     <TFRow>
         <TableCell>
             <Dropdown>
-                <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
+                <Text fontSize={1} color="text">{moment(new Date(activity.newestTimestamp)).fromNow()}</Text>
                 <DropdownContent>
-                    {moment(new Date(activity.timestamp)).format("llll")}
+                    {moment(new Date(activity.newestTimestamp)).format("llll")}
                 </DropdownContent>
             </Dropdown>
         </TableCell>
@@ -142,7 +144,7 @@ const TrackedFeedActivity = ({ activity }: { activity: GroupedActivity }) => (
             </Flex>
         </TableCell>
         <TableCell>
-            {activity.entries.map((item, idx) =>
+            {activity.items.map((item, idx) =>
                 <ActivityEvent key={idx} event={item} />
             )}
         </TableCell>
@@ -183,9 +185,9 @@ const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
     }
 }
 
-function groupActivity(items: Module.Activity[] = []): GroupedActivity[] {
-    const result: GroupedActivity[] = [];
-    let currentGroup: GroupedActivity | null = null;
+function groupActivity(items: Module.Activity[] = []): ActivityGroup[] {
+    const result: ActivityGroup[] = [];
+    let currentGroup: ActivityGroup | null = null;
 
     const pushGroup = () => {
         if (currentGroup != null) {
@@ -197,8 +199,9 @@ function groupActivity(items: Module.Activity[] = []): GroupedActivity[] {
     const initializeGroup = (item: Module.Activity) => {
         currentGroup = {
             type: item.type,
-            timestamp: item.timestamp,
-            entries: [item]
+            newestTimestamp: item.timestamp,
+            items: [item],
+            numberOfHiddenResults: null
         };
     };
 
@@ -206,11 +209,11 @@ function groupActivity(items: Module.Activity[] = []): GroupedActivity[] {
         if (currentGroup === null) {
             initializeGroup(item);
         } else {
-            if (currentGroup.type !== item.type || Math.abs(item.timestamp - currentGroup.timestamp) > (1000 * 60 * 15)) {
+            if (currentGroup.type !== item.type || Math.abs(item.timestamp - currentGroup.newestTimestamp) > (1000 * 60 * 15)) {
                 pushGroup();
                 initializeGroup(item);
             } else {
-                currentGroup.entries.push(item);
+                currentGroup.items.push(item);
             }
         }
     });
@@ -224,14 +227,13 @@ const TFRow = styled(TableRow)`
 `;
 
 const mapStateToProps = ({ activity }: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => ({
-    ...activity,
-    groupedEntries: groupActivity(activity.page.items)
+    ...activity
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
-    fetchActivity: async (pageNumber, pageSize) => {
+    fetchActivity: async (offset, pageSize) => {
         dispatch(setLoading(true));
-        dispatch(await fetchActivity(pageNumber, pageSize));
+        dispatch(await fetchActivity(offset, pageSize));
     },
     setError: error => dispatch(setErrorMessage(error)),
     setPageTitle: () => dispatch(updatePageTitle("Activity")),
