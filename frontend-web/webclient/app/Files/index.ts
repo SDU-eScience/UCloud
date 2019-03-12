@@ -265,7 +265,7 @@ export interface DetailedFileSearchOperations {
     setError: (error?: string) => void
 }
 
-export type DetailedFileSearchProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
+export type DetailedFileSearchStateProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
 
 export type SensitivityLevel = "Private" | "Confidential" | "Sensitive";
 
