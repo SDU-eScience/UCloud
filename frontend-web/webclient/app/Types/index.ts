@@ -27,6 +27,10 @@ export interface DropdownOption {
     value: string
 }
 
+export interface ClearRefresh {
+    clearRefresh: () => void
+}
+
 export type SetLoadingAction<T> = PayloadAction<T, { loading: boolean }>
 export type Error<T> = PayloadAction<T, { error?: string, statusCode?: number }>
 export type ReceivePage<T1, T2> = PayloadAction<T1, { page: Page<T2> }>
