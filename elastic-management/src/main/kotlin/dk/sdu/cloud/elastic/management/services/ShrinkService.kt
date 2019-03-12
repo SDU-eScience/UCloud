@@ -17,11 +17,6 @@ class ShrinkService(
     private val gatherNode: String
 ) {
 
-    private fun deleteIndex(index: String) {
-        val request = DeleteIndexRequest(index)
-        elastic.indices().delete(request, RequestOptions.DEFAULT)
-    }
-
     private fun shrinkIndex(sourceIndex: String){
         val targetIndex = sourceIndex + "_small"
         val request = ResizeRequest(targetIndex, sourceIndex)
@@ -79,7 +74,7 @@ class ShrinkService(
                 Thread.sleep(500)
             }
             shrinkIndex(it)
-            deleteIndex(it)
+            deleteIndex(it, elastic)
         }
     }
 

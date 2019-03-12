@@ -40,7 +40,7 @@ class ManagementTest {
 
         var bulkRequest = BulkRequest()
         for (i in 0 until numberOfDocuments) {
-            val request = IndexRequest("$index-$pastdate", "doc")
+            val request = IndexRequest("$index-${pastdate}_small", "doc")
             val jsonString = """
                 {
                     "user":"kimchy",
@@ -56,17 +56,7 @@ class ManagementTest {
                 bulkRequest = BulkRequest()
             }
         }
-       /* val request = IndexRequest("$index-$pastdate", "doc")
-        val jsonString = """
-                {
-                    "user":"kimchy",
-                    "postDate": "j",
-                    "message": "This is message ddd!",
-                    "expiry": ${date+date}
-                }
-            """.trimIndent()
-        request.source(jsonString, XContentType.JSON)
-        bulkRequest.add(request)*/
+
         elastic.bulk(bulkRequest, RequestOptions.DEFAULT)
         return "$index-$pastdate"
     }
@@ -125,6 +115,27 @@ class ManagementTest {
     fun `test Settings`() {
         val service = AutoSettingsService(elastic)
         service.removeFloodLimitationOnAll()
+    }
+
+    @Ignore
+    @Test
+    fun `test reindex`() {
+        createDocuments("http_logs_mojn", 21, 500)
+        createDocuments("http_logs_mojn", 22, 500)
+        createDocuments("http_logs_mojn", 23, 500)
+        createDocuments("http_logs_mojn", 24, 500)
+        createDocuments("http_logs_mojn", 25, 500)
+
+        createDocuments("http_logs_activity", 21, 500)
+        createDocuments("http_logs_activity", 22, 500)
+        createDocuments("http_logs_activity", 23, 500)
+        createDocuments("http_logs_activity", 24, 500)
+        createDocuments("http_logs_activity", 25, 500)
+
+        elastic.indices().flush(FlushRequest("*"), RequestOptions.DEFAULT)
+
+        val service = ReindexService(elastic)
+        //service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs")
     }
 
 }

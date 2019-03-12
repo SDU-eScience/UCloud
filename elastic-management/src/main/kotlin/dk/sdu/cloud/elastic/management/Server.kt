@@ -3,6 +3,7 @@ package dk.sdu.cloud.elastic.management
 import dk.sdu.cloud.elastic.management.services.AutoSettingsService
 import dk.sdu.cloud.elastic.management.services.BackupService
 import dk.sdu.cloud.elastic.management.services.ExpiredEntriesDeleteService
+import dk.sdu.cloud.elastic.management.services.ReindexService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.service.CommonServer
@@ -52,6 +53,18 @@ class Server(
                 deleteService.cleanUp()
                 val shrinkService = ShrinkService(elastic, config.gatherNode)
                 shrinkService.shrink()
+                exitProcess(0)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                exitProcess(1)
+            }
+        }
+
+        if (micro.commandLineArguments.contains("--reindex")) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                val reindexService = ReindexService(elastic)
+                reindexService.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs")
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
