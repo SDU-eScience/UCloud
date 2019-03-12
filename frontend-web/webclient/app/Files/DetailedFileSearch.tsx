@@ -1,7 +1,7 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import {
-    DetailedFileSearchProps, DetailedFileSearchReduxState, SensitivityLevel, PossibleTime, FileType,
+    DetailedFileSearchStateProps, DetailedFileSearchReduxState, SensitivityLevel, PossibleTime, FileType,
     AdvancedSearchRequest, DetailedFileSearchOperations
 } from ".";
 import { DatePicker } from "ui-components/DatePicker";
@@ -14,11 +14,17 @@ import { ReduxObject, KeyCode } from "DefaultObjects";
 import { Dispatch } from "redux";
 import { searchPage } from "Utilities/SearchUtilities";
 
-// FIXME: Props can be defined properly
-class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History, defaultFilename?: string, cantHide?: boolean, omitFileName?: boolean }> {
+type DetailedFileSearchGivenProps = { history: History, defaultFilename?: string, cantHide?: boolean, omitFileName?: boolean };
+
+type DetailedFileSearchProps = DetailedFileSearchStateProps & DetailedFileSearchGivenProps;
+
+class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 
     constructor(props) {
         super(props);
+    }
+
+    componentDidMount() {
         if (!!this.props.defaultFilename) this.props.setFilename(this.props.defaultFilename);
     }
 

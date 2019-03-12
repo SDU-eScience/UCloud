@@ -40,7 +40,7 @@ const FilesTable = ({
             >
             </FilesTableHeader>
             <TableBody>
-                {files.map((file, i) => (
+                {files.map((file) => (
                     <TableRow highlighted={file.isChecked} key={file.path} data-tag={"fileRow"}>
                         <FilenameAndIcons
                             onNavigationClick={onNavigationClick}
@@ -364,4 +364,4 @@ const mapStateToProps = ({ responsive }: ReduxObject): { responsive: ResponsiveR
     responsive: responsive!
 })
 
-export default connect(mapStateToProps)(FilesTable);
+export default connect<{ responsive: ResponsiveReduxObject }>(mapStateToProps)(FilesTable);
