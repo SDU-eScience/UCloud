@@ -15,7 +15,7 @@ import RBox from "./RBox";
 import { ReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
 import { FlexCProps } from "./Flex";
-import { successNotification, inDevEnvironment, copyToClipboard } from "UtilityFunctions";
+import { inDevEnvironment, copyToClipboard } from "UtilityFunctions";
 
 const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
     justify-content: left;

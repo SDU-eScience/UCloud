@@ -20,8 +20,8 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Spacer } from "ui-components/Spacer";
 import { EntriesPerPageSelector } from "Pagination";
 
-/* FIXME some overlap with interfaces reuse */
-class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, ZenodoHomeState> {
+type Props = ZenodoHomeProps & ZenodoOperations
+class ZenodoHome extends React.Component<Props, ZenodoHomeState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -43,8 +43,8 @@ class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, Zen
     componentWillUnmount() {
         this.props.setRefresh();
     }
-    /* FIXME some overlap with interfaces reuse */
-    componentWillReceiveProps(nextProps: ZenodoHomeProps & ZenodoOperations) {
+
+    componentWillReceiveProps(nextProps: Props) {
         const { fetchPublications } = this.props;
         this.props.setRefresh(() => fetchPublications(nextProps.page.pageNumber, nextProps.page.itemsPerPage));
     }
