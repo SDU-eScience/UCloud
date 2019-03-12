@@ -87,7 +87,7 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
             setChallengeID(result["2fa"]);
         } else {
             Cloud.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/loginRedirect");
+            props.history.push("/loginSuccess");
         }
     }
 
@@ -109,7 +109,7 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
             if (!response.ok) throw response;
             const result = await response.json();
             Cloud.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/loginRedirect");
+            props.history.push("/loginSuccess");
         } catch (e) {
             setError(errorMessageOrDefault({ request: e, response: await e.json() }, "Could not submit verification code. Try again later"));
         }

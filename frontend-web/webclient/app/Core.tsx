@@ -47,49 +47,54 @@ const Core = () => (
         {Cloud.isLoggedIn ? <Sidebar /> : null}
         <Switch>
             <Route exact path="/login" component={LoginPage} />
-            <Route exact path="/loginRedirect" component={LoginEndpoint} />
+            <Route exact path="/loginSuccess" component={LoginSuccess} />
             <Route exact path="/login/wayf" component={Wayf} />
-            <Route exact path="/" component={Dashboard} />
-            <Route exact path="/dashboard" component={Dashboard} />
-            <Route exact path="/files/info" component={FileInfo} />
-            <Route exact path="/files/preview" component={FilePreview} />
-            <Route exact path="/files" component={Files} />
-            <Route exact path="/favorites" component={Favorites} />
-            <Route exact path="/activity" component={Activity} />
-            <Route exact path="/status" component={Status} />
-            <Route exact path="/accounting/:resource/:subResource" component={Accounting.DetailedPage} />
+            <Route exact path="/" component={requireAuth(Dashboard)} />
+            <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
+            <Route exact path="/files/info" component={requireAuth(FileInfo)} />
+            <Route exact path="/files/preview" component={requireAuth(FilePreview)} />
+            <Route exact path="/files" component={requireAuth(Files)} />
+            <Route exact path="/favorites" component={requireAuth(Favorites)} />
+            <Route exact path="/activity" component={requireAuth(Activity)} />
+            <Route exact path="/status" component={requireAuth(Status)} />
+            <Route exact path="/accounting/:resource/:subResource" component={requireAuth(Accounting.DetailedPage)} />
 
 
-            <Route exact path="/applications" component={Applications} />
-            <Route exact path="/applications/installed" component={ApplicationsInstalled.default} />
-            <Route exact path="/applications/details/:appName/:appVersion" component={ApplicationView} />
-            <Route exact path="/applications/results" component={JobResults} />
-            <Route exact path="/applications/results/:jobId" component={DetailedResult} />
-            <Route exact path="/applications/:appName/:appVersion" component={Run} />
+            <Route exact path="/applications" component={requireAuth(Applications)} />
+            <Route exact path="/applications/installed" component={requireAuth(ApplicationsInstalled.default)} />
+            <Route exact path="/applications/details/:appName/:appVersion" component={requireAuth(ApplicationView)} />
+            <Route exact path="/applications/results" component={requireAuth(JobResults)} />
+            <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)} />
+            <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)} />
 
-            <Route exact path="/zenodo/" component={ZenodoHome} />
-            <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo} />
-            <Route exact path="/zenodo/publish/" component={ZenodoPublish} />
+            <Route exact path="/zenodo/" component={requireAuth(ZenodoHome)} />
+            <Route exact path="/zenodo/info/:jobID" component={requireAuth(ZenodoInfo)} />
+            <Route exact path="/zenodo/publish/" component={requireAuth(ZenodoPublish)} />
 
-            <Route exact path="/shares" component={Share.List} />
+            <Route exact path="/shares" component={requireAuth(Share.List)} />
 
-            <Route exact path="/projects/edit" component={Project.CreateUpdate} />
-            <Route exact path="/projects/view" component={Project.ManagedView} />
-            <Route exact path="/projects/manage" component={Project.Manage} />
+            <Route exact path="/projects/edit" component={requireAuth(Project.CreateUpdate)} />
+            <Route exact path="/projects/view" component={requireAuth(Project.ManagedView)} />
+            <Route exact path="/projects/manage" component={requireAuth(Project.Manage)} />
 
-            <Route exact path="/admin/usercreation" component={UserCreation} />
+            <Route exact path="/admin/usercreation" component={requireAuth(UserCreation)} />
 
-            <Route exact path="/users/settings" component={UserSettings} />
-            <Route exact path="/users/avatar" component={AvataaarModification} />
+            <Route exact path="/users/settings" component={requireAuth(UserSettings)} />
+            <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
 
-            <Route exact path="/search/:priority" component={Search} />
+            <Route exact path="/search/:priority" component={requireAuth(Search)} />
 
             <Route component={NotFound} />
         </Switch>
     </>
 );
 
-const LoginEndpoint = props => {
+const requireAuth = Delegate => props => {
+    if (!Cloud.isLoggedIn) props.history.push("/login");
+    return <Delegate {...props} />;
+}
+
+const LoginSuccess = props => {
     dispatchUserAction(USER_LOGIN);
     onLogin();
     props.history.push("/");

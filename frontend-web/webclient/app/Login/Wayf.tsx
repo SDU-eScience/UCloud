@@ -74,15 +74,6 @@ function Wayf(props: { history: History }) {
 
     props.history.push("/")
     return null;
-
-    /*
-    if (!document.cookie.includes("2fa")) {
-        props.history.push("/login", { "2fa": "value" })
-        return null
-    } else {
-        return null;
-    }
-    */
 }
 
 export default Wayf
