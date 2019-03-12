@@ -211,6 +211,7 @@ export default class SDUCloud {
      * redirect back to the correct service (using serviceName).
      */
     openBrowserLoginPage() {
+        console.log("openBrowserLoginPage()");
         if (window.location.href !== this.context + "/app/login")
             window.location.href = this.context + "/app/login";
     }
@@ -319,6 +320,7 @@ export default class SDUCloud {
     }
 
     private refresh() {
+        console.log("refresh()");
         let csrfToken = SDUCloud.storedCsrfToken;
         if (!csrfToken) {
             return new Promise((resolve, reject) => {
@@ -359,6 +361,7 @@ export default class SDUCloud {
      * @param csrfToken the csrf token
      */
     setTokens(accessToken: string, csrfToken: string) {
+        console.log("setTokens");
         if (!accessToken) throw this.missingAuth();
 
         this.accessToken = accessToken;
@@ -429,6 +432,7 @@ export default class SDUCloud {
 
     private missingAuth() {
         if (this.redirectOnInvalidTokens) {
+            console.log("Redirecting!");
             this.openBrowserLoginPage();
             return 0;
         } else {

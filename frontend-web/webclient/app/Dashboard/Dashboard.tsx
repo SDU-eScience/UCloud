@@ -48,7 +48,6 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         super(props);
         props.updatePageTitle();
         props.setActivePage();
-        if (!Cloud.isLoggedIn) props.history.push("/login");
     }
 
     componentDidMount() {

@@ -48,7 +48,7 @@ const Core = () => (
         <Switch>
             <Route exact path="/login" component={LoginPage} />
             <Route exact path="/loginRedirect" component={LoginEndpoint} />
-            <Route exact path="/wayf" component={Wayf} />
+            <Route exact path="/login/wayf" component={Wayf} />
             <Route exact path="/" component={Dashboard} />
             <Route exact path="/dashboard" component={Dashboard} />
             <Route exact path="/files/info" component={FileInfo} />
