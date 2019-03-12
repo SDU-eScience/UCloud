@@ -99,7 +99,7 @@ export interface FilesOperations { // Redux operations
     setUploaderCallback: (callback: (s: string) => void) => void
     createFolder: () => void
     setActivePage: () => void
-    setRefresh: (refresh?: () => void) => void
+    clearRefresh: () => void
 }
 
 export interface FileSelectorProps {
@@ -265,7 +265,7 @@ export interface DetailedFileSearchOperations {
     setError: (error?: string) => void
 }
 
-export type DetailedFileSearchProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
+export type DetailedFileSearchStateProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
 
 export type SensitivityLevel = "Private" | "Confidential" | "Sensitive";
 

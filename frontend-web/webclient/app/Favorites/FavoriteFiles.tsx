@@ -16,18 +16,18 @@ import { MasterCheckbox } from "UtilityComponents";
 import { Page } from "Types";
 import { History } from "history";
 
-class FavoriteFiles extends React.Component<FavoritesOperations & ReduxType & { header: any, history: History }> {
-    constructor(props: Readonly<FavoritesOperations & ReduxType & { header: any, history: History }>) {
-        super(props);
-        props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage);
-        props.setRefresh(() => props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage));
+type FavoriteFilesProps = FavoritesOperations & ReduxType & { header: any, history: History }
+
+class FavoriteFiles extends React.Component<FavoriteFilesProps> {
+    
+    componentWillMount() {
+        this.props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage);
+        this.props.setRefresh(() => this.props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage));
     }
 
-    public componentWillUnmount() {
-        this.props.setRefresh();
-    }
+    public componentWillUnmount = () => this.props.setRefresh();
 
-    public componentWillReceiveProps(nextProps) {
+    public componentWillReceiveProps(nextProps: FavoriteFilesProps) {
         const { setRefresh, page, fetchFileFavorites } = nextProps;
         setRefresh(() => fetchFileFavorites(page.pageNumber, page.itemsPerPage));
     }

@@ -14,6 +14,7 @@ import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.runScriptHandler
@@ -23,13 +24,17 @@ import java.security.interfaces.RSAPublicKey
 import java.util.*
 import kotlin.collections.set
 
-private fun loadKeysAndInsertIntoProps(
-    certsLocation: String,
-    properties: Properties
-): Pair<RSAPublicKey, RSAPrivateKey> {
+data class Certificates(
+    val x509Text: String,
+    val privText: String,
+    val publicKey: RSAPublicKey,
+    val privateKey: RSAPrivateKey
+)
+
+private fun loadKeys(certsLocation: String): Certificates {
     val certs =
         File(certsLocation).takeIf { it.exists() && it.isDirectory }
-            ?: throw IllegalStateException("Missing 'certs' folder")
+            ?: throw IllegalStateException("Missing ${File(certsLocation).absolutePath} folder")
     val x509Cert = File(certs, "cert.pem").takeIf { it.exists() && it.isFile }
         ?: throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name cert.pem")
     val privateKey = File(certs, "key.pem").takeIf { it.exists() && it.isFile }
@@ -37,16 +42,24 @@ private fun loadKeysAndInsertIntoProps(
 
     val x509Text = x509Cert.readText()
     val privText = privateKey.readText()
-    properties["onelogin.saml2.sp.x509cert"] = x509Text
-    properties["onelogin.saml2.sp.privatekey"] = privText
 
     val loadedX509Cert = Util.loadCert(x509Text)
     val loadedPrivKey = Util.loadPrivateKey(privText)
 
-    return Pair(
+    return Certificates(
+        x509Text,
+        privText,
         loadedX509Cert.publicKey as RSAPublicKey,
         loadedPrivKey as RSAPrivateKey
     )
+}
+
+private fun insertKeysIntoProps(
+    certificates: Certificates,
+    properties: Properties
+) {
+    properties["onelogin.saml2.sp.x509cert"] = certificates.x509Text
+    properties["onelogin.saml2.sp.privatekey"] = certificates.privText
 }
 
 data class ServiceTokenExtension(
@@ -59,6 +72,7 @@ data class ServiceTokenExtension(
 
 data class AuthConfiguration(
     val certsLocation: String = "./certs",
+    val wayfCerts: String = "./certs",
     val enablePasswords: Boolean = true,
     val enableWayf: Boolean = false,
     val production: Boolean = true,
@@ -104,11 +118,12 @@ fun main(args: Array<String>) {
     val samlProperties = Properties().apply {
         load(Server::class.java.classLoader.getResourceAsStream("saml.properties"))
     }
-    val (_, priv) = loadKeysAndInsertIntoProps(configuration.certsLocation, samlProperties)
+    insertKeysIntoProps(loadKeys(configuration.wayfCerts), samlProperties)
+    val jwtCerts = loadKeys(configuration.certsLocation)
     val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
     Server(
-        jwtAlg = Algorithm.RSA256(null, priv),
+        jwtAlg = Algorithm.RSA256(null, jwtCerts.privateKey),
         config = configuration,
         authSettings = authSettings,
         micro = micro

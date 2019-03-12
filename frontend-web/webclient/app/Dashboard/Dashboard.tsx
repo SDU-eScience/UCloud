@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Cloud, WSFactory } from "Authentication/SDUCloudObject"
+import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
@@ -48,7 +48,6 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         super(props);
         props.updatePageTitle();
         props.setActivePage();
-        if (!Cloud.isLoggedIn) props.history.push("/login");
     }
 
     componentDidMount() {

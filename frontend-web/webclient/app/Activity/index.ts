@@ -31,7 +31,7 @@ export interface ActivityDispatchProps {
     setError: (error?: string) => void
     setPageTitle: () => void
     setActivePage: () => void
-    setRefresh: (refresh?: () => void) => void
+    clearRefresh: () => void
 }
 
 export interface GroupedActivity {

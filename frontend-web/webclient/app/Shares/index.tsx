@@ -10,12 +10,9 @@ export interface Share {
     id: ShareId,
     sharedWith: String,
     rights: AccessRight[],
-    state: ShareStateValues
+    state: ShareState
 }
 
-// FIXME Singular instead of plural?
-
-export type ShareStateValues = keyof typeof ShareState
 export enum ShareState {
     REQUEST_SENT = "REQUEST_SENT",
     ACCEPTED = "ACCEPTED"

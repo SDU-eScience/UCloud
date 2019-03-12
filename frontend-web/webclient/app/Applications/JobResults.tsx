@@ -5,7 +5,7 @@ import { ContainerForText } from "ui-components";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
-import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps, ApplicationMetadata } from ".";
+import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis } from ".";
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
@@ -114,8 +114,7 @@ const Header = ({ hide }: { hide: boolean }) => (
     </TableHeader>
 );
 
-// FIXME: Typesafety.
-const Row = ({ analysis, to, hide }) => {
+const Row = ({ analysis, to, hide }: { analysis: Analysis, to: () => void, hide: boolean }) => {
     const metadata: ApplicationMetadata = analysis.metadata;
     return (
         <TableRow cursor="pointer" onClick={() => to()}>
@@ -127,7 +126,7 @@ const Row = ({ analysis, to, hide }) => {
 };
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
-    onErrorDismiss: () => dispatch(setErrorMessage(undefined)),
+    onErrorDismiss: () => dispatch(setErrorMessage()),
     updatePageTitle: () => dispatch(updatePageTitle("My Results")),
     setLoading: loading => dispatch(setLoading(loading)),
     fetchJobs: async (itemsPerPage, pageNumber) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),

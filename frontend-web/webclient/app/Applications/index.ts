@@ -14,6 +14,7 @@ export interface Analysis {
     createdAt: number
     modifiedAt: number
     owner: string
+    metadata: ApplicationMetadata
 }
 
 export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { }

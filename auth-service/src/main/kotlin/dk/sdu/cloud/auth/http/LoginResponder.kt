@@ -105,9 +105,7 @@ class LoginResponder<DBSession>(
         exception: RPCException?,
         challengeId: String?
     ) {
-        log.info("Failing")
         if (submittedViaForm && call.request.accept()?.contains(ContentType.Application.Json.toString()) != true) {
-            log.info("Bad path")
             val params = ArrayList<Pair<String, String>>()
 
             if (exception is TwoFactorException.InvalidChallenge) {
@@ -126,7 +124,6 @@ class LoginResponder<DBSession>(
                 )
             }
         } else {
-            log.info("Good path")
             if (exception != null) {
                 call.respond(exception.httpStatusCode, exception.why)
             } else {

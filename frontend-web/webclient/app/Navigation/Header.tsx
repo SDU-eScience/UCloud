@@ -40,7 +40,6 @@ class Header extends React.Component<HeaderProps> {
         super(props);
         props.fetchLoginStatus();
         props.fetchAvatar();
-        if (!Cloud.isLoggedIn) props.history.push("/login");
     }
 
     public render() {
@@ -69,7 +68,7 @@ class Header extends React.Component<HeaderProps> {
                 <Notification />
                 <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={this.props.avatar} /> : null}</Flex>}>
                     <Box ml="-17px" mr="-17px" pl="15px">
-                        <Link color="black" to={"/users/settings"}>
+                        <Link color="black" to="/users/settings">
                             <Flex>
                                 <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
                                 Settings
