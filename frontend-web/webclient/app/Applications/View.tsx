@@ -202,13 +202,17 @@ function Content(props: MainContentProps & { previousVersions?: Page<WithAppMeta
 const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<WithAppMetadata> }> = props => {
     return (
         <>
-            <Heading.h4>Previous Versions</Heading.h4>
             {!props.previousVersions ? null :
-                <ApplicationCardContainer>
-                    {props.previousVersions.items.map((it, idx) => (
-                        <SlimApplicationCard app={it} key={idx} />
-                    ))}
-                </ApplicationCardContainer>
+                (!props.previousVersions.items.length ? null :
+                    <div>
+                        <Heading.h4>Others Versions</Heading.h4>
+                        <ApplicationCardContainer>
+                            {props.previousVersions.items.map((it, idx) => (
+                                <SlimApplicationCard app={it} key={idx} />
+                            ))}
+                        </ApplicationCardContainer>
+                    </div>
+                )
             }
         </>
     )
