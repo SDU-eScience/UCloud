@@ -23,6 +23,7 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Spacer } from "ui-components/Spacer";
 
 class Activity extends React.Component<ActivityProps> {
+
     public componentDidMount() {
         this.props.setPageTitle();
         this.props.setActivePage();
@@ -33,7 +34,7 @@ class Activity extends React.Component<ActivityProps> {
         this.props.clearRefresh();
     }
 
-    render() {
+    public render() {
         const { fetchActivity, page, error, setError, loading, groupedEntries } = this.props;
 
         const main = (
@@ -127,9 +128,9 @@ const TrackedFeedActivity = ({ activity }: { activity: GroupedActivity }) => (
     <TFRow>
         <TableCell>
             <Dropdown>
-                <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
+                <Text fontSize={1} color="text">{moment(activity.timestamp).fromNow()}</Text>
                 <DropdownContent>
-                    {moment(new Date(activity.timestamp)).format("llll")}
+                    {moment(activity.timestamp).format("llll")}
                 </DropdownContent>
             </Dropdown>
         </TableCell>

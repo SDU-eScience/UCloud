@@ -142,7 +142,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
 
                     <LoadingButton
                         color="blue"
-                        type="button"
+                        type="submit"
                         content="Submit code"
                         loading={this.state.isLoading}
                     />

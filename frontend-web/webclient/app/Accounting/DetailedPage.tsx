@@ -6,7 +6,7 @@ import { Dispatch } from "redux";
 import { match } from "react-router-dom";
 import { LoadableContent } from "LoadableContent";
 import * as API from "./api";
-import { Page } from "Types";
+import { Page, ClearRefresh } from "Types";
 import { resourceName, emptyResourceState } from "./Redux/AccountingObject";
 import { LoadingMainContainer } from "MainContainer/MainContainer";
 import { Chart, Breakdown } from "Accounting";
@@ -26,10 +26,9 @@ interface StateProps {
     chart: LoadableContent<API.ChartResponse>
 }
 
-interface Operations {
+interface Operations extends ClearRefresh {
     refresh: () => void
     fetchEvents: (itemsPerPage: number, page: number) => void
-    clearRefresh: () => void
 }
 
 class DetailedPage extends React.Component<DetailedPageProps> {

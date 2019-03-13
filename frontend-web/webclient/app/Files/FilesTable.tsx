@@ -248,7 +248,7 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
     }
 
     const badge = <SensitivityBadge bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip top mb="50px" trigger={badge}>{def.text}</Tooltip>
+    return <Tooltip right="0" top mb="50px" trigger={badge}>{def.text}</Tooltip>
 }
 
 const SensitivityBadge = styled.div<{ bg: string }>`
@@ -360,8 +360,9 @@ export const FileOperations = ({ files, fileOperations, As, ...props }/* :FileOp
         ) : null;
     }) : null;
 
-const mapStateToProps = ({ responsive }: ReduxObject): { responsive: ResponsiveReduxObject } => ({
+type FilesTableStateProps = { responsive: ResponsiveReduxObject }
+const mapStateToProps = ({ responsive }: ReduxObject): FilesTableStateProps => ({
     responsive: responsive!
 })
 
-export default connect<{ responsive: ResponsiveReduxObject }>(mapStateToProps)(FilesTable);
+export default connect<FilesTableStateProps, {}>(mapStateToProps)(FilesTable);

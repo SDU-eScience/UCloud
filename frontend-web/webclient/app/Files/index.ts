@@ -1,4 +1,4 @@
-import { Page } from "Types";
+import { Page, ClearRefresh } from "Types";
 import Cloud from "Authentication/lib";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
@@ -78,7 +78,7 @@ export interface FilesStateProps { // Redux Props
     responsive?: ResponsiveReduxObject 
 }
 
-export interface FilesOperations { // Redux operations
+export interface FilesOperations extends ClearRefresh { // Redux operations
     prioritizeFileSearch: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
@@ -99,7 +99,6 @@ export interface FilesOperations { // Redux operations
     setUploaderCallback: (callback: (s: string) => void) => void
     createFolder: () => void
     setActivePage: () => void
-    clearRefresh: () => void
 }
 
 export interface FileSelectorProps {

@@ -1,9 +1,8 @@
 import * as React from "react";
-import { Redirect, Router } from "react-router";
+import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
-import { Page } from "Types";
 import { fetchNotifications, notificationRead, readAllNotifications, receiveSingleNotification } from "./Redux/NotificationsActions";
 import { History } from "history";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
@@ -134,9 +133,6 @@ interface NotificationEntryProps {
 }
 
 export class NotificationEntry extends React.Component<NotificationEntryProps, any> {
-    constructor(props: NotificationEntryProps) {
-        super(props);
-    }
 
     public render() {
         const { notification } = this.props;
