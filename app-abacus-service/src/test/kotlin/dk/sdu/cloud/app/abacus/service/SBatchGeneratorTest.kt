@@ -53,7 +53,8 @@ class SBatchGeneratorTest {
             VerifiedJobInput(emptyMap()),
             "",
             JobState.PREPARED,
-            ""
+            "",
+            archiveInCollection = app.metadata.title
         )
     }
 

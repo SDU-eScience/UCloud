@@ -1,29 +1,39 @@
 package dk.sdu.cloud.file.stats
 
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
-import dk.sdu.cloud.file.api.FileChecksum
+import dk.sdu.cloud.file.api.AccessEntry
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.StorageFile
 
-internal val storageFile = EventMaterializedStorageFile(
-    "id",
-    "path",
-    "owner",
+internal val storageFile = StorageFile(
     FileType.FILE,
-    Timestamps(
-        20000,
-        10000,
-        20000
-    ),
+    "path",
+    20000,
+    10000,
+    "owner",
     123456,
-    FileChecksum(
-        "SHA-2",
-        "checksum"
-    ),
+    listOf(AccessEntry("entity", true, setOf(AccessRight.READ))),
+    SensitivityLevel.PRIVATE,
     false,
-    null,
-    null,
     setOf("P"),
+    "id",
+    "creator",
+    SensitivityLevel.PRIVATE
+)
+
+internal val storageFile2 = StorageFile(
+    FileType.FILE,
+    "path",
+    20000,
+    10000,
+    "owner",
+    123456,
+    listOf(AccessEntry("entity", true, setOf(AccessRight.READ))),
+    SensitivityLevel.PRIVATE,
+    false,
+    setOf("P"),
+    "id2",
+    "creator",
     SensitivityLevel.PRIVATE
 )

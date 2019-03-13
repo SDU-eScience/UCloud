@@ -24,7 +24,6 @@ export const setError = (error?: string): ClearError => ({
     payload: { error }
 });
 
-// FIXME Does it make sense to have them here when the actions called are located elsewhere?
 export const fetchApplicationPageFromName = (query: string, itemsPerPage: number, page: number) =>
     Cloud.get(hpcApplicationsSearchQuery(query, page, itemsPerPage))
         .then(({ response }) => receiveApplications(response))
@@ -34,5 +33,3 @@ export const fetchApplicationPageFromTag = (query: string, itemsPerPage: number,
     Cloud.get(hpcApplicationsTagSearchQuery(query, page, itemsPerPage))
         .then(({ response }) => receiveApplications(response))
         .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));
-
-// FIXME END

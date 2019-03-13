@@ -153,7 +153,7 @@ class ElasticAlerting(
             }
             val percentage = numberOf5XXStatusCodes / totalNumberOfEntries * 100
             log.debug("Current percentage is: $percentage, with limit: $limit5xxPercentage." +
-                    " NUmber of entries: $totalNumberOfEntries")
+                    " Number of entries: $totalNumberOfEntries")
             if (percentage > limit5xxPercentage && !alertOnStatus) {
                 val message = "ALERT: Too many 5XX status codes\n" +
                         "Entries last 15 min: $totalNumberOfEntries \n" +

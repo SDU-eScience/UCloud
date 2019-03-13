@@ -342,6 +342,10 @@ export const ifPresent = (f: any, handler: (f: any) => void) => {
 export const downloadAllowed = (files: File[]) =>
     files.length === 1 && files.every(f => f.sensitivityLevel !== "SENSITIVE")
 
+/**
+ * Capizalises the input string and replaces _ (underscores) with whitespace.
+ * @param str 
+ */
 export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ")
 
 export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }): number {
@@ -372,10 +376,6 @@ export function defaultErrorHandler(error: { request: XMLHttpRequest, response: 
         return request.status;
     }
     return 500;
-}
-
-export function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export function sortByToPrettierString(sortBy: SortBy): string {
@@ -410,9 +410,23 @@ export function humanReadableNumber(
         .replace(regex, '$&' + sectionDelim);
 }
 
-export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any }, defaultMessage: string): string {
-    if (err.response.why) return err.response.why;
-    return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
+export function copyToClipboard(value: string | undefined, message: string) {
+    const input = document.createElement("input");
+    input.value = value || "";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    document.body.removeChild(input);
+    successNotification(message);
+}
+
+export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any } | { status: number, response: string }, defaultMessage: string): string {
+    if ("status" in err) {
+        return err.response;
+    } else {
+        if (err.response.why) return err.response.why;
+        return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
+    }
 }
 
 export const inDevEnvironment = () => process.env.NODE_ENV === "development";

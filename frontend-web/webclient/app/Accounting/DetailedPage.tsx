@@ -6,7 +6,7 @@ import { Dispatch } from "redux";
 import { match } from "react-router-dom";
 import { LoadableContent } from "LoadableContent";
 import * as API from "./api";
-import { Page } from "Types";
+import { Page, ClearRefresh } from "Types";
 import { resourceName, emptyResourceState } from "./Redux/AccountingObject";
 import { LoadingMainContainer } from "MainContainer/MainContainer";
 import { Chart, Breakdown } from "Accounting";
@@ -26,16 +26,14 @@ interface StateProps {
     chart: LoadableContent<API.ChartResponse>
 }
 
-interface Operations {
+interface Operations extends ClearRefresh {
     refresh: () => void
     fetchEvents: (itemsPerPage: number, page: number) => void
-    setRefresh: (refresh?: () => void) => void
 }
 
 class DetailedPage extends React.Component<DetailedPageProps> {
     componentDidMount() {
         this.props.refresh();
-        this.props.setRefresh(() => this.props.setRefresh());
     }
 
     componentDidUpdate(prevProps: DetailedPageProps) {
@@ -44,9 +42,7 @@ class DetailedPage extends React.Component<DetailedPageProps> {
         }
     }
 
-    componentWillReceiveProps(nextProps: DetailedPageProps) {
-        this.props.setRefresh(() => nextProps.setRefresh());
-    }
+    componentWillUnmount = () => this.props.clearRefresh();
 
     render() {
         return <LoadingMainContainer
@@ -90,10 +86,15 @@ class DetailedPage extends React.Component<DetailedPageProps> {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | SetRefreshFunction>, ownProps: OwnProps): Operations => ({
-    refresh: async () => {
+    refresh: () => {
         const { resource, subResource } = ownProps.match.params;
-        dispatch(await Actions.fetchEvents(resource, subResource));
-        dispatch(await Actions.fetchChart(resource, subResource));
+        const fetch = async () => {
+            dispatch(Actions.clearResource(resource, subResource));
+            dispatch(await Actions.fetchEvents(resource, subResource));
+            dispatch(await Actions.fetchChart(resource, subResource));
+        };
+        fetch();
+        dispatch(setRefreshFunction(fetch));
     },
 
     fetchEvents: async (itemsPerPage, page) => {
@@ -101,7 +102,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | SetRefreshFunction
         dispatch(await Actions.fetchEvents(resource, subResource, itemsPerPage, page));
     },
 
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    clearRefresh: () => dispatch(setRefreshFunction())
 });
 
 const mapStateToProps = (state: ReduxObject, ownProps: OwnProps): StateProps => {

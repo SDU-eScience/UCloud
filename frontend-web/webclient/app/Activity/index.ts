@@ -1,4 +1,5 @@
 import { ActivityReduxObject } from "DefaultObjects";
+import { ClearRefresh } from "Types";
 
 export enum ActivityType {
     DOWNLOAD = "download",
@@ -26,12 +27,11 @@ export interface MovedActivity extends Activity {
 }
 
 
-export interface ActivityDispatchProps {
+export interface ActivityDispatchProps extends ClearRefresh {
     fetchActivity: (pageNumber: number, pageSize: number) => void
     setError: (error?: string) => void
     setPageTitle: () => void
     setActivePage: () => void
-    setRefresh: (refresh?: () => void) => void
 }
 
 export interface GroupedActivity {

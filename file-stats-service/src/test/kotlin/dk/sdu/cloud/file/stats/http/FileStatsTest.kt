@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.stats.api.UsageResponse
 import dk.sdu.cloud.file.stats.services.RecentFilesService
 import dk.sdu.cloud.file.stats.services.UsageService
 import dk.sdu.cloud.file.stats.storageFile
+import dk.sdu.cloud.file.stats.storageFile2
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
@@ -31,7 +32,7 @@ class FileStatsTest {
         val recentFilesService = mockk<RecentFilesService>()
         coEvery { usageService.calculateUsage(any(), any(), any()) } returns 200
         coEvery { recentFilesService.queryRecentFiles(any(), any()) } answers {
-            listOf(storageFile, storageFile.copy(fileId = "id2"))
+            listOf(storageFile, storageFile2)
         }
 
         listOf(FileStatsController(recentFilesService, usageService, ClientMock.authenticatedClient))

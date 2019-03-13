@@ -25,7 +25,7 @@ import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
 import { EllipsedText } from "ui-components/Text";
-import { AppLogo, AppLogoRaw } from "Applications/Card";
+import { AppLogoRaw } from "Applications/Card";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
@@ -69,7 +69,7 @@ class Header extends React.Component<HeaderProps> {
                 <Notification />
                 <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={this.props.avatar} /> : null}</Flex>}>
                     <Box ml="-17px" mr="-17px" pl="15px">
-                        <Link color="black" to={"/users/settings"}>
+                        <Link color="black" to="/users/settings">
                             <Flex>
                                 <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
                                 Settings
@@ -287,6 +287,7 @@ const anyLoading = (rO: ReduxObject): boolean =>
     || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
-    || rO.shares.loading
+    || rO.shares.loading || rO.accounting.resources["compute/timeUsed"].events.loading
+    || rO.accounting.resources["storage/bytesUsed"].events.loading
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));

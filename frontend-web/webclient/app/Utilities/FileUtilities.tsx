@@ -177,6 +177,13 @@ export const StateLessOperations = (setLoading: () => void, onSensitivityChange?
         disabled: (files: File[], cloud: SDUCloud) => false,
         icon: "verified",
         color: undefined
+    },
+    {
+        text: "To Clipholder",
+        onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard(files[0].path, `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`),
+        disabled: (files: File[], cloud: SDUCloud) => !UF.inDevEnvironment() || files.length !== 1,
+        icon: "chat",
+        color: undefined
     }
 ];
 

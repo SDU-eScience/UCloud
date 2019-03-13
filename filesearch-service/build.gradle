@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.3'
+version '1.0.5'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.filesearch.MainKt"
@@ -10,15 +10,15 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.1.8"
-    ext.fileApiVersion = "1.2.0"
+    ext.serviceCommonVersion = '1.1.9'
+    ext.fileApiVersion = "1.2.7"
 }
 
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:file-api:$fileApiVersion"
     compile "dk.sdu.cloud:auth-api:1.18.6"
-    compile "dk.sdu.cloud:indexing-api:1.12.1"
+    compile "dk.sdu.cloud:indexing-api:1.12.2"
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
