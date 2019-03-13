@@ -188,7 +188,7 @@ class ElasticAlerting(
         val highLimitPercentage = configuration.limits?.storageCriticalLimit ?: 90.0
 
         while (true) {
-            val response = lowLevelClient.performRequest(Request("GET", "/_cat/allocation"))
+            val response = lowLevelClient.performRequest(Request("GET", "/_cat/nodes?h=dup,n"))
             if (response.statusLine.statusCode != 200) {
                 log.warn("Statuscode was not 200")
                 delay(ONE_HOUR)
@@ -197,10 +197,10 @@ class ElasticAlerting(
             val dataNodes = EntityUtils.toString(response.entity).split("\n").filter { it != "" }
             dataNodes.forEach { line ->
                 //Catches case of unassigend node which has no values
-                val fields = line.split(" ").filter { it != "" }.takeUnless { it.last() == "UNASSIGNED" }.orEmpty()
-                if (fields.isEmpty()) return@forEach
-                val usedStoragePercentage = (fields[2].dropLast(2).toDouble() / fields[4].dropLast(2).toDouble()) * 100
-                log.info("${fields.last()}: Current storage used: ${fields[2]}, storage quota: ${fields[4]}")
+                val fields = line.split(" ").filter { it != "" }
+                if (!fields.last().startsWith("elasticsearch-data")) return@forEach
+                val usedStoragePercentage = fields.first().toDouble()
+                log.info("${fields.last()} is using $usedStoragePercentage% of storage.")
                 when {
                     usedStoragePercentage > highLimitPercentage && alertCounter == 2 -> {
                         val message = "ALERT: Available storage of ${fields.last()} is below ${highLimitPercentage * 100}"
