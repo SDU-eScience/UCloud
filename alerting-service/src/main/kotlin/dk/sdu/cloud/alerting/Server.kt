@@ -57,5 +57,20 @@ class Server(
                 exitProcess(1)
             }
         }
+
+        GlobalScope.launch {
+            val client = RestClient.builder(HttpHost(elasticHostAndPort.host, elasticHostAndPort.port)).build()
+            try {
+                log.info("Alert on elastic storage - starting up with limits: " +
+                        "low: ${config.limits?.storageInfoLimit ?: "NaN"}%, " +
+                        "mid:${config.limits?.storageWarnLimit ?: "NaN"}%, " +
+                        "high:${config.limits?.storageCriticalLimit ?: "NaN"}%"
+                )
+                ElasticAlerting(elastic, alertService).alertOnStorage(client, config)
+            } catch (ex: Exception) {
+                log.warn("WARNING: Alert on elastic storage caught exception: ${ex}.")
+                client.close()
+            }
+        }
     }
 }
