@@ -69,17 +69,17 @@ class Header extends React.Component<HeaderProps> {
                 <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={this.props.avatar} /> : null}</Flex>}>
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to="/users/settings">
-                            <Flex>
-                                <Icon color="black" name="properties" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan color="black">Settings</TextSpan>
+                            <Flex color="black">
+                                <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan>Settings</TextSpan>
                             </Flex>
                         </Link>
                     </Box>
                     <Flex ml="-17px" mr="-17px" pl="15px">
                         <Link to={"/users/avatar"}>
-                            <Flex>
-                                <Icon color="black" name="edit" mr="0.5em" my="0.2em" size="1.3em" />
-                                <TextSpan color="black">Edit Avatar</TextSpan>
+                            <Flex color="black">
+                                <Icon name="edit" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan>Edit Avatar</TextSpan>
                             </Flex>
                         </Link>
                     </Flex>
