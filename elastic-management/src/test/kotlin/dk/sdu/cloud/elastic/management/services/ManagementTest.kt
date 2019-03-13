@@ -78,7 +78,7 @@ class ManagementTest {
         val deleteService = ExpiredEntriesDeleteService(elastic)
 
         val starttime = Date().time
-        deleteService.cleanUp()
+        deleteService.deleteExpiredAllIndices()
         val endtime = Date().time
 
         println("Took: ${endtime-starttime} millsec")
@@ -120,22 +120,22 @@ class ManagementTest {
     @Ignore
     @Test
     fun `test reindex`() {
-        createDocuments("http_logs_mojn", 21, 500)
-        createDocuments("http_logs_mojn", 22, 500)
-        createDocuments("http_logs_mojn", 23, 500)
-        createDocuments("http_logs_mojn", 24, 500)
-        createDocuments("http_logs_mojn", 25, 500)
+        createDocuments("http_logs_mojn", 8, 500)
+        createDocuments("http_logs_mojn", 9, 500)
+        createDocuments("http_logs_mojn", 11, 500)
+        createDocuments("http_logs_mojn", 12, 500)
+        createDocuments("http_logs_mojn", 13, 500)
 
-        createDocuments("http_logs_activity", 21, 500)
-        createDocuments("http_logs_activity", 22, 500)
-        createDocuments("http_logs_activity", 23, 500)
-        createDocuments("http_logs_activity", 24, 500)
-        createDocuments("http_logs_activity", 25, 500)
+        createDocuments("http_logs_activity", 8, 500)
+        createDocuments("http_logs_activity", 9, 500)
+        createDocuments("http_logs_activity", 11, 500)
+        createDocuments("http_logs_activity", 12, 500)
+        createDocuments("http_logs_activity", 13, 500)
 
         elastic.indices().flush(FlushRequest("*"), RequestOptions.DEFAULT)
 
         val service = ReindexService(elastic)
-        //service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs")
+        service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs")
     }
 
 }

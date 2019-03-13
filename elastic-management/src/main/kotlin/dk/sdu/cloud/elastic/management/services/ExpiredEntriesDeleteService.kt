@@ -53,12 +53,12 @@ class ExpiredEntriesDeleteService(
             )
 
             elastic.deleteByQuery(request, RequestOptions.DEFAULT)
-            elastic.indices().flush(FlushRequest(index), RequestOptions.DEFAULT)
+            flushIndex(elastic, index)
         }
     }
 
-    fun cleanUp() {
-        val list = elastic.indices().get(GetIndexRequest().indices("*"), RequestOptions.DEFAULT).indices
+    fun deleteExpiredAllIndices() {
+        val list = getListOfIndices(elastic, "*")
         list.forEach {
             log.info("Finding expired entries in $it")
             deleteExpired(it)

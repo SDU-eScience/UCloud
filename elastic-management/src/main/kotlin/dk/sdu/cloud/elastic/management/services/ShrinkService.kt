@@ -34,6 +34,8 @@ class ShrinkService(
                 .put("index.codec", "best_compression")
         )
         elastic.indices().shrink(request, RequestOptions.DEFAULT)
+
+        mergeIndex(elastic, targetIndex)
     }
 
     private fun prepareSourceIndex(index: String) {
@@ -60,7 +62,7 @@ class ShrinkService(
 
     fun shrink() {
         val yesterdayPeriodFormat = LocalDate.now().minusDays(1).toString().replace("-","." )
-        val list = elastic.indices().get(GetIndexRequest().indices("*-$yesterdayPeriodFormat"), RequestOptions.DEFAULT).indices
+        val list = getListOfIndices(elastic, "*-$yesterdayPeriodFormat")
 
         list.forEach {
             var counter = 0

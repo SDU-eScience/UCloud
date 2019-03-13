@@ -59,7 +59,6 @@ class ReindexService(
                         LocalDate.now().minusDays(daysInPast+i).toString().replace("-","." ) +
                         "_*"
                 if (indexExists(index, elastic)) {
-                    println("Adding: $index")
                     fromIndices.add(index)
                 }
             }

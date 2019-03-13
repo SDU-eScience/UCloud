@@ -5,6 +5,7 @@ import dk.sdu.cloud.elastic.management.services.BackupService
 import dk.sdu.cloud.elastic.management.services.ExpiredEntriesDeleteService
 import dk.sdu.cloud.elastic.management.services.ReindexService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
+import dk.sdu.cloud.elastic.management.services.mergeIndex
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.stackTraceToString
@@ -50,7 +51,7 @@ class Server(
             @Suppress("TooGenericExceptionCaught")
             try {
                 val deleteService = ExpiredEntriesDeleteService(elastic)
-                deleteService.cleanUp()
+                deleteService.deleteExpiredAllIndices()
                 val shrinkService = ShrinkService(elastic, config.gatherNode)
                 shrinkService.shrink()
                 exitProcess(0)
