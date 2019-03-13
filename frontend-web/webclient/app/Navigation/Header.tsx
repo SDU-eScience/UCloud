@@ -24,7 +24,7 @@ import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
-import { EllipsedText } from "ui-components/Text";
+import { EllipsedText, TextSpan } from "ui-components/Text";
 import { AppLogoRaw } from "Applications/Card";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
@@ -70,15 +70,17 @@ class Header extends React.Component<HeaderProps> {
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to="/users/settings">
                             <Flex>
-                                <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
-                                Settings
+                                <Icon color="black" name="properties" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan color="black">Settings</TextSpan>
                             </Flex>
                         </Link>
                     </Box>
                     <Flex ml="-17px" mr="-17px" pl="15px">
                         <Link to={"/users/avatar"}>
-                            <Icon name="edit" mr="0.5em" my="0.2em" size="1.3em" />
-                            Edit Avatar
+                            <Flex>
+                                <Icon color="black" name="edit" mr="0.5em" my="0.2em" size="1.3em" />
+                                <TextSpan color="black">Edit Avatar</TextSpan>
+                            </Flex>
                         </Link>
                     </Flex>
                     <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
