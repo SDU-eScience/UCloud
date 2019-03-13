@@ -196,8 +196,6 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
-const mapStateToProps = (state: ReduxObject): ReduxType => {
-    return state.applicationsBrowse;
-}
+const mapStateToProps = (state: ReduxObject): ReduxType => state.applicationsBrowse;
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);
