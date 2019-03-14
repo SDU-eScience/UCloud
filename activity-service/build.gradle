@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.2.0-PAGINATION.0'
+version '1.2.0-PAGINATION.12'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"

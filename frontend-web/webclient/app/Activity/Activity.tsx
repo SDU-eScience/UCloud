@@ -12,7 +12,7 @@ import { Dispatch } from "redux";
 import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
 import Icon, { IconName } from "ui-components/Icon";
-import { Flex, Text, Link } from "ui-components";
+import { Flex, Text, Link, Button, Box } from "ui-components";
 import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } from "ui-components/Table";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Cloud } from "Authentication/SDUCloudObject";
@@ -25,9 +25,9 @@ import { Spacer } from "ui-components/Spacer";
 class Activity extends React.Component<ActivityProps> {
     public componentDidMount() {
         this.props.setPageTitle();
-        this.props.fetchActivity(0, 100);
+        this.props.fetchActivity(0, 250);
         this.props.setActivePage();
-        this.props.setRefresh(() => this.props.fetchActivity(null, 100));
+        this.props.setRefresh(() => this.props.fetchActivity(null, 250));
     }
 
     public componentWillUnmount() {
@@ -39,17 +39,13 @@ class Activity extends React.Component<ActivityProps> {
 
         const main = (
             <React.StrictMode>
-                {/* <Pagination.List
-                    loading={loading}
-                    errorMessage={error}
-                    onErrorDismiss={setError}
-                    pageRenderer={() => <ActivityFeedGrouped activity={groupedEntries ? groupedEntries : []} />}
-                    page={page}
-                    // FIXME: setting refresh in "componentWillReceiveProps" causes infinite rerenders. Likely some other error not immediately evident in other components
-                    onPageChanged={pageNumber => (fetchActivity(pageNumber, page.itemsPerPage), this.props.setRefresh(() => fetchActivity(pageNumber, page.itemsPerPage)))}
-                /> */}
-
                 <ActivityFeedGrouped activity={page.items} />
+
+                <Flex justifyContent={"center"}>
+                    <Button onClick={() => {
+                        this.props.fetchActivity(page.nextOffset, 250)
+                    }}>Load more</Button>
+                </Flex>
             </React.StrictMode>
         );
 
@@ -75,7 +71,7 @@ const ActivityFeedGrouped = ({ activity }: { activity: ActivityGroup[] }) => act
     <Table>
         <TableHeader>
             <TFRow>
-                <TableHeaderCell width="7em" />
+                <TableHeaderCell width="10em" />
                 <TableHeaderCell width="10.5em" />
                 <TableHeaderCell width="99%" />
             </TFRow>
@@ -131,10 +127,11 @@ const TrackedFeedActivity = ({ activity }: { activity: ActivityGroup }) => (
     <TFRow>
         <TableCell>
             <Dropdown>
-                <Text fontSize={1} color="text">{moment(new Date(activity.newestTimestamp)).fromNow()}</Text>
-                <DropdownContent>
-                    {moment(new Date(activity.newestTimestamp)).format("llll")}
-                </DropdownContent>
+                <Text fontSize={1} color="text">
+                    {moment(new Date(activity.newestTimestamp)).fromNow()}
+                    <br />
+                    {moment(new Date(activity.newestTimestamp)).format("lll")}
+                </Text>
             </Dropdown>
         </TableCell>
         <TableCell>
@@ -147,6 +144,8 @@ const TrackedFeedActivity = ({ activity }: { activity: ActivityGroup }) => (
             {activity.items.map((item, idx) =>
                 <ActivityEvent key={idx} event={item} />
             )}
+
+            {!!activity.numberOfHiddenResults ? <Box mt={16}><Text bold>{activity.numberOfHiddenResults} similar results were hidden</Text></Box> : null}
         </TableCell>
     </TFRow>
 );

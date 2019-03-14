@@ -2,6 +2,7 @@ package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventGroup
+import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.type
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -69,54 +70,74 @@ class ActivityService<DBSession>(
                 filter
             )
 
-            val groups = allEvents.groupBy { it.type }.map { (type, group) ->
-                val timestamp = group.maxBy { it.timestamp }?.timestamp ?: 0L
+            data class GroupBuilder(val type: ActivityEventType, val timestamp: Long) {
+                val items = ArrayList<ActivityEvent>()
+            }
 
-                log.info(group.size.toString())
-                if (group.size > collapseThreshold) {
-                    // TODO This is for some reason not returning all the right results
-                    val count = activityDao.countEvents(session, filter.let {
+            var currentGroup: GroupBuilder? = null
+            val groupBuilders = ArrayList<GroupBuilder>()
+
+            fun finalizeGroup() {
+                val group = currentGroup ?: return
+                groupBuilders.add(group)
+            }
+
+            for (event in allEvents) {
+                if (currentGroup == null || currentGroup.type != event.type || (currentGroup.timestamp - event.timestamp) > GROUP_TIME_THRESHOLD) {
+                    if (currentGroup != null) finalizeGroup()
+
+                    currentGroup = GroupBuilder(event.type, event.timestamp).also {
+                        it.items.add(event)
+                    }
+                } else {
+                    currentGroup.items.add(event)
+                }
+            }
+            finalizeGroup()
+
+            val groups = groupBuilders.mapIndexed { i, group ->
+                val nextGroup = groupBuilders.getOrNull(i + 1)
+                val minTimestamp = nextGroup?.timestamp ?: group.timestamp - GROUP_TIME_THRESHOLD
+
+                if (group.items.size > collapseThreshold) {
+                    val numberOfEvents = activityDao.countEvents(session, filter.let {
                         it.copy(
-                            type = type,
-                            maxTimestamp = timestamp,
+                            type = group.type,
+                            maxTimestamp = group.timestamp,
                             minTimestamp = listOfNotNull(
                                 it.minTimestamp,
-                                timestamp - GROUP_TIME_THRESHOLD
+                                minTimestamp
                             ).min()!!
                         )
                     })
-                    val items = group.take(collapseThreshold)
+                    val items = group.items.take(collapseThreshold)
 
                     ActivityEventGroup(
-                        type,
-                        timestamp,
-                        count - items.size,
+                        group.type,
+                        group.timestamp,
+                        numberOfEvents - items.size,
                         items
                     )
                 } else {
                     ActivityEventGroup(
-                        type,
-                        timestamp,
+                        group.type,
+                        group.timestamp,
                         null,
-                        group
+                        group.items
                     )
                 }
             }
 
-            val offsetBasedOnReturnedRows = groups.sumBy { it.items.size } + (scroll.offset ?: 0)
-            val skippedRows: Int = run {
-                if (groups.isEmpty()) 0
-                else {
-                    // Note: We provide no strict guarantees that this will actually skip the correct stuff. The other
-                    // settings, such as collapseAt GROUP_TIME_THRESHOLD are meant to make it unlikely we skip
-                    // significant portions. Setting collapseAt = 0 will allow the user to see all events.
-                    groups.sumBy { it.numberOfHiddenResults?.toInt() ?: 0 }
-                }
-            }
+            val returnedRows = groups.sumBy { it.items.size }
 
-            log.debug("Returned rows: $offsetBasedOnReturnedRows. Skipped: $skippedRows")
+            // Note: We provide no strict guarantees that this will actually skip the correct stuff. The other
+            // settings, such as collapseAt GROUP_TIME_THRESHOLD are meant to make it unlikely we skip
+            // significant portions. Setting collapseAt = 0 will allow the user to see all events.
+            val skippedRows: Int = groups.sumBy { it.numberOfHiddenResults?.toInt() ?: 0 }
 
-            val nextOffset = offsetBasedOnReturnedRows + skippedRows
+            log.debug("Returned rows: $returnedRows. Skipped: $skippedRows. All rows: ${allEvents.size}")
+
+            val nextOffset = returnedRows + skippedRows + (scroll.offset ?: 0)
 
             ScrollResult(groups, nextOffset, endOfScroll = groups.isEmpty())
         }

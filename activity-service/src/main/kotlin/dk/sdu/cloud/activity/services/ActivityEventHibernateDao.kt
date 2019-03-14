@@ -217,8 +217,7 @@ class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
 
     private fun CriteriaBuilderContext<*, ActivityEventEntity>.ordering(): List<Order> {
         return listOf(
-            descending(entity[ActivityEventEntity::timestamp]),
-            ascending(entity[ActivityEventEntity::id])
+            descending(entity[ActivityEventEntity::timestamp])
         )
     }
 
