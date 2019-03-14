@@ -21,11 +21,12 @@ import styled from "styled-components";
 import { SidebarPages } from "ui-components/Sidebar";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Spacer } from "ui-components/Spacer";
+import * as Scroll from "Scroll";
 
 class Activity extends React.Component<ActivityProps> {
     public componentDidMount() {
         this.props.setPageTitle();
-        this.props.fetchActivity(0, 250);
+        this.props.fetchActivity(null, 250);
         this.props.setActivePage();
         this.props.setRefresh(() => this.props.fetchActivity(null, 250));
     }
@@ -35,27 +36,27 @@ class Activity extends React.Component<ActivityProps> {
     }
 
     render() {
-        const { fetchActivity, page, error, setError, loading } = this.props;
+        const { page, error, setError, loading, fetchActivity } = this.props;
 
         const main = (
             <React.StrictMode>
-                <ActivityFeedGrouped activity={page.items} />
+                <Scroll.List
+                    scroll={page}
+                    onNextScrollRequested={req => fetchActivity(req.offset, req.scrollSize)}
+                    loading={loading}
+                    errorMessage={error}
+                    renderer={ page => (
+                        <ActivityFeedGrouped activity={page.items} />
+                    )}
+                />
 
-                <Flex justifyContent={"center"}>
-                    <Button onClick={() => {
-                        this.props.fetchActivity(page.nextOffset, 250)
-                    }}>Load more</Button>
-                </Flex>
             </React.StrictMode>
         );
 
-        const header = (<Spacer left={<Heading.h2>File Activity</Heading.h2>} right={
-            <Pagination.EntriesPerPageSelector
-                onChange={itemsPerPage => (fetchActivity(page.nextOffset, itemsPerPage), this.props.setRefresh(() => fetchActivity(page.nextOffset, itemsPerPage)))}
-                content="Activity per page"
-                entriesPerPage={100} // TODO This can't change
-            />
-        } />);
+        const header = <Spacer
+            left={<Heading.h2>File Activity</Heading.h2>}
+            right={null}
+        />;
 
         return (
             <MainContainer

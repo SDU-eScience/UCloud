@@ -21,12 +21,28 @@ interface ListProps<Item, OffsetType> {
 }
 
 export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, OffsetType>> {
+    private eventListener: (e: UIEvent) => void
+
     private get scrollOrDefault(): ScrollResult<Item, OffsetType> {
         return this.props.scroll || { endOfScroll: false, nextOffset: null, items: [] };
     }
 
     private get scrollSizeOrDefault(): ScrollSize {
         return this.props.scrollSize || 50;
+    }
+
+    componentWillMount() {
+        this.eventListener = e => {
+            if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 200) {
+                this.requestMore(false);
+            }
+        };
+
+        window.addEventListener('scroll', this.eventListener);
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('scroll', this.eventListener);
     }
 
     render() {
@@ -51,7 +67,7 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
     private renderBody(): React.ReactNode {
         const { props } = this;
         if (props.loading && (props.scroll === undefined || props.scroll.items.length === 0)) {
-            return (<Spinner size={24} />)
+            return null;
         } else {
             if (props.scroll === undefined || props.scroll.items.length === 0) {
                 if (!props.customEmptyPage) {
@@ -68,21 +84,27 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
     }
 
     private renderLoadingButton(): React.ReactNode {
-        const { loading, onNextScrollRequested } = this.props;
-        const scroll = this.scrollOrDefault;
-        const size = this.scrollSizeOrDefault;
+        const { loading } = this.props;
 
         return <Flex justifyContent={"center"}>
             <LoadingButton
-                onClick={() => {
-                    onNextScrollRequested({
-                        offset: scroll.nextOffset,
-                        scrollSize: size
-                    })
-                }}
+                onClick={() => this.requestMore(true)}
                 loading={loading}
                 content={"Load more"}
             />
         </Flex>;
+    }
+
+    private requestMore(alwaysLoadMore: boolean) {
+        const { loading, onNextScrollRequested } = this.props;
+        const scroll = this.scrollOrDefault;
+        const size = this.scrollSizeOrDefault;
+
+        if (!loading && (!scroll.endOfScroll || alwaysLoadMore)) {
+            onNextScrollRequested({
+                offset: scroll.nextOffset,
+                scrollSize: size
+            })
+        }
     }
 }
