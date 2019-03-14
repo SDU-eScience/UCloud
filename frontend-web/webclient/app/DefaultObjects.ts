@@ -1,4 +1,4 @@
-import { SidebarOption, Page, ScrollResult } from "Types";
+import { SidebarOption, Page } from "Types";
 import { Status } from "Navigation";
 import { Analysis, DetailedApplicationSearchReduxState } from "Applications";
 import { File, DetailedFileSearchReduxState } from "Files";
@@ -19,6 +19,7 @@ import { DetailedProjectSearchReduxState } from "Project";
 import { SidebarPages } from "ui-components/Sidebar";
 import { SnackbarReduxObject } from "Snackbar/Redux";
 import { SharesByPath, ShareState } from "Shares";
+import { ScrollResult } from "Scroll/Types";
 
 export const DefaultStatus: Status = {
     title: "No Issues",

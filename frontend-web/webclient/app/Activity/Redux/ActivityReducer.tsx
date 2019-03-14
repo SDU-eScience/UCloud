@@ -1,7 +1,6 @@
 import { ActivityReduxObject, initActivity } from "DefaultObjects";
 import { ActivityActions } from "./ActivityActions";
-import { ScrollResult } from "Types";
-import { ActivityGroup } from "Activity";
+import { concatScrolls } from "Scroll/Types";
 
 export const RECEIVE_ACTIVITY = "RECEIVE_ACTIVITY";
 export const SET_ACTIVITY_LOADING = "SET_ACTIVITY_LOADING";
@@ -13,12 +12,7 @@ const activity = (state: ActivityReduxObject = initActivity(), action: ActivityA
             return { ...state, ...action.payload, loading: false };
         case RECEIVE_ACTIVITY:
             const incoming = action.payload.page
-            const newResult: ScrollResult<ActivityGroup, number> = {
-                endOfScroll: incoming.endOfScroll,
-                items: state.page.items.concat(incoming.items),
-                nextOffset: incoming.nextOffset
-            }
-            return { ...state, page: newResult, loading: false };
+            return { ...state, page: concatScrolls(state.page, incoming), loading: false };
         case SET_ACTIVITY_LOADING:
             return { ...state, loading: true };
         default:

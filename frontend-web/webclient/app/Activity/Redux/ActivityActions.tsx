@@ -1,9 +1,10 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ActivityGroup } from "Activity";
-import { PayloadAction, SetLoadingAction, Error, ScrollResult } from "Types";
+import { PayloadAction, SetLoadingAction, Error } from "Types";
 import { activityQuery } from "Utilities/ActivityUtilities";
 import { RECEIVE_ACTIVITY, SET_ACTIVITY_ERROR_MESSAGE, SET_ACTIVITY_LOADING } from "./ActivityReducer";
 import { errorMessageOrDefault } from "UtilityFunctions";
+import { ScrollResult } from "Scroll/Types";
 
 export type ActivityActions = ActivityError | SetActivityLoading | ReceiveActivityAction;
 

@@ -35,9 +35,3 @@ export interface PayloadAction<T1, T2> extends Action<T1> { payload: T2 }
 export interface Dictionary<V> {
     [key: string]: V
 }
-
-export interface ScrollResult<Item, OffsetType> {
-    items: Item[]
-    endOfScroll: boolean
-    nextOffset: OffsetType
-}
