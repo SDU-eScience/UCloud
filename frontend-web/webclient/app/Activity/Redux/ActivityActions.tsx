@@ -3,12 +3,12 @@ import { ActivityGroup, ActivityFilter } from "Activity";
 import { PayloadAction, SetLoadingAction, Error } from "Types";
 import { activityQuery } from "Utilities/ActivityUtilities";
 import { errorMessageOrDefault } from "UtilityFunctions";
-import { ScrollResult } from "Scroll/Types";
+import { ScrollResult, ScrollRequest } from "Scroll/Types";
 import { Action } from "redux";
 
 // Request builders
-export const fetchActivity = (offset: number | null, pageSize: number) =>
-    Cloud.get(activityQuery(offset, pageSize))
+export const fetchActivity = (scroll: ScrollRequest<number>, filter?: ActivityFilter) =>
+    Cloud.get(activityQuery(scroll, filter))
         .then(({ response }) => receiveActivity(response))
         .catch(e => setErrorMessage(errorMessageOrDefault(e, "Could not fetch activity from server")));
 

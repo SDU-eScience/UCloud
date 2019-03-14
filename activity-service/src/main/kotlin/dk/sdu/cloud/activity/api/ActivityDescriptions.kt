@@ -7,7 +7,6 @@ import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.service.WithScrollRequest
 import dk.sdu.cloud.service.WithScrollResult
 import io.ktor.http.HttpMethod
@@ -103,14 +102,14 @@ object Activity : CallDescriptionContainer("activity") {
 
     object BrowseByUser {
         data class Request(
-            val user: String?,
-            val collapseAt: Int?,
-            val type: ActivityEventType?,
-            val minTimestamp: Long?,
-            val maxTimestamp: Long?,
+            override val user: String?,
+            override val collapseAt: Int?,
+            override val type: ActivityEventType?,
+            override val minTimestamp: Long?,
+            override val maxTimestamp: Long?,
             override val offset: Int?,
             override val scrollSize: Int?
-        ) : WithScrollRequest<Int>
+        ) : WithScrollRequest<Int>, ActivityFilter
 
         data class Response(
             override val endOfScroll: Boolean,
@@ -119,3 +118,13 @@ object Activity : CallDescriptionContainer("activity") {
         ) : WithScrollResult<ActivityEventGroup, Int>
     }
 }
+
+interface ActivityFilter {
+    val user: String?
+    val collapseAt: Int?
+    val type: ActivityEventType?
+    val minTimestamp: Long?
+    val maxTimestamp: Long?
+}
+
+

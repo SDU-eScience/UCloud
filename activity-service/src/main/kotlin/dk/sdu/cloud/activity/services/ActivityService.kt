@@ -3,6 +3,7 @@ package dk.sdu.cloud.activity.services
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventGroup
 import dk.sdu.cloud.activity.api.ActivityEventType
+import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.activity.api.type
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -56,12 +57,16 @@ class ActivityService<DBSession>(
     fun browseForUser(
         scroll: NormalizedScrollRequest<Int>,
         user: String,
-        collapseThreshold: Int
+        collapseThreshold: Int,
+        userFilter: ActivityFilter? = null
     ): ScrollResult<ActivityEventGroup, Int> {
         return db.withTransaction { session ->
             val filter = ActivityEventFilter(
                 offset = scroll.offset,
-                user = user
+                user = user,
+                minTimestamp = userFilter?.minTimestamp,
+                maxTimestamp = userFilter?.maxTimestamp,
+                type = userFilter?.type
             )
 
             val allEvents = activityDao.findEvents(

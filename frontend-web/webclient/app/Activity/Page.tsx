@@ -16,15 +16,15 @@ import * as Heading from "ui-components/Heading";
 import BaseLink from "ui-components/BaseLink";
 import { ActivityFeedGrouped } from "./Feed";
 
-const pageSize = 250;
+const scrollSize = 250;
 
 class Activity extends React.Component<ActivityProps> {
     public componentDidMount() {
         this.props.onMount();
-        this.props.fetchActivity(null, pageSize);
+        this.props.fetchActivity({ scrollSize });
         this.props.setRefresh(() => {
             this.props.resetActivity();
-            this.props.fetchActivity(null, pageSize);
+            this.props.fetchActivity({ scrollSize }, this.props);
         });
     }
 
@@ -52,8 +52,8 @@ class Activity extends React.Component<ActivityProps> {
         return <React.StrictMode>
             <Scroll.List
                 scroll={scroll}
-                scrollSize={pageSize}
-                onNextScrollRequested={req => fetchActivity(req.offset, req.scrollSize)}
+                scrollSize={scrollSize}
+                onNextScrollRequested={req => fetchActivity(req, this.props)}
                 loading={loading}
                 errorMessage={error}
                 renderer={scroll => (
@@ -65,7 +65,7 @@ class Activity extends React.Component<ActivityProps> {
     }
 
     private renderSidebar(): React.ReactNode {
-        const { updateFilter, minTimestamp, maxTimestamp } = this.props;
+        const { minTimestamp, maxTimestamp } = this.props;
         return (
             <>
                 {this.renderQuickFilters()}
@@ -77,12 +77,12 @@ class Activity extends React.Component<ActivityProps> {
                     <TimeFilter
                         text={"Event created after"}
                         selected={minTimestamp}
-                        onChange={minTimestamp => updateFilter({ minTimestamp })} />
+                        onChange={minTimestamp => this.applyFilter({ minTimestamp })} />
 
                     <TimeFilter
                         text={"Event created before"}
                         selected={maxTimestamp}
-                        onChange={maxTimestamp => updateFilter({ maxTimestamp })} />
+                        onChange={maxTimestamp => this.applyFilter({ maxTimestamp })} />
 
                 </form>
             </>
@@ -94,7 +94,6 @@ class Activity extends React.Component<ActivityProps> {
         const startOfToday = getStartOfDay(now);
         const startOfWeek = getStartOfWeek(now);
         const startOfYesterday = getStartOfDay(new Date(startOfToday.getTime() - 1));
-        const startOfPreviousWeek = getStartOfWeek(new Date(startOfWeek.getTime() - 1));
 
         return <>
             <Heading.h3>Quick Filters</Heading.h3>
@@ -102,7 +101,7 @@ class Activity extends React.Component<ActivityProps> {
                 {this.filter("Today", { minTimestamp: startOfToday, maxTimestamp: undefined })}
                 {this.filter("Yesterday", { maxTimestamp: startOfToday, minTimestamp: startOfYesterday })}
                 {this.filter("This week", { minTimestamp: startOfWeek, maxTimestamp: undefined })}
-                {this.filter("Last week", { minTimestamp: startOfPreviousWeek, maxTimestamp: startOfWeek })}
+                {this.filter("No filter", { minTimestamp: undefined, maxTimestamp: undefined, type: undefined })}
             </Box>
         </>;
     }
@@ -111,10 +110,13 @@ class Activity extends React.Component<ActivityProps> {
         return <BaseLink
             style={{ display: "block" }}
             href={"javascript:void(0)"}
-            onClick={e => {
-                e.preventDefault();
-                this.props.updateFilter(filter)
-            }}>{title}</BaseLink>
+            onClick={() => this.applyFilter(filter)}>{title}</BaseLink>
+    }
+
+    private applyFilter(filter: Partial<ActivityFilter>) {
+        this.props.updateFilter(filter);
+        this.props.resetActivity();
+        this.props.fetchActivity({ scrollSize }, filter);
     }
 }
 
@@ -164,9 +166,9 @@ const mapStateToProps = ({ activity }: ReduxObject): ActivityReduxObject & Modul
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
-    fetchActivity: async (offset, pageSize) => {
+    fetchActivity: async (req, filter) => {
         dispatch(setLoading(true));
-        dispatch(await fetchActivity(offset, pageSize));
+        dispatch(await fetchActivity(req, filter));
     },
 
     onMount: () => {
@@ -180,7 +182,9 @@ const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
 
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 
-    updateFilter: (filter) => dispatch(updateActivityFilter(filter)),
+    updateFilter: (filter) => {
+        dispatch(updateActivityFilter(filter));
+    },
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Activity);

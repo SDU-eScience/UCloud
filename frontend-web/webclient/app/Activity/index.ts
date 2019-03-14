@@ -1,4 +1,5 @@
 import { ActivityReduxObject } from "DefaultObjects";
+import { ScrollRequest } from "Scroll";
 
 export enum ActivityType {
     DOWNLOAD = "download",
@@ -42,7 +43,7 @@ export interface MovedActivity extends Activity {
 
 export interface ActivityDispatchProps {
     onMount: () => void
-    fetchActivity: (offset: number | null, pageSize: number) => void
+    fetchActivity: (scroll: ScrollRequest<number>, filter?: ActivityFilter) => void
     resetActivity: () => void
     setRefresh: (refresh?: () => void) => void
     updateFilter: (filter: Partial<ActivityFilter>) => void

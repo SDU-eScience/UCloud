@@ -17,6 +17,6 @@ export function concatScrolls<I, O>(newScroll: ScrollResult<I, O>, oldScroll?: S
 export type ScrollSize = 10 | 25 | 50 | 100 | 250;
 
 export interface ScrollRequest<OffsetType> {
-    offset: OffsetType | null
+    offset?: OffsetType | null
     scrollSize: ScrollSize
 }
