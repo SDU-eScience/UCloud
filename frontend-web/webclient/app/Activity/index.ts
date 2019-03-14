@@ -24,6 +24,13 @@ export interface Activity {
     originalFilePath: string
 }
 
+export interface ActivityFilter {
+    collapseAt?: number
+    type?: ActivityType
+    minTimestamp?: Date
+    maxTimestamp?: Date
+}
+
 export interface FavoriteActivity extends Activity {
     favorite: boolean
 }
@@ -38,6 +45,7 @@ export interface ActivityDispatchProps {
     fetchActivity: (offset: number | null, pageSize: number) => void
     resetActivity: () => void
     setRefresh: (refresh?: () => void) => void
+    updateFilter: (filter: Partial<ActivityFilter>) => void
 }
 
 export interface ActivityOwnProps {

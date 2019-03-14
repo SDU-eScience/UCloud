@@ -9,7 +9,7 @@ import { connect } from "react-redux";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import ShareList from "Shares/List";
 import { File } from "Files";
-import { ActivityFeed } from "Activity/Activity";
+import { ActivityFeed } from "Activity/Feed";
 import { Dispatch } from "redux";
 import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat, fileInfoError } from "./Redux/FileInfoActions";
 import { Flex, Box, Icon, Card, Error } from "ui-components";

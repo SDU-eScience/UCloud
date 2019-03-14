@@ -7,7 +7,7 @@ import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
 import { Upload } from "Uploader";
-import { Activity, ActivityGroup } from "Activity";
+import { Activity, ActivityGroup, ActivityType, ActivityFilter } from "Activity";
 import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
@@ -181,7 +181,7 @@ export interface RunApplicationReduxObject {
 
 }
 
-export type ActivityReduxObject = ComponentWithScroll<ActivityGroup, number>;
+export type ActivityReduxObject = ComponentWithScroll<ActivityGroup, number> & ActivityFilter;
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 

@@ -10,7 +10,7 @@ import Sidebar from "ui-components/Sidebar";
 import ZenodoPublish from "Zenodo/Publish";
 import * as Share from "Shares";
 import * as Project from "Project";
-import Activity from "Activity/Activity";
+import Activity from "Activity/Page";
 import Uploader from "Uploader/Uploader";
 
 // use `const COMPNAME = React.lazy(() => import("${path}"));` when react router is updated

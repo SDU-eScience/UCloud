@@ -1,5 +1,5 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ActivityGroup } from "Activity";
+import { ActivityGroup, ActivityFilter } from "Activity";
 import { PayloadAction, SetLoadingAction, Error } from "Types";
 import { activityQuery } from "Utilities/ActivityUtilities";
 import { errorMessageOrDefault } from "UtilityFunctions";
@@ -13,11 +13,12 @@ export const fetchActivity = (offset: number | null, pageSize: number) =>
         .catch(e => setErrorMessage(errorMessageOrDefault(e, "Could not fetch activity from server")));
 
 // Action builders
-export type ActivityActions = 
-    ActivityError | 
-    SetActivityLoading | 
-    ReceiveActivityAction | 
-    ResetActivityAction;
+export type ActivityActions =
+    ActivityError |
+    SetActivityLoading |
+    ReceiveActivityAction |
+    ResetActivityAction |
+    UpdateActivityFilterAction;
 
 export const SET_ACTIVITY_ERROR_MESSAGE = "SET_ACTIVITY_ERROR_MESSAGE";
 type ActivityError = Error<typeof SET_ACTIVITY_ERROR_MESSAGE>
@@ -41,5 +42,11 @@ const receiveActivity = (page: ScrollResult<ActivityGroup, number>): ReceiveActi
 });
 
 export const RESET_ACTIVITY = "RESET_ACTIVITY";
-type ResetActivityAction = Action<typeof RESET_ACTIVITY>
+type ResetActivityAction = Action<typeof RESET_ACTIVITY>;
 export const resetActivity = (): ResetActivityAction => ({ type: RESET_ACTIVITY });
+
+export const UPDATE_ACTIVITY_FILTER = "UPDATE_ACTIVITY_FILTER";
+type UpdateActivityFilterAction = PayloadAction<typeof UPDATE_ACTIVITY_FILTER, { filter: Partial<ActivityFilter> }>
+export const updateActivityFilter = (filter: Partial<ActivityFilter>): UpdateActivityFilterAction => (
+    { type: UPDATE_ACTIVITY_FILTER, payload: { filter } }
+);
