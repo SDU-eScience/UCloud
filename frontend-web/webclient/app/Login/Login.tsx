@@ -13,6 +13,7 @@ const bg2 = require("Assets/LoginImages/cloud2.jpg");
 const bg3 = require("Assets/LoginImages/cloud3.jpg");
 
 function randImage() {
+    
     switch ((Math.random() * 3) | 0) {
         case 0:
             return bg1;
@@ -24,10 +25,9 @@ function randImage() {
     }
 }
 
-const FullPageImage = styled(Image)`
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
+const BackgroundImage = styled.div<{ image: string}>`
+    background: url(${({image}) => image}) no-repeat center center fixed;
+    bacground-size: cover,
 `;
 
 const inDevEnvironment = process.env.NODE_ENV === "development"
@@ -107,34 +107,35 @@ export const LoginPage = (props: { history: History }) => {
             setError(errorMessageOrDefault({ request: e, response: await e.json() }, "Could not submit verification code. Try again later"));
         }
     }
-
     return (<>
-        <FullPageImage src={bg} />
-        <Box alignItems="center" width="25%" minWidth="400px" maxWidth="420px">
-            <CenteredBox>
-                <Flex><Box mr="auto" /><Heading.h2>SDUCloud</Heading.h2><Box ml="auto" /></Flex>
-                <Card bg="lightGray" borderRadius="0.5em" p="1em 1em 1em 1em">
-                    <form onSubmit={e => e.preventDefault()}>
-                        <Login enabled2fa={challengeId} usernameRef={usernameInput} passwordRef={passwordInput} />
-                        <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                        <Button fullWidth onClick={() => challengeId ? submit2FA() : attemptLogin()}>
-                            {challengeId ? "Submit" : "Login"}
-                        </Button>
-                    </form>
-                    <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
-                    {enabledWayf ? <a href={`/auth/saml/login?service=${wayfService}`}>
-                        <Button fullWidth color="wayfGreen">Login with WAYF</Button>
-                    </a> : null}
-                </Card>
-                <Card borderRadius="0.5em" mt="0.3em" height="auto" p="1em 1em 1em 1em" bg="lightBlue">
-                    <Flex>
-                        <Box><Text fontSize={1} color="textColor">Under construction - Not yet available to the public.</Text></Box>
-                    </Flex>
-                </Card>
-                <Flex mt="0.3em"><Box ml="auto" /><Box width="80px" height="21.3667px"><Image width="80px" src={sduPlainBlack} /></Box></Flex>
-            </CenteredBox>
-        </Box>
+        <BackgroundImage image={bg}>
+            <Flex alignItems={"center"} justifyContent={"center"} width={"100vw"} height={"100vh"}>
+                <Box>
+                    <Flex><Box mr="auto" /><Heading.h2>SDUCloud</Heading.h2><Box ml="auto" /></Flex>
+                    <Card bg="lightGray" borderRadius="0.5em" p="1em 1em 1em 1em">
+                        <form onSubmit={e => e.preventDefault()}>
+                            <Login enabled2fa={!!challengeId} usernameRef={usernameInput} passwordRef={passwordInput} />
+                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                            <Button fullWidth onClick={() => challengeId ? submit2FA() : attemptLogin()}>
+                                {challengeId ? "Submit" : "Login"}
+                            </Button>
+                        </form>
+                        <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
+                        {enabledWayf && !challengeId ? <a href={`/auth/saml/login?service=${wayfService}`}>
+                            <Button fullWidth color="wayfGreen">Login with WAYF</Button>
+                        </a> : null}
+                    </Card>
+                    <Card borderRadius="0.5em" mt="0.3em" height="auto" p="1em 1em 1em 1em" bg="lightBlue">
+                        <Flex>
+                            <Box><Text fontSize={1} color="textColor">Under construction - Not yet available to the public.</Text></Box>
+                        </Flex>
+                    </Card>
+                    <Flex mt="0.3em"><Box ml="auto" /><Box width="80px" height="21.3667px"><Image width="80px" src={sduPlainBlack} /></Box></Flex>
+                </Box>
+            </Flex>
+        </BackgroundImage>
     </>);
+    
 }
 
 export const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
