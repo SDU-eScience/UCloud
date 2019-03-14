@@ -1,24 +1,24 @@
 group 'dk.sdu.cloud'
-version '1.0.5'
+version '1.0.6'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.filesearch.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.7/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.8/sdu-cloud.gradle"
 
 repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = '1.1.9'
-    ext.fileApiVersion = "1.2.7"
+    ext.serviceCommonVersion = '1.1.10'
+    ext.fileApiVersion = "1.2.8"
 }
 
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:file-api:$fileApiVersion"
-    compile "dk.sdu.cloud:auth-api:1.18.6"
-    compile "dk.sdu.cloud:indexing-api:1.12.2"
+    compile "dk.sdu.cloud:auth-api:1.19.1"
+    compile "dk.sdu.cloud:indexing-api:1.12.3"
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }

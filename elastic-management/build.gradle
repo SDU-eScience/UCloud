@@ -1,10 +1,10 @@
 group 'dk.sdu.cloud'
-version '1.0.1'
+version '1.0.2'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.elastic.management.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.7/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.8/sdu-cloud.gradle"
 
 repositories {
     jcenter()
@@ -15,6 +15,6 @@ dependencies {
 
     compile 'mbuhot:eskotlin:0.4.0'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
-    compile 'dk.sdu.cloud:service-common:1.1.9'
-    testCompile 'dk.sdu.cloud:service-common-test:1.1.9'
+    compile 'dk.sdu.cloud:service-common:1.1.10'
+    testCompile 'dk.sdu.cloud:service-common-test:1.1.10'
 }

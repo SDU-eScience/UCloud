@@ -1,23 +1,23 @@
 group 'dk.sdu.cloud'
-version '1.0.2'
+version '1.0.3'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.accounting.storage.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.7/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.8/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = '1.1.9'
-    ext.accountingVersion = "1.0.1"
+    ext.serviceCommonVersion = '1.1.10'
+    ext.accountingVersion = "1.0.2"
 }
 
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
-    compile "dk.sdu.cloud:auth-api:1.18.6"
+    compile "dk.sdu.cloud:auth-api:1.19.1"
     compile "dk.sdu.cloud:accounting-api:${accountingVersion}"
-    compile "dk.sdu.cloud:indexing-api:1.12.2"
-    compile "dk.sdu.cloud:file-api:1.2.7"
+    compile "dk.sdu.cloud:indexing-api:1.12.3"
+    compile "dk.sdu.cloud:file-api:1.2.8"
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
