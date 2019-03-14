@@ -2,19 +2,18 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { ActivityProps, ActivityDispatchProps, ActivityGroup } from "Activity";
 import * as Module from "Activity";
-import * as Pagination from "Pagination";
 import * as moment from "moment";
 import { getFilenameFromPath, replaceHomeFolder } from "Utilities/FileUtilities";
 import { ActivityReduxObject, ReduxObject } from "DefaultObjects";
-import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActions";
+import { resetActivity, fetchActivity, setLoading } from "./Redux/ActivityActions";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
 import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
 import Icon, { IconName } from "ui-components/Icon";
-import { Flex, Text, Link, Button, Box } from "ui-components";
+import { Flex, Text, Link, Box } from "ui-components";
 import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } from "ui-components/Table";
-import { Dropdown, DropdownContent } from "ui-components/Dropdown";
+import { Dropdown } from "ui-components/Dropdown";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { MainContainer } from "MainContainer/MainContainer";
 import styled from "styled-components";
@@ -23,30 +22,32 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Spacer } from "ui-components/Spacer";
 import * as Scroll from "Scroll";
 
+const pageSize = 250;
+
 class Activity extends React.Component<ActivityProps> {
     public componentDidMount() {
-        this.props.setPageTitle();
-        this.props.fetchActivity(null, 250);
-        this.props.setActivePage();
-        this.props.setRefresh(() => this.props.fetchActivity(null, 250));
+        this.props.onMount();
+        this.props.fetchActivity(null, pageSize);
+        this.props.setRefresh(() => this.props.resetActivity());
     }
 
     public componentWillUnmount() {
-        this.props.setRefresh();
+        this.props.setRefresh(undefined);
     }
 
     render() {
-        const { page, error, setError, loading, fetchActivity } = this.props;
+        const { scroll, error, loading, fetchActivity } = this.props;
 
         const main = (
             <React.StrictMode>
                 <Scroll.List
-                    scroll={page}
+                    scroll={scroll}
+                    scrollSize={pageSize}
                     onNextScrollRequested={req => fetchActivity(req.offset, req.scrollSize)}
                     loading={loading}
                     errorMessage={error}
-                    renderer={ page => (
-                        <ActivityFeedGrouped activity={page.items} />
+                    renderer={scroll => (
+                        <ActivityFeedGrouped activity={scroll.items} />
                     )}
                 />
 
@@ -235,9 +236,13 @@ const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
         dispatch(setLoading(true));
         dispatch(await fetchActivity(offset, pageSize));
     },
-    setError: error => dispatch(setErrorMessage(error)),
-    setPageTitle: () => dispatch(updatePageTitle("Activity")),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Activity)),
+    onMount: () => {
+        dispatch(updatePageTitle("Activity"))
+        dispatch(setActivePage(SidebarPages.Activity))
+    },
+    resetActivity: () => {
+        dispatch(resetActivity());
+    },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 

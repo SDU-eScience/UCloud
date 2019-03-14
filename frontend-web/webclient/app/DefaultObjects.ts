@@ -89,10 +89,17 @@ function getItemOrDefault<T>(itemName: string, defaultValue: T): T {
     return window.localStorage.getItem(itemName) as unknown as T || defaultValue;
 }
 
-export interface ComponentWithPage<T> {
-    page: Page<T>
+export interface ComponentWithLoadingState {
     loading: boolean
     error?: string
+}
+
+export interface ComponentWithPage<T> extends ComponentWithLoadingState {
+    page: Page<T>
+}
+
+export interface ComponentWithScroll<Item, OffsetType> extends ComponentWithLoadingState {
+    scroll?: ScrollResult<Item, OffsetType>
 }
 
 export interface ResponsiveReduxObject {
@@ -144,7 +151,7 @@ export type AnalysisReduxObject = ComponentWithPage<Analysis>;
 
 export interface NotificationsReduxObject {
     redirectTo: string
-    items: Notification[] 
+    items: Notification[]
     loading: boolean
     error?: string
 }
@@ -174,11 +181,7 @@ export interface RunApplicationReduxObject {
 
 }
 
-export type ActivityReduxObject =  {
-    error?: string
-    loading: boolean
-    page: ScrollResult<ActivityGroup, number>
-}
+export type ActivityReduxObject = ComponentWithScroll<ActivityGroup, number>;
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 
@@ -249,8 +252,6 @@ export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & Account
 
 
 export const initActivity = (): ActivityReduxObject => ({
-    page: { endOfScroll: true, items: [], nextOffset: 0 },
-    error: undefined,
     loading: false
 });
 

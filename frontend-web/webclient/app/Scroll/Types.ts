@@ -4,11 +4,13 @@ export interface ScrollResult<Item, OffsetType> {
     nextOffset: OffsetType | null
 }
 
-export function concatScrolls<I, O> (oldScroll: ScrollResult<I, O>, newScroll: ScrollResult<I, O>) {
+export function concatScrolls<I, O>(newScroll: ScrollResult<I, O>, oldScroll?: ScrollResult<I, O>) {
+    const oldItems = oldScroll !== undefined ? oldScroll.items : [];
+
     return {
         endOfScroll: newScroll.endOfScroll,
         nextOffset: newScroll.nextOffset,
-        items: oldScroll.items.concat(newScroll.items)
+        items: oldItems.concat(newScroll.items)
     };
 }
 

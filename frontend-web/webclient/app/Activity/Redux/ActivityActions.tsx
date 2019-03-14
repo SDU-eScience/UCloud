@@ -2,32 +2,44 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { ActivityGroup } from "Activity";
 import { PayloadAction, SetLoadingAction, Error } from "Types";
 import { activityQuery } from "Utilities/ActivityUtilities";
-import { RECEIVE_ACTIVITY, SET_ACTIVITY_ERROR_MESSAGE, SET_ACTIVITY_LOADING } from "./ActivityReducer";
 import { errorMessageOrDefault } from "UtilityFunctions";
 import { ScrollResult } from "Scroll/Types";
+import { Action } from "redux";
 
-export type ActivityActions = ActivityError | SetActivityLoading | ReceiveActivityAction;
-
+// Request builders
 export const fetchActivity = (offset: number | null, pageSize: number) =>
     Cloud.get(activityQuery(offset, pageSize))
         .then(({ response }) => receiveActivity(response))
         .catch(e => setErrorMessage(errorMessageOrDefault(e, "Could not fetch activity from server")));
 
+// Action builders
+export type ActivityActions = 
+    ActivityError | 
+    SetActivityLoading | 
+    ReceiveActivityAction | 
+    ResetActivityAction;
+
+export const SET_ACTIVITY_ERROR_MESSAGE = "SET_ACTIVITY_ERROR_MESSAGE";
 type ActivityError = Error<typeof SET_ACTIVITY_ERROR_MESSAGE>
 export const setErrorMessage = (error?: string): ActivityError => ({
     type: SET_ACTIVITY_ERROR_MESSAGE,
     payload: { error }
 });
 
+export const SET_ACTIVITY_LOADING = "SET_ACTIVITY_LOADING";
 type SetActivityLoading = SetLoadingAction<typeof SET_ACTIVITY_LOADING>
 export const setLoading = (loading: boolean): SetActivityLoading => ({
     type: SET_ACTIVITY_LOADING,
     payload: { loading }
 });
 
+export const RECEIVE_ACTIVITY = "RECEIVE_ACTIVITY";
 type ReceiveActivityAction = PayloadAction<typeof RECEIVE_ACTIVITY, { page: ScrollResult<ActivityGroup, number> }>
 const receiveActivity = (page: ScrollResult<ActivityGroup, number>): ReceiveActivityAction => ({
     type: RECEIVE_ACTIVITY,
     payload: { page }
 });
 
+export const RESET_ACTIVITY = "RESET_ACTIVITY";
+type ResetActivityAction = Action<typeof RESET_ACTIVITY>
+export const resetActivity = (): ResetActivityAction => ({ type: RESET_ACTIVITY });

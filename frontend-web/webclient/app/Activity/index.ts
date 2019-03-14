@@ -34,10 +34,9 @@ export interface MovedActivity extends Activity {
 
 
 export interface ActivityDispatchProps {
+    onMount: () => void
     fetchActivity: (offset: number | null, pageSize: number) => void
-    setError: (error?: string) => void
-    setPageTitle: () => void
-    setActivePage: () => void
+    resetActivity: () => void
     setRefresh: (refresh?: () => void) => void
 }
 
