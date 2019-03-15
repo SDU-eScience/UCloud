@@ -2,13 +2,14 @@ import * as React from "react";
 import { ScrollResult, ScrollRequest, ScrollSize } from "./Types";
 import { Error, LoadingButton, Flex } from "ui-components";
 import * as Heading from "ui-components/Heading";
+import { Dictionary } from "Types";
 
 interface ListProps<Item, OffsetType> {
     scroll?: ScrollResult<Item, OffsetType>
     scrollSize?: ScrollSize
 
     frame?: (containerRef: React.RefObject<any>, children) => React.ReactNode
-    renderer: (item: Item) => React.ReactNode
+    renderer: (item: Item, inlineStyle: React.CSSProperties) => React.ReactNode
     onNextScrollRequested: (request: ScrollRequest<OffsetType>) => void
 
     // Loading
@@ -23,6 +24,9 @@ interface ListProps<Item, OffsetType> {
 export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, OffsetType>> {
     private eventListener: (e: UIEvent) => void
     private container = React.createRef<HTMLElement>();
+    private recordedHeights: number[] = [];
+    private lastRecordedTop: number = 0;
+    private ticking: boolean = false;
 
     private get scrollOrDefault(): ScrollResult<Item, OffsetType> {
         return this.props.scroll || { endOfScroll: false, nextOffset: null, items: [] };
@@ -37,6 +41,36 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
             if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 200) {
                 this.requestMore(false);
             }
+
+            if (!this.ticking) {
+                setTimeout(() => {
+                    const currentTop = window.pageYOffset;
+                    const currentBottom = currentTop + window.innerHeight;
+                    console.log("currentTop:", currentTop);
+                    
+                    const heights = this.recordedHeights;
+                    let sum = 0;
+                    let firstElement = -1;
+                    let lastElement = -1;
+                    for (let i = 0; i < heights.length; i++) {
+                        sum += heights[i];
+                        if(sum >= currentTop && firstElement === -1) {
+                            console.log("First element is:", i);
+                            firstElement = i;
+                        }
+
+                        if (sum >= currentBottom) {
+                            console.log("Last element is:", i);
+                            lastElement = i;
+                            break;
+                        }
+                    }
+
+
+                    this.ticking = false;
+                }, 1000);
+                this.ticking = true;
+            }
         };
 
         window.addEventListener('scroll', this.eventListener);
@@ -49,14 +83,12 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
     componentDidUpdate() {
         const container = this.container.current;
         console.log(container);
-        if(container !== null) {
-            let totalHeight = 0;
+        if (container !== null) {
+            this.recordedHeights = new Array(container.children.length);
             for (let i = 0; i < container.children.length; i++) {
                 const child = container.children[i];
-                console.log(child.clientHeight);
-                totalHeight += child.clientHeight;
+                this.recordedHeights[i.toString()] = child.clientHeight;
             }
-            console.log("Total height:", totalHeight);
         }
     }
 
@@ -136,7 +168,7 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
 
 interface ListBodyProps {
     scroll: ScrollResult<any, any>
-    renderer: (item: any) => React.ReactNode
+    renderer: (item: any, style: React.CSSProperties) => React.ReactNode
     containerRef?: React.RefObject<any>
 }
 
@@ -150,7 +182,7 @@ class ListBody extends React.PureComponent<ListBodyProps> {
     render() {
         const { scroll, renderer, containerRef } = this.props;
         if (scroll !== undefined) {
-            const items = scroll.items.map(i => renderer(i));
+            const items = scroll.items.map(i => renderer(i, {}));
             if (containerRef !== undefined) {
                 return <>{items}</>;
             } else {

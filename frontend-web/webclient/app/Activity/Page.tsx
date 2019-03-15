@@ -59,7 +59,7 @@ class Activity extends React.Component<ActivityProps> {
                 frame={(ref, children) => (
                     <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>
                 )}
-                renderer={item => (<ActivityFeedItem activity={item} />)}
+                renderer={(item, style) => (<ActivityFeedItem style={style} activity={item} />)}
             />
 
         </React.StrictMode>;

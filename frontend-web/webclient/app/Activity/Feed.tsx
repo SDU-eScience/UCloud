@@ -87,8 +87,8 @@ const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props
 
 );
 
-export const ActivityFeedItem = ({ activity }: { activity: ActivityGroup }) => (
-    <TFRow>
+export const ActivityFeedItem = ({ activity, style }: { activity: ActivityGroup, style?: React.CSSProperties }) => (
+    <TFRow style={style}>
         <TableCell>
             <Dropdown>
                 <Text fontSize={1} color="text">
