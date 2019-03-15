@@ -11,7 +11,7 @@ import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, Vertica
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter, OptionalParameters } from "./ParameterWidgets";
-import { extractParameters, hpcFavoriteApp, hpcJobQueryPost } from "Utilities/ApplicationUtilities";
+import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
@@ -28,7 +28,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             loading: false,
             error: undefined,
 
-            parameterValues: {},
+            parameterValues: new Map(),
             schedulingOptions: {
                 maxTime: {
                     hours: null,
@@ -47,7 +47,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     componentDidMount() {
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
-
         this.retrieveApplication(name, version);
     }
 
@@ -60,22 +59,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         } else {
             schedulingOptions[field] = value;
         }
-        this.setState(() => ({
-            schedulingOptions
-        }));
+        this.setState(() => ({ schedulingOptions }));
     }
 
-    private onSubmit = (event: { preventDefault: () => void; }) => {
+    private onSubmit = (event: React.FormEvent) => {
+        const parameters = extractParametersFromMap(this.state.parameterValues, this.state.application!.invocation.parameters);
         event.preventDefault();
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
 
-        let maxTime: MaxTimeForInput | null = this.extractJobInfo(this.state.schedulingOptions).maxTime;
+        let maxTime = this.extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
 
         let job = {
             application: { name: this.state.application!.metadata.name, version: this.state.application!.metadata.version },
-            parameters: { ...this.state.parameterValues },
+            parameters,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
             maxTime: maxTime,
@@ -84,17 +82,14 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         this.setState(() => ({ jobSubmitted: true }));
 
-        Cloud.post(hpcJobQueryPost, job).then(req => {
+        Cloud.post(hpcJobQueryPost, job).then(req =>
             inSuccessRange(req.request.status) ?
                 this.props.history.push(`/applications/results/${req.response.jobId}`) :
                 this.setState(() => ({ error: "An error occured", jobSubmitted: false }))
-        }).catch(err => {
+        ).catch(err => {
             this.setState(() => ({ error: err.message, jobSubmitted: false }))
         });
     }
-
-    private onInputChange = (parameterName: string, value: string | number | object) =>
-        this.setState(() => ({ parameterValues: { ...this.state.parameterValues, [parameterName]: value } }));
 
     private extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
         let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
@@ -109,39 +104,52 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         return extractedJobInfo;
     }
 
-    private toggleFavorite() {
+    private async toggleFavorite() {
         if (!this.state.application) return;
         const { name, version } = this.state.application.metadata;
         this.setState(() => ({ favoriteLoading: true }));
-        this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise
-            .then(() => this.setState(() => ({ favorite: !this.state.favorite })))
-            .catch(it => this.setState(() => ({ error: errorMessageOrDefault(it, "An error occurred") })))
-            .finally(() => this.setState(() => ({ favoriteLoading: false })));
+        try {
+            await this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise;
+            this.setState(() => ({ favorite: !this.state.favorite }));
+        } catch (e) {
+            this.setState(() => ({ error: errorMessageOrDefault(e, "An error occurred") }));
+        } finally {
+            this.setState(() => ({ favoriteLoading: false }));
+        }
     }
 
-    private retrieveApplication(name: string, version: string) {
-        this.setState(() => ({ loading: true }));
-
-        this.state.promises.makeCancelable(
-            Cloud.get(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
-        ).promise.then((req) => {
-            const app: (WithAppMetadata & WithAppInvocation & WithAppFavorite) = req.response;
+    private async retrieveApplication(name: string, version: string) {
+        try {
+            this.setState(() => ({ loading: true }));
+            const { response } = await this.state.promises.makeCancelable(
+                Cloud.get<WithAppMetadata & WithAppInvocation & WithAppFavorite>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
+            ).promise;
+            const app = response;
             const toolDescription = app.invocation.tool.tool.description;
+            const parameterValues = new Map();
 
+            app.invocation.parameters.forEach(it => {
+                if ((["input_file", "input_directory", "integer", "floating_point", "text"] as ParameterTypes[]).some(type => type === it.type)) {
+                    parameterValues.set(it.name, React.createRef<HTMLInputElement>());
+                } else if (it.type === "boolean") {
+                    parameterValues.set(it.name, React.createRef<HTMLSelectElement>());
+                }
+            });
             this.setState(() => ({
                 application: app,
-                loading: false,
                 favorite: app.favorite,
+                parameterValues,
                 schedulingOptions: {
                     maxTime: toolDescription.defaultMaxTime,
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
                     tasksPerNode: toolDescription.defaultTasksPerNode
                 }
             }));
-        }).catch(() => this.setState(() => ({
-            loading: false,
-            error: `An error occurred fetching ${name}`
-        })));
+        } catch (e) {
+            this.setState(() => ({ error: errorMessageOrDefault(e, `An error occurred fetching ${name}`) }));
+        } finally {
+            this.setState(() => ({ loading: false }));
+        }
     }
 
     private importParameters(file: File) {
@@ -189,7 +197,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
             siteVersion: this.siteVersion,
             application: appInfo,
-            parameters: { ...this.state.parameterValues },
+            parameters: extractParametersFromMap(this.state.parameterValues, application.invocation.parameters),
             numberOfNodes: jobInfo.numberOfNodes,
             tasksPerNode: jobInfo.tasksPerNode,
             maxTime: jobInfo.maxTime,
@@ -230,11 +238,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     values={parameterValues}
                     parameters={application.invocation.parameters}
                     onSubmit={this.onSubmit}
-                    onChange={this.onInputChange}
                     schedulingOptions={schedulingOptions}
                     app={application}
                     onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                    onParameterUsed={(p) => {
+                    onParameterUsed={p => {
                         p.visible = true;
                         this.setState(() => ({ application: this.state.application }));
                     }}
@@ -242,9 +249,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             </ContainerForText>
         );
 
-        const requiredKeys = application.invocation.parameters.filter(it => !it.optional).map(it => ({ name: it.name, title: it.title }));
-        const disabled = requiredKeys.map(it => it.name).some(it => !parameterValues[it]);
-        /* FIXME: Finds all required fields, not just the required ones missing an input value */
+        const requiredKeys = application.invocation.parameters.filter(it => !it.optional);
+        const disabled = requiredKeys.some(it => {
+            /* FIXME: Must update sidebar, to allow submit */
+            const { current } = parameterValues.get(it.name)!;
+            if (!current) return true;
+            return !current.value
+        });
         const title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`;
 
         const sidebar = (
@@ -284,18 +295,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 }
 
-interface ParameterValues {
-    [name: string]: any
-}
-
 interface ParameterProps {
-    values: ParameterValues
+    values: Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
     app: WithAppMetadata & WithAppInvocation
-    onChange: (name: string, value: any) => void
     onSubmit: (e: React.FormEvent) => void
-    onJobSchedulingParamsChange: (field, value, subField) => void
+    onJobSchedulingParamsChange: (field: string, value: number | string, subField: number | string) => void
     onParameterUsed: (parameter: ApplicationParameter) => void
 }
 
@@ -303,17 +309,17 @@ const Parameters = (props: ParameterProps) => {
     if (!props.parameters) return null
 
     const mandatory = props.parameters.filter(parameter => !parameter.optional);
-    const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values[parameter.name] != null));
-    const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values[parameter.name] == null);
+    const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values.get(parameter.name)!.current != null));
+    const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values.get(parameter.name)!.current == null);
 
     const mapParamToComponent = (parameter: ApplicationParameter, index: number) => {
-        let value = props.values[parameter.name];
+        let ref = props.values.get(parameter.name)!;
+
         return (
             <Parameter
+                parameterRef={ref}
                 key={index}
                 parameter={parameter}
-                onChange={props.onChange}
-                value={value}
             />
         );
     }

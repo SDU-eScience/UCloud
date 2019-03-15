@@ -145,7 +145,6 @@ export interface MaxTimeForInput {
     hours: number | null,
     minutes: number | null,
     seconds: number | null
-
 }
 
 export interface JobSchedulingOptionsForInput {
@@ -162,7 +161,7 @@ export interface RunAppState {
     loading: boolean
 
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
-    parameterValues: {}
+    parameterValues: Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
     favoriteLoading: boolean
