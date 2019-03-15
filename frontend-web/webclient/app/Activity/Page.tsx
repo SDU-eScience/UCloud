@@ -14,7 +14,7 @@ import * as Scroll from "Scroll";
 import { DatePicker } from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import BaseLink from "ui-components/BaseLink";
-import { ActivityFeedGrouped } from "./Feed";
+import { ActivityFeedFrame, ActivityFeedItem } from "./Feed";
 
 const scrollSize = 250;
 
@@ -56,9 +56,10 @@ class Activity extends React.Component<ActivityProps> {
                 onNextScrollRequested={req => fetchActivity(req, this.props)}
                 loading={loading}
                 errorMessage={error}
-                renderer={scroll => (
-                    <ActivityFeedGrouped activity={scroll.items} />
+                frame={(ref, children) => (
+                    <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>
                 )}
+                renderer={item => (<ActivityFeedItem activity={item} />)}
             />
 
         </React.StrictMode>;

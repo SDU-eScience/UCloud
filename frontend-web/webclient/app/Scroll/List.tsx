@@ -1,14 +1,14 @@
 import * as React from "react";
 import { ScrollResult, ScrollRequest, ScrollSize } from "./Types";
 import { Error, LoadingButton, Flex } from "ui-components";
-import Spinner from "LoadingIcon/LoadingIcon";
 import * as Heading from "ui-components/Heading";
 
 interface ListProps<Item, OffsetType> {
     scroll?: ScrollResult<Item, OffsetType>
     scrollSize?: ScrollSize
 
-    renderer: (scroll: ScrollResult<Item, OffsetType>) => React.ReactNode
+    frame?: (containerRef: React.RefObject<any>, children) => React.ReactNode
+    renderer: (item: Item) => React.ReactNode
     onNextScrollRequested: (request: ScrollRequest<OffsetType>) => void
 
     // Loading
@@ -22,6 +22,7 @@ interface ListProps<Item, OffsetType> {
 
 export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, OffsetType>> {
     private eventListener: (e: UIEvent) => void
+    private container = React.createRef<HTMLElement>();
 
     private get scrollOrDefault(): ScrollResult<Item, OffsetType> {
         return this.props.scroll || { endOfScroll: false, nextOffset: null, items: [] };
@@ -43,6 +44,20 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
 
     componentWillUnmount() {
         window.removeEventListener('scroll', this.eventListener);
+    }
+
+    componentDidUpdate() {
+        const container = this.container.current;
+        console.log(container);
+        if(container !== null) {
+            let totalHeight = 0;
+            for (let i = 0; i < container.children.length; i++) {
+                const child = container.children[i];
+                console.log(child.clientHeight);
+                totalHeight += child.clientHeight;
+            }
+            console.log("Total height:", totalHeight);
+        }
     }
 
     render() {
@@ -78,7 +93,17 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
                     return props.customEmptyPage
                 }
             } else {
-                return props.renderer(props.scroll)
+                const children = <ListBody
+                    scroll={props.scroll}
+                    renderer={props.renderer}
+                    containerRef={this.container}
+                />;
+                const frame = props.frame;
+                if (frame !== undefined) {
+                    return frame(this.container, children);
+                } else {
+                    return <>{children}</>;
+                }
             }
         }
     }
@@ -105,6 +130,34 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
                 offset: scroll.nextOffset,
                 scrollSize: size
             })
+        }
+    }
+}
+
+interface ListBodyProps {
+    scroll: ScrollResult<any, any>
+    renderer: (item: any) => React.ReactNode
+    containerRef?: React.RefObject<any>
+}
+
+class ListBody extends React.PureComponent<ListBodyProps> {
+    shouldComponentUpdate(nextProps: ListBodyProps) {
+        const nextLength = nextProps.scroll !== undefined ? nextProps.scroll.items.length : 0;
+        const currentLength = this.props.scroll !== undefined ? this.props.scroll.items.length : 0;
+        return nextLength !== currentLength;
+    }
+
+    render() {
+        const { scroll, renderer, containerRef } = this.props;
+        if (scroll !== undefined) {
+            const items = scroll.items.map(i => renderer(i));
+            if (containerRef !== undefined) {
+                return <>{items}</>;
+            } else {
+                return <div ref={containerRef}>{items}</div>;
+            }
+        } else {
+            return null;
         }
     }
 }

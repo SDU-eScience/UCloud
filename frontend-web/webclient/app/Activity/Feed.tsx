@@ -12,15 +12,14 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import styled from "styled-components";
 import { EllipsedText, TextSpan } from "ui-components/Text";
 
-export class ActivityFeedGrouped extends React.PureComponent<{ activity: ActivityGroup[] }> {
+export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: React.RefObject<any> }> {
+    /*
     shouldComponentUpdate(nextProps) {
-        return this.props.activity.length !== nextProps.activity.length;
+        return this.props.children.length !== nextProps.children.length;
     }
+    */
 
     render() {
-        const { activity } = this.props;
-        if (activity.length === 0) return null;
-
         return <Table>
             <TableHeader>
                 <TFRow>
@@ -29,16 +28,18 @@ export class ActivityFeedGrouped extends React.PureComponent<{ activity: Activit
                     <TableHeaderCell width="99%" />
                 </TFRow>
             </TableHeader>
-            <TableBody>
-                {activity.map((a, i) => <TrackedFeedActivity key={i} activity={a} />)}
+            <TableBody ref={this.props.containerRef}>
+                {/* {activity.map((a, i) => <ActivityFeedItem key={i} activity={a} />)} */}
+                {this.props.children}
             </TableBody>
         </Table>;
     }
 
 }
 
-export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) =>
-    <ActivityFeedGrouped activity={groupActivity(activity)!} />;
+export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) => null;
+// export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) =>
+// <ActivityFeedFrame activity={groupActivity(activity)!} />;
 
 const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props => {
     switch (props.event.type) {
@@ -86,7 +87,7 @@ const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props
 
 );
 
-const TrackedFeedActivity = ({ activity }: { activity: ActivityGroup }) => (
+export const ActivityFeedItem = ({ activity }: { activity: ActivityGroup }) => (
     <TFRow>
         <TableCell>
             <Dropdown>
