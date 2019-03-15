@@ -49,7 +49,7 @@ class Activity extends React.Component<ActivityProps> {
 
     private renderMain(): React.ReactNode {
         const { scroll, error, loading, fetchActivity } = this.props;
-        return <React.StrictMode>
+        return <>
             <Scroll.List
                 scroll={scroll}
                 scrollSize={scrollSize}
@@ -61,8 +61,7 @@ class Activity extends React.Component<ActivityProps> {
                 )}
                 renderer={(item, style) => (<ActivityFeedItem style={style} activity={item} />)}
             />
-
-        </React.StrictMode>;
+        </>;
     }
 
     private renderSidebar(): React.ReactNode {
