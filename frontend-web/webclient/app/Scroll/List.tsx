@@ -2,7 +2,6 @@ import * as React from "react";
 import { ScrollResult, ScrollRequest, ScrollSize } from "./Types";
 import { Error, LoadingButton, Flex, Box } from "ui-components";
 import * as Heading from "ui-components/Heading";
-import { Dictionary } from "Types";
 import { timestampUnixMs } from "UtilityFunctions";
 
 interface ListProps<Item, OffsetType> {
@@ -10,7 +9,7 @@ interface ListProps<Item, OffsetType> {
     scrollSize?: ScrollSize
 
     frame?: (containerRef: React.RefObject<any>, children) => React.ReactNode
-    renderer: (item: Item, inlineStyle: React.CSSProperties) => React.ReactNode
+    renderer: (props: { item: Item }) => JSX.Element | null
     onNextScrollRequested: (request: ScrollRequest<OffsetType>) => void
     spacer?: (height: number) => React.ReactNode
 
@@ -30,12 +29,12 @@ interface ListState {
     postSpacingRequired?: number
 }
 
-export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, OffsetType>, ListState> {
+export class List<Item, OffsetType> extends React.Component<ListProps<Item, OffsetType>, ListState> {
     private eventListener: (e: UIEvent) => void
     private container = React.createRef<HTMLElement>();
     private recordedHeights: number[] = [];
     private topOffset: number = -1;
-    private ticking: number = -1;
+    private averageComponentSize: number = -1;
 
     private get scrollOrDefault(): ScrollResult<Item, OffsetType> {
         return this.props.scroll || { endOfScroll: false, nextOffset: null, items: [] };
@@ -50,6 +49,11 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
         this.state = {};
     }
 
+    shouldComponentUpdate(nextProps, nextState) {
+        const result = this.state !== nextState || this.props !== nextProps;
+        return result;
+    }
+
     componentWillReceiveProps(nextProps: ListProps<Item, OffsetType>) {
         const scroll = this.scrollOrDefault;
         const nextScrollOrDefault = nextProps.scroll || { endOfScroll: false, nextOffset: null, items: [] };
@@ -58,13 +62,20 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
 
         if (nextScrollOrDefault.items.length < scroll.items.length) {
             this.recordedHeights = Array.from({ length: scroll.items.length }, () => 0);
-        } else {
-            // TODO This is an incorrect assumption. It will only work for prototyping.
-            const missingEntries = nextScrollOrDefault.items.length - scroll.items.length;
-            this.recordedHeights.concat(Array.from({ length: missingEntries }, () => 0));
 
             this.state = {};
             this.setState({});
+        } else {
+            // TODO This is not always correct (but often is)
+            const missingEntries = nextScrollOrDefault.items.length - scroll.items.length;
+            this.recordedHeights.concat(Array.from({ length: missingEntries }, () => 0));
+
+            const firstVisibleElement = this.state.firstVisibleElement;
+            if (firstVisibleElement !== undefined && this.averageComponentSize > 0) {
+                // TODO We could calculate this in a better way
+                const lastVisibleElement = this.state.lastVisibleElement || scroll.items.length;
+                this.setState({ lastVisibleElement: lastVisibleElement + 10, postSpacingRequired: this.averageComponentSize * 10 });
+            }
         }
     }
 
@@ -88,49 +99,46 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
                 this.requestMore(false);
             }
 
-            clearTimeout(this.ticking);
-            this.ticking = setTimeout(() => {
-                this.updateTopOffset();
-                const currentTop = window.scrollY;
-                const currentBottom = currentTop + window.innerHeight - this.topOffset;
+            this.updateTopOffset();
+            const currentTop = window.scrollY;
+            const currentBottom = currentTop + window.innerHeight - this.topOffset;
 
-                const heights = this.recordedHeights;
-                let sum = 0;
-                let firstVisibleElement: number | undefined;
-                let lastVisibleElement: number | undefined;
-                let spacingRequired: number | undefined;
-                let postSpacingRequired: number | undefined;
+            const heights = this.recordedHeights;
+            let sum = 0;
+            let firstVisibleElement: number | undefined;
+            let lastVisibleElement: number | undefined;
+            let spacingRequired: number | undefined;
+            let postSpacingRequired: number | undefined;
 
-                for (let i = 0; i < heights.length; i++) {
-                    sum += heights[i];
-                    if (sum >= currentTop && firstVisibleElement === undefined) {
-                        firstVisibleElement = i;
-                        if (i > 0) {
-                            spacingRequired = sum - heights[i];
-                        }
-                    }
-
-                    if (sum >= currentBottom && lastVisibleElement === undefined) {
-                        lastVisibleElement = i + 1;
-                        sum = 0; // Start counting for postSpacingRequired
+            for (let i = 0; i < heights.length; i++) {
+                sum += heights[i];
+                if (sum >= currentTop && firstVisibleElement === undefined) {
+                    firstVisibleElement = i;
+                    if (i > 0) {
+                        spacingRequired = sum - heights[i];
                     }
                 }
 
-                if (lastVisibleElement !== undefined && sum > 0) {
-                    postSpacingRequired = sum;
+                if (sum >= currentBottom && lastVisibleElement === undefined) {
+                    lastVisibleElement = i + 1;
+                    sum = 0; // Start counting for postSpacingRequired
                 }
+            }
 
-                const state = this.state;
-                if (firstVisibleElement !== state.firstVisibleElement || lastVisibleElement !== state.lastVisibleElement) {
-                    this.setState(() => ({
-                        firstVisibleElement,
-                        lastVisibleElement,
-                        spacingRequired,
-                        postSpacingRequired
-                    }));
+            if (lastVisibleElement !== undefined && sum > 0) {
+                postSpacingRequired = sum;
+            }
 
-                }
-            }, 50);
+            const state = this.state;
+            if (firstVisibleElement !== state.firstVisibleElement || lastVisibleElement !== state.lastVisibleElement) {
+                this.setState(() => ({
+                    firstVisibleElement,
+                    lastVisibleElement,
+                    spacingRequired,
+                    postSpacingRequired
+                }));
+
+            }
         };
 
         window.addEventListener('scroll', this.eventListener);
@@ -147,15 +155,32 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
             // Skip the spacer
             const initialElement = this.state.spacingRequired !== undefined ? 1 : 0;
             const elementsToSkip = this.state.postSpacingRequired !== undefined ? 1 : 0;
+
             for (let i = initialElement; i < container.children.length - elementsToSkip; i++) {
                 const child = container.children[i];
-                this.recordedHeights[offset + i - initialElement] = child.getBoundingClientRect().height;
+                const height = child.getBoundingClientRect().height;
+                this.recordedHeights[offset + i - initialElement] = height;
+            }
+
+            if (this.averageComponentSize === -1) {
+                let sum = 0;
+                let elementsToCount = 0;
+                const recorded = this.recordedHeights;
+                for (let i = 0; i < recorded.length; i++) {
+                    if (recorded[i] > 0) {
+                        sum += recorded[i];
+                        elementsToCount++;
+                    }
+                }
+
+                if (elementsToCount > 0) {
+                    this.averageComponentSize = sum / elementsToCount;
+                }
             }
         }
     }
 
     render() {
-        console.log("RENDER!", timestampUnixMs());
         return <>
             {this.renderError()}
             {this.renderBody()}
@@ -201,34 +226,20 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
 
     private renderEntries(): React.ReactNode {
         const items = this.scrollOrDefault.items;
-        if (items.length === 0) return null;
-
         const containerRef = this.container;
-        const { renderer } = this.props;
+        const { renderer, spacer } = this.props;
         const { postSpacingRequired, spacingRequired, firstVisibleElement, lastVisibleElement } = this.state;
-        const first = firstVisibleElement || 0;
-        const last = lastVisibleElement !== undefined ? lastVisibleElement : items.length;
 
-        const children: React.ReactNode[] = [];
-
-        const spacer = this.props.spacer || ((height: number) => <Box height={height} />);
-        if (spacingRequired !== undefined) {
-            children.push(spacer(spacingRequired));
-        }
-
-        for (let i = first; i < last; i++) {
-            children.push(renderer(items[i], {}));
-        }
-
-        if (postSpacingRequired !== undefined) {
-            children.push(spacer(postSpacingRequired));
-        }
-
-        if (containerRef !== undefined) {
-            return <>{children}</>;
-        } else {
-            return <div ref={containerRef}>{children}</div>;
-        }
+        return <ListBody
+            containerRef={containerRef}
+            items={items}
+            firstVisibleElement={firstVisibleElement}
+            lastVisibleElement={lastVisibleElement}
+            spacingRequired={spacingRequired}
+            postSpacingRequired={postSpacingRequired}
+            renderer={renderer}
+            spacer={spacer}
+        />;
     }
 
     private renderLoadingButton(): React.ReactNode {
@@ -258,29 +269,53 @@ export class List<Item, OffsetType> extends React.PureComponent<ListProps<Item, 
 }
 
 interface ListBodyProps {
-    scroll: ScrollResult<any, any>
-    renderer: (item: any, style: React.CSSProperties) => React.ReactNode
+    spacingRequired?: number
+    postSpacingRequired?: number
+    firstVisibleElement?: number
+    lastVisibleElement?: number
     containerRef?: React.RefObject<any>
+    items: any[]
+    renderer: (props: { item: any }) => JSX.Element | null;
+    spacer?: (height: number) => React.ReactNode
 }
 
-class ListBody extends React.PureComponent<ListBodyProps> {
+class ListBody extends React.Component<ListBodyProps> {
     shouldComponentUpdate(nextProps: ListBodyProps) {
-        const nextLength = nextProps.scroll !== undefined ? nextProps.scroll.items.length : 0;
-        const currentLength = this.props.scroll !== undefined ? this.props.scroll.items.length : 0;
-        return nextLength !== currentLength;
+        const { props } = this;
+        return props.spacingRequired !== nextProps.spacingRequired ||
+            props.postSpacingRequired !== nextProps.postSpacingRequired ||
+            props.firstVisibleElement !== nextProps.firstVisibleElement ||
+            props.lastVisibleElement !== nextProps.lastVisibleElement ||
+            props.items.length !== nextProps.items.length;
     }
 
     render() {
-        const { scroll, renderer, containerRef } = this.props;
-        if (scroll !== undefined) {
-            const items = scroll.items.map(i => renderer(i, {}));
-            if (containerRef !== undefined) {
-                return <>{items}</>;
-            } else {
-                return <div ref={containerRef}>{items}</div>;
-            }
+        const { spacingRequired, postSpacingRequired, firstVisibleElement, lastVisibleElement,
+            containerRef, renderer, spacer, items } = this.props;
+
+        const first = Math.max(0, firstVisibleElement || 0);
+        const last = Math.min(items.length, lastVisibleElement !== undefined ? lastVisibleElement : items.length);
+
+        const children: React.ReactNode[] = [];
+
+        const spacerOrDefault = spacer || ((height: number) => <div style={{ height: `${height}px` }} />);
+        if (spacingRequired !== undefined) {
+            children.push(spacerOrDefault(spacingRequired));
+        }
+
+        for (let i = first; i < last; i++) {
+            const Renderer = renderer;
+            children.push(<Renderer key={i} item={items[i]} />);
+        }
+
+        if (postSpacingRequired !== undefined) {
+            children.push(spacerOrDefault(postSpacingRequired));
+        }
+
+        if (containerRef !== undefined) {
+            return <>{children}</>;
         } else {
-            return null;
+            return <div ref={containerRef}>{children}</div>;
         }
     }
 }

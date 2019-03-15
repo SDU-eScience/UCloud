@@ -13,12 +13,6 @@ import styled from "styled-components";
 import { EllipsedText, TextSpan } from "ui-components/Text";
 
 export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: React.RefObject<any> }> {
-    /*
-    shouldComponentUpdate(nextProps) {
-        return this.props.children.length !== nextProps.children.length;
-    }
-    */
-
     render() {
         return <Table>
             <TableHeader>
@@ -37,9 +31,11 @@ export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: Reac
 
 }
 
-export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) => null;
-// export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) =>
-// <ActivityFeedFrame activity={groupActivity(activity)!} />;
+export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) => (
+    <ActivityFeedFrame>
+        {groupActivity(activity).map((a, i) => <ActivityFeedItem key={i} activity={a} />)}
+    </ActivityFeedFrame>
+);
 
 const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props => {
     switch (props.event.type) {
@@ -88,41 +84,53 @@ const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props
 );
 
 export const ActivityFeedSpacer = (props: { height: number }) => (
-    <TFRow style={{ height: `${props.height}px` }} />
+    <tr style={{ height: `${props.height}px` }} />
 )
 
-export const ActivityFeedItem = ({ activity, style }: { activity: ActivityGroup, style?: React.CSSProperties }) => (
-    <TFRow style={style}>
-        <TableCell>
-            <Dropdown>
-                <Text fontSize={1} color="text">
-                    {moment(new Date(activity.newestTimestamp)).fromNow()}
-                    <br />
-                    {moment(new Date(activity.newestTimestamp)).format("lll")}
-                </Text>
-            </Dropdown>
-        </TableCell>
-        <TableCell>
-            <Flex>
-                <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
-                <Text fontSize={2}>{`Files ${operationToPastTense(activity.type)}`}</Text>
-            </Flex>
-        </TableCell>
-        <TableCell>
-            {activity.items.map((item, idx) =>
-                <ActivityEvent key={idx} event={item} />
-            )}
+interface ActivityFeedProps {
+    activity: ActivityGroup
+}
 
-            {!!activity.numberOfHiddenResults ?
-                <Box mt={16}>
-                    <Text bold>{activity.numberOfHiddenResults} similar results were hidden</Text>
-                </Box>
-                :
-                null
-            }
-        </TableCell>
-    </TFRow>
-);
+export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
+    shouldComponentUpdate(nextProps: ActivityFeedProps) {
+        return this.props.activity.newestTimestamp !== nextProps.activity.newestTimestamp;
+    }
+
+    render() {
+        const { activity } = this.props;
+        return <TFRow>
+            <TableCell>
+                <Dropdown>
+                    <Text fontSize={1} color="text">
+                        {moment(new Date(activity.newestTimestamp)).fromNow()}
+                        <br />
+                        {moment(new Date(activity.newestTimestamp)).format("lll")}
+                    </Text>
+                </Dropdown>
+            </TableCell>
+            <TableCell>
+                <Flex>
+                    <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
+                    <Text fontSize={2}>{`Files ${operationToPastTense(activity.type)}`}</Text>
+                </Flex>
+            </TableCell>
+            <TableCell>
+                {activity.items.map((item, idx) =>
+                    <ActivityEvent key={idx} event={item} />
+                )}
+
+                {!!activity.numberOfHiddenResults ?
+                    <Box mt={16}>
+                        <Text bold>{activity.numberOfHiddenResults} similar results were hidden</Text>
+                    </Box>
+                    :
+                    null
+                }
+            </TableCell>
+        </TFRow>
+
+    }
+}
 
 const operationToPastTense = (operation: Module.ActivityType): string => {
     switch (operation) {

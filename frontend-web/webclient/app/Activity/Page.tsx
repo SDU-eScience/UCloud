@@ -59,7 +59,9 @@ class Activity extends React.Component<ActivityProps> {
                 frame={(ref, children) => (
                     <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>
                 )}
-                renderer={(item, style) => (<ActivityFeedItem style={style} activity={item} />)}
+                renderer={(props) => (
+                    <ActivityFeedItem activity={props.item} />
+                )}
                 spacer={height => <ActivityFeedSpacer height={height} />}
             />
         </>;
