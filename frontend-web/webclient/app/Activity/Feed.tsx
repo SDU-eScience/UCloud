@@ -87,6 +87,10 @@ const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props
 
 );
 
+export const ActivityFeedSpacer = (props: { height: number }) => (
+    <TFRow style={{ height: `${props.height}px` }} />
+)
+
 export const ActivityFeedItem = ({ activity, style }: { activity: ActivityGroup, style?: React.CSSProperties }) => (
     <TFRow style={style}>
         <TableCell>

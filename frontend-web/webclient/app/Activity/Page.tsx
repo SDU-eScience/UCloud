@@ -14,7 +14,7 @@ import * as Scroll from "Scroll";
 import { DatePicker } from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import BaseLink from "ui-components/BaseLink";
-import { ActivityFeedFrame, ActivityFeedItem } from "./Feed";
+import { ActivityFeedFrame, ActivityFeedItem, ActivityFeedSpacer } from "./Feed";
 
 const scrollSize = 250;
 
@@ -60,6 +60,7 @@ class Activity extends React.Component<ActivityProps> {
                     <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>
                 )}
                 renderer={(item, style) => (<ActivityFeedItem style={style} activity={item} />)}
+                spacer={height => <ActivityFeedSpacer height={height} />}
             />
         </>;
     }
