@@ -67,7 +67,6 @@ function Wayf(props: { history: History }) {
         console.log("Found no auth state!");
     } else {
         const authState = JSON.parse(decodeURIComponent(authStateCookie));
-        console.log("Got the following state:", authState);
         eraseCookie(authCookieName);
         return <LoginPage history={props.history} initialState={authState} />;
     }
