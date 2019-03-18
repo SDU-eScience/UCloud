@@ -40,7 +40,7 @@ class ActivityControllerTest {
                     val fileId = "file"
                     val paginationRequest = PaginationRequest().normalize()
                     val expectedResult =
-                        listOf(ActivityEvent.Download("user1", 0L, fileId, "file", null)).paginate(paginationRequest)
+                        listOf(ActivityEvent.Download("user1", 0L, fileId, "file")).paginate(paginationRequest)
 
                     every { activityService.findEventsForFileId(any(), any()) } returns expectedResult
 
@@ -98,7 +98,7 @@ class ActivityControllerTest {
                     val path = "/file"
                     val paginationRequest = PaginationRequest().normalize()
                     val expectedResult =
-                        listOf(ActivityEvent.Download("user1", 0L, "123", "file", null)).paginate(paginationRequest)
+                        listOf(ActivityEvent.Download("user1", 0L, "123", "file")).paginate(paginationRequest)
 
                     coEvery {
                         activityService.findEventsForPath(

@@ -7,16 +7,14 @@ internal val downloadEvent = ActivityEvent.Download(
     TestUsers.user.username,
     123456789,
     "1",
-    "originalFilePath",
-    null
+    "originalFilePath"
 )
 
 internal val updatedEvent = ActivityEvent.Updated(
     TestUsers.user.username,
     123456787,
     "2",
-    "originalFilePath",
-    null
+    "originalFilePath"
 )
 
 internal val favoriteEvent = ActivityEvent.Favorite(
@@ -24,16 +22,14 @@ internal val favoriteEvent = ActivityEvent.Favorite(
     true,
     123456987,
     "3",
-    "originalFilePath",
-    null
+    "originalFilePath"
 )
 
 internal val inspectedEvent = ActivityEvent.Inspected(
     TestUsers.user.username,
     1234567987,
     "4",
-    "originalFilePath",
-    null
+    "originalFilePath"
 )
 
 internal val movedEvent = ActivityEvent.Moved(
@@ -41,14 +37,12 @@ internal val movedEvent = ActivityEvent.Moved(
     "newName",
     123456798,
     "5",
-    "originalFilePath",
-    null
+    "originalFilePath"
 )
 
 internal val deletedEvent = ActivityEvent.Deleted(
     123456789,
     "6",
     TestUsers.user.username,
-    "originalFilePath",
-    null
+    "originalFilePath"
 )

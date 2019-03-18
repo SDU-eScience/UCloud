@@ -65,7 +65,7 @@ sealed class ActivityEventEntity {
         override var timestamp: Date = Date(System.currentTimeMillis())
     ) : ActivityEventEntity() {
         override fun toModel(): ActivityEvent =
-            ActivityEvent.Download(username, timestamp.time, fileId, originalFileName, id)
+            ActivityEvent.Download(username, timestamp.time, fileId, originalFileName)
     }
 
     @Entity
@@ -78,7 +78,7 @@ sealed class ActivityEventEntity {
         override var timestamp: Date = Date(System.currentTimeMillis())
     ) : ActivityEventEntity() {
         override fun toModel(): ActivityEvent =
-            ActivityEvent.Updated(username, timestamp.time, fileId, originalFileName, id)
+            ActivityEvent.Updated(username, timestamp.time, fileId, originalFileName)
     }
 
     @Entity
@@ -92,7 +92,7 @@ sealed class ActivityEventEntity {
         override var timestamp: Date = Date(System.currentTimeMillis())
     ) : ActivityEventEntity() {
         override fun toModel(): ActivityEvent =
-            ActivityEvent.Favorite(username, isFavorite, timestamp.time, fileId, originalFileName, id)
+            ActivityEvent.Favorite(username, isFavorite, timestamp.time, fileId, originalFileName)
     }
 
     @Entity
@@ -104,7 +104,7 @@ sealed class ActivityEventEntity {
         override var timestamp: Date = Date(System.currentTimeMillis())
     ) : ActivityEventEntity() {
         override fun toModel(): ActivityEvent =
-            ActivityEvent.Inspected(username, timestamp.time, fileId, originalFileName, id)
+            ActivityEvent.Inspected(username, timestamp.time, fileId, originalFileName)
     }
 
     @Entity
@@ -118,7 +118,7 @@ sealed class ActivityEventEntity {
         override var timestamp: Date = Date(System.currentTimeMillis())
     ) : ActivityEventEntity() {
         override fun toModel(): ActivityEvent =
-            ActivityEvent.Moved(username, newName, timestamp.time, fileId, originalFileName, id)
+            ActivityEvent.Moved(username, newName, timestamp.time, fileId, originalFileName)
     }
 
     @Entity
@@ -130,7 +130,7 @@ sealed class ActivityEventEntity {
         override var timestamp: Date = Date(System.currentTimeMillis())
     ) : ActivityEventEntity() {
         override fun toModel(): ActivityEvent =
-            ActivityEvent.Deleted(timestamp.time, fileId, username, originalFileName, id)
+            ActivityEvent.Deleted(timestamp.time, fileId, username, originalFileName)
     }
 
     companion object : HibernateEntity<ActivityEventEntity>, WithId<Long> {

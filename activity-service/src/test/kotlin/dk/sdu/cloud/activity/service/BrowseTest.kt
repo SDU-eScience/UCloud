@@ -47,27 +47,4 @@ class BrowseTest {
             (batchSize - collapseThreshold).toLong()
         )
     }
-
-    @Test
-    fun `test large batch - repeating pattern`() {
-        val timestamp = System.currentTimeMillis()
-        val pattern = listOf(
-            ActivityEvent.Updated(user, timestamp, "1", "/home/$user/file.txt"),
-            ActivityEvent.Download(user, timestamp, "1", "/home/$user/file.txt"),
-            ActivityEvent.Inspected(user, timestamp, "1", "/home/$user/file.txt")
-        )
-        val repeat = 200
-        val batchSize = repeat * pattern.size
-        service.insertBatch(List(repeat) { pattern }.flatten())
-
-        val collapseThreshold = 20
-        val groups = service.browseForUser(NormalizedScrollRequest(scrollSize = 100), user, collapseThreshold)
-        assertThatPropertyEquals(groups, { it.items.size }, 3)
-        assertThatPropertyEquals(groups.items.first(), { it.items.size }, collapseThreshold)
-        assertThatPropertyEquals(
-            groups,
-            { it.nextOffset },
-            batchSize
-        )
-    }
 }
