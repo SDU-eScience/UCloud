@@ -58,7 +58,7 @@
     "@svgr/cli": "^4.1.0",
     "avataaars": "^1.2.1",
     "fuse.js": "^3.4.4",
-    "jsonwebtoken": "8.5.0",
+    "jsonwebtoken": "8.5.1",
     "moment": "~2.24.0",
     "moment-timezone": "^0.5.23",
     "npm": "^6.9.0",
