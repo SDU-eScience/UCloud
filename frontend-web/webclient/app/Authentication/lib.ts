@@ -34,6 +34,7 @@ export default class SDUCloud {
     private accessToken: string;
     private csrfToken: string;
     private decodedToken: any;
+    private forceRefresh: boolean = false;
 
     overrides: Override[] = [];
 
@@ -96,6 +97,10 @@ export default class SDUCloud {
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
 
                 const rejectOrRetry = (parsedResponse?) => {
+                    if (req.status === 401) {
+                        this.forceRefresh = true;
+                    }
+
                     if (maxRetries >= 1 && is5xxStatusCode(req.status)) {
                         this.call(method, path, body, context, maxRetries - 1)
                             .catch(e => reject(e)).then(e => resolve(e));
@@ -278,7 +283,7 @@ export default class SDUCloud {
         const userInfo = this.userInfo;
         if (!userInfo) return undefined;
         else return userInfo.principalType;
-    }    
+    }
 
     /**
      * Attempts to receive a (non-expired) JWT access token from storage. In case the token has expired at attempt will
@@ -290,8 +295,9 @@ export default class SDUCloud {
      */
     receiveAccessTokenOrRefreshIt(): Promise<any> {
         let tokenPromise: Promise<any> | null = null;
-        if (this.isTokenExpired()) {
+        if (this.isTokenExpired() || this.forceRefresh) {
             tokenPromise = this.refresh();
+            this.forceRefresh = false;
         } else {
             tokenPromise = new Promise((resolve, reject) => resolve(SDUCloud.storedAccessToken));
         }
@@ -342,7 +348,10 @@ export default class SDUCloud {
                     if (inSuccessRange(req.status)) {
                         resolve(JSON.parse(req.response));
                     } else {
-                        if (req.status === 401 || req.status === 400) this.clearTokens();
+                        if (req.status === 401 || req.status === 400) {
+                            this.clearTokens();
+                            this.openBrowserLoginPage();
+                        }
                         reject({ status: req.status, response: req.response });
                     }
                 } catch (e) {
@@ -373,12 +382,49 @@ export default class SDUCloud {
         this.csrfToken = csrfToken;
         SDUCloud.storedCsrfToken = csrfToken;
 
-        try {
-            this.decodedToken = jwt.decode(accessToken, { complete: true });
-        } catch (err) {
-            console.log("Received malformed JWT");
+
+        this.decodedToken = this.decodeToken(accessToken);
+    }
+
+    private decodeToken(accessToken: string): any {
+        const bail = (): never => {
             this.clearTokens();
-            throw err;
+            this.openBrowserLoginPage();
+            return void(0) as never;
+        };
+        try {
+            const token = jwt.decode(accessToken, { complete: true });
+
+            if (token === null) {
+                return bail();
+            } if (typeof token === "string") {
+                return bail();
+            } else if (typeof token === "object" && token !== null) {
+                const payload = token.payload;
+                const isValid = "sub" in payload &&
+                    "uid" in payload &&
+                    "lastName" in payload &&
+                    "aud" in payload &&
+                    "role" in payload &&
+                    "iss" in payload &&
+                    "firstNames" in payload &&
+                    "exp" in payload &&
+                    "extendedByChain" in payload &&
+                    "iat" in payload &&
+                    "principalType" in payload &&
+                    "publicSessionReference" in payload;
+
+                if (!isValid) {
+                    console.log("Bailing. Bad JWT");
+                    return bail();
+                }
+
+                return token;
+            } else {
+                return bail();
+            }
+        } catch (e) {
+            return bail();
         }
     }
 

@@ -45,7 +45,7 @@ export const fetchFiles = async (path: string, itemsPerPage: number, page: numbe
         return receiveFiles(response.response, path, order, sortBy)
     } catch (e) {
         const error = errorMessageOrDefault(e, "An error occurred fetching contents of folder.");
-        if (e.request.status === 404) return setInvalidPath(error);
+        if (e.request.status === 404 || e.request.status === 403) return setInvalidPath(error);
         return setErrorMessage(e);
     }
 }

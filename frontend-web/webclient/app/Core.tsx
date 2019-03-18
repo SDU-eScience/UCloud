@@ -43,8 +43,7 @@ const Core = () => (
         <Snackbars />
         <Header />
         <Uploader />
-        {/* FIXME: boolean logic should not be here */}
-        {Cloud.isLoggedIn ? <Sidebar /> : null}
+        <Sidebar />
         <Switch>
             <Route exact path="/login" component={LoginPage} />
             <Route exact path="/loginSuccess" component={LoginSuccess} />
