@@ -77,7 +77,9 @@ interface ExtractedParameters {
     [key: string]: string | number | boolean | { source: string, destination: string }
 }
 
-export function extractParametersFromMap(map: Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>, appParameters: ApplicationParameter[]): ExtractedParameters {
+export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
+
+export function extractParametersFromMap(map: ParameterValues, appParameters: ApplicationParameter[]): ExtractedParameters {
     const extracted: ExtractedParameters = {};
     map.forEach(({ current }, key) => {
         const parameter = appParameters.find(it => it.name === key);

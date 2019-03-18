@@ -4,6 +4,7 @@ import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
 import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
+import { ParameterValues } from "Utilities/ApplicationUtilities";
 
 export interface Analysis {
     status: string
@@ -161,7 +162,7 @@ export interface RunAppState {
     loading: boolean
 
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
-    parameterValues: Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>
+    parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
     favoriteLoading: boolean

@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
+import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault, successNotification } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite } from "."
 import { Dispatch } from "redux";
@@ -11,9 +11,8 @@ import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, Vertica
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter, OptionalParameters } from "./ParameterWidgets";
-import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap } from "Utilities/ApplicationUtilities";
+import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
-import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
@@ -63,10 +62,30 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 
     private onSubmit = (event: React.FormEvent) => {
-        const parameters = extractParametersFromMap(this.state.parameterValues, this.state.application!.invocation.parameters);
         event.preventDefault();
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
+        const { invocation } = this.state.application;
+
+        const parameters = extractParametersFromMap(this.state.parameterValues, this.state.application!.invocation.parameters);
+        const requiredParams = invocation.parameters.filter(it => !it.optional);
+        const missingParameters: string[] = [];
+        requiredParams.forEach(rParam => {
+            const parameterValue = parameters[rParam.name];
+            // Number, string, boolean 
+            if (!parameterValue) missingParameters.push(rParam.title);
+            // { source, destination }
+            else if (typeof parameterValue === "object") {
+                if (!parameterValue.source) {
+                    missingParameters.push(rParam.title);
+                }
+            }
+        });
+
+        if (missingParameters.length > 0) {
+            failureNotification(`Missing values for ${missingParameters.join(", ")}`, missingParameters.length)
+            return
+        }
 
         let maxTime = this.extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
@@ -249,15 +268,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             </ContainerForText>
         );
 
-        const requiredKeys = application.invocation.parameters.filter(it => !it.optional);
-        const disabled = requiredKeys.some(it => {
-            /* FIXME: Must update sidebar, to allow submit */
-            const { current } = parameterValues.get(it.name)!;
-            if (!current) return true;
-            return !current.value
-        });
-        const title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`;
-
         const sidebar = (
             <VerticalButtonGroup>
                 <OutlineButton
@@ -275,12 +285,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 <LoadingButton fullWidth loading={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                     {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
                 </LoadingButton>
-                <Dropdown>
-                    <LoadingButton disabled={disabled} onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
-                    <DropdownContent visible={disabled} colorOnHover={false} width="auto" color="white" backgroundColor="black">
-                        <Text>{title}</Text>
-                    </DropdownContent>
-                </Dropdown>
+                <SubmitButton
+                    parameters={application.invocation.parameters}
+                    jobSubmitted={jobSubmitted}
+                    onSubmit={this.onSubmit}
+                />
             </VerticalButtonGroup>
         );
 
@@ -295,8 +304,18 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 }
 
+interface SubmitButton {
+    parameters: ApplicationParameter[]
+    onSubmit: (e: React.FormEvent) => void
+    jobSubmitted: boolean
+}
+
+const SubmitButton = ({ onSubmit, jobSubmitted }: SubmitButton) => {
+    return (<LoadingButton onClick={onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>);
+}
+
 interface ParameterProps {
-    values: Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>
+    values: ParameterValues
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
     app: WithAppMetadata & WithAppInvocation

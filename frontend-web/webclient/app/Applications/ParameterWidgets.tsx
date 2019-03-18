@@ -113,7 +113,7 @@ const BooleanParameter = (props: BooleanParameter) => {
 
 const GenericNumberParameter = (props: NumberParameterProps) => {
     const { parameter, parameterRef } = props;
-    const [value, setValue] = React.useState(typeof parameter.defaultValue === "object" ? parameter.defaultValue!.value.toString() : undefined); 
+    const [value, setValue] = React.useState(parameter.defaultValue != null && typeof parameter.defaultValue === "object" ? parameter.defaultValue.value.toString() : undefined);
 
     let baseField = (
         <Input
