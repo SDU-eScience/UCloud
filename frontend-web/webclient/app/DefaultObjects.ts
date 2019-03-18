@@ -7,7 +7,7 @@ import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
 import { Upload } from "Uploader";
-import { Activity } from "Activity";
+import { Activity, ActivityGroup, ActivityType, ActivityFilter } from "Activity";
 import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
@@ -19,6 +19,7 @@ import { DetailedProjectSearchReduxState } from "Project";
 import { SidebarPages } from "ui-components/Sidebar";
 import { SnackbarReduxObject } from "Snackbar/Redux";
 import { SharesByPath, ShareState } from "Shares";
+import { ScrollResult } from "Scroll/Types";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -88,10 +89,17 @@ function getItemOrDefault<T>(itemName: string, defaultValue: T): T {
     return window.localStorage.getItem(itemName) as unknown as T || defaultValue;
 }
 
-export interface ComponentWithPage<T> {
-    page: Page<T>
+export interface ComponentWithLoadingState {
     loading: boolean
     error?: string
+}
+
+export interface ComponentWithPage<T> extends ComponentWithLoadingState {
+    page: Page<T>
+}
+
+export interface ComponentWithScroll<Item, OffsetType> extends ComponentWithLoadingState {
+    scroll?: ScrollResult<Item, OffsetType>
 }
 
 export interface ResponsiveReduxObject {
@@ -143,7 +151,7 @@ export type AnalysisReduxObject = ComponentWithPage<Analysis>;
 
 export interface NotificationsReduxObject {
     redirectTo: string
-    items: Notification[] 
+    items: Notification[]
     loading: boolean
     error?: string
 }
@@ -173,7 +181,7 @@ export interface RunApplicationReduxObject {
 
 }
 
-export type ActivityReduxObject = ComponentWithPage<Activity>
+export type ActivityReduxObject = ComponentWithScroll<ActivityGroup, number> & ActivityFilter;
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 
@@ -244,8 +252,6 @@ export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & Account
 
 
 export const initActivity = (): ActivityReduxObject => ({
-    page: emptyPage,
-    error: undefined,
     loading: false
 });
 

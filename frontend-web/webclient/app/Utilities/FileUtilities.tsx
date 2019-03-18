@@ -536,7 +536,14 @@ export const getParentPath = (path: string): string => {
 
 const goUpDirectory = (count: number, path: string): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
-const toFileName = (path: string): string => path.split("/").filter(p => p).pop()!;
+const toFileName = (path: string): string => {
+    const lastSlash = path.lastIndexOf("/");
+    if (lastSlash !== -1 && path.length > lastSlash + 1) {
+        return path.substring(lastSlash + 1);
+    } else {
+        return path;
+    }
+};
 
 export function getFilenameFromPath(path: string): string {
     const replacedHome = replaceHomeFolder(path, Cloud.homeFolder)

@@ -7,9 +7,13 @@ import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.service.WithScrollRequest
+import dk.sdu.cloud.service.WithScrollResult
 import io.ktor.http.HttpMethod
 
-object ActivityDescriptions : CallDescriptionContainer("activity") {
+typealias ActivityDescriptions = Activity
+
+object Activity : CallDescriptionContainer("activity") {
     val baseContext = "/api/activity"
 
     val listByFileId = call<ListActivityByIdRequest, ListActivityByIdResponse, CommonErrorMessage>("listByFileId") {
@@ -70,42 +74,57 @@ object ActivityDescriptions : CallDescriptionContainer("activity") {
         }
     }
 
-    val streamByPath = call<StreamByPathRequest, StreamByPathResponse, CommonErrorMessage>("streamByPath") {
+    val browseByUser = call<BrowseByUser.Request, BrowseByUser.Response, CommonErrorMessage>("browseByUser") {
         auth {
             access = AccessRight.READ
         }
 
         http {
+            method = HttpMethod.Get
+
             path {
                 using(baseContext)
-                +"stream"
-                +"by-path"
+                +"browse"
+                +"user"
             }
 
             params {
-                +boundTo(StreamByPathRequest::path)
-                +boundTo(StreamByPathRequest::itemsPerPage)
-                +boundTo(StreamByPathRequest::page)
+                +boundTo(BrowseByUser.Request::user)
+                +boundTo(BrowseByUser.Request::offset)
+                +boundTo(BrowseByUser.Request::scrollSize)
+                +boundTo(BrowseByUser.Request::collapseAt)
+                +boundTo(BrowseByUser.Request::type)
+                +boundTo(BrowseByUser.Request::minTimestamp)
+                +boundTo(BrowseByUser.Request::maxTimestamp)
             }
         }
     }
 
-    val streamForUser = call<StreamForUserRequest, StreamForUserResponse, CommonErrorMessage>("streamForUser") {
-        auth {
-            access = AccessRight.READ
-        }
+    object BrowseByUser {
+        data class Request(
+            override val user: String?,
+            override val collapseAt: Int?,
+            override val type: ActivityEventType?,
+            override val minTimestamp: Long?,
+            override val maxTimestamp: Long?,
+            override val offset: Int?,
+            override val scrollSize: Int?
+        ) : WithScrollRequest<Int>, ActivityFilter
 
-        http {
-            path {
-                using(baseContext)
-                +"stream"
-            }
-
-            params {
-                +boundTo(StreamForUserRequest::user)
-                +boundTo(StreamForUserRequest::itemsPerPage)
-                +boundTo(StreamForUserRequest::page)
-            }
-        }
+        data class Response(
+            override val endOfScroll: Boolean,
+            override val items: List<ActivityEventGroup>,
+            override val nextOffset: Int
+        ) : WithScrollResult<ActivityEventGroup, Int>
     }
 }
+
+interface ActivityFilter {
+    val user: String?
+    val collapseAt: Int?
+    val type: ActivityEventType?
+    val minTimestamp: Long?
+    val maxTimestamp: Long?
+}
+
+

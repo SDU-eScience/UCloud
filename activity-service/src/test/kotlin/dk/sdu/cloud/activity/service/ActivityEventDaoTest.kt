@@ -1,8 +1,5 @@
 package dk.sdu.cloud.activity.service
 
-import com.fasterxml.jackson.module.kotlin.readValue
-import com.fasterxml.jackson.module.kotlin.readValues
-import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.services.HibernateActivityEventDao
 import dk.sdu.cloud.activity.util.deletedEvent
 import dk.sdu.cloud.activity.util.downloadEvent
@@ -17,7 +14,7 @@ import dk.sdu.cloud.service.test.withDatabase
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class ActivityEventDaoTest{
+class ActivityEventDaoTest {
 
     @Test
     fun `insert Test and find by user`() {
@@ -28,7 +25,7 @@ class ActivityEventDaoTest{
                 dao.insert(it, updatedEvent)
                 dao.findByUser(
                     it,
-                    NormalizedPaginationRequest(10,0),
+                    NormalizedPaginationRequest(10, 0),
                     TestUsers.user.username
                 )
             }
@@ -47,7 +44,7 @@ class ActivityEventDaoTest{
                 dao.insertBatch(it, listOf(favoriteEvent, inspectedEvent))
                 dao.findByUser(
                     it,
-                    NormalizedPaginationRequest(10,0),
+                    NormalizedPaginationRequest(10, 0),
                     TestUsers.user.username
                 )
             }
@@ -66,7 +63,7 @@ class ActivityEventDaoTest{
                 dao.insertBatch(it, listOf(movedEvent, deletedEvent))
                 dao.findByFileId(
                     it,
-                    NormalizedPaginationRequest(10,0),
+                    NormalizedPaginationRequest(10, 0),
                     "5"
                 )
             }
@@ -77,7 +74,7 @@ class ActivityEventDaoTest{
             results = db.withTransaction {
                 dao.findByFileId(
                     it,
-                    NormalizedPaginationRequest(10,0),
+                    NormalizedPaginationRequest(10, 0),
                     "6"
                 )
             }
