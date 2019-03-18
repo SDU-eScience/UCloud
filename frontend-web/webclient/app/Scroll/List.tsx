@@ -95,7 +95,6 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
     componentWillMount() {
         this.eventListener = e => {
             if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 200) {
-                console.log("MORE!!!");
                 this.requestMore(false);
             }
 

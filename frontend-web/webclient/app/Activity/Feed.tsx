@@ -37,6 +37,22 @@ export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) => (
     </ActivityFeedFrame>
 );
 
+// Performance note: Don't use styled components here.
+const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props => (
+    <div>
+        <b>
+            <ReactRouterLink to={fileInfoPage(props.event.originalFilePath)}>
+                <div className="ellipsis">
+                    {getFilenameFromPath(props.event.originalFilePath)}
+                </div>
+            </ReactRouterLink>
+        </b>
+        {" "}
+        <OperationText event={props.event} />
+    </div>
+);
+
+// Performance note: Don't use styled components here.
 const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props => {
     switch (props.event.type) {
         case Module.ActivityType.MOVED: {
@@ -67,20 +83,6 @@ const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props
         }
     }
 };
-
-const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props => (
-    <div>
-        <b>
-            <ReactRouterLink to={fileInfoPage(props.event.originalFilePath)}>
-                <div className="ellipsis">
-                    {getFilenameFromPath(props.event.originalFilePath)}
-                </div>
-            </ReactRouterLink>
-        </b>
-        {" "}
-        <OperationText event={props.event} />
-    </div>
-);
 
 export const ActivityFeedSpacer = (props: { height: number }) => (
     <tr style={{ height: `${props.height}px` }} />
@@ -125,7 +127,6 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
                 }
             </TableCell>
         </TFRow>
-
     }
 }
 
@@ -205,6 +206,10 @@ const TFRow = styled(TableRow)`
         color: ${colors["text"]}
     }
 
+    & a:hover {
+        color: ${colors["textHighlight"]}
+    }
+
     & div.ellipsis {
         white-space: nowrap;
         overflow: hidden;
@@ -212,9 +217,5 @@ const TFRow = styled(TableRow)`
         max-width: 100%;
         display: inline-block;
         vertical-align: bottom;
-    }
-
-    & a:hover {
-        color: ${colors["textHighlight"]}
     }
 `;

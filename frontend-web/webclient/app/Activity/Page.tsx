@@ -21,7 +21,7 @@ const scrollSize = 250;
 
 const dropdownOptions: { text: string, value: string }[] =
     [
-        { value: "NO_FILTER", text: "No filter" },
+        { value: "NO_FILTER", text: "Don't filter" },
         { value: Module.ActivityType.DELETED, text: "Deletions" },
         { value: Module.ActivityType.DOWNLOAD, text: "Downloads" },
         { value: Module.ActivityType.FAVORITE, text: "Favorites" },
@@ -75,8 +75,6 @@ class Activity extends React.Component<ActivityProps> {
         </>;
     }
 
-
-
     private renderSidebar(): React.ReactNode {
         const { minTimestamp, maxTimestamp, type } = this.props;
 
@@ -84,26 +82,25 @@ class Activity extends React.Component<ActivityProps> {
             <>
                 {this.renderQuickFilters()}
                 <Heading.h3>Active Filters</Heading.h3>
-                <form onSubmit={e => e.preventDefault()}>
+                <Box mb={16}>
                     <Label>Filter by event type</Label>
                     <ClickableDropdown
                         chevron
                         options={dropdownOptions}
-                        trigger={type === undefined ? "No filter" : dropdownOptions.find(i => i.value === type)!.text}
+                        trigger={type === undefined ? "Don't filter" : dropdownOptions.find(i => i.value === type)!.text}
                         onChange={e => this.applyFilter({ type: e === "NO_FILTER" ? undefined : e as Module.ActivityType })}
                     />
+                </Box>
 
-                    <TimeFilter
-                        text={"Event created after"}
-                        selected={minTimestamp}
-                        onChange={minTimestamp => this.applyFilter({ minTimestamp })} />
+                <TimeFilter
+                    text={"Event created after"}
+                    selected={minTimestamp}
+                    onChange={minTimestamp => this.applyFilter({ minTimestamp })} />
 
-                    <TimeFilter
-                        text={"Event created before"}
-                        selected={maxTimestamp}
-                        onChange={maxTimestamp => this.applyFilter({ maxTimestamp })} />
-
-                </form>
+                <TimeFilter
+                    text={"Event created before"}
+                    selected={maxTimestamp}
+                    onChange={maxTimestamp => this.applyFilter({ maxTimestamp })} />
             </>
         );
     }
@@ -114,7 +111,7 @@ class Activity extends React.Component<ActivityProps> {
         const startOfWeek = getStartOfWeek(now);
         const startOfYesterday = getStartOfDay(new Date(startOfToday.getTime() - 1));
 
-        return <>
+        return <Box mb={16}>
             <Heading.h3>Quick Filters</Heading.h3>
             <Box mb={16}>
                 {this.filter("Today", { minTimestamp: startOfToday, maxTimestamp: undefined })}
@@ -122,7 +119,7 @@ class Activity extends React.Component<ActivityProps> {
                 {this.filter("This week", { minTimestamp: startOfWeek, maxTimestamp: undefined })}
                 {this.filter("No filter", { minTimestamp: undefined, maxTimestamp: undefined, type: undefined })}
             </Box>
-        </>;
+        </Box>;
     }
 
     private filter(title: string, filter: Partial<ActivityFilter>) {
@@ -135,7 +132,7 @@ class Activity extends React.Component<ActivityProps> {
     private applyFilter(filter: Partial<ActivityFilter>) {
         this.props.updateFilter(filter);
         this.props.resetActivity();
-        this.props.fetchActivity({ scrollSize }, filter);
+        this.props.fetchActivity({ scrollSize }, { ...this.props, ...filter });
     }
 }
 
@@ -162,7 +159,7 @@ export const getStartOfWeek = (d: Date): Date => {
 }
 
 export const TimeFilter = (props: { text: string, onChange: (ts?: Date) => void, selected?: Date }) => (
-    <>
+    <Box mb={16}>
         <Label>{props.text}</Label>
         <InputGroup>
             <DatePicker
@@ -177,7 +174,7 @@ export const TimeFilter = (props: { text: string, onChange: (ts?: Date) => void,
                 dateFormat="dd/MM/yy HH:mm"
             />
         </InputGroup>
-    </>
+    </Box>
 );
 
 const mapStateToProps = ({ activity }: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => ({
