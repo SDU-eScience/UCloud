@@ -137,7 +137,6 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
                     spacingRequired,
                     postSpacingRequired
                 }));
-
             }
         };
 

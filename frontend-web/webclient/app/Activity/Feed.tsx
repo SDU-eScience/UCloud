@@ -7,10 +7,11 @@ import { fileInfoPage } from "Utilities/FileUtilities";
 import Icon, { IconName } from "ui-components/Icon";
 import { Flex, Text, Link, Box } from "ui-components";
 import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } from "ui-components/Table";
-import { Dropdown } from "ui-components/Dropdown";
 import { Cloud } from "Authentication/SDUCloudObject";
 import styled from "styled-components";
+import { Link as ReactRouterLink } from "react-router-dom";
 import { EllipsedText, TextSpan } from "ui-components/Text";
+import { colors } from "ui-components/theme";
 
 export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: React.RefObject<any> }> {
     render() {
@@ -23,7 +24,6 @@ export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: Reac
                 </TFRow>
             </TableHeader>
             <TableBody ref={this.props.containerRef}>
-                {/* {activity.map((a, i) => <ActivityFeedItem key={i} activity={a} />)} */}
                 {this.props.children}
             </TableBody>
         </Table>;
@@ -40,47 +40,46 @@ export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) => (
 const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props => {
     switch (props.event.type) {
         case Module.ActivityType.MOVED: {
-            return <TextSpan>
+            return <span>
                 was moved to
                 {" "}
-                <TextSpan bold>
-                    <Link to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
-                        <EllipsedText maxWidth={"100%"}>
+                <b>
+                    <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
+                        <div className="ellipsis">
                             {replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}
-                        </EllipsedText>
-                    </Link>
-                </TextSpan>
-            </TextSpan>;
+                        </div>
+                    </ReactRouterLink>
+                </b>
+            </span>;
         }
 
         case Module.ActivityType.FAVORITE: {
             const isFavorite = (props.event as Module.FavoriteActivity).favorite;
             if (isFavorite) {
-                return <TextSpan>was <TextSpan bold>added to favorites</TextSpan></TextSpan>;
+                return <span>was <b>added to favorites</b></span>;
             } else {
-                return <TextSpan>was <TextSpan bold>removed from favorites</TextSpan></TextSpan>;
+                return <span>was <b>removed from favorites</b></span>;
             }
         }
 
         default: {
-            return <TextSpan>was <TextSpan bold>{operationToPastTense(props.event.type)}</TextSpan></TextSpan>;
+            return <span>was <b>{operationToPastTense(props.event.type)}</b></span>;
         }
     }
 };
 
 const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props => (
-    <Text fontSize={1}>
-        <TextSpan bold>
-            <Link to={fileInfoPage(props.event.originalFilePath)}>
-                <EllipsedText maxWidth={"100%"}>
+    <div>
+        <b>
+            <ReactRouterLink to={fileInfoPage(props.event.originalFilePath)}>
+                <div className="ellipsis">
                     {getFilenameFromPath(props.event.originalFilePath)}
-                </EllipsedText>
-            </Link>
-        </TextSpan>
+                </div>
+            </ReactRouterLink>
+        </b>
         {" "}
         <OperationText event={props.event} />
-    </Text>
-
+    </div>
 );
 
 export const ActivityFeedSpacer = (props: { height: number }) => (
@@ -100,13 +99,11 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
         const { activity } = this.props;
         return <TFRow>
             <TableCell>
-                <Dropdown>
-                    <Text fontSize={1} color="text">
-                        {moment(new Date(activity.newestTimestamp)).fromNow()}
-                        <br />
-                        {moment(new Date(activity.newestTimestamp)).format("lll")}
-                    </Text>
-                </Dropdown>
+                <Text fontSize={1} color="text">
+                    {moment(new Date(activity.newestTimestamp)).fromNow()}
+                    <br />
+                    {moment(new Date(activity.newestTimestamp)).format("lll")}
+                </Text>
             </TableCell>
             <TableCell>
                 <Flex>
@@ -203,4 +200,21 @@ function groupActivity(items: Module.Activity[] = []): ActivityGroup[] {
 
 const TFRow = styled(TableRow)`
     vertical-align: top;
+
+    & a {
+        color: ${colors["text"]}
+    }
+
+    & div.ellipsis {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        display: inline-block;
+        vertical-align: bottom;
+    }
+
+    & a:hover {
+        color: ${colors["textHighlight"]}
+    }
 `;

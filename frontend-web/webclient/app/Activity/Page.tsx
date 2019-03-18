@@ -6,7 +6,7 @@ import { ActivityReduxObject, ReduxObject } from "DefaultObjects";
 import { resetActivity, fetchActivity, setLoading, updateActivityFilter } from "./Redux/ActivityActions";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
-import { Box, Input, Label, InputGroup } from "ui-components";
+import { Box, Label, InputGroup } from "ui-components";
 import { MainContainer } from "MainContainer/MainContainer";
 import { SidebarPages } from "ui-components/Sidebar";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
@@ -15,8 +15,20 @@ import { DatePicker } from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import BaseLink from "ui-components/BaseLink";
 import { ActivityFeedFrame, ActivityFeedItem, ActivityFeedSpacer } from "./Feed";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const scrollSize = 250;
+
+const dropdownOptions: { text: string, value: string }[] =
+    [
+        { value: "NO_FILTER", text: "No filter" },
+        { value: Module.ActivityType.DELETED, text: "Deletions" },
+        { value: Module.ActivityType.DOWNLOAD, text: "Downloads" },
+        { value: Module.ActivityType.FAVORITE, text: "Favorites" },
+        { value: Module.ActivityType.INSPECTED, text: "Inspections" },
+        { value: Module.ActivityType.MOVED, text: "Moves" },
+        { value: Module.ActivityType.UPDATED, text: "Updates" },
+    ]
 
 class Activity extends React.Component<ActivityProps> {
     public componentDidMount() {
@@ -56,26 +68,30 @@ class Activity extends React.Component<ActivityProps> {
                 onNextScrollRequested={req => fetchActivity(req, this.props)}
                 loading={loading}
                 errorMessage={error}
-                frame={(ref, children) => (
-                    <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>
-                )}
-                renderer={(props) => (
-                    <ActivityFeedItem activity={props.item} />
-                )}
+                frame={(ref, children) => <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>}
+                renderer={(props) => <ActivityFeedItem activity={props.item} />}
                 spacer={height => <ActivityFeedSpacer height={height} />}
             />
         </>;
     }
 
+
+
     private renderSidebar(): React.ReactNode {
-        const { minTimestamp, maxTimestamp } = this.props;
+        const { minTimestamp, maxTimestamp, type } = this.props;
+
         return (
             <>
                 {this.renderQuickFilters()}
                 <Heading.h3>Active Filters</Heading.h3>
                 <form onSubmit={e => e.preventDefault()}>
-                    <Label>A Label</Label>
-                    <Input />
+                    <Label>Filter by event type</Label>
+                    <ClickableDropdown
+                        chevron
+                        options={dropdownOptions}
+                        trigger={type === undefined ? "No filter" : dropdownOptions.find(i => i.value === type)!.text}
+                        onChange={e => this.applyFilter({ type: e === "NO_FILTER" ? undefined : e as Module.ActivityType })}
+                    />
 
                     <TimeFilter
                         text={"Event created after"}
