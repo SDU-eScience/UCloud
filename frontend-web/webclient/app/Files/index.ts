@@ -78,7 +78,7 @@ export interface FilesStateProps { // Redux Props
     responsive?: ResponsiveReduxObject 
 }
 
-export interface FilesOperations extends ClearRefresh { // Redux operations
+export interface FilesOperations extends ClearRefresh {
     prioritizeFileSearch: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
@@ -103,6 +103,7 @@ export interface FilesOperations extends ClearRefresh { // Redux operations
 
 export interface FileSelectorProps {
     allowUpload?: boolean
+    inputRef?: React.RefObject<HTMLInputElement>
     onFileSelect: (file: { path: string }) => void
     path: string
     isRequired?: boolean
