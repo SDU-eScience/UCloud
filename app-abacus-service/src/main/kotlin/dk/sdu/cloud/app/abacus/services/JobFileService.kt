@@ -146,11 +146,11 @@ class JobFileService(
                     return@mapNotNull null
                 }
 
-                val (fileToTransferFromHPC, fileLength) = prepareForTransfer(sourceFile, source, transfer)
+                val (fileToTransferFromHPC, _, needsExtraction) = prepareForTransfer(sourceFile, source, transfer)
                 log.debug("Downloading file from $fileToTransferFromHPC")
 
                 GlobalScope.launch {
-                    transferFileFromCompute(job.id, fileToTransferFromHPC, transfer)
+                    transferFileFromCompute(job.id, fileToTransferFromHPC, transfer, needsExtraction)
                 }
             }.joinAll()
         }
@@ -160,7 +160,8 @@ class JobFileService(
     private suspend fun SSHConnection.transferFileFromCompute(
         jobId: String,
         filePath: String,
-        originalFileName: String
+        originalFileName: String,
+        needsExtraction: Boolean
     ) {
         val temporaryFile = Files.createTempFile("", "'").toFile()
         @Suppress("TooGenericExceptionCaught")
@@ -184,6 +185,7 @@ class JobFileService(
                         SubmitComputationResult(
                             jobId,
                             relativePath,
+                            needsExtraction,
                             StreamingFile(
                                 ContentType.Application.OctetStream,
                                 temporaryFile.length(),
@@ -204,13 +206,15 @@ class JobFileService(
         }
     }
 
+    data class FileForTransfer(val path: String, val length: Long, val needsExtraction: Boolean)
+
     private suspend fun SSHConnection.prepareForTransfer(
         sourceFile: SftpATTRS,
         source: File,
         transfer: String
-    ): Pair<String, Long> {
+    ): FileForTransfer {
         return if (!sourceFile.isDir) {
-            Pair(source.path, sourceFile.size)
+            FileForTransfer(source.path, sourceFile.size, needsExtraction = false)
         } else {
             log.debug("Source file is a directory. Zipping it up")
             val zipPath = source.path + ".zip"
@@ -228,7 +232,7 @@ class JobFileService(
                 throw JobFileException.ArchiveCreationFailed(transfer)
             }
 
-            Pair(zipPath, zipStat.size)
+            FileForTransfer(zipPath, zipStat.size, needsExtraction = true)
         }
     }
 

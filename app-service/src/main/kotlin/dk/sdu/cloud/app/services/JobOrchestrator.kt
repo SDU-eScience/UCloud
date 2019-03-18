@@ -197,13 +197,14 @@ class JobOrchestrator<DBSession>(
         securityPrincipal: SecurityPrincipal,
         filePath: String,
         length: Long,
-        data: ByteReadChannel
+        data: ByteReadChannel,
+        needsExtraction: Boolean
     ) {
         withJobExceptionHandler(jobId) {
             val jobWithToken = findJobForId(jobId)
             computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
 
-            jobFileService.acceptFile(jobWithToken, filePath, length, data)
+            jobFileService.acceptFile(jobWithToken, filePath, length, data, needsExtraction)
         }
     }
 

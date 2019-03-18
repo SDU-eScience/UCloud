@@ -24,6 +24,7 @@ data class JobCompletedRequest(
 data class SubmitComputationResult(
     val jobId: String,
     val filePath: String,
+    val needsExtraction: Boolean?,
     val fileData: StreamingFile
 )
 

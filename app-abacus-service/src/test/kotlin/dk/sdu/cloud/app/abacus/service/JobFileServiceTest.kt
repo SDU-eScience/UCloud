@@ -106,6 +106,7 @@ class JobFileServiceTest {
     @Test
     fun `test upload file with extraction`() = runBlocking {
         coEvery { connection.mkdir(any(), any()) } returns 0
+        coEvery { connection.rm(any(), any()) } returns 0
         coEvery { connection.scpUpload(any(), any(), any(), any(), any()) } returns 0
         coEvery { connection.unzip(any(), any()) } returns 0
         service.uploadFile(

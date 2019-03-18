@@ -60,7 +60,8 @@ data class CreateDirectoryRequest(
 )
 
 data class ExtractRequest(
-    val path: String
+    val path: String,
+    val removeOriginalArchive: Boolean?
 )
 
 enum class FileSortBy {

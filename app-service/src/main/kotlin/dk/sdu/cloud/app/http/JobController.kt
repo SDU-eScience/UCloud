@@ -61,12 +61,13 @@ class JobController<DBSession>(
             with(ctx as HttpCall) {
                 val extensionResponse = AuthDescriptions.tokenExtension.call(
                     TokenExtensionRequest(
-                        call.request.bearer!!,
+                        ctx.bearer!!,
                         listOf(
                             MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
                             FileDescriptions.download.requiredAuthScope.toString(),
                             FileDescriptions.createDirectory.requiredAuthScope.toString(),
-                            FileDescriptions.stat.requiredAuthScope.toString()
+                            FileDescriptions.stat.requiredAuthScope.toString(),
+                            FileDescriptions.extract.requiredAuthScope.toString()
                         ),
                         JOB_MAX_TIME
                     ),
