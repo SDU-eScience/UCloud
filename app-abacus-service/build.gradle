@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.9'
+version '1.0.10'
 
 apply plugin: 'application'
 mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'
@@ -7,7 +7,7 @@ mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.8/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = '1.1.10'
+    ext.serviceCommonVersion = '1.2.1'
 }
 
 dependencies {
