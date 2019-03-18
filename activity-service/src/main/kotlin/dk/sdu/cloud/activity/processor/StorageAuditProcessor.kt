@@ -21,15 +21,12 @@ import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.batched
 import dk.sdu.cloud.service.consumeBatchAndCommit
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 
 private typealias Transformer = (parsedEvent: JsonNode) -> List<ActivityEvent>?
 
 class StorageAuditProcessor<DBSession>(
     private val streamFactory: EventConsumerFactory,
-    private val db: DBSessionFactory<DBSession>,
     private val activityService: ActivityService<DBSession>,
     private val parallelism: Int = 4
 ) {
@@ -88,9 +85,7 @@ class StorageAuditProcessor<DBSession>(
 
                         log.info("Received the following events: $activityEvents")
 
-                        db.withTransaction { session ->
-                            activityService.insertBatch(session, activityEvents)
-                        }
+                        activityService.insertBatch(activityEvents)
                     }
             }
         }

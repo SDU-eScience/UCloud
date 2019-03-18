@@ -52,6 +52,7 @@ import io.ktor.routing.routing
 import org.slf4j.Logger
 import java.security.SecureRandom
 import java.util.*
+import kotlin.system.exitProcess
 
 private const val ONE_YEAR_IN_MILLS = 1000 * 60 * 60 * 24 * 365L
 private const val PASSWORD_BYTES = 64

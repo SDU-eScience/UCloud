@@ -52,7 +52,7 @@ class PaginationTest {
     @Test
     fun `Test normalized pagination Request - Not listed number of itemsPerPage`() {
         val p = PaginationRequest(12, 0).normalize()
-        assertEquals(10, p.itemsPerPage)
+        assertEquals(50, p.itemsPerPage)
         assertEquals(0, p.page)
     }
 

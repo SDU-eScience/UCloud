@@ -109,15 +109,15 @@ class TokenTest {
             every { auth.authenticated } returns true
             every { auth.attributes } answers {
                 val h = HashMap<String, List<String>>(10)
-                h.put(AttributeURIs.EduPersonTargetedId, listOf("hello"))
+                h.put("eduPersonTargetedID", listOf("hello"))
                 h.put("gn", listOf("Firstname"))
                 h.put("sn", listOf("Lastname"))
-                h.put("schacHomeOrganization", listOf("SDU"))
+                h.put("schacHomeOrganization", listOf("sdu.dk"))
                 h
 
             }
             val result = runBlocking { tokenService.processSAMLAuthentication(auth) }
-            assertEquals("SDU", result?.organizationId)
+            assertEquals("sdu.dk", result?.organizationId)
             assertEquals("Firstname", result?.firstNames)
             assertEquals("Lastname", result?.lastName)
         }

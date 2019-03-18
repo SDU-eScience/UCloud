@@ -246,9 +246,10 @@ class UserHibernateDAO(
     }
 
     override fun findByWayfId(session: HibernateSession, wayfId: String): Person.ByWAYF {
-        return (session.criteria<PersonEntityByWAYF> {
-            entity[PersonEntityByWAYF::wayfId] equal wayfId
-        } as? PrincipalEntity)?.toModel() as? Person.ByWAYF ?: throw UserException.NotFound()
+        return (session
+            .createQuery("from PrincipalEntity where wayfId = :wayfId")
+            .setParameter("wayfId", wayfId).list().firstOrNull() as? PrincipalEntity)
+            ?.toModel() as? Person.ByWAYF ?: throw UserException.NotFound()
     }
 
     override fun insert(session: HibernateSession, principal: Principal) {

@@ -7,25 +7,42 @@ import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 
+private const val TYPE_DOWNLOAD = "download"
+private const val TYPE_UPDATED = "updated"
+private const val TYPE_DELETED = "deleted"
+private const val TYPE_FAVORITE = "favorite"
+private const val TYPE_INSPECTED = "inspected"
+private const val TYPE_MOVED = "moved"
+
+@Suppress("EnumEntryName") // backwards-compatibility
+enum class ActivityEventType {
+    download,
+    updated,
+    deleted,
+    favorite,
+    inspected,
+    moved
+}
+
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
     property = TYPE_PROPERTY
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(value = ActivityEvent.Download::class, name = "download"),
-    JsonSubTypes.Type(value = ActivityEvent.Updated::class, name = "updated"),
-    JsonSubTypes.Type(value = ActivityEvent.Deleted::class, name = "deleted"),
-    JsonSubTypes.Type(value = ActivityEvent.Favorite::class, name = "favorite"),
-    JsonSubTypes.Type(value = ActivityEvent.Inspected::class, name = "inspected"),
-    JsonSubTypes.Type(value = ActivityEvent.Moved::class, name = "moved")
+    JsonSubTypes.Type(value = ActivityEvent.Download::class, name = TYPE_DOWNLOAD),
+    JsonSubTypes.Type(value = ActivityEvent.Updated::class, name = TYPE_UPDATED),
+    JsonSubTypes.Type(value = ActivityEvent.Deleted::class, name = TYPE_DELETED),
+    JsonSubTypes.Type(value = ActivityEvent.Favorite::class, name = TYPE_FAVORITE),
+    JsonSubTypes.Type(value = ActivityEvent.Inspected::class, name = TYPE_INSPECTED),
+    JsonSubTypes.Type(value = ActivityEvent.Moved::class, name = TYPE_MOVED)
 )
 sealed class ActivityEvent {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
 
     // When adding new entries here, you will also need to add entries in:
-    // ActivityEventDao, ActivityStream and ActivityStreamDao
+    // ActivityEventDao
 
     abstract val timestamp: Long
     abstract val fileId: String
@@ -78,6 +95,22 @@ sealed class ActivityEvent {
         override val originalFilePath: String
     ) : ActivityEvent()
 }
+
+val ActivityEvent.type: ActivityEventType get() = when (this) {
+    is ActivityEvent.Download -> ActivityEventType.download
+    is ActivityEvent.Updated -> ActivityEventType.updated
+    is ActivityEvent.Favorite -> ActivityEventType.favorite
+    is ActivityEvent.Inspected -> ActivityEventType.inspected
+    is ActivityEvent.Moved -> ActivityEventType.moved
+    is ActivityEvent.Deleted -> ActivityEventType.deleted
+}
+
+data class ActivityEventGroup(
+    val type: ActivityEventType,
+    val newestTimestamp: Long,
+    val numberOfHiddenResults: Long?,
+    val items: List<ActivityEvent>
+)
 
 data class ListActivityByIdRequest(
     val id: String,

@@ -14,12 +14,14 @@ import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.delay
 import java.security.SecureRandom
 import java.util.*
@@ -291,19 +293,18 @@ class TokenService<DBSession>(
         }
     }
 
-    // TODO Should be moved to SAML package
     suspend fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
         try {
             log.debug("Processing SAML response")
             if (samlRequestProcessor.authenticated) {
                 val id =
-                    samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
+                    samlRequestProcessor.attributes["eduPersonTargetedID"]?.firstOrNull()
                         ?: throw IllegalArgumentException("Missing EduPersonTargetedId")
 
                 log.debug("User is authenticated with id $id")
 
                 try {
-                    db.withTransaction { userDao.findById(it, id) } as Person.ByWAYF
+                    return db.withTransaction { userDao.findByWayfId(it, id) }
                 } catch (ex: UserException.NotFound) {
                     log.debug("User not found. Creating new user...")
 

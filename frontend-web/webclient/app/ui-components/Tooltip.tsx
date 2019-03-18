@@ -1,5 +1,3 @@
-// FIXME: Is this file even in use?
-
 import * as React from "react";
 import Box, { BoxProps } from "./Box"
 

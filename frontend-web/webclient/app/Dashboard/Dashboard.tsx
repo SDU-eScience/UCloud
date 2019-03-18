@@ -48,7 +48,6 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         super(props);
         props.updatePageTitle();
         props.setActivePage();
-        if (!Cloud.isLoggedIn) props.history.push("/login");
     }
 
     componentDidMount() {
@@ -131,11 +130,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
             </>
         );
 
-
-
-        return (
-            <MainContainer main={main} />
-        );
+        return (<MainContainer main={main} />);
     }
 }
 
@@ -144,8 +139,8 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
     <DashboardCard title="Favorite Files" isLoading={isLoading}>
         {files.length || isLoading ? null : (<Heading.h6>No favorites found</Heading.h6>)}
         <List>
-            {files.map((file, i) => (
-                <Flex alignItems="center" key={i} pt="0.5em" pb="6.4px">
+            {files.map(file => (
+                <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
                     <ListFileContent file={file} link={false} pixelsWide={200} />
                     <Icon ml="auto" size="1em" name="starFilled" color="blue" cursor="pointer" onClick={() => favorite(file)} />
                 </Flex>)

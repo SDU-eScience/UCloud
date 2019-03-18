@@ -28,7 +28,6 @@ detekt {
     filters = ".*/resources/.*,.*/build/.*"
 
     // https://stackoverflow.com/a/921400
-    def currentVersion = "v0.2.6"
     URL website = new URL("https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/$currentVersion/detekt.yml")
     ReadableByteChannel rbc = Channels.newChannel(website.openStream())
     def outputFile = Files.createTempFile("detekt", ".yml").toFile()
@@ -38,7 +37,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version "1.1.9"
+version "1.2.0"
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
@@ -61,14 +60,14 @@ repositories {
     def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
 
     maven {
-        url("https://cloud.sdu.dk/archiva/repository/internal")
+        url("https://dev.cloud.sdu.dk/archiva/repository/internal")
         credentials {
             it.username(username)
             it.password(password)
         }
     }
     maven {
-        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        url("https://dev.cloud.sdu.dk/archiva/repository/snapshots")
         credentials {
             it.username(username)
             it.password(password)
@@ -246,7 +245,7 @@ publishing {
 
     repositories {
         maven {
-            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            def resolvedUrl = "https://dev.cloud.sdu.dk/archiva/repository/"
             if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
             else resolvedUrl += "internal"
             url(resolvedUrl)
