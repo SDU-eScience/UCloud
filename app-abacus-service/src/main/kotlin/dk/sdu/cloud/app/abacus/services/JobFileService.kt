@@ -27,27 +27,13 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.copyTo
-import kotlinx.coroutines.io.writer
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.io.core.ExperimentalIoApi
-import kotlinx.io.core.IoBuffer
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousFileChannel
-import java.nio.channels.CompletionHandler
 import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.StandardOpenOption
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 /**
  * Manages file associated to a job
@@ -74,7 +60,7 @@ class JobFileService(
     suspend fun uploadFile(
         jobId: String,
         relativeLocation: String,
-        length: Long,
+        length: Long?,
         needsExtractionOfType: FileForUploadArchiveType?,
         stream: ByteReadChannel
     ) {
@@ -89,9 +75,22 @@ class JobFileService(
 
             @Suppress("TooGenericExceptionCaught")
             try {
-                scpUpload(length, location.name, location.parent, "0600") { outs ->
-                    stream.copyTo(outs, limit = length)
-                }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativeLocation)
+                if (length != null) {
+                    scpUpload(length, location.name, location.parent, "0600") { outs ->
+                        stream.copyTo(outs, limit = length)
+                    }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativeLocation)
+                } else {
+                    val temporaryFile = Files.createTempFile("", "").toFile()
+                    temporaryFile.outputStream().use { outs ->
+                        stream.copyTo(outs)
+                    }
+
+                    scpUpload(temporaryFile.length(), location.name, location.parent, "0600") { outs ->
+                        temporaryFile.inputStream().use { ins ->
+                            ins.copyTo(outs)
+                        }
+                    }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativeLocation)
+                }
             } catch (ex: Exception) {
                 // Maybe a bit too generic
                 log.warn("Caught exception during upload")
@@ -105,6 +104,8 @@ class JobFileService(
                     if (status >= ZIP_ERROR_STATUS) {
                         throw JobFileException.CouldNotExtractArchive(relativeLocation)
                     }
+
+                    rm(location.absolutePath)
                 }
 
                 else -> {
@@ -145,11 +146,11 @@ class JobFileService(
                     return@mapNotNull null
                 }
 
-                val (fileToTransferFromHPC, fileLength) = prepareForTransfer(sourceFile, source, transfer)
+                val (fileToTransferFromHPC, _, needsExtraction) = prepareForTransfer(sourceFile, source, transfer)
                 log.debug("Downloading file from $fileToTransferFromHPC")
 
                 GlobalScope.launch {
-                    transferFileFromCompute(job.id, fileToTransferFromHPC, transfer)
+                    transferFileFromCompute(job.id, fileToTransferFromHPC, transfer, needsExtraction)
                 }
             }.joinAll()
         }
@@ -159,7 +160,8 @@ class JobFileService(
     private suspend fun SSHConnection.transferFileFromCompute(
         jobId: String,
         filePath: String,
-        originalFileName: String
+        originalFileName: String,
+        needsExtraction: Boolean
     ) {
         val temporaryFile = Files.createTempFile("", "'").toFile()
         @Suppress("TooGenericExceptionCaught")
@@ -183,6 +185,7 @@ class JobFileService(
                         SubmitComputationResult(
                             jobId,
                             relativePath,
+                            needsExtraction,
                             StreamingFile(
                                 ContentType.Application.OctetStream,
                                 temporaryFile.length(),
@@ -203,13 +206,15 @@ class JobFileService(
         }
     }
 
+    data class FileForTransfer(val path: String, val length: Long, val needsExtraction: Boolean)
+
     private suspend fun SSHConnection.prepareForTransfer(
         sourceFile: SftpATTRS,
         source: File,
         transfer: String
-    ): Pair<String, Long> {
+    ): FileForTransfer {
         return if (!sourceFile.isDir) {
-            Pair(source.path, sourceFile.size)
+            FileForTransfer(source.path, sourceFile.size, needsExtraction = false)
         } else {
             log.debug("Source file is a directory. Zipping it up")
             val zipPath = source.path + ".zip"
@@ -227,7 +232,7 @@ class JobFileService(
                 throw JobFileException.ArchiveCreationFailed(transfer)
             }
 
-            Pair(zipPath, zipStat.size)
+            FileForTransfer(zipPath, zipStat.size, needsExtraction = true)
         }
     }
 

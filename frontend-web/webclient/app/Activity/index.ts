@@ -1,5 +1,5 @@
 import { ActivityReduxObject } from "DefaultObjects";
-import { ClearRefresh } from "Types";
+import { ScrollRequest } from "Scroll";
 
 export enum ActivityType {
     DOWNLOAD = "download",
@@ -10,12 +10,26 @@ export enum ActivityType {
     MOVED = "moved"
 }
 
+export interface ActivityGroup {
+    type: ActivityType
+    newestTimestamp: number
+    numberOfHiddenResults: number | null
+    items: Activity[]
+}
+
 export interface Activity {
     type: ActivityType
     timestamp: number
     fileId: string
     username: string
     originalFilePath: string
+}
+
+export interface ActivityFilter {
+    collapseAt?: number
+    type?: ActivityType
+    minTimestamp?: Date
+    maxTimestamp?: Date
 }
 
 export interface FavoriteActivity extends Activity {
@@ -27,21 +41,15 @@ export interface MovedActivity extends Activity {
 }
 
 
-export interface ActivityDispatchProps extends ClearRefresh {
-    fetchActivity: (pageNumber: number, pageSize: number) => void
-    setError: (error?: string) => void
-    setPageTitle: () => void
-    setActivePage: () => void
-}
-
-export interface GroupedActivity {
-    timestamp: number
-    type: ActivityType
-    entries: Activity[]
+export interface ActivityDispatchProps {
+    onMount: () => void
+    fetchActivity: (scroll: ScrollRequest<number>, filter?: ActivityFilter) => void
+    resetActivity: () => void
+    setRefresh: (refresh?: () => void) => void
+    updateFilter: (filter: Partial<ActivityFilter>) => void
 }
 
 export interface ActivityOwnProps {
-    groupedEntries?: GroupedActivity[]
 }
 
 export type ActivityProps = ActivityReduxObject & ActivityDispatchProps & ActivityOwnProps;

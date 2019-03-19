@@ -50,7 +50,6 @@ const fileOperations = allFileOperations({
     onDeleted: nullOp,
     onExtracted: nullOp,
     onClearTrash: nullOp,
-    onLinkCreate: nullOp,
     history: mockHistory,
     setLoading: nullOp
 });

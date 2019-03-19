@@ -339,7 +339,9 @@ sealed class StreamingRequest<Request : Any> {
                                 contentType = propValue.contentType,
 
                                 headers = Headers.build {
-                                    append(HttpHeaders.ContentLength, propValue.length.toString())
+                                    if (propValue.length != null) {
+                                        append(HttpHeaders.ContentLength, propValue.length.toString())
+                                    }
                                 },
 
                                 writer = {

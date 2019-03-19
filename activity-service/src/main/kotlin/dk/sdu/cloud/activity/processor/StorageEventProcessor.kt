@@ -9,14 +9,11 @@ import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.batched
 import dk.sdu.cloud.service.consumeBatchAndCommit
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
 
 private typealias SEventTransformer = (StorageEvent) -> List<ActivityEvent>?
 
 class StorageEventProcessor<DBSession>(
     private val streamFactory: EventConsumerFactory,
-    private val db: DBSessionFactory<DBSession>,
     private val activityService: ActivityService<DBSession>,
     private val parallelism: Int = 4
 ) {
@@ -48,9 +45,7 @@ class StorageEventProcessor<DBSession>(
                         }
                     }
 
-                    db.withTransaction { session ->
-                        activityService.insertBatch(session, activityEvents)
-                    }
+                    activityService.insertBatch(activityEvents)
                 }
         }
     }

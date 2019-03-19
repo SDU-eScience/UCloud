@@ -1,14 +1,18 @@
 package dk.sdu.cloud.app.abacus.services.ssh
 
 import dk.sdu.cloud.app.abacus.services.ssh.SSH.log
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.service.BashEscaper
 
 suspend fun SSHConnection.createZipFileOfDirectory(outputPath: String, inputDirectoryPath: String): Int {
     log.debug("Creating zip file of directory: outputPath=$outputPath, inputDirectoryPath=$inputDirectoryPath")
+    val workingDirectory = inputDirectoryPath.parent()
+    val inputDirectoryName = inputDirectoryPath.fileName()
     val (status, output) = execWithOutputAsText(
-        "zip -r " +
+        "cd ${BashEscaper.safeBashArgument(workingDirectory)} && zip -r " +
                 BashEscaper.safeBashArgument(outputPath) + " " +
-                BashEscaper.safeBashArgument(inputDirectoryPath)
+                BashEscaper.safeBashArgument(inputDirectoryName)
     )
 
     if (status != 0) {

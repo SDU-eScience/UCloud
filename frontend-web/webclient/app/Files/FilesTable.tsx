@@ -243,6 +243,9 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
         case SensitivityLevelMap.SENSITIVE:
             def = { color: "#ff0004", text: "Sensitive", shortText: "S" };
             break;
+        case SensitivityLevelMap.PRIVATE:
+            def = { color: Theme.colors.lightGray, text: "Private", shortText: "P" }
+            break;
         default:
             return null;
     }

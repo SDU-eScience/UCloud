@@ -8,7 +8,8 @@ drop table if exists file_references;
 drop table if exists activity_stream_entries;
 drop table if exists activity_events;
 
-create table activity_events (
+create table activity_events
+(
   dtype     varchar(31) not null,
   id        bigint      not null,
   file_id   varchar(255),
@@ -19,7 +20,8 @@ create table activity_events (
   primary key (id)
 );
 
-create table activity_stream_entries (
+create table activity_stream_entries
+(
   dtype        varchar(31)  not null,
   id           varchar(255) not null,
   operation    varchar(255) not null,
@@ -28,7 +30,8 @@ create table activity_stream_entries (
   primary key (id, operation, subject_type, timestamp)
 );
 
-create table counted_entries (
+create table counted_entries
+(
   id                 bigint  not null,
   count              integer not null,
   file_id            varchar(255),
@@ -39,7 +42,8 @@ create table counted_entries (
   primary key (id)
 );
 
-create table entry_users (
+create table entry_users
+(
   id                 bigint not null,
   username           varchar(255),
   entry_id           varchar(255),
@@ -49,7 +53,8 @@ create table entry_users (
   primary key (id)
 );
 
-create table file_references (
+create table file_references
+(
   id                 bigint not null,
   file_id            varchar(255),
   entry_id           varchar(255),
@@ -64,15 +69,15 @@ create index IDXmqya7nelbfe1n6wivkxgp5n15
 
 alter table counted_entries
   add constraint FKnf8hflr3g6fvtt29jj1iexlmd
-foreign key (entry_id, entry_operation, entry_subject_type, entry_timestamp)
-references activity_stream_entries;
+    foreign key (entry_id, entry_operation, entry_subject_type, entry_timestamp)
+      references activity_stream_entries;
 
 alter table entry_users
   add constraint FKnexsye420lt6hawodajhcbphb
-foreign key (entry_id, entry_operation, entry_subject_type, entry_timestamp)
-references activity_stream_entries;
+    foreign key (entry_id, entry_operation, entry_subject_type, entry_timestamp)
+      references activity_stream_entries;
 
 alter table file_references
   add constraint FKin78v4ccneylmh91481pfosro
-foreign key (entry_id, entry_operation, entry_subject_type, entry_timestamp)
-references activity_stream_entries;
+    foreign key (entry_id, entry_operation, entry_subject_type, entry_timestamp)
+      references activity_stream_entries;

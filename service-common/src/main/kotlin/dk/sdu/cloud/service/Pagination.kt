@@ -30,8 +30,8 @@ class NormalizedPaginationRequest(
     page: Int?
 ) {
     val itemsPerPage = when (itemsPerPage) {
-        10, 25, 50, 100 -> itemsPerPage
-        else -> 10
+        10, 25, 50, 100, 250 -> itemsPerPage
+        else -> 50
     }
 
     val page = page?.takeIf { it >= 0 } ?: 0

@@ -1,225 +1,156 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
-import dk.sdu.cloud.activity.api.ActivityStreamEntry
-import dk.sdu.cloud.activity.api.CountedFileActivityOperation
-import dk.sdu.cloud.activity.api.StreamFileReference
-import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
-import dk.sdu.cloud.activity.api.UserReference
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.indexing.api.LookupDescriptions
-import dk.sdu.cloud.indexing.api.ReverseLookupRequest
+import dk.sdu.cloud.activity.api.ActivityEventGroup
+import dk.sdu.cloud.activity.api.ActivityEventType
+import dk.sdu.cloud.activity.api.ActivityFilter
+import dk.sdu.cloud.activity.api.type
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.NormalizedScrollRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.mapItems
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-
-private const val CHUNK_SIZE = 100
+import dk.sdu.cloud.service.ScrollResult
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 
 class ActivityService<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
     private val activityDao: ActivityEventDao<DBSession>,
-    private val streamDao: ActivityStreamDao<DBSession>,
-    private val fileLookupService: FileLookupService,
-    private val cloud: AuthenticatedClient
+    private val fileLookupService: FileLookupService
 ) {
-    fun insert(
-        session: DBSession,
-        event: ActivityEvent
-    ) {
-        insertBatch(session, listOf(event))
-    }
-
-    fun insertBatch(
-        session: DBSession,
-        events: List<ActivityEvent>
-    ) {
-        activityDao.insertBatch(session, events)
-
-        val byFileId = events.groupBy { it.fileId }.mapValues { it.value.toStreamEntries() }
-        val byUsername = events.groupBy { it.username }.mapValues { it.value.toStreamEntries() }
-
-        byFileId.forEach { fileId, entries ->
-            val stream = ActivityStream(ActivityStreamSubject.File(fileId))
-            streamDao.createStreamIfNotExists(session, stream)
-            streamDao.insertBatchIntoStream(session, stream, entries)
-        }
-
-        byUsername.forEach { username, entries ->
-            val stream = ActivityStream(ActivityStreamSubject.User(username))
-            streamDao.createStreamIfNotExists(session, stream)
-            streamDao.insertBatchIntoStream(session, stream, entries)
-        }
-    }
-
-    private fun List<ActivityEvent>.toStreamEntries(): List<ActivityStreamEntry<*>> {
-        // TODO Here we currently assume they all should go in the same timestamp. This will work almost all of the time
-        val timestamp = minBy { it.timestamp }!!.timestamp
-        val byType = groupBy { it.javaClass }
-
-        return byType.flatMap { (_, allEventsOfType) ->
-            // All events have the same operation, so we use the first event to determine operation.
-            val firstEvent = allEventsOfType.first()
-
-            val users = allEventsOfType
-                .asSequence()
-                .map { it.username }
-                .map { UserReference(it) }
-                .toSet()
-
-            CountedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val eventsByFileId = allEventsOfType.groupBy { it.fileId }
-
-                val counts = eventsByFileId.map { (fileId, eventsForFile) ->
-                    fileId to eventsForFile.size
-                }
-
-                return@flatMap listOf(
-                    ActivityStreamEntry.Counted(
-                        operation,
-                        timestamp,
-                        counts.asSequence().map {
-                            StreamFileReference.WithOpCount(
-                                it.first,
-                                null,
-                                it.second
-                            )
-                        }.toSet(),
-                        users
-                    )
-                )
-            }
-
-            TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val fileReferences =
-                    allEventsOfType.asSequence().map { StreamFileReference.Basic(it.fileId, null) }.toSet()
-
-                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, timestamp, fileReferences, users))
-            }
-
-            return@flatMap emptyList<ActivityStreamEntry<*>>()
+    fun insertBatch(events: List<ActivityEvent>) {
+        db.withTransaction { session ->
+            activityDao.insertBatch(session, events)
         }
     }
 
     suspend fun findEventsForPath(
-        session: DBSession,
         pagination: NormalizedPaginationRequest,
         path: String,
         userAccessToken: String,
         causedBy: String? = null
     ): Page<ActivityEvent> {
         val fileStat = fileLookupService.lookupFile(path, userAccessToken, causedBy)
-        return findEventsForFileId(session, pagination, fileStat.fileId)
+        return db.withTransaction { session ->
+            activityDao.findByFileId(session, pagination, fileStat.fileId)
+        }
     }
 
     fun findEventsForFileId(
-        session: DBSession,
         pagination: NormalizedPaginationRequest,
         fileId: String
     ): Page<ActivityEvent> {
-        return activityDao.findByFileId(session, pagination, fileId)
+        return db.withTransaction { session ->
+            activityDao.findByFileId(session, pagination, fileId)
+        }
     }
 
     fun findEventsForUser(
-        session: DBSession,
         pagination: NormalizedPaginationRequest,
         user: String
     ): Page<ActivityEvent> {
-        return activityDao.findByUser(session, pagination, user)
+        return db.withTransaction { session ->
+            activityDao.findByUser(session, pagination, user)
+        }
     }
 
-    suspend fun findStreamForUser(
-        session: DBSession,
-        pagination: NormalizedPaginationRequest,
-        user: String
-    ): Page<ActivityStreamEntry<*>> {
-        return loadStreamWithFileLookup(session, pagination, ActivityStream(ActivityStreamSubject.User(user)))
-    }
+    fun browseForUser(
+        scroll: NormalizedScrollRequest<Int>,
+        user: String,
+        collapseThreshold: Int,
+        userFilter: ActivityFilter? = null
+    ): ScrollResult<ActivityEventGroup, Int> {
+        return db.withTransaction { session ->
+            val filter = ActivityEventFilter(
+                offset = scroll.offset,
+                user = user,
+                minTimestamp = userFilter?.minTimestamp,
+                maxTimestamp = userFilter?.maxTimestamp,
+                type = userFilter?.type
+            )
 
-    suspend fun findStreamForPath(
-        session: DBSession,
-        pagination: NormalizedPaginationRequest,
-        path: String,
-        userAccessToken: String,
-        causedBy: String? = null
-    ): Page<ActivityStreamEntry<*>> {
-        val fileStat = fileLookupService.lookupFile(path, userAccessToken, causedBy)
-        return findStreamForFileId(session, pagination, fileStat.fileId)
-    }
+            val allEvents = activityDao.findEvents(
+                session,
+                scroll.scrollSize,
+                filter
+            )
 
-    suspend fun findStreamForFileId(
-        session: DBSession,
-        pagination: NormalizedPaginationRequest,
-        fileId: String
-    ): Page<ActivityStreamEntry<*>> {
-        return loadStreamWithFileLookup(
-            session,
-            pagination,
-            ActivityStream(ActivityStreamSubject.File(fileId))
-        )
-    }
-
-    private suspend fun loadStreamWithFileLookup(
-        session: DBSession,
-        pagination: NormalizedPaginationRequest,
-        stream: ActivityStream
-    ): Page<ActivityStreamEntry<*>> {
-        val resultFromDao = streamDao.loadStream(session, stream, pagination)
-        val fileIdsInChunks = resultFromDao.items.flatMap { entry ->
-            when (entry) {
-                is ActivityStreamEntry.Counted -> {
-                    entry.files.map { it.id }
-                }
-
-                is ActivityStreamEntry.Tracked -> {
-                    entry.files.map { it.id }
-                }
+            data class GroupBuilder(val type: ActivityEventType, val timestamp: Long) {
+                val items = ArrayList<ActivityEvent>()
             }
-        }.asSequence().toSet().asSequence().chunked(CHUNK_SIZE).toList()
 
-        val fileIdToCanonicalPath = coroutineScope {
-            fileIdsInChunks
-                .map { chunkOfIds ->
-                    async {
-                        chunkOfIds.zip(
-                            LookupDescriptions.reverseLookup
-                                .call(
-                                    ReverseLookupRequest(chunkOfIds),
-                                    cloud
-                                )
-                                .orThrow()
-                                .canonicalPath
-                        )
+            var currentGroup: GroupBuilder? = null
+            val groupBuilders = ArrayList<GroupBuilder>()
+
+            fun finalizeGroup() {
+                val group = currentGroup ?: return
+                groupBuilders.add(group)
+            }
+
+            for (event in allEvents) {
+                if (currentGroup == null || currentGroup.type != event.type || (currentGroup.timestamp - event.timestamp) > GROUP_TIME_THRESHOLD) {
+                    if (currentGroup != null) finalizeGroup()
+
+                    currentGroup = GroupBuilder(event.type, event.timestamp).also {
+                        it.items.add(event)
                     }
+                } else {
+                    currentGroup.items.add(event)
                 }
-                .awaitAll()
-                .flatten()
-                .toMap()
-        }
+            }
+            finalizeGroup()
 
-        return resultFromDao.mapItems { entry ->
-            when (entry) {
-                is ActivityStreamEntry.Counted -> {
-                    entry.copy(
-                        files = entry.files
-                            .asSequence()
-                            .map { it.withPath(path = fileIdToCanonicalPath[it.id]) }
-                            .toSet()
+            val groups = groupBuilders.mapIndexed { i, group ->
+                val nextGroup = groupBuilders.getOrNull(i + 1)
+                val minTimestamp = nextGroup?.timestamp ?: group.timestamp - GROUP_TIME_THRESHOLD
+
+                if (group.items.size > collapseThreshold) {
+                    val numberOfEvents = activityDao.countEvents(session, filter.let {
+                        it.copy(
+                            type = group.type,
+                            maxTimestamp = group.timestamp,
+                            minTimestamp = listOfNotNull(
+                                it.minTimestamp,
+                                minTimestamp
+                            ).min()!!
+                        )
+                    })
+                    val items = group.items.take(collapseThreshold)
+
+                    ActivityEventGroup(
+                        group.type,
+                        group.timestamp,
+                        numberOfEvents - items.size,
+                        items
                     )
-                }
-
-                is ActivityStreamEntry.Tracked -> {
-                    entry.copy(
-                        files = entry.files.asSequence().map {
-                            StreamFileReference.Basic(it.id, fileIdToCanonicalPath[it.id])
-                        }.toSet()
+                } else {
+                    ActivityEventGroup(
+                        group.type,
+                        group.timestamp,
+                        null,
+                        group.items
                     )
                 }
             }
+
+            val returnedRows = groups.sumBy { it.items.size }
+
+            // Note: We provide no strict guarantees that this will actually skip the correct stuff. The other
+            // settings, such as collapseAt GROUP_TIME_THRESHOLD are meant to make it unlikely we skip
+            // significant portions. Setting collapseAt = 0 will allow the user to see all events.
+            val skippedRows: Int = groups.sumBy { it.numberOfHiddenResults?.toInt() ?: 0 }
+
+            log.debug("Returned rows: $returnedRows. Skipped: $skippedRows. All rows: ${allEvents.size}")
+
+            val nextOffset = returnedRows + skippedRows + (scroll.offset ?: 0)
+
+            ScrollResult(groups, nextOffset, endOfScroll = groups.isEmpty())
         }
+    }
+
+    companion object : Loggable {
+        const val GROUP_TIME_THRESHOLD = 1000L * 60 * 5
+        override val log = logger()
     }
 }
 

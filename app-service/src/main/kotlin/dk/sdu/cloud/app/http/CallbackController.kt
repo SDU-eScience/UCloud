@@ -22,7 +22,8 @@ class CallbackController<DBSession>(
                         ctx.securityPrincipal,
                         req.filePath,
                         length,
-                        req.fileData.channel
+                        req.fileData.channel,
+                        req.needsExtraction == true
                     )
                     ok(Unit)
                 } else {

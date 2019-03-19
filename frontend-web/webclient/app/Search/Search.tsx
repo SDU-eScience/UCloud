@@ -132,7 +132,6 @@ class Search extends React.Component<SearchProps> {
             history: this.props.history,
             onDeleted: () => refreshFiles(),
             onExtracted: () => refreshFiles(),
-            onLinkCreate: () => refreshFiles(),
             onSensitivityChange: () => refreshFiles(),
             setLoading: () => this.props.setFilesLoading(true)
         });

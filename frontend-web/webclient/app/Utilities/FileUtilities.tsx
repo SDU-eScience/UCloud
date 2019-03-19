@@ -313,7 +313,6 @@ interface AllFileOperations {
     onDeleted?: () => void
     onExtracted?: () => void
     onClearTrash?: () => void
-    onLinkCreate?: (p: string) => void
     onSensitivityChange?: () => void
     history?: History,
     setLoading: () => void
@@ -324,7 +323,6 @@ export function allFileOperations({
     onDeleted,
     onExtracted,
     onClearTrash,
-    onLinkCreate,
     history,
     setLoading,
     onSensitivityChange
@@ -334,7 +332,6 @@ export function allFileOperations({
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
-    const createLink = !!onLinkCreate ? CreateLinkOperation(onLinkCreate, setLoading) : [];
     const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
     return [
         ...stateLessOperations,
@@ -342,7 +339,6 @@ export function allFileOperations({
         ...deleteOperation,
         ...extractionOperations,        // ...clearTrash,
         ...historyOperations,
-        ...createLink
     ];
 };
 
@@ -536,7 +532,14 @@ export const getParentPath = (path: string): string => {
 
 const goUpDirectory = (count: number, path: string): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
-const toFileName = (path: string): string => path.split("/").filter(p => p).pop()!;
+const toFileName = (path: string): string => {
+    const lastSlash = path.lastIndexOf("/");
+    if (lastSlash !== -1 && path.length > lastSlash + 1) {
+        return path.substring(lastSlash + 1);
+    } else {
+        return path;
+    }
+};
 
 export function getFilenameFromPath(path: string): string {
     const replacedHome = replaceHomeFolder(path, Cloud.homeFolder)

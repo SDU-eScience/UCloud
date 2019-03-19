@@ -274,6 +274,12 @@ export default class SDUCloud {
         else return this.decodedToken.payload;
     }
 
+    get principalType(): undefined | string {
+        const userInfo = this.userInfo;
+        if (!userInfo) return undefined;
+        else return userInfo.principalType;
+    }    
+
     /**
      * Attempts to receive a (non-expired) JWT access token from storage. In case the token has expired at attempt will
      * be made to refresh it. If it is not possible to refresh the token a MissingAuthError will be thrown. This would

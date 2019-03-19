@@ -49,7 +49,6 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
             stateless: true,
             history: this.props.history,
             onDeleted: () => undefined,
-            onLinkCreate: () => undefined,
             setLoading: () => this.props.setLoading(true)
         });
         const { page } = this.props;

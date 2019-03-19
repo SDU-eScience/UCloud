@@ -30,10 +30,11 @@ class ComputeController(
                 val relativePath =
                     if (file.destinationPath.startsWith("/")) ".${file.destinationPath}" else file.destinationPath
 
+
                 jobFileService.uploadFile(
                     block.job.id,
                     relativePath,
-                    file.stat.size,
+                    block.fileData.length,
                     file.needsExtractionOfType,
                     block.fileData.channel
                 )

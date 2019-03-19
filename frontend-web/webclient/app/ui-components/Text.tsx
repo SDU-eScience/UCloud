@@ -13,7 +13,9 @@ import {
   FontSizeProps,
   ColorProps,
   WidthProps,
-  width
+  width,
+  MaxWidthProps,
+  maxWidth
 } from "styled-system";
 import { Theme } from "./theme";
 
@@ -57,13 +59,15 @@ export const TextSpan = (props) => <Text as="span" {...props} />;
 export const TextP = (props) => <Text as="p" {...props} />;
 export const TextS = (props) => <Text as="s" {...props} />;
 
-interface EllipsedTextProps extends TextProps, WidthProps { }
+interface EllipsedTextProps extends TextProps, WidthProps, MaxWidthProps { }
 export const EllipsedText = styled(Text) <EllipsedTextProps>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   ${width};
+  ${maxWidth};
   display: inline-block;
+  vertical-align: bottom;
 `;
 
 Text.defaultProps = {
