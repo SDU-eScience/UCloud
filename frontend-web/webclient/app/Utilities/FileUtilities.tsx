@@ -507,10 +507,12 @@ export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callba
         }
     });
 
+
+const extractFilesQuery = "/files/extract"
 export const extractArchive = (files: File[], cloud: SDUCloud, onFinished: () => void): void => {
     files.forEach(async f => {
         try {
-            await cloud.post("/files/extract", { path: f.path });
+            await cloud.post(extractFilesQuery, { path: f.path });
             UF.successNotification("File extracted");
         } catch (e) {
             UF.failureNotification(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));

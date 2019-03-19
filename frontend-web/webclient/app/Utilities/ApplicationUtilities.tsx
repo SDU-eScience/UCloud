@@ -42,7 +42,7 @@ export const favoriteApplicationFromPage = async (name: string, version: string,
 }
 
 interface AllowedParameterKey { name: string, type: ParameterTypes }
-export const extractParameters = (parameters, allowedParameterKeys: AllowedParameterKey[], siteVersion: number) => {
+export const extractParameters = (parameters, allowedParameterKeys: AllowedParameterKey[], siteVersion: number): { [key: string]: string } => {
     let extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({ name, type }) => {
@@ -57,19 +57,19 @@ export const extractParameters = (parameters, allowedParameterKeys: AllowedParam
 }
 
 
-const compareType = (type: ParameterTypes, parameter: any): boolean => {
+const compareType = (type: ParameterTypes, parameter: string): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
-            return typeof parameter === "boolean";
+            return parameter === "Yes" || parameter === "No" || parameter === "";
         case ParameterTypes.Integer:
-            return typeof parameter === "number" && parameter % 1 === 0;
+            return parseInt(parameter) % 1 === 0;
         case ParameterTypes.FloatingPoint:
-            return typeof parameter === "number";
+            return typeof parseFloat(parameter) === "number";
         case ParameterTypes.Text:
-            return typeof parameter === "string";
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
-            return typeof parameter.destination === "string" && typeof parameter.source === "string";
+            return typeof parameter === "string";
+            
     }
 }
 

@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
+import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault, inDevEnvironment } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite } from "."
 import { Dispatch } from "redux";
@@ -84,7 +84,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         if (missingParameters.length > 0) {
             failureNotification(`Missing values for ${missingParameters.join(", ")}`, missingParameters.length)
-            return
+            return;
         }
 
         let maxTime = this.extractJobInfo(this.state.schedulingOptions).maxTime;
@@ -186,16 +186,36 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 } else if (application.version !== thisApp.metadata.version) {
                     infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
                 }
+
                 const extractedParameters = extractParameters(
                     parameters,
                     thisApp.invocation.parameters.map(it => ({
-                        name: it.name, type: it.type as ParameterTypes
+                        name: it.name, type: it.type
                     })),
                     siteVersion
                 );
 
+                const { parameterValues } = this.state;
+
+                const extractedParameterKeys = Object.keys(extractedParameters);
+                
+                // Show hidden fields.
+                extractedParameterKeys.forEach(key => {
+                    thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
+                });
+                this.setState(() => ({ application: thisApp }));
+                
+                extractedParameterKeys.forEach(key => {
+                    thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
+                    const ref = parameterValues.get(key);
+                    if (ref && ref.current) {
+                        ref.current.value = extractedParameters[key];
+                        parameterValues.set(key, ref);
+                    }
+                });
+
                 this.setState(() => ({
-                    parameterValues: { ...this.state.parameterValues, ...extractedParameters },
+                    parameterValues,
                     schedulingOptions: this.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
                 }));
             } catch (e) {
@@ -213,10 +233,20 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const jobInfo = this.extractJobInfo(schedulingOptions);
         const element = document.createElement("a");
+
+        const values: { [key: string]: string } = {};
+
+        for (const [key, ref] of this.state.parameterValues[Symbol.iterator]()) {
+            if (ref && ref.current) values[key] = ref.current.value;
+        }
+
         element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
             siteVersion: this.siteVersion,
-            application: appInfo,
-            parameters: extractParametersFromMap(this.state.parameterValues, application.invocation.parameters),
+            application: {
+                name: appInfo.name,
+                version: appInfo.version
+            },
+            parameters: values,
             numberOfNodes: jobInfo.numberOfNodes,
             tasksPerNode: jobInfo.tasksPerNode,
             maxTime: jobInfo.maxTime,
