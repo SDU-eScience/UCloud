@@ -68,13 +68,13 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         } else {
             // TODO This is not always correct (but often is)
             const missingEntries = nextScrollOrDefault.items.length - scroll.items.length;
-            this.recordedHeights.concat(Array.from({ length: missingEntries }, () => 0));
+            this.recordedHeights = this.recordedHeights.concat(Array.from({ length: missingEntries }, () => 0));
 
             const firstVisibleElement = this.state.firstVisibleElement;
             if (firstVisibleElement !== undefined && this.averageComponentSize > 0) {
                 // TODO We could calculate this in a better way
                 const lastVisibleElement = this.state.lastVisibleElement || scroll.items.length;
-                this.setState({ lastVisibleElement: lastVisibleElement + 10, postSpacingRequired: this.averageComponentSize * 10 });
+                this.setState({ lastVisibleElement: lastVisibleElement + 5, postSpacingRequired: this.averageComponentSize * 5 });
             }
         }
     }
@@ -110,7 +110,8 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
             let postSpacingRequired: number | undefined;
 
             for (let i = 0; i < heights.length; i++) {
-                sum += heights[i];
+                const estimatedHeight = heights[i] !== 0 ? heights[i] : this.averageComponentSize;
+                sum += estimatedHeight;
                 if (sum >= currentTop && firstVisibleElement === undefined) {
                     firstVisibleElement = i;
                     if (i > 0) {
@@ -126,6 +127,11 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
 
             if (lastVisibleElement !== undefined && sum > 0) {
                 postSpacingRequired = sum;
+            }
+
+            if (lastVisibleElement === undefined && 
+                    this.state.lastVisibleElement !== undefined) {
+                lastVisibleElement = this.state.lastVisibleElement + 5;
             }
 
             const state = this.state;
