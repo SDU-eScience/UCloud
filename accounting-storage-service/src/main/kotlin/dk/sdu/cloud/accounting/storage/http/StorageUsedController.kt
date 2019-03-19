@@ -61,18 +61,24 @@ class StorageUsedController<DBSession>(
             ).orThrow().path
             val usage =
                 when {
-                    request.until == null -> storageAccountingService.calculateUsage(
-                        homeFolder,
-                        ctx.securityPrincipal.username
-                    ).first().units
-                    request.until!!.toLong() > Date().time - 1000 * 60 * 60 * 3 -> storageAccountingService.calculateUsage(
-                        homeFolder,
-                        ctx.securityPrincipal.username
-                    ).first().units
-                    else -> storageAccountingService.listEvents(
-                        request,
-                        ctx.securityPrincipal.username
-                    ).last().bytesUsed
+                    request.until == null -> {
+                        storageAccountingService.calculateUsage(
+                            homeFolder,
+                            ctx.securityPrincipal.username
+                        ).first().units
+                    }
+                    request.until!!.toLong() > Date().time - 1000 * 60 * 60 * 3 -> {
+                        storageAccountingService.calculateUsage(
+                            homeFolder,
+                            ctx.securityPrincipal.username
+                        ).first().units
+                    }
+                    else -> {
+                        storageAccountingService.listEvents(
+                            request,
+                            ctx.securityPrincipal.username
+                        ).last().bytesUsed
+                    }
                 }
 
             ok(

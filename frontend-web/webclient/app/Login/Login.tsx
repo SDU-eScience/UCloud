@@ -31,14 +31,15 @@ const BackgroundImage = styled.div<{ image: string}>`
 `;
 
 const inDevEnvironment = process.env.NODE_ENV === "development"
-const enabledWayf = false;
-const wayfService = inDevEnvironment ? "web-dev" : "web";
+const enabledWayf = true;
+const wayfService = inDevEnvironment ? "dev-web" : "web";
 
-export const LoginPage = (props: { history: History }) => {
+export const LoginPage = (props: { history: History, initialState?: any }) => {
     if (Cloud.isLoggedIn) {
         props.history.push("/");
         return <div />;
     }
+
     const [bg] = useState(randImage());
     const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
@@ -50,6 +51,10 @@ export const LoginPage = (props: { history: History }) => {
 
     useEffect(() => () => promises.cancelPromises(), []);
 
+    if (props.initialState !== undefined) {
+        handleAuthState(props.initialState);
+    }
+
     async function attemptLogin() {
         if (!(usernameInput.current!.value) || !(passwordInput.current!.value)) {
             setError("Invalid username or password");
@@ -58,11 +63,10 @@ export const LoginPage = (props: { history: History }) => {
         try {
             setLoading(true);
             const body = new FormData();
-            const service = inDevEnvironment ? "local-dev-csrf" : "web-csrf";
-            body.append("service", service);
+            body.append("service", wayfService);
             body.append("username", usernameInput.current!.value);
             body.append("password", passwordInput.current!.value);
-            const response = await promises.makeCancelable(fetch(`/auth/login?service=${service}`, {
+            const response = await promises.makeCancelable(fetch(`/auth/login?service=${wayfService}`, {
                 method: "POST",
                 headers: {
                     "Accept": "application/json"
@@ -70,17 +74,20 @@ export const LoginPage = (props: { history: History }) => {
                 body
             })).promise;
             if (!response.ok) throw response;
-            const result = await response.json();
-            if ("2fa" in result) {
-                setChallengeID(result["2fa"]);
-            } else {
-                Cloud.setTokens(result.accessToken, result.csrfToken);
-                props.history.push("/loginRedirect");
-            }
+            handleAuthState(await response.json());
         } catch (e) {
             setError(errorMessageOrDefault({ request: e, response: await e.json() }, "An error occurred"))
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function handleAuthState(result: any) {
+        if ("2fa" in result) {
+            setChallengeID(result["2fa"]);
+        } else {
+            Cloud.setTokens(result.accessToken, result.csrfToken);
+            props.history.push("/loginSuccess");
         }
     }
 
@@ -102,7 +109,7 @@ export const LoginPage = (props: { history: History }) => {
             if (!response.ok) throw response;
             const result = await response.json();
             Cloud.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/loginRedirect");
+            props.history.push("/loginSuccess");
         } catch (e) {
             setError(errorMessageOrDefault({ request: e, response: await e.json() }, "Could not submit verification code. Try again later"));
         }
@@ -138,11 +145,11 @@ export const LoginPage = (props: { history: History }) => {
     
 }
 
-export const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
+const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
     <Input ref={inputRef} autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
 ) : null;
 
-export const Login = ({ enabled2fa, usernameRef, passwordRef }) => !enabled2fa ? (
+const Login = ({ enabled2fa, usernameRef, passwordRef }) => !enabled2fa ? (
     <>
         <Input type="hidden" value="web-csrf" name="service" />
         <Input ref={usernameRef} autoFocus mb="0.5em" type="text" name="username" id="username" placeholder="Username" />

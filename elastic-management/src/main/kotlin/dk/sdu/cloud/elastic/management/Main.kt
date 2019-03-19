@@ -47,7 +47,7 @@ fun main(args: Array<String>) {
     if (micro.runScriptHandler()) return
 
     val elasticLocation = micro.configuration.requestChunkAtOrNull("elastic") ?: ElasticHostAndPort.guessDefaults()
-    val config = micro.configuration.requestChunkAt<Configuration>("elasticBackup")
+    val config = micro.configuration.requestChunkAt<Configuration>("elasticmanagement")
 
     Server(elasticLocation, config, micro).start()
 }

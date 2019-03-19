@@ -1,7 +1,8 @@
 import { failureNotification } from "UtilityFunctions";
-import { Application, ParameterTypes, ApplicationMetadata, WithAppFavorite, WithAppMetadata } from "Applications";
+import { Application, ParameterTypes, ApplicationMetadata, WithAppFavorite, WithAppMetadata, ApplicationParameter } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
+import { getFilenameFromPath } from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -41,7 +42,7 @@ export const favoriteApplicationFromPage = async (name: string, version: string,
 }
 
 interface AllowedParameterKey { name: string, type: ParameterTypes }
-export const extractParameters = (parameters, allowedParameterKeys: AllowedParameterKey[], siteVersion: number) => {
+export const extractParameters = (parameters, allowedParameterKeys: AllowedParameterKey[], siteVersion: number): { [key: string]: string } => {
     let extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({ name, type }) => {
@@ -56,18 +57,63 @@ export const extractParameters = (parameters, allowedParameterKeys: AllowedParam
 }
 
 
-const compareType = (type: ParameterTypes, parameter: any): boolean => {
+const compareType = (type: ParameterTypes, parameter: string): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
-            return typeof parameter === "boolean";
+            return parameter === "Yes" || parameter === "No" || parameter === "";
         case ParameterTypes.Integer:
-            return typeof parameter === "number" && parameter % 1 === 0;
+            return parseInt(parameter) % 1 === 0;
         case ParameterTypes.FloatingPoint:
-            return typeof parameter === "number";
+            return typeof parseFloat(parameter) === "number";
         case ParameterTypes.Text:
-            return typeof parameter === "string";
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
-            return typeof parameter.destination === "string" && typeof parameter.source === "string";
+            return typeof parameter === "string";
+            
     }
+}
+
+interface ExtractedParameters {
+    [key: string]: string | number | boolean | { source: string, destination: string }
+}
+
+export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
+
+export function extractParametersFromMap(map: ParameterValues, appParameters: ApplicationParameter[]): ExtractedParameters {
+    const extracted: ExtractedParameters = {};
+    map.forEach(({ current }, key) => {
+        const parameter = appParameters.find(it => it.name === key);
+        if (!current) return;
+        if (!parameter) return;
+        switch (parameter.type) {
+            case ParameterTypes.InputDirectory:
+            case ParameterTypes.InputFile:
+                extracted[key] = {
+                    source: current.value,
+                    destination: getFilenameFromPath(current.value)
+                };
+                return;
+            case ParameterTypes.Boolean:
+                switch (current.value) {
+                    case "Yes":
+                        extracted[key] = true;
+                        return;
+                    case "No":
+                        extracted[key] = false;
+                        return;
+                    default:
+                        return;
+                }
+            case ParameterTypes.Integer:
+                extracted[key] = parseInt(current.value);
+                return;
+            case ParameterTypes.FloatingPoint:
+                extracted[key] = parseFloat(current.value);
+                return;
+            case ParameterTypes.Text:
+                extracted[key] = current.value;
+                return;
+        }
+    })
+    return extracted;
 }

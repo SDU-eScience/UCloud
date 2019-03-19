@@ -1,6 +1,6 @@
 import * as React from 'react';
 import styled from 'styled-components';
-import { space, fontSize, themeGet } from 'styled-system';
+import { space, fontSize, themeGet, SpaceProps } from 'styled-system';
 
 import theme from './theme';
 import Flex from './Flex';
@@ -10,7 +10,7 @@ const ClickableIcon = styled(Icon)`
   pointer-events: none;
 `;
 
-const SelectBase = styled("select") <any>`
+const SelectBase = styled.select<{ fontSize?: number | string } & SpaceProps>`
   appearance: none;
   display: block;
   width: 100%;
@@ -39,8 +39,8 @@ SelectBase.defaultProps = {
 
 const Select = styled((props: any) => (
   <Flex width={1} alignItems="center">
-    <SelectBase {...props} />
-    <ClickableIcon ml={-32} name="chevronDown" color="gray" size="0.7em"/>
+    <SelectBase {...props} ref={props.selectRef} />
+    <ClickableIcon ml={-32} name="chevronDown" color="gray" size="0.7em" />
   </Flex>
 ))``;
 

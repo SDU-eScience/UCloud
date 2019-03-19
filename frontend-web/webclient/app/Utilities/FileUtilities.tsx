@@ -226,7 +226,7 @@ export const ExtractionOperation = (onFinished: () => void): Operation[] => [
     {
         text: "Extract archive",
         onClick: (files, cloud) => extractArchive(files, cloud, onFinished),
-        disabled: (files, cloud) => files.length > 1 || !isArchiveExtension(files[0].path),
+        disabled: (files, cloud) => !files.every(it => isArchiveExtension(it.path)),
         icon: "open",
         color: undefined
     }
@@ -313,7 +313,6 @@ interface AllFileOperations {
     onDeleted?: () => void
     onExtracted?: () => void
     onClearTrash?: () => void
-    onLinkCreate?: (p: string) => void
     onSensitivityChange?: () => void
     history?: History,
     setLoading: () => void
@@ -324,7 +323,6 @@ export function allFileOperations({
     onDeleted,
     onExtracted,
     onClearTrash,
-    onLinkCreate,
     history,
     setLoading,
     onSensitivityChange
@@ -334,7 +332,6 @@ export function allFileOperations({
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
-    const createLink = !!onLinkCreate ? CreateLinkOperation(onLinkCreate, setLoading) : [];
     const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
     return [
         ...stateLessOperations,
@@ -342,7 +339,6 @@ export function allFileOperations({
         ...deleteOperation,
         ...extractionOperations,        // ...clearTrash,
         ...historyOperations,
-        ...createLink
     ];
 };
 
@@ -507,9 +503,18 @@ export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callba
         }
     });
 
+
+const extractFilesQuery = "/files/extract"
 export const extractArchive = (files: File[], cloud: SDUCloud, onFinished: () => void): void => {
-    cloud.post("/files/extract", { path: files[0].path }).then(it => (UF.successNotification("File extracted"), onFinished()))
-        .catch(it => UF.failureNotification(`An error occurred extracting file.`))
+    files.forEach(async f => {
+        try {
+            await cloud.post(extractFilesQuery, { path: f.path });
+            UF.successNotification("File extracted");
+        } catch (e) {
+            UF.failureNotification(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));
+        }
+    });
+    onFinished();
 }
 
 
@@ -536,7 +541,14 @@ export const getParentPath = (path: string): string => {
 
 const goUpDirectory = (count: number, path: string): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
-const toFileName = (path: string): string => path.split("/").filter(p => p).pop()!;
+const toFileName = (path: string): string => {
+    const lastSlash = path.lastIndexOf("/");
+    if (lastSlash !== -1 && path.length > lastSlash + 1) {
+        return path.substring(lastSlash + 1);
+    } else {
+        return path;
+    }
+};
 
 export function getFilenameFromPath(path: string): string {
     const replacedHome = replaceHomeFolder(path, Cloud.homeFolder)

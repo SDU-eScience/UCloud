@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.StreamingFile
 import dk.sdu.cloud.calls.types.StreamingRequest
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
+import dk.sdu.cloud.file.api.ExtractRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
@@ -57,7 +58,8 @@ class JobFileService(
 
         filePath: String,
         length: Long,
-        fileData: ByteReadChannel
+        fileData: ByteReadChannel,
+        needsExtraction: Boolean
     ) {
         log.debug("Accepting file at $filePath for ${jobWithToken.job.id}")
 
@@ -94,7 +96,17 @@ class JobFileService(
                 )
             ),
             client.bearerAuth(accessToken)
-        )
+        ).orThrow()
+
+        if (needsExtraction) {
+            FileDescriptions.extract.call(
+                ExtractRequest(
+                    destPath.path,
+                    removeOriginalArchive = true
+                ),
+                client.bearerAuth(accessToken)
+            ).orThrow()
+        }
     }
 
     suspend fun jobFolder(job: VerifiedJob): String {

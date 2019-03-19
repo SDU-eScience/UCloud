@@ -1,22 +1,21 @@
 package dk.sdu.cloud.alerting.services
 
 import dk.sdu.cloud.alerting.Configuration
+import dk.sdu.cloud.alerting.Limits
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.delay
+import org.apache.http.util.EntityUtils
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.action.search.SearchRequest
+import org.elasticsearch.client.Request
 import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import java.net.ConnectException
 import java.time.LocalDate
 import java.util.*
-
-private const val FIFTEEN_SEC = 15 * 1000L
-private const val THIRTY_SEC = 30 * 1000L
-private const val FIVE_MIN = 5 * 60 * 1000L
-private const val FIFTEEN_MIN = 15 * 60 * 1000L
 
 enum class Status(val isError: Boolean, val failuresForATrigger: Int) {
     RED(isError = true, failuresForATrigger = 2),
@@ -171,6 +170,55 @@ class ElasticAlerting(
             }
             delay(FIVE_MIN)
             numberOfRetries = 0
+        }
+    }
+
+
+    suspend fun alertOnStorage(lowLevelClient: RestClient, configuration: Configuration) {
+        var alertSent = false
+        var alertCounter = 0
+        val lowLimitPercentage = configuration.limits?.storageInfoLimit ?: 50.0
+        val midLimitPercentage = configuration.limits?.storageWarnLimit ?: 80.0
+        val highLimitPercentage = configuration.limits?.storageCriticalLimit ?: 90.0
+
+        while (true) {
+            val response = lowLevelClient.performRequest(Request("GET", "/_cat/nodes?h=dup,n"))
+            if (response.statusLine.statusCode != 200) {
+                log.warn("Statuscode was not 200")
+                delay(ONE_HOUR)
+                continue
+            }
+            val dataNodes = EntityUtils.toString(response.entity).split("\n").filter { it != "" }
+            dataNodes.forEach { line ->
+                //Catches case of unassigend node which has no values
+                val fields = line.split(" ").filter { it != "" }
+                if (!fields.last().startsWith("elasticsearch-data")) return@forEach
+                val usedStoragePercentage = fields.first().toDouble()
+                log.info("${fields.last()} is using $usedStoragePercentage% of storage.")
+                when {
+                    usedStoragePercentage > highLimitPercentage && alertCounter == 2 -> {
+                        val message = "ALERT: Available storage of ${fields.last()} is below ${highLimitPercentage * 100}"
+                        alertService.createAlert(Alert(message))
+                        alertCounter++
+                    }
+                    usedStoragePercentage > midLimitPercentage && alertCounter == 1 -> {
+                        val message = "WARNING: storage of ${fields.last()} is below ${midLimitPercentage * 100}%"
+                        alertService.createAlert(Alert(message))
+                        alertCounter++
+                    }
+                    usedStoragePercentage > lowLimitPercentage && !alertSent -> {
+                        val message = "INFO: Available storage of ${fields.last()} is below ${lowLimitPercentage * 100}%"
+                        alertService.createAlert(Alert(message))
+                        alertCounter++
+                        alertSent = true
+                    }
+                    else -> {
+                        alertCounter = 0
+                        alertSent = false
+                    }
+                }
+            }
+            delay(ONE_HOUR)
         }
     }
 

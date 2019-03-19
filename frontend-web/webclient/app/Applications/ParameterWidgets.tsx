@@ -1,7 +1,5 @@
 import * as React from "react";
-import { File } from "Files";
 import FileSelector from "Files/FileSelector";
-import { getFilenameFromPath } from "Utilities/FileUtilities";
 import * as Types from ".";
 import { Box, Flex, Label, Text, Select, Markdown, Button } from "ui-components";
 import Input from "ui-components/Input";
@@ -13,78 +11,58 @@ import * as Fuse from "fuse.js";
 
 interface ParameterProps {
     parameter: Types.ApplicationParameter
-    onChange: (name: string, value: any) => void
-    value: string | number | InputValue
+    parameterRef: React.RefObject<HTMLInputElement | HTMLSelectElement>
 }
 
 export const Parameter = (props: ParameterProps) => {
     let component = <div />
     switch (props.parameter.type) {
         case Types.ParameterTypes.InputFile:
-            component = <InputFileParameter onChange={props.onChange} value={props.value as InputValue} parameter={props.parameter} />;
+            component = <InputFileParameter parameterRef={props.parameterRef} parameter={props.parameter} />;
             break;
         case Types.ParameterTypes.InputDirectory:
-            component = <InputDirectoryParameter onChange={props.onChange} value={props.value as InputValue} parameter={props.parameter} />;
+            component = <InputDirectoryParameter parameterRef={props.parameterRef} parameter={props.parameter} />;
             break;
         case Types.ParameterTypes.Integer:
-            component = <IntegerParameter onChange={props.onChange} value={props.value} parameter={props.parameter} />;
+            component = <IntegerParameter parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>} parameter={props.parameter} />;
             break;
         case Types.ParameterTypes.FloatingPoint:
-            component = <FloatingParameter onChange={props.onChange} value={props.value} parameter={props.parameter} />;
+            component = <FloatingParameter parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>} parameter={props.parameter} />;
             break;
         case Types.ParameterTypes.Text:
-            component = <TextParameter onChange={props.onChange} value={props.value as string} parameter={props.parameter as Types.TextParameter} />;
+            component = <TextParameter parameterRef={props.parameterRef} parameter={props.parameter as Types.TextParameter} />;
             break;
         case Types.ParameterTypes.Boolean:
-            component = <BooleanParameter onChange={props.onChange} parameter={props.parameter} />;
+            component = <BooleanParameter parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>} parameter={props.parameter} />;
             break;
     }
     return (<>{component}<Box pb="1em" /></>);
 };
 
-interface InputValue {
-    source: string
-    destination: string
-}
-
-interface InputFileParameterProps extends ParameterProps {
-    value: InputValue
-}
+type InputFileParameterProps = ParameterProps;
 
 const InputFileParameter = (props: InputFileParameterProps) => {
-    const internalOnChange = (file: { path: string }) => {
-        props.onChange(props.parameter.name, file.path ? {
-            source: file.path,
-            destination: getFilenameFromPath(file.path)
-        } : undefined);
-    };
-    const path = props.value ? props.value.source : "";
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
-                remove={!!path ? () => internalOnChange({ path: "" }) : undefined}
-                onFileSelect={file => internalOnChange(file)}
-                path={path}
+                key={props.parameter.name}
+                path={props.parameterRef.current && props.parameterRef.current.value || ""}
+                onFileSelect={file => { props.parameterRef.current!.value = file.path }}
+                inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 isRequired={!props.parameter.optional}
-            /* allowUpload */
             />
         </GenericParameter>
     );
 };
 
 const InputDirectoryParameter = (props: InputFileParameterProps) => {
-    const internalOnChange = (file: { path: string }) => {
-        props.onChange(props.parameter.name, {
-            source: file.path,
-            destination: getFilenameFromPath(file.path)
-        });
-    };
-    const path = props.value ? props.value.source : "";
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
-                onFileSelect={(file: File) => internalOnChange(file)}
-                path={path}
+                key={props.parameter.name}
+                path={props.parameterRef.current && props.parameterRef.current.value || ""}
+                onFileSelect={file => { props.parameterRef.current!.value = file.path }}
+                inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 canSelectFolders
                 onlyAllowFolders
                 isRequired={!props.parameter.optional}
@@ -93,27 +71,20 @@ const InputDirectoryParameter = (props: InputFileParameterProps) => {
     )
 }
 
-interface TextParameterProps {
+interface TextParameterProps extends ParameterProps {
     parameter: Types.TextParameter
-    value: string
-    onChange: (name: string, value: string) => void
 }
 
 const TextParameter = (props: TextParameterProps) => {
-    const internalOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        event.preventDefault();
-        props.onChange(props.parameter.name, event.target.value);
-    };
-
     let placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
-
     return (
         <GenericParameter parameter={props.parameter}>
             <Input
+                key={props.parameter.name}
+                ref={props.parameterRef as React.RefObject<HTMLInputElement>}
                 placeholder={placeholder}
                 required={!props.parameter.optional}
-                type="text" onChange={e => internalOnChange(e)}
-                value={props.value}
+                type="text"
             />
         </GenericParameter>
     );
@@ -122,27 +93,16 @@ const TextParameter = (props: TextParameterProps) => {
 
 type BooleanParameterOption = { value?: boolean, display: string }
 
-interface BooleanParameter { parameter: Types.ApplicationParameter, onChange: (name: string, value?: boolean) => void }
+interface BooleanParameter { parameter: Types.ApplicationParameter, parameterRef: React.RefObject<HTMLSelectElement> }
 const BooleanParameter = (props: BooleanParameter) => {
     let options: BooleanParameterOption[] = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
     if (props.parameter.optional) {
         options.unshift({ value: undefined, display: "" });
     }
 
-    const internalOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        let value: boolean | undefined;
-        switch (event.target.value) {
-            case "Yes": value = true; break;
-            case "No": value = false; break;
-            case "": value = undefined; break;
-        }
-        props.onChange(props.parameter.name, value);
-        event.preventDefault();
-    };
-
     return (
         <GenericParameter parameter={props.parameter}>
-            <Select id="select" onChange={(e: React.ChangeEvent<HTMLInputElement>) => internalOnChange(e)} defaultValue="">
+            <Select id="select" selectRef={props.parameterRef} key={props.parameter.name}>
                 <option></option>
                 <option>Yes</option>
                 <option>No</option>
@@ -151,48 +111,39 @@ const BooleanParameter = (props: BooleanParameter) => {
     );
 };
 
-const GenericNumberParameter = (props) => {
-    const internalOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        event.preventDefault();
-
-        if (event.target.value === "") {
-            props.onChange(props.parameter.name, undefined);
-        } else {
-            let value = props.parseValue(event.target.value);
-            if (!isNaN(value)) {
-                props.onChange(props.parameter.name, value);
-            }
-        }
-    };
-
-    let value = (props.value != null) ? props.value : "";
-
-    let placeholder = typeof props.parameter.defaultValue === "number" ? props.parameter.defaultValue.value : undefined;
+const GenericNumberParameter = (props: NumberParameterProps) => {
+    const { parameter, parameterRef } = props;
+    const [value, setValue] = React.useState(parameter.defaultValue != null && typeof parameter.defaultValue === "object" ? parameter.defaultValue.value.toString() : undefined);
 
     let baseField = (
         <Input
-            placeholder={placeholder}
-            required={!props.parameter.optional} name={props.parameter.name}
+            required={!props.parameter.optional}
+            name={props.parameter.name}
             type="number"
             step="any"
+            ref={parameterRef as React.RefObject<HTMLInputElement>}
+            onChange={e => setValue(e.target.value)}
             value={value}
-            id={props.parameter.name}
-            /* label={hasLabel ? props.parameter.unitName : "Number"} */
-            onChange={e => internalOnChange(e)} />
+            key={parameter.name}
+            max={!!parameter.max ? parameter.max : undefined}
+            min={!!parameter.min ? parameter.min : undefined}
+        />
     );
 
     let slider: React.ReactNode = null;
-    if (props.parameter.min !== null && props.parameter.max !== null) {
+    if (parameter.min !== null && parameter.max !== null) {
         slider = (
             <Input
+                key={`${parameter.name}-slider`}
                 mt="2px"
-                noBorder
-                min={props.parameter.min}
-                max={props.parameter.max}
-                step={props.parameter.step}
-                type="range"
                 value={value}
-                onChange={e => internalOnChange(e)}
+                noBorder
+                min={parameter.min}
+                max={parameter.max}
+                step={parameter.step!}
+                ref={parameterRef as React.RefObject<HTMLInputElement>}
+                onChange={e => setValue(e.target.value)}
+                type="range"
             />
         );
     }
@@ -205,15 +156,18 @@ const GenericNumberParameter = (props) => {
     );
 };
 
-const IntegerParameter = (props) => {
+interface NumberParameterProps {
+    parameter: Types.NumberParameter
+    parameterRef: React.RefObject<HTMLInputElement>
+}
+
+const IntegerParameter = (props: NumberParameterProps) => {
     let childProps = { ...props };
-    childProps.parseValue = (it: string) => parseInt(it);
     return <GenericNumberParameter {...childProps} />;
 };
 
-const FloatingParameter = (props) => {
+const FloatingParameter = (props: NumberParameterProps) => {
     let childProps = { ...props };
-    childProps.parseValue = (it: string) => parseFloat(it);
     return <GenericNumberParameter {...childProps} />;
 };
 

@@ -17,11 +17,6 @@ class ShrinkService(
     private val gatherNode: String
 ) {
 
-    private fun deleteIndex(index: String) {
-        val request = DeleteIndexRequest(index)
-        elastic.indices().delete(request, RequestOptions.DEFAULT)
-    }
-
     private fun shrinkIndex(sourceIndex: String){
         val targetIndex = sourceIndex + "_small"
         val request = ResizeRequest(targetIndex, sourceIndex)
@@ -39,6 +34,8 @@ class ShrinkService(
                 .put("index.codec", "best_compression")
         )
         elastic.indices().shrink(request, RequestOptions.DEFAULT)
+
+        mergeIndex(elastic, targetIndex)
     }
 
     private fun prepareSourceIndex(index: String) {
@@ -65,21 +62,22 @@ class ShrinkService(
 
     fun shrink() {
         val yesterdayPeriodFormat = LocalDate.now().minusDays(1).toString().replace("-","." )
-        val list = elastic.indices().get(GetIndexRequest().indices("*-$yesterdayPeriodFormat"), RequestOptions.DEFAULT).indices
+        val list = getListOfIndices(elastic, "*-$yesterdayPeriodFormat")
 
         list.forEach {
             var counter = 0
             log.info("Shrinking $it")
             prepareSourceIndex(it)
-            while (elastic.cluster().health(ClusterHealthRequest(it), RequestOptions.DEFAULT).relocatingShards > 0) {
+            // using a do while gives the cluster a change to start relocating before checking
+            do {
                 if (counter % 10 == 0) {
                     log.info("Waiting for relocate")
                 }
                 counter++
-                Thread.sleep(500)
-            }
+                Thread.sleep(1000)
+            } while (elastic.cluster().health(ClusterHealthRequest(it), RequestOptions.DEFAULT).relocatingShards > 0)
             shrinkIndex(it)
-            deleteIndex(it)
+            deleteIndex(it, elastic)
         }
     }
 

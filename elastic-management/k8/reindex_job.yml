@@ -1,0 +1,53 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: weekly-reindex
+spec:
+  schedule: "0 3 * * 0"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+
+          containers:
+          - name: elastic-management
+            image: registry.cloud.sdu.dk/sdu-cloud/elastic-management:1.0.3
+            command:
+            - /opt/service/bin/service
+            - --config-dir
+            - /etc/refresh-token
+            - --config-dir
+            - /etc/token-validation
+            - --config-dir
+            - /etc/elasticmanagement
+            - --reindex
+            volumeMounts:
+            - mountPath: /etc/refresh-token
+              name: refresh-token
+            - mountPath: /etc/token-validation
+              name: token-validation
+            - mountPath: /etc/elasticmanagement
+              name: elasticmanagement
+            env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+          volumes:
+          - name: refresh-token
+            secret:
+              optional: false
+              secretName: elastic-management-refresh-token
+          - name: token-validation
+            configMap:
+              name: token-validation
+          - name: elasticmanagement
+            secret:
+              optional: false
+              secretName: elasticmanagement-tokens
+
+          imagePullSecrets:
+            - name: esci-docker

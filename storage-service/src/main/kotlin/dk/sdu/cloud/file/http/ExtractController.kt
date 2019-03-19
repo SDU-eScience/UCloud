@@ -63,6 +63,10 @@ class ExtractController<Ctx : FSUserContext>(
                             sensitivityService
                         )
                     }
+
+                    if (request.removeOriginalArchive == true) {
+                        coreFs.delete(readContext, request.path)
+                    }
                 }
             }
 

@@ -31,18 +31,16 @@ import { Spacer } from "ui-components/Spacer";
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
         const { page, sortOrder, sortBy, history, ...props } = this.props;
+        // FIXME: Move to init-call
         props.setPageTitle();
         props.setActivePage();
+        // FIXME END
         props.prioritizeFileSearch();
-        props.setUploaderCallback(
-            (path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
-        );
+        props.setUploaderCallback((path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
-    componentWillUnmount() {
-        this.props.clearRefresh();
-    }
+    componentWillUnmount = () => this.props.clearRefresh();
 
     private urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
 
@@ -75,7 +73,7 @@ class Files extends React.Component<FilesProps> {
         const { page, history, sortOrder, sortBy } = this.props;
         this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
         this.props.updatePath(getParentPath(path)); // FIXME Could these be handled by shouldComponentUpdate?
-        history.push(fileTablePage(getParentPath(path)))
+        history.push(fileTablePage(getParentPath(path)));
     }
 
     shouldComponentUpdate(nextProps: FilesProps): boolean {
@@ -117,7 +115,6 @@ class Files extends React.Component<FilesProps> {
             onExtracted: this.refetch,
             onSensitivityChange: this.refetch,
             onClearTrash: () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
-            onLinkCreate: p => this.props.fetchPageFromPath(p, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
             history: this.props.history,
             setLoading: () => this.props.setLoading(true)
         })

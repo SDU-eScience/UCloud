@@ -4,6 +4,7 @@ import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
 import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
+import { ParameterValues } from "Utilities/ApplicationUtilities";
 
 export interface Analysis {
     status: string
@@ -145,7 +146,6 @@ export interface MaxTimeForInput {
     hours: number | null,
     minutes: number | null,
     seconds: number | null
-
 }
 
 export interface JobSchedulingOptionsForInput {
@@ -162,7 +162,7 @@ export interface RunAppState {
     loading: boolean
 
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
-    parameterValues: {}
+    parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
     favoriteLoading: boolean

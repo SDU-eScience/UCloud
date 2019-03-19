@@ -15,9 +15,10 @@ spec:
       labels:
         app: alerting
     spec:
+      serviceAccountName: alerting
       containers:
       - name: alerting
-        image: registry.cloud.sdu.dk/sdu-cloud/alerting-service:0.1.0
+        image: registry.cloud.sdu.dk/sdu-cloud/alerting-service:1.0.8
         command:
         - /opt/service/bin/service
         - --config-dir

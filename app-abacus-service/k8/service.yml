@@ -11,6 +11,7 @@ metadata:
       name: app_abacus
       prefix: ^/api/app/compute/abacus(/.*)?$
       prefix_regex: true
+      timeout_ms: 0
       service: app-abacus:8080
       rewrite: ""
 

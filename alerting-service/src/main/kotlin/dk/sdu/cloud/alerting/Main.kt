@@ -14,7 +14,10 @@ data class Configuration (
 )
 
 data class Limits(
-    val percentLimit500Status: Double
+    val percentLimit500Status: Double,
+    val storageInfoLimit: Double,
+    val storageWarnLimit: Double,
+    val storageCriticalLimit: Double
 )
 
 data class Notifiers(

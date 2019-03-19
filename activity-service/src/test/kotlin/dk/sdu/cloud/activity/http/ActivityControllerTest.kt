@@ -31,7 +31,7 @@ class ActivityControllerTest {
     @Test
     fun `test listByFileId authenticated`() {
         val activityService: ActivityService<Unit> = mockk()
-        val controller = ActivityController(mockk(relaxed = true), activityService)
+        val controller = ActivityController(activityService)
 
         withKtorTest(
             setup = { listOf(controller) },
@@ -42,7 +42,7 @@ class ActivityControllerTest {
                     val expectedResult =
                         listOf(ActivityEvent.Download("user1", 0L, fileId, "file")).paginate(paginationRequest)
 
-                    every { activityService.findEventsForFileId(any(), any(), any()) } returns expectedResult
+                    every { activityService.findEventsForFileId(any(), any()) } returns expectedResult
 
                     val response = handleRequest(HttpMethod.Get, "/api/activity/by-file-id?id=$fileId") {
                         setUser(role = Role.ADMIN)
@@ -56,7 +56,6 @@ class ActivityControllerTest {
 
                     verify(exactly = 1) {
                         activityService.findEventsForFileId(
-                            any(),
                             match { it.itemsPerPage == paginationRequest.itemsPerPage && it.page == paginationRequest.page },
                             fileId
                         )
@@ -69,7 +68,7 @@ class ActivityControllerTest {
     @Test
     fun `test listByFileId not authenticated`() {
         val activityService: ActivityService<Unit> = mockk()
-        val controller = ActivityController(mockk(relaxed = true), activityService)
+        val controller = ActivityController(activityService)
 
         withKtorTest(
             setup = { listOf(controller) },
@@ -90,7 +89,7 @@ class ActivityControllerTest {
     @Test
     fun `test listByPath authenticated`() {
         val activityService: ActivityService<Unit> = mockk()
-        val controller = ActivityController(mockk(relaxed = true), activityService)
+        val controller = ActivityController(activityService)
 
         withKtorTest(
             setup = { listOf(controller) },
@@ -103,7 +102,6 @@ class ActivityControllerTest {
 
                     coEvery {
                         activityService.findEventsForPath(
-                            any(),
                             any(),
                             path,
                             any(),
@@ -122,7 +120,7 @@ class ActivityControllerTest {
                         defaultMapper.readValue<ListActivityByIdResponse>(response.response.content!!)
                     assertEquals(expectedResult, parsedResult)
 
-                    coVerify(exactly = 1) { activityService.findEventsForPath(any(), any(), path, any(), any()) }
+                    coVerify(exactly = 1) { activityService.findEventsForPath(any(), path, any(), any()) }
                 }
             }
         )
@@ -131,7 +129,7 @@ class ActivityControllerTest {
     @Test
     fun `test listByPath not authenticated`() {
         val activityService: ActivityService<Unit> = mockk()
-        val controller = ActivityController(mockk(relaxed = true), activityService)
+        val controller = ActivityController(activityService)
 
         withKtorTest(
             setup = { listOf(controller) },

@@ -173,12 +173,14 @@ export const sideBarMenuElements: { guest: SidebarMenuElements, general: Sidebar
 
 interface SidebarStateProps {
     page: SidebarPages
+    loggedIn: boolean
 }
 interface SidebarProps extends SidebarStateProps {
     sideBarEntries?: any
 }
 
-const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) => {
+const Sidebar = ({ sideBarEntries = sideBarMenuElements, page, loggedIn }: SidebarProps) => {
+    if (!loggedIn) return null;
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
@@ -198,7 +200,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) =
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
             {Cloud.isLoggedIn ? <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
-                <Tooltip top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard(Cloud.username, "Username copied to clipboard")} width={"140px"}>{Cloud.username}</EllipsedText>}>
+                <Tooltip left="-50%" top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard(Cloud.username, "Username copied to clipboard")} width={"140px"}>{Cloud.username}</EllipsedText>}>
                     {`Click to copy "${Cloud.username}" to clipboard`}
                 </Tooltip>
             </TextLabel> : null}
@@ -214,7 +216,9 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) =
 };
 
 const mapStateToProps = ({ status }: ReduxObject): SidebarStateProps => ({
-    page: status.page
+    page: status.page,
+    /* Used to ensure rerendering of Sidebar after user logs in. */
+    loggedIn: Cloud.isLoggedIn
 });
 
 export const enum SidebarPages {

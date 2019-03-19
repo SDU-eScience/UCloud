@@ -77,13 +77,16 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         const path = this.props.path ? this.props.path : "";
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={() => this.props.remove!()} />) : null;
+        // FIXME: Not that readable.
+        const inputValue = this.props.inputRef && this.props.inputRef.current && this.props.inputRef.current.value || replaceHomeFolder(path, Cloud.homeFolder);
         return (
             <Flex>
                 <FileSelectorInput
+                    ref={this.props.inputRef}
                     readOnly
                     required={this.props.isRequired}
                     placeholder="No file selected"
-                    value={replaceHomeFolder(path, Cloud.homeFolder)}
+                    value={inputValue}
                     onChange={() => undefined}
                     onClick={() => this.setState(() => ({ modalShown: true }))}
                 />

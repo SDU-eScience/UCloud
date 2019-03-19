@@ -890,7 +890,7 @@ class FileTesting {
         object SmallFileUpload {
             const val DIR = "SmallFileUpload"
             const val NAME = "file.txt"
-            val CONTENTS = "Hello, World 🎉!".repeat(100_000)
+            val CONTENTS = "Hello, World 🎉!"
         }
 
         object LargeFileUpload {

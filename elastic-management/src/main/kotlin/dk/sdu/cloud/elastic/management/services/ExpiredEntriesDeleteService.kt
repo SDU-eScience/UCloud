@@ -1,7 +1,6 @@
 package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest
 import org.elasticsearch.client.RequestOptions
@@ -45,7 +44,7 @@ class ExpiredEntriesDeleteService(
 
         if (sizeOfIndex == expiredCount) {
             log.info("All doc expired - faster to delete index")
-            deleteFullIndex(index)
+            deleteIndex(index, elastic)
         } else {
             val request = DeleteByQueryRequest(index)
             request.setQuery(
@@ -54,17 +53,12 @@ class ExpiredEntriesDeleteService(
             )
 
             elastic.deleteByQuery(request, RequestOptions.DEFAULT)
-            elastic.indices().flush(FlushRequest(index), RequestOptions.DEFAULT)
+            flushIndex(elastic, index)
         }
     }
 
-    private fun deleteFullIndex(index: String){
-        elastic.indices().delete(DeleteIndexRequest(index), RequestOptions.DEFAULT)
-        log.info("Index: $index deleted")
-    }
-
-    fun cleanUp() {
-        val list = elastic.indices().get(GetIndexRequest().indices("*"), RequestOptions.DEFAULT).indices
+    fun deleteExpiredAllIndices() {
+        val list = getListOfIndices(elastic, "*")
         list.forEach {
             log.info("Finding expired entries in $it")
             deleteExpired(it)
@@ -73,7 +67,5 @@ class ExpiredEntriesDeleteService(
 
     companion object : Loggable {
         override val log: Logger = logger()
-
-        internal const val DOC_TYPE = "doc"
     }
 }

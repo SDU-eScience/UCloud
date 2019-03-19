@@ -87,6 +87,8 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
             repeatPasswordError
         } = this.state;
 
+        const passwordUser = Cloud.principalType === "password";
+
         return (
             <Flex alignItems="center" flexDirection="column">
                 <Box width={0.7}>
@@ -94,7 +96,7 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
                         header={<Heading.h1>Change Password</Heading.h1>}
                         main={
                             <>
-                                <form onSubmit={e => this.validateAndSubmit(e)}>
+                                {passwordUser ? <form onSubmit={e => this.validateAndSubmit(e)}>
                                     <Box mt="0.5em" pt="0.5em">
                                         <Label>
                                             Current Password
@@ -138,7 +140,7 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
                                     >
                                         Change password
                                     </Button>
-                                </form>
+                                </form> : null}
                                 <TwoFactorSetup />
                             </>
                         }

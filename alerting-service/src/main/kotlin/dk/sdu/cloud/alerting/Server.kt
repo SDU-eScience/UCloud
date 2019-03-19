@@ -3,6 +3,7 @@ package dk.sdu.cloud.alerting
 import dk.sdu.cloud.alerting.services.Alert
 import dk.sdu.cloud.alerting.services.AlertingService
 import dk.sdu.cloud.alerting.services.ElasticAlerting
+import dk.sdu.cloud.alerting.services.KubernetesAlerting
 import dk.sdu.cloud.alerting.services.SlackNotifier
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.service.CommonServer
@@ -37,7 +38,7 @@ class Server(
 
         val alertService = AlertingService(listOf(SlackNotifier(config.notifiers.slack?.hook!!)))
 
-       GlobalScope.launch {
+        GlobalScope.launch {
             try {
                 log.info("Alert on clusterheath - starting up")
                 ElasticAlerting(elastic, alertService).alertOnClusterHealth()
@@ -55,6 +56,30 @@ class Server(
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on StatusCode caught exception: ${ex.message}.")
                 exitProcess(1)
+            }
+        }
+
+        GlobalScope.launch {
+            val client = RestClient.builder(HttpHost(elasticHostAndPort.host, elasticHostAndPort.port)).build()
+            try {
+                log.info("Alert on elastic storage - starting up with limits: " +
+                        "low: ${config.limits?.storageInfoLimit ?: "NaN"}%, " +
+                        "mid:${config.limits?.storageWarnLimit ?: "NaN"}%, " +
+                        "high:${config.limits?.storageCriticalLimit ?: "NaN"}%"
+                )
+                ElasticAlerting(elastic, alertService).alertOnStorage(client, config)
+            } catch (ex: Exception) {
+                log.warn("WARNING: Alert on elastic storage caught exception: ${ex}.")
+                client.close()
+            }
+        }
+
+        GlobalScope.launch {
+            try {
+                log.info("Alert on crashLoop started")
+                KubernetesAlerting().crashLoopAndFailedDetection(alertService)
+            } catch (ex: Exception) {
+                log.warn("WARNING: Alert on crashLoop caught exception: ${ex}.")
             }
         }
     }
