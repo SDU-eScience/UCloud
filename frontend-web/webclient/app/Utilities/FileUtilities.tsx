@@ -313,7 +313,6 @@ interface AllFileOperations {
     onDeleted?: () => void
     onExtracted?: () => void
     onClearTrash?: () => void
-    onLinkCreate?: (p: string) => void
     onSensitivityChange?: () => void
     history?: History,
     setLoading: () => void
@@ -324,7 +323,6 @@ export function allFileOperations({
     onDeleted,
     onExtracted,
     onClearTrash,
-    onLinkCreate,
     history,
     setLoading,
     onSensitivityChange
@@ -334,7 +332,6 @@ export function allFileOperations({
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
-    const createLink = !!onLinkCreate ? CreateLinkOperation(onLinkCreate, setLoading) : [];
     const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
     return [
         ...stateLessOperations,
@@ -342,7 +339,6 @@ export function allFileOperations({
         ...deleteOperation,
         ...extractionOperations,        // ...clearTrash,
         ...historyOperations,
-        ...createLink
     ];
 };
 

@@ -19,7 +19,6 @@ type DetailedFileSearchGivenProps = { history: History, defaultFilename?: string
 type DetailedFileSearchProps = DetailedFileSearchStateProps & DetailedFileSearchGivenProps;
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
-
     constructor(props) {
         super(props);
     }
@@ -123,17 +122,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
         const { hidden, cantHide } = this.props;
         if (hidden && !cantHide) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
         const { sensitivities, extensions, allowFiles, allowFolders } = this.props;
-        const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
-        const sensitivityDropdown = remainingSensitivities.length ? (
-            <Box>
-                <ClickableDropdown
-                    chevron
-                    trigger={"Add sensitivity level"}
-                    onChange={key => this.props.addSensitivity(key as SensitivityLevel)}
-                    options={remainingSensitivities}
-                />
-            </Box>
-        ) : null;
 
         return (
             <>
@@ -242,7 +230,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                             </Label>
                             </Flex>
                             <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
-                            <SearchStamps stamps={extensions} onStampRemove={l => this.props.removeExtensions([l])} clearAll={() => this.props.removeExtensions([...extensions])} />
+                            <SearchStamps 
+                                stamps={extensions} 
+                                onStampRemove={l => this.props.removeExtensions([l])} 
+                                clearAll={() => this.props.removeExtensions([...extensions])} 
+                            />
                             <Input
                                 type="text"
                                 pb="6px"
@@ -261,10 +253,16 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 onChange={value => this.onAddPresets(value)}
                                 options={extensionPresets}
                             />
-                            <Heading.h5 pb="0.3em" pt="0.5em">Sensitivity</Heading.h5>
-                            <SearchStamps stamps={sensitivities} onStampRemove={l => this.props.removeSensitivity([l as SensitivityLevel])} clearAll={() => this.props.removeSensitivity([...sensitivities])} />
-                            {sensitivityDropdown}
-                            <LoadingButton type="submit" fullWidth loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
+                            <LoadingButton 
+                                type="submit" 
+                                fullWidth 
+                                loading={this.props.loading} 
+                                mt="1em" 
+                                mb={"1.5em"} 
+                                color={"blue"} 
+                                onClick={() => this.onSearch()} 
+                                content="Search" 
+                            />
                         </form>
                     </Box>
                 </Flex>

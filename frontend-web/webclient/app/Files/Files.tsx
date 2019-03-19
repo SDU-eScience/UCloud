@@ -115,7 +115,6 @@ class Files extends React.Component<FilesProps> {
             onExtracted: this.refetch,
             onSensitivityChange: this.refetch,
             onClearTrash: () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
-            onLinkCreate: p => this.props.fetchPageFromPath(p, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
             history: this.props.history,
             setLoading: () => this.props.setLoading(true)
         })
