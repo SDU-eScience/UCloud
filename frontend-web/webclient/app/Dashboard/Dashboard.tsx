@@ -194,7 +194,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
                         size="1.5em"
                         pr="0.3em"
                     />
-                    <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.appName}</TextSpan></Link>
+                    <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.metadata.title}</TextSpan></Link>
                     <Box ml="auto" />
                     <TextSpan fontSize={2}>{UF.prettierString(analysis.state)}</TextSpan>
                 </Flex>
