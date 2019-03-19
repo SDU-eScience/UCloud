@@ -226,7 +226,7 @@ export const ExtractionOperation = (onFinished: () => void): Operation[] => [
     {
         text: "Extract archive",
         onClick: (files, cloud) => extractArchive(files, cloud, onFinished),
-        disabled: (files, cloud) => files.length > 1 || !isArchiveExtension(files[0].path),
+        disabled: (files, cloud) => !files.every(it => isArchiveExtension(it.path)),
         icon: "open",
         color: undefined
     }
@@ -508,8 +508,15 @@ export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callba
     });
 
 export const extractArchive = (files: File[], cloud: SDUCloud, onFinished: () => void): void => {
-    cloud.post("/files/extract", { path: files[0].path }).then(it => (UF.successNotification("File extracted"), onFinished()))
-        .catch(it => UF.failureNotification(`An error occurred extracting file.`))
+    files.forEach(async f => {
+        try {
+            await cloud.post("/files/extract", { path: f.path });
+            UF.successNotification("File extracted");
+        } catch (e) {
+            UF.failureNotification(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));
+        }
+    });
+    onFinished();
 }
 
 
