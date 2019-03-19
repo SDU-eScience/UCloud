@@ -220,6 +220,11 @@ export default class SDUCloud {
             window.location.href = this.context + "/app/login";
     }
 
+    openLandingPage() {
+        if (window.location.href !== this.context + "/app/")
+            window.location.href = this.context + "/app/";
+    }
+
     /**
      * @returns the username of the authenticated user or null
      */
