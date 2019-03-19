@@ -1,0 +1,25 @@
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: alerting-role
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: alerting-rb
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: alerting
+  apiGroup: ""
+roleRef:
+  kind: Role
+  name: alerting-role
+  apiGroup: ""

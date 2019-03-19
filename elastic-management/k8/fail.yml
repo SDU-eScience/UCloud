@@ -2,9 +2,9 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: weekly-reindex
+  name: failjob
 spec:
-  schedule: "0 3 * * 0"
+  schedule: "*/2 * * * *"
   jobTemplate:
     spec:
       template:
@@ -13,7 +13,7 @@ spec:
 
           containers:
           - name: elastic-management
-            image: registry.cloud.sdu.dk/sdu-cloud/elastic-management:1.0.3
+            image: registry.cloud.sdu.dk/sdu-cloud/elastic-management:1.0.1
             command:
             - /opt/service/bin/service
             - --config-dir
@@ -50,4 +50,4 @@ spec:
               secretName: elasticmanagement-tokens
 
           imagePullSecrets:
-            - name: esci-docker
+          - name: esci-docker

@@ -138,4 +138,10 @@ class ManagementTest {
         service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs")
     }
 
+    @Ignore
+    @Test
+    fun `getAllTest`() {
+        println(getAllLogNamesWithPrefix(elastic, "http_logs"))
+    }
+
 }

@@ -1,13 +1,19 @@
 package dk.sdu.cloud.elastic.management.services
 
+import dk.sdu.cloud.elastic.management.ElasticHostAndPort
+import org.apache.http.HttpHost
+import org.apache.http.util.EntityUtils
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest
+import org.elasticsearch.client.Request
 import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.settings.Settings
+import java.lang.Exception
 
 internal fun deleteIndex(index: String, elastic: RestHighLevelClient){
     elastic.indices().delete(DeleteIndexRequest(index), RequestOptions.DEFAULT)
@@ -50,10 +56,27 @@ internal fun getAllLogNamesWithPrefix(elastic: RestHighLevelClient, prefix: Stri
 
     val httpLogNames = mutableSetOf<String>()
     listOfIndices.forEach {
-        if (it.indexOf("-") != 0) {
+        if (it.indexOf("-") != -1) {
             httpLogNames.add(it.substring(0, it.indexOf(delimiter)))
         }
     }
 
     return httpLogNames.toList()
+}
+
+internal fun getDocumentCount(indices: List<String>, elasticHostAndPort: ElasticHostAndPort): Int{
+    val lowClient = RestClient.builder(HttpHost(elasticHostAndPort.host, elasticHostAndPort.port)).build()
+    var count = 0
+    try {
+    indices.forEach {
+        val response = lowClient.performRequest(Request("GET", "/_cat/count/$it"))
+        val responseInfo = EntityUtils.toString(response.entity).split(" ").filter { it != "" }
+        count += responseInfo[2].trim().toInt()
+    }
+    } catch (ex: Exception) {
+        lowClient.close()
+        throw ex
+    }
+    lowClient.close()
+    return count
 }

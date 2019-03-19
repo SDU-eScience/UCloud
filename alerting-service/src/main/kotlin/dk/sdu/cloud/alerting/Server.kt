@@ -3,6 +3,7 @@ package dk.sdu.cloud.alerting
 import dk.sdu.cloud.alerting.services.Alert
 import dk.sdu.cloud.alerting.services.AlertingService
 import dk.sdu.cloud.alerting.services.ElasticAlerting
+import dk.sdu.cloud.alerting.services.KubernetesAlerting
 import dk.sdu.cloud.alerting.services.SlackNotifier
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.service.CommonServer
@@ -37,7 +38,7 @@ class Server(
 
         val alertService = AlertingService(listOf(SlackNotifier(config.notifiers.slack?.hook!!)))
 
-       GlobalScope.launch {
+        GlobalScope.launch {
             try {
                 log.info("Alert on clusterheath - starting up")
                 ElasticAlerting(elastic, alertService).alertOnClusterHealth()
@@ -70,6 +71,15 @@ class Server(
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on elastic storage caught exception: ${ex}.")
                 client.close()
+            }
+        }
+
+        GlobalScope.launch {
+            try {
+                log.info("Alert on crashLoop started")
+                KubernetesAlerting().crashLoopAndFailedDetection(alertService)
+            } catch (ex: Exception) {
+                log.warn("WARNING: Alert on crashLoop caught exception: ${ex}.")
             }
         }
     }

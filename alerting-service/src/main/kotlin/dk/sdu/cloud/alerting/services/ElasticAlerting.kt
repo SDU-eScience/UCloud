@@ -17,12 +17,6 @@ import java.net.ConnectException
 import java.time.LocalDate
 import java.util.*
 
-private const val FIFTEEN_SEC = 15 * 1000L
-private const val THIRTY_SEC = 30 * 1000L
-private const val FIVE_MIN = 5 * 60 * 1000L
-private const val FIFTEEN_MIN = 15 * 60 * 1000L
-private const val ONE_HOUR = 60 * 60 * 1000L
-
 enum class Status(val isError: Boolean, val failuresForATrigger: Int) {
     RED(isError = true, failuresForATrigger = 2),
     YELLOW(isError = true, failuresForATrigger = 10),

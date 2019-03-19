@@ -68,13 +68,14 @@ class ShrinkService(
             var counter = 0
             log.info("Shrinking $it")
             prepareSourceIndex(it)
-            while (elastic.cluster().health(ClusterHealthRequest(it), RequestOptions.DEFAULT).relocatingShards > 0) {
+            // using a do while gives the cluster a change to start relocating before checking
+            do {
                 if (counter % 10 == 0) {
                     log.info("Waiting for relocate")
                 }
                 counter++
-                Thread.sleep(500)
-            }
+                Thread.sleep(1000)
+            } while (elastic.cluster().health(ClusterHealthRequest(it), RequestOptions.DEFAULT).relocatingShards > 0)
             shrinkIndex(it)
             deleteIndex(it, elastic)
         }
