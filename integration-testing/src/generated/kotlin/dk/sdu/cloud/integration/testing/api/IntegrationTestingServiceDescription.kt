@@ -1,6 +1,6 @@
 package dk.sdu.cloud.integration.testing.api
 
-import dk.sdu.cloud.client.ServiceDescription
+import dk.sdu.cloud.ServiceDescription
 
 object IntegrationTestingServiceDescription : ServiceDescription {
     override val name: String = "integration-testing"

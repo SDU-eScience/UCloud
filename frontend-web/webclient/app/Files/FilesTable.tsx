@@ -250,7 +250,7 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
             return null;
     }
 
-    const badge = <SensitivityBadge bg={def.color}>{def.shortText}</SensitivityBadge>;
+    const badge = <SensitivityBadge data-tag={"sensitivityBadge"} bg={def.color}>{def.shortText}</SensitivityBadge>;
     return <Tooltip right="0" top mb="50px" trigger={badge}>{def.text}</Tooltip>
 }
 
