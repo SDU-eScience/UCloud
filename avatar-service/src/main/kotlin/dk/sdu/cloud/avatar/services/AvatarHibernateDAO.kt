@@ -74,17 +74,17 @@ class AvatarEntity(
 
 private fun defaultAvatar(): Avatar =
     Avatar(
-        Top.HAT,
+        Top.NO_HAIR,
         TopAccessory.BLANK,
         HairColor.BLACK,
         FacialHair.BLANK,
         FacialHairColor.BLACK,
         Clothes.SHIRT_CREW_NECK,
         ColorFabric.BLACK,
-        Eyes.SURPRISED,
+        Eyes.DEFAULT,
         Eyebrows.DEFAULT,
         MouthTypes.SMILE,
-        SkinColors.YELLOW,
+        SkinColors.LIGHT,
         ClothesGraphic.BEAR
     )
 

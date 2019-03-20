@@ -33,17 +33,17 @@ class AvatarServiceTest {
             var findResult = service.findByUser(user)
             assertNotNull(findResult)
 
-            assertEquals(Top.HAT, findResult.top)
+            assertEquals(Top.NO_HAIR, findResult.top)
             assertEquals(TopAccessory.BLANK, findResult.topAccessory)
             assertEquals(HairColor.BLACK, findResult.hairColor)
             assertEquals(FacialHair.BLANK, findResult.facialHair)
             assertEquals(FacialHairColor.BLACK, findResult.facialHairColor)
             assertEquals(Clothes.SHIRT_CREW_NECK, findResult.clothes)
             assertEquals(ColorFabric.BLACK, findResult.colorFabric)
-            assertEquals(Eyes.SURPRISED, findResult.eyes)
+            assertEquals(Eyes.DEFAULT, findResult.eyes)
             assertEquals(Eyebrows.DEFAULT, findResult.eyebrows)
             assertEquals(MouthTypes.SMILE, findResult.mouthTypes)
-            assertEquals(SkinColors.YELLOW, findResult.skinColors)
+            assertEquals(SkinColors.LIGHT, findResult.skinColors)
             assertEquals(ClothesGraphic.BEAR, findResult.clothesGraphic)
 
             service.upsert(user, avatar)
@@ -134,7 +134,7 @@ class AvatarServiceTest {
             assertEquals(Top.LONG_HAIR_BIG_HAIR.string, resultForUser2?.top)
 
             val resultForNotFoundUser = results["notFoundUser"]
-            assertEquals(Top.HAT.string, resultForNotFoundUser?.top)
+            assertEquals(Top.NO_HAIR.string, resultForNotFoundUser?.top)
         }
     }
 }
