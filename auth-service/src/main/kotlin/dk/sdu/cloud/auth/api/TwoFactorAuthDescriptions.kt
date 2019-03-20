@@ -53,22 +53,6 @@ object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.2fa") {
         }
     }
 
-    val answerChallengeViaForm = call<Unit, Unit, Unit>("answerChallengeViaForm") {
-        auth {
-            roles = Roles.PUBLIC
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"challenge"
-                +"form"
-            }
-        }
-    }
-
     val twoFactorStatus = call<Unit, TwoFactorStatusResponse, CommonErrorMessage>("twoFactorStatus") {
         auth {
             access = AccessRight.READ_WRITE

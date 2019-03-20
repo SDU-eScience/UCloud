@@ -5,8 +5,7 @@ import dk.sdu.cloud.service.Loggable
 data class Service(
     val name: String,
     val endpoint: String,
-    val refreshTokenExpiresAfter: Long? = null,
-    val endpointAcceptsStateViaCookie: Boolean = false
+    val refreshTokenExpiresAfter: Long? = null
 )
 
 object ServiceDAO : Loggable {

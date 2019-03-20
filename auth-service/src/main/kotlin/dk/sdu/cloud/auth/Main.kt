@@ -14,7 +14,6 @@ import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.runScriptHandler
@@ -77,29 +76,8 @@ data class AuthConfiguration(
     val enableWayf: Boolean = false,
     val production: Boolean = true,
     val tokenExtension: List<ServiceTokenExtension> = emptyList(),
-    val trustedOrigins: List<String> = listOf("cloud.sdu.dk", "localhost"),
-    val services: List<Service> = run {
-        val DEFAULT_EXPIRY = 1000L * 60 * 60 * 24 * 30
-
-        listOf(
-            Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf", DEFAULT_EXPIRY),
-            Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf", DEFAULT_EXPIRY),
-
-            Service(
-                "web",
-                "https://cloud.sdu.dk/app/login/wayf",
-                refreshTokenExpiresAfter = DEFAULT_EXPIRY,
-                endpointAcceptsStateViaCookie = true
-            ),
-
-            Service(
-                "dev-web",
-                "http://localhost:9000/app/login/wayf",
-                refreshTokenExpiresAfter = DEFAULT_EXPIRY,
-                endpointAcceptsStateViaCookie = true
-            )
-        )
-    }
+    val trustedOrigins: List<String> = listOf("localhost"),
+    val services: List<Service> = emptyList()
 )
 
 fun main(args: Array<String>) {

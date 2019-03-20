@@ -58,9 +58,6 @@ sealed class Person : Principal() {
 
     abstract val displayName: String
 
-    // TODO Proper email validation
-    private fun isValidEmail(email: String): Boolean = email.contains("@")
-
     override fun validate() {
         super.validate()
         if (id.startsWith("_")) throw IllegalArgumentException("A person's ID cannot start with '_'")
@@ -72,8 +69,6 @@ sealed class Person : Principal() {
         if (preferredEmailAddress != null && preferredEmailAddress!! !in emailAddresses) {
             throw IllegalArgumentException("Preferred email address is not in primary list of addresses")
         }
-
-        // TODO Validate orcId
     }
 
     /**
