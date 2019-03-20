@@ -10,7 +10,6 @@ import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } f
 import { Cloud } from "Authentication/SDUCloudObject";
 import styled from "styled-components";
 import { Link as ReactRouterLink } from "react-router-dom";
-import { EllipsedText, TextSpan } from "ui-components/Text";
 import { colors } from "ui-components/theme";
 
 export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: React.RefObject<any> }> {

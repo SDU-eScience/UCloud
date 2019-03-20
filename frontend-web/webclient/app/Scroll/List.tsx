@@ -110,8 +110,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
             let postSpacingRequired: number | undefined;
 
             for (let i = 0; i < heights.length; i++) {
-                const estimatedHeight = heights[i] !== 0 ? heights[i] : this.averageComponentSize;
-                sum += estimatedHeight;
+                sum += heights[i];
                 if (sum >= currentTop && firstVisibleElement === undefined) {
                     firstVisibleElement = i;
                     if (i > 0) {
@@ -127,11 +126,6 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
 
             if (lastVisibleElement !== undefined && sum > 0) {
                 postSpacingRequired = sum;
-            }
-
-            if (lastVisibleElement === undefined && 
-                    this.state.lastVisibleElement !== undefined) {
-                lastVisibleElement = this.state.lastVisibleElement + 5;
             }
 
             const state = this.state;
