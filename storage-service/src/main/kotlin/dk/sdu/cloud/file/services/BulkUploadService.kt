@@ -36,7 +36,8 @@ sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: 
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<Ctx>
+        sensitivityService: FileSensitivityService<Ctx>,
+        archiveName: String
     ): List<String>
 
     companion object {
@@ -64,7 +65,8 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<UnixFSCommandRunner>
+        sensitivityService: FileSensitivityService<UnixFSCommandRunner>,
+        archiveName: String
     ): List<String> {
         return BasicUploader.uploadFromSequence(
             serviceCloud,
@@ -74,6 +76,7 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
             conflictPolicy,
             sensitivity,
             sensitivityService,
+            archiveName,
             sequence {
                 yield(ArchiveEntry.Directory(path))
 
@@ -121,7 +124,8 @@ object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRun
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<UnixFSCommandRunner>
+        sensitivityService: FileSensitivityService<UnixFSCommandRunner>,
+        archiveName: String
     ): List<String> {
         return BasicUploader.uploadFromSequence(
             serviceCloud,
@@ -131,6 +135,7 @@ object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRun
             conflictPolicy,
             sensitivity,
             sensitivityService,
+            archiveName,
             sequence {
                 TarInputStream(GZIPInputStream(stream)).use {
                     var entry: TarEntry? = it.nextEntry
@@ -188,6 +193,7 @@ private object BasicUploader : Loggable {
         conflictPolicy: WriteConflictPolicy,
         sensitivity: SensitivityLevel?,
         sensitivityService: FileSensitivityService<Ctx>,
+        archiveName: String,
         sequence: Sequence<ArchiveEntry>
     ): List<String> {
         val rejectedFiles = ArrayList<String>()
@@ -208,7 +214,7 @@ private object BasicUploader : Loggable {
                         ctx.user,
                         Notification(
                             NOTIFICATION_EXTRACTION_TYPE,
-                            "Extraction started: '$destinationPathForNotification'",
+                            "Extraction started: '$archiveName'",
                             meta = notificationMeta
                         )
                     ),
@@ -228,7 +234,7 @@ private object BasicUploader : Loggable {
                                     ctx.user,
                                     Notification(
                                         NOTIFICATION_EXTRACTION_TYPE,
-                                        "Archive is being extracted to '$path'...", // TODO get estimated progress
+                                        "Extraction in progress: '$archiveName'",
                                         meta = notificationMeta
                                     )
                                 ),
@@ -330,7 +336,7 @@ private object BasicUploader : Loggable {
                     ctx.user,
                     Notification(
                         NOTIFICATION_EXTRACTION_TYPE,
-                        "Extraction finished: '$destinationPathForNotification'",
+                        "Extraction finished: '$archiveName'",
                         meta = notificationMeta
                     )
                 ),
