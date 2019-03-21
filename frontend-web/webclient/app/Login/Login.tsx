@@ -13,7 +13,6 @@ const bg2 = require("Assets/LoginImages/cloud2.jpg");
 const bg3 = require("Assets/LoginImages/cloud3.jpg");
 
 function randImage() {
-    
     switch ((Math.random() * 3) | 0) {
         case 0:
             return bg1;
@@ -26,8 +25,8 @@ function randImage() {
 }
 
 const BackgroundImage = styled.div<{ image: string}>`
-    background: url(${({image}) => image}) no-repeat center center fixed;
-    bacground-size: cover,
+    background: url(${({ image }) => image}) no-repeat center center fixed;
+    background-size: cover;
 `;
 
 const inDevEnvironment = process.env.NODE_ENV === "development"

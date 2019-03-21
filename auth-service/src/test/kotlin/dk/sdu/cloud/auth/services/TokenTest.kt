@@ -3,12 +3,15 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.kafka.forStream
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -77,7 +80,7 @@ class TokenTest {
             userDao,
             refreshTokenDao,
             testJwtFactory,
-            mockk(relaxed = true),
+            UserCreationService(db, userDao, micro.kafka.producer.forStream(AuthStreams.UserUpdateStream)),
             tokenValidation = testJwtVerifier
         )
 

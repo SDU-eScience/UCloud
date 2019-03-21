@@ -12,16 +12,13 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
-import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.delay
 import java.security.SecureRandom
 import java.util.*
@@ -314,7 +311,7 @@ class TokenService<DBSession>(
                             // Alternatively, we can make PersonService a proper service (better choice?)
                             val userCreated = personService.createUserByWAYF(samlRequestProcessor)
                             userCreationService.createUser(userCreated)
-                            return userCreated
+                            return db.withTransaction { userDao.findByWayfId(it, id) }
                         } catch (ex: Exception) {
                             if (i < 5) log.debug(ex.stackTraceToString())
                             else log.warn(ex.stackTraceToString())
