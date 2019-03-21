@@ -93,7 +93,7 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
             <Flex alignItems="center" flexDirection="column">
                 <Box width={0.7}>
                     <MainContainer
-                        header={<Heading.h1>Change Password</Heading.h1>}
+                        header={<Heading.h1>User Settings</Heading.h1>}
                         main={
                             <>
                                 {passwordUser ? <form onSubmit={e => this.validateAndSubmit(e)}>
