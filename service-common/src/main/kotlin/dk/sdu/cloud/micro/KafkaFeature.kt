@@ -34,9 +34,10 @@ private const val POLL_TIMEOUT_IN_MS = 10L
 
 class KafkaServices(
     private val streamsConfig: Properties,
-    private val consumerConfig: Properties,
+    val consumerConfig: Properties,
     val producer: Producer<String, String>,
     val adminClient: AdminClient,
+    val producerConfig: Properties,
     val defaultPartitions: Int = 32,
     val defaultReplicas: Short = 1
 ) : EventConsumerFactory {
@@ -88,6 +89,7 @@ class KafkaFeature(
             this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
             this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
             this[ProducerConfig.ACKS_CONFIG] = "all"
+            this[ProducerConfig.MAX_BLOCK_MS_CONFIG] = "15000"
         }
 
     private fun retrieveConsumerConfig(
@@ -101,7 +103,6 @@ class KafkaFeature(
         this[ConsumerConfig.GROUP_ID_CONFIG] = serviceDescription.name + "-consumer"
         this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
         this[ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG] = "60000"
-        this[CommonClientConfigs.RETRIES_CONFIG] = "100"
     }
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -143,6 +144,7 @@ class KafkaFeature(
                 consumerConfig,
                 producer,
                 adminClient,
+                producerConfig,
                 userConfig.defaultPartitions,
                 userConfig.defaultReplicas
             )

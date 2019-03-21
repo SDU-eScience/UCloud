@@ -100,7 +100,8 @@ object KafkaMock : Loggable {
             streamsConfig = Properties(),
             consumerConfig = Properties(),
             producer = kafkaProducer,
-            adminClient = mockedAdminClient
+            adminClient = mockedAdminClient,
+            producerConfig = Properties()
         )
     }
 
