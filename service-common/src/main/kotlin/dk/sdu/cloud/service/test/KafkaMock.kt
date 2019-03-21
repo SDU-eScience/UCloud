@@ -60,6 +60,7 @@ import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.admin.RecordsToDelete
 import org.apache.kafka.clients.admin.RenewDelegationTokenOptions
 import org.apache.kafka.clients.admin.RenewDelegationTokenResult
+import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.MockProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.Cluster
@@ -96,13 +97,12 @@ object KafkaMock : Loggable {
         this.mockedKafkaProducer = kafkaProducer
 
         log.debug("  Returning from initialize()")
-        return KafkaServices(
-            streamsConfig = Properties(),
-            consumerConfig = Properties(),
-            producer = kafkaProducer,
-            adminClient = mockedAdminClient,
-            producerConfig = Properties()
-        )
+        return object : KafkaServices {
+            override val producer = kafkaProducer
+            override val adminClient = mockedAdminClient
+            override val defaultPartitions: Int = 1
+            override val defaultReplicas: Short = 1
+        }
     }
 
 

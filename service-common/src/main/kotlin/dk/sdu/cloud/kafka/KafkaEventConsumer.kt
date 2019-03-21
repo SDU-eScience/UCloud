@@ -14,6 +14,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
+@Deprecated("Replace with new Kafka API")
 data class KafkaConsumedEvent<V>(
     override val value: V,
     val partition: TopicPartition,
@@ -34,6 +35,7 @@ data class KafkaConsumedEvent<V>(
     }
 }
 
+@Deprecated("Replace with new Kafka API")
 class KafkaEventConsumer<K, V>(
     internalQueueSize: Int,
     private val pollTimeoutInMs: Long = 10,

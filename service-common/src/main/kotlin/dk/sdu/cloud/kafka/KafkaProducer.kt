@@ -11,6 +11,7 @@ import kotlin.coroutines.resumeWithException
 
 private const val DEBUG_VALUE_MAX_SIZE = 100
 
+@Deprecated("Replace with new Kafka API")
 class EventProducer<in K, in V>(
     private val producer: Producer<String, String>,
     private val description: StreamDescription<K, V>
@@ -40,6 +41,7 @@ class EventProducer<in K, in V>(
     }
 }
 
+@Deprecated("Replace with new Kafka API")
 class MappedEventProducer<in K, in V>(
     producer: Producer<String, String>,
     private val description: MappedStreamDescription<K, V>
@@ -52,9 +54,11 @@ class MappedEventProducer<in K, in V>(
     }
 }
 
+@Deprecated("Replace with new Kafka API")
 fun <K, V> Producer<String, String>.forStream(description: StreamDescription<K, V>): EventProducer<K, V> =
     EventProducer(this, description)
 
+@Deprecated("Replace with new Kafka API")
 fun <K, V> Producer<String, String>.forStream(
     description: MappedStreamDescription<K, V>
 ): MappedEventProducer<K, V> = MappedEventProducer(this, description)

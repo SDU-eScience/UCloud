@@ -3,6 +3,7 @@ package dk.sdu.cloud.service
 import dk.sdu.cloud.kafka.StreamDescription
 import java.io.Closeable
 
+@Deprecated("Use new API")
 interface ConsumedEvent<V> {
     val value: V
 
@@ -18,6 +19,7 @@ interface ConsumedEvent<V> {
     fun commit()
 }
 
+@Deprecated("Use new API")
 interface EventConsumer<V> : Closeable {
     val isRunning: Boolean
 
@@ -26,6 +28,7 @@ interface EventConsumer<V> : Closeable {
     fun onExceptionCaught(handler: (Throwable) -> Unit)
 }
 
+@Deprecated("Use new API")
 interface EventConsumerFactory {
     fun <K, V> createConsumer(
         description: StreamDescription<K, V>,
@@ -33,12 +36,14 @@ interface EventConsumerFactory {
     ): EventConsumer<Pair<K, V>>
 }
 
+@Deprecated("Use new API")
 interface EventStreamProcessor<ValueIn, ValueOut> {
     fun addChildProcessor(processor: EventStreamProcessor<ValueOut, *>)
     fun accept(events: List<ConsumedEvent<ValueIn>>)
     fun commitConsumed(events: List<ConsumedEvent<*>>)
 }
 
+@Deprecated("Use new API")
 abstract class AbstractEventStreamProcessor<ValueIn, ValueOut>(
     private val parent: EventStreamProcessor<*, ValueIn>
 ) : EventStreamProcessor<ValueIn, ValueOut> {

@@ -34,6 +34,7 @@ private val objectMapper by lazy {
     }
 }
 
+@Deprecated("Replace with new Kafka API")
 class JsonPOJODeserializer<T> : Deserializer<T> {
     private var typeReference: TypeReference<T>? = null
     private var klass: Class<T>? = null
@@ -65,6 +66,7 @@ class JsonPOJODeserializer<T> : Deserializer<T> {
     }
 }
 
+@Deprecated("Replace with new Kafka API")
 class JsonPOJOSerializer<T> : Serializer<T> {
     private var writer: ObjectWriter = objectMapper.writer()
 
@@ -89,6 +91,7 @@ class JsonPOJOSerializer<T> : Serializer<T> {
     }
 }
 
+@Deprecated("Replace with new Kafka API")
 object JsonSerde {
     /**
      * This property is only public to allow for easy-inlining. Should not be used directly

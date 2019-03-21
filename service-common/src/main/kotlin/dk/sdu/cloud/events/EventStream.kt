@@ -11,19 +11,17 @@ data class EventStream<V : Any>(
     val desiredReplicas: Short? = null
 )
 
-inline fun <reified V : Any> EventStream(
-    name: String,
-    noinline keySelector: (V) -> String,
-    desiredPartitions: Int? = null,
-    desiredReplicas: Short? = null
-): EventStream<V> {
-    val typeRef = jacksonTypeRef<V>()
-    return EventStream(name, typeRef, keySelector, desiredPartitions, desiredReplicas)
-}
+data class EventStreamState(
+    val name: String,
+    val partitions: Int?,
+    val replicas: Short?
+)
 
 interface EventStreamService {
     fun <V : Any> subscribe(stream: EventStream<V>, consumer: EventConsumer<V>)
     fun <V : Any> createProducer(stream: EventStream<V>): EventProducer<V>
+    fun createStreams(streams: List<EventStream<*>>)
+    fun describeStreams(names: List<String>): Map<String, EventStreamState?>
 
     suspend fun start()
     suspend fun stop()

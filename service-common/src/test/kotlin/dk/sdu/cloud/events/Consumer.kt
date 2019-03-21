@@ -2,13 +2,11 @@ package dk.sdu.cloud.events
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.kafka
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import java.lang.Exception
-import kotlin.random.Random
 import kotlin.system.exitProcess
 
 data class Message(val message: String)
@@ -17,14 +15,16 @@ object ServiceD : ServiceDescription {
     override val name: String = "d"
 }
 
-fun main() {
-    val stream = EventStream<Message>("Foobar", { it.message })
+object Streams : StreamContainer() {
+    val stream = stream<Message>("Foobar", { it.message })
+}
 
+fun main() {
     val micro = Micro()
     micro.initWithDefaultFeatures(ServiceD, arrayOf("--dev", "--config-dir", "/Users/danthrane/sducloud"))
-    val streamService = KafkaStreamService(micro.kafka.consumerConfig, micro.kafka.producerConfig, 10)
+    val streamService = micro.eventStreamService
 
-    streamService.subscribe(stream, EventConsumer.Batched(maxLatency = 5000) {
+    streamService.subscribe(Streams.stream, EventConsumer.Batched(maxLatency = 5000) {
         println("Running code!")
         println(it)
     })

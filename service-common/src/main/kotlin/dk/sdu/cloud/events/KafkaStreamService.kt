@@ -7,7 +7,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.apache.kafka.clients.admin.AdminClient
+import org.apache.kafka.clients.admin.AdminClientConfig
+import org.apache.kafka.clients.admin.NewPartitions
+import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
@@ -17,6 +23,7 @@ class KafkaStreamService(
     private val producerConfig: Properties,
     private val parallelism: Int
 ) : EventStreamService {
+
     private var started: Boolean = false
     private val threads = ArrayList<KafkaPollThread>()
     private val consumers = HashMap<EventStream<*>, EventConsumer<*>>()
@@ -74,8 +81,109 @@ class KafkaStreamService(
         return KafkaEventProducer(producerConfig, stream)
     }
 
+    override fun createStreams(streams: List<EventStream<*>>) {
+        createAdminClient().use { adminClient ->
+            val streamsByName = streams.associateBy { it.name }
+            val allTopics = describeStreams(streams.map { it.name })
+
+            run {
+                // Create new topics
+                val missingTopics = allTopics.filterValues { it == null }.keys
+                val topicsToCreate = missingTopics.map { topic ->
+                    val stream = streamsByName.getValue(topic)
+                    NewTopic(
+                        stream.name,
+                        stream.desiredPartitions ?: DEFAULT_PARTITIONS,
+                        stream.desiredReplicas ?: DEFAULT_REPLICAS
+                    )
+                }
+
+                adminClient.createTopics(topicsToCreate).all().get()
+            }
+
+            run {
+                // Modify existing topics
+                val partitionsToCreate = allTopics.values.asSequence().filterNotNull().mapNotNull {
+                    val stream = streamsByName[it.name] ?: return@mapNotNull null
+                    val numPartitions = it.partitions
+                    val desiredPartitions = stream.desiredPartitions ?: DEFAULT_PARTITIONS
+
+                    when {
+                        numPartitions == null -> null
+
+                        desiredPartitions > numPartitions -> {
+                            log.info(
+                                "Increasing number of partitions from $desiredPartitions to $numPartitions for topic " +
+                                        "'${stream.name}'"
+                            )
+
+                            stream.name to NewPartitions.increaseTo(desiredPartitions)
+                        }
+
+                        desiredPartitions < numPartitions -> {
+                            log.info(
+                                "The desired number of partitions for topic '${stream.name}' is lower than actual " +
+                                        "number of partitions ($numPartitions > $desiredPartitions). " +
+                                        "It is not possible to migrate this automatically. Manual migration is needed."
+                            )
+                            null
+                        }
+
+                        else -> null
+                    }
+                }.toMap()
+
+                if (partitionsToCreate.isNotEmpty()) {
+                    adminClient.createPartitions(partitionsToCreate).all().get()
+                }
+            }
+        }
+    }
+
+    private fun createAdminClient(): AdminClient = AdminClient.create(
+        mapOf(
+            AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to producerConfig[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG]
+        )
+    )
+
+    override fun describeStreams(names: List<String>): Map<String, EventStreamState?> {
+        createAdminClient().use { adminClient ->
+            return describeStreams(adminClient, names)
+        }
+    }
+
+    private fun describeStreams(
+        adminClient: AdminClient,
+        names: List<String>
+    ): Map<String, EventStreamState?> {
+        val describeFuture = adminClient.describeTopics(names)
+        return describeFuture.values().map { (topicName, future) ->
+            try {
+                val topicDescription = future.get()
+                log.debug("Got back the following result: $topicDescription")
+                log.debug(topicDescription.name())
+                topicName to EventStreamState(
+                    topicDescription.name(),
+                    topicDescription.partitions().size,
+                    null
+                )
+            } catch (ex: Exception) {
+                if (ex.cause is UnknownTopicOrPartitionException) {
+                    topicName to null
+                } else {
+                    log.debug("Caught exception for $topicName")
+                    log.debug(ex.stackTraceToString())
+                    throw ex
+                }
+            }
+        }.toMap()
+    }
+
     companion object : Loggable {
         override val log = logger()
+
+        private const val DEFAULT_PARTITIONS = 32
+        private const val DEFAULT_REPLICAS: Short = 3
     }
 }
 

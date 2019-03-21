@@ -9,6 +9,7 @@ import org.apache.kafka.streams.kstream.Consumed
 import org.apache.kafka.streams.kstream.KStream
 import java.nio.ByteBuffer
 
+@Deprecated("Replace with new Kafka API")
 interface StreamDescription<K, V> {
     val name: String
     val keySerde: Serde<K>
@@ -21,6 +22,7 @@ interface StreamDescription<K, V> {
         builder.stream(name, Consumed.with(keySerde, valueSerde))
 }
 
+@Deprecated("Replace with new Kafka API")
 class SimpleStreamDescription<Key, Value>(
     override val name: String,
     override val keySerde: Serde<Key>,
@@ -29,6 +31,7 @@ class SimpleStreamDescription<Key, Value>(
     override val desiredReplicas: Short? = null
 ) : StreamDescription<Key, Value>
 
+@Deprecated("Replace with new Kafka API")
 class MappedStreamDescription<K, V>(
     override val name: String,
     override val keySerde: Serde<K>,
@@ -38,9 +41,7 @@ class MappedStreamDescription<K, V>(
     val mapper: (V) -> K
 ) : StreamDescription<K, V>
 
-@Deprecated(message = "Not used", replaceWith = ReplaceWith("String"))
-typealias RawAuthToken = String
-
+@Deprecated("Replace with new Kafka API")
 abstract class KafkaDescriptions {
     @PublishedApi
     internal val streams = ArrayList<StreamDescription<*, *>>()
@@ -80,6 +81,7 @@ abstract class KafkaDescriptions {
     }
 }
 
+@Deprecated("Replace with new Kafka API")
 @Suppress("UNCHECKED_CAST")
 inline fun <reified Type : Any> defaultSerdeOrJson(): Serde<Type> = when (Type::class) {
     String::class -> Serdes.String() as Serde<Type>

@@ -1,13 +1,14 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.events.EventStreamService
+import dk.sdu.cloud.events.KafkaStreamService
+import dk.sdu.cloud.kafka.KafkaEventConsumer
+import dk.sdu.cloud.kafka.StreamDescription
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.EventConsumerFactory
-import dk.sdu.cloud.kafka.KafkaEventConsumer
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.kafka.StreamDescription
 import dk.sdu.cloud.service.findValidHostname
-import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -17,10 +18,6 @@ import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
-import org.apache.kafka.streams.KafkaStreams
-import org.apache.kafka.streams.StreamsConfig
-import org.apache.kafka.streams.Topology
-import java.io.File
 import java.util.*
 
 data class KafkaHostConfig(
@@ -32,17 +29,31 @@ data class KafkaHostConfig(
 
 private const val POLL_TIMEOUT_IN_MS = 10L
 
-class KafkaServices(
-    private val streamsConfig: Properties,
+@Deprecated("Replace with new Kafka API")
+interface KafkaServices {
+    val producer: Producer<String, String>
+    val adminClient: AdminClient
+    val defaultPartitions: Int
+    val defaultReplicas: Short
+}
+
+@Deprecated("Replace with new Kafka API")
+class KafkaServicesImpl(
     val consumerConfig: Properties,
-    val producer: Producer<String, String>,
-    val adminClient: AdminClient,
     val producerConfig: Properties,
-    val defaultPartitions: Int = 32,
-    val defaultReplicas: Short = 1
-) : EventConsumerFactory {
-    fun build(block: Topology): KafkaStreams {
-        return KafkaStreams(block, streamsConfig)
+    override val defaultPartitions: Int = 32,
+    override val defaultReplicas: Short = 1
+) : EventConsumerFactory, KafkaServices {
+    override val producer by lazy {
+        KafkaProducer<String, String>(producerConfig)
+    }
+
+    override val adminClient by lazy {
+        AdminClient.create(
+            mapOf(
+                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to producerConfig[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG]
+            )
+        )
     }
 
     // TODO Event demultiplexing for performance. This will create a thread per topic processor
@@ -62,7 +73,6 @@ class KafkaServices(
 }
 
 class KafkaFeatureConfiguration(
-    internal val streamsConfigBody: (Properties) -> Unit = {},
     internal val consumerConfigBody: (Properties) -> Unit = {},
     internal val producerConfigBody: (Properties) -> Unit = {},
     internal val kafkaServicesOverride: KafkaServices? = null
@@ -71,18 +81,6 @@ class KafkaFeatureConfiguration(
 class KafkaFeature(
     private val config: KafkaFeatureConfiguration
 ) : MicroFeature {
-    private fun retrieveKafkaStreamsConfiguration(
-        servers: List<KafkaHostConfig>,
-        serviceDescription: ServiceDescription
-    ): Properties = Properties().apply {
-        this[StreamsConfig.APPLICATION_ID_CONFIG] = serviceDescription.name
-        this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = servers.joinToString(",") { it.toString() }
-        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "latest" // TODO This should probably be changed back
-
-        // The defaults do not use java.io.tmpdir
-        this[StreamsConfig.STATE_DIR_CONFIG] = File(System.getProperty("java.io.tmpdir"), "kafka-streams").absolutePath
-    }
-
     private fun retrieveKafkaProducerConfiguration(servers: List<KafkaHostConfig>): Properties =
         Properties().apply {
             this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = servers.joinToString(",") { it.toString() }
@@ -127,27 +125,20 @@ class KafkaFeature(
                 listOf(KafkaHostConfig(hostname))
             }
 
-            val streamsConfig = retrieveKafkaStreamsConfiguration(hosts, ctx.serviceDescription)
-                .also(config.streamsConfigBody)
             val producerConfig = retrieveKafkaProducerConfiguration(hosts).also(config.producerConfigBody)
             val consumerConfig = retrieveConsumerConfig(hosts, ctx.serviceDescription).also(config.consumerConfigBody)
 
-            val producer = KafkaProducer<String, String>(producerConfig)
-            val adminClient: AdminClient = AdminClient.create(mapOf(
-                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to hosts.joinToString(",") { it.toString() }
-            ))
-
             log.info("Connected to Kafka")
 
-            ctx.kafka = KafkaServices(
-                streamsConfig,
+            ctx.kafka = KafkaServicesImpl(
                 consumerConfig,
-                producer,
-                adminClient,
                 producerConfig,
                 userConfig.defaultPartitions,
                 userConfig.defaultReplicas
             )
+
+            ctx.eventStreamService =
+                KafkaStreamService(consumerConfig, producerConfig, Runtime.getRuntime().availableProcessors())
         }
     }
 
@@ -174,6 +165,7 @@ data class KafkaUserConfig(
     val defaultReplicas: Short = 1
 )
 
+@Deprecated("Replace with new Kafka API")
 var Micro.kafka: KafkaServices
     get() {
         requireFeature(KafkaFeature)
@@ -181,4 +173,13 @@ var Micro.kafka: KafkaServices
     }
     internal set(value) {
         attributes[KafkaFeature.SERVICES_KEY] = value
+    }
+
+private val eventStreamServiceKey = MicroAttributeKey<EventStreamService>("event-stream-service")
+var Micro.eventStreamService: EventStreamService
+    get() {
+        return attributes[eventStreamServiceKey]
+    }
+    set(value) {
+        attributes[eventStreamServiceKey] = value
     }
