@@ -1,6 +1,5 @@
 package dk.sdu.cloud.events
 
-import dk.sdu.cloud.defaultMapper
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -14,12 +13,11 @@ class KafkaEventProducer<V : Any>(
     override val stream: EventStream<V>
 ) : EventProducer<V> {
     private val producer = KafkaProducer<String, String>(kafkaProducerConfig)
-    private val writer = defaultMapper.writerFor(stream.typeReference)
 
     override suspend fun produce(events: List<V>) {
         events.forEach {
             val key = stream.keySelector(it)
-            val value = writer.writeValueAsString(it)
+            val value = stream.serialize(it)
 
             producer.aSend(stream.name, key, value)
         }

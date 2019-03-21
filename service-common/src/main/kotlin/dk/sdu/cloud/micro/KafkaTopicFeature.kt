@@ -5,7 +5,7 @@ import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.server.auditStream
 import dk.sdu.cloud.events.EventStream
-import dk.sdu.cloud.events.StreamContainer
+import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.kafka.KafkaDescriptions
 import dk.sdu.cloud.kafka.StreamDescription
 import dk.sdu.cloud.service.ClassDiscovery
@@ -17,6 +17,21 @@ class KafkaTopicFeatureConfiguration(
     val discoverDefaults: Boolean = true,
     val basePackages: List<String> = emptyList()
 )
+
+private data class SimpleEventStream<V : Any>(
+    override val name: String,
+    override val desiredPartitions: Int?,
+    override val desiredReplicas: Short?,
+    override val keySelector: (V) -> String
+) : EventStream<V> {
+    override fun deserialize(value: String): V {
+        throw IllegalStateException()
+    }
+
+    override fun serialize(event: V): String {
+        throw IllegalStateException()
+    }
+}
 
 class KafkaTopicFeature(
     private val config: KafkaTopicFeatureConfiguration
@@ -71,22 +86,16 @@ class KafkaTopicFeature(
                 log.debug("Retrieving streams from $klass")
                 objectInstance.streams.forEach { allStreams[it.name] = it }
             }
-
-            if (objectInstance != null && objectInstance is CallDescriptionContainer) {
-                val auditStream = objectInstance.auditStream
-                allStreams[auditStream.name] = auditStream
-            }
         }
 
         override fun retrieveResults(): Map<String, EventStream<*>> {
             // The important thing is that this delivers name, partitions, and replicas.
             return allStreams.mapValues {
-                EventStream(
+                SimpleEventStream<Any>(
                     it.value.name,
-                    jacksonTypeRef(),
-                    { it.toString() },
                     it.value.desiredPartitions,
-                    it.value.desiredReplicas
+                    it.value.desiredReplicas,
+                    { it.toString() }
                 )
             }
         }
@@ -96,14 +105,14 @@ class KafkaTopicFeature(
         val allStreams = HashMap<String, EventStream<*>>()
         override fun inspectClass(klass: KClass<*>) {
             val objectInstance = klass.objectInstance
-            if (objectInstance != null && objectInstance is StreamContainer) {
+            if (objectInstance != null && objectInstance is EventStreamContainer) {
                 log.debug("Retrieving streams from $klass")
                 objectInstance.streams.forEach { allStreams[it.name] = it }
             }
 
             if (objectInstance != null && objectInstance is CallDescriptionContainer) {
                 val auditStream = objectInstance.auditStream
-//                allStreams[auditStream.name] = auditStream
+                allStreams[auditStream.name] = auditStream
             }
         }
 

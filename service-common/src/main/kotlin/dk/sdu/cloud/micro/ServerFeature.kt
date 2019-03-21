@@ -25,7 +25,7 @@ class ServerFeature : MicroFeature {
 
         ClientInfoInterceptor().register(server)
         JobIdInterceptor(!ctx.developmentModeEnabled).register(server)
-        AuditToKafkaStream(ctx.serviceInstance, ctx.kafka, ctx.tokenValidation).register(server)
+        AuditToKafkaStream(ctx.serviceInstance, ctx.eventStreamService, ctx.tokenValidation).register(server)
         AuthInterceptor(ctx.tokenValidation).register(server)
 
         val serverConfig = ctx.rpcConfiguration?.server

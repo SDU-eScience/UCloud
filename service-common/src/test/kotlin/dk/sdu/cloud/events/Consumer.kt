@@ -15,7 +15,7 @@ object ServiceD : ServiceDescription {
     override val name: String = "d"
 }
 
-object Streams : StreamContainer() {
+object Streams : EventStreamContainer() {
     val stream = stream<Message>("Foobar", { it.message })
 }
 

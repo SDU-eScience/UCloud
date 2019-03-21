@@ -1,6 +1,5 @@
 package dk.sdu.cloud.events
 
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.Dispatchers
@@ -36,11 +35,10 @@ class KafkaStreamService(
                 consumers.forEach { (stream, rawConsumer) ->
                     @Suppress("UNCHECKED_CAST")
                     val consumer = rawConsumer as EventConsumer<Any>
-                    val reader = defaultMapper.readerFor(stream.typeReference)
                     val thread = KafkaPollThread(consumerConfig, stream.name) { records ->
                         val events = records.mapNotNull {
                             runCatching {
-                                reader.readValue<Any>(it)
+                                stream.deserialize(it)
                             }.getOrElse { ex ->
                                 log.warn("Caught exception while parsing element from ${stream.name}")
                                 log.warn("Exception was: ${ex.stackTraceToString()}")
