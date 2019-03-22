@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.BulkUploader
@@ -60,7 +61,8 @@ class ExtractController<Ctx : FSUserContext>(
                             WriteConflictPolicy.RENAME,
                             fileInputStream,
                             null,
-                            sensitivityService
+                            sensitivityService,
+                            request.path.fileName()
                         )
                     }
 

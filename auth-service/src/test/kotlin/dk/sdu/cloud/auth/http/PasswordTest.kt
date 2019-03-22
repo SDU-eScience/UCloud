@@ -33,7 +33,6 @@ import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class PasswordTest {
     private val passwordHashingService = PasswordHashingService()
@@ -110,6 +109,7 @@ class PasswordTest {
             test = {
                 val sendRequest = sendRequest(HttpMethod.Post, "/auth/login", user = null) {
                     addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                    addHeader(HttpHeaders.Accept, ContentType.Application.Json.toString())
                     setBody("username=user1&password=pass1234&service=_service")
                 }
                 sendRequest.assertSuccess()
@@ -135,8 +135,7 @@ class PasswordTest {
                     setBody("username=user1&password=wrongpassword&service=_service")
                 }
 
-                resp.assertStatus(HttpStatusCode.Found)
-                assertEquals("/auth/login?service=_service&invalid", resp.response.headers[HttpHeaders.Location])
+                resp.assertStatus(HttpStatusCode.Unauthorized)
             }
         )
     }
@@ -161,9 +160,7 @@ class PasswordTest {
                                 setBody("username=user1&password=pass1234&service=_service")
                             }
                         )
-                    request.assertStatus(HttpStatusCode.Found)
-                    val result = request.response.headers[HttpHeaders.Location]
-                    assertEquals("/auth/login?service=_service&invalid", result)
+                    request.assertStatus(HttpStatusCode.Unauthorized)
                 }
             }
         )
@@ -190,9 +187,7 @@ class PasswordTest {
                             }
                         )
 
-                    request.assertStatus(HttpStatusCode.Found)
-                    val result = request.response.headers.values("Location").toString().trim('[', ']')
-                    assertEquals("/auth/login?invalid", result)
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
             }
         )
@@ -219,10 +214,7 @@ class PasswordTest {
                             }
                         )
 
-                    request.assertStatus(HttpStatusCode.Found)
-                    val result = request.response.headers.values("Location").toString().trim('[', ']')
-                    assertEquals("/auth/login?service=_service&invalid", result)
-
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
 
                 run {
@@ -237,9 +229,7 @@ class PasswordTest {
                             }
                         )
 
-                    request.assertStatus(HttpStatusCode.Found)
-                    val result2 = request.response.headers.values("Location").toString().trim('[', ']')
-                    assertEquals("/auth/login?service=_service&invalid", result2)
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
             }
         )
@@ -262,9 +252,7 @@ class PasswordTest {
                             user = null
                         )
 
-                    assertNull(request.response.content)
-                    val result = request.response.headers.values("Location").toString().trim('[', ']')
-                    assertEquals("/auth/login?invalid", result)
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
             }
         )

@@ -13,19 +13,6 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-typealias HTMLPage = Unit
-
-internal data class TwoFactorPageRequest(
-    val challengeId: String?,
-    val invalid: Boolean,
-    val message: String?
-)
-
-internal data class LoginPageRequest(
-    val service: String?,
-    val invalid: Boolean
-)
-
 internal data class LoginRequest(
     val username: String?,
     val service: String?
@@ -87,7 +74,7 @@ typealias BulkInvalidateResponse = Unit
 object AuthDescriptions : CallDescriptionContainer("auth") {
     const val baseContext = "/auth"
 
-    val refresh = call<Unit, AccessToken, Unit>("refresh") {
+    val refresh = call<Unit, AccessToken, CommonErrorMessage>("refresh") {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
@@ -225,40 +212,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    internal val twoFactorPage = call<Unit, HTMLPage, HTMLPage>("twoFactorPage") {
-        audit<TwoFactorPageRequest>()
-        auth {
-            roles = Roles.PUBLIC
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-            path {
-                using(baseContext)
-                +"2fa"
-            }
-        }
-    }
-
-    internal val loginPage = call<Unit, HTMLPage, HTMLPage>("loginPage") {
-        audit<LoginPageRequest>()
-
-        auth {
-            roles = Roles.PUBLIC
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-            path {
-                using(baseContext)
-                +"login"
-            }
-        }
-    }
-
-    internal val passwordLogin = call<Unit, HTMLPage, HTMLPage>("passwordLogin") {
+    internal val passwordLogin = call<Unit, Unit, CommonErrorMessage>("passwordLogin") {
         audit<LoginRequest>()
 
         auth {

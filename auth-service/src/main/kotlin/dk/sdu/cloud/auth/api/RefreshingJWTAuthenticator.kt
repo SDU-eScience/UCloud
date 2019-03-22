@@ -25,13 +25,10 @@ class RefreshingJWTAuthenticator(
     private var currentAccessToken = "~~token will not validate~~"
 
     suspend fun retrieveTokenRefreshIfNeeded(): String {
-        log.debug("retrieveTokenRefreshIfNeeded()")
         val currentToken = currentAccessToken
         return if (tokenValidation.validateOrNull(currentToken).isExpiringSoon()) {
-            log.debug("Refreshing token")
             refresh()
         } else {
-            log.debug("Using currentToken: $currentToken")
             currentToken
         }
     }
@@ -42,14 +39,13 @@ class RefreshingJWTAuthenticator(
     }
 
     private suspend fun refresh(): String {
+        log.debug("Refreshing token")
         val validatedToken = tokenValidation.validateOrNull(currentAccessToken)
         if (validatedToken.isExpiringSoon()) {
-            log.info("Need to refresh token")
             val result = client.call(AuthDescriptions.refresh, Unit, OutgoingHttpCall) {
                 it.builder.header(HttpHeaders.Authorization, "Bearer $refreshToken")
             }
 
-            log.info("Refresh token result: ${result.statusCode}")
             if (result is IngoingCallResponse.Ok) {
                 currentAccessToken = result.result.accessToken
                 return currentAccessToken
@@ -74,7 +70,6 @@ class RefreshingJWTAuthenticator(
                 throw ConnectException("Unexpected status code from auth service while refreshing: $result")
             }
         }
-        log.debug("Token already refreshed")
         return currentAccessToken
     }
 

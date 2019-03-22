@@ -96,15 +96,16 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
         if (!verificationCode) return;
         try {
             setLoading(true);
-            const formData = new FormData();
-            formData.append("challengeId", challengeId);
-            formData.append("verificationCode", verificationCode);
-            const response = await fetch(`/auth/2fa/challenge/form`, {
+            const response = await fetch(`/auth/2fa/challenge`, {
                 method: "POST",
                 headers: {
-                    "Accept": "application/json"
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
                 },
-                body: formData
+                body: JSON.stringify({
+                    challengeId,
+                    verificationCode
+                })
             });
             if (!response.ok) throw response;
             const result = await response.json();

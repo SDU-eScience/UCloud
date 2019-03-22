@@ -1,20 +1,16 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
-import dk.sdu.cloud.auth.services.TwoFactorException
-import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
 import io.ktor.content.TextContent
 import io.ktor.features.origin
-import io.ktor.html.respondHtml
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -23,18 +19,6 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.util.date.GMTDate
-import io.ktor.util.escapeHTML
-import kotlinx.html.FormMethod
-import kotlinx.html.InputType
-import kotlinx.html.body
-import kotlinx.html.form
-import kotlinx.html.head
-import kotlinx.html.id
-import kotlinx.html.input
-import kotlinx.html.meta
-import kotlinx.html.p
-import kotlinx.html.script
-import kotlinx.html.title
 
 /**
  * Shared utility code for responding to successful login attempts.
@@ -45,25 +29,13 @@ class LoginResponder<DBSession>(
 ) {
     // Note: This is placed in the http package since it deals pure with http.
     // But it is functionally a service.
-    //
-    // TODO Should we put services that deal with http logic in http package or services?
 
     private fun shouldRespondWithJson(call: ApplicationCall): Boolean {
         return call.request.accept()?.contains(ContentType.Application.Json.toString()) == true
     }
 
-    suspend fun handleUnsuccessfulLogin(call: ApplicationCall, service: String) {
-        if (shouldRespondWithJson(call)) {
-            call.respond(
-                TextContent(
-                    defaultMapper.writeValueAsString(CommonErrorMessage("Incorrect username or password")),
-                    ContentType.Application.Json,
-                    HttpStatusCode.Unauthorized
-                )
-            )
-        } else {
-            call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
-        }
+    fun handleUnsuccessfulLogin(): Nothing {
+        throw RPCException("Incorrect username or password", HttpStatusCode.Unauthorized)
     }
 
     private fun twoFactorJsonChallenge(loginChallenge: String): Map<String, Any> = mapOf("2fa" to loginChallenge)
@@ -84,58 +56,17 @@ class LoginResponder<DBSession>(
                     )
                 )
             } else {
-                if (resolvedService.endpointAcceptsStateViaCookie) {
-                    appendAuthStateInCookie(call, twoFactorJsonChallenge(loginChallenge))
-                    call.respondRedirect(resolvedService.endpoint)
-                } else {
-                    call.respondRedirect(
-                        "/auth/2fa?" +
-                                "&challengeId=${loginChallenge.urlEncoded}"
-                    )
-                }
+                // This will happen if we get a redirect from SAML (WAYF)
+                appendAuthStateInCookie(call, twoFactorJsonChallenge(loginChallenge))
+                call.respondRedirect(resolvedService.endpoint)
             }
         } else {
             handleCompletedLogin(call, service, user)
         }
     }
 
-    suspend fun handleUnsuccessful2FA(
-        call: ApplicationCall,
-        submittedViaForm: Boolean,
-        exception: RPCException?,
-        challengeId: String?
-    ) {
-        if (submittedViaForm && call.request.accept()?.contains(ContentType.Application.Json.toString()) != true) {
-            val params = ArrayList<Pair<String, String>>()
-
-            if (exception is TwoFactorException.InvalidChallenge) {
-                // Make them go back through the entire thing (hopefully)
-                call.respondRedirect("/")
-            } else {
-                if (exception != null) {
-                    params.add("message" to exception.why)
-                } else {
-                    params.add("invalid" to "true")
-                }
-
-                call.respondRedirect("/auth/2fa" +
-                        "?challengeId=$challengeId&" +
-                        params.joinToString("&") { it.first.urlEncoded + "=" + it.second.urlEncoded }
-                )
-            }
-        } else {
-            if (exception != null) {
-                call.respond(exception.httpStatusCode, exception.why)
-            } else {
-                call.respond(
-                    HttpStatusCode.Unauthorized,
-                    TextContent(
-                        defaultMapper.writeValueAsString(CommonErrorMessage("Incorrect code")),
-                        ContentType.Application.Json
-                    )
-                )
-            }
-        }
+    fun handleUnsuccessful2FA(): Nothing {
+        throw RPCException("Incorrect code", HttpStatusCode.Unauthorized)
     }
 
     suspend fun handleSuccessful2FA(call: ApplicationCall, service: String, user: Principal) {
@@ -162,52 +93,10 @@ class LoginResponder<DBSession>(
                 )
             )
         } else {
-            if (resolvedService.endpointAcceptsStateViaCookie) {
-                appendAuthStateInCookie(call, AccessTokenAndCsrf(token, csrfToken))
-                appendRefreshToken(call, refreshToken, expiry)
-                call.respondRedirect(resolvedService.endpoint)
-            } else {
-                call.respondHtml {
-                    head {
-                        meta("charset", "UTF-8")
-                        title("SDU Login Redirection")
-                    }
-
-                    body {
-                        p {
-                            +("If your browser does not automatically redirect you, then please " +
-                                    "click submit.")
-                        }
-
-                        form {
-                            method = FormMethod.post
-                            action = resolvedService.endpoint
-                            id = "form"
-
-                            input(InputType.hidden) {
-                                name = "accessToken"
-                                value = token.escapeHTML()
-                            }
-
-                            input(InputType.hidden) {
-                                name = "refreshToken"
-                                value = refreshToken.escapeHTML()
-                            }
-
-                            input(InputType.hidden) {
-                                name = "csrfToken"
-                                value = csrfToken.escapeHTML()
-                            }
-
-                            input(InputType.submit) {
-                                value = "Submit"
-                            }
-                        }
-
-                        script(src = "/auth/redirect.js") {}
-                    }
-                }
-            }
+            // This will happen if we get a redirect from SAML (WAYF)
+            appendAuthStateInCookie(call, AccessTokenAndCsrf(token, csrfToken))
+            appendRefreshToken(call, refreshToken, expiry)
+            call.respondRedirect(resolvedService.endpoint)
         }
     }
 

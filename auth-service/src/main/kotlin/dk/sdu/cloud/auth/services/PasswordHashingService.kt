@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.services
 import java.security.NoSuchAlgorithmException
 import java.security.SecureRandom
 import java.security.spec.InvalidKeySpecException
+import java.util.*
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
@@ -13,6 +14,7 @@ class PasswordHashingService {
             val skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
             val spec = PBEKeySpec(passwordArr, salt, iterations, keyLength)
             val key = skf.generateSecret(spec)
+            Arrays.fill(passwordArr, '0')
             return HashedPasswordAndSalt(key.encoded, salt)
         } catch (e: NoSuchAlgorithmException) {
             throw RuntimeException(e)

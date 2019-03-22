@@ -10,7 +10,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class OneTimeTokenDaoTest {
-
     @Test
     fun `claim test`() {
         withDatabase { db ->

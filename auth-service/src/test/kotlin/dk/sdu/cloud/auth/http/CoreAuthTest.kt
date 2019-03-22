@@ -21,6 +21,7 @@ import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
@@ -38,6 +39,7 @@ import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.isSuccess
 import io.ktor.http.renderCookieHeader
 import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.TestApplicationEngine
@@ -100,8 +102,6 @@ class CoreAuthTest {
                 micro.hibernateDatabase,
                 ottDao,
                 tokenService,
-                enablePassword,
-                enableWayf,
                 validation
             )
         )
@@ -182,33 +182,6 @@ class CoreAuthTest {
             addHeader("Job-Id", UUID.randomUUID().toString())
             if (addUser) setUser(username = user, role = role)
             setup()
-        }
-    }
-
-    @Test
-    fun `Login Test - service given, isInvalid True, Wayf false, password true`() {
-        withBasicSetup(enablePassword = true, enableWayf = false) { _ ->
-            val serviceName = "_service"
-            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-            sendRequest(HttpMethod.Get, "/auth/login?service=$serviceName&invalid=true", addUser = false)
-                .assertSuccess()
-        }
-    }
-
-    @Test
-    fun `Login Test - service given, isInvalid True, Wayf true, password false`() {
-        withBasicSetup(enablePassword = false, enableWayf = true) {
-            val serviceName = "_service"
-            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-            sendRequest(HttpMethod.Get, "/auth/login?service=$serviceName&isInvalid=true", addUser = false)
-                .assertSuccess()
-        }
-    }
-
-    @Test
-    fun `Login test - no service given`() {
-        withBasicSetup {
-            sendRequest(HttpMethod.Get, "/auth/login", addUser = false).assertSuccess()
         }
     }
 
@@ -363,7 +336,8 @@ class CoreAuthTest {
             val response = sendRequest(HttpMethod.Post, "/auth/logout", addUser = false) {
                 addHeader(HttpHeaders.Authorization, "Bearer ${refreshToken.token}")
             }.response
-            assertEquals(HttpStatusCode.NoContent, response.status())
+
+            assertTrue { response.status()!!.isSuccess() }
         }
     }
 
