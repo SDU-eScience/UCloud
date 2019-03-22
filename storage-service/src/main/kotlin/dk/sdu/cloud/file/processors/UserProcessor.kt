@@ -1,31 +1,35 @@
 package dk.sdu.cloud.file.processors
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.UserEvent
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.service.Loggable
-import kotlinx.coroutines.runBlocking
-import org.apache.kafka.streams.kstream.KStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 class UserProcessor<FSCtx : CommandRunner, UID>(
-    private val stream: KStream<String, UserEvent>,
+    private val streams: EventStreamService,
     private val userDao: StorageUserDao<UID>,
     private val externalFileService: FileScanner<FSCtx>,
     private val runnerFactory: FSCommandRunnerFactory<FSCtx>,
     private val coreFs: CoreFileSystemService<FSCtx>
 ) {
     fun init() {
-        stream.foreach { _, event -> handleEvent(event) }
+        streams.subscribe(AuthStreams.UserUpdateStream, EventConsumer.Immediate(this::handleEvent))
     }
 
-    private fun handleEvent(event: UserEvent) {
+    private suspend fun handleEvent(event: UserEvent) {
         when (event) {
             is UserEvent.Created -> {
                 when (event.userCreated.role) {
@@ -63,27 +67,35 @@ class UserProcessor<FSCtx : CommandRunner, UID>(
         }
     }
 
-    private fun createHomeFolder(owner: String, folderName: String = owner) {
+    private suspend fun createHomeFolder(owner: String, folderName: String = owner) {
+        val findStorageUser = userDao.findStorageUser(owner)
+        if (findStorageUser == null) {
+            log.warn("User: $owner at $folderName does not exist!")
+            return
+        }
+
         val command = listOf(
             "sdu_cloud_add_user",
-            runBlocking { userDao.findStorageUser(owner).toString() },
+            findStorageUser.toString(),
             folderName,
             "yes"
         )
         log.debug(command.toString())
 
-        val process = ProcessBuilder().apply { command(command) }.start()
-        if (process.waitFor() != 0) {
-            throw IllegalStateException("Unable to create new user: $owner")
+        coroutineScope {
+            launch(Dispatchers.IO) {
+                val process = ProcessBuilder().apply { command(command) }.start()
+                if (process.waitFor() != 0) {
+                    throw IllegalStateException("Unable to create new user: $owner")
+                }
+            }.join()
         }
 
         // We must notify the system to scan for files created by external systems. In this case the create
         // user executable counts as an external system. An external system is any system that is not the
         // micro-service itself. We need to do this to ensure that the correct events are emitted into the u
         // storage-events stream.
-        runBlocking {
-            externalFileService.scanFilesCreatedExternally("/home/$folderName")
-        }
+        externalFileService.scanFilesCreatedExternally("/home/$folderName")
     }
 
     companion object : Loggable {

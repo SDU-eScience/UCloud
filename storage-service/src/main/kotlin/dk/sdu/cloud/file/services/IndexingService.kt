@@ -92,7 +92,7 @@ class IndexingService<Ctx : FSUserContext>(
                         if (log.isDebugEnabled) log.debug(diff.toString())
                     }
 
-                    diff.forEach { storageEventProducer.emit(it) }
+                    storageEventProducer.produce(diff)
                 }
             } catch (ex: Exception) {
                 // Note: we don't bubble up the exception to anyone else

@@ -19,7 +19,7 @@ class FileSensitivityService<Ctx : FSUserContext>(
         val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()
 
         BackgroundScope.launch {
-            storageEventProducer.emit(
+            storageEventProducer.produce(
                 StorageEvent.SensitivityUpdated(
                     id = stat.inode,
                     path = stat.path,
@@ -38,7 +38,7 @@ class FileSensitivityService<Ctx : FSUserContext>(
 
         val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()
         BackgroundScope.launch {
-            storageEventProducer.emit(
+            storageEventProducer.produce(
                 StorageEvent.SensitivityUpdated(
                     id = stat.inode,
                     path = stat.path,

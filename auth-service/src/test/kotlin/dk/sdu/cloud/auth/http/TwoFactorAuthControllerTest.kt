@@ -10,7 +10,6 @@ import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.api.TwoFactorStatusResponse
 import dk.sdu.cloud.auth.services.PasswordHashingService
-import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.QRService
 import dk.sdu.cloud.auth.services.TOTPService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
@@ -22,7 +21,6 @@ import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.KafkaServices
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -37,17 +35,14 @@ import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.mockk.mockk
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TwoFactorAuthControllerTest {
     private val passwordHashingService = PasswordHashingService()
-    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     private data class TestContext(
-        val kafka: KafkaServices,
         val loginResponder: LoginResponder<HibernateSession>,
         val twoFactorChallengeService: TwoFactorChallengeService<HibernateSession>,
 
@@ -80,12 +75,6 @@ class TwoFactorAuthControllerTest {
 
     // TODO Refactor this code.
     private fun runTest(
-        kafka: KafkaServices = KafkaServices(
-            Properties(),
-            Properties(),
-            mockk(relaxed = true),
-            mockk(relaxed = true)
-        ),
         userDAO: UserDAO<HibernateSession> = UserHibernateDAO(
             passwordHashingService
         ),
@@ -118,7 +107,6 @@ class TwoFactorAuthControllerTest {
             },
             test = {
                 val ctx = TestContext(
-                    kafka,
                     loginResponder,
                     twoFactorService,
                     twoFactorDAO,

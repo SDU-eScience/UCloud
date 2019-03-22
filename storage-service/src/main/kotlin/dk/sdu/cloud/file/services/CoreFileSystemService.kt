@@ -305,7 +305,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             log.debug("Emitting storage ${result.size} events: ${result.take(5)}")
             val failure = result
                 .map { event ->
-                    BackgroundScope.async { runCatching { eventProducer.emit(event) } }
+                    BackgroundScope.async { runCatching { eventProducer.produce(event) } }
                 }
                 .awaitAll()
                 .find { it.isFailure }

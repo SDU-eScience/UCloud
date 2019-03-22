@@ -8,8 +8,8 @@ import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -31,7 +31,7 @@ class RemoveTest {
         BackgroundScope.reset()
         try {
             val emitter: StorageEventProducer = mockk()
-            coEvery { emitter.emit(any()) } coAnswers {
+            coEvery { emitter.produce(any() as StorageEvent) } coAnswers {
                 println("Hello! ${it.invocation.args.first()}}")
             }
 
@@ -49,10 +49,10 @@ class RemoveTest {
             Thread.sleep(100)
 
             coVerify {
-                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" })
-                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" })
-                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" })
-                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder" })
+                emitter.produce(match<StorageEvent> { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" })
+                emitter.produce(match<StorageEvent> { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" })
+                emitter.produce(match<StorageEvent> { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" })
+                emitter.produce(match<StorageEvent> { it is StorageEvent.Deleted && it.path == "/home/user1/folder" })
             }
         } finally {
             BackgroundScope.stop()
@@ -62,7 +62,7 @@ class RemoveTest {
     @Test(expected = FSException.NotFound::class)
     fun testNonExistingPathRemove() {
         val emitter: StorageEventProducer = mockk()
-        coEvery { emitter.emit(any()) } coAnswers {
+        coEvery { emitter.produce(any<StorageEvent>()) } coAnswers {
             println("Hello! ${it.invocation.args.first()}}")
         }
 

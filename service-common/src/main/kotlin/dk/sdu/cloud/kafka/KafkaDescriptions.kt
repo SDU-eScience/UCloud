@@ -4,9 +4,6 @@ import dk.sdu.cloud.kafka.JsonSerde.jsonSerde
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.utils.Bytes
-import org.apache.kafka.streams.StreamsBuilder
-import org.apache.kafka.streams.kstream.Consumed
-import org.apache.kafka.streams.kstream.KStream
 import java.nio.ByteBuffer
 
 @Deprecated("Replace with new Kafka API")
@@ -17,9 +14,6 @@ interface StreamDescription<K, V> {
 
     val desiredPartitions: Int? get() = null
     val desiredReplicas: Short? get() = null
-
-    fun stream(builder: StreamsBuilder): KStream<K, V> =
-        builder.stream(name, Consumed.with(keySerde, valueSerde))
 }
 
 @Deprecated("Replace with new Kafka API")

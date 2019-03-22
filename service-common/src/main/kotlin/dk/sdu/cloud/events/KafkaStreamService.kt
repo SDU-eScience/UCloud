@@ -5,6 +5,7 @@ import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -30,35 +31,42 @@ class KafkaStreamService(
     override suspend fun start() {
         started = true
 
+        if (consumers.isEmpty()) return
+
         coroutineScope {
-            repeat(parallelism) {
-                consumers.forEach { (stream, rawConsumer) ->
-                    @Suppress("UNCHECKED_CAST")
-                    val consumer = rawConsumer as EventConsumer<Any>
-                    val thread = KafkaPollThread(consumerConfig, stream.name) { records ->
-                        val events = records.mapNotNull {
-                            runCatching {
-                                stream.deserialize(it)
-                            }.getOrElse { ex ->
-                                log.warn("Caught exception while parsing element from ${stream.name}")
-                                log.warn("Exception was: ${ex.stackTraceToString()}")
-                                log.warn("Value was: $it")
-                                null
+            try {
+                (0 until parallelism).flatMap {
+                    consumers.map { (stream, rawConsumer) ->
+                        @Suppress("UNCHECKED_CAST")
+                        val consumer = rawConsumer as EventConsumer<Any>
+                        val thread = KafkaPollThread(consumerConfig, stream.name) { records ->
+                            val events = records.mapNotNull {
+                                runCatching {
+                                    stream.deserialize(it)
+                                }.getOrElse { ex ->
+                                    log.warn("Caught exception while parsing element from ${stream.name}")
+                                    log.warn("Exception was: ${ex.stackTraceToString()}")
+                                    log.warn("Value was: $it")
+                                    null
+                                }
+                            }
+
+                            val shouldCommit = consumer.accept(events)
+                            if (shouldCommit) {
+                                commit()
                             }
                         }
 
-                        val shouldCommit = consumer.accept(events)
-                        if (shouldCommit) {
-                            commit()
+                        threads.add(thread)
+
+                        launch {
+                            thread.runLoop()
                         }
                     }
-
-                    threads.add(thread)
-
-                    launch(Dispatchers.Default) {
-                        thread.runLoop()
-                    }
-                }
+                }.joinAll()
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+                throw ex
             }
         }
     }

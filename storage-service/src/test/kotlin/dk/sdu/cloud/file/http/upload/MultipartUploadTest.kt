@@ -13,11 +13,10 @@ import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.kafka.forStream
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
@@ -61,7 +60,7 @@ class MultipartUploadTest {
     ): List<Controller> {
         micro.install(HibernateFeature)
         TestContext.micro = micro
-        val storageEventProducer = micro.kafka.producer.forStream(StorageEvents.events)
+        val storageEventProducer = micro.eventStreamService.createProducer(StorageEvents.events)
         val coreFs = CoreFileSystemService(fs, storageEventProducer)
 
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)

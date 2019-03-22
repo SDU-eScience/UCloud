@@ -12,9 +12,9 @@ import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
-import dk.sdu.cloud.kafka.forStream
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.KafkaMock
 import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.touch
@@ -41,8 +41,8 @@ class SensitivityTest {
 
         val (runner, fs) = unixFSWithRelaxedMocks(root)
         val sensitivityService =
-            FileSensitivityService(fs, KafkaMock.mockedKafkaProducer.forStream(StorageEvents.events))
-        val coreFs = CoreFileSystemService(fs, KafkaMock.mockedKafkaProducer.forStream(StorageEvents.events))
+            FileSensitivityService(fs, EventServiceMock.createProducer(StorageEvents.events))
+        val coreFs = CoreFileSystemService(fs, EventServiceMock.createProducer(StorageEvents.events))
         val fileLookupService = FileLookupService(coreFs)
 
         return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService)

@@ -5,6 +5,7 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
@@ -19,6 +20,7 @@ import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertCollectionHasItem
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.storage.util.createFS
@@ -36,6 +38,7 @@ import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.io.File
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -70,14 +73,13 @@ class DiffTest {
         consumer: TestingContext<UnixFSCommandRunner>.() -> Unit = {},
         builder: File.() -> Unit
     ): TestingContext<UnixFSCommandRunner> {
+        EventServiceMock.reset()
         val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
         val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao)
         val cephFs = UnixFileSystem(commandRunnerFactory, userDao, FileAttributeParser(userDao), root.absolutePath)
-
-        val eventProducer = mockk<StorageEventProducer>(relaxed = true)
+        val eventProducer = EventServiceMock.createProducer(StorageEvents.events)
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
-
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
         return TestingContext(
@@ -460,7 +462,7 @@ class DiffTest {
                 assertTrue(result.first["/home/b"]!!)
                 assertThatPropertyEquals(result.first, { it.size }, 2)
 
-                coVerify(exactly = 0) { mockedEventProducer.emit(any()) }
+                assertEquals(0, EventServiceMock.recordedEvents.size)
             }
         )
     }
@@ -480,7 +482,7 @@ class DiffTest {
             },
 
             consumer = {
-                fun assertCorrectEvents(collection: List<StorageEvent>) {
+                fun assertCorrectEvents(collection: List<Any>) {
                     assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir" }
                     assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1" }
                     assertCollectionHasItem(collection) {
@@ -501,13 +503,10 @@ class DiffTest {
                     assertCorrectEvents(diff.diff)
                     assertTrue(diff.shouldContinue)
 
-                    val collectedEvents = ArrayList<StorageEvent>()
-                    coEvery { mockedEventProducer.emit(capture(collectedEvents)) } just Runs
-
                     val (shouldContinue, job) = indexingService.runDiffOnRoots(mapOf("/home" to reference))
                     assertTrue(shouldContinue["/home"]!!)
                     runBlocking { job.join() }
-                    assertCorrectEvents(collectedEvents)
+                    assertCorrectEvents(EventServiceMock.recordedEvents.map { it.value })
                 }
             }
         )
@@ -530,7 +529,7 @@ class DiffTest {
         }
 
         verify { ctx.close() }
-        coVerify(exactly = 0) { eventProducer.emit(any()) }
+        coVerify(exactly = 0) { eventProducer.produce(any() as StorageEvent) }
     }
 
     @Test
@@ -556,6 +555,6 @@ class DiffTest {
         runBlocking { job.join() }
 
         verify { ctx.close() }
-        coVerify(exactly = 0) { eventProducer.emit(any()) }
+        coVerify(exactly = 0) { eventProducer.produce(any() as StorageEvent) }
     }
 }

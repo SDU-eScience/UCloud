@@ -10,6 +10,7 @@ import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.KafkaMock
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.storage.util.mkdir
@@ -36,7 +37,7 @@ class CreatedAtTest {
         BackgroundScope.init()
 
         val (runner, fs) = unixFSWithRelaxedMocks(root.absolutePath)
-        val coreFs = CoreFileSystemService(fs, KafkaMock.mockedKafkaProducer.forStream(StorageEvents.events))
+        val coreFs = CoreFileSystemService(fs, EventServiceMock.createProducer(StorageEvents.events))
         val fileLookupService = FileLookupService(coreFs)
 
         return TestContext(runner, fs, coreFs, fileLookupService)

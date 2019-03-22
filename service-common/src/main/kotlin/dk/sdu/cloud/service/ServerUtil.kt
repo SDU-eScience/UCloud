@@ -2,6 +2,11 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.eventStreamService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 interface BaseServer {
     fun start()
@@ -33,12 +38,31 @@ val CommonServer.isRunning: Boolean
         return isRpcServerRunning != false
     }
 
-fun CommonServer.startServices(wait: Boolean = true) {
+fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
+    launch(Dispatchers.Default) {
+        log.info("Starting Event Stream Services")
+        try {
+            micro.eventStreamService.start()
+            log.info("Done?")
+        } catch (ex: Exception) {
+            log.error("Caught fatal exception in Event Stream Services")
+            log.error(ex.stackTraceToString())
+            stopServices()
+        }
+    }
+
     val serverFeature = micro.featureOrNull(ServerFeature)
     if (serverFeature != null) {
-        log.info("Starting RPC server...")
-        serverFeature.server.start()
-        log.info("RPC server started!")
+        launch {
+            log.info("Starting RPC server...")
+            serverFeature.server.start()
+            log.info("RPC server started!")
+        }
+    }
+
+    for (i in 1..300) {
+        if (isRunning) break
+        delay(100)
     }
 
     if (wait) {
@@ -56,6 +80,10 @@ fun CommonServer.stopServices() {
     if (serverFeature != null) {
         log.info("Stopping RPC server")
         serverFeature.server.stop()
+    }
+
+    runBlocking {
+        micro.eventStreamService.stop()
     }
 }
 

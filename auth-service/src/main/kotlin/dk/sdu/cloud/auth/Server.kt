@@ -29,13 +29,12 @@ import dk.sdu.cloud.auth.services.UserIterationService
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.kafka.forStream
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.serviceInstance
 import dk.sdu.cloud.micro.tokenValidation
@@ -70,7 +69,7 @@ class Server(
         log.info("Creating core services...")
         val db = micro.hibernateDatabase
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
-        val kafka = micro.kafka
+        val streams = micro.eventStreamService
 
         val passwordHashingService = PasswordHashingService()
         val userDao = UserHibernateDAO(passwordHashingService)
@@ -81,7 +80,7 @@ class Server(
         val userCreationService = UserCreationService(
             db,
             userDao,
-            kafka.producer.forStream(AuthStreams.UserUpdateStream)
+            streams.createProducer(AuthStreams.UserUpdateStream)
         )
 
         val totpService = WSTOTPService()

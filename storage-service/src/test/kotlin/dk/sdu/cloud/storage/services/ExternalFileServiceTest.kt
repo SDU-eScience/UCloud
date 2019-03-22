@@ -41,7 +41,7 @@ class ExternalFileServiceTest {
         val eventProducer = mockk<StorageEventProducer>(relaxed = true)
         val collectedEvents = ArrayList<StorageEvent>()
 
-        coEvery { eventProducer.emit(capture(collectedEvents)) } just Runs
+        coEvery { eventProducer.produce(capture(collectedEvents)) } just Runs
 
         return TestContext(
             runner = runner,
