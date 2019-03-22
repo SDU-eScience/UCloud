@@ -1,6 +1,5 @@
 package dk.sdu.cloud.micro
 
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.server.auditStream

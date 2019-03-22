@@ -5,9 +5,9 @@ import dk.sdu.cloud.service.stackTraceToString
 import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
-import kotlin.coroutines.suspendCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 private const val DEBUG_VALUE_MAX_SIZE = 100
 
@@ -22,9 +22,11 @@ class EventProducer<in K, in V>(
         val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
         val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
 
-        log.debug("Emitting event: [$topicName] $stringKey : ${stringValue.take(
-            DEBUG_VALUE_MAX_SIZE
-        )}")
+        log.debug(
+            "Emitting event: [$topicName] $stringKey : ${stringValue.take(
+                DEBUG_VALUE_MAX_SIZE
+            )}"
+        )
         producer.send(ProducerRecord(description.name, stringKey, stringValue)) { result, ex ->
             if (ex == null) cont.resume(result)
             else {

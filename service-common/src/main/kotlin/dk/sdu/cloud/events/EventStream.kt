@@ -1,7 +1,6 @@
 package dk.sdu.cloud.events
 
 import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.defaultMapper
 
 interface EventStream<V : Any> {

@@ -2,11 +2,6 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.kafka
-import org.apache.kafka.streams.KafkaStreams
-import org.apache.kafka.streams.StreamsBuilder
-import java.time.Duration
-import java.time.temporal.ChronoUnit
 
 interface BaseServer {
     fun start()

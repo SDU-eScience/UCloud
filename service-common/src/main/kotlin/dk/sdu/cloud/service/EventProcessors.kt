@@ -2,7 +2,7 @@ package dk.sdu.cloud.service
 
 fun <ValueIn, ValueOut> EventStreamProcessor<*, ValueIn>.addProcessor(
     handler: EventStreamProcessor<ValueIn, ValueOut>.(events: List<ConsumedEvent<ValueIn>>)
-                -> List<ConsumedEvent<ValueOut>>
+    -> List<ConsumedEvent<ValueOut>>
 ): EventStreamProcessor<ValueIn, ValueOut> {
     return object : AbstractEventStreamProcessor<ValueIn, ValueOut>(this) {
         override fun handleEvents(events: List<ConsumedEvent<ValueIn>>): List<ConsumedEvent<ValueOut>> =

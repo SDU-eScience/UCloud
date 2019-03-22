@@ -40,6 +40,7 @@ class TokenValidationFeature : MicroFeature {
 
         override val key: MicroAttributeKey<TokenValidationFeature> =
             MicroAttributeKey("token-validation-feature")
+
         override fun create(config: Unit): TokenValidationFeature =
             TokenValidationFeature()
     }

@@ -1,13 +1,13 @@
 package dk.sdu.cloud.service.test
 
+import dk.sdu.cloud.kafka.MappedStreamDescription
+import dk.sdu.cloud.kafka.StreamDescription
+import dk.sdu.cloud.micro.KafkaServices
 import dk.sdu.cloud.service.ConsumedEvent
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.EventStreamProcessor
-import dk.sdu.cloud.micro.KafkaServices
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.kafka.MappedStreamDescription
-import dk.sdu.cloud.kafka.StreamDescription
 import io.mockk.mockk
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AlterConfigsOptions
@@ -60,7 +60,6 @@ import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.admin.RecordsToDelete
 import org.apache.kafka.clients.admin.RenewDelegationTokenOptions
 import org.apache.kafka.clients.admin.RenewDelegationTokenResult
-import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.MockProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.Cluster

@@ -1,7 +1,7 @@
 package dk.sdu.cloud.calls.types
 
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.ContentDisposition

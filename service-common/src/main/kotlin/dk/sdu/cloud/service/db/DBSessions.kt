@@ -1,6 +1,5 @@
 package dk.sdu.cloud.service.db
 
-import dk.sdu.cloud.service.Loggable
 import java.io.Closeable
 
 interface DBSessionFactory<Session> : Closeable {
