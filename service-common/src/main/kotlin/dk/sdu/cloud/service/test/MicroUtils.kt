@@ -13,6 +13,7 @@ import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
 import dk.sdu.cloud.micro.ServiceInstanceFeature
 import dk.sdu.cloud.micro.TokenValidationFeature
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.install
 import io.ktor.server.testing.TestApplicationEngine
 import java.nio.file.Files
@@ -82,6 +83,8 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
             KafkaFeature,
             KafkaFeatureConfiguration(kafkaServicesOverride = KafkaMock.initialize())
         )
+        EventServiceMock.reset()
+        eventStreamService = EventServiceMock
         install(ClientFeature)
         install(TokenValidationFeature)
         install(ServiceInstanceFeature)

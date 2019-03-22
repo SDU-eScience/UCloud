@@ -1,6 +1,7 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.calls.server.AuditToEventStream
 import dk.sdu.cloud.calls.server.AuditToKafkaStream
 import dk.sdu.cloud.calls.server.AuthInterceptor
 import dk.sdu.cloud.calls.server.ClientInfoInterceptor
@@ -25,7 +26,7 @@ class ServerFeature : MicroFeature {
 
         ClientInfoInterceptor().register(server)
         JobIdInterceptor(!ctx.developmentModeEnabled).register(server)
-        AuditToKafkaStream(ctx.serviceInstance, ctx.eventStreamService, ctx.tokenValidation).register(server)
+        AuditToEventStream(ctx.serviceInstance, ctx.eventStreamService, ctx.tokenValidation).register(server)
         AuthInterceptor(ctx.tokenValidation).register(server)
 
         val serverConfig = ctx.rpcConfiguration?.server
