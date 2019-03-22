@@ -7,6 +7,8 @@ import { EllipsedText } from "ui-components/Text";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
+import { Cloud } from "Authentication/SDUCloudObject";
+import { replaceHomeFolder } from "Utilities/FileUtilities";
 
 
 interface ParameterProps {
@@ -47,7 +49,7 @@ const InputFileParameter = (props: InputFileParameterProps) => {
             <FileSelector
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
-                onFileSelect={file => { props.parameterRef.current!.value = file.path }}
+                onFileSelect={file => { props.parameterRef.current!.value = replaceHomeFolder(file.path, Cloud.homeFolder) }}
                 inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 isRequired={!props.parameter.optional}
             />
@@ -61,7 +63,7 @@ const InputDirectoryParameter = (props: InputFileParameterProps) => {
             <FileSelector
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
-                onFileSelect={file => { props.parameterRef.current!.value = file.path }}
+                onFileSelect={file => { props.parameterRef.current!.value = replaceHomeFolder(file.path, Cloud.homeFolder) }}
                 inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 canSelectFolders
                 onlyAllowFolders
@@ -113,18 +115,18 @@ const BooleanParameter = (props: BooleanParameter) => {
 
 const GenericNumberParameter = (props: NumberParameterProps) => {
     const { parameter, parameterRef } = props;
-    const [value, setValue] = React.useState(parameter.defaultValue != null && typeof parameter.defaultValue === "object" ? parameter.defaultValue.value.toString() : undefined);
-
+    const optSliderRef = React.useRef<HTMLInputElement>(null);
+    if (optSliderRef.current && parameterRef.current && parameterRef.current.value !== optSliderRef.current!.value)
+        optSliderRef.current.value = parameterRef.current.value;
     let baseField = (
         <Input
             required={!props.parameter.optional}
             name={props.parameter.name}
             type="number"
             step="any"
-            ref={parameterRef as React.RefObject<HTMLInputElement>}
-            onChange={e => setValue(e.target.value)}
-            value={value}
+            ref={parameterRef}
             key={parameter.name}
+            onChange={e => { if (optSliderRef.current) optSliderRef.current.value = e.target.value }}
             max={!!parameter.max ? parameter.max : undefined}
             min={!!parameter.min ? parameter.min : undefined}
         />
@@ -136,13 +138,12 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
             <Input
                 key={`${parameter.name}-slider`}
                 mt="2px"
-                value={value}
                 noBorder
+                ref={optSliderRef}
                 min={parameter.min}
                 max={parameter.max}
                 step={parameter.step!}
-                ref={parameterRef as React.RefObject<HTMLInputElement>}
-                onChange={e => setValue(e.target.value)}
+                onChange={e => parameterRef.current!.value = e.target.value}
                 type="range"
             />
         );
