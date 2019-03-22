@@ -491,8 +491,13 @@ export const toFileText = (selectedFiles: File[]): string =>
     `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`
 
 export const isLink = (file: File) => file.link;
-export const isDirectory = (file: { fileType: FileType }) => file.fileType === "DIRECTORY";
-export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(homeFolder, "Home/");
+export const isDirectory = (file: { fileType: FileType }): boolean => file.fileType === "DIRECTORY";
+export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
+export const expandHomeFolder = (path: string, homeFolder: string): string => {
+    if (path.startsWith("Home/"))
+        return path.replace("Home/", homeFolder);
+    return path;
+}
 
 export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callback: () => void) =>
     moveToTrashSwal([filePath]).then((result: any) => {

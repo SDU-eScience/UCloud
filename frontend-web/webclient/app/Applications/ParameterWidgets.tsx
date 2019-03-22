@@ -7,6 +7,8 @@ import { EllipsedText } from "ui-components/Text";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
+import { Cloud } from "Authentication/SDUCloudObject";
+import { replaceHomeFolder } from "Utilities/FileUtilities";
 
 
 interface ParameterProps {
@@ -47,7 +49,7 @@ const InputFileParameter = (props: InputFileParameterProps) => {
             <FileSelector
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
-                onFileSelect={file => { props.parameterRef.current!.value = file.path }}
+                onFileSelect={file => { props.parameterRef.current!.value = replaceHomeFolder(file.path, Cloud.homeFolder) }}
                 inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 isRequired={!props.parameter.optional}
             />
@@ -61,7 +63,7 @@ const InputDirectoryParameter = (props: InputFileParameterProps) => {
             <FileSelector
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
-                onFileSelect={file => { props.parameterRef.current!.value = file.path }}
+                onFileSelect={file => { props.parameterRef.current!.value = replaceHomeFolder(file.path, Cloud.homeFolder) }}
                 inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 canSelectFolders
                 onlyAllowFolders
@@ -114,7 +116,7 @@ const BooleanParameter = (props: BooleanParameter) => {
 const GenericNumberParameter = (props: NumberParameterProps) => {
     const { parameter, parameterRef } = props;
     const optSliderRef = React.useRef<HTMLInputElement>(null);
-    if (optSliderRef.current && parameterRef.current && parameterRef.current.value !== optSliderRef.current!.value) 
+    if (optSliderRef.current && parameterRef.current && parameterRef.current.value !== optSliderRef.current!.value)
         optSliderRef.current.value = parameterRef.current.value;
     let baseField = (
         <Input

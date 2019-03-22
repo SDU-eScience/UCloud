@@ -67,7 +67,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (this.state.jobSubmitted) return;
         const { invocation } = this.state.application;
 
-        const parameters = extractParametersFromMap(this.state.parameterValues, this.state.application!.invocation.parameters);
+        const parameters = extractParametersFromMap(this.state.parameterValues, this.state.application!.invocation.parameters, Cloud);
         const requiredParams = invocation.parameters.filter(it => !it.optional);
         const missingParameters: string[] = [];
         requiredParams.forEach(rParam => {
@@ -81,7 +81,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }
             }
         });
-
+        
         if (missingParameters.length > 0) {
             failureNotification(`Missing values for ${missingParameters.join(", ")}`, missingParameters.length)
             return;
