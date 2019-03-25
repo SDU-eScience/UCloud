@@ -10,9 +10,7 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 
@@ -20,14 +18,7 @@ class Server(
     private val config: Configuration,
     override val micro: Micro
 ) : CommonServer {
-    private val eventConsumers = ArrayList<EventConsumer<*>>()
-
     override val log = logger()
-
-    private fun addConsumers(consumers: List<EventConsumer<*>>) {
-        consumers.forEach { it.installShutdownHandler(this) }
-        eventConsumers.addAll(consumers)
-    }
 
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
@@ -61,10 +52,5 @@ class Server(
         }
 
         startServices()
-    }
-
-    override fun stop() {
-        super.stop()
-        eventConsumers.forEach { it.close() }
     }
 }

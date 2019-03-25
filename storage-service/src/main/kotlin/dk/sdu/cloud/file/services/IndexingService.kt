@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.util.FSException

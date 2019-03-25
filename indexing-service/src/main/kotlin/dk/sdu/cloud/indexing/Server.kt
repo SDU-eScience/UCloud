@@ -9,12 +9,10 @@ import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.FileIndexScanner
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import org.apache.http.HttpHost
 import org.elasticsearch.client.RestClient
@@ -28,19 +26,13 @@ class Server(
     private val elasticHostAndPort: ElasticHostAndPort,
     override val micro: Micro
 ) : CommonServer {
-    private val eventConsumers = ArrayList<EventConsumer<*>>()
     private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
 
-    private fun addConsumers(consumers: List<EventConsumer<*>>) {
-        consumers.forEach { it.installShutdownHandler(this) }
-        eventConsumers.addAll(consumers)
-    }
-
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val kafka = micro.kafka
+        val eventService = micro.eventStreamService
 
         elastic = RestHighLevelClient(
             RestClient.builder(
@@ -67,7 +59,7 @@ class Server(
             }
         }
 
-        addConsumers(StorageEventProcessor(kafka, indexingService).init())
+        StorageEventProcessor(eventService, indexingService).init()
 
         with(micro.server) {
             configureControllers(
@@ -81,7 +73,6 @@ class Server(
 
     override fun stop() {
         super.stop()
-        eventConsumers.forEach { it.close() }
         elastic.close()
     }
 }

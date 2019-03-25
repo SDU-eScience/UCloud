@@ -34,7 +34,8 @@ class RecentFilesService(
                 sortBy = SortRequest(
                     field = SortableField.MODIFIED_AT,
                     direction = SortDirection.DESCENDING
-                )
+                ),
+                itemsPerPage = 10
             ),
             serviceCloud//.optionallyCausedBy(causedById)
         ).orThrow()

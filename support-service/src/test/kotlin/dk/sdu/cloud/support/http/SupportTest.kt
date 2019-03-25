@@ -18,11 +18,11 @@ import io.mockk.just
 import io.mockk.mockk
 import org.junit.Test
 
-class SupportTest{
+class SupportTest {
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         val service = mockk<TicketService>()
-        coEvery {service.createTicket(any()) } just Runs
+        coEvery { service.createTicket(any()) } just Runs
         listOf(SupportController(service))
     }
 
@@ -35,7 +35,7 @@ class SupportTest{
                     method = HttpMethod.Post,
                     path = "/api/support/ticket",
                     user = TestUsers.user,
-                    request =  CreateTicketRequest("This is message")
+                    request = CreateTicketRequest("This is message")
                 ).assertSuccess()
             }
         )
@@ -50,7 +50,7 @@ class SupportTest{
                     method = HttpMethod.Post,
                     path = "/api/support/ticket",
                     user = TestUsers.user,
-                    request =  CreateTicketRequest("This is a message".repeat(53000))
+                    request = CreateTicketRequest("This is a message".repeat(53000))
                 ).assertStatus(HttpStatusCode.PayloadTooLarge)
             }
         )

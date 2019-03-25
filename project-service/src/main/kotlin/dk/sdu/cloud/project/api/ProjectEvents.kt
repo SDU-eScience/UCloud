@@ -2,7 +2,7 @@ package dk.sdu.cloud.project.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.kafka.KafkaDescriptions
+import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.service.TYPE_PROPERTY
 
 @JsonTypeInfo(
@@ -45,6 +45,6 @@ sealed class ProjectEvent {
     ) : ProjectEvent()
 }
 
-object ProjectEvents : KafkaDescriptions() {
-    val events = stream<String, ProjectEvent>("project-events") { it.project.id }
+object ProjectEvents : EventStreamContainer() {
+    val events = stream<ProjectEvent>("project-events", { it.project.id })
 }

@@ -4,7 +4,6 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.services.CoreFileSystemService
@@ -13,6 +12,7 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
@@ -29,10 +29,8 @@ import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.storageUserDaoWithFixedAnswer
 import dk.sdu.cloud.storage.util.timestamps
 import dk.sdu.cloud.storage.util.touch
-import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
@@ -78,7 +76,7 @@ class DiffTest {
         val root = File(createFS(builder))
         val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao)
         val cephFs = UnixFileSystem(commandRunnerFactory, userDao, FileAttributeParser(userDao), root.absolutePath)
-        val eventProducer = EventServiceMock.createProducer(StorageEvents.events)
+        val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 

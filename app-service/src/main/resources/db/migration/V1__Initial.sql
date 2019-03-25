@@ -1,11 +1,12 @@
 set search_path to app;
 
-create table jobs (
-  system_id         uuid not null,
+create table jobs
+(
+  system_id         uuid         not null,
   app_name          varchar(255) not null,
   app_version       varchar(255) not null,
-  created_at        timestamp not null,
-  modified_at       timestamp not null,
+  created_at        timestamp    not null,
+  modified_at       timestamp    not null,
   owner             varchar(255) not null,
 
   job_directory     varchar(255),

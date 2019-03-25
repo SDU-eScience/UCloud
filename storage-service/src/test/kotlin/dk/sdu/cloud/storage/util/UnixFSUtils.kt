@@ -2,14 +2,11 @@ package dk.sdu.cloud.storage.util
 
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
-import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.service.test.TestUsers
-import io.mockk.every
-import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes

@@ -26,6 +26,7 @@ import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
@@ -40,7 +41,6 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -74,7 +74,11 @@ class Server(
         val fs = UnixFileSystem(processRunner, uidLookupService, fileAttributeParser, fsRoot)
 
         // High level FS
-        val storageEventProducer = streams.createProducer(StorageEvents.events)
+        val storageEventProducer = StorageEventProducer(streams.createProducer(StorageEvents.events)) {
+            log.warn("Caught exception while emitting a storage event!")
+            log.warn(it.stackTraceToString())
+            stop()
+        }
         val coreFileSystem = CoreFileSystemService(fs, storageEventProducer)
 
         // Bulk operations
@@ -93,13 +97,6 @@ class Server(
         // RPC services
         val wsService = WSFileSessionService(processRunner)
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
-
-
-        coreFileSystem.setOnStorageEventExceptionHandler {
-            log.warn("Caught exception while emitting a storage event!")
-            log.warn(it.stackTraceToString())
-            stop()
-        }
 
         log.info("Core services constructed!")
 

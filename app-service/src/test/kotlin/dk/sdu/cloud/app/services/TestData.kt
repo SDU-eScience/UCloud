@@ -35,10 +35,10 @@ val normAppDesc2 = normAppDesc.withNameAndVersion("app", "1.2")
 
 val normAppDesc3 = normAppDesc
     .withInvocation(
-    listOf(
-        VariableInvocationParameter(listOf("int"), prefixVariable = "--int "),
-        VariableInvocationParameter(listOf("great"), prefixVariable = "--great "),
-        VariableInvocationParameter(listOf("missing"), prefixGlobal = "--missing ")
+        listOf(
+            VariableInvocationParameter(listOf("int"), prefixVariable = "--int "),
+            VariableInvocationParameter(listOf("great"), prefixVariable = "--great "),
+            VariableInvocationParameter(listOf("missing"), prefixGlobal = "--missing ")
         )
     )
     .withParameters(

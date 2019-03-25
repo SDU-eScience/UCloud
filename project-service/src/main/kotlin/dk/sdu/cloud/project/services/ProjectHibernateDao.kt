@@ -20,7 +20,6 @@ import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.service.db.updateCriteria
 import org.hibernate.annotations.NaturalId
 import org.hibernate.query.Query
-import java.sql.ResultSet
 import java.util.*
 import javax.persistence.CascadeType
 import javax.persistence.Column

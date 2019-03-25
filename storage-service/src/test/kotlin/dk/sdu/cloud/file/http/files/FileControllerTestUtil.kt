@@ -7,7 +7,6 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.http.ActionController
@@ -20,6 +19,7 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner

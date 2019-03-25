@@ -28,7 +28,6 @@ import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
-import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 
 internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 24L

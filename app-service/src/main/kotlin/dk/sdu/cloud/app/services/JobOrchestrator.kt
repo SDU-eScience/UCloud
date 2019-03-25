@@ -24,9 +24,9 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.types.StreamingFile
 import dk.sdu.cloud.calls.types.StreamingRequest
+import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.kafka.MappedEventProducer
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -42,8 +42,8 @@ import kotlinx.coroutines.runBlocking
 class JobOrchestrator<DBSession>(
     private val serviceCloud: AuthenticatedClient,
 
-    private val stateChangeProducer: MappedEventProducer<String, JobStateChange>,
-    private val accountingEventProducer: MappedEventProducer<String, JobCompletedEvent>,
+    private val stateChangeProducer: EventProducer<JobStateChange>,
+    private val accountingEventProducer: EventProducer<JobCompletedEvent>,
 
     private val db: DBSessionFactory<DBSession>,
     private val jobVerificationService: JobVerificationService<DBSession>,
@@ -98,7 +98,7 @@ class JobOrchestrator<DBSession>(
         // If we don't check for an existing failure state we can loop forever in a crash
         if (existingJob != null && existingJob.job.currentState != JobState.FAILURE) {
             val stateChange = JobStateChange(existingJob.job.id, JobState.FAILURE)
-            stateChangeProducer.emit(stateChange)
+            stateChangeProducer.produce(stateChange)
             handleStateChangeImmediately(existingJob, stateChange, null)
         }
     }
@@ -110,7 +110,7 @@ class JobOrchestrator<DBSession>(
     ): String {
         val (initialState, jobWithToken) = validateJob(req, principal, cloud)
         db.withTransaction { session -> jobDao.create(session, jobWithToken) }
-        stateChangeProducer.emit(initialState)
+        stateChangeProducer.produce(initialState)
         return initialState.systemId
     }
 
@@ -142,7 +142,7 @@ class JobOrchestrator<DBSession>(
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
             if (proposedState in validStates) {
                 if (proposedState != job.currentState) {
-                    stateChangeProducer.emit(event)
+                    stateChangeProducer.produce(event)
                     handleStateChangeImmediately(jobWithToken, event, newStatus)
                 }
             } else {
@@ -178,7 +178,7 @@ class JobOrchestrator<DBSession>(
                 securityPrincipal
             )
 
-            accountingEventProducer.emit(
+            accountingEventProducer.produce(
                 JobCompletedEvent(
                     jobId,
                     job.owner,

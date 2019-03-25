@@ -202,7 +202,6 @@ sealed class StorageEvent {
 data class Timestamps(val accessed: Long, val created: Long, val modified: Long)
 data class FileChecksum(val algorithm: String, val checksum: String)
 
-typealias StorageEventProducer = EventProducer<StorageEvent>
 typealias StorageEventStream = EventStream<StorageEvent>
 
 object StorageEvents : EventStreamContainer() {

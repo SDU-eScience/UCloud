@@ -10,6 +10,7 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.file.util.FSException
@@ -60,7 +61,7 @@ class MultipartUploadTest {
     ): List<Controller> {
         micro.install(HibernateFeature)
         TestContext.micro = micro
-        val storageEventProducer = micro.eventStreamService.createProducer(StorageEvents.events)
+        val storageEventProducer = StorageEventProducer(micro.eventStreamService.createProducer(StorageEvents.events), {})
         val coreFs = CoreFileSystemService(fs, storageEventProducer)
 
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)

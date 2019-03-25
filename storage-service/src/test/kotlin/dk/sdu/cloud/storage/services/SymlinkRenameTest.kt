@@ -6,13 +6,12 @@ import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
-import dk.sdu.cloud.kafka.forStream
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.test.EventServiceMock
-import dk.sdu.cloud.service.test.KafkaMock
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatProperty
 import dk.sdu.cloud.storage.util.mkdir
@@ -34,11 +33,11 @@ class SymlinkRenameTest {
     )
 
     private fun initTest(root: File): TestContext {
-        KafkaMock.initialize()
         BackgroundScope.init()
 
         val (runner, fs) = unixFSWithRelaxedMocks(root.absolutePath)
-        val coreFs = CoreFileSystemService(fs, EventServiceMock.createProducer(StorageEvents.events))
+        val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
+        val coreFs = CoreFileSystemService(fs, eventProducer)
         val fileLookupService = FileLookupService(coreFs)
 
         return TestContext(runner, fs, coreFs, fileLookupService)
@@ -49,7 +48,7 @@ class SymlinkRenameTest {
     @Test
     fun `test buggy renaming`() {
         val root = createRoot()
-        with (initTest(root)) {
+        with(initTest(root)) {
             root.mkdir("home") {
                 mkdir("user") {
                     touch("Foo")

@@ -7,12 +7,10 @@ import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
-class FindHomeFolderTest{
+class FindHomeFolderTest {
 
     @Test
     fun `find home folder test`() {

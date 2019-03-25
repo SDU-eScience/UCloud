@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.0-KAFKA.11'
+version '1.4.0-KAFKA.12'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"

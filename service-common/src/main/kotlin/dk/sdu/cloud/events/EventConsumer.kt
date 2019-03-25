@@ -25,7 +25,7 @@ sealed class EventConsumer<V> {
     }
 
     class Batched<V>(
-        private val maxLatency: Int = 500,
+        private val maxLatency: Long = 500,
         private val maxBatchSize: Int = 1000,
         private val handler: suspend (List<V>) -> Unit
     ) : EventConsumer<V>() {

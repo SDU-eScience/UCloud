@@ -7,7 +7,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.kafka.MappedEventProducer
+import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectMember
@@ -24,7 +24,7 @@ import java.util.*
 class ProjectService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val dao: ProjectDao<DBSession>,
-    private val eventProducer: MappedEventProducer<*, ProjectEvent>,
+    private val eventProducer: EventProducer<ProjectEvent>,
     private val serviceCloud: AuthenticatedClient
 ) {
     suspend fun create(title: String, principalInvestigator: String): Project {
@@ -36,7 +36,7 @@ class ProjectService<DBSession>(
             val piMember = ProjectMember(principalInvestigator, ProjectRole.PI)
 
             val project = Project(id, title, listOf(piMember))
-            eventProducer.emit(ProjectEvent.Created(project))
+            eventProducer.produce(ProjectEvent.Created(project))
             project
         }
     }
@@ -45,7 +45,7 @@ class ProjectService<DBSession>(
         db.withTransaction { session ->
             val project = dao.findById(session, projectId)
             dao.delete(session, projectId)
-            eventProducer.emit(ProjectEvent.Deleted(project))
+            eventProducer.produce(ProjectEvent.Deleted(project))
         }
     }
 
@@ -79,7 +79,7 @@ class ProjectService<DBSession>(
             dao.addMember(session, projectId, member)
 
             val projectWithNewMember = project.copy(members = project.members + member)
-            eventProducer.emit(ProjectEvent.MemberAdded(projectWithNewMember, member))
+            eventProducer.produce(ProjectEvent.MemberAdded(projectWithNewMember, member))
         }
     }
 
@@ -91,7 +91,7 @@ class ProjectService<DBSession>(
             dao.deleteMember(session, projectId, member)
 
             val newProject = project.copy(members = project.members.filter { it.username == member })
-            eventProducer.emit(ProjectEvent.MemberDeleted(newProject, removedMember))
+            eventProducer.produce(ProjectEvent.MemberDeleted(newProject, removedMember))
         }
     }
 
@@ -119,7 +119,7 @@ class ProjectService<DBSession>(
             val newMember = ProjectMember(member, newRole)
             val projectWithNewMember =
                 project.copy(members = project.members.filter { it.username == member } + newMember)
-            eventProducer.emit(ProjectEvent.MemberRoleUpdated(projectWithNewMember, oldRole, newMember))
+            eventProducer.produce(ProjectEvent.MemberRoleUpdated(projectWithNewMember, oldRole, newMember))
         }
     }
 

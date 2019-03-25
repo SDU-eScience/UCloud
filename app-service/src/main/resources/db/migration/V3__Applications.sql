@@ -1,6 +1,7 @@
 set search_path to app;
 
-create table applications (
+create table applications
+(
   name              varchar(255) not null,
   version           varchar(255) not null,
   application       json,

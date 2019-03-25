@@ -5,12 +5,11 @@ import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.kafka.forStream
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.project.api.AddMemberRequest
 import dk.sdu.cloud.project.api.AddMemberResponse
 import dk.sdu.cloud.project.api.ChangeUserRoleRequest
@@ -153,7 +152,7 @@ class ServiceTest {
                     ProjectService(
                         micro.hibernateDatabase,
                         ProjectHibernateDao(),
-                        micro.kafka.producer.forStream(ProjectEvents.events),
+                        micro.eventStreamService.createProducer(ProjectEvents.events),
                         ClientMock.authenticatedClient
                     )
                 )
