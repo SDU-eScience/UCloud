@@ -5,8 +5,6 @@ import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.server.auditStream
 import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.EventStreamContainer
-import dk.sdu.cloud.kafka.KafkaDescriptions
-import dk.sdu.cloud.kafka.StreamDescription
 import dk.sdu.cloud.service.ClassDiscovery
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.runBlocking
@@ -17,21 +15,6 @@ class KafkaTopicFeatureConfiguration(
     val basePackages: List<String> = emptyList()
 )
 
-private data class SimpleEventStream<V : Any>(
-    override val name: String,
-    override val desiredPartitions: Int?,
-    override val desiredReplicas: Short?,
-    override val keySelector: (V) -> String
-) : EventStream<V> {
-    override fun deserialize(value: String): V {
-        throw IllegalStateException()
-    }
-
-    override fun serialize(event: V): String {
-        throw IllegalStateException()
-    }
-}
-
 class KafkaTopicFeature(
     private val config: KafkaTopicFeatureConfiguration
 ) : MicroFeature {
@@ -39,7 +22,7 @@ class KafkaTopicFeature(
         ctx.requireFeature(KafkaFeature)
         val eventStreamService = ctx.eventStreamService
 
-        val allStreams = runDetection(ctx, listOf(legacyDetection, newDetection))
+        val allStreams = runDetection(ctx, listOf(newDetection))
 
         val topicNames = allStreams.map { it.value.name }
         if (log.isDebugEnabled) {
@@ -75,29 +58,6 @@ class KafkaTopicFeature(
         val result = HashMap<String, EventStream<*>>()
         handlers.forEach { result.putAll(it.retrieveResults()) }
         return result
-    }
-
-    private val legacyDetection = object : Handler {
-        val allStreams = HashMap<String, StreamDescription<*, *>>()
-        override fun inspectClass(klass: KClass<*>) {
-            val objectInstance = klass.objectInstance
-            if (objectInstance != null && objectInstance is KafkaDescriptions) {
-                log.debug("Retrieving streams from $klass")
-                objectInstance.streams.forEach { allStreams[it.name] = it }
-            }
-        }
-
-        override fun retrieveResults(): Map<String, EventStream<*>> {
-            // The important thing is that this delivers name, partitions, and replicas.
-            return allStreams.mapValues {
-                SimpleEventStream<Any>(
-                    it.value.name,
-                    it.value.desiredPartitions,
-                    it.value.desiredReplicas,
-                    { it.toString() }
-                )
-            }
-        }
     }
 
     private val newDetection = object : Handler {

@@ -81,7 +81,7 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
 
         install(
             KafkaFeature,
-            KafkaFeatureConfiguration(kafkaServicesOverride = KafkaMock.initialize())
+            KafkaFeatureConfiguration()
         )
         EventServiceMock.reset()
         eventStreamService = EventServiceMock
