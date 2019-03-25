@@ -65,7 +65,7 @@ class ProcessorTest {
     private fun send(event: ProjectEvent, await: Boolean = true) {
         println("Sending event: $event")
         EventServiceMock.produceEvents(ProjectEvents.events, listOf(event))
-        if (await) Thread.sleep(50)
+        if (await) Thread.sleep(500)
     }
 
     private fun createProject(id: String = "projectA") {

@@ -6,6 +6,7 @@ import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.events.EventStreamState
 import dk.sdu.cloud.service.Loggable
+import kotlinx.coroutines.runBlocking
 
 data class MockedEvent<V : Any>(
     val topic: EventStream<V>,
@@ -45,6 +46,11 @@ object EventServiceMock : EventStreamService, Loggable {
 
     fun <V : Any> produceEvents(stream: EventStream<V>, events: List<V>) {
         recordedEvents.addAll(events.map { MockedEvent(stream, it, stream.serialize(it)) })
+
+        @Suppress("UNCHECKED_CAST") val subscriber = subscribers[stream] as? EventConsumer<V> ?: return
+        runBlocking {
+            subscriber.accept(events)
+        }
     }
 
     fun reset() {
