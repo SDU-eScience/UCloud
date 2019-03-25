@@ -8,13 +8,11 @@ import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 
 class Server(
@@ -22,22 +20,16 @@ class Server(
 ) : CommonServer {
     override val log = logger()
 
-    private val processors = ArrayList<EventConsumer<*>>()
-
     override fun start() {
         val db = micro.hibernateDatabase
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val kafka = micro.kafka
 
         // Services
         val completedJobsDao = CompletedJobsHibernateDao()
         val completedJobsService = CompletedJobsService(db, completedJobsDao, client)
 
         // Processors
-        JobCompletedProcessor(kafka, completedJobsService, client).init().let { batch ->
-            batch.forEach { it.installShutdownHandler(this) }
-            processors.addAll(batch)
-        }
+        JobCompletedProcessor(micro.eventStreamService, completedJobsService, client).init()
 
         // HTTP
         with(micro.server) {
@@ -50,10 +42,5 @@ class Server(
         log.info("Server is ready!")
 
         startServices()
-    }
-
-    override fun stop() {
-        super.stop()
-        processors.forEach { it.close() }
     }
 }

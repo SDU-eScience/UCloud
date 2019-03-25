@@ -9,7 +9,7 @@
         <Root level="debug">
             <AppenderRef ref="Console"/>
         </Root>
-        <Logger name="org.apache.kafka" level="warn" additivity="false">
+        <Logger name="org.apache.kafka" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="org.apache.zookeeper" level="warn" additivity="false">
@@ -37,6 +37,10 @@
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="org.eclipse" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Logger name="dk.sdu.cloud.events" level="trace" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
     </Loggers>

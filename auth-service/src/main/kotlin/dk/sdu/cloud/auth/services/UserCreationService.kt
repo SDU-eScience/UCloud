@@ -39,7 +39,7 @@ class UserCreationService<DBSession>(
         }
 
         users.forEach { user ->
-            userEventProducer.emit(UserEvent.Created(user.id, user))
+            userEventProducer.produce(UserEvent.Created(user.id, user))
         }
     }
 

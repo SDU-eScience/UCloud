@@ -59,7 +59,8 @@ abstract class CallDescriptionContainer(val namespace: String) {
         successType: TypeReference<Success>,
         errorType: TypeReference<Error>
     ): CallDescription<Request, Success, Error> {
-        val callDescription = CallDescription(name, namespace, AttributeContainer(), requestType, successType, errorType)
+        val callDescription =
+            CallDescription(name, namespace, AttributeContainer(), requestType, successType, errorType)
         callDescription.handler()
         _callContainer.add(callDescription)
         onBuildHandlers.forEach { it(callDescription) }

@@ -2,10 +2,10 @@ package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.kafka.KafkaDescriptions
-import dk.sdu.cloud.kafka.MappedEventProducer
+import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.events.EventStream
+import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.service.TYPE_PROPERTY
-import org.apache.kafka.streams.kstream.KStream
 
 /**
  * Represents an event which has occurred inside of the storage system
@@ -202,12 +202,11 @@ sealed class StorageEvent {
 data class Timestamps(val accessed: Long, val created: Long, val modified: Long)
 data class FileChecksum(val algorithm: String, val checksum: String)
 
-typealias StorageEventProducer = MappedEventProducer<String, StorageEvent>
-typealias StorageEventStream = KStream<String, StorageEvent>
+typealias StorageEventStream = EventStream<StorageEvent>
 
-object StorageEvents : KafkaDescriptions() {
+object StorageEvents : EventStreamContainer() {
     /**
      * A list of storage events. Keyed by the file ID
      */
-    val events = stream<String, StorageEvent>("storage-events") { it.id }
+    val events = stream<StorageEvent>("storage-events", { it.id })
 }

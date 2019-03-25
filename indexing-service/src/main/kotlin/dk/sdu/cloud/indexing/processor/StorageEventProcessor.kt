@@ -1,13 +1,11 @@
 package dk.sdu.cloud.indexing.processor
 
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.indexing.services.IndexingService
-import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.batched
-import dk.sdu.cloud.service.consumeBatchAndCommit
 import org.slf4j.Logger
 
 /**
@@ -16,29 +14,26 @@ import org.slf4j.Logger
  * @see IndexingService
  */
 class StorageEventProcessor(
-    private val streamFactory: EventConsumerFactory,
-    private val indexingService: IndexingService,
-    private val parallelism: Int = 4
+    private val streamService: EventStreamService,
+    private val indexingService: IndexingService
 ) {
-    fun init(): List<EventConsumer<*>> {
-        return (0 until parallelism).map { _ ->
-            streamFactory.createConsumer(StorageEvents.events).configure { root ->
-                root
-                    .batched(
-                        batchTimeout = BATCH_TIMEOUT_MS,
-                        maxBatchSize = MAX_ITEMS_IN_BATCH
-                    )
-                    .consumeBatchAndCommit { batch ->
-                        log.debug("Handling another batch of ${batch.size} files. Head of batch: " +
-                                "${batch.asSequence().take(DEBUG_ELEMENTS_IN_LOG).map { it.second.path }.toList()}..."
-                        )
+    fun init() {
+        streamService.subscribe(
+            StorageEvents.events,
+            EventConsumer.Batched(
+                maxLatency = BATCH_TIMEOUT_MS,
+                maxBatchSize = MAX_ITEMS_IN_BATCH
+            ) { batch ->
+                log.debug(
+                    "Handling another batch of ${batch.size} files. Head of batch: " +
+                            "${batch.asSequence().take(DEBUG_ELEMENTS_IN_LOG).map { it.path }.toList()}..."
+                )
 
-                        indexingService.bulkHandleEvent(batch.map { it.second })
+                indexingService.bulkHandleEvent(batch)
 
-                        log.debug("Batch complete")
-                    }
+                log.debug("Batch complete")
             }
-        }
+        )
     }
 
     companion object : Loggable {

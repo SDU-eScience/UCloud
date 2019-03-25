@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file
 
-import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.server.HttpCall
@@ -27,37 +26,33 @@ import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
-import dk.sdu.cloud.kafka.forStream
-import dk.sdu.cloud.kafka.stream
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.WithKafkaStreams
-import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
-import org.apache.kafka.streams.KafkaStreams
+import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
 
 class Server(
     private val config: StorageConfiguration,
     override val micro: Micro
-) : CommonServer, WithKafkaStreams {
+) : CommonServer {
     override val log: Logger = logger()
-    override lateinit var kStreams: KafkaStreams
 
-    override fun start() {
-        val kafka = micro.kafka
+    override fun start() = runBlocking {
+        val streams = micro.eventStreamService
         val cloud = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         log.info("Creating core services")
@@ -79,7 +74,11 @@ class Server(
         val fs = UnixFileSystem(processRunner, uidLookupService, fileAttributeParser, fsRoot)
 
         // High level FS
-        val storageEventProducer = kafka.producer.forStream(StorageEvents.events)
+        val storageEventProducer = StorageEventProducer(streams.createProducer(StorageEvents.events)) {
+            log.warn("Caught exception while emitting a storage event!")
+            log.warn(it.stackTraceToString())
+            stop()
+        }
         val coreFileSystem = CoreFileSystemService(fs, storageEventProducer)
 
         // Bulk operations
@@ -99,24 +98,15 @@ class Server(
         val wsService = WSFileSessionService(processRunner)
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
 
-
-        coreFileSystem.setOnStorageEventExceptionHandler {
-            log.warn("Caught exception while emitting a storage event!")
-            log.warn(it.stackTraceToString())
-            stop()
-        }
-
         log.info("Core services constructed!")
 
-        kStreams = buildStreams { kBuilder ->
-            UserProcessor(
-                kBuilder.stream(AuthStreams.UserUpdateStream),
-                uidLookupService,
-                fileScanner,
-                processRunner,
-                coreFileSystem
-            ).init()
-        }
+        UserProcessor(
+            streams,
+            uidLookupService,
+            fileScanner,
+            processRunner,
+            coreFileSystem
+        ).init()
 
         val tokenValidation =
             micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")

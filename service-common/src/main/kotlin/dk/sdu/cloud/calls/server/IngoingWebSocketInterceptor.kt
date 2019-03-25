@@ -16,7 +16,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
-import io.ktor.http.cio.websocket.pingInterval
 import io.ktor.http.cio.websocket.readText
 import io.ktor.http.cio.websocket.send
 import io.ktor.routing.routing
@@ -81,11 +80,13 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
             defaultMapper.writerFor(typeRef).writeValueAsString(message)
         )
 
-        val payloadTree = defaultMapper.writeValueAsString(mapOf<String, Any>(
-            TYPE_PROPERTY to WSMessage.MESSAGE_TYPE,
-            WSMessage.STREAM_ID_FIELD to streamId,
-            WSMessage.PAYLOAD_FIELD to node
-        ))
+        val payloadTree = defaultMapper.writeValueAsString(
+            mapOf<String, Any>(
+                TYPE_PROPERTY to WSMessage.MESSAGE_TYPE,
+                WSMessage.STREAM_ID_FIELD to streamId,
+                WSMessage.PAYLOAD_FIELD to node
+            )
+        )
 
         rawSend(payloadTree)
     }

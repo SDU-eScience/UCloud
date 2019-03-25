@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.util.FSException
@@ -92,7 +91,7 @@ class IndexingService<Ctx : FSUserContext>(
                         if (log.isDebugEnabled) log.debug(diff.toString())
                     }
 
-                    diff.forEach { storageEventProducer.emit(it) }
+                    storageEventProducer.produce(diff)
                 }
             } catch (ex: Exception) {
                 // Note: we don't bubble up the exception to anyone else

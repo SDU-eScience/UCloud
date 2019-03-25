@@ -3,19 +3,12 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.WSSession
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.cio.startConnectionPipeline
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import kotlin.coroutines.CoroutineContext
 
 /**
  * A service for handling websocket sessions
@@ -40,10 +33,8 @@ class WSFileSessionService<Ctx : FSUserContext>(
             call.session.addOnCloseHandler {
                 session.internalClose()
 
-                runBlocking {
-                    mutex.withLock {
-                        sessions.remove(userAndSession)
-                    }
+                mutex.withLock {
+                    sessions.remove(userAndSession)
                 }
             }
 

@@ -2,52 +2,44 @@ package dk.sdu.cloud.activity.processor
 
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.services.ActivityService
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.batched
-import dk.sdu.cloud.service.consumeBatchAndCommit
 
 private typealias SEventTransformer = (StorageEvent) -> List<ActivityEvent>?
 
 class StorageEventProcessor<DBSession>(
-    private val streamFactory: EventConsumerFactory,
-    private val activityService: ActivityService<DBSession>,
-    private val parallelism: Int = 4
+    private val streamFactory: EventStreamService,
+    private val activityService: ActivityService<DBSession>
 ) {
     private val transformers: List<SEventTransformer> = listOf(
         this::updatedTransformer,
         this::deletedTransformer
     )
 
-    fun init(): List<EventConsumer<*>> = (0 until parallelism).map { _ ->
-        streamFactory.createConsumer(StorageEvents.events).configure { root ->
-            root
-                .batched(
-                    batchTimeout = 500,
-                    maxBatchSize = 1000
-                )
-                .consumeBatchAndCommit { batch ->
-                    if (batch.isEmpty()) return@consumeBatchAndCommit
+    fun init() {
+        streamFactory.subscribe(StorageEvents.events, EventConsumer.Batched(
+            maxLatency = 500L,
+            maxBatchSize = 1000
+        ) { events ->
+            if (events.isEmpty()) return@Batched
 
-                    log.debug("Consuming batch: $batch")
+            log.debug("Consuming batch: $events")
 
-                    val events = batch.map { it.second }
-                    val activityEvents = ArrayList<ActivityEvent>()
-                    for (event in events) {
-                        for (transformer in transformers) {
-                            val transformedEvents = transformer(event)
-                            if (transformedEvents != null) {
-                                activityEvents.addAll(transformedEvents)
-                            }
-                        }
+            val activityEvents = ArrayList<ActivityEvent>()
+            for (event in events) {
+                for (transformer in transformers) {
+                    val transformedEvents = transformer(event)
+                    if (transformedEvents != null) {
+                        activityEvents.addAll(transformedEvents)
                     }
-
-                    activityService.insertBatch(activityEvents)
                 }
-        }
+            }
+
+            activityService.insertBatch(activityEvents)
+        })
     }
 
     private fun updatedTransformer(event: StorageEvent): List<ActivityEvent>? {

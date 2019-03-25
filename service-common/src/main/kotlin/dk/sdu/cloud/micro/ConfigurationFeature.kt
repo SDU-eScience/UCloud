@@ -11,8 +11,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import java.io.File
 
@@ -27,13 +27,13 @@ class ServerConfiguration internal constructor(
     fun <T> requestChunk(valueTypeRef: TypeReference<T>, node: String): T {
         val jsonNode =
             tree.get(node)?.takeIf { !it.isMissingNode }
-                    ?: throw ServerConfigurationException.MissingNode()
+                ?: throw ServerConfigurationException.MissingNode()
         return jsonNode.traverse(jsonMapper).readValueAs<T>(valueTypeRef)
     }
 
     fun <T> requestChunkAt(valueTypeRef: TypeReference<T>, vararg path: String): T {
         val jsonNode = tree.at("/" + path.joinToString("/"))?.takeIf { !it.isMissingNode }
-                ?: throw ServerConfigurationException.MissingNode()
+            ?: throw ServerConfigurationException.MissingNode()
         return jsonNode.traverse(jsonMapper).readValueAs<T>(valueTypeRef)
     }
 
@@ -162,6 +162,7 @@ class ConfigurationFeature : MicroFeature {
         Loggable {
         override val key: MicroAttributeKey<ConfigurationFeature> =
             MicroAttributeKey("configuration-feature")
+
         override fun create(config: Unit): ConfigurationFeature =
             ConfigurationFeature()
 

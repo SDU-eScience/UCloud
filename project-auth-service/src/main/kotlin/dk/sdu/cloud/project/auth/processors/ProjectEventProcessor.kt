@@ -6,22 +6,20 @@ import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.kafka.MappedEventProducer
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.auth.api.ProjectAuthEvent
+import dk.sdu.cloud.project.auth.api.ProjectAuthEvents
 import dk.sdu.cloud.project.auth.api.usernameForProjectInRole
 import dk.sdu.cloud.project.auth.services.AuthToken
 import dk.sdu.cloud.project.auth.services.AuthTokenDao
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
-import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.consumeAndCommit
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 
 class ProjectEventProcessor<DBSession>(
@@ -29,54 +27,50 @@ class ProjectEventProcessor<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val authTokenDao: AuthTokenDao<DBSession>,
     private val tokenInvalidator: TokenInvalidator<DBSession>,
-    private val eventConsumerFactory: EventConsumerFactory,
-    private val eventProducer: MappedEventProducer<*, ProjectAuthEvent>,
-    private val parallelism: Int = 4
+    private val streams: EventStreamService
 ) {
-    fun init(): List<EventConsumer<*>> = (0 until parallelism).map { _ ->
-        eventConsumerFactory.createConsumer(ProjectEvents.events).configure { root ->
-            root.consumeAndCommit { (_, event) ->
-                val projectId = event.project.id
+    private val eventProducer = streams.createProducer(ProjectAuthEvents.events)
 
-                runBlocking {
-                    log.debug("Receiving event: $event")
-                    when (event) {
-                        is ProjectEvent.Created -> {
-                            val createUserRequest = ProjectRole.values().map { role ->
-                                CreateSingleUserRequest(
-                                    username = usernameForProjectInRole(projectId, role),
-                                    password = null,
-                                    role = Role.PROJECT_PROXY
-                                )
-                            }
+    fun init() {
+        streams.subscribe(ProjectEvents.events, EventConsumer.Immediate { event ->
+            val projectId = event.project.id
 
-                            val tokens = UserDescriptions.createNewUser.call(
-                                createUserRequest,
-                                serviceCloud
-                            ).orThrow()
+            log.debug("Receiving event: $event")
+            when (event) {
+                is ProjectEvent.Created -> {
+                    val createUserRequest = ProjectRole.values().map { role ->
+                        CreateSingleUserRequest(
+                            username = usernameForProjectInRole(projectId, role),
+                            password = null,
+                            role = Role.PROJECT_PROXY
+                        )
+                    }
 
-                            val rolesAndTokens = ProjectRole.values().zip(tokens)
-                            db.withTransaction { session ->
-                                rolesAndTokens.forEach { (role, token) ->
-                                    authTokenDao.storeToken(session, AuthToken(token.refreshToken, projectId, role))
-                                }
-                            }
+                    val tokens = UserDescriptions.createNewUser.call(
+                        createUserRequest,
+                        serviceCloud
+                    ).orThrow()
 
-                            eventProducer.emit(ProjectAuthEvent.Initialized(projectId))
-                        }
-
-                        is ProjectEvent.Deleted -> {
-                            tokenInvalidator.invalidateTokensForProject(projectId)
-                        }
-
-                        is ProjectEvent.MemberDeleted, is ProjectEvent.MemberAdded,
-                        is ProjectEvent.MemberRoleUpdated -> {
-                            // Do nothing
+                    val rolesAndTokens = ProjectRole.values().zip(tokens)
+                    db.withTransaction { session ->
+                        rolesAndTokens.forEach { (role, token) ->
+                            authTokenDao.storeToken(session, AuthToken(token.refreshToken, projectId, role))
                         }
                     }
+
+                    eventProducer.produce(ProjectAuthEvent.Initialized(projectId))
+                }
+
+                is ProjectEvent.Deleted -> {
+                    tokenInvalidator.invalidateTokensForProject(projectId)
+                }
+
+                is ProjectEvent.MemberDeleted, is ProjectEvent.MemberAdded,
+                is ProjectEvent.MemberRoleUpdated -> {
+                    // Do nothing
                 }
             }
-        }
+        })
     }
 
     companion object : Loggable {

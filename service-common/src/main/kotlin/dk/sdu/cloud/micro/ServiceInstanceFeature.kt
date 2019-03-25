@@ -32,7 +32,7 @@ class ServiceInstanceFeature : MicroFeature {
 
             log.debug("Attempting to retrieve hostname through hostname executable")
             return exec { command("hostname") }.lines().firstOrNull()
-                    ?: throw IllegalStateException("Unable to retrieve hostname")
+                ?: throw IllegalStateException("Unable to retrieve hostname")
         }
     }
 
@@ -47,6 +47,7 @@ class ServiceInstanceFeature : MicroFeature {
         override val key = MicroAttributeKey<ServiceInstanceFeature>("service-instance-feature")
         override fun create(config: Unit): ServiceInstanceFeature =
             ServiceInstanceFeature()
+
         override val log = logger()
 
         internal val INSTANCE_KEY = MicroAttributeKey<ServiceInstance>("service-instance")

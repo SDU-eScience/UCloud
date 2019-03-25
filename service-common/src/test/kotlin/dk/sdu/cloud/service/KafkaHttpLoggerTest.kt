@@ -15,14 +15,13 @@ import dk.sdu.cloud.calls.server.auditStream
 import dk.sdu.cloud.calls.server.parseAuditMessageOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.tokenValidation
-import dk.sdu.cloud.service.test.KafkaMock
+import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import dk.sdu.cloud.service.test.messagesForTopic
 import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
@@ -110,10 +109,10 @@ class KafkaHttpLoggerTest {
                 sendJson(HttpMethod.Post, "/logging/internal-error", request, TestUsers.user)
                     .assertStatus(HttpStatusCode.InternalServerError)
 
-                val messages = KafkaMock.messagesForTopic(LoggingDescriptions.auditStream)
+                val messages = EventServiceMock.rawMessagesForTopic(LoggingDescriptions.auditStream)
                 assertThatPropertyEquals(messages, { it.size }, 1)
 
-                val messageAsJson = defaultMapper.readTree(messages.single().second)
+                val messageAsJson = defaultMapper.readTree(messages.single())
                 val auditMessage = LoggingDescriptions.internalError.parseAuditMessageOrNull<Any>(
                     messageAsJson,
                     acceptRequestsWithServerFailure = true
@@ -145,10 +144,10 @@ class KafkaHttpLoggerTest {
                 )
                 sendRequest.assertSuccess()
 
-                val messages = KafkaMock.messagesForTopic(LoggingDescriptions.auditStream)
+                val messages = EventServiceMock.rawMessagesForTopic(LoggingDescriptions.auditStream)
                 assertThatPropertyEquals(messages, { it.size }, 1)
 
-                val messageAsJson = defaultMapper.readTree(messages.single().second)
+                val messageAsJson = defaultMapper.readTree(messages.single())
                 val auditMessage = LoggingDescriptions.oneTimeTokenNotThroughHeader
                     .parseAuditMessageOrNull<OneTimeTokenRequest>(messageAsJson)
                 assertNotNull(auditMessage)

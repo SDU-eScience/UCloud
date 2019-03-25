@@ -7,6 +7,9 @@ import dk.sdu.cloud.calls.server.AuditEvent
 import dk.sdu.cloud.calls.server.auditStream
 import dk.sdu.cloud.calls.server.parseAuditMessageOrNull
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStream
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.BulkDownloadRequest
 import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -15,22 +18,16 @@ import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
-import dk.sdu.cloud.kafka.StreamDescription
-import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.batched
-import dk.sdu.cloud.service.consumeBatchAndCommit
 import dk.sdu.cloud.service.stackTraceToString
 
 private typealias Transformer = (parsedEvent: JsonNode) -> List<ActivityEvent>?
 
 class StorageAuditProcessor<DBSession>(
-    private val streamFactory: EventConsumerFactory,
-    private val activityService: ActivityService<DBSession>,
-    private val parallelism: Int = 4
+    private val streamFactory: EventStreamService,
+    private val activityService: ActivityService<DBSession>
 ) {
-    private val transformers: Map<StreamDescription<String, String>, List<Transformer>> = mapOf(
+    private val transformers: Map<EventStream<String>, List<Transformer>> = mapOf(
         FileDescriptions.auditStream to listOf(
             this::transformBulkDownload,
             this::transformStat,
@@ -44,50 +41,46 @@ class StorageAuditProcessor<DBSession>(
     )
 
     @Suppress("TooGenericExceptionCaught")
-    fun init(): List<EventConsumer<*>> = (0 until parallelism).flatMap { _ ->
+    fun init() {
         transformers.map { (stream, transformers) ->
-            streamFactory.createConsumer(stream).configure { root ->
-                root
-                    .batched(
-                        batchTimeout = 500,
-                        maxBatchSize = 1000
-                    )
-                    .consumeBatchAndCommit { batch ->
-                        if (batch.isEmpty()) return@consumeBatchAndCommit
+            streamFactory.subscribe(stream, EventConsumer.Batched(
+                maxBatchSize = 1000,
+                maxLatency = 500L
+            ) { batch ->
+                if (batch.isEmpty()) return@Batched
 
-                        // Parse messages (and filter invalid ones)
-                        val nodes = batch.mapNotNull {
-                            try {
-                                it.first to defaultMapper.readTree(it.second)
-                            } catch (ex: Exception) {
-                                log.debug("Caught exception while de-serializing event:")
-                                log.debug("Event was: ${it.second}")
-                                log.debug(ex.stackTraceToString())
-                                null
-                            }
-                        }
-
-                        // Collect events
-                        //
-                        // NOTE(Dan): Trying out some patterns. Event transformers should go in
-                        // "transformers" at top of class
-                        val activityEvents = ArrayList<ActivityEvent>()
-                        for ((_, parsedEvent) in nodes) {
-                            for (transformer in transformers) {
-                                val transformed = transformer(parsedEvent)
-
-                                if (transformed != null) {
-                                    activityEvents.addAll(transformed)
-                                    break
-                                }
-                            }
-                        }
-
-                        log.info("Received the following events: $activityEvents")
-
-                        activityService.insertBatch(activityEvents)
+                // Parse messages (and filter invalid ones)
+                val nodes = batch.mapNotNull {
+                    try {
+                        defaultMapper.readTree(it)
+                    } catch (ex: Exception) {
+                        log.debug("Caught exception while de-serializing event:")
+                        log.debug("Event was: $it")
+                        log.debug(ex.stackTraceToString())
+                        null
                     }
-            }
+                }
+
+                // Collect events
+                //
+                // NOTE(Dan): Trying out some patterns. Event transformers should go in
+                // "transformers" at top of class
+                val activityEvents = ArrayList<ActivityEvent>()
+                for (parsedEvent in nodes) {
+                    for (transformer in transformers) {
+                        val transformed = transformer(parsedEvent)
+
+                        if (transformed != null) {
+                            activityEvents.addAll(transformed)
+                            break
+                        }
+                    }
+                }
+
+                log.info("Received the following events: $activityEvents")
+
+                activityService.insertBatch(activityEvents)
+            })
         }
     }
 

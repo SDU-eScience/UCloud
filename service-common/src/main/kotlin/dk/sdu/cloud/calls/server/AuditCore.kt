@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.service.ServiceInstance
 import java.time.Period
 
-
 data class HttpCallLogEntry(
     val jobId: String,
     val handledBy: ServiceInstance,

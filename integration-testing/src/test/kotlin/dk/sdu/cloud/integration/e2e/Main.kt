@@ -13,7 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-const val HOST = "http://localhost:9000"
+const val HOST = "https://dev.cloud.sdu.dk"
 lateinit var driver: WebDriver
 
 class EndToEndTest {

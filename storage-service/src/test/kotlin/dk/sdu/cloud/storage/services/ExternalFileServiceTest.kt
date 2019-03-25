@@ -2,20 +2,19 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FileScanner
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
+import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.storage.util.createDummyFSInRoot
 import dk.sdu.cloud.storage.util.createFS
 import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.touch
-import io.mockk.Runs
-import io.mockk.coEvery
-import io.mockk.just
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -27,27 +26,26 @@ class ExternalFileServiceTest {
         val runner: FSCommandRunnerFactory<Ctx>,
         val fs: CoreFileSystemService<Ctx>,
         val producer: StorageEventProducer,
-        val service: FileScanner<Ctx>,
-        val collectedEvents: MutableList<StorageEvent>
-    )
+        val service: FileScanner<Ctx>
+    ) {
+        val collectedEvents: List<StorageEvent>
+            get() = EventServiceMock.messagesForTopic(StorageEvents.events)
+    }
 
     fun createService(builder: File.() -> Unit = File::createDummyFSInRoot): TestContext<UnixFSCommandRunner> {
         return createService(createFS(builder))
     }
 
     fun createService(root: String): TestContext<UnixFSCommandRunner> {
+        EventServiceMock.reset()
         val (runner, fs) = unixFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
-        val eventProducer = mockk<StorageEventProducer>(relaxed = true)
-        val collectedEvents = ArrayList<StorageEvent>()
-
-        coEvery { eventProducer.emit(capture(collectedEvents)) } just Runs
+        val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
 
         return TestContext(
             runner = runner,
             fs = coreFs,
             producer = eventProducer,
-            collectedEvents = collectedEvents,
             service = FileScanner(runner, coreFs, eventProducer)
         )
     }

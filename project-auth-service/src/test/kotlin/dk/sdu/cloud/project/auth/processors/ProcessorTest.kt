@@ -2,26 +2,22 @@ package dk.sdu.cloud.project.auth.processors
 
 import dk.sdu.cloud.auth.api.CreateSingleUserResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.kafka.forStream
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.auth.api.ProjectAuthEvents
 import dk.sdu.cloud.project.auth.services.AuthTokenDao
 import dk.sdu.cloud.project.auth.services.AuthTokenHibernateDao
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
-import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.MockedEventConsumerFactory
+import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.assertThatProperty
 import dk.sdu.cloud.service.test.initializeMicro
@@ -41,7 +37,6 @@ class ProcessorTest {
     lateinit var authTokenDao: AuthTokenDao<HibernateSession>
     lateinit var tokenInvalidator: TokenInvalidator<HibernateSession>
     lateinit var processor: ProjectEventProcessor<HibernateSession>
-    lateinit var consumers: List<EventConsumer<*>>
 
     @BeforeTest
     fun beforeTest() {
@@ -57,23 +52,20 @@ class ProcessorTest {
             db,
             authTokenDao,
             tokenInvalidator,
-            MockedEventConsumerFactory,
-            micro.kafka.producer.forStream(ProjectAuthEvents.events),
-            parallelism = 1
+            EventServiceMock
         )
-
-        consumers = processor.init()
+        processor.init()
     }
 
     @AfterTest
     fun afterTest() {
-        consumers.forEach { it.close() }
+        EventServiceMock.reset()
     }
 
     private fun send(event: ProjectEvent, await: Boolean = true) {
         println("Sending event: $event")
-        MockedEventConsumerFactory.send(ProjectEvents.events, event)
-        if (await) Thread.sleep(50)
+        EventServiceMock.produceEvents(ProjectEvents.events, listOf(event))
+        if (await) Thread.sleep(500)
     }
 
     private fun createProject(id: String = "projectA") {

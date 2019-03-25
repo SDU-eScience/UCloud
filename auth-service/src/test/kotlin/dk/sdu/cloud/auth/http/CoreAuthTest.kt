@@ -13,15 +13,12 @@ import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenAndUser
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
-import dk.sdu.cloud.auth.services.Service
-import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
@@ -71,8 +68,6 @@ class CoreAuthTest {
     )
 
     private fun KtorApplicationTestSetupContext.createCoreAuthController(
-        enablePassword: Boolean,
-        enableWayf: Boolean,
         serviceExtensionPolicy: Map<String, Set<SecurityScope>> = emptyMap()
     ): TestContext {
         micro.install(HibernateFeature)
@@ -131,7 +126,7 @@ class CoreAuthTest {
         lateinit var ctx: TestContext
         withKtorTest(
             setup = {
-                ctx = createCoreAuthController(enablePassword, enableWayf, serviceExtensionPolicy)
+                ctx = createCoreAuthController(serviceExtensionPolicy)
                 ctx.controllers
             },
 

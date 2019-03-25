@@ -1,12 +1,12 @@
 package dk.sdu.cloud.auth.api
 
-import dk.sdu.cloud.kafka.KafkaDescriptions
-import dk.sdu.cloud.kafka.MappedEventProducer
-import org.apache.kafka.streams.kstream.KStream
+import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.events.EventStream
+import dk.sdu.cloud.events.EventStreamContainer
 
-typealias UserEventProducer = MappedEventProducer<String, UserEvent>
-typealias UserEventConsumer = KStream<String, UserEvent>
+typealias UserEventProducer = EventProducer<UserEvent>
+typealias UserEventConsumer = EventStream<UserEvent>
 
-object AuthStreams : KafkaDescriptions() {
-    val UserUpdateStream = stream<String, UserEvent>("auth.user") { it.key }
+object AuthStreams : EventStreamContainer() {
+    val UserUpdateStream = stream<UserEvent>("auth.user", { it.key })
 }

@@ -12,7 +12,6 @@ import dk.sdu.cloud.file.gateway.services.FileAnnotationService
 import dk.sdu.cloud.file.gateway.services.UserCloudService
 import dk.sdu.cloud.file.gateway.services.withNewItems
 import dk.sdu.cloud.service.Controller
-import io.ktor.routing.Route
 
 class FavoriteController(
     private val userCloudService: UserCloudService,

@@ -14,5 +14,5 @@ alter table jobs
 
 alter table jobs
   add constraint FK_jobs_application
-foreign key (application_name, application_version)
-references applications;
+    foreign key (application_name, application_version)
+      references applications;

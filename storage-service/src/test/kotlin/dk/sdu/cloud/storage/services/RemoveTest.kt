@@ -1,17 +1,18 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
+import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.storage.util.createDummyFS
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -29,11 +30,9 @@ class RemoveTest {
     @Test
     fun testSimpleRemove() {
         BackgroundScope.reset()
+        EventServiceMock.reset()
         try {
-            val emitter: StorageEventProducer = mockk()
-            coEvery { emitter.emit(any()) } coAnswers {
-                println("Hello! ${it.invocation.args.first()}}")
-            }
+            val emitter = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
 
             val fsRoot = createDummyFS()
             val (runner, service) = createService(fsRoot.absolutePath, emitter)
@@ -48,12 +47,12 @@ class RemoveTest {
             // This is not a fool proof way of doing it. But we have no way of waiting for tasks
             Thread.sleep(100)
 
-            coVerify {
-                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" })
-                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" })
-                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" })
-                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder" })
-            }
+            val events = EventServiceMock.messagesForTopic(StorageEvents.events)
+
+            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" }
+            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" }
+            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" }
+            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder" }
         } finally {
             BackgroundScope.stop()
         }
@@ -62,7 +61,7 @@ class RemoveTest {
     @Test(expected = FSException.NotFound::class)
     fun testNonExistingPathRemove() {
         val emitter: StorageEventProducer = mockk()
-        coEvery { emitter.emit(any()) } coAnswers {
+        coEvery { emitter.produce(any<StorageEvent>()) } coAnswers {
             println("Hello! ${it.invocation.args.first()}}")
         }
 

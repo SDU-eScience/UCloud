@@ -19,40 +19,35 @@ import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.kafka.forStream
-import dk.sdu.cloud.kafka.stream
+import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.WithKafkaStreams
-import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
-import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.io.File
 
 class Server(
     private val config: Configuration,
     override val micro: Micro
-) : CommonServer, WithKafkaStreams {
+) : CommonServer {
     private var initialized = false
     override val log: Logger = logger()
-    override lateinit var kStreams: KafkaStreams
 
     override fun start() {
         if (initialized) throw IllegalStateException("Already started!")
 
-        val kafka = micro.kafka
+        val streams = micro.eventStreamService
         val db = micro.hibernateDatabase
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
@@ -66,8 +61,8 @@ class Server(
 
         val jobOrchestrator = JobOrchestrator(
             serviceClient,
-            kafka.producer.forStream(JobStreams.jobStateEvents),
-            kafka.producer.forStream(AccountingEvents.jobCompleted),
+            streams.createProducer(JobStreams.jobStateEvents),
+            streams.createProducer(AccountingEvents.jobCompleted),
             db,
             jobVerificationService,
             computationBackendService,
@@ -82,11 +77,9 @@ class Server(
             return
         }
 
-        kStreams = buildStreams { kBuilder ->
-            kBuilder.stream(JobStreams.jobStateEvents).foreach { _, event ->
-                jobOrchestrator.handleStateChange(event)
-            }
-        }
+        streams.subscribe(JobStreams.jobStateEvents, EventConsumer.Immediate { event ->
+            jobOrchestrator.handleStateChange(event)
+        })
 
         with(micro.server) {
             log.info("Configuring HTTP server")

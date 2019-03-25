@@ -34,21 +34,21 @@ class HibernateFeature : MicroFeature {
             Feature.Profile.PERSISTENT_H2 -> {
                 ctx.jdbcUrl = "jdbc:h2:~/${configuration.database ?: "h2-persistent"}.db"
                 ctx.hibernateDatabase =
-                        HibernateSessionFactory.create(
-                            H2_TEST_CONFIG.copy(
-                                jdbcUrl = ctx.jdbcUrl,
-                                showSQLInStdout = configuration.logSql,
-                                username = null,
-                                password = null,
-                                recreateSchemaOnStartup = false
-                            )
+                    HibernateSessionFactory.create(
+                        H2_TEST_CONFIG.copy(
+                            jdbcUrl = ctx.jdbcUrl,
+                            showSQLInStdout = configuration.logSql,
+                            username = null,
+                            password = null,
+                            recreateSchemaOnStartup = false
                         )
+                    )
             }
 
             Feature.Profile.TEST_H2 -> {
                 ctx.jdbcUrl = H2_TEST_JDBC_URL
                 ctx.hibernateDatabase =
-                        HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = configuration.logSql))
+                    HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = configuration.logSql))
             }
 
             Feature.Profile.PERSISTENT_POSTGRES -> {

@@ -3,7 +3,6 @@ package dk.sdu.cloud.support
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.support.http.SupportController
@@ -15,8 +14,6 @@ class Server(
     override val micro: Micro,
     private val config: Configuration
 ) : CommonServer {
-    private val eventConsumers = ArrayList<EventConsumer<*>>()
-
     override val log = logger()
 
     override fun start() {
@@ -27,7 +24,7 @@ class Server(
         }.toList()
 
         val ticketService = TicketService(ticketNotifiers)
-        log.info("service instansiated!")
+        log.info("Service started!")
         with(micro.server) {
             configureControllers(
                 SupportController(ticketService)
@@ -35,10 +32,5 @@ class Server(
         }
 
         startServices()
-    }
-
-    override fun stop() {
-        super.stop()
-        eventConsumers.forEach { it.close() }
     }
 }

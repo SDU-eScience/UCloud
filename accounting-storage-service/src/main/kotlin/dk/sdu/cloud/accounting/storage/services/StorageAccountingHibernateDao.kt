@@ -45,9 +45,9 @@ class StorageForUserEntity(
     companion object : HibernateEntity<StorageForUserEntity>, WithId<Long>
 }
 
-fun StorageForUserEntity.toModel() : StorageUsedEvent = StorageUsedEvent(date.time, usage, id, username)
+fun StorageForUserEntity.toModel(): StorageUsedEvent = StorageUsedEvent(date.time, usage, id, username)
 
-fun StorageUsedEvent.toEntity() : StorageForUserEntity = StorageForUserEntity(user, Date(timestamp), bytesUsed, id)
+fun StorageUsedEvent.toEntity(): StorageForUserEntity = StorageForUserEntity(user, Date(timestamp), bytesUsed, id)
 
 class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
 
@@ -81,7 +81,7 @@ class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
     ): Page<StorageUsedEvent> {
         return session.paginatedCriteria<StorageForUserEntity>(
             paging,
-            orderBy = { listOf(descending(entity[StorageForUserEntity::date])) } ,
+            orderBy = { listOf(descending(entity[StorageForUserEntity::date])) },
             predicate = {
                 (entity[StorageForUserEntity::username] equal user) and matchingContext(context)
             }
@@ -96,7 +96,7 @@ class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
         user: String
     ): List<StorageUsedEvent> {
         return session.criteria<StorageForUserEntity>(
-            orderBy = { listOf(ascending(entity[StorageForUserEntity::date])) } ,
+            orderBy = { listOf(ascending(entity[StorageForUserEntity::date])) },
             predicate = {
                 (entity[StorageForUserEntity::username] equal user) and matchingContext(context)
             }

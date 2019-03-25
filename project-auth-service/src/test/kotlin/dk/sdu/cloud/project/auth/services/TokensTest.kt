@@ -16,7 +16,6 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatProperty

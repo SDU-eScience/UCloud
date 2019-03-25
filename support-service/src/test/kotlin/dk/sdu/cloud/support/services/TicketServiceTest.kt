@@ -10,16 +10,16 @@ import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
-import java.lang.IllegalArgumentException
 
 
 internal val ticket = Ticket(
     "ID",
     SecurityPrincipal("username", Role.USER, "first", "last", 123456),
     "userAgent",
-    "This is the message")
+    "This is the message"
+)
 
-class TicketServiceTest{
+class TicketServiceTest {
 
     private val slack = mockk<SlackNotifier>()
 
@@ -33,7 +33,7 @@ class TicketServiceTest{
         }
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `test create - failure`() {
         coEvery { slack.onTicket(any()) } throws RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         val ticketService = TicketService(listOf(slack))
@@ -43,7 +43,7 @@ class TicketServiceTest{
         }
     }
 
-    @Test (expected = IllegalArgumentException::class)
+    @Test(expected = IllegalArgumentException::class)
     fun `test create - failure - empty notifier list`() {
         val ticketService = TicketService(emptyList())
     }

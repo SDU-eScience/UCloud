@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
@@ -14,10 +13,6 @@ import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -25,12 +20,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer
 ) {
-    private var storageEventExceptionHandler: ((Throwable) -> Unit)? = null
-
-    fun setOnStorageEventExceptionHandler(handler: (Throwable) -> Unit) {
-        storageEventExceptionHandler = handler
-    }
-
     private suspend fun writeTimeOfBirth(
         ctx: Ctx,
         path: String
@@ -301,11 +290,12 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
     private fun <T : StorageEvent> FSResult<List<T>>.emitAll(): List<T> {
         val result = unwrap()
+        /*
         BackgroundScope.launch {
             log.debug("Emitting storage ${result.size} events: ${result.take(5)}")
             val failure = result
                 .map { event ->
-                    BackgroundScope.async { runCatching { eventProducer.emit(event) } }
+                    BackgroundScope.async { runCatching { eventProducer.produce(event) } }
                 }
                 .awaitAll()
                 .find { it.isFailure }
@@ -317,6 +307,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 storageEventExceptionHandler?.invoke(throwable)
             }
         }
+        */
+
+        log.debug("Emitting storage ${result.size} events: ${result.take(5)}")
+        eventProducer.produceInBackground(result)
         return result
     }
 

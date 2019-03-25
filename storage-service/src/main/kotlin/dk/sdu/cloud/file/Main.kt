@@ -7,9 +7,7 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.installDefaultFeatures
-import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.micro.runScriptHandler
-import dk.sdu.cloud.micro.serverProvider
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 
 val SERVICE_USER = "_${StorageServiceDescription.name}"

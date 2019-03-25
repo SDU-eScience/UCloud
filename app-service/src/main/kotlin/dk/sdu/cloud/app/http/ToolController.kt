@@ -18,7 +18,6 @@ import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
-import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.reader.ReaderException
 
 class ToolController<DBSession>(

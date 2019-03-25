@@ -35,7 +35,6 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-
 private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
     micro.install(HibernateFeature)
     val storageAccountingDao = StorageAccountingHibernateDao()
@@ -91,7 +90,6 @@ class StorageUsedTest {
                 val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
 
                 assertEquals(51, response.itemsInTotal)
-                assertEquals(6, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
                 assertEquals(12345, response.items.first().bytesUsed)
             }
@@ -114,7 +112,6 @@ class StorageUsedTest {
                 val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
 
                 assertEquals(51, response.itemsInTotal)
-                assertEquals(6, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
                 assertEquals(12345, response.items.first().bytesUsed)
             }

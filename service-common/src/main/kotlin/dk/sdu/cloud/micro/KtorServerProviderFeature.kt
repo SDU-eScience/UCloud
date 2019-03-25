@@ -26,8 +26,8 @@ class KtorServerProviderFeature : MicroFeature {
             ctx.serverProvider = { module ->
                 embeddedServer(
                     engineFactory,
-                    port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.
-                        get(serviceDescription.name)?.port ?: DEFAULT_PORT,
+                    port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.get(serviceDescription.name)?.port
+                        ?: DEFAULT_PORT,
                     module = module
                 )
             }

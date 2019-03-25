@@ -10,43 +10,36 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.EventConsumerFactory
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.batched
-import dk.sdu.cloud.service.consumeBatchAndCommit
-import kotlinx.coroutines.runBlocking
 import dk.sdu.cloud.app.api.AccountingEvents as JobAccountingEvents
 
-class JobCompletedProcessor<DBSession>(
-    private val eventConsumerFactory: EventConsumerFactory,
-    private val completedJobsService: CompletedJobsService<DBSession>,
-    private val serviceCloud: AuthenticatedClient,
-    private val parallelism: Int = 4
-) {
-    fun init(): List<EventConsumer<*>> = (0 until parallelism).map { _ ->
-        eventConsumerFactory.createConsumer(JobAccountingEvents.jobCompleted).configure { root ->
-            root
-                .batched(
-                    batchTimeout = 500,
-                    maxBatchSize = 250
-                )
-                .consumeBatchAndCommit { batch ->
-                    val events = runBlocking { normalizeEvents(batch.map { it.second }) }
-                    val accountingEvents = events.map { event ->
-                        AccountingJobCompletedEvent(
-                            event.application,
-                            event.nodes,
-                            event.duration,
-                            event.jobOwner,
-                            event.jobId,
-                            event.jobCompletedAt
-                        )
-                    }
 
-                    completedJobsService.insertBatch(accountingEvents)
-                }
-        }
+class JobCompletedProcessor<DBSession>(
+    private val eventConsumerFactory: EventStreamService,
+    private val completedJobsService: CompletedJobsService<DBSession>,
+    private val serviceCloud: AuthenticatedClient
+) {
+    fun init() {
+        eventConsumerFactory.subscribe(JobAccountingEvents.jobCompleted, EventConsumer.Batched(
+            maxLatency = 500,
+            maxBatchSize = 250
+        ) { batch ->
+            val events = normalizeEvents(batch)
+            val accountingEvents = events.map { event ->
+                AccountingJobCompletedEvent(
+                    event.application,
+                    event.nodes,
+                    event.duration,
+                    event.jobOwner,
+                    event.jobId,
+                    event.jobCompletedAt
+                )
+            }
+
+            completedJobsService.insertBatch(accountingEvents)
+        })
     }
 
     /**

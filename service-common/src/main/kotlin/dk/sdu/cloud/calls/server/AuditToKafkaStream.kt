@@ -3,21 +3,17 @@ package dk.sdu.cloud.calls.server
 import com.fasterxml.jackson.core.JsonPointer
 import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.calls.AuditDescription
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auditOrNull
 import dk.sdu.cloud.calls.jvmClass
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.kafka.EventProducer
-import dk.sdu.cloud.kafka.JsonSerde.jsonSerdeFromJavaType
-import dk.sdu.cloud.kafka.MappedEventProducer
-import dk.sdu.cloud.kafka.MappedStreamDescription
-import dk.sdu.cloud.kafka.SimpleStreamDescription
-import dk.sdu.cloud.kafka.StreamDescription
-import dk.sdu.cloud.kafka.defaultSerdeOrJson
-import dk.sdu.cloud.kafka.forStream
-import dk.sdu.cloud.micro.KafkaServices
+import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.events.EventStream
+import dk.sdu.cloud.events.EventStreamService
+import dk.sdu.cloud.events.JsonEventStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.TokenValidation
@@ -27,17 +23,36 @@ import io.ktor.request.header
 import io.ktor.util.date.toGMTDate
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.common.serialization.Serdes
 import java.time.ZonedDateTime
 import java.util.*
 
-private typealias HttpEventProducer = EventProducer<String, HttpCallLogEntry>
-private typealias AuditProducer = MappedEventProducer<String, AuditEvent<*>>
+private typealias HttpEventProducer = EventProducer<HttpCallLogEntry>
+private typealias AuditProducer = EventProducer<AuditEvent<*>>
 
-class AuditToKafkaStream(
+private class AuditCallEventStream(call: CallDescription<*, *, *>) : EventStream<AuditEvent<*>> {
+    override val name = "audit.${call.namespace}"
+    override val desiredPartitions: Int? = null
+    override val desiredReplicas: Short? = null
+    override val keySelector: (AuditEvent<*>) -> String = { it.http.jobId }
+
+    private val writer = defaultMapper.writerFor(call.auditJavaType)
+    private val reader = defaultMapper.readerFor(call.auditJavaType)
+
+    override fun serialize(event: AuditEvent<*>): String {
+        return writer.writeValueAsString(event)
+    }
+
+    override fun deserialize(value: String): AuditEvent<*> {
+        return reader.readValue(value)
+    }
+}
+
+@Deprecated("Renamed")
+typealias AuditToKafkaStream = AuditToEventStream
+
+class AuditToEventStream(
     private val instance: ServiceInstance,
-    private val kafka: KafkaServices,
+    private val eventStreamService: EventStreamService,
     private val tokenValidation: TokenValidation<Any>
 ) {
     private val eventProducerCache = HashMap<CallDescription<*, *, *>, HttpEventProducer>()
@@ -48,7 +63,7 @@ class AuditToKafkaStream(
             val cached = eventProducerCache[call]
             if (cached != null) return cached
 
-            val eventProducer = kafka.producer.forStream(httpLogsStream)
+            val eventProducer = eventStreamService.createProducer(httpLogsStream)
             eventProducerCache[call] = eventProducer
             return eventProducer
         }
@@ -59,7 +74,8 @@ class AuditToKafkaStream(
             val cached = auditProducerCache[call]
             if (cached != null) return cached
 
-            val auditProducer = kafka.producer.forStream(call.auditStreamProducersOnly)
+            val auditStreamProducersOnly = AuditCallEventStream(call)
+            val auditProducer = eventStreamService.createProducer(auditStreamProducersOnly)
             auditProducerCache[call] = auditProducer
             return auditProducer
         }
@@ -150,8 +166,8 @@ class AuditToKafkaStream(
                             expiry = expiry
                         )
 
-                        eventProducer.emit(context.jobId, entry)
-                        auditProducer.emit(AuditEvent(entry, auditPayload))
+                        eventProducer.produce(entry)
+                        auditProducer.produce(AuditEvent(entry, auditPayload))
                     }
                 }
             }
@@ -161,45 +177,12 @@ class AuditToKafkaStream(
     companion object : Loggable {
         override val log = logger()
 
-        private val httpLogsStream = SimpleStreamDescription<String, HttpCallLogEntry>(
-            "http.logs", defaultSerdeOrJson(),
-            defaultSerdeOrJson()
-        )
+        private val httpLogsStream = JsonEventStream<HttpCallLogEntry>("http.logs", jacksonTypeRef(), { it.jobId })
     }
 }
 
-/**
- * Audit stream with correct serdes for a single [CallDescription]
- *
- * __Strictly__ for producers. The topic is shared with all other [CallDescription]s in that namespace, as a result
- * slightly more care must be taken when de-serializing the stream.
- */
-private val CallDescription<*, *, *>.auditStreamProducersOnly:
-        MappedStreamDescription<String, AuditEvent<*>>
-    get() = MappedStreamDescription(
-        name = "audit.$namespace",
-        keySerde = defaultSerdeOrJson(),
-        valueSerde = auditSerde,
-        mapper = { it.http.jobId }
-    )
-
-private val auditSerdeCache: MutableMap<String, Serde<AuditEvent<*>>> =
-    Collections.synchronizedMap(HashMap<String, Serde<AuditEvent<*>>>())
-
 private val auditJavaTypeCache: MutableMap<String, JavaType> =
     Collections.synchronizedMap(HashMap<String, JavaType>())
-
-@Suppress("UNCHECKED_CAST")
-private val CallDescription<*, *, *>.auditSerde: Serde<AuditEvent<*>>
-    get() {
-        val fullName = fullName
-        val cached = auditSerdeCache[fullName]
-        if (cached != null) return cached
-
-        val newSerde = jsonSerdeFromJavaType<AuditEvent<Any>>(auditJavaType)
-        auditSerdeCache[fullName] = newSerde as Serde<AuditEvent<*>>
-        return newSerde
-    }
 
 private val CallDescription<*, *, *>.auditJavaType: JavaType
     get () {
@@ -218,8 +201,21 @@ private val CallDescription<*, *, *>.auditJavaType: JavaType
         return newJavaType
     }
 
-val CallDescriptionContainer.auditStream: StreamDescription<String, String>
-    get() = SimpleStreamDescription("audit.$namespace", Serdes.String(), Serdes.String())
+val CallDescriptionContainer.auditStream: EventStream<String>
+    get() = object : EventStream<String> {
+        override val name: String = "audit.$namespace"
+        override val desiredPartitions: Int? = null
+        override val desiredReplicas: Short? = null
+        override val keySelector: (String) -> String = { it }
+
+        override fun serialize(event: String): String {
+            return event
+        }
+
+        override fun deserialize(value: String): String {
+            return value
+        }
+    }
 
 private val requestNamePointer = JsonPointer.compile(
     JsonPointer.SEPARATOR +

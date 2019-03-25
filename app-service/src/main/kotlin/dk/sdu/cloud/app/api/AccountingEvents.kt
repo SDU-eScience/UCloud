@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import dk.sdu.cloud.kafka.KafkaDescriptions
+import dk.sdu.cloud.events.EventStreamContainer
 
 data class JobCompletedEvent(
     val jobId: String,
@@ -14,6 +14,6 @@ data class JobCompletedEvent(
     val success: Boolean
 )
 
-object AccountingEvents : KafkaDescriptions() {
-    val jobCompleted = stream<String, JobCompletedEvent>("hpc.job-completed-events") { it.jobId }
+object AccountingEvents : EventStreamContainer() {
+    val jobCompleted = stream<JobCompletedEvent>("hpc.job-completed-events", { it.jobId })
 }

@@ -9,13 +9,11 @@ import dk.sdu.cloud.activity.services.HibernateActivityEventDao
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 
 class Server(
@@ -23,16 +21,8 @@ class Server(
 ) : CommonServer {
     override val log = logger()
 
-    private val allProcessors = ArrayList<EventConsumer<*>>()
-
-    private fun addProcessors(processors: List<EventConsumer<*>>) {
-        processors.forEach { it.installShutdownHandler(this) }
-        allProcessors.addAll(processors)
-    }
-
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val kafka = micro.kafka
         val db = micro.hibernateDatabase
 
         log.info("Creating core services")
@@ -42,8 +32,8 @@ class Server(
         log.info("Core services constructed")
 
         log.info("Creating stream processors")
-        addProcessors(StorageAuditProcessor(kafka, activityService).init())
-        addProcessors(StorageEventProcessor(kafka, activityService).init())
+        StorageAuditProcessor(micro.eventStreamService, activityService).init()
+        StorageEventProcessor(micro.eventStreamService, activityService).init()
         log.info("Stream processors constructed")
 
         with(micro.server) {
@@ -53,10 +43,5 @@ class Server(
         }
 
         startServices()
-    }
-
-    override fun stop() {
-        super.stop()
-        allProcessors.forEach { it.close() }
     }
 }
