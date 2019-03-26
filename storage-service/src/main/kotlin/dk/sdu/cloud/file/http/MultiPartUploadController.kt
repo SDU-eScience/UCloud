@@ -80,6 +80,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                         HttpStatusCode.BadRequest
                     )
 
+                val archiveName = req.upload.fileName ?: "upload"
+
                 audit(BulkUploadAudit(req.location, req.policy, req.format))
 
                 val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
@@ -93,7 +95,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                         req.policy,
                         outputFile.inputStream(),
                         req.sensitivity,
-                        sensitivityService
+                        sensitivityService,
+                        archiveName
                     )
                     try {
                         outputFile.delete()

@@ -33,6 +33,7 @@ const dropdownOptions: { text: string, value: string }[] =
 class Activity extends React.Component<ActivityProps> {
     public componentDidMount() {
         this.props.onMount();
+        this.props.resetActivity();
         this.props.fetchActivity({ scrollSize });
         this.props.setRefresh(() => {
             this.props.resetActivity();

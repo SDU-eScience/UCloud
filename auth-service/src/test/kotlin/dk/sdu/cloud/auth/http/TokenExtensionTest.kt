@@ -78,7 +78,7 @@ class TokenExtensionTest {
             extensionScopes
         )
 
-        return listOf(CoreAuthController(db, ottDao, tokenService, true, false, tokenValidationJWT))
+        return listOf(CoreAuthController(db, ottDao, tokenService, tokenValidationJWT))
     }
 
     private fun createUser(securityPrincipal: SecurityPrincipal): Person.ByPassword {

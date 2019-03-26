@@ -16,6 +16,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.close
+import io.ktor.http.cio.websocket.pingInterval
 import io.ktor.http.cio.websocket.readText
 import io.ktor.http.cio.websocket.send
 import io.ktor.routing.routing
@@ -28,6 +29,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.Duration
 import java.util.*
 
 class WSCall internal constructor(
@@ -120,7 +122,9 @@ class IngoingWebSocketInterceptor(
     override fun onStart() {
         if (handlers.isEmpty()) return
 
-        engine.application.install(WebSockets)
+        engine.application.install(WebSockets) {
+            pingPeriod = Duration.ofMinutes(1)
+        }
 
         engine.application.routing {
             handlers.forEach { path, calls ->

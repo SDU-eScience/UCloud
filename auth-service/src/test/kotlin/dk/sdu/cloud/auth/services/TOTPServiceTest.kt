@@ -34,8 +34,8 @@ class TOTPServiceTest {
         val params = uri.queryParams()
         assertEquals(createSharedSecret.secretBase32Encoded, params["secret"])
         assertEquals(createSharedSecret.algorithm.uriName, params["algorithm"])
-        assertEquals(createSharedSecret.numberOfDigits, params["digits"]!!.toInt())
-        assertEquals(createSharedSecret.periodInSeconds, params["period"]!!.toInt())
+        assertEquals(createSharedSecret.numberOfDigits, params.getValue("digits").toInt())
+        assertEquals(createSharedSecret.periodInSeconds, params.getValue("period").toInt())
         assertEquals(issuer, params["issuer"])
     }
 

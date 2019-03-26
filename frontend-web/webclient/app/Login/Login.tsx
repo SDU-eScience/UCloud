@@ -13,7 +13,6 @@ const bg2 = require("Assets/LoginImages/cloud2.jpg");
 const bg3 = require("Assets/LoginImages/cloud3.jpg");
 
 function randImage() {
-    
     switch ((Math.random() * 3) | 0) {
         case 0:
             return bg1;
@@ -26,8 +25,8 @@ function randImage() {
 }
 
 const BackgroundImage = styled.div<{ image: string}>`
-    background: url(${({image}) => image}) no-repeat center center fixed;
-    bacground-size: cover,
+    background: url(${({ image }) => image}) no-repeat center center fixed;
+    background-size: cover;
 `;
 
 const inDevEnvironment = process.env.NODE_ENV === "development"
@@ -96,15 +95,16 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
         if (!verificationCode) return;
         try {
             setLoading(true);
-            const formData = new FormData();
-            formData.append("challengeId", challengeId);
-            formData.append("verificationCode", verificationCode);
-            const response = await fetch(`/auth/2fa/challenge/form`, {
+            const response = await fetch(`/auth/2fa/challenge`, {
                 method: "POST",
                 headers: {
-                    "Accept": "application/json"
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
                 },
-                body: formData
+                body: JSON.stringify({
+                    challengeId,
+                    verificationCode
+                })
             });
             if (!response.ok) throw response;
             const result = await response.json();

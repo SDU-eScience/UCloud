@@ -1,8 +1,8 @@
 import { failureNotification } from "UtilityFunctions";
-import { Application, ParameterTypes, ApplicationMetadata, WithAppFavorite, WithAppMetadata, ApplicationParameter } from "Applications";
+import { ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
-import { getFilenameFromPath } from "./FileUtilities";
+import { getFilenameFromPath, expandHomeFolder } from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -79,7 +79,7 @@ interface ExtractedParameters {
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
 
-export function extractParametersFromMap(map: ParameterValues, appParameters: ApplicationParameter[]): ExtractedParameters {
+export function extractParametersFromMap(map: ParameterValues, appParameters: ApplicationParameter[], cloud: Cloud): ExtractedParameters {
     const extracted: ExtractedParameters = {};
     map.forEach(({ current }, key) => {
         const parameter = appParameters.find(it => it.name === key);
@@ -88,9 +88,10 @@ export function extractParametersFromMap(map: ParameterValues, appParameters: Ap
         switch (parameter.type) {
             case ParameterTypes.InputDirectory:
             case ParameterTypes.InputFile:
+                const expandedValue = expandHomeFolder(current.value, cloud.homeFolder)
                 extracted[key] = {
-                    source: current.value,
-                    destination: getFilenameFromPath(current.value)
+                    source: expandedValue,
+                    destination: getFilenameFromPath(expandedValue)
                 };
                 return;
             case ParameterTypes.Boolean:

@@ -35,7 +35,7 @@ describe("Application Utilities", () => {
             { name: "C", type: ParameterTypes.FloatingPoint },
             { name: "D", type: ParameterTypes.Text }
         ];
-        const parameters = { A: true, B: 5, C: 5.0, D: "Pilgrimage" };
+        const parameters = { A: "Yes", B: "5", C: "5.0", D: "Pilgrimage" };
         const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
         expect(parameters).toEqual(extractedParameters);
     });
@@ -58,9 +58,9 @@ describe("Application Utilities", () => {
             { name: "B", type: ParameterTypes.Integer },
             { name: "C", type: ParameterTypes.FloatingPoint }
         ];
-        const parameters = { A: true, B: 5, C: 5.0, D: "Pilgrimage" };
+        const parameters = { A: "Yes", B: "5", C: "5.0", D: "Pilgrimage" };
         const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
-        expect(extractedParameters).toEqual({ A: true, B: 5, C: 5.0 });
+        expect(extractedParameters).toEqual({ A: "Yes", B: "5", C: "5.0" });
     });
 
     test("Extract Parameters with parameter that is not imported", () => {
@@ -70,21 +70,9 @@ describe("Application Utilities", () => {
             { name: "C", type: ParameterTypes.FloatingPoint },
             { name: "D", type: ParameterTypes.Text }
         ];
-        const parameters = { A: true, B: 5, C: 5.0 };
+        const parameters = { A: "Yes", B: "5", C: "5.0" };
         const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
         expect(extractedParameters).toEqual(parameters);
-    });
-
-    test("Extract Parameters with parameter that has wrong type", () => {
-        const validParameterTypes = [
-            { name: "A", type: ParameterTypes.Boolean },
-            { name: "B", type: ParameterTypes.Integer },
-            { name: "C", type: ParameterTypes.FloatingPoint },
-            { name: "D", type: ParameterTypes.Text }
-        ];
-        const parameters = { A: true, B: 5, C: "5.0" };
-        const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
-        expect(extractedParameters).toEqual({ A: true, B: 5 });
     });
 
     test("Extract input file and input directory parameters", () => {
@@ -93,8 +81,8 @@ describe("Application Utilities", () => {
             { name: "B", type: ParameterTypes.InputDirectory },
         ];
         const parameters = {
-            A: { destination: "A", source: "B" },
-            B: { destination: "A", source: "B" }
+            A: "A",
+            B: "B"
         };
         const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
         expect(extractedParameters).toEqual(parameters);
@@ -106,11 +94,11 @@ describe("Application Utilities", () => {
             { name: "B", type: ParameterTypes.InputDirectory },
         ];
         const parameters = {
-            A: { destination: 5, source: "B" },
-            B: 5
+            A: "A",
+            B: "B"
         };
         const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
-        expect(extractedParameters).toEqual({});
+        expect(extractedParameters).toEqual({ A: "A", B: "B" });
     });
 });
 

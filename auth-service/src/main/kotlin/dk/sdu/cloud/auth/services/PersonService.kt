@@ -46,7 +46,7 @@ class PersonService(
         val organization = authenticatedUser.attributes["schacHomeOrganization"]?.firstOrNull()
             ?: throw IllegalArgumentException("Missing schacHomeOrganization")
 
-        if (organization != "sdu.dk") throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+//        if (organization != "sdu.dk") throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val role = Role.USER
 
