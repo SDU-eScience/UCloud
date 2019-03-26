@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.abacus.http
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.app.abacus.api.AbacusComputationDescriptions
 import dk.sdu.cloud.app.abacus.service.JobData
 import dk.sdu.cloud.app.abacus.services.JobFileService
 import dk.sdu.cloud.app.abacus.services.JobTail
@@ -38,7 +39,7 @@ private fun configureComputeServer(
     slurmScheduler: SlurmScheduler<HibernateSession>,
     jobTail: JobTail
 ): List<Controller> {
-    return listOf(ComputeController(jobFileService, slurmScheduler, jobTail))
+    return listOf(ComputeController(jobFileService, slurmScheduler, jobTail, AbacusComputationDescriptions))
 }
 
 class ComputeTest {

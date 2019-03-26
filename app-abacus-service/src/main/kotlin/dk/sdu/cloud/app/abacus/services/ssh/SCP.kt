@@ -83,7 +83,7 @@ suspend fun SSHConnection.scpUpload(
 
 private const val SSH_KEY_EXCHANGE_FAILED_STATUSCODE = 67
 private const val DELIMITER_IN_HEX = 0xA
-private const val SKIP_CONSTANT = 5L
+private const val SKIP_OCTAL_PERMISSIONS = 5L
 
 suspend fun SSHConnection.scpDownload(remoteFile: String, body: suspend (InputStream) -> Unit): Int {
     fun requireNotEOF(read: Int) {
@@ -104,7 +104,7 @@ suspend fun SSHConnection.scpDownload(remoteFile: String, body: suspend (InputSt
         outs.flush()
         scpCheckAck(ins).also { if (it != SSH_KEY_EXCHANGE_FAILED_STATUSCODE) return@exec it }
 
-        ins.skip(SKIP_CONSTANT) // Discard octal permissions
+        ins.skip(SKIP_OCTAL_PERMISSIONS)
 
         val fileSize =
             readStringUntil(ins, ' '.toInt()).toLongOrNull() ?: throw IllegalStateException("Unexpected file size")

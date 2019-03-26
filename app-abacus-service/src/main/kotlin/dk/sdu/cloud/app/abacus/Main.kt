@@ -14,6 +14,9 @@ data class HPCConfig(
     val ssh: SimpleSSHConfig,
     val slurmPollIntervalSeconds: Long = 15L,
     val workingDirectory: String = "/scratch/sduescience/jobs",
+    val slurmAccount: String = "sduescience_slim",
+    val udockerBinary: String = "/home/sducloudapps/bin/udocker-prep",
+    val backendName: String = "abacus",
     val reservation: String? = null
 )
 

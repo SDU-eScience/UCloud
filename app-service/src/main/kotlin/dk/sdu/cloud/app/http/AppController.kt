@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
@@ -22,7 +23,6 @@ import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
-import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.reader.ReaderException
 
 class AppController<DBSession>(
@@ -172,7 +172,7 @@ class AppController<DBSession>(
         }
     }
 
-    companion object {
-        private val log = LoggerFactory.getLogger(AppController::class.java)
+    companion object : Loggable {
+        override val log = logger()
     }
 }

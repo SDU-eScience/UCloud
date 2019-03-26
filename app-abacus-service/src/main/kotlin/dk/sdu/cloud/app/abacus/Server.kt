@@ -9,6 +9,7 @@ import dk.sdu.cloud.app.abacus.services.SlurmJobTracker
 import dk.sdu.cloud.app.abacus.services.SlurmPollAgent
 import dk.sdu.cloud.app.abacus.services.SlurmScheduler
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
+import dk.sdu.cloud.app.api.ComputationDescriptions
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
@@ -37,7 +38,7 @@ class Server(
         val db = micro.hibernateDatabase
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val sshPool = SSHConnectionPool(config.ssh)
-        val sBatchGenerator = SBatchGenerator()
+        val sBatchGenerator = SBatchGenerator(config.slurmAccount, config.udockerBinary)
         slurmPollAgent = SlurmPollAgent(
             ssh = sshPool,
             executor = scheduledExecutor,
@@ -68,7 +69,12 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                ComputeController(jobFileService, slurmScheduler, jobTail)
+                ComputeController(
+                    jobFileService,
+                    slurmScheduler,
+                    jobTail,
+                    object : ComputationDescriptions(config.backendName) {}
+                )
             )
         }
 

@@ -1,9 +1,9 @@
 package dk.sdu.cloud.app.abacus.http
 
-import dk.sdu.cloud.app.abacus.api.AbacusComputationDescriptions
 import dk.sdu.cloud.app.abacus.services.JobFileService
 import dk.sdu.cloud.app.abacus.services.JobTail
 import dk.sdu.cloud.app.abacus.services.SlurmScheduler
+import dk.sdu.cloud.app.api.ComputationDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
@@ -13,15 +13,16 @@ import io.ktor.http.HttpStatusCode
 class ComputeController(
     private val jobFileService: JobFileService,
     private val slurmService: SlurmScheduler<*>,
-    private val jobTail: JobTail
+    private val jobTail: JobTail,
+    private val rpcInterface: ComputationDescriptions
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(AbacusComputationDescriptions.jobVerified) {
+        implement(rpcInterface.jobVerified) {
             jobFileService.initializeJob(request.id)
             ok(Unit)
         }
 
-        implement(AbacusComputationDescriptions.submitFile) {
+        implement(rpcInterface.submitFile) {
             request.asIngoing().receiveBlocks { block ->
                 val file = block.job.files.find { it.id == block.parameterName } ?: throw RPCException(
                     "Bad request. File with id '${block.parameterName}' does not exist!",
@@ -43,17 +44,17 @@ class ComputeController(
             ok(Unit)
         }
 
-        implement(AbacusComputationDescriptions.jobPrepared) {
+        implement(rpcInterface.jobPrepared) {
             slurmService.schedule(request)
             ok(Unit)
         }
 
-        implement(AbacusComputationDescriptions.cleanup) {
+        implement(rpcInterface.cleanup) {
             jobFileService.cleanup(request.id)
             ok(Unit)
         }
 
-        implement(AbacusComputationDescriptions.follow) {
+        implement(rpcInterface.follow) {
             ok(jobTail.followStdStreams(request))
         }
     }

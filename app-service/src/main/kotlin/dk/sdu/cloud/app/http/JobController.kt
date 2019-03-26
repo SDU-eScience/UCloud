@@ -16,7 +16,6 @@ import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.requiredAuthScope
@@ -57,35 +56,33 @@ class JobController<DBSession>(
         }
 
         implement(JobDescriptions.start) {
-            with(ctx as HttpCall) {
-                val extensionResponse = AuthDescriptions.tokenExtension.call(
-                    TokenExtensionRequest(
-                        ctx.bearer!!,
-                        listOf(
-                            MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
-                            FileDescriptions.download.requiredAuthScope.toString(),
-                            FileDescriptions.createDirectory.requiredAuthScope.toString(),
-                            FileDescriptions.stat.requiredAuthScope.toString(),
-                            FileDescriptions.extract.requiredAuthScope.toString()
-                        ),
-                        JOB_MAX_TIME
+            val extensionResponse = AuthDescriptions.tokenExtension.call(
+                TokenExtensionRequest(
+                    ctx.bearer!!,
+                    listOf(
+                        MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
+                        FileDescriptions.download.requiredAuthScope.toString(),
+                        FileDescriptions.createDirectory.requiredAuthScope.toString(),
+                        FileDescriptions.stat.requiredAuthScope.toString(),
+                        FileDescriptions.extract.requiredAuthScope.toString()
                     ),
-                    serviceClient
-                )
+                    JOB_MAX_TIME
+                ),
+                serviceClient
+            )
 
-                if (extensionResponse !is IngoingCallResponse.Ok) {
-                    error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
-                    return@implement
-                }
-
-                val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
-
-                val userClient =
-                    ClientAndBackend(serviceClient.client, serviceClient.companion).bearerAuth(extendedToken.token)
-
-                val jobId = jobOrchestrator.startJob(request, extendedToken, userClient)
-                ok(JobStartedResponse(jobId))
+            if (extensionResponse !is IngoingCallResponse.Ok) {
+                error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                return@implement
             }
+
+            val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
+
+            val userClient =
+                ClientAndBackend(serviceClient.client, serviceClient.companion).bearerAuth(extendedToken.token)
+
+            val jobId = jobOrchestrator.startJob(request, extendedToken, userClient)
+            ok(JobStartedResponse(jobId))
         }
 
         implement(JobDescriptions.follow) {

@@ -58,7 +58,7 @@ class SBatchGeneratorTest {
         )
     }
 
-    private val generator = SBatchGenerator()
+    private val generator = SBatchGenerator("sduescience_slim", "/home/sducloudapps/bin/udocker-prep")
 
     @Test
     fun testWithNoParams() {

@@ -5,7 +5,10 @@ import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.buildSafeBashString
 import dk.sdu.cloud.service.BashEscaper.safeBashArgument
 
-class SBatchGenerator {
+class SBatchGenerator(
+    private val account: String,
+    private val udockerBinary: String
+) {
     fun generate(
         verifiedJob: VerifiedJob,
         workDir: String
@@ -51,7 +54,7 @@ class SBatchGenerator {
             ToolBackend.UDOCKER -> {
                 ArrayList<String>().apply {
                     val containerWorkDir = "/scratch"
-                    addAll(listOf("/home/sducloudapps/bin/udocker-prep", "-q", "run", "--rm"))
+                    addAll(listOf(udockerBinary, "-q", "run", "--rm"))
                     add("--workdir=$containerWorkDir")
                     add("--volume=${safeBashArgument(workDir)}:$containerWorkDir")
                     add(safeBashArgument(tool.container))
@@ -74,7 +77,7 @@ class SBatchGenerator {
 
         return """
             #!/bin/bash
-            #SBATCH --account sduescience_slim
+            #SBATCH --account $account
             #SBATCH --nodes ${verifiedJob.nodes}
             #SBATCH --ntasks-per-node ${verifiedJob.tasksPerNode}
             #SBATCH --time ${verifiedJob.maxTime}
