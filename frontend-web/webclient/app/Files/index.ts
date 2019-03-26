@@ -79,7 +79,7 @@ export interface FilesStateProps { // Redux Props
 }
 
 export interface FilesOperations extends ClearRefresh {
-    prioritizeFileSearch: () => void
+    onInit: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
@@ -88,7 +88,6 @@ export interface FilesOperations extends ClearRefresh {
     fetchFileSelectorFavorites: (pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
     checkFile: (checked: boolean, path: string) => void
-    setPageTitle: () => void
     setLoading: (loading: boolean) => void
     updateFiles: (files: Page<File>) => void
     updatePath: (path: string) => void
@@ -98,7 +97,6 @@ export interface FilesOperations extends ClearRefresh {
     showUploader: () => void
     setUploaderCallback: (callback: (s: string) => void) => void
     createFolder: () => void
-    setActivePage: () => void
 }
 
 export interface FileSelectorProps {

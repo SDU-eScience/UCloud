@@ -31,11 +31,7 @@ import { Spacer } from "ui-components/Spacer";
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
         const { page, sortOrder, sortBy, history, ...props } = this.props;
-        // FIXME: Move to init-call
-        props.setPageTitle();
-        props.setActivePage();
-        // FIXME END
-        props.prioritizeFileSearch();
+        props.onInit();
         props.setUploaderCallback((path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
@@ -226,11 +222,15 @@ const mapStateToProps = ({ files, responsive }: ReduxObject): FilesStateProps =>
 };
 
 const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
-    prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
+    onInit: () => {
+        dispatch(setPrioritizedSearch("files"));
+        dispatch(updatePageTitle("Files"));
+        dispatch(setActivePage(SidebarPages.Files));
+    },
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError({})),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     createFolder: () => dispatch(Actions.createFolder()),
-    fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, index?) => {
+    fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, index) => {
         dispatch(Actions.updatePath(path));
         const fetch = async () => {
             dispatch(Actions.setLoading(true));
@@ -261,13 +261,11 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     showFileSelector: open => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: callback => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked, path) => dispatch(Actions.checkFile(checked, path)),
-    setPageTitle: () => dispatch(updatePageTitle("Files")),
     updateFiles: page => dispatch(Actions.updateFiles(page)),
     checkAllFiles: checked => dispatch(Actions.checkAllFiles(checked)),
     setDisallowedPaths: disallowedPaths => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
     showUploader: () => dispatch(setUploaderVisible(true)),
     setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Files)),
     clearRefresh: () => dispatch(setRefreshFunction())
 });
 
