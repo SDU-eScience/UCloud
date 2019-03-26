@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 
 class ApplicationTest {
     @Test
-    fun `Create simple Input App Param`() {
+    fun `Create simple Input directory App Param`() {
         val input = ApplicationParameter.InputDirectory(
             "name",
             false,
@@ -33,7 +33,30 @@ class ApplicationTest {
         val results = input.map(mapOf(Pair("source", "anotherSource"), Pair("destination", "anotherDestination")))
         assertEquals("anotherSource", results?.source)
         assertEquals("anotherDestination", results?.destination)
+    }
 
+    @Test
+    fun `Create simple Input file App Param`() {
+        val input = ApplicationParameter.InputFile(
+            "inputFile",
+            false,
+            FileTransferDescription(
+                "source",
+                "destination"),
+            "title",
+            "description"
+        )
+
+        assertEquals("inputFile", input.name)
+        assertEquals(false, input.optional)
+        assertEquals("title", input.title)
+        assertEquals("description", input.description)
+        assertEquals("source", input.defaultValue?.source)
+        assertEquals("destination", input.defaultValue?.destination)
+
+        input.toInvocationArgument(input.defaultValue!!)
+
+        assertEquals("destination", input.defaultValue?.destination)
     }
 
     @Test
@@ -99,5 +122,48 @@ class ApplicationTest {
 
         val arg = app.toInvocationArgument(DoubleApplicationParameter(10.11.toBigDecimal()))
         assertEquals("10.11", arg)
+    }
+
+    @Test
+    fun `Create simple Text App Param`() {
+        val textInput = ApplicationParameter.Text(
+            "textName",
+            false,
+            StringApplicationParameter("Content"),
+            "title",
+            "description"
+        )
+
+        assertEquals(false, textInput.optional)
+        assertEquals("text", textInput.type)
+        assertEquals("title", textInput.title)
+        assertEquals("description", textInput.description)
+
+
+        val arg = textInput.toInvocationArgument(textInput.defaultValue!!)
+        assertEquals("Content", arg)
+    }
+
+    @Test
+    fun `Create simple Bool App Param`() {
+        val boolParam = ApplicationParameter.Bool(
+            "boolName",
+            true,
+            BooleanApplicationParameter(true),
+            "title",
+            "description",
+            "veryMuchYes!",
+            "notSoMuchNo"
+        )
+
+        assertEquals( "boolName", boolParam.name)
+        assertEquals(true, boolParam.optional)
+        assertEquals("title", boolParam.title)
+        assertEquals("description", boolParam.description)
+        assertEquals("veryMuchYes!", boolParam.trueValue)
+        assertEquals("notSoMuchNo", boolParam.falseValue)
+
+        val arg = boolParam.toInvocationArgument(boolParam.defaultValue!!)
+        assertEquals("veryMuchYes!", arg)
     }
 }
