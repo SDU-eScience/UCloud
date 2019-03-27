@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-kubernetes
+  annotations:
+    getambassador.io/config: |
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: app-kubernetes
+      prefix: ^/api/app/kubernetes(/.*)?$
+      prefix_regex: true
+      service: app-kubernetes:8080
+      rewrite: ""
+
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: app-kubernetes
