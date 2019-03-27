@@ -65,13 +65,6 @@ class Files extends React.Component<FilesProps> {
         }
     }
 
-    private fetchPageFromPath = (path: string) => {
-        const { page, history, sortOrder, sortBy } = this.props;
-        this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
-        this.props.updatePath(getParentPath(path)); // FIXME Could these be handled by shouldComponentUpdate?
-        history.push(fileTablePage(getParentPath(path)));
-    }
-
     shouldComponentUpdate(nextProps: FilesProps): boolean {
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
         const nextPath = this.urlPathFromProps(nextProps);
@@ -86,7 +79,9 @@ class Files extends React.Component<FilesProps> {
         setDisallowedPaths: this.props.setDisallowedPaths,
         setFileSelectorCallback: this.props.setFileSelectorCallback,
         showFileSelector: this.props.showFileSelector,
-        fetchPageFromPath: this.fetchPageFromPath,
+        fetchPageFromPath: (path: string) =>
+            (this.props.fetchPageFromPath(path, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
+                this.props.history.push(fileTablePage(getParentPath(path)))),
         fetchFilesPage: (path: string) =>
             this.props.fetchFiles(path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy)
     };

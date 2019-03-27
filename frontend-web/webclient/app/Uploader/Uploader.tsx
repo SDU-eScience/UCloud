@@ -145,7 +145,8 @@ class Uploader extends React.Component<UploaderProps> {
                     this.props.setUploads(this.props.uploads);
                 },
                 err => setError(err)
-            ).then(xhr => this.onUploadFinished(upload, xhr)); // FIXME Add error handling
+            ).then(xhr => this.onUploadFinished(upload, xhr))
+                .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         } else {
             bulkUpload(
                 upload.parentPath,
@@ -157,7 +158,8 @@ class Uploader extends React.Component<UploaderProps> {
                     this.props.setUploads(this.props.uploads);
                 },
                 err => setError(err)
-            ).then(xhr => this.onUploadFinished(upload, xhr)); // FIXME Add error handling
+            ).then(xhr => this.onUploadFinished(upload, xhr))
+                .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         }
     }
 

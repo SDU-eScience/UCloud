@@ -312,30 +312,38 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
     async onRevoke(share: Share) {
         this.setState(() => ({ isLoading: true }));
-
-        await this.state.promises.makeCancelable(revokeShare(share.id))
-            .promise
-            .then(() => (this.maybeInvoke(share, this.props.onRevoked)))
-            .catch(e => (this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError)));
-        this.setState(() => ({ isLoading: false }))
+        try {
+            await this.state.promises.makeCancelable(revokeShare(share.id)).promise;
+            this.maybeInvoke(share, this.props.onRevoked);
+        } catch (e) {
+            this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError);
+        } finally {
+            this.setState(() => ({ isLoading: false }))
+        }
     }
 
     async onAccept(share: Share) {
         this.setState(() => ({ isLoading: true }))
-
-        await this.state.promises.makeCancelable(acceptShare(share.id)).promise
-            .then(() => this.maybeInvoke(share, this.props.onAccepted))
-            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-        this.setState(() => ({ isLoading: false }));
+        try {
+            await this.state.promises.makeCancelable(acceptShare(share.id)).promise;
+            this.maybeInvoke(share, this.props.onAccepted);
+        } catch (e) {
+            this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError)
+        } finally {
+            this.setState(() => ({ isLoading: false }));
+        }
     }
 
     async onReject(share: Share) {
         this.setState(() => ({ isLoading: true }))
-
-        await this.state.promises.makeCancelable(revokeShare(share.id)).promise
-            .then(() => this.maybeInvoke(share, this.props.onRejected))
-            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError));
-        this.setState(() => ({ isLoading: false }))
+        try {
+            await this.state.promises.makeCancelable(revokeShare(share.id)).promise;
+            this.maybeInvoke(share, this.props.onRejected);
+        } catch (e) {
+            this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError);
+        } finally {
+            this.setState(() => ({ isLoading: false }));
+        }
     }
 }
 

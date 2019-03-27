@@ -91,14 +91,11 @@ export const simpleSearch = (
         `&page=${page}&itemsPerPage=${itemsPerPage}`
     ).then(({ response }) => response);
 
-export const getById = (id: string): Promise<ProjectMetadataWithRights> => {
-    return Cloud.get(`/metadata/${encodeURIComponent(id)}`).then(f => f.response); // FIXME Add error handling
-};
+export const getById = async (id: string): Promise<ProjectMetadataWithRights> =>
+    (await Cloud.get(`/metadata/${encodeURIComponent(id)}`)).response;
 
-export const getByPath = (path: string): Promise<ProjectMetadataWithRights> => {
-    return Cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(f => f.response); // FIXME Add error handling
-};
+export const getByPath = async (path: string): Promise<ProjectMetadataWithRights> =>
+    (await Cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`)).response;
 
-export const updateById = (payload: any): Promise<any> => {
-    return Cloud.post("/metadata", payload).then(f => f.response); // FIXME Add error handling
-};
+export const updateById = async (payload: any): Promise<any> =>
+    (await Cloud.post("/metadata", payload)).response;
