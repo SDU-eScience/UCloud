@@ -1,6 +1,8 @@
 package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
+import mbuhot.eskotlin.query.term.exists
+import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest
@@ -50,15 +52,25 @@ class ShrinkService(
             )
             try {
                 elastic.indices().shrink(request, RequestOptions.DEFAULT)
-            } catch (ex: ResponseException) {
-                if (ex.response.statusLine.statusCode == 500) {
-                    waitForRelocation(sourceIndex)
-                    retries++
-                    continue
+            } catch (ex: Exception) {
+                when (ex) {
+                    is ResponseException -> {
+                        if (ex.response.statusLine.statusCode == 500) {
+                            waitForRelocation(sourceIndex)
+                        }
+                    }
+                    is ElasticsearchStatusException -> {
+                        deleteIndex(targetIndex, elastic)
+                    }
+                    else -> throw Exception("Another error has occured: ${ex.message}")
                 }
+                retries++
+                continue
             }
             mergeIndex(elastic, targetIndex)
+            return
         }
+        throw Exception("Too many retries")
     }
 
     private fun prepareSourceIndex(index: String) {
@@ -96,7 +108,7 @@ class ShrinkService(
     fun shrink() {
         val yesterdayPeriodFormat = LocalDate.now().minusDays(1).toString().replace("-","." )
         val list = getListOfIndices(elastic, "*-$yesterdayPeriodFormat")
-
+        log.info("Shrinking ${list.size} indices")
         list.forEach {
             log.info("Shrinking $it")
             prepareSourceIndex(it)

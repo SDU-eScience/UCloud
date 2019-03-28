@@ -1,5 +1,6 @@
 package dk.sdu.cloud.elastic.management.services
 
+import dk.sdu.cloud.elastic.management.ElasticHostAndPort
 import org.apache.http.HttpHost
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.bulk.BulkRequest
@@ -135,7 +136,7 @@ class ManagementTest {
         elastic.indices().flush(FlushRequest("*"), RequestOptions.DEFAULT)
 
         val service = ReindexService(elastic)
-        service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs")
+        service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", ElasticHostAndPort("localhost"))
     }
 
     @Ignore
