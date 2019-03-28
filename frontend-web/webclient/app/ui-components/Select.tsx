@@ -10,7 +10,11 @@ const ClickableIcon = styled(Icon)`
   pointer-events: none;
 `;
 
-const SelectBase = styled.select<{ fontSize?: number | string } & SpaceProps>`
+const left = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
+const right = ({ rightLabel }: { rightLabel?: boolean }) => rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
+
+
+const SelectBase = styled.select<{ fontSize?: number | string, leftLabel?: boolean, rightLabel?: boolean } & SpaceProps>`
   appearance: none;
   display: block;
   width: 100%;
@@ -26,6 +30,8 @@ const SelectBase = styled.select<{ fontSize?: number | string } & SpaceProps>`
     border-color: ${themeGet('colors.blue')};
     box-shadow: 0 0 0 1px ${themeGet('colors.blue')};
   }
+  ${left}
+  ${right}
 `;
 
 SelectBase.defaultProps = {
@@ -44,4 +50,4 @@ const Select = styled((props: any) => (
   </Flex>
 ))``;
 
-export default Select
+export default Select;

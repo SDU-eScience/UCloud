@@ -90,10 +90,14 @@ const leftLabel = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `borde
 
 export const InputLabel = styled(Text) <{ leftLabel?: boolean, rightLabel?: boolean }>`
   border: ${themeGet("colors.borderGray")} solid 1px;
-  margin: -1px;
+  margin: ${props => props.margin};
   ${leftLabel}
   ${rightLabel}
   padding-left: 1%;
   padding-right: 1%;
   padding-top: 6px;
-`
+`;
+
+InputLabel.defaultProps = {
+  margin: "-1px"
+}

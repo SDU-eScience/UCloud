@@ -79,6 +79,7 @@ interface TextParameterProps extends ParameterProps {
 
 const TextParameter = (props: TextParameterProps) => {
     let placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
+    const hasUnitName = !!props.parameter.unitName;
     return (
         <GenericParameter parameter={props.parameter}>
             <Input
@@ -89,11 +90,10 @@ const TextParameter = (props: TextParameterProps) => {
                 type="text"
                 rightLabel={!!props.parameter.unitName}
             />
-            {props.parameter.unitName ? <TextSpan>{props.parameter.unitName}</TextSpan> : null}
+            {hasUnitName ? <InputLabel rightLabel>{props.parameter.unitName}</InputLabel> : null}
         </GenericParameter>
     );
 };
-
 
 type BooleanParameterOption = { value?: boolean, display: string }
 
@@ -104,13 +104,18 @@ const BooleanParameter = (props: BooleanParameter) => {
         options.unshift({ value: undefined, display: "" });
     }
 
+    const hasUnitName = !!props.parameter.unitName;
+
     return (
         <GenericParameter parameter={props.parameter}>
-            <Select id="select" selectRef={props.parameterRef} key={props.parameter.name}>
-                <option></option>
-                <option>Yes</option>
-                <option>No</option>
-            </Select>
+            <Flex>
+                <Select id="select" selectRef={props.parameterRef} key={props.parameter.name} rightLabel={hasUnitName}>
+                    <option></option>
+                    <option>Yes</option>
+                    <option>No</option>
+                </Select>
+                {hasUnitName ? <InputLabel rightLabel margin="0">{props.parameter.unitName}</InputLabel> : null}
+            </Flex>
         </GenericParameter>
     );
 };

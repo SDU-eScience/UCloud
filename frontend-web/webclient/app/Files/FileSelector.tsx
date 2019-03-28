@@ -17,6 +17,7 @@ import styled from "styled-components";
 import { Refresh } from "Navigation/Header";
 import { Page } from "Types";
 import { SelectableText, SearchOptions } from "Search/Search";
+import { InputLabel } from "ui-components/Input";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -71,14 +72,12 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     }
 
     render() {
-        const onUpload = () => {
-            if (!this.props.allowUpload) return;
-        };
+        const onUpload = () => { if (!this.props.allowUpload) return; };
         const path = this.props.path ? this.props.path : "";
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={() => this.props.remove!()} />) : null;
-        // FIXME: Not that readable.
-        const inputValue = this.props.inputRef && this.props.inputRef.current && this.props.inputRef.current.value || replaceHomeFolder(path, Cloud.homeFolder);
+        const inputRefValueOrNull = this.props.inputRef && this.props.inputRef.current && this.props.inputRef.current.value;
+        const inputValue = inputRefValueOrNull || replaceHomeFolder(path, Cloud.homeFolder);
         return (
             <Flex>
                 <FileSelectorInput
@@ -87,9 +86,11 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     required={this.props.isRequired}
                     placeholder="No file selected"
                     value={inputValue}
+                    rightLabel={!!this.props.unitName}
                     onChange={() => undefined}
                     onClick={() => this.setState(() => ({ modalShown: true }))}
                 />
+                {this.props.unitName ? <InputLabel rightLabel>{this.props.unitName}</InputLabel> : null}
                 {uploadButton}
                 {removeButton}
                 <FileSelectorModal
