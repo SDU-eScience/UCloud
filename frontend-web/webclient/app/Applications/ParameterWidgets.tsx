@@ -2,8 +2,8 @@ import * as React from "react";
 import FileSelector from "Files/FileSelector";
 import * as Types from ".";
 import { Box, Flex, Label, Text, Select, Markdown, Button } from "ui-components";
-import Input from "ui-components/Input";
-import { EllipsedText } from "ui-components/Text";
+import Input, { InputLabel } from "ui-components/Input";
+import { EllipsedText, TextSpan } from "ui-components/Text";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
@@ -87,7 +87,9 @@ const TextParameter = (props: TextParameterProps) => {
                 placeholder={placeholder}
                 required={!props.parameter.optional}
                 type="text"
+                rightLabel={!!props.parameter.unitName}
             />
+            {props.parameter.unitName ? <TextSpan>{props.parameter.unitName}</TextSpan> : null}
         </GenericParameter>
     );
 };
@@ -116,20 +118,25 @@ const BooleanParameter = (props: BooleanParameter) => {
 const GenericNumberParameter = (props: NumberParameterProps) => {
     const { parameter, parameterRef } = props;
     const optSliderRef = React.useRef<HTMLInputElement>(null);
+    const hasUnitName = !!props.parameter.unitName;
     if (optSliderRef.current && parameterRef.current && parameterRef.current.value !== optSliderRef.current!.value)
         optSliderRef.current.value = parameterRef.current.value;
     let baseField = (
-        <Input
-            required={!props.parameter.optional}
-            name={props.parameter.name}
-            type="number"
-            step="any"
-            ref={parameterRef}
-            key={parameter.name}
-            onChange={e => { if (optSliderRef.current) optSliderRef.current.value = e.target.value }}
-            max={!!parameter.max ? parameter.max : undefined}
-            min={!!parameter.min ? parameter.min : undefined}
-        />
+        <Flex>
+            <Input
+                required={!props.parameter.optional}
+                name={props.parameter.name}
+                type="number"
+                step="any"
+                ref={parameterRef}
+                key={parameter.name}
+                onChange={e => { if (optSliderRef.current) optSliderRef.current.value = e.target.value }}
+                max={!!parameter.max ? parameter.max : undefined}
+                min={!!parameter.min ? parameter.min : undefined}
+                rightLabel={hasUnitName}
+            />
+            {hasUnitName ? <InputLabel rightLabel>{props.parameter.unitName}</InputLabel> : null}
+        </Flex>
     );
 
     let slider: React.ReactNode = null;
