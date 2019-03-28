@@ -29,4 +29,16 @@ class StatTests {
             }
         )
     }
+
+    @Test
+    fun `stat unsupported path`(){
+        withKtorTest(
+            setup = {configureServerWithFileController()},
+
+            test = {
+                val response = engine.stat("/home/user1/ด้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็ ด้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็ ด้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็")
+                assertEquals(HttpStatusCode.BadRequest, response.status())
+            }
+        )
+    }
 }
