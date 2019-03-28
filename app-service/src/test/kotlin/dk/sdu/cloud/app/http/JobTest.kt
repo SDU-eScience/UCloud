@@ -58,17 +58,17 @@ class JobTest {
 
     private val job = VerifiedJobWithAccessToken(
         VerifiedJob(
-            app,
-            emptyList(),
-            "2",
-            "someOwner",
-            1,
-            1,
-            SimpleDuration(1, 0, 0),
-            VerifiedJobInput(emptyMap()),
-            "abacus",
-            JobState.SUCCESS,
-            "Prepared",
+            application = app,
+            files = emptyList(),
+            id = "2",
+            owner = "someOwner",
+            nodes = 1,
+            tasksPerNode = 1,
+            maxTime = SimpleDuration(1, 0, 0),
+            jobInput = VerifiedJobInput(emptyMap()),
+            backend = "abacus",
+            currentState = JobState.SUCCESS,
+            status = "Prepared",
             archiveInCollection = app.metadata.title
         ),
         "accessToken"

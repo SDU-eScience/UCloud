@@ -1,8 +1,11 @@
 import styled from 'styled-components'
-import { space, themeGet, BorderProps, SpaceProps, 
-         BorderRadiusProps, borderRadius, 
-         fontSize, FontSizeProps } from 'styled-system'
+import {
+  space, themeGet, BorderProps, SpaceProps,
+  BorderRadiusProps, borderRadius,
+  fontSize, FontSizeProps
+} from 'styled-system'
 import defaultTheme from './theme'
+import Text from './Text';
 
 export const borders = ({ color, theme, noBorder }: { color?: string, theme?: any, noBorder?: boolean }) => {
   if (noBorder) return "";
@@ -20,13 +23,17 @@ export const borders = ({ color, theme, noBorder }: { color?: string, theme?: an
 }
 
 export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps,
-                                    FontSizeProps 
-{
+  FontSizeProps {
+  leftLabel?: boolean
+  rightLabel?: boolean
   id?: string
   color?: string
   noBorder?: boolean
   error?: boolean
 }
+
+const left = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
+const right = ({ rightLabel }: { rightLabel?: boolean }) => rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 const Input = styled.input<InputProps>`
   display: block;
@@ -59,6 +66,8 @@ const Input = styled.input<InputProps>`
   }
 
   ${borders} ${space} ${borderRadius}
+  ${left}
+  ${right}
 `;
 
 Input.displayName = "Input";
@@ -75,3 +84,16 @@ export const HiddenInputField = styled(Input)`
 `;
 
 export default Input;
+
+const rightLabel = ({ rightLabel }: { rightLabel?: boolean }) => rightLabel ? `border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px;` : null;
+const leftLabel = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px;` : null;
+
+export const InputLabel = styled(Text) <{ leftLabel?: boolean, rightLabel?: boolean }>`
+  border: ${themeGet("colors.borderGray")} solid 1px;
+  margin: -1px;
+  ${leftLabel}
+  ${rightLabel}
+  padding-left: 1%;
+  padding-right: 1%;
+  padding-top: 6px;
+`

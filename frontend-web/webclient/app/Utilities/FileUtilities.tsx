@@ -121,11 +121,8 @@ function rewritePolicy(path: string, homeFolder: string, filesRemaining: number)
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
     const paths = files.map(it => it.path);
-    // FIXME Very slow
     page.items.forEach(file => {
-        if (paths.some(p => p === file.path)) {
-            file.beingRenamed = true
-        }
+        if (paths.includes(file.path)) file.beingRenamed = true
     });
     return page;
 }

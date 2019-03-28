@@ -36,8 +36,6 @@ const size = ({ size, theme }: { size: string, theme: Theme }) => {
   }
 };
 
-// FIXME Have color return text color (color) and outline color (border 3rd arg) as two different things
-
 const OutlineButton = styled(Button) <OutlineButtonProps>`
   color: ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
   border: 2px solid ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};

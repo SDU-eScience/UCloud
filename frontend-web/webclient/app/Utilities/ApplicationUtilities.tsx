@@ -69,7 +69,7 @@ const compareType = (type: ParameterTypes, parameter: string): boolean => {
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
             return typeof parameter === "string";
-            
+
     }
 }
 
