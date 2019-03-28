@@ -65,7 +65,7 @@ class Server(
             @Suppress("TooGenericExceptionCaught")
             try {
                 val reindexService = ReindexService(elastic)
-                reindexService.reindexLogsWithPrefixAWeekBackFrom(22, "http_logs", elasticHostAndPort)
+                reindexService.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", elasticHostAndPort)
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
