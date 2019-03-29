@@ -20,7 +20,8 @@ data class KafkaHostConfig(
 
 class KafkaFeatureConfiguration(
     internal val consumerConfigBody: (Properties) -> Unit = {},
-    internal val producerConfigBody: (Properties) -> Unit = {}
+    internal val producerConfigBody: (Properties) -> Unit = {},
+    val parallelism: Int = Runtime.getRuntime().availableProcessors()
 )
 
 class KafkaFeature(
@@ -73,7 +74,7 @@ class KafkaFeature(
 
 
         ctx.eventStreamService =
-            KafkaStreamService(consumerConfig, producerConfig, Runtime.getRuntime().availableProcessors())
+            KafkaStreamService(consumerConfig, producerConfig, config.parallelism)
     }
 
     companion object Feature : MicroFeatureFactory<KafkaFeature, KafkaFeatureConfiguration>,
