@@ -97,13 +97,15 @@ const TextParameter = (props: TextParameterProps) => {
 
 type BooleanParameterOption = { value?: boolean, display: string }
 
-interface BooleanParameter { parameter: Types.ApplicationParameter, parameterRef: React.RefObject<HTMLSelectElement> }
+interface BooleanParameter { parameter: Types.BooleanParameter, parameterRef: React.RefObject<HTMLSelectElement> }
 const BooleanParameter = (props: BooleanParameter) => {
     let options: BooleanParameterOption[] = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
     if (props.parameter.optional) {
         options.unshift({ value: undefined, display: "" });
     }
-
+    
+    const defaultValue = props.parameter.defaultValue ? props.parameter.defaultValue.value : null;
+    
     const hasUnitName = !!props.parameter.unitName;
 
     return (
@@ -111,8 +113,8 @@ const BooleanParameter = (props: BooleanParameter) => {
             <Flex>
                 <Select id="select" selectRef={props.parameterRef} key={props.parameter.name} rightLabel={hasUnitName}>
                     <option></option>
-                    <option>Yes</option>
-                    <option>No</option>
+                    <option selected={defaultValue === true}>Yes</option>
+                    <option selected={defaultValue === false}>No</option>
                 </Select>
                 {hasUnitName ? <InputLabel rightLabel margin="0">{props.parameter.unitName}</InputLabel> : null}
             </Flex>
