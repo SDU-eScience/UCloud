@@ -16,7 +16,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { FileIcon } from "UtilityComponents";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
-import { ReduxObject, SharesReduxObject } from "DefaultObjects";
+import { ReduxObject, SharesReduxObject, emptyPage } from "DefaultObjects";
 import { retrieveShares, receiveShares, setErrorMessage, setShareState, fetchSharesByPath, setLoading } from "./Redux/SharesActions";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { useState } from "react";
@@ -84,7 +84,7 @@ class List extends React.Component<ListProps & SharesReduxObject & SharesOperati
             <>
                 {this.props.innerComponent ? header : null}
                 <Error clearError={() => this.props.setError()} error={error} />
-                {this.props.loading ? <LoadingIcon size={18} /> : null}
+                {this.props.page === emptyPage && this.props.loading ? <LoadingIcon size={18} /> : null}
                 <Heading.h3>Shared with Me</Heading.h3>
                 {
                     noSharesWith ? <NoShares /> : page.items.filter(it => !it.sharedByMe).map(it =>
@@ -294,7 +294,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         if (dismiss) { this.setState(() => ({ isLoading: false })); return; }
         const rights: AccessRight[] = [];
         (document.getElementById("read") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
-        (document.getElementById("read_edit") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
+        (document.getElementById("read_edit") as HTMLInputElement).checked ? rights.push(AccessRight.READ, AccessRight.WRITE) : null;
         try {
             const it = await createShare(value, path, rights)
             this.maybeInvoke(it.id, this.props.onShared)
