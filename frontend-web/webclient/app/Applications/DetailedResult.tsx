@@ -1,5 +1,4 @@
 import * as React from "react";
-import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { shortUUID, failureNotification, errorMessageOrDefault } from "UtilityFunctions";
@@ -37,7 +36,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private stdoutEl: StdElement;
     private stderrEl: StdElement;
 
-    constructor(props: any) {
+    constructor(props: Readonly<DetailedResultProps>) {
         super(props);
         this.state = {
             complete: false,
@@ -248,7 +247,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     <Dropdown>
                         <Icon name="info" color="white" color2="black" />
                         <DropdownContent visible colorOnHover={false} color="white" backgroundColor="black">
-                            <span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>
+                            <TextSpan fontSize={1}>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</TextSpan>
                         </DropdownContent>
                     </Dropdown>
                 </Heading.h4>
