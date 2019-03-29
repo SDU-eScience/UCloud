@@ -1,4 +1,8 @@
 ---
+esConfig:
+  elasticsearch.yml: |
+    path.repo: ["/mnt/backup"]
+
 master:
   persistence:
     storageClass: rbd
@@ -18,9 +22,9 @@ data:
   heapSize: 12288m
   resources:
     limits:
-      cpu: "8000m"
+      cpu: "6000m"
     requests:
-      cpu: "8000m"
+      cpu: "6000m"
       memory: "25Gi"
 
 client:

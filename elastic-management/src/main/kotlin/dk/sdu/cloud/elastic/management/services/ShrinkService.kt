@@ -54,11 +54,14 @@ class ShrinkService(
                 elastic.indices().shrink(request, RequestOptions.DEFAULT)
             } catch (ex: Exception) {
                 when (ex) {
+                    //handeling internal error on "allocation should be on one node"
                     is ResponseException -> {
                         if (ex.response.statusLine.statusCode == 500) {
                             waitForRelocation(sourceIndex)
                         }
                     }
+                    //usually an index-already-exists error due to previous failure having created the resized
+                    // index but failed before it could delete the original index
                     is ElasticsearchStatusException -> {
                         deleteIndex(targetIndex, elastic)
                     }
@@ -70,7 +73,7 @@ class ShrinkService(
             mergeIndex(elastic, targetIndex)
             return
         }
-        throw Exception("Too many retries")
+        throw Exception("Too many retries on shrink of $sourceIndex")
     }
 
     private fun prepareSourceIndex(index: String) {

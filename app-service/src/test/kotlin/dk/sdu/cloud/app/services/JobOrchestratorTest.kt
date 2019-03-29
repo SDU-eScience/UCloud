@@ -19,22 +19,6 @@ import org.junit.Test
 import java.util.*
 
 class JobOrchestratorTest {
-    val verifiedJob = VerifiedJob(
-        normAppDesc,
-        emptyList(),
-        "verifiedId",
-        "owner",
-        1,
-        1,
-        SimpleDuration(0, 1, 0),
-        VerifiedJobInput(emptyMap()),
-        "backend",
-        JobState.SCHEDULED,
-        "scheduled",
-        12345678,
-        123456789,
-        archiveInCollection = normAppDesc.metadata.title
-    )
 
     @Test
     fun `test this`() {
@@ -60,7 +44,7 @@ class JobOrchestratorTest {
         db.withTransaction { session ->
             toolDao.create(session, "user", normToolDesc)
             appDao.create(session, "user", normAppDesc)
-            jobDao.create(session, VerifiedJobWithAccessToken(verifiedJob, "token"))
+            jobDao.create(session, verifiedJobWithAccessToken)
 
             runBlocking {
                 jobDao.findJobsCreatedBefore(session, Date().time).forEach {

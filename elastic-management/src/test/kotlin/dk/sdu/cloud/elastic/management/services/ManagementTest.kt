@@ -145,4 +145,9 @@ class ManagementTest {
         println(getAllLogNamesWithPrefix(elastic, "http_logs"))
     }
 
+    @Test
+    fun `Delete all empty test`() {
+        val service = ExpiredEntriesDeleteService(elastic)
+        service.deleteAllEmptyIndices()
+    }
 }
