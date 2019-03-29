@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault, inDevEnvironment } from "UtilityFunctions";
+import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite } from "."
 import { Dispatch } from "redux";
@@ -14,6 +14,7 @@ import { Parameter, OptionalParameters } from "./ParameterWidgets";
 import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
+import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -81,7 +82,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }
             }
         });
-        
+
         if (missingParameters.length > 0) {
             failureNotification(`Missing values for ${missingParameters.join(", ")}`, missingParameters.length)
             return;
@@ -176,7 +177,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (!thisApp) return;
 
         const fileReader = new FileReader();
-        fileReader.onload = () => {
+        fileReader.onload = async () => {
             const result = fileReader.result as string;
             try {
                 const { application, parameters, numberOfNodes, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
@@ -195,16 +196,31 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     siteVersion
                 );
 
+                const fileParams = thisApp.invocation.parameters.filter(({ type }) => type === "input_file" || type === "input_directory");
+
+                const invalidFiles: string[] = []
+
+                for (const paramKey in fileParams) {
+                    const param = fileParams[paramKey];
+                    if (!!extractedParameters[param.name])
+                        if (!await checkIfFileExists(expandHomeFolder(extractedParameters[param.name], Cloud.homeFolder), Cloud)) {
+                            invalidFiles.push(extractedParameters[param.name]);
+                            delete extractedParameters[param.name];
+                        }
+                }
+
+                if (invalidFiles.length) failureNotification(`Extracted files don't exists: ${invalidFiles.join(", ")}`)
+
                 const { parameterValues } = this.state;
 
                 const extractedParameterKeys = Object.keys(extractedParameters);
-                
+
                 // Show hidden fields.
                 extractedParameterKeys.forEach(key => {
                     thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
                 });
                 this.setState(() => ({ application: thisApp }));
-                
+
                 extractedParameterKeys.forEach(key => {
                     thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
                     const ref = parameterValues.get(key);
