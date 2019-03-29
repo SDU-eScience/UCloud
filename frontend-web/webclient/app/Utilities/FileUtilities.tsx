@@ -107,8 +107,8 @@ function rewritePolicy(path: string, homeFolder: string, filesRemaining: number)
                         <option value="RENAME">Rename</option>
                         <option value="OVERWRITE">Overwrite</option>
                     </select>
-                ${ filesRemaining > 1 ? `<br/>
-                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""} `,
+                ${filesRemaining > 1 ? `<br/>
+                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""}`,
         allowEscapeKey: true,
         allowOutsideClick: true,
         allowEnterKey: false,

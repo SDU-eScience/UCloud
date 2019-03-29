@@ -5,6 +5,7 @@ import Text from "./Text"
 import Icon from "./Icon"
 import theme from "./theme"
 import { FtIconProps as UFFtIconProps, extensionType } from "UtilityFunctions";
+import { Cursor } from './Types';
 
 
 const ftColor = (fType: string): string => {
@@ -241,7 +242,7 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
 
 export interface FtIconProps extends SpaceProps, ColorProps {
   fileIcon: UFFtIconProps,
-  cursor?: string
+  cursor?: Cursor
 }
 
 const FtIcon = styled(FtIconBase) <FtIconProps>`

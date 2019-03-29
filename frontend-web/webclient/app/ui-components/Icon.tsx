@@ -4,6 +4,7 @@ import { style, space, color, SpaceProps, ColorProps, ResponsiveValue } from "st
 import * as icons from './icons';
 import theme from './theme'
 import * as CSS from "csstype";
+import { Cursor } from './Types';
 
 
 const IconBase = ({ name, size, theme, color, color2, spin, ...props }): JSX.Element => {
@@ -21,7 +22,7 @@ export interface IconProps extends SpaceProps, ColorProps {
   name: IconName
   color2?: CSS.ColorProperty
   rotation?: number
-  cursor?: string
+  cursor?: Cursor
   spin?: boolean
   hoverColor?: ResponsiveValue<CSS.ColorProperty>
 }

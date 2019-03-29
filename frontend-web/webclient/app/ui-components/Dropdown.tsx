@@ -1,6 +1,7 @@
 import styled from "styled-components";
 import { right, left, top, RightProps, LeftProps, TopProps, boxShadow, BoxShadowProps, bottom, BottomProps, height } from "styled-system";
 import { Button } from "ui-components";
+import { Cursor } from "./Types";
 
 interface FullWidthProps { fullWidth?: boolean }
 const fullWidth = ({ fullWidth }: FullWidthProps) => fullWidth ? { width: "100%" } : null;
@@ -84,7 +85,7 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     height?: string | number
     minWidth?: string
     maxHeight?: number | string
-    cursor?: string // FIXME There must be a type
+    cursor?: Cursor
     backgroundColor?: string
     colorOnHover?: boolean
     squareTop?: boolean
