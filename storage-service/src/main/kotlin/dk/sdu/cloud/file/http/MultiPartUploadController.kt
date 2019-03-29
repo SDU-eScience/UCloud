@@ -70,6 +70,37 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             ok(Unit)
         }
 
+        implement(MultiPartUploadDescriptions.simpleUpload) {
+            audit(MultiPartUploadAudit(null))
+            val ingoingRequest = request.asIngoing()
+
+            val owner = ctx.securityPrincipal.username
+            val policy = ingoingRequest.policy ?: WriteConflictPolicy.OVERWRITE
+            val sensitivity = ingoingRequest.sensitivity
+
+            audit(
+                MultiPartUploadAudit(
+                    UploadRequestAudit(
+                        ingoingRequest.location,
+                        sensitivity,
+                        owner
+                    )
+                )
+            )
+
+            commandRunnerFactory.withContext(owner) { ctx ->
+                val location = fs.write(ctx, ingoingRequest.location, policy) {
+                    println("READY TO COPY STUFF!")
+                    ingoingRequest.file.copyTo(this)
+                }
+
+                if (sensitivity != null) {
+                    sensitivityService.setSensitivityLevel(ctx, location, sensitivity, owner)
+                }
+            }
+            ok(Unit)
+        }
+
         implement(MultiPartUploadDescriptions.bulkUpload) {
             val user = ctx.securityPrincipal.username
 
