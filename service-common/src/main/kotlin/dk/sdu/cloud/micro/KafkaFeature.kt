@@ -73,7 +73,12 @@ class KafkaFeature(
 
 
         ctx.eventStreamService =
-            KafkaStreamService(consumerConfig, producerConfig, Runtime.getRuntime().availableProcessors())
+            KafkaStreamService(
+                consumerConfig,
+                producerConfig,
+                Runtime.getRuntime().availableProcessors(),
+                ctx.developmentModeEnabled
+            )
     }
 
     companion object Feature : MicroFeatureFactory<KafkaFeature, KafkaFeatureConfiguration>,

@@ -2,11 +2,8 @@ package dk.sdu.cloud.events
 
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewPartitions
@@ -21,57 +18,50 @@ import java.util.concurrent.atomic.AtomicBoolean
 class KafkaStreamService(
     private val consumerConfig: Properties,
     private val producerConfig: Properties,
-    private val parallelism: Int
+    private val parallelism: Int,
+    private val devMode: Boolean
 ) : EventStreamService {
 
     private var started: Boolean = false
     private val threads = ArrayList<KafkaPollThread>()
     private val consumers = HashMap<EventStream<*>, EventConsumer<*>>()
 
-    override suspend fun start() {
+    override fun start() {
         started = true
 
         if (consumers.isEmpty()) return
 
-        coroutineScope {
-            try {
-                (0 until parallelism).flatMap {
-                    consumers.map { (stream, rawConsumer) ->
-                        @Suppress("UNCHECKED_CAST")
-                        val consumer = rawConsumer as EventConsumer<Any>
-                        val thread = KafkaPollThread(consumerConfig, stream.name) { records ->
-                            val events = records.mapNotNull {
-                                runCatching {
-                                    stream.deserialize(it)
-                                }.getOrElse { ex ->
-                                    log.warn("Caught exception while parsing element from ${stream.name}")
-                                    log.warn("Exception was: ${ex.stackTraceToString()}")
-                                    log.warn("Value was: $it")
-                                    null
-                                }
-                            }
-
-                            val shouldCommit = consumer.accept(events)
-                            if (shouldCommit) {
-                                commit()
-                            }
-                        }
-
-                        threads.add(thread)
-
-                        launch {
-                            thread.runLoop()
+        (0 until parallelism).forEach {
+            consumers.forEach { (stream, rawConsumer) ->
+                @Suppress("UNCHECKED_CAST")
+                val consumer = rawConsumer as EventConsumer<Any>
+                val thread = KafkaPollThread(consumerConfig, stream.name) { records ->
+                    val events = records.mapNotNull {
+                        runCatching {
+                            stream.deserialize(it)
+                        }.getOrElse { ex ->
+                            log.warn("Caught exception while parsing element from ${stream.name}")
+                            log.warn("Exception was: ${ex.stackTraceToString()}")
+                            log.warn("Value was: $it")
+                            null
                         }
                     }
-                }.joinAll()
-            } catch (ex: Exception) {
-                ex.printStackTrace()
-                throw ex
+
+                    val shouldCommit = consumer.accept(events)
+                    if (shouldCommit) {
+                        commit()
+                    }
+                }
+
+                threads.add(thread)
+
+                thread.start()
             }
+
         }
     }
 
-    override suspend fun stop() {
+    override fun stop() {
         threads.forEach { it.isRunning.set(false) }
     }
 
@@ -100,7 +90,7 @@ class KafkaStreamService(
                     NewTopic(
                         stream.name,
                         stream.desiredPartitions ?: DEFAULT_PARTITIONS,
-                        stream.desiredReplicas ?: DEFAULT_REPLICAS
+                        stream.desiredReplicas ?: if (devMode) 1 else DEFAULT_REPLICAS
                     )
                 }
 
@@ -197,7 +187,7 @@ internal class KafkaPollThread(
     private val config: Properties,
     private val topic: String,
     private val eventConsumer: suspend KafkaPollThread.(List<String>) -> Unit
-) {
+) : Thread() {
     var isRunning = AtomicBoolean(true)
     private var nextLivenessCheck = System.currentTimeMillis() + 10_000
 
@@ -249,12 +239,14 @@ internal class KafkaPollThread(
         }
     }
 
-    suspend fun runLoop() {
+    override fun run() {
         consumer.use {
             log.debug("Starting consumption of Kafka topic: '$topic'")
-            while (isRunning.get()) {
-                poll()
-                delay(100)
+            runBlocking {
+                while (isRunning.get()) {
+                    poll()
+                    delay(100)
+                }
             }
         }
     }
