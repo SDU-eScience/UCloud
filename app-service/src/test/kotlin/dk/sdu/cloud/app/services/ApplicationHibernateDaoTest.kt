@@ -88,6 +88,21 @@ class ApplicationHibernateDaoTest {
         }
     }
 
+    @Test (expected = ApplicationException.NotFound::class)
+    fun `test find by name and version user - notfound`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                run {
+                    // Load from specific version
+                    val loadedApp = appDAO.findByNameAndVersionForUser(it, user, "name", "2.2")
+                    assertEquals("app description", loadedApp.metadata.description)
+                }
+            }
+        }
+    }
+
     @Test
     fun `test creating different versions`() {
         withDatabase { db ->

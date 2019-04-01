@@ -9,6 +9,7 @@ import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.StartJobRequest
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.ToolReference
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
@@ -113,4 +114,13 @@ val verifiedJob = VerifiedJob(
 val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(
     verifiedJob,
     "token"
+)
+
+val startJobRequest = StartJobRequest(
+    NameAndVersion("name", "2.2"),
+    emptyMap(),
+    1,
+    1,
+    SimpleDuration(1,0,0),
+    ToolBackend.UDOCKER.name
 )

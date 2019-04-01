@@ -7,9 +7,12 @@ import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.initializeMicro
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import java.lang.Exception
 import java.util.*
 import kotlin.test.assertEquals
 
@@ -18,6 +21,36 @@ class JobHibernateDaoTest {
     private val systemId = UUID.randomUUID().toString()
     private val appName = normAppDesc.metadata.name
     private val version = normAppDesc.metadata.version
+
+    @Test (expected = JobException.NotFound::class)
+    fun `update status - not found tests`() {
+        val toolDao = ToolHibernateDAO()
+        val appDao = ApplicationHibernateDAO(toolDao)
+        val jobHibDao = JobHibernateDao(appDao, toolDao)
+
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+        val db = micro.hibernateDatabase
+
+        db.withTransaction(autoFlush = true) {
+            jobHibDao.updateStatus(it, systemId, "good")
+        }
+    }
+
+    @Test (expected = JobException.NotFound::class)
+    fun `update status and statue - not found tests`() {
+        val toolDao = ToolHibernateDAO()
+        val appDao = ApplicationHibernateDAO(toolDao)
+        val jobHibDao = JobHibernateDao(appDao, toolDao)
+
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+        val db = micro.hibernateDatabase
+
+        db.withTransaction(autoFlush = true) {
+            jobHibDao.updateStateAndStatus(it, systemId, JobState.PREPARED, "good")
+        }
+    }
 
     @Test
     fun `create, find and update jobinfo test`() {
@@ -28,6 +61,8 @@ class JobHibernateDaoTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
+
+
         db.withTransaction(autoFlush = true) {
             toolDao.create(it, user, normToolDesc)
             appDao.create(it, user, normAppDesc)
@@ -53,20 +88,39 @@ class JobHibernateDaoTest {
                 "token"
             )
             jobHibDao.create(it, jobWithToken)
+            println("JOB: $jobWithToken")
+        }
+
+        db.withTransaction(autoFlush = true) {
+            val result = jobHibDao.updateStatus(it, systemId, "good")
         }
 
         db.withTransaction(autoFlush = true) {
             val result = jobHibDao.findOrNull(it, systemId, user)
             assertEquals(JobState.VALIDATED, result?.job?.currentState)
+            assertEquals("good", result?.job?.status)
         }
 
         db.withTransaction(autoFlush = true) {
-            jobHibDao.updateStateAndStatus(it, systemId, JobState.SUCCESS)
+            runBlocking {
+                val result = jobHibDao.findJobsCreatedBefore(it, System.currentTimeMillis()+5000).toList()
+                assertEquals(1, result.size)
+            }
         }
 
         db.withTransaction(autoFlush = true) {
-            val result2 = jobHibDao.findOrNull(it, systemId, user)
-            assertEquals(JobState.SUCCESS, result2?.job?.currentState)
+            jobHibDao.updateStateAndStatus(it, systemId, JobState.SUCCESS, "better")
+        }
+
+        db.withTransaction(autoFlush = true) {
+            val result = jobHibDao.findOrNull(it, systemId, user)
+            assertEquals(JobState.SUCCESS, result?.job?.currentState)
+            assertEquals("better", result?.job?.status)
+        }
+
+        db.withTransaction(autoFlush = true) {
+            val result = jobHibDao.list(it, user, NormalizedPaginationRequest(10, 0))
+            assertEquals(1, result.itemsInTotal)
         }
     }
 }
