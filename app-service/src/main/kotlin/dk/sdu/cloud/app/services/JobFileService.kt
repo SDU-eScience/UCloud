@@ -6,15 +6,14 @@ import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.calls.types.StreamingRequest
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.ExtractRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.UploadRequest
+import dk.sdu.cloud.file.api.SimpleUploadRequest
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.service.Loggable
@@ -82,17 +81,14 @@ class JobFileService(
                 ?: SensitivityLevel.PRIVATE
 
         val (_, accessToken) = jobWithToken
-        MultiPartUploadDescriptions.upload.call(
-            StreamingRequest.Outgoing(
-                UploadRequest(
-                    location = destPath.path,
-                    sensitivity = sensitivityLevel,
-                    upload = StreamingFile(
-                        contentType = ContentType.defaultForFilePath(filePath),
-                        length = length,
-                        fileName = destPath.name,
-                        channel = fileData
-                    )
+        MultiPartUploadDescriptions.simpleUpload.call(
+            SimpleUploadRequest(
+                location = destPath.path,
+                sensitivity = sensitivityLevel,
+                file = BinaryStream.outgoingFromChannel(
+                    fileData,
+                    contentLength = length,
+                    contentType = ContentType.defaultForFilePath(filePath)
                 )
             ),
             client.bearerAuth(accessToken)

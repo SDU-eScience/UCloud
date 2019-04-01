@@ -22,8 +22,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.calls.types.StreamingRequest
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -316,20 +315,15 @@ class JobOrchestrator<DBSession>(
                             DownloadByURI(file.sourcePath, null),
                             userCloud
                         ).orRethrowAs { throw JobException.TransferError() }.asIngoing()
-                        // TODO FIXME We cannot do custom parsing of responses
-                        // (we need this to implement a BinaryStream type)
 
                         backend.submitFile.call(
-                            StreamingRequest.Outgoing(
-                                SubmitFileToComputation(
-                                    job,
-                                    file.id,
-                                    StreamingFile(
-                                        fileStream.contentType ?: ContentType.Application.OctetStream,
-                                        fileStream.length,
-                                        file.destinationPath,
-                                        fileStream.channel
-                                    )
+                            SubmitFileToComputation(
+                                job.id,
+                                file.id,
+                                BinaryStream.outgoingFromChannel(
+                                    fileStream.channel,
+                                    contentType = fileStream.contentType ?: ContentType.Application.OctetStream,
+                                    contentLength = fileStream.length
                                 )
                             ),
                             serviceCloud

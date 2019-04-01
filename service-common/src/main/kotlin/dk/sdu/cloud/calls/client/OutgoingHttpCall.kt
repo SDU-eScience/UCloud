@@ -108,6 +108,12 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                     header(name, value)
                 }
 
+                if (request is HttpClientConverter.OutgoingCustomHeaders) {
+                    request.clientAddCustomHeaders(call).forEach { (key, value) ->
+                        header(key, value)
+                    }
+                }
+
                 log.debug("[$callId] -> $url: $shortRequestMessage")
             }
 
@@ -332,6 +338,10 @@ object HttpClientConverter {
 
     interface OutgoingHeader {
         fun clientOutgoingHeader(call: CallDescription<*, *, *>, headerName: String): String
+    }
+
+    interface OutgoingCustomHeaders {
+        fun clientAddCustomHeaders(call: CallDescription<*, *, *>): List<Pair<String, String>>
     }
 
     interface IngoingBody<T : Any> {

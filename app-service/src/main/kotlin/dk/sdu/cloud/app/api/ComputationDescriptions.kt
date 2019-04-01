@@ -1,13 +1,16 @@
 package dk.sdu.cloud.app.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.bindToSubProperty
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.calls.types.StreamingFile
 import dk.sdu.cloud.calls.types.StreamingRequest
 import io.ktor.http.HttpMethod
@@ -18,9 +21,9 @@ data class ComputationErrorMessage(
 )
 
 data class SubmitFileToComputation(
-    val job: VerifiedJob,
+    val jobId: String,
     val parameterName: String,
-    val fileData: StreamingFile
+    @JsonIgnore val fileData: BinaryStream
 )
 
 /**
@@ -36,7 +39,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
      *
      * This can only happen while the job is in state [JobState.TRANSFER_SUCCESS]
      */
-    val submitFile = call<StreamingRequest<SubmitFileToComputation>, Unit, ComputationErrorMessage>("submitFile") {
+    val submitFile = call<SubmitFileToComputation, Unit, ComputationErrorMessage>("submitFileV2") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
@@ -50,7 +53,12 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
                 +"submit"
             }
 
-            body { bindEntireRequestFromBody() }
+            headers {
+                +boundTo("JobSubmit-Id", SubmitFileToComputation::jobId)
+                +boundTo("JobSubmit-Parameter", SubmitFileToComputation::parameterName)
+            }
+
+            body { bindToSubProperty(SubmitFileToComputation::fileData) }
         }
     }
 
