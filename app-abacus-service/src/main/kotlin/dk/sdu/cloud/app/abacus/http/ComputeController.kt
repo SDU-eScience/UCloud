@@ -4,11 +4,9 @@ import dk.sdu.cloud.app.abacus.services.JobFileService
 import dk.sdu.cloud.app.abacus.services.JobTail
 import dk.sdu.cloud.app.abacus.services.SlurmScheduler
 import dk.sdu.cloud.app.api.ComputationDescriptions
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
 
 class ComputeController(
     private val jobFileService: JobFileService,
@@ -23,38 +21,31 @@ class ComputeController(
         }
 
         implement(rpcInterface.submitFile) {
-            request.asIngoing().receiveBlocks { block ->
-                val file = block.job.files.find { it.id == block.parameterName } ?: throw RPCException(
-                    "Bad request. File with id '${block.parameterName}' does not exist!",
-                    HttpStatusCode.BadRequest
-                )
-                val relativePath =
-                    if (file.destinationPath.startsWith("/")) ".${file.destinationPath}" else file.destinationPath
-
-
-                jobFileService.uploadFile(
-                    block.job.id,
-                    relativePath,
-                    block.fileData.length,
-                    file.needsExtractionOfType,
-                    block.fileData.channel
-                )
-            }
+            val asIngoing = request.fileData.asIngoing()
+            jobFileService.uploadFile(
+                request.jobId,
+                request.parameterName,
+                asIngoing.length,
+                asIngoing.channel
+            )
 
             ok(Unit)
         }
 
-        implement(rpcInterface.jobPrepared) {
+        implement(rpcInterface.jobPrepared)
+        {
             slurmService.schedule(request)
             ok(Unit)
         }
 
-        implement(rpcInterface.cleanup) {
+        implement(rpcInterface.cleanup)
+        {
             jobFileService.cleanup(request.id)
             ok(Unit)
         }
 
-        implement(rpcInterface.follow) {
+        implement(rpcInterface.follow)
+        {
             ok(jobTail.followStdStreams(request))
         }
     }

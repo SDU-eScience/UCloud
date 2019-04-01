@@ -10,7 +10,10 @@ import dk.sdu.cloud.app.abacus.services.ssh.scpUpload
 import dk.sdu.cloud.app.abacus.services.ssh.unzip
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
-import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.app.api.ValidatedFileForUpload
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.service.test.ClientMock
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -25,14 +28,12 @@ import kotlin.test.BeforeTest
 class JobFileServiceTest {
     private val connectionPool: SSHConnectionPool = mockk(relaxed = true)
     private val connection: SSHConnection = mockk(relaxed = true)
-    private val cloud: AuthenticatedClient
     private val service: JobFileService
     private val workingDirectory = "/work/"
 
     init {
+        val cloud = ClientMock.authenticatedClient
         every { connectionPool.borrowConnection() } returns Pair(0, connection)
-
-        cloud = mockk(relaxed = true)
 
         service = JobFileService(connectionPool, cloud, workingDirectory)
     }
@@ -61,10 +62,25 @@ class JobFileServiceTest {
     fun `test upload file`() = runBlocking {
         coEvery { connection.mkdir(any(), any()) } returns 0
         coEvery { connection.scpUpload(any(), any(), any(), any(), any()) } returns 0
+        val paramName = "bar"
+        ClientMock.mockCallSuccess(
+            ComputationCallbackDescriptions.lookup, JobData.job.copy(
+                files = listOf(
+                    ValidatedFileForUpload(
+                        paramName,
+                        StorageFile(FileType.FILE, "/home/foo/bar", ownerName = "foo"),
+                        "foo",
+                        "./foo",
+                        "./foo",
+                        null
+                    )
+                )
+            )
+        )
+
         service.uploadFile(
             "jobId",
-            "./foo",
-            42L,
+            paramName,
             null,
             ByteReadChannel("Hello")
         )
@@ -109,11 +125,27 @@ class JobFileServiceTest {
         coEvery { connection.rm(any(), any()) } returns 0
         coEvery { connection.scpUpload(any(), any(), any(), any(), any()) } returns 0
         coEvery { connection.unzip(any(), any()) } returns 0
+
+        val paramName = "bar"
+        ClientMock.mockCallSuccess(
+            ComputationCallbackDescriptions.lookup, JobData.job.copy(
+                files = listOf(
+                    ValidatedFileForUpload(
+                        paramName,
+                        StorageFile(FileType.FILE, "/home/foo/bar", ownerName = "foo"),
+                        "foo",
+                        "./foo",
+                        "./foo",
+                        FileForUploadArchiveType.ZIP
+                    )
+                )
+            )
+        )
+
         service.uploadFile(
             "jobId",
-            "./foo",
-            42L,
-            FileForUploadArchiveType.ZIP,
+            paramName,
+            null,
             ByteReadChannel("Hello")
         )
 
@@ -125,11 +157,27 @@ class JobFileServiceTest {
         coEvery { connection.mkdir(any(), any()) } returns 0
         coEvery { connection.scpUpload(any(), any(), any(), any(), any()) } returns 0
         coEvery { connection.unzip(any(), any()) } returns 5
+
+        val paramName = "bar"
+        ClientMock.mockCallSuccess(
+            ComputationCallbackDescriptions.lookup, JobData.job.copy(
+                files = listOf(
+                    ValidatedFileForUpload(
+                        paramName,
+                        StorageFile(FileType.FILE, "/home/foo/bar", ownerName = "foo"),
+                        "foo",
+                        "./foo",
+                        "./foo",
+                        FileForUploadArchiveType.ZIP
+                    )
+                )
+            )
+        )
+
         service.uploadFile(
             "jobId",
-            "./foo",
-            42L,
-            FileForUploadArchiveType.ZIP,
+            paramName,
+            null,
             ByteReadChannel("Hello")
         )
 

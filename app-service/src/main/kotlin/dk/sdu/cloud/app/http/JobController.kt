@@ -60,7 +60,7 @@ class JobController<DBSession>(
                 TokenExtensionRequest(
                     ctx.bearer!!,
                     listOf(
-                        MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
+                        MultiPartUploadDescriptions.simpleUpload.requiredAuthScope.toString(),
                         FileDescriptions.download.requiredAuthScope.toString(),
                         FileDescriptions.createDirectory.requiredAuthScope.toString(),
                         FileDescriptions.stat.requiredAuthScope.toString(),

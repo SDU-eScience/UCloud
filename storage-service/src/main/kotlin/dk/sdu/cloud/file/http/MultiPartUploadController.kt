@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
@@ -72,16 +73,14 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
         implement(MultiPartUploadDescriptions.simpleUpload) {
             audit(MultiPartUploadAudit(null))
-            val ingoingRequest = request.asIngoing()
-
             val owner = ctx.securityPrincipal.username
-            val policy = ingoingRequest.policy ?: WriteConflictPolicy.OVERWRITE
-            val sensitivity = ingoingRequest.sensitivity
+            val policy = request.policy ?: WriteConflictPolicy.OVERWRITE
+            val sensitivity = request.sensitivity
 
             audit(
                 MultiPartUploadAudit(
                     UploadRequestAudit(
-                        ingoingRequest.location,
+                        request.location,
                         sensitivity,
                         owner
                     )
@@ -89,9 +88,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             )
 
             commandRunnerFactory.withContext(owner) { ctx ->
-                val location = fs.write(ctx, ingoingRequest.location, policy) {
-                    println("READY TO COPY STUFF!")
-                    ingoingRequest.file.copyTo(this)
+                val location = fs.write(ctx, request.location, policy) {
+                    request.file.asIngoing().channel.copyTo(this)
                 }
 
                 if (sensitivity != null) {
@@ -99,6 +97,41 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 }
             }
             ok(Unit)
+        }
+
+        implement(MultiPartUploadDescriptions.simpleBulkUpload) {
+            val user = ctx.securityPrincipal.username
+
+            val uploader =
+                BulkUploader.fromFormat(request.format, commandRunnerFactory.type)
+                    ?: throw RPCException("Unsupported format", HttpStatusCode.BadRequest)
+
+            val archiveName = request.name ?: "upload"
+            val policy = request.policy ?: WriteConflictPolicy.RENAME
+
+            audit(BulkUploadAudit(request.location, policy, request.format))
+
+            val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
+            request.file.asIngoing().channel.copyTo(outputFile.outputStream())
+            BackgroundScope.launch {
+                uploader.upload(
+                    serviceCloud,
+                    fs,
+                    { commandRunnerFactory(user) },
+                    request.location,
+                    policy,
+                    outputFile.inputStream(),
+                    request.sensitivity,
+                    sensitivityService,
+                    archiveName
+                )
+                try {
+                    outputFile.delete()
+                } catch (_: Exception) {
+                }
+            }
+
+            ok(BulkUploadErrorMessage("OK"), HttpStatusCode.Accepted)
         }
 
         implement(MultiPartUploadDescriptions.bulkUpload) {
