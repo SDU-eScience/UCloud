@@ -111,23 +111,26 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
             audit(BulkUploadAudit(request.location, policy, request.format))
 
-            val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
-            request.file.asIngoing().channel.copyTo(outputFile.outputStream())
+            val temporaryFile = Files.createTempFile("upload", ".bin").toFile()
+            temporaryFile.outputStream().use { outs ->
+                request.file.asIngoing().channel.copyTo(outs)
+            }
+
             BackgroundScope.launch {
-                uploader.upload(
-                    serviceCloud,
-                    fs,
-                    { commandRunnerFactory(user) },
-                    request.location,
-                    policy,
-                    outputFile.inputStream(),
-                    request.sensitivity,
-                    sensitivityService,
-                    archiveName
-                )
                 try {
-                    outputFile.delete()
-                } catch (_: Exception) {
+                    uploader.upload(
+                        serviceCloud,
+                        fs,
+                        { commandRunnerFactory(user) },
+                        request.location,
+                        policy,
+                        temporaryFile.inputStream(),
+                        request.sensitivity,
+                        sensitivityService,
+                        archiveName
+                    )
+                } finally {
+                    runCatching { temporaryFile.delete() }
                 }
             }
 
