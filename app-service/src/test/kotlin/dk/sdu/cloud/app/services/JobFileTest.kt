@@ -36,7 +36,7 @@ class JobFileTest{
     }
 
     @Test
-    fun `test accept File - no extract also abosolute path`() {
+    fun `test accept File - no extract also absolute path`() {
         val authClient = ClientMock.authenticatedClient
         val service = JobFileService(authClient)
 
@@ -46,7 +46,7 @@ class JobFileTest{
         )
 
         ClientMock.mockCallSuccess(
-            MultiPartUploadDescriptions.upload,
+            MultiPartUploadDescriptions.simpleUpload,
             Unit
         )
 
@@ -73,7 +73,7 @@ class JobFileTest{
         )
 
         ClientMock.mockCallSuccess(
-            MultiPartUploadDescriptions.upload,
+            MultiPartUploadDescriptions.simpleUpload,
             Unit
         )
 
