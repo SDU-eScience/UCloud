@@ -114,7 +114,7 @@ object MultiPartUploadDescriptions : CallDescriptionContainer("files.upload") {
 
                 path {
                     using(baseContext)
-                    +"bulk"
+                    +"archive"
                 }
 
                 headers {

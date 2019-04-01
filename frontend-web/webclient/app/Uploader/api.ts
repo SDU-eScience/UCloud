@@ -43,17 +43,11 @@ export const multipartUpload = async (
 }
 
 export const bulkUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: UploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
-    const newFile = new File([file], "ignored");
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = formatFromType(file.type);
-    let formData = new FormData();
-    formData.append("location", location);
-    formData.append("format", format);
-    if (sensitivity !== "INHERIT") formData.append("sensitivity", sensitivity);
-    formData.append("policy", policy);
-    formData.append("upload", newFile);
+    
     let request = new XMLHttpRequest();
-    request.open("POST", "/api/files/upload/bulk");
+    request.open("POST", "/api/files/upload/archive");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
@@ -71,7 +65,12 @@ export const bulkUpload = async (location: string, file: File, sensitivity: Sens
         }
     };
     request.responseType = "text";
-    request.send(formData);
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", sensitivity);
+    request.setRequestHeader("Upload-Policy", policy);
+    request.setRequestHeader("Upload-Location", location);
+    request.setRequestHeader("Upload-Format", format);
+    request.setRequestHeader("Upload-Name", file.name);
+    request.send(file);
     return request;
 }
 
