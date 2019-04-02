@@ -278,6 +278,10 @@ class JobOrchestrator<DBSession>(
                         // Ask backend to prepare the job
                         transferFilesToCompute(jobWithToken)
                         db.withTransaction(autoFlush = true) {
+                            if (jobDao.findOrNull(it, job.id)?.job?.currentState != JobState.VALIDATED) {
+                                log.info("Kafka event sent twice since real jobstate is beyond Validated - ignoring")
+                                return@runBlocking
+                            }
                             jobDao.updateStateAndStatus(it, job.id, JobState.PREPARED)
                         }
 

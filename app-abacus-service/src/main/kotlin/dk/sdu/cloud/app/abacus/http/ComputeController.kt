@@ -32,20 +32,17 @@ class ComputeController(
             ok(Unit)
         }
 
-        implement(rpcInterface.jobPrepared)
-        {
+        implement(rpcInterface.jobPrepared) {
             slurmService.schedule(request)
             ok(Unit)
         }
 
-        implement(rpcInterface.cleanup)
-        {
+        implement(rpcInterface.cleanup) {
             jobFileService.cleanup(request.id)
             ok(Unit)
         }
 
-        implement(rpcInterface.follow)
-        {
+        implement(rpcInterface.follow) {
             ok(jobTail.followStdStreams(request))
         }
     }
