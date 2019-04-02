@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.api.ApplicationMetadata
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.InvocationParameter
 import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
