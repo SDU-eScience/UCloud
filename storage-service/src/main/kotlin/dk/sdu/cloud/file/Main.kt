@@ -62,7 +62,7 @@ fun main(args: Array<String>) {
 
     runBlocking {
         runner.use {
-            fs.listDirectory(runner, "/home/dan/barfoo", FileAttribute.values().toSet()).unwrap().forEach {
+            fs.listDirectory(runner, "/home/dan", FileAttribute.values().toSet()).unwrap().forEach {
                 println(it)
             }
         }

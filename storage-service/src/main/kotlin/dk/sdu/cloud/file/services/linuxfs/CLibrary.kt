@@ -46,12 +46,13 @@ interface ACLLibrary : Library {
     fun acl_get_tag_type(entry: ACLEntry, tag: ACLTag?): Int
     fun acl_get_qualifier(entry: ACLEntry): Pointer?
     fun acl_get_permset(entry: ACLEntry, destination: ACLPermSet?): Int
-    fun acl_get_perm(permset: ACLPermSet?, value: Int): Int
+    fun acl_get_perm(permset: Long, value: Int): Int
     fun acl_free(pointer: Pointer)
 
     companion object {
         val INSTANCE by lazy {
-            Native.load("c", ACLLibrary::class.java) as ACLLibrary
+            if (Platform.isLinux()) Native.load("acl", ACLLibrary::class.java) as ACLLibrary
+            else Native.load("c", ACLLibrary::class.java) as ACLLibrary
         }
     }
 }
@@ -67,6 +68,6 @@ typealias ACLTag = IntArray
 
 fun ACLTag() = IntArray(1)
 
-typealias ACLPermSet = ByteArray
+typealias ACLPermSet = LongArray
 
-fun ACLPermSet() = ACLPermSet(8)
+fun ACLPermSet() = LongArray(1)

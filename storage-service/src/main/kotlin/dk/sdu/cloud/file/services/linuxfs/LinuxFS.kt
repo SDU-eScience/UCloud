@@ -137,12 +137,22 @@ class LinuxFS(
             }
         }
 
-        // TODO Shares
         // TODO Real owner
         // TODO Group
 
         sensitivityLevel =
             getExtendedAttributeInternal(ctx, systemFile, "sensitivity")?.let { SensitivityLevel.valueOf(it) }
+
+        shares = ACL.getEntries(systemFile.absolutePath).mapNotNull {
+            if (!it.isUser) return@mapNotNull null
+            val cloudUser = runBlocking { userDao.findCloudUser(it.id.toLong()) } ?: return@mapNotNull null
+            val rights = HashSet<AccessRight>()
+            if (it.execute) rights += AccessRight.EXECUTE
+            if (it.read) rights += AccessRight.READ
+            if (it.write) rights += AccessRight.WRITE
+
+            AccessEntry(cloudUser, false, rights)
+        }.toList()
 
         return FileRow(
             fileType,
@@ -156,7 +166,7 @@ class LinuxFS(
             rawPath,
             inode,
             size,
-            emptyList(),
+            shares,
             sensitivityLevel,
             linkInode,
             null
