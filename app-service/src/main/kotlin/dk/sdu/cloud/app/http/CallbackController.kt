@@ -12,6 +12,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.call
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.request.header
 
 class CallbackController<DBSession>(
@@ -33,7 +34,7 @@ class CallbackController<DBSession>(
                     )
                     ok(Unit)
                 } else {
-                    error(CommonErrorMessage("Missing file length"))
+                    error(CommonErrorMessage("Missing file length"), HttpStatusCode.LengthRequired)
                 }
             }
         }
