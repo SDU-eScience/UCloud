@@ -40,6 +40,28 @@ class FileRow(
     val sensitivityLevel: SensitivityLevel? get() = _sensitivityLevel
     val linkInode: String get() = _linkInode!!
     val xowner: String get() = _xowner!!
+
+    override fun toString(): String {
+        return "FileRow(" +
+                "_fileType=$_fileType, \n" +
+                "_isLink=$_isLink, \n" +
+                "_linkTarget=$_linkTarget, \n" +
+                "_unixMode=$_unixMode, \n" +
+                "_owner=$_owner, \n" +
+                "_group=$_group, \n" +
+                "_timestamps=$_timestamps, \n" +
+                "_path=$_path, \n" +
+                "_rawPath=$_rawPath, \n" +
+                "_inode=$_inode, \n" +
+                "_size=$_size, \n" +
+                "_shares=$_shares, \n" +
+                "_sensitivityLevel=$_sensitivityLevel, \n" +
+                "_linkInode=$_linkInode, \n" +
+                "_xowner=$_xowner\n" +
+                ")"
+    }
+
+
 }
 
 

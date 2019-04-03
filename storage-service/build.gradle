@@ -12,14 +12,16 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 
 
 dependencies {
-    compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
+    implementation group: 'org.kamranzafar', name: 'jtar', version: '2.3'
 
-    compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
-    compile "dk.sdu.cloud:auth-api:1.21.0"
-    compile "dk.sdu.cloud:notification-api:1.1.4"
+    implementation "dk.sdu.cloud:service-common:${serviceCommonVersion}"
+    implementation "dk.sdu.cloud:auth-api:1.21.0"
+    implementation "dk.sdu.cloud:notification-api:1.1.4"
 
-    compile group: 'com.h2database', name: 'h2', version: '1.4.196'
-    testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
+    implementation 'net.java.dev.jna:jna:5.2.0'
+    implementation group: 'com.h2database', name: 'h2', version: '1.4.196'
+
+    testImplementation "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 
 sduCloud.createTasksForApiJar(
