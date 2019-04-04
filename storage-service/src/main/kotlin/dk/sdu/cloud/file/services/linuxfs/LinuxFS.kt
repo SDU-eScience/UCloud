@@ -301,8 +301,11 @@ class LinuxFS(
         rights: Set<AccessRight>,
         defaultList: Boolean,
         recursive: Boolean
-    ): FSResult<Unit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ): FSResult<Unit> = ctx.submit {
+        ctx.requireContext()
+
+        ACL.addEntry(translateAndCheckFile(path))
+        FSResult(0, Unit)
     }
 
     override suspend fun removeACLEntry(

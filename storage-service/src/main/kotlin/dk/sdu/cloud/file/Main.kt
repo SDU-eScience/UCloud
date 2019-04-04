@@ -1,5 +1,7 @@
 package dk.sdu.cloud.file
 
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
@@ -65,6 +67,8 @@ fun main(args: Array<String>) {
             fs.listDirectory(runner, "/home/dan", FileAttribute.values().toSet()).unwrap().forEach {
                 println(it)
             }
+
+            fs.createACLEntry(runner, "/home/dan/a", FSACLEntity.User("alonzo"), setOf(AccessRight.READ))
         }
     }
 }

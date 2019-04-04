@@ -4,6 +4,7 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Platform
 import com.sun.jna.Pointer
+import com.sun.jna.PointerType
 
 interface CLibrary : Library {
     fun getuid(): Int
@@ -41,13 +42,27 @@ interface XAttrOSX : Library {
 
 // This is an insane API
 interface ACLLibrary : Library {
+    fun acl_init(entries: Int): Pointer?
     fun acl_get_file(path: String, type: Int): Pointer?
     fun acl_get_entry(tag: Pointer?, entryIdx: Int, destination: ACLEntryBuf?): Int
     fun acl_get_tag_type(entry: ACLEntry, tag: ACLTag?): Int
     fun acl_get_qualifier(entry: ACLEntry): Pointer?
     fun acl_get_permset(entry: ACLEntry, destination: ACLPermSet?): Int
+    fun acl_set_permset(entry: ACLEntry, destination: Long): Int
     fun acl_get_perm(permset: Long, value: Int): Int
+    fun acl_clear_perms(permset: Long): Int
     fun acl_free(pointer: Pointer)
+
+    fun acl_create_entry(acl: PointerType, entry: ACLEntryBuf): Int
+    fun acl_delete_entry(acl: Long, entry: Long): Int
+    fun acl_set_qualifier(entry: ACLEntry, qualifier: IntArray): Int
+    fun acl_set_tag_type(entry: ACLEntry, tag: Int): Int
+    fun acl_add_perm(permset: Long, value: Int): Int
+    fun acl_set_file(path: String, type: Int, acl: Pointer): Int
+    fun acl_valid(acl: Pointer): Int
+    fun acl_check(acl: Pointer, last: IntArray): Int
+    fun acl_error(err: Int): String
+    fun acl_entries(acl: Pointer): Long
 
     companion object {
         val INSTANCE by lazy {
