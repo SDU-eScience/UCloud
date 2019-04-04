@@ -54,7 +54,7 @@ interface ACLLibrary : Library {
     fun acl_free(pointer: Pointer)
 
     fun acl_create_entry(acl: PointerType, entry: ACLEntryBuf): Int
-    fun acl_delete_entry(acl: Long, entry: Long): Int
+    fun acl_delete_entry(acl: Pointer, entry: Long): Int
     fun acl_set_qualifier(entry: ACLEntry, qualifier: IntArray): Int
     fun acl_set_tag_type(entry: ACLEntry, tag: Int): Int
     fun acl_add_perm(permset: Long, value: Int): Int

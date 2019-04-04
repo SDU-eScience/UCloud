@@ -4,7 +4,6 @@ import com.sun.jna.Native
 import com.sun.jna.Platform
 import com.sun.jna.ptr.PointerByReference
 import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import org.slf4j.Logger
 
@@ -102,7 +101,7 @@ object ACL : Loggable {
             val entry = LongArray(1)
             val permset = ACLPermSet()
 
-            val acl = acl_get_file(path, type) ?: throw FSException.NotFound()
+            val acl = acl_get_file(path, type) ?: throw NativeException(Native.getLastError())
             val initialEntryCount = acl_entries(acl)
 
             log.debug("Initial entry count: $initialEntryCount")
@@ -163,6 +162,46 @@ object ACL : Loggable {
 
                 if (AccessRight.EXECUTE in permissions) {
                     acl_add_perm(permset.single(), EXECUTE).orThrow()
+                }
+            }
+
+            acl_set_file(path, type, acl).orThrow()
+            acl_free(acl)
+        }
+    }
+
+    fun removeEntry(path: String, uid: Int, defaultList: Boolean = false) {
+        if (!Platform.isLinux()) return
+        with(ACLLibrary.INSTANCE) {
+            val type = if (defaultList) DEFAULT else ACCESS
+            val entry = LongArray(1)
+            val tag = ACLTag()
+            val acl = acl_get_file(path, type) ?: throw NativeException(Native.getLastError())
+
+            var idx = 0
+            while (idx++ >= 0) {
+                if (acl_get_entry(acl, if (idx == 1) 0 else 1, entry) != 1) {
+                    break
+                }
+
+                val entryValue = entry.single()
+                if (acl_get_tag_type(entryValue, tag) == -1) {
+                    log.debug("errno=${Native.getLastError()}")
+                    log.debug("Requesting tag $entry ${tag.toList()}")
+                    throw ACLException("acl_get_tag_type unsuccessful")
+                }
+
+                val tagValue = tag.single()
+                if (tagValue in setOf(USER, GROUP)) {
+                    val qualifier = acl_get_qualifier(entryValue) ?: continue
+
+                    val entryUid = qualifier.getInt(0)
+                    acl_free(qualifier)
+
+                    if (entryUid == uid) {
+                        log.debug("Found the entry. Calling delete now!")
+                        acl_delete_entry(acl, entry.single())
+                    }
                 }
             }
 

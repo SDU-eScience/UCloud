@@ -68,6 +68,7 @@ fun main(args: Array<String>) {
                 println(it)
             }
 
+            /*
             fs.createACLEntry(runner, "/home/dan/a", FSACLEntity.User("alonzo"), setOf(AccessRight.READ))
             fs.createACLEntry(
                 runner,
@@ -76,6 +77,10 @@ fun main(args: Array<String>) {
                 setOf(AccessRight.READ),
                 defaultList = true
             )
+            */
+
+            fs.removeACLEntry(runner, "/home/dan/a", FSACLEntity.User("alonzo"))
+            fs.removeACLEntry(runner, "/home/dan/a", FSACLEntity.User("fie"), defaultList = true)
         }
     }
 }

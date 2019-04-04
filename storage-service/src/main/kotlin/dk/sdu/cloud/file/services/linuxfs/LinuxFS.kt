@@ -303,10 +303,11 @@ class LinuxFS(
         recursive: Boolean
     ): FSResult<Unit> = ctx.submit {
         ctx.requireContext()
+
         if (entity !is FSACLEntity.User) throw FSException.BadRequest()
+        val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
 
         // TODO Handle recursive
-        val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
         ACL.addEntry(translateAndCheckFile(path), uid.toInt(), rights, defaultList)
         FSResult(0, Unit)
     }
@@ -317,8 +318,15 @@ class LinuxFS(
         entity: FSACLEntity,
         defaultList: Boolean,
         recursive: Boolean
-    ): FSResult<Unit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ): FSResult<Unit> = ctx.submit {
+        ctx.requireContext()
+
+        if (entity !is FSACLEntity.User) throw FSException.BadRequest()
+        val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
+
+        // TODO Handle recursive
+        ACL.removeEntry(translateAndCheckFile(path), uid.toInt(), defaultList)
+        FSResult(0, Unit)
     }
 
     override suspend fun chmod(
