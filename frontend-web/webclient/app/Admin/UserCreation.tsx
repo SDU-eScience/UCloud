@@ -135,4 +135,4 @@ const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.Admin))
 });
 
-export default connect(() => ({}), mapDispatchToProps)(UserCreation);
+export default connect(null, mapDispatchToProps)(UserCreation);
