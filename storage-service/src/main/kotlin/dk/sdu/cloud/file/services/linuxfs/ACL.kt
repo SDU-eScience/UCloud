@@ -3,6 +3,8 @@ package dk.sdu.cloud.file.services.linuxfs
 import com.sun.jna.Native
 import com.sun.jna.Platform
 import com.sun.jna.ptr.PointerByReference
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import org.slf4j.Logger
 
@@ -27,12 +29,14 @@ object ACL : Loggable {
     private const val READ = 0x04
     private const val WRITE = 0x02
     private const val EXECUTE = 0x01
+    private const val ACCESS = 0x8000
+    private const val DEFAULT = 0x4000
 
     fun getEntries(path: String): Sequence<Entry> = sequence {
         if (!Platform.isLinux()) return@sequence
 
         with(ACLLibrary.INSTANCE) {
-            val type = 0x8000
+            val type = ACCESS
             val entry = LongArray(1)
             val tag = ACLTag()
             val permset = ACLPermSet()
@@ -91,92 +95,86 @@ object ACL : Loggable {
         }
     }
 
-    fun addEntry(path: String) {
+    fun addEntry(path: String, uid: Int, permissions: Set<AccessRight>, defaultList: Boolean = false) {
         if (!Platform.isLinux()) return
         with(ACLLibrary.INSTANCE) {
-            val type = 0x8000
+            val type = if (defaultList) DEFAULT else ACCESS
             val entry = LongArray(1)
             val permset = ACLPermSet()
 
-            // This code works as long as we are using acl_get_file and there an entry is already present
-            val acl = acl_get_file(path, type) ?: TODO()
+            val acl = acl_get_file(path, type) ?: throw FSException.NotFound()
             val initialEntryCount = acl_entries(acl)
 
-            /*
-            run {
-                acl_create_entry(PointerByReference(acl), entry).takeIf { it == 0 } ?: run {
-                    log.debug("Last error: " + Native.getLastError())
-                    TODO()
-                }
-                acl_set_tag_type(entry.single(), USER_OWNER).takeIf { it == 0 } ?: TODO()
-                acl_get_permset(entry.single(), permset).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), READ).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), WRITE).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), EXECUTE).takeIf { it == 0 } ?: TODO()
-            }
+            log.debug("Initial entry count: $initialEntryCount")
 
-            run {
-                acl_create_entry(PointerByReference(acl), entry).takeIf { it == 0 } ?: run {
-                    log.debug("Last error: " + Native.getLastError())
-                    TODO()
-                }
-                acl_set_tag_type(entry.single(), GROUP_OWNER).takeIf { it == 0 } ?: TODO()
-                acl_get_permset(entry.single(), permset).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), READ).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), WRITE).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), EXECUTE).takeIf { it == 0 } ?: TODO()
-            }
+            if ((initialEntryCount == 3L && !defaultList) || (initialEntryCount == 0L && defaultList)) {
+                // Create mask if we have not created it yet
+                acl_create_entry(PointerByReference(acl), entry).orThrow()
+                acl_set_tag_type(entry.single(), MASK).orThrow()
+                acl_get_permset(entry.single(), permset).orThrow()
+                acl_add_perm(permset.single(), READ).orThrow()
+                acl_add_perm(permset.single(), WRITE).orThrow()
+                acl_add_perm(permset.single(), EXECUTE).orThrow()
 
-            run {
-                acl_create_entry(PointerByReference(acl), entry).takeIf { it == 0 } ?: run {
-                    log.debug("Last error: " + Native.getLastError())
-                    TODO()
-                }
-                acl_set_tag_type(entry.single(), OTHER).takeIf { it == 0 } ?: TODO()
-                acl_get_permset(entry.single(), permset).takeIf { it == 0 } ?: TODO()
-                acl_clear_perms(permset.single()).takeIf { it == 0 } ?: TODO()
-            }
-            */
-
-            // Create mask if we have not created it yet
-            if (initialEntryCount == 3L) {
-                run {
-                    acl_create_entry(PointerByReference(acl), entry).takeIf { it == 0 } ?: run {
-                        log.debug("Last error: " + Native.getLastError())
-                        TODO()
+                if (defaultList) {
+                    // For the default list we _also_ need to add entries for the owner and group
+                    run {
+                        acl_create_entry(PointerByReference(acl), entry).orThrow()
+                        acl_set_tag_type(entry.single(), USER_OWNER).orThrow()
+                        acl_get_permset(entry.single(), permset).orThrow()
+                        acl_add_perm(permset.single(), READ).orThrow()
+                        acl_add_perm(permset.single(), WRITE).orThrow()
+                        acl_add_perm(permset.single(), EXECUTE).orThrow()
                     }
-                    acl_set_tag_type(entry.single(), MASK).takeIf { it == 0 } ?: TODO()
-                    acl_get_permset(entry.single(), permset).takeIf { it == 0 } ?: TODO()
-                    acl_add_perm(permset.single(), READ).takeIf { it == 0 } ?: TODO()
-                    acl_add_perm(permset.single(), WRITE).takeIf { it == 0 } ?: TODO()
-                    acl_add_perm(permset.single(), EXECUTE).takeIf { it == 0 } ?: TODO()
+
+                    run {
+                        acl_create_entry(PointerByReference(acl), entry).orThrow()
+                        acl_set_tag_type(entry.single(), GROUP_OWNER).orThrow()
+                        acl_get_permset(entry.single(), permset).orThrow()
+                        acl_add_perm(permset.single(), READ).orThrow()
+                        acl_add_perm(permset.single(), WRITE).orThrow()
+                        acl_add_perm(permset.single(), EXECUTE).orThrow()
+                    }
+
+                    run {
+                        acl_create_entry(PointerByReference(acl), entry).orThrow()
+                        acl_set_tag_type(entry.single(), OTHER).orThrow()
+                        acl_get_permset(entry.single(), permset).orThrow()
+                        acl_clear_perms(permset.single())
+                    }
                 }
             }
 
             run {
-                acl_create_entry(PointerByReference(acl), entry).takeIf { it == 0 } ?: run {
-                    log.debug("Last error: " + Native.getLastError())
-                    TODO()
+                // Create new entry
+                acl_create_entry(PointerByReference(acl), entry).orThrow()
+
+                acl_set_tag_type(entry.single(), USER).orThrow()
+                acl_set_qualifier(entry.single(), intArrayOf(uid)).orThrow()
+
+                acl_get_permset(entry.single(), permset).orThrow()
+                if (AccessRight.READ in permissions) {
+                    acl_add_perm(permset.single(), READ).orThrow()
                 }
-                acl_set_tag_type(entry.single(), USER).takeIf { it == 0 } ?: TODO()
-                acl_set_qualifier(entry.single(), intArrayOf(1006)).takeIf { it == 0 } ?: TODO()
-                acl_get_permset(entry.single(), permset).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), READ).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), WRITE).takeIf { it == 0 } ?: TODO()
-                acl_add_perm(permset.single(), EXECUTE).takeIf { it == 0 } ?: TODO()
+
+                if (AccessRight.WRITE in permissions) {
+                    acl_add_perm(permset.single(), WRITE).orThrow()
+                }
+
+                if (AccessRight.EXECUTE in permissions) {
+                    acl_add_perm(permset.single(), EXECUTE).orThrow()
+                }
             }
 
-
-            acl_set_file(path, type, acl).takeIf { it == 0 } ?: run {
-                log.debug("${Native.getLastError()}")
-                TODO()
-            }
-//
-            // TODO ACL free on acl_create_entry
-
+            acl_set_file(path, type, acl).orThrow()
             acl_free(acl)
         }
     }
+
+    private fun Int.orThrow() {
+        if (this != 0) throw NativeException(Native.getLastError())
+    }
+
 }
 
 class ACLException(why: String) : RuntimeException(why)

@@ -44,9 +44,9 @@ fun main(args: Array<String>) {
 
     val userDao = object : StorageUserDao<Long> {
         private val map = mapOf<String, Long>(
-            "dan" to 1,
-            "fie" to 2,
-            "alonzo" to 3
+            "dan" to 1001,
+            "fie" to 1002,
+            "alonzo" to 1003
         )
 
         override suspend fun findCloudUser(uid: Long, verify: Boolean): String? {
@@ -69,6 +69,13 @@ fun main(args: Array<String>) {
             }
 
             fs.createACLEntry(runner, "/home/dan/a", FSACLEntity.User("alonzo"), setOf(AccessRight.READ))
+            fs.createACLEntry(
+                runner,
+                "/home/dan/a",
+                FSACLEntity.User("fie"),
+                setOf(AccessRight.READ),
+                defaultList = true
+            )
         }
     }
 }

@@ -303,8 +303,11 @@ class LinuxFS(
         recursive: Boolean
     ): FSResult<Unit> = ctx.submit {
         ctx.requireContext()
+        if (entity !is FSACLEntity.User) throw FSException.BadRequest()
 
-        ACL.addEntry(translateAndCheckFile(path))
+        // TODO Handle recursive
+        val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
+        ACL.addEntry(translateAndCheckFile(path), uid.toInt(), rights, defaultList)
         FSResult(0, Unit)
     }
 
