@@ -84,6 +84,7 @@ export function extractParametersFromMap(map: ParameterValues, appParameters: Ap
     map.forEach(({ current }, key) => {
         const parameter = appParameters.find(it => it.name === key);
         if (!current) return;
+        if (!current.value || !current.checkValidity()) return;
         if (!parameter) return;
         switch (parameter.type) {
             case ParameterTypes.InputDirectory:

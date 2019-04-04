@@ -62,7 +62,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.setState(() => ({ schedulingOptions }));
     }
 
-    private onSubmit = (event: React.FormEvent) => {
+    private onSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
@@ -101,14 +101,14 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         };
 
         this.setState(() => ({ jobSubmitted: true }));
-
-        Cloud.post(hpcJobQueryPost, job).then(req =>
+        try {
+            const req = await Cloud.post(hpcJobQueryPost, job);
             inSuccessRange(req.request.status) ?
                 this.props.history.push(`/applications/results/${req.response.jobId}`) :
                 this.setState(() => ({ error: "An error occured", jobSubmitted: false }))
-        ).catch(err => {
+        } catch (err) {
             this.setState(() => ({ error: err.message, jobSubmitted: false }))
-        });
+        }
     }
 
     private extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
@@ -198,7 +198,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 const fileParams = thisApp.invocation.parameters.filter(({ type }) => type === "input_file" || type === "input_directory");
 
-                const invalidFiles: string[] = []
+                const invalidFiles: string[] = [];
 
                 for (const paramKey in fileParams) {
                     const param = fileParams[paramKey];
