@@ -195,6 +195,7 @@ class LinuxFS(
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         ctx.requireContext()
+        // TODO Set the correct file mode!
 
         if (outputStream == null) {
             val options = ArrayList<OpenOption>()
@@ -269,8 +270,21 @@ class LinuxFS(
     override suspend fun makeDirectory(
         ctx: LinuxFSRunner,
         path: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        ctx.requireContext()
+
+        val systemFile = File(translateAndCheckFile(path))
+        systemFile.mkdir()
+
+        FSResult(
+            0,
+            listOf(
+                createdOrModifiedFromRow(
+                    stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
+                    ctx.user
+                )
+            )
+        )
     }
 
     private fun getExtendedAttributeInternal(
