@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.services.linuxfs
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
@@ -16,18 +17,29 @@ import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.channels.FileChannel
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
+import java.nio.file.OpenOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 
 class LinuxFS(
     private val fsRoot: File,
     private val userDao: StorageUserDao<Long>
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
+    private var inputStream: FileChannel? = null
+    private var inputSystemFile: File? = null
+
+    private var outputStream: OutputStream? = null
+    private var outputSystemFile: File? = null
+
     override suspend fun copy(
         ctx: LinuxFSRunner,
         from: String,
@@ -169,7 +181,7 @@ class LinuxFS(
             shares,
             sensitivityLevel,
             linkInode,
-            null
+            owner
         )
     }
 
@@ -181,15 +193,73 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         path: String,
         allowOverwrite: Boolean
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        ctx.requireContext()
+
+        if (outputStream == null) {
+            val options = ArrayList<OpenOption>()
+            options.add(StandardOpenOption.TRUNCATE_EXISTING)
+            options.add(StandardOpenOption.WRITE)
+            if (!allowOverwrite) {
+                options.add(StandardOpenOption.CREATE_NEW)
+            } else {
+                options.add(StandardOpenOption.CREATE)
+            }
+
+            val systemFile = File(translateAndCheckFile(path))
+            try {
+                outputStream = Files.newOutputStream(systemFile.toPath(), *options.toTypedArray())
+                outputSystemFile = systemFile
+            } catch (ex: FileAlreadyExistsException) {
+                throw FSException.AlreadyExists()
+            }
+
+            FSResult(
+                0,
+                listOf(
+                    createdOrModifiedFromRow(
+                        stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
+                        ctx.user
+                    )
+                )
+            )
+        } else {
+            log.warn("openForWriting called twice without closing old file!")
+            throw FSException.CriticalException("Internal error")
+        }
     }
 
     override suspend fun write(
         ctx: LinuxFSRunner,
         writer: suspend (OutputStream) -> Unit
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        ctx.requireContext()
+
+        val stream = outputStream
+        val file = outputSystemFile
+        if (stream == null || file == null) {
+            log.warn("write() called without openForWriting()!")
+            throw FSException.CriticalException("Internal error")
+        }
+
+        try {
+            runBlocking {
+                writer(stream)
+            }
+        } finally {
+            stream.close()
+            outputStream = null
+        }
+
+        FSResult(
+            0,
+            listOf(
+                createdOrModifiedFromRow(
+                    stat(ctx, file, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
+                    ctx.user
+                )
+            )
+        )
     }
 
     override suspend fun tree(ctx: LinuxFSRunner, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {
@@ -352,4 +422,68 @@ class LinuxFS(
         return ("/" + substringAfter(fsRoot.absolutePath).removePrefix("/")).normalize()
     }
 
+    private fun createdOrModifiedFromRow(it: FileRow, eventCausedBy: String?): StorageEvent.CreatedOrRefreshed {
+        return StorageEvent.CreatedOrRefreshed(
+            id = it.inode,
+            path = it.path,
+            owner = it.xowner,
+            creator = it.owner,
+            timestamp = it.timestamps.modified,
+
+            fileType = it.fileType,
+
+            fileTimestamps = it.timestamps,
+            size = it.size,
+
+            isLink = it.isLink,
+            linkTarget = if (it.isLink) it.linkTarget else null,
+            linkTargetId = if (it.isLink) it.linkInode else null,
+
+            sensitivityLevel = it.sensitivityLevel,
+
+            eventCausedBy = eventCausedBy,
+
+            annotations = emptySet(),
+            checksum = FileChecksum("", "")
+        )
+    }
+
+    companion object : Loggable {
+        override val log = logger()
+        const val PATH_MAX = 1024
+
+        @Suppress("ObjectPropertyNaming")
+        private val CREATED_OR_MODIFIED_ATTRIBUTES = setOf(
+            FileAttribute.FILE_TYPE,
+            FileAttribute.INODE,
+            FileAttribute.PATH,
+            FileAttribute.TIMESTAMPS,
+            FileAttribute.OWNER,
+            FileAttribute.XOWNER,
+            FileAttribute.SIZE,
+            FileAttribute.IS_LINK,
+            FileAttribute.LINK_TARGET,
+            FileAttribute.LINK_INODE,
+            FileAttribute.SENSITIVITY
+        )
+
+        @Suppress("ObjectPropertyNaming")
+        private val MOVED_ATTRIBUTES = setOf(
+            FileAttribute.FILE_TYPE,
+            FileAttribute.INODE,
+            FileAttribute.PATH,
+            FileAttribute.OWNER,
+            FileAttribute.XOWNER
+        )
+
+        @Suppress("ObjectPropertyNaming")
+        private val DELETED_ATTRIBUTES = setOf(
+            FileAttribute.FILE_TYPE,
+            FileAttribute.INODE,
+            FileAttribute.OWNER,
+            FileAttribute.XOWNER,
+            FileAttribute.GROUP,
+            FileAttribute.PATH
+        )
+    }
 }

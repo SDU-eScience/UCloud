@@ -64,11 +64,11 @@ fun main(args: Array<String>) {
 
     runBlocking {
         runner.use {
+            /*
             fs.listDirectory(runner, "/home/dan", FileAttribute.values().toSet()).unwrap().forEach {
                 println(it)
             }
 
-            /*
             fs.createACLEntry(runner, "/home/dan/a", FSACLEntity.User("alonzo"), setOf(AccessRight.READ))
             fs.createACLEntry(
                 runner,
@@ -77,10 +77,17 @@ fun main(args: Array<String>) {
                 setOf(AccessRight.READ),
                 defaultList = true
             )
-            */
 
             fs.removeACLEntry(runner, "/home/dan/a", FSACLEntity.User("alonzo"))
             fs.removeACLEntry(runner, "/home/dan/a", FSACLEntity.User("fie"), defaultList = true)
+            */
+
+            println(fs.openForWriting(runner, "/home/dan/file", false).unwrap())
+            println(fs.write(runner) {
+                it.use {
+                    it.write("Hello".toByteArray())
+                }
+            }.unwrap())
         }
     }
 }
