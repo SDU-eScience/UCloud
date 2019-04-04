@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.unwrap
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -17,6 +18,12 @@ const val SERVICE_UNIX_USER = "storage" // Note: root is also supported. Should 
 data class StorageConfiguration(
     val filePermissionAcl: Set<String> = emptySet()
 )
+
+class Foo {
+    companion object : Loggable {
+        override val log = logger()
+    }
+}
 
 fun main(args: Array<String>) {
     /*
@@ -82,12 +89,12 @@ fun main(args: Array<String>) {
             fs.removeACLEntry(runner, "/home/dan/a", FSACLEntity.User("fie"), defaultList = true)
             */
 
-            println(fs.openForWriting(runner, "/home/dan/file", false).unwrap())
-            println(fs.write(runner) {
+            Foo.log.info(fs.openForWriting(runner, "/home/dan/file", true).unwrap().toString())
+            Foo.log.info(fs.write(runner) {
                 it.use {
                     it.write("Hello".toByteArray())
                 }
-            }.unwrap())
+            }.unwrap().toString())
         }
     }
 }

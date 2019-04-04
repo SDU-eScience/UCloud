@@ -98,73 +98,118 @@ class LinuxFS(
         var sensitivityLevel: SensitivityLevel? = null
         var linkInode: String? = null
 
-        val realParent = run {
-            val parent = systemFile.parent
-            val cached = pathCache[parent]
-            if (cached != null) {
-                cached
-            } else {
-                val result = StandardCLib.realPath(parent) ?: parent
-                pathCache[parent] = result
-                result
+        val systemPath = systemFile.toPath()
+
+        run {
+            // UNIX file attributes
+            val attributes = run {
+                val opts = ArrayList<String>()
+                if (FileAttribute.INODE in mode) opts.add("ino")
+                if (FileAttribute.OWNER in mode) opts.add("uid")
+                if (FileAttribute.UNIX_MODE in mode) opts.add("mode")
+                Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}")
+            }
+
+            if (FileAttribute.INODE in mode) inode = (attributes.getValue("ino") as Long).toString()
+            if (FileAttribute.UNIX_MODE in mode) unixMode = attributes["mode"] as Int
+            if (FileAttribute.OWNER in mode) {
+                runBlocking {
+                    owner = userDao.findCloudUser((attributes.getValue("uid") as Int).toLong())
+                }
             }
         }
 
-        val systemPath = systemFile.toPath()
-        val attributes = Files.readAttributes(systemPath, "unix:uid,gid,ino,mode")
-        val basicAttributes =
-            Files.readAttributes(
-                systemPath,
-                "lastAccessTime,lastModifiedTime,creationTime,size,isSymbolicLink,isDirectory"
-            )
+        run {
+            // Basic file attributes and symlinks
+            val basicAttributes = run {
+                val opts = ArrayList<String>()
+                if (FileAttribute.TIMESTAMPS in mode) {
+                    opts.addAll(listOf("lastAccessTime", "lastModifiedTime", "creationTime"))
+                }
 
-        rawPath = systemFile.absolutePath.toCloudPath()
-        path = joinPath(realParent, systemFile.name).toCloudPath()
-        size = basicAttributes.getValue("size") as Long
-        inode = (attributes.getValue("ino") as Long).toString()
+                if (FileAttribute.SIZE in mode) {
+                    opts.add("size")
+                }
 
-        unixMode = attributes["mode"] as Int
-        fileType = if (basicAttributes.getValue("isDirectory") as Boolean) FileType.DIRECTORY else FileType.FILE
-        val lastAccess = basicAttributes.getValue("lastAccessTime") as FileTime
-        val lastModified = basicAttributes.getValue("lastModifiedTime") as FileTime
-        val creationTime = basicAttributes.getValue("creationTime") as FileTime
-        timestamps = Timestamps(
-            lastAccess.toMillis(),
-            creationTime.toMillis(),
-            lastModified.toMillis()
-        )
+                if (FileAttribute.FILE_TYPE in mode) {
+                    opts.add("isDirectory")
+                }
 
-        runBlocking {
-            owner = userDao.findCloudUser((attributes.getValue("uid") as Int).toLong())
-        }
+                if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
+                    opts.add("isSymbolicLink")
+                }
 
-        if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
-            val linkStatus = basicAttributes["isSymbolicLink"] as Boolean
-            isLink = linkStatus
+                Files.readAttributes(
+                    systemPath,
+                    opts.joinToString(",")
+                )
+            }
 
-            if (linkStatus && (FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode)) {
-                val readSymbolicLink = Files.readSymbolicLink(systemPath)
-                linkTarget = readSymbolicLink?.toFile()?.absolutePath
-                linkInode = Files.readAttributes(readSymbolicLink, "unix:ino")["ino"] as String
+            if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
+            if (FileAttribute.PATH in mode) {
+                val realParent = run {
+                    val parent = systemFile.parent
+                    val cached = pathCache[parent]
+                    if (cached != null) {
+                        cached
+                    } else {
+                        val result = StandardCLib.realPath(parent) ?: parent
+                        pathCache[parent] = result
+                        result
+                    }
+                }
+
+                path = joinPath(realParent, systemFile.name).toCloudPath()
+            }
+            if (FileAttribute.SIZE in mode) size = basicAttributes.getValue("size") as Long
+
+            if (FileAttribute.FILE_TYPE in mode) {
+                fileType = if (basicAttributes.getValue("isDirectory") as Boolean) FileType.DIRECTORY else FileType.FILE
+            }
+
+            if (FileAttribute.TIMESTAMPS in mode) {
+                val lastAccess = basicAttributes.getValue("lastAccessTime") as FileTime
+                val lastModified = basicAttributes.getValue("lastModifiedTime") as FileTime
+                val creationTime = basicAttributes.getValue("creationTime") as FileTime
+                timestamps = Timestamps(
+                    lastAccess.toMillis(),
+                    creationTime.toMillis(),
+                    lastModified.toMillis()
+                )
+            }
+
+            if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
+                val linkStatus = basicAttributes["isSymbolicLink"] as Boolean
+                isLink = linkStatus
+
+                if (linkStatus && (FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode)) {
+                    val readSymbolicLink = Files.readSymbolicLink(systemPath)
+                    linkTarget = readSymbolicLink?.toFile()?.absolutePath
+                    linkInode = Files.readAttributes(readSymbolicLink, "unix:ino")["ino"] as String
+                }
             }
         }
 
         // TODO Real owner
         // TODO Group
 
-        sensitivityLevel =
-            getExtendedAttributeInternal(ctx, systemFile, "sensitivity")?.let { SensitivityLevel.valueOf(it) }
+        if (FileAttribute.SENSITIVITY in mode) {
+            sensitivityLevel =
+                getExtendedAttributeInternal(ctx, systemFile, "sensitivity")?.let { SensitivityLevel.valueOf(it) }
+        }
 
-        shares = ACL.getEntries(systemFile.absolutePath).mapNotNull {
-            if (!it.isUser) return@mapNotNull null
-            val cloudUser = runBlocking { userDao.findCloudUser(it.id.toLong()) } ?: return@mapNotNull null
-            val rights = HashSet<AccessRight>()
-            if (it.execute) rights += AccessRight.EXECUTE
-            if (it.read) rights += AccessRight.READ
-            if (it.write) rights += AccessRight.WRITE
+        if (FileAttribute.SHARES in mode) {
+            shares = ACL.getEntries(systemFile.absolutePath).mapNotNull {
+                if (!it.isUser) return@mapNotNull null
+                val cloudUser = runBlocking { userDao.findCloudUser(it.id.toLong()) } ?: return@mapNotNull null
+                val rights = HashSet<AccessRight>()
+                if (it.execute) rights += AccessRight.EXECUTE
+                if (it.read) rights += AccessRight.READ
+                if (it.write) rights += AccessRight.WRITE
 
-            AccessEntry(cloudUser, false, rights)
-        }.toList()
+                AccessEntry(cloudUser, false, rights)
+            }.toList()
+        }
 
         return FileRow(
             fileType,
