@@ -41,7 +41,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             favorite: false,
             favoriteLoading: false
         };
-        this.props.updatePageTitle();
+        props.updatePageTitle();
     };
 
     componentDidMount() {
@@ -103,9 +103,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.setState(() => ({ jobSubmitted: true }));
         try {
             const req = await Cloud.post(hpcJobQueryPost, job);
-            inSuccessRange(req.request.status) ?
-                this.props.history.push(`/applications/results/${req.response.jobId}`) :
-                this.setState(() => ({ error: "An error occured", jobSubmitted: false }))
+            this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
             this.setState(() => ({ error: err.message, jobSubmitted: false }))
         }
@@ -149,7 +147,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const parameterValues = new Map();
 
             app.invocation.parameters.forEach(it => {
-                if ((["input_file", "input_directory", "integer", "floating_point", "text"] as ParameterTypes[]).some(type => type === it.type)) {
+                if (Object.values(ParameterTypes).some(type => type === it.type)) {
                     parameterValues.set(it.name, React.createRef<HTMLInputElement>());
                 } else if (it.type === "boolean") {
                     parameterValues.set(it.name, React.createRef<HTMLSelectElement>());
