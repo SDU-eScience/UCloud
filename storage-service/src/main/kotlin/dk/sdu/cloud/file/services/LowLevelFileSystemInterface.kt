@@ -115,7 +115,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
 
     suspend fun <R> read(
         ctx: Ctx,
-        range: IntRange? = null,
+        range: LongRange? = null,
         consumer: suspend (InputStream) -> R
     ): R
 

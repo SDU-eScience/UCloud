@@ -16,6 +16,7 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -23,6 +24,7 @@ import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.channels.Channels
 import java.nio.channels.FileChannel
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
@@ -295,6 +297,7 @@ class LinuxFS(
         } finally {
             stream.close()
             outputStream = null
+            outputSystemFile = null
         }
 
         FSResult(
@@ -407,12 +410,50 @@ class LinuxFS(
             )
         }
 
-    override suspend fun openForReading(ctx: LinuxFSRunner, path: String): FSResult<Unit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override suspend fun openForReading(ctx: LinuxFSRunner, path: String): FSResult<Unit> = ctx.submit {
+        ctx.requireContext()
+
+        if (inputStream != null) {
+            log.warn("openForReading() called without closing last stream")
+            throw FSException.CriticalException("Internal error")
+        }
+
+        // TODO Exceptions should be handled here
+        val systemFile = File(translateAndCheckFile(path))
+        inputStream = FileChannel.open(systemFile.toPath(), StandardOpenOption.READ)
+        inputSystemFile = systemFile
+        FSResult(0, Unit)
     }
 
-    override suspend fun <R> read(ctx: LinuxFSRunner, range: IntRange?, consumer: suspend (InputStream) -> R): R {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override suspend fun <R> read(
+        ctx: LinuxFSRunner,
+        range: LongRange?,
+        consumer: suspend (InputStream) -> R
+    ): R = ctx.submit {
+        ctx.requireContext()
+        val stream = inputStream
+        val file = inputSystemFile
+        if (stream == null || file == null) {
+            log.warn("read() called without calling openForReading()")
+            throw FSException.CriticalException("Internal error")
+        }
+
+        val convertedToStream: InputStream = if (range != null) {
+            stream.position(range.first)
+            CappedInputStream(Channels.newInputStream(stream), range.last - range.first)
+        } else {
+            Channels.newInputStream(stream)
+        }
+
+        try {
+            runBlocking {
+                consumer(convertedToStream)
+            }
+        } finally {
+            convertedToStream.close()
+            inputSystemFile = null
+            inputStream = null
+        }
     }
 
     override suspend fun createSymbolicLink(

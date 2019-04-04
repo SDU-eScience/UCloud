@@ -53,7 +53,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     suspend fun <R> read(
         ctx: Ctx,
         path: String,
-        range: IntRange? = null,
+        range: LongRange? = null,
         consumer: suspend InputStream.() -> R
     ): R {
         fs.openForReading(ctx, path).unwrap()

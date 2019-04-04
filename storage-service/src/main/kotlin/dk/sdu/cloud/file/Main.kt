@@ -1,8 +1,5 @@
 package dk.sdu.cloud.file
 
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.services.FSACLEntity
-import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
@@ -95,6 +92,21 @@ fun main(args: Array<String>) {
                     it.write("Hello".toByteArray())
                 }
             }.unwrap().toString())
+
+            fs.openForReading(runner, "/home/dan/file").unwrap()
+            fs.read(runner) {
+                println(it.bufferedReader().readText())
+            }
+
+            fs.openForReading(runner, "/home/dan/file").unwrap()
+            fs.read(runner, 0..1L) {
+                println(it.bufferedReader().readText())
+            }
+
+            fs.openForReading(runner, "/home/dan/file").unwrap()
+            fs.read(runner, 3..6L) {
+                println(it.bufferedReader().readText())
+            }
         }
     }
 }

@@ -342,7 +342,7 @@ class UnixFileSystem(
         )
     }
 
-    override suspend fun <R> read(ctx: UnixFSCommandRunner, range: IntRange?, consumer: suspend (InputStream) -> R): R {
+    override suspend fun <R> read(ctx: UnixFSCommandRunner, range: LongRange?, consumer: suspend (InputStream) -> R): R {
         val start = range?.start ?: -1
         val end = range?.endInclusive ?: -1
 
