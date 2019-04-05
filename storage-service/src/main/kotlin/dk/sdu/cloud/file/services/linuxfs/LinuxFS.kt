@@ -28,7 +28,9 @@ import java.nio.channels.Channels
 import java.nio.channels.FileChannel
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.OpenOption
+import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
@@ -293,8 +295,50 @@ class LinuxFS(
         )
     }
 
-    override suspend fun delete(ctx: LinuxFSRunner, path: String): FSResult<List<StorageEvent.Deleted>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override suspend fun delete(ctx: LinuxFSRunner, path: String): FSResult<List<StorageEvent.Deleted>> = ctx.submit {
+        ctx.requireContext()
+
+        val systemFile = File(translateAndCheckFile(path))
+        val deletedRows = ArrayList<StorageEvent.Deleted>()
+        val cache = HashMap<String, String>()
+
+        fun delete(path: Path) {
+            try {
+                val stat = stat(ctx, path.toFile(), DELETED_ATTRIBUTES, cache)
+                Files.delete(path)
+                deletedRows.add(
+                    StorageEvent.Deleted(
+                        stat.inode,
+                        stat.path,
+                        stat.owner,
+                        System.currentTimeMillis(),
+                        stat.xowner,
+                        ctx.user
+                    )
+                )
+            } catch (ex: NoSuchFileException) {
+                log.debug("File at $path does not exists any more. Ignoring this error.")
+            }
+        }
+
+        fun traverseAndDelete(path: Path) {
+            if (Files.isSymbolicLink(path)) {
+                delete(path)
+                return
+            }
+
+            if (Files.isDirectory(path)) {
+                Files.list(path).forEach {
+                    traverseAndDelete(it)
+                }
+            }
+
+            delete(path)
+        }
+
+        traverseAndDelete(systemFile.toPath())
+
+        FSResult(0, deletedRows)
     }
 
     override suspend fun openForWriting(

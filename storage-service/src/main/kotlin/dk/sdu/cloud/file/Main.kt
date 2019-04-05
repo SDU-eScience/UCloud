@@ -2,7 +2,6 @@ package dk.sdu.cloud.file
 
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.StorageUserDao
-import dk.sdu.cloud.file.services.linuxfs.CLibrary
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.StandardCLib
@@ -114,6 +113,11 @@ fun main(args: Array<String>) {
             }
 
             fs.tree(runner, "/home/dan", FileAttribute.values().toSet()).unwrap().forEach {
+                println(it)
+            }
+
+            repeat(10) { println() }
+            fs.delete(runner, "/home/dan/a_directory").unwrap().forEach {
                 println(it)
             }
         }
