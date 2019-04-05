@@ -509,8 +509,34 @@ class LinuxFS(
         owner: Set<AccessRight>,
         group: Set<AccessRight>,
         other: Set<AccessRight>
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        ctx.requireContext()
+
+        val opts = HashSet<PosixFilePermission>()
+        if (AccessRight.READ in owner) opts.add(PosixFilePermission.OWNER_READ)
+        if (AccessRight.WRITE in owner) opts.add(PosixFilePermission.OWNER_WRITE)
+        if (AccessRight.EXECUTE in owner) opts.add(PosixFilePermission.OWNER_EXECUTE)
+
+        if (AccessRight.READ in group) opts.add(PosixFilePermission.GROUP_READ)
+        if (AccessRight.WRITE in group) opts.add(PosixFilePermission.GROUP_WRITE)
+        if (AccessRight.EXECUTE in group) opts.add(PosixFilePermission.GROUP_EXECUTE)
+
+        if (AccessRight.READ in other) opts.add(PosixFilePermission.OTHERS_READ)
+        if (AccessRight.WRITE in other) opts.add(PosixFilePermission.OTHERS_WRITE)
+        if (AccessRight.EXECUTE in other) opts.add(PosixFilePermission.OTHERS_EXECUTE)
+
+        val systemFile = File(translateAndCheckFile(path))
+        Files.setPosixFilePermissions(systemFile.toPath(), opts)
+
+        FSResult(
+            0,
+            listOf(
+                createdOrModifiedFromRow(
+                    stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
+                    ctx.user
+                )
+            )
+        )
     }
 
     private fun translateAndCheckFile(path: String): String {
