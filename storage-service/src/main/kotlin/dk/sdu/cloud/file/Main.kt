@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file
 
+import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.linuxfs.CLibrary
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
@@ -90,8 +91,6 @@ fun main(args: Array<String>) {
 
             StandardCLib.umask("0007".toInt(8))
 
-            fs.makeDirectory(runner, "/home/dan/a_directory").unwrap()
-
             Foo.log.info(fs.openForWriting(runner, "/home/dan/file", true).unwrap().toString())
             Foo.log.info(fs.write(runner) {
                 it.use {
@@ -112,6 +111,10 @@ fun main(args: Array<String>) {
             fs.openForReading(runner, "/home/dan/file").unwrap()
             fs.read(runner, 3..6L) {
                 println(it.bufferedReader().readText())
+            }
+
+            fs.tree(runner, "/home/dan", FileAttribute.values().toSet()).unwrap().forEach {
+                println(it)
             }
         }
     }

@@ -33,6 +33,7 @@ import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
+import kotlin.streams.toList
 
 class LinuxFS(
     private val fsRoot: File,
@@ -315,8 +316,23 @@ class LinuxFS(
         )
     }
 
-    override suspend fun tree(ctx: LinuxFSRunner, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override suspend fun tree(
+        ctx: LinuxFSRunner,
+        path: String,
+        mode: Set<FileAttribute>
+    ): FSResult<List<FileRow>> = ctx.submit {
+        ctx.requireContext()
+
+        val systemFile = File(translateAndCheckFile(path))
+        val cache = HashMap<String, String>()
+        FSResult(
+            0,
+            Files.walk(systemFile.toPath())
+                .map {
+                    stat(ctx, it.toFile(), mode, cache)
+                }
+                .toList()
+        )
     }
 
     override suspend fun makeDirectory(
