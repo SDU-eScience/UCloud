@@ -30,6 +30,7 @@ import java.nio.channels.Channels
 import java.nio.channels.FileChannel
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.NoSuchFileException
 import java.nio.file.OpenOption
 import java.nio.file.Path
@@ -151,7 +152,8 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         systemFile: File,
         mode: Set<FileAttribute>,
-        pathCache: MutableMap<String, String>
+        pathCache: MutableMap<String, String>,
+        followLink: Boolean = true
     ): FileRow {
         ctx.requireContext()
 
@@ -171,6 +173,8 @@ class LinuxFS(
 
         val systemPath = systemFile.toPath()
 
+        val linkOpts = if (!followLink) arrayOf(LinkOption.NOFOLLOW_LINKS) else emptyArray()
+
         run {
             // UNIX file attributes
             val attributes = run {
@@ -182,7 +186,7 @@ class LinuxFS(
                 if (opts.isEmpty()) {
                     null
                 } else {
-                    Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}")
+                    Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}", *linkOpts)
                 }
             } ?: return@run
 
@@ -218,10 +222,7 @@ class LinuxFS(
                 if (opts.isEmpty()) {
                     null
                 } else {
-                    Files.readAttributes(
-                        systemPath,
-                        opts.joinToString(",")
-                    )
+                    Files.readAttributes(systemPath, opts.joinToString(","), *linkOpts)
                 }
             } ?: return@run
 
@@ -608,8 +609,15 @@ class LinuxFS(
         val systemTarget = File(translateAndCheckFile(targetPath))
         Files.createSymbolicLink(systemLink.toPath(), systemTarget.toPath())
 
-        // TODO I have a feeling that we need to do something different for stat.
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        FSResult(
+            0,
+            listOf(
+                createdOrModifiedFromRow(
+                    stat(ctx, systemLink, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap(), followLink = false),
+                    ctx.user
+                )
+            )
+        )
     }
 
     override suspend fun createACLEntry(
