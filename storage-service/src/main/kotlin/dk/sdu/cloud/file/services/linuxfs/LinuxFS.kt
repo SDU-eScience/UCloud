@@ -464,7 +464,14 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         targetPath: String,
         linkPath: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        ctx.requireContext()
+
+        val systemLink = File(translateAndCheckFile(linkPath))
+        val systemTarget = File(translateAndCheckFile(targetPath))
+        Files.createSymbolicLink(systemLink.toPath(), systemTarget.toPath())
+
+        // TODO I have a feeling that we need to do something different for stat.
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
