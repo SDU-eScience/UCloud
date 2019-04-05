@@ -14,12 +14,18 @@ const left = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `border-top
 const right = ({ rightLabel }: { rightLabel?: boolean }) => rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 
-const SelectBase = styled.select<{ fontSize?: number | string, leftLabel?: boolean, rightLabel?: boolean } & SpaceProps>`
+const SelectBase = styled.select<{ fontSize?: number | string, leftLabel?: boolean, rightLabel?: boolean, showError?: boolean } & SpaceProps>`
   appearance: none;
   display: block;
   width: 100%;
   font-family: inherit;
   color: inherit;
+
+  ${({ showError, theme }) => showError ? `&:invalid {
+    background-color: ${theme.colors.lightRed};
+    border-color: ${theme.colors.red};
+  }` : null}
+
   background-color: transparent;
   border-radius: ${themeGet('radius')};
   border-width: 1px;

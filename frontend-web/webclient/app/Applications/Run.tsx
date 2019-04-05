@@ -24,6 +24,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.state = {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
+            initialSubmit: false,
 
             loading: false,
             error: undefined,
@@ -60,13 +61,14 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             schedulingOptions[field] = value;
         }
         this.setState(() => ({ schedulingOptions }));
-    }
+    };
 
     private onSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
         const { invocation } = this.state.application;
+        this.setState(() => ({ initialSubmit: true }));
 
         const parameters = extractParametersFromMap(this.state.parameterValues, this.state.application!.invocation.parameters, Cloud);
         const requiredParams = invocation.parameters.filter(it => !it.optional);
@@ -88,7 +90,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             return;
         }
 
-        let maxTime = this.extractJobInfo(this.state.schedulingOptions).maxTime;
+        let maxTime = Run.extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
 
         let job = {
@@ -107,9 +109,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         } catch (err) {
             this.setState(() => ({ error: err.message, jobSubmitted: false }))
         }
-    }
+    };
 
-    private extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
+    private static extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
         let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
         const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
         if (maxTime != null && (maxTime.hours != null || maxTime.minutes != null || maxTime.seconds != null)) {
@@ -230,11 +232,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 this.setState(() => ({
                     parameterValues,
-                    schedulingOptions: this.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
+                    schedulingOptions: Run.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
                 }));
             } catch (e) {
                 console.warn(e);
-                failureNotification("An error occured");
+                failureNotification("An error occurred");
             }
         };
         fileReader.readAsText(file);
@@ -245,7 +247,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (!application) return;
         const appInfo = application.metadata;
 
-        const jobInfo = this.extractJobInfo(schedulingOptions);
+        const jobInfo = Run.extractJobInfo(schedulingOptions);
         const element = document.createElement("a");
 
         const values: { [key: string]: string } = {};
@@ -298,6 +300,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     error={error} />
 
                 <Parameters
+                    initialSubmit={this.state.initialSubmit}
                     values={parameterValues}
                     parameters={application.invocation.parameters}
                     onSubmit={this.onSubmit}
@@ -324,7 +327,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     Import parameters
                     <HiddenInputField
                         type="file"
-                        onChange={e => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
+                        onChange={e => { 
+                            if (e.target.files) this.importParameters(e.target.files[0]) 
+                        }} />
                 </OutlineButton>
                 <LoadingButton fullWidth loading={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                     {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
@@ -356,9 +361,10 @@ interface SubmitButton {
 
 const SubmitButton = ({ onSubmit, jobSubmitted }: SubmitButton) => {
     return (<LoadingButton onClick={onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>);
-}
+};
 
 interface ParameterProps {
+    initialSubmit: boolean
     values: ParameterValues
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
@@ -369,7 +375,7 @@ interface ParameterProps {
 }
 
 const Parameters = (props: ParameterProps) => {
-    if (!props.parameters) return null
+    if (!props.parameters) return null;
 
     const mandatory = props.parameters.filter(parameter => !parameter.optional);
     const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values.get(parameter.name)!.current != null));
@@ -380,12 +386,13 @@ const Parameters = (props: ParameterProps) => {
 
         return (
             <Parameter
+                initialSubmit={props.initialSubmit}
                 parameterRef={ref}
                 key={index}
                 parameter={parameter}
             />
         );
-    }
+    };
 
     let mandatoryParams = mandatory.map(mapParamToComponent);
     let visibleParams = visible.map(mapParamToComponent);

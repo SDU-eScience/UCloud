@@ -3,7 +3,7 @@ import FileSelector from "Files/FileSelector";
 import * as Types from ".";
 import { Box, Flex, Label, Text, Select, Markdown, Button } from "ui-components";
 import Input, { InputLabel } from "ui-components/Input";
-import { EllipsedText, TextSpan } from "ui-components/Text";
+import { EllipsedText } from "ui-components/Text";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
@@ -12,30 +12,31 @@ import { replaceHomeFolder } from "Utilities/FileUtilities";
 
 
 interface ParameterProps {
+    initialSubmit: boolean
     parameter: Types.ApplicationParameter
     parameterRef: React.RefObject<HTMLInputElement | HTMLSelectElement>
 }
 
 export const Parameter = (props: ParameterProps) => {
-    let component = <div />
+    let component = (<div />);
     switch (props.parameter.type) {
         case Types.ParameterTypes.InputFile:
-            component = <InputFileParameter parameterRef={props.parameterRef} parameter={props.parameter} />;
+            component = <InputFileParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef} parameter={props.parameter} />;
             break;
         case Types.ParameterTypes.InputDirectory:
-            component = <InputDirectoryParameter parameterRef={props.parameterRef} parameter={props.parameter} />;
+            component = <InputDirectoryParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef} parameter={props.parameter} />;
             break;
         case Types.ParameterTypes.Integer:
-            component = <IntegerParameter parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>} parameter={props.parameter} />;
+            component = <IntegerParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>} parameter={props.parameter} />;
             break;
         case Types.ParameterTypes.FloatingPoint:
-            component = <FloatingParameter parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>} parameter={props.parameter} />;
+            component = <FloatingParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>} parameter={props.parameter} />;
             break;
         case Types.ParameterTypes.Text:
-            component = <TextParameter parameterRef={props.parameterRef} parameter={props.parameter as Types.TextParameter} />;
+            component = <TextParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef} parameter={props.parameter as Types.TextParameter} />;
             break;
         case Types.ParameterTypes.Boolean:
-            component = <BooleanParameter parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>} parameter={props.parameter} />;
+            component = <BooleanParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>} parameter={props.parameter} />;
             break;
     }
     return (<>{component}<Box pb="1em" /></>);
@@ -71,7 +72,7 @@ const InputDirectoryParameter = (props: InputFileParameterProps) => {
             />
         </GenericParameter>
     )
-}
+};
 
 interface TextParameterProps extends ParameterProps {
     parameter: Types.TextParameter
@@ -83,6 +84,7 @@ const TextParameter = (props: TextParameterProps) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <Input
+                showError={props.initialSubmit}
                 key={props.parameter.name}
                 ref={props.parameterRef as React.RefObject<HTMLInputElement>}
                 placeholder={placeholder}
@@ -97,7 +99,11 @@ const TextParameter = (props: TextParameterProps) => {
 
 type BooleanParameterOption = { value?: boolean, display: string }
 
-interface BooleanParameter { parameter: Types.BooleanParameter, parameterRef: React.RefObject<HTMLSelectElement> }
+interface BooleanParameter { 
+    parameter: Types.BooleanParameter
+    parameterRef: React.RefObject<HTMLSelectElement> 
+    initialSubmit: boolean
+}
 const BooleanParameter = (props: BooleanParameter) => {
     let options: BooleanParameterOption[] = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
     if (props.parameter.optional) {
@@ -111,8 +117,15 @@ const BooleanParameter = (props: BooleanParameter) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <Flex>
-                <Select id="select" selectRef={props.parameterRef} key={props.parameter.name} rightLabel={hasUnitName}>
-                    <option></option>
+                <Select
+                    showError={props.initialSubmit}
+                    id="select"
+                    selectRef={props.parameterRef}
+                    key={props.parameter.name}
+                    rightLabel={hasUnitName}
+                    required={!props.parameter.optional}
+                >
+                    <option/>
                     <option selected={defaultValue === true}>Yes</option>
                     <option selected={defaultValue === false}>No</option>
                 </Select>
@@ -131,13 +144,16 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
     let baseField = (
         <Flex>
             <Input
+                showError={props.initialSubmit}
                 required={!props.parameter.optional}
                 name={props.parameter.name}
                 type="number"
                 step="any"
                 ref={parameterRef}
                 key={parameter.name}
-                onChange={e => { if (optSliderRef.current) optSliderRef.current.value = e.target.value }}
+                onChange={e => { 
+                    if (optSliderRef.current) optSliderRef.current.value = e.target.value 
+                }}
                 max={!!parameter.max ? parameter.max : undefined}
                 min={!!parameter.min ? parameter.min : undefined}
                 rightLabel={hasUnitName}
@@ -150,6 +166,7 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
     if (parameter.min !== null && parameter.max !== null) {
         slider = (
             <Input
+                showError={props.initialSubmit}
                 key={`${parameter.name}-slider`}
                 mt="2px"
                 noBorder
@@ -174,6 +191,7 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
 interface NumberParameterProps {
     parameter: Types.NumberParameter
     parameterRef: React.RefObject<HTMLInputElement>
+    initialSubmit: boolean
 }
 
 const IntegerParameter = (props: NumberParameterProps) => {

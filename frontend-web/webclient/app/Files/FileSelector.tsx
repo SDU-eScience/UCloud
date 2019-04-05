@@ -39,7 +39,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         let fileCopy = { path: file.path };
         this.setState(() => ({ modalShown: false }));
         this.props.onFileSelect(fileCopy);
-    }
+    };
 
     private fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
         this.setState(() => ({ loading: true }));
@@ -52,7 +52,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             }))
         ).catch((_) => this.setState(() => ({ error: "An error occurred fetching files" })))
             .finally(() => this.setState(() => ({ loading: false })))
-    }
+    };
 
     private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
         this.setState(() => ({ loading: true }));
@@ -123,7 +123,7 @@ const FileSelectorModalStyle = {
         left: "25%",
         right: "25%"
     }
-}
+};
 
 export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => {
     const fetchFiles = (settings: { path?: string, pageNumber?: number, itemsPerPage?: number }) => {
@@ -132,7 +132,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
         const itemsPerPage = settings.itemsPerPage !== undefined ? settings.itemsPerPage : props.page.itemsPerPage;
 
         props.fetchFiles(path, pageNumber, itemsPerPage);
-    }
+    };
 
     return (
         <ReactModal
@@ -203,7 +203,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             />
         </ReactModal>
     );
-}
+};
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;

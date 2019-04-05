@@ -157,6 +157,7 @@ export interface JobSchedulingOptionsForInput {
 export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
+    initialSubmit: boolean
 
     error?: string
     loading: boolean
