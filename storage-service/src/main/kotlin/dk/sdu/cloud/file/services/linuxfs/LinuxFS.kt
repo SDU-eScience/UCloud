@@ -29,6 +29,7 @@ import java.nio.channels.FileChannel
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.OpenOption
+import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
@@ -50,8 +51,22 @@ class LinuxFS(
         from: String,
         to: String,
         allowOverwrite: Boolean
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        ctx.requireContext()
+
+        val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+        val systemFrom = File(translateAndCheckFile(from))
+        val systemTo = File(translateAndCheckFile(to))
+        Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+        FSResult(
+            0,
+            listOf(
+                createdOrModifiedFromRow(
+                    stat(ctx, systemTo, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
+                    ctx.user
+                )
+            )
+        )
     }
 
     override suspend fun move(
@@ -59,8 +74,49 @@ class LinuxFS(
         from: String,
         to: String,
         allowOverwrite: Boolean
-    ): FSResult<List<StorageEvent.Moved>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ): FSResult<List<StorageEvent.Moved>> = ctx.submit {
+        ctx.requireContext()
+
+        val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+        val systemFrom = File(translateAndCheckFile(from))
+        val systemTo = File(translateAndCheckFile(to))
+
+        // We need to record some information from before the move
+        val fromStat = stat(ctx, systemFrom, setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH), HashMap())
+
+        Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+
+        // We compare this information with after the move to get the correct old path.
+        val toStat = stat(ctx, systemTo, MOVED_ATTRIBUTES, HashMap())
+        val basePath = toStat.path.removePrefix(toStat.path).removePrefix("/")
+        val oldPath = if (fromStat.fileType == FileType.DIRECTORY) {
+            joinPath(fromStat.path, basePath)
+        } else {
+            fromStat.path
+        }
+
+        fun movedFromRow(row: FileRow): StorageEvent.Moved {
+            return StorageEvent.Moved(
+                id = row.inode,
+                path = row.path,
+                owner = row.xowner,
+                creator = row.owner,
+                timestamp = System.currentTimeMillis(),
+                oldPath = oldPath
+            )
+        }
+
+        val rows = if (fromStat.fileType == FileType.DIRECTORY) {
+            // We need to emit events for every single file below this root.
+            val cache = HashMap<String, String>()
+            Files.walk(systemTo.toPath()).map {
+                movedFromRow(stat(ctx, it.toFile(), MOVED_ATTRIBUTES, cache))
+            }.toList()
+        } else {
+            listOf(movedFromRow(toStat))
+        }
+
+        FSResult(0, rows)
     }
 
     override suspend fun listDirectory(
@@ -68,6 +124,8 @@ class LinuxFS(
         directory: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>> = ctx.submit {
+        ctx.requireContext()
+
         val file = File(translateAndCheckFile(directory))
         val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
