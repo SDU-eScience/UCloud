@@ -31,6 +31,8 @@ import java.nio.file.Files
 import java.nio.file.OpenOption
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
+import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.attribute.PosixFilePermissions
 
 class LinuxFS(
     private val fsRoot: File,
@@ -242,10 +244,9 @@ class LinuxFS(
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         ctx.requireContext()
-        // TODO Set the correct file mode!
 
         if (outputStream == null) {
-            val options = ArrayList<OpenOption>()
+            val options = HashSet<OpenOption>()
             options.add(StandardOpenOption.TRUNCATE_EXISTING)
             options.add(StandardOpenOption.WRITE)
             if (!allowOverwrite) {
@@ -256,7 +257,10 @@ class LinuxFS(
 
             val systemFile = File(translateAndCheckFile(path))
             try {
-                outputStream = Files.newOutputStream(systemFile.toPath(), *options.toTypedArray())
+                val systemPath = systemFile.toPath()
+                outputStream = Channels.newOutputStream(
+                    Files.newByteChannel(systemPath, options, PosixFilePermissions.asFileAttribute(DEFAULT_FILE_MODE))
+                )
                 outputSystemFile = systemFile
             } catch (ex: FileAlreadyExistsException) {
                 throw FSException.AlreadyExists()
@@ -322,7 +326,7 @@ class LinuxFS(
         ctx.requireContext()
 
         val systemFile = File(translateAndCheckFile(path))
-        systemFile.mkdir()
+        Files.createDirectory(systemFile.toPath(), PosixFilePermissions.asFileAttribute(DEFAULT_DIRECTORY_MODE))
 
         FSResult(
             0,
@@ -584,6 +588,22 @@ class LinuxFS(
             FileAttribute.XOWNER,
             FileAttribute.GROUP,
             FileAttribute.PATH
+        )
+
+        private val DEFAULT_FILE_MODE = setOf(
+            PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE,
+            PosixFilePermission.GROUP_READ,
+            PosixFilePermission.GROUP_WRITE
+        )
+
+        private val DEFAULT_DIRECTORY_MODE = setOf(
+            PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE,
+            PosixFilePermission.OWNER_EXECUTE,
+            PosixFilePermission.GROUP_READ,
+            PosixFilePermission.GROUP_WRITE,
+            PosixFilePermission.GROUP_EXECUTE
         )
     }
 }

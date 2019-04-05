@@ -61,6 +61,12 @@ object StandardCLib {
         }
     }
 
+    fun umask(value: Int) {
+        if (!Platform.isWindows()) {
+            CLibrary.INSTANCE.umask(value)
+        }
+    }
+
     fun realPath(path: String): String? {
         return CLibrary.INSTANCE.realpath(path, null)
     }
@@ -84,7 +90,7 @@ object StandardCLib {
     fun setxattr(path: String, name: String, value: String, allowOverwrite: Boolean): Int {
         val opts = if (!allowOverwrite) {
             0x0002
-        }  else {
+        } else {
             0
         }
 

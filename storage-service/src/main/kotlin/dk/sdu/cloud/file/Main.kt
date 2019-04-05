@@ -1,8 +1,10 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.linuxfs.CLibrary
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.StandardCLib
 import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.api.StorageServiceDescription
@@ -85,6 +87,10 @@ fun main(args: Array<String>) {
             fs.removeACLEntry(runner, "/home/dan/a", FSACLEntity.User("alonzo"))
             fs.removeACLEntry(runner, "/home/dan/a", FSACLEntity.User("fie"), defaultList = true)
             */
+
+            StandardCLib.umask("0007".toInt(8))
+
+            fs.makeDirectory(runner, "/home/dan/a_directory").unwrap()
 
             Foo.log.info(fs.openForWriting(runner, "/home/dan/file", true).unwrap().toString())
             Foo.log.info(fs.write(runner) {
