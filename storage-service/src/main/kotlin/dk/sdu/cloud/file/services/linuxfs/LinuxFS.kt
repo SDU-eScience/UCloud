@@ -336,6 +336,7 @@ class LinuxFS(
             delete(path)
         }
 
+        if (!Files.exists(systemFile.toPath())) throw FSException.NotFound()
         traverseAndDelete(systemFile.toPath())
 
         FSResult(0, deletedRows)
