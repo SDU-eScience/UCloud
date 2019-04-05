@@ -3,7 +3,10 @@ package dk.sdu.cloud.file.services.unixfs
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.services.CommandRunner
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FileAttribute
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.Loggable
@@ -15,9 +18,9 @@ import java.util.concurrent.ConcurrentHashMap
  * This works by looking up the root directory of the file and looking at the "creator" ([FileAttribute.OWNER]). The
  * results are cached for performance.
  */
-class FileOwnerLookupService(
-    private val commandRunner: UnixFSCommandRunnerFactory,
-    private val unixFs: UnixFileSystem
+class FileOwnerLookupService<Ctx : CommandRunner>(
+    private val commandRunner: FSCommandRunnerFactory<Ctx>,
+    private val unixFs: LowLevelFileSystemInterface<Ctx>
 ) {
     private val cache = ConcurrentHashMap<String, String>()
 

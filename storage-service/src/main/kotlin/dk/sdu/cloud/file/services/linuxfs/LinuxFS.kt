@@ -11,11 +11,13 @@ import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.services.FSACLEntity
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSResult
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.unixfs.FileOwnerLookupService
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
@@ -39,6 +41,7 @@ import java.nio.file.attribute.PosixFilePermissions
 import kotlin.streams.toList
 
 class LinuxFS(
+    processRunner: FSCommandRunnerFactory<LinuxFSRunner>,
     private val fsRoot: File,
     private val userDao: StorageUserDao<Long>
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
@@ -47,6 +50,9 @@ class LinuxFS(
 
     private var outputStream: OutputStream? = null
     private var outputSystemFile: File? = null
+
+    // Note: We should generally avoid these cyclic dependencies
+    private val fileOwnerLookupService = FileOwnerLookupService(processRunner, this)
 
     override suspend fun copy(
         ctx: LinuxFSRunner,
@@ -172,8 +178,13 @@ class LinuxFS(
                 if (FileAttribute.INODE in mode) opts.add("ino")
                 if (FileAttribute.OWNER in mode) opts.add("uid")
                 if (FileAttribute.UNIX_MODE in mode) opts.add("mode")
-                Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}")
-            }
+
+                if (opts.isEmpty()) {
+                    null
+                } else {
+                    Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}")
+                }
+            } ?: return@run
 
             if (FileAttribute.INODE in mode) inode = (attributes.getValue("ino") as Long).toString()
             if (FileAttribute.UNIX_MODE in mode) unixMode = attributes["mode"] as Int
@@ -204,14 +215,18 @@ class LinuxFS(
                     opts.add("isSymbolicLink")
                 }
 
-                Files.readAttributes(
-                    systemPath,
-                    opts.joinToString(",")
-                )
-            }
+                if (opts.isEmpty()) {
+                    null
+                } else {
+                    Files.readAttributes(
+                        systemPath,
+                        opts.joinToString(",")
+                    )
+                }
+            } ?: return@run
 
             if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
-            if (FileAttribute.PATH in mode) {
+            if (FileAttribute.PATH in mode || FileAttribute.XOWNER in mode) { // xowner requires path
                 val realParent = run {
                     val parent = systemFile.parent
                     val cached = pathCache[parent]
@@ -255,8 +270,12 @@ class LinuxFS(
             }
         }
 
-        // TODO Real owner
-        // TODO Group
+        val realOwner = if (FileAttribute.XOWNER in mode) {
+            val realPath = path!!.toCloudPath()
+            runBlocking { fileOwnerLookupService.lookupOwner(realPath) }
+        } else {
+            null
+        }
 
         if (FileAttribute.SENSITIVITY in mode) {
             sensitivityLevel =
@@ -291,7 +310,7 @@ class LinuxFS(
             shares,
             sensitivityLevel,
             linkInode,
-            owner
+            realOwner
         )
     }
 
@@ -673,6 +692,8 @@ class LinuxFS(
         if (!normalizedResult.startsWith(fsRoot.absolutePath + "/")) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
+
+        if (normalizedResult.length >= PATH_MAX) throw FSException.BadRequest("Path too long")
         return normalizedResult
     }
 

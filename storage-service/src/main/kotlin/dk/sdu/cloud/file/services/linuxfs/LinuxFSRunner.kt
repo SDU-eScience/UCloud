@@ -91,15 +91,15 @@ inline fun <T> runAndRethrowNIOExceptions(block: () -> T): T {
         block()
     } catch (ex: FileSystemException) {
         when (ex) {
-            is DirectoryNotEmptyException -> throw FSException.BadRequest()
+            is DirectoryNotEmptyException -> throw FSException.BadRequest("Directory not empty")
 
             is FileAlreadyExistsException -> throw FSException.AlreadyExists()
 
             is NoSuchFileException -> throw FSException.NotFound()
 
-            is NotDirectoryException -> throw FSException.BadRequest()
+            is NotDirectoryException -> throw FSException.BadRequest("Not a directory")
 
-            is NotLinkException -> throw FSException.BadRequest()
+            is NotLinkException -> throw FSException.BadRequest("Not a link")
 
             is AccessDeniedException -> throw FSException.PermissionException()
 

@@ -3,7 +3,7 @@ package dk.sdu.cloud.file
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
-import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.linuxfs.StandardCLib
 import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.Loggable
@@ -52,7 +52,8 @@ fun main(args: Array<String>) {
         private val map = mapOf<String, Long>(
             "dan" to 1001,
             "fie" to 1002,
-            "alonzo" to 1003
+            "alonzo" to 1003,
+            SERVICE_USER to 0
         )
 
         override suspend fun findCloudUser(uid: Long, verify: Boolean): String? {
@@ -65,10 +66,11 @@ fun main(args: Array<String>) {
 
     }
 
-    val runner = LinuxFSRunner(userDao, "dan")
-    val fs = LinuxFS(File("/tmp/fs"), userDao)
-
     runBlocking {
+        val fsRunnerFactory = LinuxFSRunnerFactory(userDao)
+        val runner = fsRunnerFactory("dan")
+        val fs = LinuxFS(fsRunnerFactory, File("/tmp/fs"), userDao)
+
         runner.use {
             /*
             fs.listDirectory(runner, "/home/dan", FileAttribute.values().toSet()).unwrap().forEach {
