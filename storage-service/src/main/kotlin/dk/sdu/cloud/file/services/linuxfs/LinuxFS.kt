@@ -540,7 +540,6 @@ class LinuxFS(
             throw FSException.CriticalException("Internal error")
         }
 
-        // TODO Exceptions should be handled here
         val systemFile = File(translateAndCheckFile(path))
         inputStream = FileChannel.open(systemFile.toPath(), StandardOpenOption.READ)
         inputSystemFile = systemFile
@@ -606,8 +605,10 @@ class LinuxFS(
         if (entity !is FSACLEntity.User) throw FSException.BadRequest()
         val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
 
-        // TODO Handle recursive
-        ACL.addEntry(translateAndCheckFile(path), uid.toInt(), rights, defaultList)
+
+        Files.walk(File(translateAndCheckFile(path)).toPath()).forEach {
+            ACL.addEntry(it.toFile().absolutePath, uid.toInt(), rights, defaultList)
+        }
         FSResult(0, Unit)
     }
 
@@ -623,8 +624,9 @@ class LinuxFS(
         if (entity !is FSACLEntity.User) throw FSException.BadRequest()
         val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
 
-        // TODO Handle recursive
-        ACL.removeEntry(translateAndCheckFile(path), uid.toInt(), defaultList)
+        Files.walk(File(translateAndCheckFile(path)).toPath()).forEach {
+            ACL.removeEntry(it.toFile().absolutePath, uid.toInt(), defaultList)
+        }
         FSResult(0, Unit)
     }
 
