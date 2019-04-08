@@ -16,7 +16,7 @@ function initialSetup(operations: MoveCopyOperations) {
 }
 
 async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
-    return !!(await rewritePolicy(newPath, homeFolder, filesRemaining)).value;
+    return !!(await rewritePolicy({ path: newPath, homeFolder, filesRemaining })).value;
 }
 
 function getNewPath(newParentPath: string, currentPath: string): string {
@@ -37,7 +37,7 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
         let { failurePaths, applyToAll, policy } = initialSetup(operations);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
-            let { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
+            let { exists, allowRewrite, newPathForFile } = await moveCopySetup({ targetPath: targetPathFolder.path, path: f.path, cloud });
             if (exists && !applyToAll) {
                 allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
                 policy = UF.selectValue("policy") as UploadPolicy;
@@ -67,7 +67,13 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
     });
 };
 
-async function moveCopySetup(targetPath: string, path: string, cloud: SDUCloud) {
+interface MoveCopySetup {
+    targetPath: string
+    path: string
+    cloud: SDUCloud
+}
+
+async function moveCopySetup({ targetPath, path, cloud }: MoveCopySetup) {
     const newPathForFile = getNewPath(targetPath, path);
     const exists = await checkIfFileExists(newPathForFile, cloud);
     return { exists, allowRewrite: false, newPathForFile };
@@ -98,7 +104,13 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
     }
 }
 
-function rewritePolicy(path: string, homeFolder: string, filesRemaining: number): Promise<SweetAlertResult> {
+interface RewritePolicy {
+    path: string
+    homeFolder: string
+    filesRemaining: number
+}
+
+function rewritePolicy({ path, homeFolder, filesRemaining }: RewritePolicy): Promise<SweetAlertResult> {
     return swal({
         title: "File exists",
         text: ``,
@@ -141,7 +153,7 @@ export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) 
     files.every(f => hasAccess(accessRight, f));
 
 
-interface CreateFileLink { 
+interface CreateFileLink {
     file: File
     cloud: SDUCloud
     setLoading: () => void
@@ -687,8 +699,9 @@ export const batchDeleteFiles = (files: File[], cloud: SDUCloud, setLoading: () 
         setLoading();
         let i = 0;
         paths.forEach(path => {
-            cloud.delete("/files", { path }).then(() => { if (++i === paths.length) { UF.successNotification("Trash emptied"); callback() } })
-                .catch(() => i++);
+            cloud.delete("/files", { path }).then(() => {
+                if (++i === paths.length) { UF.successNotification("Trash emptied"); callback() }
+            }).catch(() => i++);
         });
     });
 };
@@ -707,7 +720,15 @@ const deletionSwal = (filePaths: string[]) => {
     });
 };
 
-export async function moveFile(oldPath: string, newPath: string, cloud: SDUCloud, setLoading: () => void, onSuccess: () => void): Promise<void> {
+interface MoveFile {
+    oldPath: string
+    newPath: string
+    cloud: SDUCloud
+    setLoading: () => void
+    onSuccess: () => void
+}
+
+export async function moveFile({ oldPath, newPath, cloud, setLoading, onSuccess }: MoveFile): Promise<void> {
     setLoading();
     try {
         await cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
@@ -717,7 +738,13 @@ export async function moveFile(oldPath: string, newPath: string, cloud: SDUCloud
     }
 }
 
-export async function createFolder(path: string, cloud: SDUCloud, onSuccess: () => void): Promise<void> {
+interface CreateFolder {
+    path: string
+    cloud: SDUCloud
+    onSuccess: () => void
+}
+
+export async function createFolder({ path, cloud, onSuccess }: CreateFolder): Promise<void> {
     try {
         await cloud.post("/files/directory", { path })
         onSuccess();

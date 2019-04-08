@@ -144,7 +144,10 @@ class Applications extends React.Component<ApplicationsProps> {
                             <ApplicationCard
                                 key={index}
                                 onFavorite={async () => {
-                                    await favoriteApplicationFromPage(app.metadata.name, app.metadata.version, page, Cloud);
+                                    // FIXME: Merge into call, and modify own contents instead of refetching
+                                    await favoriteApplicationFromPage({
+                                        name: app.metadata.name, version: app.metadata.version, page, cloud: Cloud
+                                    });
                                     this.fetch(this.props);
                                 }}
                                 app={app}

@@ -70,7 +70,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const { invocation } = this.state.application;
         this.setState(() => ({ initialSubmit: true }));
 
-        const parameters = extractParametersFromMap(this.state.parameterValues, this.state.application!.invocation.parameters, Cloud);
+        const parameters = extractParametersFromMap({ 
+            map: this.state.parameterValues,
+            appParameters: this.state.application!.invocation.parameters, 
+            cloud: Cloud
+        });
         const requiredParams = invocation.parameters.filter(it => !it.optional);
         const missingParameters: string[] = [];
         requiredParams.forEach(rParam => {
@@ -188,13 +192,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
                 }
 
-                const extractedParameters = extractParameters(
+                const extractedParameters = extractParameters({
                     parameters,
-                    thisApp.invocation.parameters.map(it => ({
+                    allowedParameterKeys: thisApp.invocation.parameters.map(it => ({
                         name: it.name, type: it.type
                     })),
                     siteVersion
-                );
+                });
 
                 const fileParams = thisApp.invocation.parameters.filter(({ type }) => type === "input_file" || type === "input_directory");
 

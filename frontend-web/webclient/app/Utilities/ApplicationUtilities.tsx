@@ -27,12 +27,19 @@ export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }): strin
 export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
     `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
+
+interface FavoriteApplicationFromPage {
+    name: string
+    version: string
+    page: Page<WithAppMetadata & WithAppFavorite>
+    cloud: Cloud
+}
 /**
 * Favorites an application. 
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = async (name: string, version: string, page: Page<WithAppMetadata & WithAppFavorite>, cloud: Cloud): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
+export const favoriteApplicationFromPage = async ({ name, version, page, cloud }: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     // FIXME better error handling. Pass as callback, call on success?
     try {
@@ -42,8 +49,15 @@ export const favoriteApplicationFromPage = async (name: string, version: string,
     return page;
 }
 
+type StringMap = { [k: string]: string } 
 interface AllowedParameterKey { name: string, type: ParameterTypes }
-export const extractParameters = (parameters, allowedParameterKeys: AllowedParameterKey[], siteVersion: number): { [key: string]: string } => {
+interface ExtractParameters {
+    parameters: StringMap
+    allowedParameterKeys: AllowedParameterKey[]
+    siteVersion: number
+}
+
+export const extractParameters = ({ parameters, allowedParameterKeys, siteVersion }: ExtractParameters): StringMap => {
     let extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({ name, type }) => {
@@ -80,7 +94,13 @@ interface ExtractedParameters {
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
 
-export function extractParametersFromMap(map: ParameterValues, appParameters: ApplicationParameter[], cloud: Cloud): ExtractedParameters {
+interface ExtractParametersFromMap {
+    map: ParameterValues
+    appParameters: ApplicationParameter[]
+    cloud: Cloud
+}
+
+export function extractParametersFromMap({ map, appParameters, cloud }: ExtractParametersFromMap): ExtractedParameters {
     const extracted: ExtractedParameters = {};
     map.forEach(({ current }, key) => {
         const parameter = appParameters.find(it => it.name === key);

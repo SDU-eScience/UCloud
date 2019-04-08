@@ -36,7 +36,7 @@ describe("Application Utilities", () => {
             { name: "D", type: ParameterTypes.Text }
         ];
         const parameters = { A: "Yes", B: "5", C: "5.0", D: "Pilgrimage" };
-        const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
+        const extractedParameters = extractParameters({ parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
         expect(parameters).toEqual(extractedParameters);
     });
 
@@ -47,8 +47,8 @@ describe("Application Utilities", () => {
             { name: "C", type: ParameterTypes.FloatingPoint },
             { name: "D", type: ParameterTypes.Text }
         ];
-        const parameters = { A: true, B: 5, C: 5.0, D: "Pilgrimage" };
-        const extractedParameters = extractParameters(parameters, validParameterTypes, -1);
+        const parameters = { A: "Yes", B: "5", C: "5.0", D: "Pilgrimage" };
+        const extractedParameters = extractParameters({ parameters, allowedParameterKeys: validParameterTypes, siteVersion: -1 });
         expect(extractedParameters).toEqual({});
     });
 
@@ -59,7 +59,7 @@ describe("Application Utilities", () => {
             { name: "C", type: ParameterTypes.FloatingPoint }
         ];
         const parameters = { A: "Yes", B: "5", C: "5.0", D: "Pilgrimage" };
-        const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
+        const extractedParameters = extractParameters({ parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
         expect(extractedParameters).toEqual({ A: "Yes", B: "5", C: "5.0" });
     });
 
@@ -71,7 +71,7 @@ describe("Application Utilities", () => {
             { name: "D", type: ParameterTypes.Text }
         ];
         const parameters = { A: "Yes", B: "5", C: "5.0" };
-        const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
+        const extractedParameters = extractParameters({ parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
         expect(extractedParameters).toEqual(parameters);
     });
 
@@ -84,7 +84,7 @@ describe("Application Utilities", () => {
             A: "A",
             B: "B"
         };
-        const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
+        const extractedParameters = extractParameters({ parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
         expect(extractedParameters).toEqual(parameters);
     });
 
@@ -97,7 +97,7 @@ describe("Application Utilities", () => {
             A: "A",
             B: "B"
         };
-        const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
+        const extractedParameters = extractParameters({ parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
         expect(extractedParameters).toEqual({ A: "A", B: "B" });
     });
 });
