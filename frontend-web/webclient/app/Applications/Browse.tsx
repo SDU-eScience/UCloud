@@ -35,26 +35,26 @@ const CategoryItem: React.StatelessComponent<{ tag?: string }> = props => (
     <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
 );
 
-const Sidebar: React.StatelessComponent = () => (<>
-    <Heading.h4>Featured</Heading.h4>
-    <CategoryList>
-        <CategoryItem>Popular</CategoryItem>
-    </CategoryList>
 
-    <Heading.h4>Categories</Heading.h4>
+
+const Sidebar: React.StatelessComponent = () => (<>
+<Heading.h4 m= "0 0 14px"><Link to = {Pages.browse}>All</Link></Heading.h4>
+    
+    <Heading.h4 m="0 0 -14px">Categories</Heading.h4>
     <CategoryList>
+        <CategoryItem tag="Bioinformatics">Bioinformatics</CategoryItem> 
+        <CategoryItem tag="Natural Science">Natural Sciences</CategoryItem>
         <CategoryItem tag="Toy">Toys</CategoryItem>
     </CategoryList>
 
-    <Heading.h4>Fields</Heading.h4>
+    <Heading.h4 m="0 0 -14px">Tools</Heading.h4>
     <CategoryList>
-        <CategoryItem tag="Natural Science">Natural Sciences</CategoryItem>
-        <CategoryItem tag="Formal Science">Formal Sciences</CategoryItem>
-        <CategoryItem tag="Life Science">Life Sciences</CategoryItem>
-        <CategoryItem tag="Social Science">Social Sciences</CategoryItem>
-        <CategoryItem tag="Applied Science">Applied Sciences</CategoryItem>
-        <CategoryItem tag="Interdisciplinary Sciencs">Interdisciplinary Sciences</CategoryItem>
-        <CategoryItem tag="Philosophy Science">Philosophy Sciences</CategoryItem>
+        <CategoryItem tag="Cell Ranger">Cell Ranger</CategoryItem>
+        <CategoryItem tag="HOMER">HOMER</CategoryItem>
+        <CategoryItem tag="Kallisto">Kallisto</CategoryItem>
+        <CategoryItem tag="MACS2">MACS2</CategoryItem>
+        <CategoryItem tag="Salmon">Salmon</CategoryItem>
+        <CategoryItem tag="SAMtools">SAMtools</CategoryItem>
     </CategoryList>
 </>);
 
@@ -160,7 +160,7 @@ class Applications extends React.Component<ApplicationsProps> {
 
         return (
             <LoadingMainContainer
-                header={<Spacer left={<Heading.h1>Browse</Heading.h1>} right={
+                header={<Spacer left={<Heading.h1>Applications</Heading.h1>} right={
                     <Pagination.EntriesPerPageSelector
                         content="Apps per page"
                         entriesPerPage={this.itemsPerPage()}
