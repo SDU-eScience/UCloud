@@ -20,11 +20,12 @@ export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
 export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
-export const hpcApplicationsSearchQuery = (query: string, page: number, itemsPerPage: number) =>
+interface HPCApplicationsSearchQuery { query: string, page: number, itemsPerPage: number }
+export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }): string =>
     `/hpc/apps/search?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
-export const hpcApplicationsTagSearchQuery = (tag: string, page: number, itemsPerPage: number) =>
-    `/hpc/apps/searchTags?query=${encodeURIComponent(tag)}&page=${page}&itemsPerPage=${itemsPerPage}`;
+export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
+    `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 /**
 * Favorites an application. 
