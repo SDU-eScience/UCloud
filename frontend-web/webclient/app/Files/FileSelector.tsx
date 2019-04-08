@@ -49,9 +49,9 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 path: resolvePath(path),
                 error: undefined,
                 isFavorites: false
-            }))
-        ).catch((_) => this.setState(() => ({ error: "An error occurred fetching files" })))
-            .finally(() => this.setState(() => ({ loading: false })))
+            })))
+        .catch(() => this.setState(() => ({ error: "An error occurred fetching files" })))
+        .finally(() => this.setState(() => ({ loading: false })))
     };
 
     private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
@@ -81,8 +81,8 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         return (
             <Flex>
                 <FileSelectorInput
-                    ref={this.props.inputRef}
-                    readOnly
+                    showError={this.props.showError && this.props.isRequired}
+                    ref={this.props.inputRef} 
                     required={this.props.isRequired}
                     placeholder="No file selected"
                     value={inputValue}

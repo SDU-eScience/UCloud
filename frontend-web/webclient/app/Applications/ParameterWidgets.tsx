@@ -48,6 +48,7 @@ const InputFileParameter = (props: InputFileParameterProps) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
+                showError={props.initialSubmit}
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
                 onFileSelect={file => { props.parameterRef.current!.value = replaceHomeFolder(file.path, Cloud.homeFolder) }}
@@ -62,6 +63,7 @@ const InputDirectoryParameter = (props: InputFileParameterProps) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
+                showError={props.initialSubmit}
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
                 onFileSelect={file => { props.parameterRef.current!.value = replaceHomeFolder(file.path, Cloud.homeFolder) }}

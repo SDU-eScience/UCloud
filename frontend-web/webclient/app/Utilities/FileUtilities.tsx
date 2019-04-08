@@ -140,14 +140,22 @@ const hasAccess = (accessRight: AccessRight, file: File) => {
 export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) =>
     files.every(f => hasAccess(accessRight, f));
 
-export const createFileLink = (file: File, cloud: SDUCloud, setLoading: () => void, pageFromPath: (p: string) => void) => {
+
+interface CreateFileLink { 
+    file: File
+    cloud: SDUCloud
+    setLoading: () => void
+    fetchPageFromPath: (p: string) => void
+}
+
+export const createFileLink = ({ file, cloud, setLoading, fetchPageFromPath }: CreateFileLink) => {
     const fileName = getFilenameFromPath(file.path);
     const linkPath = file.path.replace(fileName, `Link to ${fileName} `)
     setLoading();
     cloud.post("/files/create-link", {
         linkTargetPath: file.path,
         linkPath: linkPath
-    }).then(it => pageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
+    }).then(it => fetchPageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
 };
 
 /**
@@ -186,7 +194,7 @@ export const StateLessOperations = (setLoading: () => void, onSensitivityChange?
 
 export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void, setLoading: () => void) => [{
     text: "Create link",
-    onClick: (files: File[], cloud: SDUCloud) => createFileLink(files[0], cloud, setLoading, fetchPageFromPath),
+    onClick: (files: File[], cloud: SDUCloud) => createFileLink({ file: files[0], cloud, setLoading, fetchPageFromPath }),
     disabled: (files: File[], cloud: SDUCloud) => files.length > 1,
     icon: "link",
     color: undefined

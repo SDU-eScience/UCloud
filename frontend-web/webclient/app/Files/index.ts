@@ -102,6 +102,7 @@ export interface FilesOperations extends ClearRefresh {
 export interface FileSelectorProps {
     allowUpload?: boolean
     inputRef?: React.RefObject<HTMLInputElement>
+    showError?: boolean
     onFileSelect: (file: { path: string }) => void
     path: string
     isRequired?: boolean

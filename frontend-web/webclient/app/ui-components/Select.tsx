@@ -23,7 +23,6 @@ const SelectBase = styled.select<{ fontSize?: number | string, leftLabel?: boole
 
   ${({ showError, theme }) => showError ? `&:invalid {
     background-color: ${theme.colors.lightRed};
-    border-color: ${theme.colors.red};
   }` : null}
 
   background-color: transparent;
