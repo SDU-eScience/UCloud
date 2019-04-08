@@ -2,6 +2,7 @@ package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.Loggable
+import kotlin.system.measureTimeMillis
 
 class Micro : Loggable {
     override val log = logger()
@@ -37,13 +38,17 @@ class Micro : Loggable {
         featureFactory: MicroFeatureFactory<Feature, Config>,
         configuration: Config
     ) {
-        if (!initialized) throw IllegalStateException("Call init() before installing features")
+        val time = measureTimeMillis {
+            if (!initialized) throw IllegalStateException("Call init() before installing features")
 
-        val feature = featureFactory.create(configuration)
-        // Must happen before init to ensure that requireFeature(self) will not fail
-        attributes[featureRegistryKey][featureFactory.key] = feature
+            val feature = featureFactory.create(configuration)
+            // Must happen before init to ensure that requireFeature(self) will not fail
+            attributes[featureRegistryKey][featureFactory.key] = feature
 
-        feature.init(this, serviceDescription, commandLineArguments)
+            feature.init(this, serviceDescription, commandLineArguments)
+        }
+
+        log.info("Installing feature: ${featureFactory.key.name}. Took: ${time}ms")
     }
 
     fun init(description: ServiceDescription, cliArgs: Array<String>) {

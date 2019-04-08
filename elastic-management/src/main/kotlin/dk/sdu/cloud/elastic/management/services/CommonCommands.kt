@@ -64,7 +64,7 @@ internal fun getAllLogNamesWithPrefix(elastic: RestHighLevelClient, prefix: Stri
     return httpLogNames.toList()
 }
 
-internal fun getDocumentCount(indices: List<String>, elasticHostAndPort: ElasticHostAndPort): Int{
+internal fun getDocumentCountSum(indices: List<String>, elasticHostAndPort: ElasticHostAndPort): Int{
     val lowClient = RestClient.builder(HttpHost(elasticHostAndPort.host, elasticHostAndPort.port)).build()
     var count = 0
     try {

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.elastic.management.services
 
+import dk.sdu.cloud.elastic.management.ElasticHostAndPort
 import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest
@@ -62,6 +63,15 @@ class ExpiredEntriesDeleteService(
         list.forEach {
             log.info("Finding expired entries in $it")
             deleteExpired(it)
+        }
+    }
+
+    fun deleteAllEmptyIndices() {
+        val list = getListOfIndices(elastic, "*")
+        list.forEach {
+            if (getDocumentCountSum(listOf(it), ElasticHostAndPort.guessDefaults()) == 0){
+                deleteIndex(it, elastic)
+            }
         }
     }
 

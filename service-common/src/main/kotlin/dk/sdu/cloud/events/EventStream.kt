@@ -44,6 +44,6 @@ interface EventStreamService {
     fun createStreams(streams: List<EventStream<*>>)
     fun describeStreams(names: List<String>): Map<String, EventStreamState?>
 
-    suspend fun start()
-    suspend fun stop()
+    fun start()
+    fun stop()
 }

@@ -4,33 +4,39 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.services.JobOrchestrator
+import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import io.ktor.application.call
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.request.header
 
 class CallbackController<DBSession>(
     private val jobOrchestrator: JobOrchestrator<DBSession>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(ComputationCallbackDescriptions.submitFile) {
-            request.asIngoing().receiveBlocks { req ->
-                val length = req.fileData.length
+            withContext<HttpCall> {
+                val length = ctx.call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
+
                 if (length != null) {
                     jobOrchestrator.handleIncomingFile(
-                        req.jobId,
+                        request.jobId,
                         ctx.securityPrincipal,
-                        req.filePath,
+                        request.filePath,
                         length,
-                        req.fileData.channel,
-                        req.needsExtraction == true
+                        request.fileData.asIngoing().channel,
+                        request.needsExtraction == true
                     )
                     ok(Unit)
                 } else {
-                    error(CommonErrorMessage("Missing file length"))
+                    error(CommonErrorMessage("Missing file length"), HttpStatusCode.LengthRequired)
                 }
             }
-
         }
 
         implement(ComputationCallbackDescriptions.requestStateChange) {

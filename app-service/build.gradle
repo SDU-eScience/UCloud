@@ -1,21 +1,21 @@
 group 'dk.sdu.cloud'
-version '1.3.0'
+version '1.4.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.8/sdu-cloud.gradle"
+buildscript {
+    ext.serviceCommonVersion = '1.3.3'
+    ext.fileApiVersion = '1.5.0'
+}
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.9/sdu-cloud.gradle"
 
 dokka {
     outputFormat = "gfm"
     outputDirectory = "$projectDir/docs"
 
     includes = ["docs/api.md"]
-}
-
-buildscript {
-    ext.serviceCommonVersion = '1.3.1'
-    ext.fileApiVersion = '1.4.0'
 }
 
 dependencies {

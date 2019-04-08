@@ -32,11 +32,11 @@ object EventServiceMock : EventStreamService, Loggable {
         return names.map { it to null }.toMap()
     }
 
-    override suspend fun start() {
+    override fun start() {
         log.info("Starting EventServiceMock")
     }
 
-    override suspend fun stop() {
+    override fun stop() {
         log.info("Stopping EventServiceMock")
     }
 

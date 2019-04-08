@@ -1,29 +1,30 @@
 package dk.sdu.cloud.app.http
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.Role
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.Tool
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.services.ToolHibernateDAO
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.handleRequest
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 private fun KtorApplicationTestSetupContext.configureToolServer(
     toolDao: ToolHibernateDAO
@@ -33,7 +34,6 @@ private fun KtorApplicationTestSetupContext.configureToolServer(
 }
 
 class ToolTest {
-    private val mapper = jacksonObjectMapper()
 
     private val normToolDesc = NormalizedToolDescription(
         NameAndVersion("name", "2.2"),
@@ -60,6 +60,7 @@ class ToolTest {
         withKtorTest(
             setup = {
                 val toolDao = mockk<ToolHibernateDAO>()
+
                 every { toolDao.findAllByName(any(), any(), any(), any()) } answers {
                     Page(1, 10, 0, listOf(tool))
                 }
@@ -68,18 +69,16 @@ class ToolTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/hpc/tools/name?itemsPerPage=10&page=0") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
+                val response = sendRequest(
+                    method = HttpMethod.Get,
+                    path = "/api/hpc/tools/name?itemsPerPage=10&page=0",
+                    user = TestUsers.user
+                )
+                response.assertSuccess()
 
-                    assertEquals(HttpStatusCode.OK, response.status())
-
-                    val obj = mapper.readTree(response.content)
-                    assertEquals(1, obj["itemsInTotal"].asInt())
-                }
+                val result = defaultMapper.readValue<Page<Tool>>(response.response.content!!)
+                assertEquals(1, result.itemsInTotal)
+                assertEquals("owner", result.items.first().owner)
             }
         )
     }
@@ -89,24 +88,22 @@ class ToolTest {
         withKtorTest(
             setup = {
                 val toolDao = mockk<ToolHibernateDAO>()
+
                 every { toolDao.findByNameAndVersion(any(), any(), any(), any()) } returns tool
+
                 configureToolServer(toolDao)
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/hpc/tools/name/2.2") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
+                val response = sendRequest(
+                    method = HttpMethod.Get,
+                    path = "/api/hpc/tools/name/2.2",
+                    user = TestUsers.user
+                )
+                response.assertSuccess()
 
-                    assertEquals(HttpStatusCode.OK, response.status())
-
-                    val obj = mapper.readTree(response.content)
-
-                    assertEquals("\"owner\"", obj["owner"].toString())
-                }
+                val results = defaultMapper.readValue<Tool>(response.response.content!!)
+                assertEquals("owner", results.owner)
             }
         )
     }
@@ -116,26 +113,25 @@ class ToolTest {
         withKtorTest(
             setup = {
                 val toolDao = mockk<ToolHibernateDAO>()
+
                 every { toolDao.listLatestVersion(any(), any(), any()) } answers {
                     Page(1, 10, 0, listOf(tool))
                 }
+
                 configureToolServer(toolDao)
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/hpc/tools") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
+                val response = sendRequest(
+                    method = HttpMethod.Get,
+                    path = "/api/hpc/tools",
+                    user = TestUsers.user
+                )
+                response.assertSuccess()
 
-                    assertEquals(HttpStatusCode.OK, response.status())
-
-                    val obj = mapper.readTree(response.content)
-                    assertEquals(1, obj["itemsInTotal"].asInt())
-                    assertTrue(obj["items"].toString().contains("\"owner\":\"owner\""))
-                }
+                val results = defaultMapper.readValue<Page<Tool>>(response.response.content!!)
+                assertEquals(1, results.itemsInTotal)
+                assertEquals("owner", results.items.first().owner)
             }
         )
     }
@@ -150,15 +146,11 @@ class ToolTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Put, "/api/hpc/tools") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                        }.response
-
-                    assertEquals(HttpStatusCode.BadRequest, response.status())
-                }
+                sendRequest(
+                    method = HttpMethod.Put,
+                    path = "/api/hpc/tools",
+                    user = TestUsers.admin
+                ).assertStatus(HttpStatusCode.BadRequest)
             }
         )
     }
@@ -172,15 +164,11 @@ class ToolTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Put, "/api/hpc/tools") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
-
-                    assertEquals(HttpStatusCode.Unauthorized, response.status())
-                }
+                sendRequest(
+                    method = HttpMethod.Put,
+                    path = "/api/hpc/tools",
+                    user = TestUsers.user
+                ).assertStatus(HttpStatusCode.Unauthorized)
             }
         )
     }

@@ -59,5 +59,17 @@ sealed class BinaryStream {
                 call.call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
             )
         }
+
+        fun outgoingFromChannel(
+            channel: ByteReadChannel,
+            contentLength: Long? = null,
+            contentType: ContentType = ContentType.Application.OctetStream
+        ): Outgoing {
+           return Outgoing(object : OutgoingContent.ReadChannelContent() {
+               override val contentLength = contentLength
+               override val contentType = contentType
+               override fun readFrom(): ByteReadChannel = channel
+           })
+        }
     }
 }

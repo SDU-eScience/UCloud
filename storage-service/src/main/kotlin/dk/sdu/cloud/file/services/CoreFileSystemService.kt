@@ -290,24 +290,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
     private fun <T : StorageEvent> FSResult<List<T>>.emitAll(): List<T> {
         val result = unwrap()
-        /*
-        BackgroundScope.launch {
-            log.debug("Emitting storage ${result.size} events: ${result.take(5)}")
-            val failure = result
-                .map { event ->
-                    BackgroundScope.async { runCatching { eventProducer.produce(event) } }
-                }
-                .awaitAll()
-                .find { it.isFailure }
-
-            if (failure != null) {
-                val throwable = failure.exceptionOrNull()!!
-                log.warn("Unable to send storage event. Stack trace follows:")
-                log.warn(throwable.stackTraceToString())
-                storageEventExceptionHandler?.invoke(throwable)
-            }
-        }
-        */
 
         log.debug("Emitting storage ${result.size} events: ${result.take(5)}")
         eventProducer.produceInBackground(result)
