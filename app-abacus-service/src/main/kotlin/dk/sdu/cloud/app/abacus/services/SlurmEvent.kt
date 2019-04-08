@@ -4,6 +4,7 @@ sealed class SlurmEvent {
     abstract val jobId: Long
 }
 
+data class SlurmEventPending(override val jobId: Long) : SlurmEvent()
 data class SlurmEventRunning(override val jobId: Long) : SlurmEvent()
 data class SlurmEventEnded(override val jobId: Long) : SlurmEvent()
 data class SlurmEventFailed(override val jobId: Long) : SlurmEvent()

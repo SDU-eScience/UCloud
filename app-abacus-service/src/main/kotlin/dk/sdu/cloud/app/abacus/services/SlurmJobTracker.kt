@@ -53,6 +53,26 @@ class SlurmJobTracker<DBSession>(
 
     private suspend fun processEvent(systemId: String, event: SlurmEvent) {
         when (event) {
+            is SlurmEventPending -> {
+                val job = ComputationCallbackDescriptions.lookup.call(
+                    FindByStringId(systemId),
+                    cloud
+                ).orThrow()
+
+                if (job.currentState == JobState.VALIDATED) {
+                    ComputationCallbackDescriptions.requestStateChange.call(
+                        StateChangeRequest(
+                            systemId,
+                            JobState.PREPARED,
+                            "Job is being prepared and transferred to Abacus for scheduling."
+                        ),
+                        cloud
+                    ).orThrow()
+                } else {
+                    log.info("Ignoring event: $event. We are already in state ${job.currentState}.")
+                }
+            }
+
             is SlurmEventRunning -> {
                 val job = ComputationCallbackDescriptions.lookup.call(
                     FindByStringId(systemId),
@@ -69,7 +89,26 @@ class SlurmJobTracker<DBSession>(
                 }
             }
 
-            is SlurmEventEnded, is SlurmEventFailed, is SlurmEventTimeout -> {
+            is SlurmEventTimeout -> {
+                ComputationCallbackDescriptions.requestStateChange.call(
+                    StateChangeRequest(
+                        systemId,
+                        JobState.TRANSFER_SUCCESS,
+                        "Job Failed. Did not finish job within time limit. Transferring files back to SDUCloud"
+                    ),
+                    cloud
+                ).orThrow()
+
+                val verifiedJob = ComputationCallbackDescriptions.lookup.call(
+                    FindByStringId(systemId),
+                    cloud
+                ).orThrow()
+
+                jobFileService.transferForJob(verifiedJob)
+                sendComplete(systemId, event.jobId, false)
+            }
+
+            is SlurmEventEnded, is SlurmEventFailed -> {
                 val success = event is SlurmEventEnded
                 val completedText =
                     if (success) "Job has completed. We are now transferring your files back to SDUCloud."
