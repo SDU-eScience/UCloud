@@ -236,6 +236,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     createFolder: () => dispatch(Actions.createFolder()),
     fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, index) => {
         dispatch(Actions.updatePath(path));
+        /* FIXME: Must be a better way */
         const fetch = async () => {
             dispatch(Actions.setLoading(true));
             dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));

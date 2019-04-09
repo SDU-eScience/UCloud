@@ -3,47 +3,61 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { IconName } from "ui-components/Icon";
 import { Flex, Icon } from "ui-components";
+import { ReduxObject } from "DefaultObjects";
+import { Dispatch } from "redux";
+import { removeSnack, SnackbarAction, addSnack } from "./Redux/SnackbarsActions";
+import { ThemeColor } from "ui-components/theme";
 
-class Snackbars extends React.Component<{}, { snacks: Snacks }> {
-    constructor(props: Readonly<{}>) {
-        super(props);
-        this.state = {
-            snacks: mockSnacks
-        }
-    }
+interface RemoveSnackOperation {
+    removeSnack: (number: number) => void
+}
+
+export interface AddSnackOperation {
+    addSnack: (snack: Snack) => void
+}
+
+type SnackbarOperations = AddSnackOperation & RemoveSnackOperation;
+interface IconColorAndName { name: IconName, color: ThemeColor, color2: ThemeColor }
+class Snackbars extends React.Component<{ snackbar: Snack[] } & SnackbarOperations> {
 
     private renderCustom(customSnack: CustomSnack) {
-        return <Flex><Icon name={customSnack.icon} pr="10px" />{customSnack.message}</Flex>
+        return <Flex><Icon color="white" color2="white" name={customSnack.icon} pr="10px" />{customSnack.message}</Flex>
     }
 
     private renderDefault(defaultSnack: DefaultSnack) {
-        const icon = Snackbars.iconNameFromSnack(defaultSnack.type);
-        return <Flex><Icon pr="10px" name={icon} />{defaultSnack.message}</Flex>
+        const icon = Snackbars.iconNameAndColorFromSnack(defaultSnack.type);
+        return <Flex><Icon pr="10px" {...icon} />{defaultSnack.message}</Flex>
     }
 
-    private static iconNameFromSnack(type: Exclude<SnackType, SnackType.Custom>): IconName {
+    private static iconNameAndColorFromSnack(type: Exclude<SnackType, SnackType.Custom>): IconColorAndName {
         switch (type) {
-            case SnackType.Success: return "check";
-            case SnackType.Information: return "info";
-            case SnackType.Failure: return "close";
+            case SnackType.Success: return { name: "check", color: "white", color2: "white" };
+            case SnackType.Information: return { name: "info", color: "black", color2: "white" };
+            case SnackType.Failure: return { name: "close", color: "white", color2: "white" };
         }
     }
 
-    private renderSnack(snack: Snack) {
-        return snack.type !== SnackType.Custom ? this.renderDefault(snack) : this.renderCustom(snack);
-    }
+    private renderSnack = (snack: Snack) =>
+        snack.type !== SnackType.Custom ? this.renderDefault(snack) : this.renderCustom(snack);
 
     render() {
-        const { snacks } = this.state;
-        if (snacks.length !== -1) return null;
-        const currentSnack = snacks[0];
-        return (<Snackbar onClick={() => this.setState(() => ({ snacks: snacks.slice(1) }))} visible={true} width="auto" minWidth="250px">
+        const { snackbar } = this.props;
+        if (!snackbar.length) return null;
+        const [currentSnack] = snackbar;
+        return (<Snackbar onClick={() => this.props.removeSnack(0)} visible={true} width="auto" minWidth="250px">
             {this.renderSnack(currentSnack)}
         </Snackbar>);
     }
 }
 
-export default connect()(Snackbars);
+const mapStateToProps = ({ snackbar }: ReduxObject): { snackbar: Snack[] } => snackbar;
+const mapDispatchToProps = (dispatch: Dispatch<SnackbarAction>): SnackbarOperations => ({
+    removeSnack: index => dispatch(removeSnack(index)),
+    // FIXME: Likely not necessary.
+    addSnack: snack => dispatch(addSnack(snack))
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(Snackbars);
 
 export const enum SnackType {
     Success,
