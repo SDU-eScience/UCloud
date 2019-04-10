@@ -1,4 +1,4 @@
-import { failureNotification } from "UtilityFunctions";
+import { failureNotification, removeTrailingSlash } from "UtilityFunctions";
 import { ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
@@ -113,7 +113,7 @@ export function extractParametersFromMap({ map, appParameters, cloud }: ExtractP
                 const expandedValue = expandHomeFolder(current.value, cloud.homeFolder)
                 extracted[key] = {
                     source: expandedValue,
-                    destination: getFilenameFromPath(expandedValue)
+                    destination: removeTrailingSlash(expandedValue).split("/").pop()!
                 };
                 return;
             case ParameterTypes.Boolean:
