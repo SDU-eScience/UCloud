@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.abacus.services.ssh
 import dk.sdu.cloud.app.abacus.services.SlurmEvent
 import dk.sdu.cloud.app.abacus.services.SlurmEventEnded
 import dk.sdu.cloud.app.abacus.services.SlurmEventFailed
+import dk.sdu.cloud.app.abacus.services.SlurmEventPending
 import dk.sdu.cloud.app.abacus.services.SlurmEventRunning
 import dk.sdu.cloud.app.abacus.services.SlurmEventTimeout
 import dk.sdu.cloud.app.abacus.services.ssh.SSH.log
@@ -30,6 +31,7 @@ suspend fun SSHConnection.pollSlurmStatus(): List<SlurmEvent> {
                 null
             } else {
                 when (state) {
+                    "PENDING" -> SlurmEventPending(jobId)
                     "RUNNING" -> SlurmEventRunning(jobId)
                     "TIMEOUT" -> SlurmEventTimeout(jobId)
                     "COMPLETED" -> SlurmEventEnded(jobId)
