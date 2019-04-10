@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -33,7 +34,7 @@ class SlurmJobTracker<DBSession>(
     val listener: SlurmEventListener = {
         @Suppress("TooGenericExceptionCaught")
         runBlocking {
-            GlobalScope.launch {
+            GlobalScope.launch(Dispatchers.IO) {
                 val systemId = try {
                     resolveSlurmIdToSystemId(it.jobId)
                 } catch (ex: Exception) {

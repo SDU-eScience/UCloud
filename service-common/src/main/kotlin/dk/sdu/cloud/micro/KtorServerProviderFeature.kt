@@ -3,37 +3,23 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.Loggable
-import io.ktor.server.engine.ApplicationEngineFactory
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 
 private const val DEFAULT_PORT = 8080
 
 class KtorServerProviderFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        for (engine in officialEngines) {
-            log.debug("Attempting to load engine: $engine...")
-            val loadedClass = try {
-                javaClass.classLoader.loadClass(engine)
-            } catch (_: Exception) {
-                log.debug("... Could not load engine")
-                continue
-            }
-
-            log.debug("... Engine loaded")
-
-            val engineFactory = loadedClass.kotlin.objectInstance as ApplicationEngineFactory<*, *>
-
-            ctx.serverProvider = { module ->
-                embeddedServer(
-                    engineFactory,
-                    port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.get(serviceDescription.name)?.port
-                        ?: DEFAULT_PORT,
-                    module = module
-                )
-            }
-
-            log.info("Using application engine: $engineFactory loaded from $engine")
-            break
+        ctx.serverProvider = { module ->
+            embeddedServer(
+                Netty,
+                port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.get(serviceDescription.name)?.port
+                    ?: DEFAULT_PORT,
+                module = module,
+                configure = {
+                    responseWriteTimeoutSeconds = 0
+                }
+            )
         }
     }
 

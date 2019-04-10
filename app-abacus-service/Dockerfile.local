@@ -8,6 +8,7 @@ ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
     PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
 
 RUN apk add --no-cache openjdk8-jre
+RUN apk add --no-cache nss
 
 COPY known_hosts /root/.ssh/known_hosts
 COPY build/service /opt/service/
