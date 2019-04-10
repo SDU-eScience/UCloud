@@ -27,6 +27,7 @@ import { Page } from "Types";
 import * as Heading from "ui-components/Heading";
 import { JobStateIcon } from "./JobStateIcon";
 import { MainContainer } from "MainContainer/MainContainer";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -91,7 +92,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         },
         onDeleted: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
         onSensitivityChange: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
-        setLoading: () => this.props.setLoading(true)
+        setLoading: () => this.props.setLoading(true),
+        addSnack: snack => this.props.addSnack(snack)
     });
 
     scrollIfNeeded() {
@@ -398,7 +400,8 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
         dispatch(setLoading(true));
         dispatch(await fetchPage(folder, pageNumber, itemsPerPage));
     },
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(DetailedResult);

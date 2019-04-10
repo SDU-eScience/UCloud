@@ -9,6 +9,7 @@ import { projectViewPage } from "Utilities/ProjectUtilities";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 
 function initialSetup(operations: MoveCopyOperations) {
     resetFileSelector(operations);
@@ -56,7 +57,7 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
                     UF.failureNotification(`An error occurred ${operation === CopyOrMove.Copy ? "copying" : "moving"} ${f.path}`)
                 }
             }
-        };
+        }
         if (successes) {
             setLoading();
             if (policy === UploadPolicy.RENAME) operations.fetchFilesPage(getParentPath(pathToFetch));
@@ -170,13 +171,18 @@ export const createFileLink = ({ file, cloud, setLoading, fetchPageFromPath }: C
     }).then(it => fetchPageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
 };
 
+
+interface StateLessOperations extends AddSnackOperation {
+    setLoading: () => void
+    onSensitivityChange?: () => void
+}
 /**
  * @returns Stateless operations for files
  */
-export const StateLessOperations = (setLoading: () => void, onSensitivityChange?: () => void): Operation[] => [
+export const StateLessOperations = ({ setLoading, onSensitivityChange, addSnack }: StateLessOperations): Operation[] => [
     {
         text: "Share",
-        onClick: (files: File[], cloud: SDUCloud) => shareFiles(files, setLoading, cloud),
+        onClick: (files: File[], cloud: SDUCloud) => shareFiles({ files, cloud, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files),
         icon: "share",
         color: undefined
@@ -324,7 +330,7 @@ export const filePreviewPage = (path: string) => `/files/preview?path=${encodeUR
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
 
-interface AllFileOperations {
+interface AllFileOperations extends AddSnackOperation {
     stateless?: boolean,
     fileSelectorOps?: MoveCopyOperations
     onDeleted?: () => void
@@ -342,9 +348,10 @@ export function allFileOperations({
     onClearTrash,
     history,
     setLoading,
-    onSensitivityChange
+    onSensitivityChange,
+    addSnack
 }: AllFileOperations) {
-    const stateLessOperations = stateless ? StateLessOperations(setLoading, onSensitivityChange) : [];
+    const stateLessOperations = stateless ? StateLessOperations({ setLoading, addSnack, onSensitivityChange }) : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps, setLoading) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
@@ -628,7 +635,8 @@ export const sizeToString = (bytes: number): string => {
     }
 };
 
-export const shareFiles = (files: File[], setLoading: () => void, cloud: SDUCloud) =>
+interface ShareFiles extends AddSnackOperation { files: File[], cloud: SDUCloud }
+export const shareFiles = ({ files, cloud, addSnack }: ShareFiles) =>
     UF.shareSwal().then(input => {
         if (input.dismiss) return;
         const rights: string[] = [];
@@ -641,8 +649,8 @@ export const shareFiles = (files: File[], setLoading: () => void, cloud: SDUClou
                 path,
                 rights
             };
-            cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) UF.successNotification("Files shared successfully") })
-                .catch(({ response }) => UF.failureNotification(`${response.why}`));
+            cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) addSnack({ message: "Files shared successfully", type: SnackType.Success }) })
+                .catch(({ response }) => addSnack({ message: `${response.why}`, type: SnackType.Failure}));
         });
     });
 

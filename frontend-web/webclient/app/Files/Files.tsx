@@ -27,6 +27,8 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { setFileSelectorLoading } from "./Redux/FilesActions";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
+import { AddSnackOperation } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
@@ -61,7 +63,7 @@ class Files extends React.Component<FilesProps> {
                     path: fullPath,
                     cloud: Cloud,
                     onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy)
-                });
+                })
             } else {
                 moveFile({
                     oldPath: file.path,
@@ -72,7 +74,7 @@ class Files extends React.Component<FilesProps> {
                 });
             }
         }
-    }
+    };
 
     shouldComponentUpdate(nextProps: FilesProps): boolean {
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
@@ -98,7 +100,7 @@ class Files extends React.Component<FilesProps> {
     private readonly refetch = () => {
         const { path, page, sortOrder, sortBy } = this.props;
         this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
-    }
+    };
 
     private readonly fileOperations: FileOperation[] = [
         {
@@ -116,7 +118,8 @@ class Files extends React.Component<FilesProps> {
             onSensitivityChange: this.refetch,
             onClearTrash: () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
             history: this.props.history,
-            setLoading: () => this.props.setLoading(true)
+            setLoading: () => this.props.setLoading(true),
+            addSnack: this.props.addSnack
         })
     ];
 
@@ -124,7 +127,7 @@ class Files extends React.Component<FilesProps> {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
-        const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
+        const navigate = (path: string) => history.push(fileTablePage(path));
         const header = (
             <Spacer
                 left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
@@ -271,7 +274,8 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     setDisallowedPaths: disallowedPaths => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
     showUploader: () => dispatch(setUploaderVisible(true)),
     setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
-    clearRefresh: () => dispatch(setRefreshFunction())
+    clearRefresh: () => dispatch(setRefreshFunction()),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect<FilesStateProps, FilesOperations>(mapStateToProps, mapDispatchToProps)(Files);

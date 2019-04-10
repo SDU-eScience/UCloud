@@ -51,7 +51,8 @@ const fileOperations = allFileOperations({
     onExtracted: nullOp,
     onClearTrash: nullOp,
     history: mockHistory,
-    setLoading: nullOp
+    setLoading: nullOp,
+    addSnack: nullOp
 });
 
 describe("FilesTable", () => {

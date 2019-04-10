@@ -93,4 +93,4 @@ const mockSnacks: Snacks = [{
     message: "I am custom",
     type: SnackType.Custom,
     icon: "apps"
-}]
+}];

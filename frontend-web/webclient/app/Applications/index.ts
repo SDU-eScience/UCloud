@@ -5,6 +5,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
 import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 import { ParameterValues } from "Utilities/ApplicationUtilities";
+import { AddSnackOperation } from "Snackbar/Snackbars";
 
 export interface Analysis {
     status: string
@@ -39,7 +40,7 @@ export interface AnalysesOperations {
 export interface AnalysesState {
 }
 
-export interface DetailedResultOperations {
+export interface DetailedResultOperations extends AddSnackOperation {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
@@ -169,7 +170,11 @@ export interface RunAppState {
     favoriteLoading: boolean
 }
 
-export interface RunAppProps {
+export interface RunOperations extends AddSnackOperation {
+    updatePageTitle: () => void
+}
+
+export interface RunAppProps extends RunOperations {
     match: match<{ appName: string, appVersion: string }>
     history: History
     updatePageTitle: () => void

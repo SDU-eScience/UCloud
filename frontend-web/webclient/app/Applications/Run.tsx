@@ -3,9 +3,9 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
+import { errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite } from "."
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations } from "."
 import { Dispatch } from "redux";
 import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
@@ -15,6 +15,8 @@ import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFr
 import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
 import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
+import { SnackType } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -46,6 +48,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     };
 
     componentDidMount() {
+        this.props.updatePageTitle();
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
         this.retrieveApplication(name, version);
@@ -70,9 +73,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const { invocation } = this.state.application;
         this.setState(() => ({ initialSubmit: true }));
 
-        const parameters = extractParametersFromMap({ 
+        const parameters = extractParametersFromMap({
             map: this.state.parameterValues,
-            appParameters: this.state.application!.invocation.parameters, 
+            appParameters: this.state.application!.invocation.parameters,
             cloud: Cloud
         });
         const requiredParams = invocation.parameters.filter(it => !it.optional);
@@ -89,10 +92,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             }
         });
 
-        if (missingParameters.length > 0) {
-            failureNotification(`Missing values for ${missingParameters.join(", ")}`, missingParameters.length)
-            return;
-        }
+        if (missingParameters.length > 0) return;
 
         let maxTime = Run.extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
@@ -153,7 +153,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const parameterValues = new Map();
 
             app.invocation.parameters.forEach(it => {
-                if (Object.values(ParameterTypes).some(type => type === it.type)) {
+                if (Object.values(ParameterTypes).includes(it.type)) {
                     parameterValues.set(it.name, React.createRef<HTMLInputElement>());
                 } else if (it.type === "boolean") {
                     parameterValues.set(it.name, React.createRef<HTMLSelectElement>());
@@ -186,10 +186,16 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             try {
                 const { application, parameters, numberOfNodes, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
                 if (application.name !== thisApp.metadata.name) {
-                    failureNotification("Application name does not match");
+                    this.props.addSnack({
+                        message: "Application name does not match",
+                        type: SnackType.Failure
+                    });
                     return;
                 } else if (application.version !== thisApp.metadata.version) {
-                    infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
+                    this.props.addSnack({
+                        message: "Application version does not match. Some parameters may not be filled out correctly.",
+                        type: SnackType.Information
+                    });
                 }
 
                 const extractedParameters = extractParameters({
@@ -213,8 +219,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         }
                 }
 
-                if (invalidFiles.length) failureNotification(`Extracted files don't exists: ${invalidFiles.join(", ")}`)
-
+                if (invalidFiles.length) {
+                    this.props.addSnack({
+                        message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
+                        type: SnackType.Failure
+                    });
+                }
                 const { parameterValues } = this.state;
 
                 const extractedParameterKeys = Object.keys(extractedParameters);
@@ -240,7 +250,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }));
             } catch (e) {
                 console.warn(e);
-                failureNotification("An error occurred");
+                this.props.addSnack({ message: "An error ocurred", type: SnackType.Failure });
             }
         };
         fileReader.readAsText(file);
@@ -331,8 +341,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     Import parameters
                     <HiddenInputField
                         type="file"
-                        onChange={e => { 
-                            if (e.target.files) this.importParameters(e.target.files[0]) 
+                        onChange={e => {
+                            if (e.target.files) this.importParameters(e.target.files[0])
                         }} />
                 </OutlineButton>
                 <LoadingButton fullWidth loading={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
@@ -485,12 +495,9 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
         </>)
 };
 
-interface RunOperations {
-    updatePageTitle: () => void
-}
-
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
-    updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
+    updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect(null, mapDispatchToProps)(Run);
