@@ -81,7 +81,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const parameterValue = parameters[rParam.name];
             // Number, string, boolean 
             if (!parameterValue) missingParameters.push(rParam.title);
-            // { source, destination }
+            // { source, destination }, might need refactoring in the event that other types become objects
             else if (typeof parameterValue === "object") {
                 if (!parameterValue.source) {
                     missingParameters.push(rParam.title);
