@@ -5,7 +5,7 @@ metadata:
   name: rbd
 provisioner: ceph.com/rbd
 parameters:
-  monitors: 10.135.0.15:6789
+  monitors: 172.26.3.1:6789,172.26.3.2:6789,172.26.3.3:6789
   pool: kube
   adminId: admin
   adminSecretNamespace: kube-system
