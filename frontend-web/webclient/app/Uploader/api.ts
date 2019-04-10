@@ -1,18 +1,30 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { failureNotification, inSuccessRange } from "UtilityFunctions";
+import { inSuccessRange } from "UtilityFunctions";
 import { STATUS_CODES } from "http";
 import { Sensitivity } from "DefaultObjects";
+import { Snack, SnackType } from "Snackbar/Snackbars";
 
 const timeBetweenUpdates = 150;
 
-export const multipartUpload = async (
-    location: string, 
-    file: File, 
-    sensitivity: Sensitivity, 
-    policy: UploadPolicy, 
-    onProgress?: (e: ProgressEvent) => void, 
+
+interface UploadArgs {
+    location: string
+    file: File
+    sensitivity: Sensitivity
+    policy: UploadPolicy
+    addSnack: (snack: Snack) => void
+    onProgress?: (e: ProgressEvent) => void,
     onError?: (error: string) => void
-): Promise<XMLHttpRequest> => {
+}
+export const multipartUpload = async ({
+    location,
+    file,
+    sensitivity,
+    policy,
+    onProgress,
+    onError,
+    addSnack
+}: UploadArgs): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
 
     let request = new XMLHttpRequest();
@@ -20,7 +32,7 @@ export const multipartUpload = async (
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                failureNotification(statusToError(request.status))
+                addSnack({ message: statusToError(request.status), type: SnackType.Failure })
         }
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -42,16 +54,24 @@ export const multipartUpload = async (
     return request;
 }
 
-export const bulkUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: UploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
+export const bulkUpload = async ({
+    location,
+    file,
+    sensitivity,
+    policy,
+    onProgress,
+    onError,
+    addSnack
+}: UploadArgs): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = formatFromType(file.type);
-    
+
     let request = new XMLHttpRequest();
     request.open("POST", "/api/files/upload/archive");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                failureNotification(statusToError(request.status))
+                addSnack({ message: statusToError(request.status), type: SnackType.Failure })
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     let nextProgressUpdate = new Date().getTime();

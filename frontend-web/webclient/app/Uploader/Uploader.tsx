@@ -23,6 +23,7 @@ import { File as SDUCloudFile } from "Files";
 import { Refresh } from "Navigation/Header";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Error from "ui-components/Error";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -135,30 +136,32 @@ class Uploader extends React.Component<UploaderProps> {
         }
 
         if (!upload.extractArchive) {
-            multipartUpload(
-                `${upload.parentPath}/${upload.file.name}`,
-                upload.file,
-                upload.sensitivity,
-                upload.resolution,
-                e => {
+            multipartUpload({
+                location: `${upload.parentPath}/${upload.file.name}`,
+                file: upload.file,
+                sensitivity: upload.sensitivity,
+                policy: upload.resolution,
+                onProgress: e => {
                     addProgressEvent(upload, e);
                     this.props.setUploads(this.props.uploads);
                 },
-                err => setError(err)
-            ).then(xhr => this.onUploadFinished(upload, xhr))
+                onError: err => setError(err),
+                addSnack: snack => this.props.addSnack(snack)
+            }).then(xhr => this.onUploadFinished(upload, xhr))
                 .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         } else {
-            bulkUpload(
-                upload.parentPath,
-                upload.file,
-                upload.sensitivity,
-                upload.resolution,
-                e => {
+            bulkUpload({
+                location: upload.parentPath,
+                file: upload.file,
+                sensitivity: upload.sensitivity,
+                policy: upload.resolution,
+                onProgress: e => {
                     addProgressEvent(upload, e);
                     this.props.setUploads(this.props.uploads);
                 },
-                err => setError(err)
-            ).then(xhr => this.onUploadFinished(upload, xhr))
+                onError: err => setError(err),
+                addSnack: snack => this.props.addSnack(snack)
+            }).then(xhr => this.onUploadFinished(upload, xhr))
                 .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         }
     }
@@ -482,7 +485,8 @@ const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploads: uploads => dispatch(setUploads(uploads)),
     setUploaderError: err => dispatch(setUploaderError(err)),
     setUploaderVisible: visible => dispatch(setUploaderVisible(visible)),
-    setLoading: loading => dispatch(setLoading(loading))
+    setLoading: loading => dispatch(setLoading(loading)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect<UploaderStateProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);

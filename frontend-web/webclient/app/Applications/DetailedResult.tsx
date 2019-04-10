@@ -1,7 +1,7 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { shortUUID, failureNotification, errorMessageOrDefault } from "UtilityFunctions";
+import { shortUUID, errorMessageOrDefault } from "UtilityFunctions";
 import { Link } from "react-router-dom";
 import FilesTable from "Files/FilesTable";
 import { List as PaginationList } from "Pagination";
@@ -28,6 +28,7 @@ import * as Heading from "ui-components/Heading";
 import { JobStateIcon } from "./JobStateIcon";
 import { MainContainer } from "MainContainer/MainContainer";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { SnackType } from "Snackbar/Snackbars";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -149,7 +150,10 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
             failure => {
                 if (!failure.isCanceled)
-                    failureNotification("An error occurred retrieving Information and Output from the job.");
+                    this.props.addSnack({ 
+                        message: "An error occurred retrieving Information and Output from the job.",
+                        type: SnackType.Failure
+                    });
             }).finally(() => this.props.setLoading(false));
     }
 

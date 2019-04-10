@@ -29,13 +29,21 @@ enum CopyOrMove {
     Copy
 }
 
-export function copyOrMove(operation: CopyOrMove, files: File[], operations: MoveCopyOperations, cloud: SDUCloud, setLoading: () => void): void {
+interface CopyOrMoveFiles {
+    operation: CopyOrMove
+    files: File[]
+    copyMoveOps: MoveCopyOperations
+    cloud: SDUCloud
+    setLoading: () => void
+}
+
+export function copyOrMoveFiles({ operation, files, copyMoveOps: moveCopyOps, cloud, setLoading }: CopyOrMoveFiles): void {
     const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
     let successes = 0, failures = 0, pathToFetch = "";
-    operations.showFileSelector(true);
-    operations.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
-    operations.setFileSelectorCallback(async (targetPathFolder: File) => {
-        let { failurePaths, applyToAll, policy } = initialSetup(operations);
+    moveCopyOps.showFileSelector(true);
+    moveCopyOps.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
+    moveCopyOps.setFileSelectorCallback(async (targetPathFolder: File) => {
+        let { failurePaths, applyToAll, policy } = initialSetup(moveCopyOps);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
             let { exists, allowRewrite, newPathForFile } = await moveCopySetup({ targetPath: targetPathFolder.path, path: f.path, cloud });
@@ -60,8 +68,8 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
         }
         if (successes) {
             setLoading();
-            if (policy === UploadPolicy.RENAME) operations.fetchFilesPage(getParentPath(pathToFetch));
-            else operations.fetchPageFromPath(pathToFetch);
+            if (policy === UploadPolicy.RENAME) moveCopyOps.fetchFilesPage(getParentPath(pathToFetch));
+            else moveCopyOps.fetchPageFromPath(pathToFetch);
         }
         if (!failures && successes) onOnlySuccess(operation === CopyOrMove.Copy ? "Copied" : "Moved", files.length);
         else if (failures) UF.failureNotification(`Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`, 10);
@@ -224,14 +232,14 @@ export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void, setL
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations, setLoading: () => void): Operation[] => [
     {
         text: "Copy",
-        onClick: (files: File[], cloud: SDUCloud) => copyOrMove(CopyOrMove.Copy, files, fileSelectorOperations, cloud, setLoading),
+        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({ operation: CopyOrMove.Copy, files, copyMoveOps: fileSelectorOperations, cloud, setLoading }),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files),
         icon: "copy",
         color: undefined
     },
     {
         text: "Move",
-        onClick: (files: File[], cloud: SDUCloud) => copyOrMove(CopyOrMove.Move, files, fileSelectorOperations, cloud, setLoading),
+        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({ operation: CopyOrMove.Move, files, copyMoveOps: fileSelectorOperations, cloud, setLoading }),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)),
         icon: "move",
         color: undefined
@@ -248,7 +256,7 @@ export const isArchiveExtension = (fileName: string): boolean => archiveExtensio
 export const ExtractionOperation = (onFinished: () => void): Operation[] => [
     {
         text: "Extract archive",
-        onClick: (files, cloud) => extractArchive(files, cloud, onFinished),
+        onClick: (files, cloud) => extractArchive({ files, cloud, onFinished }),
         disabled: (files, cloud) => !files.every(it => isArchiveExtension(it.path)),
         icon: "open",
         color: undefined
@@ -270,7 +278,7 @@ export const MoveFileToTrashOperation = (onMoved: () => void, setLoading: () => 
     },
     {
         text: "Delete Files",
-        onClick: (files, cloud) => batchDeleteFiles(files, cloud, setLoading, onMoved),
+        onClick: (files, cloud) => batchDeleteFiles({ files, cloud, setLoading, callback: onMoved }),
         disabled: (files, cloud) => !files.every(f => getParentPath(f.path) === cloud.trashFolder),
         icon: "trash",
         color: "red"
@@ -439,7 +447,10 @@ export const isInvalidPathName = (path: string, filePaths: string[]): boolean =>
     if (["..", "/"].some((it) => path.includes(it))) { UF.failureNotification("Folder name cannot contain '..' or '/'"); return true }
     if (path === "" || path === ".") { UF.failureNotification("Folder name cannot be empty or be \".\""); return true; }
     const existingName = filePaths.some(it => it === path);
-    if (existingName) { UF.failureNotification("File with that name already exists"); return true; }
+    if (existingName) {
+        UF.failureNotification("File with that name already exists");
+        return true;
+    }
     return false;
 };
 
@@ -533,8 +544,13 @@ export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callba
     });
 
 
-const extractFilesQuery = "/files/extract"
-export const extractArchive = (files: File[], cloud: SDUCloud, onFinished: () => void): void => {
+const extractFilesQuery = "/files/extract";
+interface ExtractArchive {
+    files: File[]
+    cloud: SDUCloud
+    onFinished: () => void
+}
+export const extractArchive = ({ files, cloud, onFinished }: ExtractArchive): void => {
     files.forEach(async f => {
         try {
             await cloud.post(extractFilesQuery, { path: f.path });
@@ -650,7 +666,7 @@ export const shareFiles = ({ files, cloud, addSnack }: ShareFiles) =>
                 rights
             };
             cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) addSnack({ message: "Files shared successfully", type: SnackType.Success }) })
-                .catch(({ response }) => addSnack({ message: `${response.why}`, type: SnackType.Failure}));
+                .catch(({ response }) => addSnack({ message: `${response.why}`, type: SnackType.Failure }));
         });
     });
 
@@ -700,7 +716,14 @@ export const moveToTrash = (files: File[], cloud: SDUCloud, setLoading: () => vo
     });
 };
 
-export const batchDeleteFiles = (files: File[], cloud: SDUCloud, setLoading: () => void, callback: () => void) => {
+interface BatchDeleteFiles {
+    files: File[]
+    cloud: SDUCloud
+    setLoading: () => void
+    callback: () => void
+}
+
+export const batchDeleteFiles = ({ files, cloud, setLoading, callback }: BatchDeleteFiles) => {
     const paths = files.map(f => f.path);
     deletionSwal(paths).then((result: any) => {
         if (result.dismiss) return;

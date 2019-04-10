@@ -7,7 +7,7 @@ import {
     filepathQuery,
     fileLookupQuery,
     isInvalidPathName,
-    copyOrMove,
+    copyOrMoveFiles,
     StateLessOperations,
     FileSelectorOperations,
     MoveFileToTrashOperation,

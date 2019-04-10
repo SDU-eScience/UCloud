@@ -18,6 +18,8 @@ import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
 import { SidebarPages } from "ui-components/Sidebar";
 import { ReduxObject } from "DefaultObjects";
+import { AddSnackOperation } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 interface ZenodoPublishState {
     files: string[]
@@ -32,7 +34,7 @@ interface ZenodoPublishProps {
     error?: string
 }
 
-interface ZenodoPublishOperations {
+interface ZenodoPublishOperations extends AddSnackOperation {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     setErrorMessage: (error?: string) => void
@@ -91,7 +93,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
         if (this.props.loading) {
             return (<MainContainer main={<LoadingIcon size={18} />} />);
         } else if (!this.props.connected) {
-            return (<MainContainer main={<NotConnectedToZenodo />} />);
+            return (<MainContainer main={<NotConnectedToZenodo addSnack={this.props.addSnack} />} />);
         }
 
         const header = (
@@ -169,7 +171,8 @@ const mapDispatchToProps = (dispatch: Dispatch): ZenodoPublishOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Publish")),
     setErrorMessage: (error?: string) => dispatch(setErrorMessage(SET_ZENODO_ERROR, error)),
     setLoading: (loading: boolean) => dispatch(setZenodoLoading(loading)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Publish))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Publish)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(ZenodoPublish);
