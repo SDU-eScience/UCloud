@@ -59,7 +59,7 @@ class ZenodoHome extends React.Component<Props, ZenodoHomeState> {
                     header={<Spacer left={<Box><Heading.h2>Upload progress</Heading.h2>
                         <Heading.h5>Connected to Zenodo</Heading.h5></ Box>}
                         right={<EntriesPerPageSelector
-                            onChange={itemsPerPage => fetchPublications(page.pageNumber, itemsPerPage)}
+                            onChange={itemsPerPage => fetchPublications(0, itemsPerPage)}
                             content="Publications per page"
                             entriesPerPage={page.itemsPerPage}
                         />}

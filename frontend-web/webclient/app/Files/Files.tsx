@@ -131,7 +131,7 @@ class Files extends React.Component<FilesProps> {
                 right={<Pagination.EntriesPerPageSelector
                     content="Files per page"
                     entriesPerPage={page.itemsPerPage}
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, 0, sortOrder, sortBy)}
                 />}
             />
         );

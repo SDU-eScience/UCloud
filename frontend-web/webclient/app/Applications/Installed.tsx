@@ -61,7 +61,7 @@ class Installed extends React.Component<InstalledProps & { header: any }> {
                 <Spacer left={null} right={props.applications.loading ? null : <Pagination.EntriesPerPageSelector
                     content="Apps per page"
                     entriesPerPage={itemsPerPage}
-                    onChange={itemsPerPage => props.fetchItems(pageNumber, itemsPerPage)}
+                    onChange={itemsPerPage => props.fetchItems(0, itemsPerPage)}
                 />} />
                 <Pagination.List
                     loading={props.applications.loading}
