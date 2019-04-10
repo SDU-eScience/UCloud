@@ -111,7 +111,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Cloud.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            this.setState(() => ({ error: err.message, jobSubmitted: false }))
+            this.setState(() => ({ error: errorMessageOrDefault(err, "An error ocurred submitting the job."), jobSubmitted: false }))
         }
     };
 
