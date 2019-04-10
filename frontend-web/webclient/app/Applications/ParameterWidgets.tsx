@@ -359,6 +359,7 @@ export class OptionalParameter extends React.Component<{ parameter: Types.Applic
                         : <Box flexGrow={1} />}
 
                     <Button
+                        type="button"
                         lineHeight={"16px"}
                         onClick={(e) => {
                             e.stopPropagation();
