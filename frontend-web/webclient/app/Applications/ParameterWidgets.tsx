@@ -8,7 +8,8 @@ import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { replaceHomeFolder } from "Utilities/FileUtilities";
+import { replaceHomeFolder, resolvePath } from "Utilities/FileUtilities";
+import { addTrailingSlash } from "UtilityFunctions";
 
 
 interface ParameterProps {
@@ -51,7 +52,7 @@ const InputFileParameter = (props: InputFileParameterProps) => {
                 showError={props.initialSubmit}
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
-                onFileSelect={file => { props.parameterRef.current!.value = replaceHomeFolder(file.path, Cloud.homeFolder) }}
+                onFileSelect={file => { props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)) }}
                 inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 isRequired={!props.parameter.optional}
             />
@@ -66,7 +67,7 @@ const InputDirectoryParameter = (props: InputFileParameterProps) => {
                 showError={props.initialSubmit}
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
-                onFileSelect={file => { props.parameterRef.current!.value = replaceHomeFolder(file.path, Cloud.homeFolder) }}
+                onFileSelect={file => { props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))) }}
                 inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 canSelectFolders
                 onlyAllowFolders
