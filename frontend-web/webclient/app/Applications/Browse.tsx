@@ -35,11 +35,9 @@ const CategoryItem: React.StatelessComponent<{ tag?: string }> = props => (
     <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
 );
 
-
-
-const Sidebar: React.StatelessComponent = () => (<>
-<Heading.h4 m= "0 0 14px"><Link to = {Pages.browse}>All</Link></Heading.h4>
-    
+const Sidebar: React.StatelessComponent<{ itemsPerPage: number }> = ({ itemsPerPage }) => (<>
+<Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
+ 
     <Heading.h4 m="0 0 -14px">Categories</Heading.h4>
     <CategoryList>
         <CategoryItem tag="Bioinformatics">Bioinformatics</CategoryItem> 
@@ -164,13 +162,13 @@ class Applications extends React.Component<ApplicationsProps> {
                     <Pagination.EntriesPerPageSelector
                         content="Apps per page"
                         entriesPerPage={this.itemsPerPage()}
-                        onChange={itemsPerPage => this.updateItemsPerPage(itemsPerPage)}
+                        onChange={itemsPerPage => this.props.history.push(this.updateItemsPerPage(itemsPerPage))}
                     />
                 } />}
                 loadable={this.props.applications}
                 main={main}
-                fallbackSidebar={<Sidebar />}
-                sidebar={<Sidebar />}
+                fallbackSidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
+                sidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
             />
         );
     }
