@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.services.unixfs
 
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.SERVICE_UNIX_USER
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
@@ -314,7 +313,7 @@ class UnixFileSystem(
         return ctx.runCommand(
             InterpreterCommand.DELETE_XATTR,
             absolutePath,
-            attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it"},
+            attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it" },
             consumer = this::consumeStatusCode
         )
     }
@@ -535,9 +534,10 @@ class UnixFileSystem(
             .absolutePath
             .let { it + (if (isDirectory) "/" else "") }
 
-        if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) throw FSException.BadRequest(
-            "path ($path) is not in user-root"
-        )
+        if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) {
+            throw FSException.BadRequest("path is not in user-root")
+        }
+
         if (path.contains("\n")) throw FSException.BadRequest("Path cannot contain new-lines")
         if (path.length >= PATH_MAX) throw FSException.BadRequest("Path is too long")
 
