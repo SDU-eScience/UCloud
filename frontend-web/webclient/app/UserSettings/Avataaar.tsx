@@ -2,12 +2,12 @@ import { default as Avataaar } from "avataaars";
 import * as React from "react";
 import * as Options from "./AvatarOptions";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Select, Label, Box, Flex, OutlineButton } from "ui-components";
+import { Select, Label, Box, Flex, OutlineButton, Error } from "ui-components";
 import Spinner from "LoadingIcon/LoadingIcon";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
-import { findAvatar, saveAvatar } from "./Redux/AvataaarActions";
+import { saveAvatar, setAvatarError } from "./Redux/AvataaarActions";
 import PromiseKeeper from "PromiseKeeper";
 import { findAvatarQuery } from "Utilities/AvatarUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
@@ -18,17 +18,17 @@ import { SidebarPages } from "ui-components/Sidebar";
 type AvataaarModificationStateProps = AvatarType;
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void
-    findAvatar: () => void
     setActivePage: () => void
+    setError: (err?: string) => void
 }
 
-function Modification(props: AvataaarModificationOperations) {
-    const [avatar, setAvatar] = React.useState({ ...defaultAvatar })
+function Modification(props: AvataaarModificationOperations & { error?: string }) {
+    const [avatar, setAvatar] = React.useState(defaultAvatar)
     const [loading, setLoading] = React.useState(true)
     React.useEffect(() => {
         const promises = new PromiseKeeper();
         promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery)).promise
-            .then(it => setAvatar({ ...it.response }))
+            .then(({ response }) => setAvatar(response))
             .catch(it => {
                 if (!it.isCanceled) {
                     failureNotification("An error occurred fetching current Avatar");
@@ -39,8 +39,9 @@ function Modification(props: AvataaarModificationOperations) {
 
     return (
         <MainContainer
-            headerSize={220}
+            headerSize={220 + (!props.error ? 0 : 60)}
             header={<>
+                <Error error={props.error} clearError={() => props.setError()} />
                 <Flex>
                     <Box ml="auto" />
                     <Avataaar
@@ -185,8 +186,8 @@ function AvatarSelect<T1, T2>({ update, options, title, disabled, defaultValue }
 const mapStateToProps = ({ avatar }: ReduxObject) => avatar;
 const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
     save: async avatar => dispatch(await saveAvatar(avatar)),
-    findAvatar: async () => dispatch(await findAvatar()),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.None))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
+    setError: error => dispatch(setAvatarError(error))
 });
 
 const defaultAvatar = ({

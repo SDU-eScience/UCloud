@@ -9,7 +9,7 @@ import { projectViewPage } from "Utilities/ProjectUtilities";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
-import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
 
 function initialSetup(operations: MoveCopyOperations) {
     resetFileSelector(operations);
@@ -298,7 +298,7 @@ export const ClearTrashOperations = (toHome: () => void): Operation[] => [
 /**
  * @returns Properties and Project Operations for files.
  */
-export const HistoryFilesOperations = (history: History): FileOperation[] => {
+export const HistoryFilesOperations = (history: History, addSnack: (snack: Snack) => void): FileOperation[] => {
     let ops: FileOperation[] = [{
         text: "Properties",
         onClick: (files: File[], cloud: SDUCloud) => history.push(fileInfoPage(files[0].path)),
@@ -318,11 +318,12 @@ export const HistoryFilesOperations = (history: History): FileOperation[] => {
             onFalse: {
                 text: "Create Project",
                 onClick: (files: File[], cloud: SDUCloud) =>
-                    UF.createProject(
-                        files[0].path,
+                    UF.createProject({
+                        filePath: files[0].path,
                         cloud,
-                        projectPath => history.push(projectViewPage(projectPath))
-                    ),
+                        navigate: projectPath => history.push(projectViewPage(projectPath)),
+                        addSnack
+                    }),
                 disabled: (files: File[], cloud: SDUCloud) =>
                     files.length !== 1 || !canBeProject(files, cloud.homeFolder) ||
                     !allFilesHasAccessRight("READ", files) || !allFilesHasAccessRight("WRITE", files),
@@ -363,7 +364,7 @@ export function allFileOperations({
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps, setLoading) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
-    const historyOperations = !!history ? HistoryFilesOperations(history) : [];
+    const historyOperations = !!history ? HistoryFilesOperations(history, addSnack) : [];
     const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
     return [
         ...stateLessOperations,

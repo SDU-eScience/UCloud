@@ -320,8 +320,8 @@ export const initFilePreview = () => ({
     error: undefined
 });
 
-export type AvatarReduxObject = typeof defaultAvatar;
-export const initAvatar = () => defaultAvatar;
+export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
+export const initAvatar = (): AvatarReduxObject => ({ ...defaultAvatar, error: undefined });
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
     files: emptyPage,

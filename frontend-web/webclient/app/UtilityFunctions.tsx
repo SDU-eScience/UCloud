@@ -10,6 +10,7 @@ import {
     isDirectory
 } from "Utilities/FileUtilities";
 import { HTTP_STATUS_CODES } from "Utilities/XHRUtils";
+import { SnackType } from "Snackbar/Snackbars";
 
 /**
  * Lowercases the string and capitalizes the first letter of the string
@@ -303,11 +304,17 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     return icon;
 };
 
+
+interface CreateProject {
+    filePath: string
+    cloud: Cloud
+    navigate: (path: string) => void
+}
 // FIXME Remove navigation when backend support comes.
-export const createProject = (filePath: string, cloud: Cloud, navigate: (path: string) => void) => {
+export const createProject = ({ filePath, cloud, navigate, addSnack }) => {
     cloud.put("/projects", { fsRoot: filePath }).then(() => {
         redirectToProject(filePath, cloud, navigate, 5);
-    }).catch(() => failureNotification(`An error occurred creating project ${filePath}`));
+    }).catch(() => addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure }));
 }
 
 const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) => void, remainingTries: number) => {

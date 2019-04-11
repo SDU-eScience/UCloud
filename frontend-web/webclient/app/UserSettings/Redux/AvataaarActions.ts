@@ -1,27 +1,45 @@
 import { AvatarType } from "UserSettings/Avataaar";
 import { PayloadAction } from "Types";
-import { AVATAR_SAVE } from "./AvataaarReducer";
+import { AVATAR_SAVE, AVATAR_ERROR } from "./AvataaarReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { saveAvatarQuery, findAvatarQuery } from "Utilities/AvatarUtilities";
-import { failureNotification, successNotification } from "UtilityFunctions";
+import { errorMessageOrDefault } from "UtilityFunctions";
+import { AddSnack, addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { SnackType } from "Snackbar/Snackbars";
 
-export type AvatarActions = SaveAvataaar
+export type AvatarActions = SaveAvataaar | SetAvatarError
 
-type SaveAvataaar = PayloadAction<typeof AVATAR_SAVE, { avatar: AvatarType }>;
+type SaveAvataaar = PayloadAction<typeof AVATAR_SAVE, { avatar: AvatarType, loading: true }>
 const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
     type: AVATAR_SAVE,
-    payload: { avatar }
+    payload: { avatar, loading: true }
 });
 
-export const saveAvatar = (avatar: AvatarType): Promise<SaveAvataaar> =>
-    Cloud.post(saveAvatarQuery, { ...avatar }).then(it =>
-        (successNotification("Updated avatar"), saveAvataaar(avatar))
-        // FIXME, don't save avatar if the saving fails.
-    ).catch(it => (failureNotification("Updating of avatar failed"), saveAvataaar(avatar)));
+export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {
+    try {
+        await Cloud.post(saveAvatarQuery, avatar).then(it => saveAvataaar(avatar));
+        return saveAvataaar(avatar);
+    } catch (e) {
+        return setAvatarError(errorMessageOrDefault(e, "An error occurred saving the avatar."))
+    }
+}
 
 export const updateAvatar = (avatar: AvatarType): SaveAvataaar => saveAvataaar(avatar);
 
-export const findAvatar = (): Promise<SaveAvataaar> =>
-    Cloud.get<AvatarType>(findAvatarQuery)
-        .then(it => saveAvataaar(it.response))
-        .catch(it => saveAvataaar(it))
+type SetAvatarError = PayloadAction<typeof AVATAR_ERROR, { error?: string }>
+export const setAvatarError = (error?: string): SetAvatarError => ({
+    type: AVATAR_ERROR,
+    payload: { error }
+});
+
+export const findAvatar = async (): Promise<SaveAvataaar | AddSnack> => {
+    try {
+        const res = await Cloud.get<AvatarType>(findAvatarQuery);
+        return saveAvataaar(res.response);
+    } catch (e) {
+        return addSnack({
+            message: `Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`,
+            type: SnackType.Failure
+        });
+    }
+}
