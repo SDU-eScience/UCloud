@@ -1,11 +1,9 @@
 package dk.sdu.cloud.file
 
-import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.linuxfs.StandardCLib
-import dk.sdu.cloud.file.util.unwrap
+import dk.sdu.cloud.file.services.linuxfs.NativeThread
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import kotlinx.coroutines.runBlocking
@@ -72,6 +70,21 @@ fun main(args: Array<String>) {
         val fs = LinuxFS(fsRunnerFactory, File("/tmp/fs"), userDao)
 
         runner.use {
+            /* val toString = LinuxFS::class.java.classLoader.getResource("libthreading.dylib").toURI().path
+             println(toString)
+
+             System.load(toString)*/
+            for (a in 0..9) {
+                NativeThread {
+                    Thread.currentThread().name = "CanWeDoThis?$a"
+                    repeat(60) {
+                        println("HI!HI!")
+                        println(Thread.currentThread().name)
+                        println(Thread.currentThread().id)
+                        Thread.sleep(1000)
+                    }
+                }.start()
+            }
             /*
             fs.listDirectory(runner, "/home/dan", FileAttribute.values().toSet()).unwrap().forEach {
                 println(it)
@@ -90,7 +103,7 @@ fun main(args: Array<String>) {
             fs.removeACLEntry(runner, "/home/dan/a", FSACLEntity.User("fie"), defaultList = true)
             */
 
-            StandardCLib.umask("0007".toInt(8))
+            /*StandardCLib.umask("0007".toInt(8))
 
             Foo.log.info(fs.openForWriting(runner, "/home/dan/file", true).unwrap().toString())
             Foo.log.info(fs.write(runner) {
@@ -121,7 +134,7 @@ fun main(args: Array<String>) {
             repeat(10) { println() }
             fs.delete(runner, "/home/dan/a_directory").unwrap().forEach {
                 println(it)
-            }
+            }*/
         }
     }
 }
