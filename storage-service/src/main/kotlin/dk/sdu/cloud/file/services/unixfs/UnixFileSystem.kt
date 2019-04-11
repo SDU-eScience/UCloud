@@ -70,7 +70,7 @@ class UnixFileSystem(
                     val value = getExtendedAttribute(ctx, from, attr).unwrap()
                     setExtendedAttribute(ctx, to, attr, value).unwrap()
                 } catch (ex: Exception) {
-                    if (ex !is FSException.NotFound) {
+                    if (ex !is FSException.NoAttributeFound) {
                         log.info("Exception caught while copying attribute: $attr")
                         log.info(ex.stackTraceToString())
                     }
