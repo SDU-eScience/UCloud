@@ -11,11 +11,11 @@ import { saveAvatar, setAvatarError } from "./Redux/AvataaarActions";
 import PromiseKeeper from "PromiseKeeper";
 import { findAvatarQuery } from "Utilities/AvatarUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { failureNotification } from "UtilityFunctions";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { SidebarPages } from "ui-components/Sidebar";
+import { errorMessageOrDefault } from "UtilityFunctions";
 
-type AvataaarModificationStateProps = AvatarType;
+type AvataaarModificationStateProps = AvatarType & { error?: string };
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void
     setActivePage: () => void
@@ -25,15 +25,22 @@ interface AvataaarModificationOperations {
 function Modification(props: AvataaarModificationOperations & { error?: string }) {
     const [avatar, setAvatar] = React.useState(defaultAvatar)
     const [loading, setLoading] = React.useState(true)
+
+    async function fetchAvatar(promises: PromiseKeeper) {
+        try {
+            const { response } = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery)).promise;
+            setAvatar(response);
+        } catch (e) {
+            if (!e.isCanceled)
+                props.setError(errorMessageOrDefault(e, "An error occurred fetching current Avatar"))
+        } finally {
+            setLoading(false);
+        }
+    }
+
     React.useEffect(() => {
         const promises = new PromiseKeeper();
-        promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery)).promise
-            .then(({ response }) => setAvatar(response))
-            .catch(it => {
-                if (!it.isCanceled) {
-                    failureNotification("An error occurred fetching current Avatar");
-                }
-            }).finally(() => setLoading(false));
+        fetchAvatar(promises);
         return () => promises.cancelPromises();
     }, []);
 
@@ -183,7 +190,7 @@ function AvatarSelect<T1, T2>({ update, options, title, disabled, defaultValue }
     )
 }
 
-const mapStateToProps = ({ avatar }: ReduxObject) => avatar;
+const mapStateToProps = ({ avatar }: ReduxObject): AvataaarModificationStateProps => avatar;
 const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
     save: async avatar => dispatch(await saveAvatar(avatar)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
