@@ -3,11 +3,11 @@ import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
-import { fetchNotifications, notificationRead, readAllNotifications, receiveSingleNotification } from "./Redux/NotificationsActions";
+import { fetchNotifications, notificationRead, readAllNotifications, receiveSingleNotification, setNotificationError } from "./Redux/NotificationsActions";
 import { History } from "history";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { Dispatch } from "redux";
-import { Relative, Flex, Icon, Badge, Absolute, Box, theme, Button, Divider } from "ui-components";
+import { Relative, Flex, Icon, Badge, Absolute, Box, theme, Button, Divider, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { TextSpan } from "ui-components/Text";
 import styled from "styled-components";
@@ -23,6 +23,7 @@ interface NotificationProps {
     notificationRead: Function,
     history: History
     activeUploads: number
+    error?: string
 }
 
 class Notifications extends React.Component<NotificationProps & NotificationsDispatchToProps> {
@@ -33,6 +34,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
     }
 
     public componentDidMount() {
+        this.props.setError("this.props.error this.props.error this.props.error this.props.error");
         this.reload();
         this.conn = WSFactory.open("/notifications", {
             init: conn => {
@@ -102,6 +104,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                 </Flex>
             }>
                 <ContentWrapper>
+                    <Error error={this.props.error} clearError={() => this.props.setError()} />
                     {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
                 </ContentWrapper>
             </ClickableDropdown>
@@ -185,13 +188,15 @@ interface NotificationsDispatchToProps {
     notificationRead: (id: number) => void
     showUploader: () => void
     readAll: () => void
+    setError: (error?: string) => void
 }
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
     receiveNotification: (notification) => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     showUploader: () => dispatch(setUploaderVisible(true)),
-    readAll: async () => dispatch(await readAllNotifications())
+    readAll: async () => dispatch(await readAllNotifications()),
+    setError: error => dispatch(setNotificationError(error))
 });
 const mapStateToProps = (state: ReduxObject) => state.notifications;
 
