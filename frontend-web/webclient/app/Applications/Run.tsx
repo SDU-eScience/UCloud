@@ -70,9 +70,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const { invocation } = this.state.application;
         this.setState(() => ({ initialSubmit: true }));
 
-        const parameters = extractParametersFromMap({ 
+        const parameters = extractParametersFromMap({
             map: this.state.parameterValues,
-            appParameters: this.state.application!.invocation.parameters, 
+            appParameters: this.state.application!.invocation.parameters,
             cloud: Cloud
         });
         const requiredParams = invocation.parameters.filter(it => !it.optional);
@@ -299,9 +299,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const main = (
             <ContainerForText>
-                <Error
-                    clearError={() => this.setState(() => ({ error: undefined }))}
-                    error={error} />
+                <Error clearError={() => this.setState(() => ({ error: undefined }))} error={error} />
 
                 <Parameters
                     initialSubmit={this.state.initialSubmit}
@@ -331,8 +329,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     Import parameters
                     <HiddenInputField
                         type="file"
-                        onChange={e => { 
-                            if (e.target.files) this.importParameters(e.target.files[0]) 
+                        onChange={e => {
+                            if (e.target.files) this.importParameters(e.target.files[0])
                         }} />
                 </OutlineButton>
                 <LoadingButton fullWidth loading={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
@@ -385,14 +383,14 @@ const Parameters = (props: ParameterProps) => {
     const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values.get(parameter.name)!.current != null));
     const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values.get(parameter.name)!.current == null);
 
-    const mapParamToComponent = (parameter: ApplicationParameter, index: number) => {
+    const mapParamToComponent = (parameter: ApplicationParameter) => {
         let ref = props.values.get(parameter.name)!;
 
         return (
             <Parameter
+                key={parameter.name}
                 initialSubmit={props.initialSubmit}
                 parameterRef={ref}
-                key={index}
                 parameter={parameter}
             />
         );
