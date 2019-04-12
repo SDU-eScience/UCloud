@@ -42,15 +42,16 @@ function Support(props: AddSnackOperation) {
         event.preventDefault();
         const text = textArea.current;
         if (!!text) {
-            setLoading(true);
-            Cloud.post("/support/ticket", { message: `${type}: ${text.value}` }).then(e => {
+            try {
+                setLoading(true);
+                await Cloud.post("/support/ticket", { message: `${type}: ${text.value}` });
                 text.value = "";
                 setVisible(false);
                 setLoading(false);
                 props.addSnack({ message: "Support ticket submitted!", type: SnackType.Success });
-            }).catch(e => {
+            } catch (e) {
                 props.addSnack({ message: errorMessageOrDefault(e, "An error occured"), type: SnackType.Failure });
-            });
+            };
         }
     }
 
