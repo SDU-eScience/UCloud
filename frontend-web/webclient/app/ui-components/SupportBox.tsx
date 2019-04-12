@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { successNotification, failureNotification } from "UtilityFunctions";
 import TextArea from "./TextArea";
 import { KeyCode } from "DefaultObjects";
 import Flex from "./Flex";
@@ -12,20 +11,25 @@ import ClickableDropdown from "./ClickableDropdown";
 import { useEffect, useRef, useState } from "react";
 import Radio from "./Radio";
 import Label from "./Label";
+import { connect } from "react-redux";
+import { Dispatch } from "redux";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { errorMessageOrDefault } from "UtilityFunctions";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
     BUG = "BUG"
 }
 
-function Support() {
+function Support(props: AddSnackOperation) {
     const textArea = useRef<HTMLTextAreaElement>(null);
     const supportBox = useRef<HTMLTextAreaElement>(null);
     const [loading, setLoading] = useState(false);
     const [visible, setVisible] = useState(false);
     const [type, setType] = useState(SupportType.SUGGESTION);
 
-    function handleESC(e) {
+    function handleESC(e: KeyboardEvent) {
         if (e.keyCode == KeyCode.ESC) setVisible(false)
     }
 
@@ -34,7 +38,7 @@ function Support() {
             setVisible(false);
     }
 
-    function onSubmit(event: React.FormEvent) {
+    async function onSubmit(event: React.FormEvent) {
         event.preventDefault();
         const text = textArea.current;
         if (!!text) {
@@ -43,13 +47,9 @@ function Support() {
                 text.value = "";
                 setVisible(false);
                 setLoading(false);
-                successNotification("Support ticket submitted!");
+                props.addSnack({ message: "Support ticket submitted!", type: SnackType.Success });
             }).catch(e => {
-                if (!!e.response.why) {
-                    failureNotification(e.response.why);
-                } else {
-                    failureNotification("An error occured");
-                }
+                props.addSnack({ message: errorMessageOrDefault(e, "An error occured"), type: SnackType.Failure });
             });
         }
     }
@@ -99,4 +99,8 @@ function Support() {
         </ClickableDropdown>);
 }
 
-export default Support;
+const mapDispatchToProps = (dispatch: Dispatch): AddSnackOperation => ({
+    addSnack: snack => dispatch(addSnack(snack))
+});
+
+export default connect(null, mapDispatchToProps)(Support);
