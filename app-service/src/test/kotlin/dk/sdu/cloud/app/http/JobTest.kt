@@ -11,12 +11,7 @@ import dk.sdu.cloud.app.api.StartJobRequest
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.api.WordInvocationParameter
-import dk.sdu.cloud.app.services.JobDao
-import dk.sdu.cloud.app.services.JobOrchestrator
-import dk.sdu.cloud.app.services.VerifiedJobWithAccessToken
-import dk.sdu.cloud.app.services.normAppDesc
-import dk.sdu.cloud.app.services.withInvocation
-import dk.sdu.cloud.app.services.withNameAndVersion
+import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.defaultMapper
@@ -48,7 +43,8 @@ import dk.sdu.cloud.app.api.Application as CloudApp
 private fun KtorApplicationTestSetupContext.configureJobServer(
     jobService: JobDao<HibernateSession>,
     tokenValidation: TokenValidationJWT = micro.tokenValidation as TokenValidationJWT,
-    orchestrator: JobOrchestrator<HibernateSession> = mockk(relaxed = true)
+    orchestrator: JobOrchestrator<HibernateSession> = mockk(relaxed = true),
+    followService: StreamFollowService<HibernateSession> = mockk(relaxed = true)
 ): List<Controller> {
     micro.install(HibernateFeature)
     return listOf(
@@ -56,6 +52,7 @@ private fun KtorApplicationTestSetupContext.configureJobServer(
             micro.hibernateDatabase,
             orchestrator,
             jobService,
+            followService,
             tokenValidation,
             ClientMock.authenticatedClient
         )
@@ -228,8 +225,9 @@ class JobTest {
             setup = {
                 val jobService = mockk<JobDao<HibernateSession>>()
                 val orchestrator = mockk<JobOrchestrator<HibernateSession>>()
+                val followService = mockk<StreamFollowService<HibernateSession>>()
 
-                coEvery { orchestrator.followStreams(any()) } answers {
+                coEvery { followService.followStreams(any()) } answers {
                     FollowStdStreamsResponse(
                         "stdout",
                         10,
@@ -244,7 +242,7 @@ class JobTest {
                         app.metadata)
                 }
 
-                configureJobServer(jobService, orchestrator = orchestrator)
+                configureJobServer(jobService, orchestrator = orchestrator, followService = followService)
             },
             test = {
                 sendRequest(

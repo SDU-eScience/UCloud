@@ -11,30 +11,57 @@ import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.StartJobRequest
-import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.http.JOB_MAX_TIME
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
-import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.io.ByteReadChannel
+import dk.sdu.cloud.app.api.ComputationDescriptions
+import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.api.AccountingEvents
 
+/**
+ * The job orchestrator is responsible for the orchestration of computation backends.
+ *
+ * The orchestrator receives life-time events via its methods. These life-time events can be
+ * related to user action (e.g. starting an application) or it could be related to computation
+ * updates (e.g. state change). In reaction to life-time events the orchestrator will update
+ * its internal state and potentially send new updates to the relevant computation backends.
+ *
+ * Below is a description of how a [VerifiedJob] moves between its states ([VerifiedJob.currentState]):
+ *
+ * - A user starts an application (see [startJob])
+ *   - Sets state to [JobState.VALIDATED]. Backends notified via [ComputationDescriptions.jobVerified]
+ *
+ * - A job becomes [JobState.VALIDATED]
+ *   - Files are transferred to the computation backend.
+ *   - Sets state to [JobState.PREPARED]. Backends notified via [ComputationDescriptions.jobPrepared]
+ *
+ * - Computation backend successfully schedules job and requests state change ([handleProposedStateChange]) to
+ *   [JobState.SCHEDULED]
+ *
+ * - Computation backend notifies us of job completion ([JobState.TRANSFER_SUCCESS]). This can happen both in case
+ *   of failures and successes.
+ *   - This will initialize an output directory in the user's home folder.
+ *   - In this state we will accept output files via [ComputationCallbackDescriptions.submitFile]
+ *
+ * - Computation backend notifies us of final result ([JobState.FAILURE], [JobState.SUCCESS])
+ *   - Accounting backends are notified (See [AccountingEvents])
+ *   - Backends are asked to clean up temporary files via [ComputationDescriptions.cleanup]
+ *
+ * At startup the job orchestrator can restart otherwise unmanaged jobs. This should be performed at startup via
+ * [replayLostJobs]. Only one instance of this microservice must run at the same time!
+ */
 class JobOrchestrator<DBSession>(
     private val serviceCloud: AuthenticatedClient,
 
@@ -48,8 +75,6 @@ class JobOrchestrator<DBSession>(
 ) {
     /**
      * Shared error handling for methods that work with a live job.
-     *
-     * Will return the result if [rethrow] is false, otherwise the original exception is thrown without wrapping.
      */
     @Suppress("TooGenericExceptionCaught")
     private inline fun <R> withJobExceptionHandler(jobId: String, rethrow: Boolean = true, body: () -> R): R? {
@@ -100,25 +125,17 @@ class JobOrchestrator<DBSession>(
     suspend fun startJob(
         req: StartJobRequest,
         principal: DecodedJWT,
-        cloud: AuthenticatedClient
-    ): String {
-        val (initialState, jobWithToken) = validateJob(req, principal, cloud)
-        db.withTransaction { session -> jobDao.create(session, jobWithToken) }
-        handleStateChange(jobWithToken, initialState)
-        return initialState.systemId
-    }
-
-    private suspend fun validateJob(
-        req: StartJobRequest,
-        principal: DecodedJWT,
         userCloud: AuthenticatedClient
-    ): Pair<JobStateChange, VerifiedJobWithAccessToken> {
+    ): String {
         val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend))
         val unverifiedJob = UnverifiedJob(req, principal)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
+        val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
         backend.jobVerified.call(jobWithToken.job, serviceCloud).orThrow()
 
-        return Pair(JobStateChange(jobWithToken.job.id, JobState.VALIDATED), jobWithToken)
+        db.withTransaction { session -> jobDao.create(session, jobWithToken) }
+        handleStateChange(jobWithToken, initialState)
+        return initialState.systemId
     }
 
     fun handleProposedStateChange(
@@ -132,14 +149,12 @@ class JobOrchestrator<DBSession>(
             val (job, _) = jobWithToken
             computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
 
-            log.info("Moving from ${job.currentState} to $proposedState")
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
             if (proposedState in validStates) {
                 if (proposedState != job.currentState) {
                     handleStateChange(jobWithToken, event, newStatus)
                 }
             } else {
-                log.info("NOPE!")
                 throw JobException.BadStateTransition(job.currentState, event.newState)
             }
         }
@@ -201,37 +216,6 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    suspend fun followStreams(
-        request: FollowStdStreamsRequest
-    ): FollowStdStreamsResponse {
-        val (job, _) = findJobForId(request.jobId)
-        val backend = computationBackendService.getAndVerifyByName(job.backend, null)
-        val internalResult = backend.follow.call(
-            InternalFollowStdStreamsRequest(
-                job,
-                request.stdoutLineStart,
-                request.stdoutMaxLines,
-                request.stderrLineStart,
-                request.stderrMaxLines
-            ),
-            serviceCloud
-        ).orThrow()
-
-        return FollowStdStreamsResponse(
-            internalResult.stdout,
-            internalResult.stdoutNextLine,
-            internalResult.stderr,
-            internalResult.stderrNextLine,
-            NameAndVersion(job.application.metadata.name, job.application.metadata.version),
-            job.currentState,
-            job.status,
-            job.currentState.isFinal(),
-            job.id,
-            jobFileService.jobFolder(job),
-            job.application.metadata
-        )
-    }
-
     /**
      * Handles a state change
      */
@@ -251,10 +235,10 @@ class JobOrchestrator<DBSession>(
             val (job, _) = jobWithToken
             val backend = computationBackendService.getAndVerifyByName(job.backend)
 
+            log.info("New state ${job.id} is ${event.newState}")
             when (event.newState) {
                 JobState.VALIDATED -> {
-                    // Ask backend to prepare the job
-                    transferFilesToCompute(jobWithToken)
+                    jobFileService.transferFilesToBackend(jobWithToken, backend)
 
                     val jobWithNewState = job.copy(currentState = JobState.PREPARED)
                     val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
@@ -290,53 +274,16 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    // TODO Move this
-    private suspend fun transferFilesToCompute(jobWithToken: VerifiedJobWithAccessToken) {
-        val (job, accessToken) = jobWithToken
-        val backend = computationBackendService.getAndVerifyByName(job.backend)
-        coroutineScope {
-            job.files.map { file ->
-                async {
-                    runCatching {
-                        val userCloud = serviceCloud.withoutAuthentication().bearerAuth(accessToken)
-                        val fileStream = FileDescriptions.download.call(
-                            DownloadByURI(file.sourcePath, null),
-                            userCloud
-                        ).orRethrowAs { throw JobException.TransferError() }.asIngoing()
-
-                        backend.submitFile.call(
-                            SubmitFileToComputation(
-                                job.id,
-                                file.id,
-                                BinaryStream.outgoingFromChannel(
-                                    fileStream.channel,
-                                    contentType = fileStream.contentType
-                                        ?: ContentType.Application.OctetStream,
-                                    contentLength = fileStream.length
-                                )
-                            ),
-                            serviceCloud
-                        ).orThrow()
-                    }
-                }
-            }.awaitAll().firstOrNull { it.isFailure }.let {
-                if (it != null) {
-                    throw it.exceptionOrNull()!!
-                }
-            }
-        }
-    }
-
     fun replayLostJobs() {
         log.info("Replaying jobs lost from last session...")
         var count = 0
         runBlocking {
             db.withTransaction {
-                jobDao.findJobsCreatedBefore(it, System.currentTimeMillis()).forEach {
+                jobDao.findJobsCreatedBefore(it, System.currentTimeMillis()).forEach { jobWithToken ->
                     count++
                     handleStateChange(
-                        it,
-                        JobStateChange(it.job.id, it.job.currentState),
+                        jobWithToken,
+                        JobStateChange(jobWithToken.job.id, jobWithToken.job.currentState),
                         isReplay = true
                     )
                 }
@@ -361,9 +308,7 @@ class JobOrchestrator<DBSession>(
     }
 
     private fun findJobForId(id: String): VerifiedJobWithAccessToken =
-        db.withTransaction { session ->
-            jobDao.findOrNull(session, id) ?: throw JobException.NotFound("Job: $id")
-        }
+        db.withTransaction { session -> jobDao.find(session, id) }
 
     companion object : Loggable {
         override val log = logger()
@@ -383,14 +328,8 @@ class JobOrchestrator<DBSession>(
     }
 }
 
-inline fun <T : Any, E : Any> IngoingCallResponse<T, E>.orThrowOnError(
-    onError: (IngoingCallResponse.Error<T, E>) -> Nothing
-): IngoingCallResponse.Ok<T, E> {
-    return when (this) {
-        is IngoingCallResponse.Ok -> this
-        is IngoingCallResponse.Error -> onError(this)
-        else -> throw IllegalStateException()
-    }
+fun <DBSession> JobDao<DBSession>.find(session: DBSession, id: String): VerifiedJobWithAccessToken {
+    return findOrNull(session, id) ?: throw JobException.NotFound("Job: $id")
 }
 
 fun resolveBackend(backend: String?): String = backend ?: "abacus"

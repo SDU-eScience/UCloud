@@ -2,12 +2,10 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.app.api.AccountingEvents
-import dk.sdu.cloud.app.api.ComputationDescriptions
 import dk.sdu.cloud.app.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.api.InternalStdStreamsResponse
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.JobStateChange
-import dk.sdu.cloud.app.api.JobStreams
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -16,6 +14,7 @@ import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
@@ -28,6 +27,7 @@ import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import org.hibernate.Session
 import org.junit.Test
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
 class JobOrchestratorTest {
@@ -38,8 +38,12 @@ class JobOrchestratorTest {
 
     private val client = ClientMock.authenticatedClient
     private lateinit var backend: NamedComputationBackendDescriptions
+    private lateinit var orchestrator: JobOrchestrator<HibernateSession>
+    private lateinit var streamFollowService: StreamFollowService<HibernateSession>
 
-    private fun setup() :JobOrchestrator<Session> {
+    @BeforeTest
+    fun init() {
+        OrchestrationScope.reset()
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -53,14 +57,14 @@ class JobOrchestratorTest {
             toolDao.create(it, "user", normToolDesc)
             appDao.create(it, "user", normAppDesc)
         }
+        val jobFileService = JobFileService(client)
         val orchestrator = JobOrchestrator(
             client,
-            EventServiceMock.createProducer(JobStreams.jobStateEvents),
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
             JobVerificationService(db, appDao, toolDao),
             compBackend,
-            JobFileService(client),
+            jobFileService,
             jobDao
         )
 
@@ -70,8 +74,21 @@ class JobOrchestratorTest {
             Unit
         )
 
-        return orchestrator
+        ClientMock.mockCallSuccess(
+            backend.jobPrepared,
+            Unit
+        )
+
+        ClientMock.mockCallSuccess(
+            backend.cleanup,
+            Unit
+        )
+
+        this.orchestrator = orchestrator
+        this.streamFollowService = StreamFollowService(jobFileService, client, compBackend, db, jobDao)
     }
+
+    fun setup(): JobOrchestrator<HibernateSession> = orchestrator
 
     @Test
     fun `orchestrator start job, handle proposed state, lookup test `() {
@@ -188,50 +205,6 @@ class JobOrchestratorTest {
     }
 
     @Test
-    fun `handle state change from event test `() {
-        val orchestrator = setup()
-
-        val returnedID = runBlocking {
-            orchestrator.startJob(startJobRequest, decodedJWT, client)
-        }
-
-        run {
-            val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-            assertEquals(JobState.VALIDATED, job.currentState)
-        }
-
-        ClientMock.mockCallSuccess(
-            backend.jobPrepared,
-            Unit
-        )
-
-        val stateChangeValidate = JobStateChange(returnedID, JobState.VALIDATED)
-
-        orchestrator.handleStateChange(stateChangeValidate)
-
-        run {
-            val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-            assertEquals(JobState.PREPARED, job.currentState)
-        }
-
-        // faking dual emit from kakfa
-        orchestrator.handleStateChange(stateChangeValidate)
-        run {
-            val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-            assertEquals(JobState.PREPARED, job.currentState)
-        }
-
-        ClientMock.mockCallError(
-            backend.cleanup,
-            statusCode = HttpStatusCode.NotFound
-        )
-
-        val stateChangeSuccess = JobStateChange(returnedID, JobState.SUCCESS)
-
-        orchestrator.handleStateChange(stateChangeSuccess)
-    }
-
-    @Test
     fun `handle incoming files`() {
         val orchestrator = setup()
         val returnedID = runBlocking {
@@ -281,14 +254,14 @@ class JobOrchestratorTest {
             InternalStdStreamsResponse("stdout", 10, "stderr", 10)
         )
         runBlocking {
-            val result = orchestrator.followStreams(FollowStdStreamsRequest(returnedID,0, 0, 0, 0))
+            val result = streamFollowService.followStreams(FollowStdStreamsRequest(returnedID, 0, 0, 0, 0))
             assertEquals("stdout", result.stdout)
             assertEquals("stderr", result.stderr)
             assertEquals(10, result.stderrNextLine)
         }
     }
 
-    @Test (expected = JobException.BadStateTransition::class)
+    @Test(expected = JobException.BadStateTransition::class)
     fun `test with job exception`() {
         val orchestrator = setup()
         val returnedID = runBlocking {
@@ -297,21 +270,23 @@ class JobOrchestratorTest {
 
         runBlocking {
             orchestrator.handleProposedStateChange(
-                JobStateChange(returnedID,JobState.VALIDATED),
+                JobStateChange(returnedID, JobState.VALIDATED),
                 null,
-                TestUsers.user)
+                TestUsers.user
+            )
         }
     }
 
-    @Test (expected = JobException.NotFound::class)
+    @Test(expected = JobException.NotFound::class)
     fun `test with job exception2`() {
         val orchestrator = setup()
 
         runBlocking {
             orchestrator.handleProposedStateChange(
-                JobStateChange("lalala",JobState.VALIDATED),
+                JobStateChange("lalala", JobState.VALIDATED),
                 null,
-                TestUsers.user)
+                TestUsers.user
+            )
         }
     }
 }

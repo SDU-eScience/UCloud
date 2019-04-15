@@ -42,6 +42,13 @@ class Server(
         val jobDao = JobHibernateDao(applicationDao, toolDao)
         val jobVerificationService = JobVerificationService(db, applicationDao, toolDao)
         val jobFileService = JobFileService(serviceClient)
+        val streamFollowService = StreamFollowService(
+            jobFileService,
+            serviceClient,
+            computationBackendService,
+            db,
+            jobDao
+        )
 
         val jobOrchestrator = JobOrchestrator(
             serviceClient,
@@ -69,7 +76,14 @@ class Server(
                     toolDao
                 ),
 
-                JobController(db, jobOrchestrator, jobDao, micro.tokenValidation as TokenValidationJWT, serviceClient),
+                JobController(
+                    db,
+                    jobOrchestrator,
+                    jobDao,
+                    streamFollowService,
+                    micro.tokenValidation as TokenValidationJWT,
+                    serviceClient
+                ),
 
                 CallbackController(jobOrchestrator),
 
