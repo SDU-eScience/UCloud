@@ -279,15 +279,20 @@ export const ExtractionOperation = (onFinished: () => void): Operation[] => [
     }
 ];
 
+
+interface MoveFileToTrashOperation extends AddSnackOperation {
+    onMoved: () => void
+    setLoading: () => void
+}
 /**
  * 
  * @param onMoved To be called on completed deletion of files
  * @returns the Delete operation in an array
  */
-export const MoveFileToTrashOperation = (onMoved: () => void, setLoading: () => void): Operation[] => [
+export const MoveFileToTrashOperation = ({ onMoved, setLoading, addSnack }: MoveFileToTrashOperation): Operation[] => [
     {
         text: "Move to Trash",
-        onClick: (files, cloud) => moveToTrash(files, cloud, setLoading, onMoved),
+        onClick: (files, cloud) => moveToTrash({ files, cloud, setLoading, callback: onMoved, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({ path }) => inTrashDir(path, cloud))),
         icon: "trash",
         color: "red"
@@ -378,7 +383,7 @@ export function allFileOperations({
 }: AllFileOperations) {
     const stateLessOperations = stateless ? StateLessOperations({ setLoading, addSnack, onSensitivityChange }) : [];
     const fileSelectorOps = !!fileSelectorOperations ? FileSelectorOperations({ fileSelectorOperations, setLoading, addSnack }) : [];
-    const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
+    const deleteOperation = !!onDeleted ? MoveFileToTrashOperation({ onMoved: onDeleted, setLoading, addSnack }) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history, addSnack) : [];
     const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
@@ -710,25 +715,38 @@ export const clearTrashSwal = () => {
     });
 };
 
+interface ResultToNotification extends AddSnackOperation {
+    failures: string[]
+    paths: string[]
+    homeFolder: string
+}
 
-function resultToNotification(failures: string[], paths: string[], homeFolder: string) {
+function resultToNotification({ failures, paths, homeFolder, addSnack }: ResultToNotification) {
     const successMessage = successResponse(paths, homeFolder);
-    if (failures.length === 0) UF.successNotification(successMessage);
-    else if (failures.length === paths.length) UF.failureNotification(`Failed moving all files, please try again later`, 5);
-    else UF.infoNotification(`${successMessage}\n Failed to move files: ${failures.join(", ")}`, 15);
+    if (failures.length === 0) addSnack({ message: successMessage, type: SnackType.Success });
+    else if (failures.length === paths.length) addSnack({ message: "Failed moving all files, please try again later", type: SnackType.Failure });
+    else addSnack({ message: `${successMessage}\n Failed to move files: ${failures.join(", ")}`, type: SnackType.Information });
 }
 
 const successResponse = (paths: string[], homeFolder: string) =>
     paths.length > 1 ? `${paths.length} files moved to trash.` : `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
 
 type Failures = { failures: string[] }
-export const moveToTrash = (files: File[], cloud: SDUCloud, setLoading: () => void, callback: () => void) => {
+interface MoveToTrash extends AddSnackOperation {
+    files: File[]
+    cloud: SDUCloud
+    setLoading: () => void
+    callback: () => void
+}
+export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: MoveToTrash) => {
     const paths = files.map(f => f.path);
     moveToTrashSwal(paths).then((result: any) => {
         if (result.dismiss) return;
         setLoading();
         cloud.post<Failures>("/files/trash/", { files: paths })
-            .then(({ response }) => (resultToNotification(response.failures, paths, cloud.homeFolder), callback()))
+            .then(({ response }) => (resultToNotification({
+                failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack
+            }), callback()))
             .catch(({ response }) => (UF.failureNotification(response.why), callback()));
     });
 };

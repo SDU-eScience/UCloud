@@ -3,7 +3,7 @@ import * as Modal from "react-modal";
 import { Text, Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import Dropzone from "react-dropzone";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal, inRange, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal, inRange, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
 import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -24,6 +24,7 @@ import { Refresh } from "Navigation/Header";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Error from "ui-components/Error";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { SnackType } from "Snackbar/Snackbars";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -67,9 +68,10 @@ class Uploader extends React.Component<UploaderProps> {
 
     private readonly MAX_CONCURRENT_UPLOADS = 5;
 
-    private onFilesAdded = async (files: File[]) => {
-        if (files.some(it => it.size === 0)) infoNotification("It is not possible to upload empty files.");
-        if (files.some(it => it.name.length > 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
+    private onFilesAdded = async (files: File[]): Promise<void> => {
+        const { addSnack } = this.props;
+        if (files.some(it => it.size === 0)) addSnack({ message: "It is not possible to upload empty files.", type: SnackType.Information });
+        if (files.some(it => it.name.length > 1025)) addSnack({ message: "Filenames can't exceed a length of 1024 characters.", type: SnackType.Information });
         const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it, this.props.location));
         if (filteredFiles.length == 0) return;
 
