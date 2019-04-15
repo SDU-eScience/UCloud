@@ -112,7 +112,7 @@ class Files extends React.Component<FilesProps> {
         },
         ...allFileOperations({
             stateless: true,
-            fileSelectorOps: this.fileSelectorOperations,
+            fileSelectorOperations: this.fileSelectorOperations,
             onDeleted: this.refetch,
             onExtracted: this.refetch,
             onSensitivityChange: this.refetch,

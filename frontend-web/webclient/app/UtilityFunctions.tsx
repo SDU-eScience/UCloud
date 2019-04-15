@@ -3,14 +3,9 @@ import { SensitivityLevel } from "DefaultObjects";
 import Cloud from "Authentication/lib";
 import { SortBy, SortOrder, File, Acl, FileType } from "Files";
 import { dateToString } from "Utilities/DateUtilities";
-import {
-    getFilenameFromPath,
-    sizeToString,
-    replaceHomeFolder,
-    isDirectory
-} from "Utilities/FileUtilities";
+import { getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { HTTP_STATUS_CODES } from "Utilities/XHRUtils";
-import { SnackType } from "Snackbar/Snackbars";
+import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
 
 /**
  * Lowercases the string and capitalizes the first letter of the string
@@ -305,13 +300,13 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
 };
 
 
-interface CreateProject {
+interface CreateProject extends AddSnackOperation {
     filePath: string
     cloud: Cloud
     navigate: (path: string) => void
 }
 // FIXME Remove navigation when backend support comes.
-export const createProject = ({ filePath, cloud, navigate, addSnack }) => {
+export const createProject = ({ filePath, cloud, navigate, addSnack }: CreateProject) => {
     cloud.put("/projects", { fsRoot: filePath }).then(() => {
         redirectToProject(filePath, cloud, navigate, 5);
     }).catch(() => addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure }));

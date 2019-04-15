@@ -40,7 +40,7 @@ const nullOp = () => null;
 
 const fileOperations = allFileOperations({
     stateless: true,
-    fileSelectorOps: {
+    fileSelectorOperations: {
         setFileSelectorCallback: nullOp,
         showFileSelector: nullOp,
         setDisallowedPaths: nullOp,

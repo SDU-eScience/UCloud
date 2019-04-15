@@ -29,7 +29,7 @@ enum CopyOrMove {
     Copy
 }
 
-interface CopyOrMoveFiles {
+interface CopyOrMoveFiles extends AddSnackOperation {
     operation: CopyOrMove
     files: File[]
     copyMoveOps: MoveCopyOperations
@@ -37,13 +37,13 @@ interface CopyOrMoveFiles {
     setLoading: () => void
 }
 
-export function copyOrMoveFiles({ operation, files, copyMoveOps: moveCopyOps, cloud, setLoading }: CopyOrMoveFiles): void {
+export function copyOrMoveFiles({ operation, files, copyMoveOps, cloud, setLoading, addSnack }: CopyOrMoveFiles): void {
     const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
     let successes = 0, failures = 0, pathToFetch = "";
-    moveCopyOps.showFileSelector(true);
-    moveCopyOps.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
-    moveCopyOps.setFileSelectorCallback(async (targetPathFolder: File) => {
-        let { failurePaths, applyToAll, policy } = initialSetup(moveCopyOps);
+    copyMoveOps.showFileSelector(true);
+    copyMoveOps.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
+    copyMoveOps.setFileSelectorCallback(async (targetPathFolder: File) => {
+        let { failurePaths, applyToAll, policy } = initialSetup(copyMoveOps);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
             let { exists, allowRewrite, newPathForFile } = await moveCopySetup({ targetPath: targetPathFolder.path, path: f.path, cloud });
@@ -58,21 +58,31 @@ export function copyOrMoveFiles({ operation, files, copyMoveOps: moveCopyOps, cl
                 if (UF.inSuccessRange(request.request.status)) {
                     successes++;
                     pathToFetch = newPathForFile;
-                    if (request.request.status === 202) UF.successNotification(`Operation for ${f.path} is in progress.`)
+                    if (request.request.status === 202) addSnack({
+                        message: `Operation for ${f.path} is in progress.`,
+                        type: SnackType.Success
+                    })
                 } else {
                     failures++;
                     failurePaths.push(getFilenameFromPath(f.path))
-                    UF.failureNotification(`An error occurred ${operation === CopyOrMove.Copy ? "copying" : "moving"} ${f.path}`)
+                    addSnack({
+                        message: `An error occurred ${operation === CopyOrMove.Copy ? "copying" : "moving"} ${f.path}`,
+                        type: SnackType.Failure
+                    });
                 }
             }
         }
         if (successes) {
             setLoading();
-            if (policy === UploadPolicy.RENAME) moveCopyOps.fetchFilesPage(getParentPath(pathToFetch));
-            else moveCopyOps.fetchPageFromPath(pathToFetch);
+            if (policy === UploadPolicy.RENAME) copyMoveOps.fetchFilesPage(getParentPath(pathToFetch));
+            else copyMoveOps.fetchPageFromPath(pathToFetch);
         }
         if (!failures && successes) onOnlySuccess(operation === CopyOrMove.Copy ? "Copied" : "Moved", files.length);
-        else if (failures) UF.failureNotification(`Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`, 10);
+        else if (failures)
+            addSnack({
+                message: `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`,
+                type: SnackType.Failure
+            });
     });
 };
 
@@ -226,20 +236,26 @@ export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void, setL
     color: undefined
 }]
 
+
+interface FileSelectorOperations {
+    fileSelectorOperations: MoveCopyOperations
+    setLoading: () => void
+    addSnack: (snack: Snack) => void
+}
 /**
  * @returns Move and Copy operations for files
  */
-export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations, setLoading: () => void): Operation[] => [
+export const FileSelectorOperations = ({ fileSelectorOperations, setLoading, addSnack }: FileSelectorOperations): Operation[] => [
     {
         text: "Copy",
-        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({ operation: CopyOrMove.Copy, files, copyMoveOps: fileSelectorOperations, cloud, setLoading }),
+        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({ operation: CopyOrMove.Copy, files, copyMoveOps: fileSelectorOperations, cloud, setLoading, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files),
         icon: "copy",
         color: undefined
     },
     {
         text: "Move",
-        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({ operation: CopyOrMove.Move, files, copyMoveOps: fileSelectorOperations, cloud, setLoading }),
+        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({ operation: CopyOrMove.Move, files, copyMoveOps: fileSelectorOperations, cloud, setLoading, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)),
         icon: "move",
         color: undefined
@@ -341,7 +357,7 @@ export const fileTablePage = (path: string): string => `/files?path=${encodeURIC
 
 interface AllFileOperations extends AddSnackOperation {
     stateless?: boolean,
-    fileSelectorOps?: MoveCopyOperations
+    fileSelectorOperations?: MoveCopyOperations
     onDeleted?: () => void
     onExtracted?: () => void
     onClearTrash?: () => void
@@ -351,7 +367,7 @@ interface AllFileOperations extends AddSnackOperation {
 }
 export function allFileOperations({
     stateless,
-    fileSelectorOps,
+    fileSelectorOperations,
     onDeleted,
     onExtracted,
     onClearTrash,
@@ -361,14 +377,14 @@ export function allFileOperations({
     addSnack
 }: AllFileOperations) {
     const stateLessOperations = stateless ? StateLessOperations({ setLoading, addSnack, onSensitivityChange }) : [];
-    const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps, setLoading) : [];
+    const fileSelectorOps = !!fileSelectorOperations ? FileSelectorOperations({ fileSelectorOperations, setLoading, addSnack }) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history, addSnack) : [];
     const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
     return [
         ...stateLessOperations,
-        ...fileSelectorOperations,
+        ...fileSelectorOps,
         ...deleteOperation,
         ...extractionOperations,        // ...clearTrash,
         ...historyOperations,

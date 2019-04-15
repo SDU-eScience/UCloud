@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
-import { successNotification, defaultErrorHandler } from "UtilityFunctions";
+import { defaultErrorHandler } from "UtilityFunctions";
 import { UserCreationState, UserCreationField } from ".";
 import { Input, Label, LoadingButton } from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -10,6 +10,8 @@ import { Dispatch } from "redux";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { SidebarPages } from "ui-components/Sidebar";
 import { MainContainer } from "MainContainer/MainContainer";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 class UserCreation extends React.Component<UserCreationOperations, UserCreationState> {
     constructor(props: Readonly<UserCreationOperations>) {
@@ -32,7 +34,7 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
         this.state.promiseKeeper.cancelPromises();
     }
 
-    updateFields(field: UserCreationField, value: string) {
+    private updateFields(field: UserCreationField, value: string) {
         const state = { ...this.state }
         state[field] = value;
         if (field === "username") state.usernameError = false;
@@ -40,7 +42,7 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
         this.setState(() => state);
     }
 
-    submit(e: React.SyntheticEvent) {
+    private async submit(e: React.SyntheticEvent) {
         e.preventDefault();
 
         let usernameError = false;
@@ -50,17 +52,14 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
         if (!password || password !== repeatedPassword) passwordError = true;
         this.setState(() => ({ usernameError, passwordError }));
         if (!usernameError && !passwordError) {
-            this.state.promiseKeeper.makeCancelable(
-                Cloud.post("/auth/users/register", { username, password }, "")
-            ).promise.then(f => {
-                successNotification(`User '${username}' successfully created`);
+            try {
+                await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/register", { username, password }, "")).promise;
+                this.props.addSnack({ message: `User '${username}' successfully created`, type: SnackType.Success });
                 this.setState(() => this.initialState);
-            }).catch(error => {
-                const status = defaultErrorHandler(error);
-                if (status == 400) {
-                    this.setState(() => ({ usernameError: true }));
-                }
-            });
+            } catch (e) {
+                const status = defaultErrorHandler(e);
+                if (status == 400)  this.setState(() => ({ usernameError: true }));
+            };
         }
     }
 
@@ -127,12 +126,13 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
     }
 }
 
-interface UserCreationOperations {
+interface UserCreationOperations extends AddSnackOperation {
     setActivePage: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Admin))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect(null, mapDispatchToProps)(UserCreation);

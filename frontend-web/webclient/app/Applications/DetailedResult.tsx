@@ -84,7 +84,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     fileOperations = () => allFileOperations({
         stateless: true,
         history: this.props.history,
-        fileSelectorOps: {
+        fileSelectorOperations: {
             fetchFilesPage: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
             fetchPageFromPath: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
             setDisallowedPaths: (paths) => this.setState(() => ({ fsDisallowedPaths: paths })),
