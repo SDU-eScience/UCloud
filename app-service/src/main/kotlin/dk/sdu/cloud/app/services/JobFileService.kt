@@ -1,11 +1,8 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.ClientAndBackend
-import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.ExtractRequest
@@ -18,7 +15,9 @@ import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.defaultForFilePath
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.io.ByteReadChannel
 import java.io.File
 import java.time.LocalDateTime
@@ -34,7 +33,8 @@ class JobFileService(
     }
 
     suspend fun initializeResultFolder(
-        jobWithToken: VerifiedJobWithAccessToken
+        jobWithToken: VerifiedJobWithAccessToken,
+        isReplay: Boolean = false
     ) {
         val (job, accessToken) = jobWithToken
 
@@ -46,10 +46,18 @@ class JobFileService(
             userCloud
         )
 
-        FileDescriptions.createDirectory.call(
+        val dirResp = FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path, null),
             userCloud
-        ).orThrow()
+        ).throwIfInternal()
+
+        if (!dirResp.statusCode.isSuccess()) {
+            // We allow conflicts during replay
+            if (isReplay && dirResp.statusCode == HttpStatusCode.Conflict) return
+
+            // Throw if we didn't allow this case
+            throw RPCException.fromStatusCode(dirResp.statusCode)
+        }
     }
 
     suspend fun acceptFile(

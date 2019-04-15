@@ -113,6 +113,9 @@ class Server(
             }
         }
 
+        log.info("Replaying lost jobs")
+        jobOrchestrator.replayLostJobs()
+
         log.info("Starting Application Services")
         startServices()
 

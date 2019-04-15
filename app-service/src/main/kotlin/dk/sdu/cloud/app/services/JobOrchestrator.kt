@@ -238,53 +238,55 @@ class JobOrchestrator<DBSession>(
     private fun handleStateChange(
         jobWithToken: VerifiedJobWithAccessToken,
         event: JobStateChange,
-        newStatus: String? = null
-    ) {
-        OrchestrationScope.launch {
-            withJobExceptionHandler(event.systemId, rethrow = false) {
+        newStatus: String? = null,
+        isReplay: Boolean = false
+    ): Job = OrchestrationScope.launch {
+        withJobExceptionHandler(event.systemId, rethrow = false) {
+            if (!isReplay) {
                 db.withTransaction(autoFlush = true) {
                     jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
                 }
+            }
 
-                val (job, _) = jobWithToken
-                val backend = computationBackendService.getAndVerifyByName(job.backend)
+            val (job, _) = jobWithToken
+            val backend = computationBackendService.getAndVerifyByName(job.backend)
 
-                when (event.newState) {
-                    JobState.VALIDATED -> {
-                        // Ask backend to prepare the job
-                        transferFilesToCompute(jobWithToken)
+            when (event.newState) {
+                JobState.VALIDATED -> {
+                    // Ask backend to prepare the job
+                    transferFilesToCompute(jobWithToken)
 
-                        val jobWithNewState = job.copy(currentState = JobState.PREPARED)
-                        val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
+                    val jobWithNewState = job.copy(currentState = JobState.PREPARED)
+                    val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
 
-                        handleStateChange(
-                            jobWithTokenAndNewState,
-                            JobStateChange(jobWithNewState.id, JobState.PREPARED)
-                        )
-                    }
+                    handleStateChange(
+                        jobWithTokenAndNewState,
+                        JobStateChange(jobWithNewState.id, JobState.PREPARED)
+                    )
+                }
 
-                    JobState.PREPARED -> {
-                        backend.jobPrepared.call(jobWithToken.job, serviceCloud).orThrow()
-                    }
+                JobState.PREPARED -> {
+                    backend.jobPrepared.call(jobWithToken.job, serviceCloud).orThrow()
+                }
 
-                    JobState.SCHEDULED, JobState.RUNNING -> {
-                        // Do nothing (apart from updating state). It is mostly working.
-                    }
+                JobState.SCHEDULED, JobState.RUNNING -> {
+                    // Do nothing (apart from updating state).
+                }
 
-                    JobState.TRANSFER_SUCCESS -> {
-                        jobFileService.initializeResultFolder(jobWithToken)
-                    }
+                JobState.TRANSFER_SUCCESS -> {
+                    jobFileService.initializeResultFolder(jobWithToken, isReplay)
+                }
 
-                    JobState.SUCCESS, JobState.FAILURE -> {
-                        // This one should _NEVER_ throw an exception
-                        val resp = backend.cleanup.call(job, serviceCloud)
-                        if (resp is IngoingCallResponse.Error) {
-                            log.info("unable to clean up for job $job.")
-                            log.info(resp.toString())
-                        }
+                JobState.SUCCESS, JobState.FAILURE -> {
+                    // This one should _NEVER_ throw an exception
+                    val resp = backend.cleanup.call(job, serviceCloud)
+                    if (resp is IngoingCallResponse.Error) {
+                        log.info("unable to clean up for job $job.")
+                        log.info(resp.toString())
                     }
                 }
             }
+            return@withJobExceptionHandler
         }
     }
 
@@ -323,6 +325,24 @@ class JobOrchestrator<DBSession>(
                 }
             }
         }
+    }
+
+    fun replayLostJobs() {
+        log.info("Replaying jobs lost from last session...")
+        var count = 0
+        runBlocking {
+            db.withTransaction {
+                jobDao.findJobsCreatedBefore(it, System.currentTimeMillis()).forEach {
+                    count++
+                    handleStateChange(
+                        it,
+                        JobStateChange(it.job.id, it.job.currentState),
+                        isReplay = true
+                    )
+                }
+            }
+        }
+        log.info("No more lost jobs! We recovered $count jobs.")
     }
 
     fun lookupOwnJob(jobId: String, securityPrincipal: SecurityPrincipal): VerifiedJob {
