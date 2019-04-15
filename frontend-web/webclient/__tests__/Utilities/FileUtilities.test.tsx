@@ -18,11 +18,14 @@ import { mockFiles_SensitivityConfidential } from "../mock/Files";
 import Cloud from "Authentication/lib";
 import { createMemoryHistory } from "history";
 
-test("silencer", () => {});
+test("silencer", () => { });
 
-/* describe("File Operations", () => {
+describe("File Operations", () => {
     test("No file operations", () =>
-        expect(allFileOperations(false, false, false, false, false, false)).toEqual([])
+        expect(allFileOperations({
+            setLoading: () => undefined,
+            addSnack: () => undefined
+        })).toEqual([])
     );
 })
 
@@ -32,7 +35,8 @@ describe("To file text", () => {
         expect(toFileText([firstFile])).toBe("1 file selected");
     });
 });
- 
+
+
 describe("File size to string", () => {
     test("0 bytes to string", () =>
         expect(sizeToString(0)).toBe("0 B")
@@ -71,7 +75,6 @@ describe("File size to string", () => {
     );
 });
 
-
 describe("Get filename from path", () => {
     test("Filename from path", () =>
         expect(getFilenameFromPath("/Home/folder")).toBe("folder")
@@ -100,21 +103,23 @@ describe("Replace homefolder", () => {
     );
 });
 
-describe("Filepath query", () =>
+
+describe("Filepath query", () => {
     test("Defaults", () =>
         expect(filepathQuery("path", 0, 25)).toBe(
             "files?path=path&itemsPerPage=25&page=0&order=ASCENDING&sortBy=PATH"
         )
     )
-);
+});
 
-describe("Filelookup query", () =>
+describe("Filelookup query", () => {
     test("Defaults", () =>
         expect(fileLookupQuery("path")).toBe(
             "files/lookup?path=path&itemsPerPage=25&order=DESCENDING&sortBy=PATH"
         )
     )
-);
+});
+
 
 describe("Is Invalid Path Name", () => {
     test("Valid path with no provided filePaths", () => {
@@ -146,6 +151,8 @@ describe("Is Invalid Path Name", () => {
     });
 });
 
+/*
+
 // Doesn't return a value, so missing something we can test for
 describe.skip("Move copy operations", () => {
     const ops = {
@@ -166,7 +173,9 @@ describe.skip("Move copy operations", () => {
         move(firstThreeFiles, ops, new Cloud())
     });
 });
+*/
 
+/*
 describe("File Operations", () => {
     describe("are disabled", () => {
         describe("Not", () => {
