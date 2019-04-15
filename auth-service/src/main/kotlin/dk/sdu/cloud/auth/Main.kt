@@ -11,12 +11,8 @@ import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.TokenValidationJWT
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
@@ -100,8 +96,16 @@ fun main(args: Array<String>) {
     val jwtCerts = loadKeys(configuration.certsLocation)
     val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
+    val tokenValidation = micro.tokenValidation as TokenValidationJWT
+
+    val algorithm = if (tokenValidation.algorithm.javaClass.canonicalName == "com.auth0.jwt.algorithms.HMACAlgorithm") {
+        tokenValidation.algorithm
+    } else {
+        Algorithm.RSA256(null, jwtCerts.privateKey)
+    }
+
     Server(
-        jwtAlg = Algorithm.RSA256(null, jwtCerts.privateKey),
+        jwtAlg = algorithm,
         config = configuration,
         authSettings = authSettings,
         micro = micro

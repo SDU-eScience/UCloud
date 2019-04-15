@@ -55,12 +55,21 @@ class Files extends React.Component<FilesProps> {
             const fileNames = page.items.map(file => getFilenameFromPath(file.path));
             if (isInvalidPathName(name, fileNames)) return;
             const fullPath = `${UF.addTrailingSlash(path)}${name}`;
+            const { sortOrder, sortBy } = this.props;
             if (file.isMockFolder) {
-                createFolder(fullPath, Cloud,
-                    () => fetchPageFromPath(fullPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy));
+                createFolder({
+                    path: fullPath,
+                    cloud: Cloud,
+                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy)
+                });
             } else {
-                moveFile(file.path, fullPath, Cloud, () => this.props.setLoading(true),
-                    () => fetchPageFromPath(fullPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy));
+                moveFile({
+                    oldPath: file.path,
+                    newPath: fullPath,
+                    cloud: Cloud,
+                    setLoading: () => this.props.setLoading(true),
+                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy)
+                });
             }
         }
     }
@@ -122,7 +131,7 @@ class Files extends React.Component<FilesProps> {
                 right={<Pagination.EntriesPerPageSelector
                     content="Files per page"
                     entriesPerPage={page.itemsPerPage}
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, 0, sortOrder, sortBy)}
                 />}
             />
         );
@@ -227,6 +236,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     createFolder: () => dispatch(Actions.createFolder()),
     fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, index) => {
         dispatch(Actions.updatePath(path));
+        /* FIXME: Must be a better way */
         const fetch = async () => {
             dispatch(Actions.setLoading(true));
             dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));

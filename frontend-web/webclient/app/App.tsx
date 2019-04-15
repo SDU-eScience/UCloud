@@ -59,7 +59,7 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     ...AppRedux.reducers,
     ...AccountingRedux.reducers,
     ...FavoritesRedux.reducers,
-    snackbar: SnackbarRedux.reducers,
+    ...SnackbarRedux.reducers,
     avatar,
     shares,
     responsive: createResponsiveStateReducer(

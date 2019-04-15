@@ -18,6 +18,7 @@ import {
   maxWidth
 } from "styled-system";
 import { Theme } from "./theme";
+import { Cursor } from "./Types";
 
 export const caps = (props: { caps?: boolean }): { textTransform: "uppercase" } | null =>
   props.caps ? { textTransform: "uppercase" } : null;
@@ -36,7 +37,7 @@ export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, Co
   regular?: boolean
   italic?: boolean
   bold?: boolean
-  cursor?: string
+  cursor?: Cursor
 }
 
 const Text = styled.div<TextProps>`

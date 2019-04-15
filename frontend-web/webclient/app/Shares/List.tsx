@@ -16,7 +16,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { FileIcon } from "UtilityComponents";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
-import { ReduxObject, SharesReduxObject } from "DefaultObjects";
+import { ReduxObject, SharesReduxObject, emptyPage } from "DefaultObjects";
 import { retrieveShares, receiveShares, setErrorMessage, setShareState, fetchSharesByPath, setLoading } from "./Redux/SharesActions";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { useState } from "react";
@@ -84,7 +84,7 @@ class List extends React.Component<ListProps & SharesReduxObject & SharesOperati
             <>
                 {this.props.innerComponent ? header : null}
                 <Error clearError={() => this.props.setError()} error={error} />
-                {this.props.loading ? <LoadingIcon size={18} /> : null}
+                {this.props.page === emptyPage && this.props.loading ? <LoadingIcon size={18} /> : null}
                 <Heading.h3>Shared with Me</Heading.h3>
                 {
                     noSharesWith ? <NoShares /> : page.items.filter(it => !it.sharedByMe).map(it =>
@@ -277,33 +277,34 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
     async onAcceptChange(share: Share, accessRights: Set<AccessRight>) {
         this.setState(() => ({ isLoading: true }));
-        await updateShare(share.id, [...accessRights])
-            .then(it => this.maybeInvoke(it.id, this.props.onRights))
-            .catch(e => {
-                if (!e.isCanceled) {
-                    this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError)
-                }
-            });
-        this.setState(() => ({ isLoading: false }));
+        try {
+            const it = await updateShare(share.id, [...accessRights]);
+            this.maybeInvoke(it.id, this.props.onRights);
+        } catch (e) {
+            if (!e.isCanceled)
+                this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError)
+        } finally {
+            this.setState(() => ({ isLoading: false }));
+        }
     }
 
-    onCreateShare(path: string) {
+    private async onCreateShare(path: string) {
         this.setState(() => ({ isLoading: true }));
-        shareSwal().then(async ({ dismiss, value }) => {
-            if (dismiss) { this.setState(() => ({ isLoading: false })); return; }
-            const rights: AccessRight[] = [];
-            // FIXME Fix immediately when SweetAlert allows forms
-            (document.getElementById("read") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
-            (document.getElementById("read_edit") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
-            await createShare(value, path, rights)
-                .then(it => this.maybeInvoke(it.id, this.props.onShared))
-                .catch(e => {
-                    if (!e.isCanceled) {
-                        this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError);
-                    }
-                })
+        const { dismiss, value } = await shareSwal();
+        if (dismiss) { this.setState(() => ({ isLoading: false })); return; }
+        const rights: AccessRight[] = [];
+        (document.getElementById("read") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
+        (document.getElementById("read_edit") as HTMLInputElement).checked ? rights.push(AccessRight.READ, AccessRight.WRITE) : null;
+        try {
+            const it = await createShare(value, path, rights)
+            this.maybeInvoke(it.id, this.props.onShared)
+        } catch (e) {
+            if (!e.isCanceled) {
+                this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError);
+            }
+        } finally {
             this.setState(() => ({ isLoading: false }))
-        })
+        }
     }
 
     componentWillUnmount() {
@@ -417,10 +418,10 @@ function fileTypeGuess({ path }: FileTypeGuess) {
 }
 
 const acceptShare = async (shareId: ShareId): Promise<any> =>
-    (await Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
+    (await Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`)).response;
 
 const revokeShare = async (shareId: ShareId): Promise<any> =>
-    (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
+    (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response;
 
 const createShare = async (user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> =>
     (await Cloud.put(`/shares/`, { sharedWith: user, path, rights })).response; // FIXME Add error handling

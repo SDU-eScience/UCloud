@@ -35,7 +35,7 @@ export const searchFiles = (request: AdvancedSearchRequest): Promise<any> =>
         .catch(_ => setErrorMessage("An error occurred searching for files\n", { filesLoading: false }));
 
 export const searchApplications = (query: string, page: number, itemsPerPage: number): Promise<any> =>
-    Cloud.get(hpcApplicationsSearchQuery(query, page, itemsPerPage))
+    Cloud.get(hpcApplicationsSearchQuery({ query, page, itemsPerPage }))
         .then(({ response }) => receiveApplications(response))
         .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));
 

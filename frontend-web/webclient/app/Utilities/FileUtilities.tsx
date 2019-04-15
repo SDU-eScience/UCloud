@@ -16,7 +16,7 @@ function initialSetup(operations: MoveCopyOperations) {
 }
 
 async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
-    return !!(await rewritePolicy(newPath, homeFolder, filesRemaining)).value;
+    return !!(await rewritePolicy({ path: newPath, homeFolder, filesRemaining })).value;
 }
 
 function getNewPath(newParentPath: string, currentPath: string): string {
@@ -37,7 +37,7 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
         let { failurePaths, applyToAll, policy } = initialSetup(operations);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
-            let { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
+            let { exists, allowRewrite, newPathForFile } = await moveCopySetup({ targetPath: targetPathFolder.path, path: f.path, cloud });
             if (exists && !applyToAll) {
                 allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
                 policy = UF.selectValue("policy") as UploadPolicy;
@@ -67,7 +67,13 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
     });
 };
 
-async function moveCopySetup(targetPath: string, path: string, cloud: SDUCloud) {
+interface MoveCopySetup {
+    targetPath: string
+    path: string
+    cloud: SDUCloud
+}
+
+async function moveCopySetup({ targetPath, path, cloud }: MoveCopySetup) {
     const newPathForFile = getNewPath(targetPath, path);
     const exists = await checkIfFileExists(newPathForFile, cloud);
     return { exists, allowRewrite: false, newPathForFile };
@@ -98,7 +104,13 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
     }
 }
 
-function rewritePolicy(path: string, homeFolder: string, filesRemaining: number): Promise<SweetAlertResult> {
+interface RewritePolicy {
+    path: string
+    homeFolder: string
+    filesRemaining: number
+}
+
+function rewritePolicy({ path, homeFolder, filesRemaining }: RewritePolicy): Promise<SweetAlertResult> {
     return swal({
         title: "File exists",
         text: ``,
@@ -107,8 +119,8 @@ function rewritePolicy(path: string, homeFolder: string, filesRemaining: number)
                         <option value="RENAME">Rename</option>
                         <option value="OVERWRITE">Overwrite</option>
                     </select>
-                ${ filesRemaining > 1 ? `<br/>
-                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""} `,
+                ${filesRemaining > 1 ? `<br/>
+                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""}`,
         allowEscapeKey: true,
         allowOutsideClick: true,
         allowEnterKey: false,
@@ -140,14 +152,22 @@ const hasAccess = (accessRight: AccessRight, file: File) => {
 export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) =>
     files.every(f => hasAccess(accessRight, f));
 
-export const createFileLink = (file: File, cloud: SDUCloud, setLoading: () => void, pageFromPath: (p: string) => void) => {
+
+interface CreateFileLink {
+    file: File
+    cloud: SDUCloud
+    setLoading: () => void
+    fetchPageFromPath: (p: string) => void
+}
+
+export const createFileLink = ({ file, cloud, setLoading, fetchPageFromPath }: CreateFileLink) => {
     const fileName = getFilenameFromPath(file.path);
     const linkPath = file.path.replace(fileName, `Link to ${fileName} `)
     setLoading();
     cloud.post("/files/create-link", {
         linkTargetPath: file.path,
         linkPath: linkPath
-    }).then(it => pageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
+    }).then(it => fetchPageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
 };
 
 /**
@@ -176,7 +196,7 @@ export const StateLessOperations = (setLoading: () => void, onSensitivityChange?
         color: undefined
     },
     {
-        text: "To Clipholder",
+        text: "Copy Path",
         onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard(files[0].path, `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`),
         disabled: (files: File[], cloud: SDUCloud) => !UF.inDevEnvironment() || files.length !== 1,
         icon: "chat",
@@ -186,7 +206,7 @@ export const StateLessOperations = (setLoading: () => void, onSensitivityChange?
 
 export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void, setLoading: () => void) => [{
     text: "Create link",
-    onClick: (files: File[], cloud: SDUCloud) => createFileLink(files[0], cloud, setLoading, fetchPageFromPath),
+    onClick: (files: File[], cloud: SDUCloud) => createFileLink({ file: files[0], cloud, setLoading, fetchPageFromPath }),
     disabled: (files: File[], cloud: SDUCloud) => files.length > 1,
     icon: "link",
     color: undefined
@@ -679,8 +699,9 @@ export const batchDeleteFiles = (files: File[], cloud: SDUCloud, setLoading: () 
         setLoading();
         let i = 0;
         paths.forEach(path => {
-            cloud.delete("/files", { path }).then(() => { if (++i === paths.length) { UF.successNotification("Trash emptied"); callback() } })
-                .catch(() => i++);
+            cloud.delete("/files", { path }).then(() => {
+                if (++i === paths.length) { UF.successNotification("Trash emptied"); callback() }
+            }).catch(() => i++);
         });
     });
 };
@@ -699,7 +720,15 @@ const deletionSwal = (filePaths: string[]) => {
     });
 };
 
-export async function moveFile(oldPath: string, newPath: string, cloud: SDUCloud, setLoading: () => void, onSuccess: () => void): Promise<void> {
+interface MoveFile {
+    oldPath: string
+    newPath: string
+    cloud: SDUCloud
+    setLoading: () => void
+    onSuccess: () => void
+}
+
+export async function moveFile({ oldPath, newPath, cloud, setLoading, onSuccess }: MoveFile): Promise<void> {
     setLoading();
     try {
         await cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
@@ -709,7 +738,13 @@ export async function moveFile(oldPath: string, newPath: string, cloud: SDUCloud
     }
 }
 
-export async function createFolder(path: string, cloud: SDUCloud, onSuccess: () => void): Promise<void> {
+interface CreateFolder {
+    path: string
+    cloud: SDUCloud
+    onSuccess: () => void
+}
+
+export async function createFolder({ path, cloud, onSuccess }: CreateFolder): Promise<void> {
     try {
         await cloud.post("/files/directory", { path })
         onSuccess();

@@ -31,7 +31,8 @@ class TokenService<DBSession>(
     private val jwtFactory: JWTFactory,
     private val userCreationService: UserCreationService<*>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap()
+    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap(),
+    private val devMode: Boolean = false
 ) {
     private val secureRandom = SecureRandom()
 
@@ -124,32 +125,34 @@ class TokenService<DBSession>(
         }
 
         // Request and scope validation (only needed for non project users)
-        if (token.principal.role != Role.PROJECT_PROXY) {
-            log.debug("Checking extension allowed by service")
-            val extensions = allowedServiceExtensionScopes[requestedBy] ?: emptySet()
-            log.debug("Allowed extensions: $extensions")
-            val allRequestedScopesAreCoveredByPolicy = requestedScopes.all { requestedScope ->
-                extensions.any { userScope ->
-                    requestedScope.isCoveredBy(userScope)
+        if (!devMode) {
+            if (token.principal.role != Role.PROJECT_PROXY) {
+                log.debug("Checking extension allowed by service")
+                val extensions = allowedServiceExtensionScopes[requestedBy] ?: emptySet()
+                log.debug("Allowed extensions: $extensions")
+                val allRequestedScopesAreCoveredByPolicy = requestedScopes.all { requestedScope ->
+                    extensions.any { userScope ->
+                        requestedScope.isCoveredBy(userScope)
+                    }
                 }
-            }
-            if (!allRequestedScopesAreCoveredByPolicy) {
-                throw ExtensionException.Unauthorized(
-                    "Service $requestedBy is not allowed to ask for one " +
-                            "of the requested permissions. We were asked for: $requestedScopes, " +
-                            "but service is only allowed to $extensions"
-                )
-            }
+                if (!allRequestedScopesAreCoveredByPolicy) {
+                    throw ExtensionException.Unauthorized(
+                        "Service $requestedBy is not allowed to ask for one " +
+                                "of the requested permissions. We were asked for: $requestedScopes, " +
+                                "but service is only allowed to $extensions"
+                    )
+                }
 
-            // Require, additionally, that no all or special scopes are requested
-            log.debug("Checking for special scopes")
-            val noSpecialScopes = requestedScopes.all {
-                it.segments.first() != SecurityScope.ALL_SCOPE &&
-                        it.segments.first() != SecurityScope.SPECIAL_SCOPE
-            }
+                // Require, additionally, that no all or special scopes are requested
+                log.debug("Checking for special scopes")
+                val noSpecialScopes = requestedScopes.all {
+                    it.segments.first() != SecurityScope.ALL_SCOPE &&
+                            it.segments.first() != SecurityScope.SPECIAL_SCOPE
+                }
 
-            if (!noSpecialScopes && token.principal.role != Role.PROJECT_PROXY) {
-                throw ExtensionException.Unauthorized("Cannot request special scopes")
+                if (!noSpecialScopes && token.principal.role != Role.PROJECT_PROXY) {
+                    throw ExtensionException.Unauthorized("Cannot request special scopes")
+                }
             }
         }
 

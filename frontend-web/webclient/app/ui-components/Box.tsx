@@ -8,6 +8,7 @@ import {
   maxWidth, maxHeight, TextAlignProps, zIndex, ZIndexProps
 } from "styled-system";
 import theme from "./theme";
+import { Cursor } from "./Types";
 
 export type BoxProps =
   SpaceProps &
@@ -24,7 +25,7 @@ export type BoxProps =
   FlexShrinkProps &
   ZIndexProps &
   TextAlignProps &
-  { cursor?: string }
+  { cursor?: Cursor }
 
 interface FlexGrowProps {
   flexGrow?: number

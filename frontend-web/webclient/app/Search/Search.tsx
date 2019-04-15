@@ -240,8 +240,8 @@ class Search extends React.Component<SearchProps> {
 // FIXME: Move to own file.
 export const SearchOptions = styled(Flex)`
     border-bottom: 1px solid ${theme.colors.lightGray};
-                cursor: pointer;
-            `;
+    cursor: pointer;
+`;
 
 SearchOptions.defaultProps = {
     theme
@@ -249,7 +249,7 @@ SearchOptions.defaultProps = {
 
 export const SelectableText = styled(Text) <{ selected: boolean }>`
     border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
-            `;
+`;
 
 SelectableText.defaultProps = {
     theme

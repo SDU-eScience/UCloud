@@ -25,6 +25,6 @@ parameters:
     title: Count
     description: How much should we count to?
     defaultValue:
-      type: int
+      type: integer
       value: 100
     type: integer

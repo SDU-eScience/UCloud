@@ -53,6 +53,7 @@ private const val FILE_NAME_TOO_LONG = 36
 private const val DIRECTORY_NOT_EMPTY = 39
 private const val OUT_OF_STREAMS_RESOURCES = 63 //error on mac when 36 is expected
 private const val PROTOCOL_NOT_SUPPORTED = 93
+private const val NO_DATA = 61
 
 // Observed on OSX. Code doesn't really makes sense [DIRECTORY_NOT_EMPTY] would make more sense.
 private const val OBJECT_IS_REMOTE = 66
@@ -75,6 +76,8 @@ fun throwExceptionBasedOnStatus(status: Int): Nothing {
 
         FILE_EXISTS -> throw FSException.AlreadyExists()
 
+        NO_DATA -> throw FSException.NoAttributeFound()
+
         else -> throw FSException.CriticalException("Unknown status code $status")
     }
 }
@@ -83,6 +86,7 @@ sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCExcep
     class NotReady : FSException("File system is not ready yet", HttpStatusCode.ExpectationFailed)
     class BadRequest(why: String = "") : FSException("Bad request $why", HttpStatusCode.BadRequest)
     class NotFound(val file: String? = null) : FSException("Not found ${file ?: ""}", HttpStatusCode.NotFound)
+    class NoAttributeFound : FSException("Attribute not found", HttpStatusCode.NotFound)
     class AlreadyExists(val file: String? = null) : FSException("Already exists ${file ?: ""}", HttpStatusCode.Conflict)
     class PermissionException : FSException("Permission denied", HttpStatusCode.Forbidden)
     class CriticalException(why: String) : FSException("Critical exception: $why", HttpStatusCode.InternalServerError)

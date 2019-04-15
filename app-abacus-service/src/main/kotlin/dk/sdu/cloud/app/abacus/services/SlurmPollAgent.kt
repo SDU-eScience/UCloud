@@ -50,7 +50,7 @@ class SlurmPollAgent(
     @Suppress("TooGenericExceptionCaught") // For now
     private suspend fun tick() {
         try {
-            log.debug("Ticking: ${active.size}")
+            if (active.isNotEmpty()) log.debug("Ticking: ${active.size}")
             if (active.isEmpty()) return
 
             ssh.use {

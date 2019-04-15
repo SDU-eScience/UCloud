@@ -7,7 +7,7 @@ import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
 import { Upload } from "Uploader";
-import { Activity, ActivityGroup, ActivityType, ActivityFilter } from "Activity";
+import { Activity, ActivityGroup, ActivityFilter } from "Activity";
 import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
@@ -17,7 +17,6 @@ import * as FavoritesRedux from "Favorites/Redux";
 import { defaultAvatar } from "UserSettings/Avataaar";
 import { DetailedProjectSearchReduxState } from "Project";
 import { SidebarPages } from "ui-components/Sidebar";
-import { SnackbarReduxObject } from "Snackbar/Redux";
 import { SharesByPath, ShareState } from "Shares";
 import { ScrollResult } from "Scroll/Types";
 
@@ -243,12 +242,11 @@ interface LegacyReduxObject {
     fileInfo: FileInfoReduxObject
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
-    snackbar: SnackbarReduxObject
     shares: SharesReduxObject
     responsive?: ResponsiveReduxObject
 }
 
-export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects & FavoritesRedux.Objects;
+export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects & FavoritesRedux.Objects & SnackbarRedux.Object;
 
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -300,13 +298,13 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     detailedFileSearch: initFilesDetailedSearch(),
     detailedProjectSearch: initProjectsAdvancedSearch(),
     fileInfo: initFileInfo(),
-    ...ApplicationRedux.init(),
-    ...AccountingRedux.init(),
-    ...FavoritesRedux.init(),
-    snackbar: SnackbarRedux.init(),
     avatar: initAvatar(),
     filePreview: initFilePreview(),
     shares: initShares(),
+    ...ApplicationRedux.init(),
+    ...AccountingRedux.init(),
+    ...FavoritesRedux.init(),
+    ...SnackbarRedux.init(),
     responsive: undefined,
 });
 

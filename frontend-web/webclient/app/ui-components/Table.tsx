@@ -1,6 +1,7 @@
 import styled from "styled-components";
 import { textAlign, TextAlignProps, WidthProps, width, MinWidthProps, minWidth } from "styled-system";
 import theme from "./theme";
+import { Cursor } from "./Types";
 
 export const Table = styled.table< WidthProps & MinWidthProps >`
     border: 0px;
@@ -27,7 +28,7 @@ const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted 
 const contentAlign = props => props.aligned ? { verticalAlign: props.aligned } : null;
 
 
-export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string, cursor?: string }>`
+export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string, cursor?: Cursor }>`
     ${highlighted};
     ${contentAlign};
     cursor: ${props => props.cursor};

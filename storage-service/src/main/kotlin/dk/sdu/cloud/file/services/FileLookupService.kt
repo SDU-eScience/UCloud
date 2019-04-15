@@ -50,7 +50,7 @@ class FileLookupService<Ctx : FSUserContext>(
         val allResults = coreFs.listDirectory(
             ctx, path,
             STORAGE_FILE_ATTRIBUTES
-        ).map {
+        ).mapNotNull {
             readStorageFile(ctx, it, cache)
         }
 
@@ -127,13 +127,17 @@ class FileLookupService<Ctx : FSUserContext>(
         ctx: Ctx,
         row: FileRow,
         cache: MutableMap<String, SensitivityLevel> = HashMap()
-    ): StorageFile =
-        StorageFile(
+    ): StorageFile? {
+        val owner = row._xowner?.takeIf { it.isNotBlank() } ?: row._owner
+        val creator = row._owner
+        if (owner == null || creator == null) return null
+
+        return StorageFile(
             fileType = row.fileType,
             path = row.rawPath,
             createdAt = row.timestamps.created,
             modifiedAt = row.timestamps.modified,
-            ownerName = row.xowner.takeIf { it.isNotBlank() } ?: row.owner,
+            ownerName = owner,
             size = row.size,
             acl = row.shares,
             sensitivityLevel = run {
@@ -143,8 +147,9 @@ class FileLookupService<Ctx : FSUserContext>(
             ownSensitivityLevel = row.sensitivityLevel,
             link = row.isLink,
             fileId = row.inode,
-            creator = row.owner
+            creator = creator
         )
+    }
 
     suspend fun lookupFileInDirectory(
         ctx: Ctx,
@@ -167,7 +172,7 @@ class FileLookupService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String
     ): StorageFile {
-        return readStorageFile(ctx, coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES))
+        return readStorageFile(ctx, coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES)) ?: throw FSException.NotFound()
     }
 
     companion object : Loggable {

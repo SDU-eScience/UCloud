@@ -121,7 +121,8 @@ class Server(
             JWTFactory(jwtAlg),
             userCreationService,
             tokenValidation,
-            mergedExtensions
+            mergedExtensions,
+            devMode = micro.developmentModeEnabled
         )
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
@@ -130,51 +131,37 @@ class Server(
 
         if (micro.developmentModeEnabled) {
             log.info("In development mode. Checking if we need to create a dummy account.")
-            db.withTransaction {
-                val existingDevAdmin = userDao.findByIdOrNull(it, "admin@dev")
-                if (existingDevAdmin == null) {
-                    log.info("Creating a dummy admin")
-                    val random = SecureRandom()
-                    val passwordBytes = ByteArray(PASSWORD_BYTES)
-                    random.nextBytes(passwordBytes)
-                    val password = Base64.getEncoder().encodeToString(passwordBytes)
+            val existingDevAdmin = db.withTransaction { userDao.findByIdOrNull(it, "admin@dev") }
+            if (existingDevAdmin == null) {
+                log.info("Creating a dummy admin")
+                val random = SecureRandom()
+                val passwordBytes = ByteArray(PASSWORD_BYTES)
+                random.nextBytes(passwordBytes)
+                val password = Base64.getEncoder().encodeToString(passwordBytes)
 
-                    val user = personService.createUserByPassword(
-                        "Admin",
-                        "Dev",
-                        "admin@dev",
-                        Role.ADMIN,
-                        password
+                val user = personService.createUserByPassword(
+                    "Admin",
+                    "Dev",
+                    "admin@dev",
+                    Role.ADMIN,
+                    password
+                )
+
+                userCreationService.blockingCreateUser(user)
+                val token = tokenService.createAndRegisterTokenFor(
+                    user, AccessTokenContents(
+                        user,
+                        listOf(SecurityScope.ALL_WRITE),
+                        createdAt = System.currentTimeMillis(),
+                        expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
                     )
+                )
 
-                    userCreationService.blockingCreateUser(user)
-                    val token = tokenService.createAndRegisterTokenFor(
-                        user, AccessTokenContents(
-                            user,
-                            listOf(SecurityScope.ALL_WRITE),
-                            createdAt = System.currentTimeMillis(),
-                            expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
-                        )
-                    )
-
-                    log.info("Username: admin@dev")
-                    log.info("accessToken = ${token.accessToken}")
-                    log.info("refreshToken = ${token.refreshToken}")
-                    log.info("Access token expires in one year.")
-                    log.info("Password is: '$password'")
-
-                    repeat(100) {
-                        val person = personService.createUserByPassword(
-                            "user",
-                            "user",
-                            "user$it@mail",
-                            Role.USER,
-                            "asdqwe"
-                        )
-
-                        userCreationService.blockingCreateUser(person)
-                    }
-                }
+                log.info("Username: admin@dev")
+                log.info("accessToken = ${token.accessToken}")
+                log.info("refreshToken = ${token.refreshToken}")
+                log.info("Access token expires in one year.")
+                log.info("Password is: '$password'")
             }
         }
 

@@ -59,7 +59,13 @@ class SlurmScheduler<DBSession>(
         db.withTransaction { jobDao.insertMapping(it, job.id, slurmJobId) }
         slurmPollAgent.startTracking(slurmJobId)
 
-        ComputationCallbackDescriptions.requestStateChange.call(StateChangeRequest(job.id, JobState.SCHEDULED), cloud)
+        ComputationCallbackDescriptions.requestStateChange.call(
+            StateChangeRequest(
+                job.id,
+                JobState.SCHEDULED,
+                "Job have been scheduled on Abacus. Waiting for available computenode"
+            ),
+            cloud)
     }
 
     private suspend fun SSHConnection.fakeCompleteSlurmJob(job: VerifiedJob): Long {

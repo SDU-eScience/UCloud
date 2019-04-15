@@ -12,6 +12,7 @@ import {
   FlexWrapProps, FlexDirectionProps, FlexProps, ZIndexProps, zIndex
 } from 'styled-system'
 import theme from "./theme"
+import { Cursor } from './Types';
 
 
 export type FlexCProps =
@@ -26,7 +27,7 @@ export type FlexCProps =
   FlexDirectionProps &
   FlexProps &
   ZIndexProps &
-  { cursor?: string }
+  { cursor?: Cursor }
 
 
 const Flex = styled.div<FlexCProps>`

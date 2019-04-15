@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import { successNotification, defaultErrorHandler } from "UtilityFunctions";
 import { UserCreationState, UserCreationField } from ".";
-import { Flex, Box, Input, Label, LoadingButton } from "ui-components";
+import { Input, Label, LoadingButton } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
@@ -135,4 +135,4 @@ const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.Admin))
 });
 
-export default connect(() => ({}), mapDispatchToProps)(UserCreation);
+export default connect(null, mapDispatchToProps)(UserCreation);

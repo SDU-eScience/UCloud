@@ -69,7 +69,7 @@ class UnixFileSystem(
                     val value = getExtendedAttribute(ctx, from, attr).unwrap()
                     setExtendedAttribute(ctx, to, attr, value).unwrap()
                 } catch (ex: Exception) {
-                    if (ex !is FSException.NotFound) {
+                    if (ex !is FSException.NoAttributeFound) {
                         log.info("Exception caught while copying attribute: $attr")
                         log.info(ex.stackTraceToString())
                     }
@@ -313,7 +313,7 @@ class UnixFileSystem(
         return ctx.runCommand(
             InterpreterCommand.DELETE_XATTR,
             absolutePath,
-            attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it"},
+            attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it" },
             consumer = this::consumeStatusCode
         )
     }
@@ -534,11 +534,12 @@ class UnixFileSystem(
             .absolutePath
             .let { it + (if (isDirectory) "/" else "") }
 
-        if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) throw IllegalArgumentException(
-            "path ($path) is not in user-root"
-        )
-        if (path.contains("\n")) throw IllegalArgumentException("Path cannot contain new-lines")
-        if (path.length >= PATH_MAX) throw IllegalArgumentException("Path is too long")
+        if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) {
+            throw FSException.BadRequest("path is not in user-root")
+        }
+
+        if (path.contains("\n")) throw FSException.BadRequest("Path cannot contain new-lines")
+        if (path.length >= PATH_MAX) throw FSException.BadRequest("Path is too long")
 
         return path
     }

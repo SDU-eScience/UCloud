@@ -11,37 +11,60 @@ import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.StartJobRequest
-import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.http.JOB_MAX_TIME
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
-import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.runBlocking
+import dk.sdu.cloud.app.api.ComputationDescriptions
+import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.api.AccountingEvents
 
+/**
+ * The job orchestrator is responsible for the orchestration of computation backends.
+ *
+ * The orchestrator receives life-time events via its methods. These life-time events can be
+ * related to user action (e.g. starting an application) or it could be related to computation
+ * updates (e.g. state change). In reaction to life-time events the orchestrator will update
+ * its internal state and potentially send new updates to the relevant computation backends.
+ *
+ * Below is a description of how a [VerifiedJob] moves between its states ([VerifiedJob.currentState]):
+ *
+ * - A user starts an application (see [startJob])
+ *   - Sets state to [JobState.VALIDATED]. Backends notified via [ComputationDescriptions.jobVerified]
+ *
+ * - A job becomes [JobState.VALIDATED]
+ *   - Files are transferred to the computation backend.
+ *   - Sets state to [JobState.PREPARED]. Backends notified via [ComputationDescriptions.jobPrepared]
+ *
+ * - Computation backend successfully schedules job and requests state change ([handleProposedStateChange]) to
+ *   [JobState.SCHEDULED]
+ *
+ * - Computation backend notifies us of job completion ([JobState.TRANSFER_SUCCESS]). This can happen both in case
+ *   of failures and successes.
+ *   - This will initialize an output directory in the user's home folder.
+ *   - In this state we will accept output files via [ComputationCallbackDescriptions.submitFile]
+ *
+ * - Computation backend notifies us of final result ([JobState.FAILURE], [JobState.SUCCESS])
+ *   - Accounting backends are notified (See [AccountingEvents])
+ *   - Backends are asked to clean up temporary files via [ComputationDescriptions.cleanup]
+ *
+ * At startup the job orchestrator can restart otherwise unmanaged jobs. This should be performed at startup via
+ * [replayLostJobs]. Only one instance of this microservice must run at the same time!
+ */
 class JobOrchestrator<DBSession>(
     private val serviceCloud: AuthenticatedClient,
 
-    private val stateChangeProducer: EventProducer<JobStateChange>,
     private val accountingEventProducer: EventProducer<JobCompletedEvent>,
 
     private val db: DBSessionFactory<DBSession>,
@@ -52,11 +75,9 @@ class JobOrchestrator<DBSession>(
 ) {
     /**
      * Shared error handling for methods that work with a live job.
-     *
-     * Will return the result if [rethrow] is false, otherwise the original exception is thrown without wrapping.
      */
     @Suppress("TooGenericExceptionCaught")
-    private suspend inline fun <R> withJobExceptionHandler(jobId: String, rethrow: Boolean = true, body: () -> R): R? {
+    private inline fun <R> withJobExceptionHandler(jobId: String, rethrow: Boolean = true, body: () -> R): R? {
         return try {
             body()
         } catch (ex: Exception) {
@@ -93,40 +114,31 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    private suspend fun failJob(existingJob: VerifiedJobWithAccessToken?) {
+    private fun failJob(existingJob: VerifiedJobWithAccessToken?) {
         // If we don't check for an existing failure state we can loop forever in a crash
         if (existingJob != null && existingJob.job.currentState != JobState.FAILURE) {
             val stateChange = JobStateChange(existingJob.job.id, JobState.FAILURE)
-            stateChangeProducer.produce(stateChange)
-            handleStateChangeImmediately(existingJob, stateChange, null)
+            handleStateChange(existingJob, stateChange)
         }
     }
 
     suspend fun startJob(
         req: StartJobRequest,
         principal: DecodedJWT,
-        cloud: AuthenticatedClient
-    ): String {
-        val (initialState, jobWithToken) = validateJob(req, principal, cloud)
-        db.withTransaction { session -> jobDao.create(session, jobWithToken) }
-        stateChangeProducer.produce(initialState)
-        return initialState.systemId
-    }
-
-    private suspend fun validateJob(
-        req: StartJobRequest,
-        principal: DecodedJWT,
         userCloud: AuthenticatedClient
-    ): Pair<JobStateChange, VerifiedJobWithAccessToken> {
+    ): String {
         val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend))
         val unverifiedJob = UnverifiedJob(req, principal)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
+        val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
         backend.jobVerified.call(jobWithToken.job, serviceCloud).orThrow()
 
-        return Pair(JobStateChange(jobWithToken.job.id, JobState.VALIDATED), jobWithToken)
+        db.withTransaction { session -> jobDao.create(session, jobWithToken) }
+        handleStateChange(jobWithToken, initialState)
+        return initialState.systemId
     }
 
-    suspend fun handleProposedStateChange(
+    fun handleProposedStateChange(
         event: JobStateChange,
         newStatus: String?,
         securityPrincipal: SecurityPrincipal
@@ -137,15 +149,12 @@ class JobOrchestrator<DBSession>(
             val (job, _) = jobWithToken
             computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
 
-            log.info("Moving from ${job.currentState} to $proposedState")
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
             if (proposedState in validStates) {
                 if (proposedState != job.currentState) {
-                    stateChangeProducer.produce(event)
-                    handleStateChangeImmediately(jobWithToken, event, newStatus)
+                    handleStateChange(jobWithToken, event, newStatus)
                 }
             } else {
-                log.info("NOPE!")
                 throw JobException.BadStateTransition(job.currentState, event.newState)
             }
         }
@@ -207,135 +216,80 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    suspend fun followStreams(
-        request: FollowStdStreamsRequest
-    ): FollowStdStreamsResponse {
-        val (job, _) = findJobForId(request.jobId)
-        val backend = computationBackendService.getAndVerifyByName(job.backend, null)
-        val internalResult = backend.follow.call(
-            InternalFollowStdStreamsRequest(
-                job,
-                request.stdoutLineStart,
-                request.stdoutMaxLines,
-                request.stderrLineStart,
-                request.stderrMaxLines
-            ),
-            serviceCloud
-        ).orThrow()
-
-        return FollowStdStreamsResponse(
-            internalResult.stdout,
-            internalResult.stdoutNextLine,
-            internalResult.stderr,
-            internalResult.stderrNextLine,
-            NameAndVersion(job.application.metadata.name, job.application.metadata.version),
-            job.currentState,
-            job.status,
-            job.currentState.isFinal(),
-            job.id,
-            jobFileService.jobFolder(job),
-            job.application.metadata
-        )
-    }
-
     /**
-     * Handles a state change immediately (as we emit it to Kafka)
+     * Handles a state change
      */
-    private suspend fun handleStateChangeImmediately(
+    private fun handleStateChange(
         jobWithToken: VerifiedJobWithAccessToken,
         event: JobStateChange,
-        newStatus: String?
-    ) {
-        log.info("Received $event")
-        db.withTransaction(autoFlush = true) {
-            jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
-        }
-
-        when (event.newState) {
-            JobState.TRANSFER_SUCCESS -> {
-                // We need to create the directory immediately
-                jobFileService.initializeResultFolder(jobWithToken)
+        newStatus: String? = null,
+        isReplay: Boolean = false
+    ): Job = OrchestrationScope.launch {
+        withJobExceptionHandler(event.systemId, rethrow = false) {
+            if (!isReplay) {
+                db.withTransaction(autoFlush = true) {
+                    jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
+                }
             }
 
-            else -> {
-                // Do nothing
+            val (job, _) = jobWithToken
+            val backend = computationBackendService.getAndVerifyByName(job.backend)
+
+            log.info("New state ${job.id} is ${event.newState}")
+            when (event.newState) {
+                JobState.VALIDATED -> {
+                    jobFileService.transferFilesToBackend(jobWithToken, backend)
+
+                    val jobWithNewState = job.copy(currentState = JobState.PREPARED)
+                    val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
+
+                    handleStateChange(
+                        jobWithTokenAndNewState,
+                        JobStateChange(jobWithNewState.id, JobState.PREPARED)
+                    )
+                }
+
+                JobState.PREPARED -> {
+                    backend.jobPrepared.call(jobWithToken.job, serviceCloud).orThrow()
+                }
+
+                JobState.SCHEDULED, JobState.RUNNING -> {
+                    // Do nothing (apart from updating state).
+                }
+
+                JobState.TRANSFER_SUCCESS -> {
+                    jobFileService.initializeResultFolder(jobWithToken, isReplay)
+                }
+
+                JobState.SUCCESS, JobState.FAILURE -> {
+                    // This one should _NEVER_ throw an exception
+                    val resp = backend.cleanup.call(job, serviceCloud)
+                    if (resp is IngoingCallResponse.Error) {
+                        log.info("unable to clean up for job $job.")
+                        log.info(resp.toString())
+                    }
+                }
             }
+            return@withJobExceptionHandler
         }
     }
 
-    /**
-     * Handles a state change as we are told through Kafka
-     */
-    fun handleStateChange(event: JobStateChange) {
+    fun replayLostJobs() {
+        log.info("Replaying jobs lost from last session...")
+        var count = 0
         runBlocking {
-            withJobExceptionHandler(event.systemId, rethrow = false) {
-                val jobWithToken = findJobForId(event.systemId)
-                val (job, _) = jobWithToken
-                val backend = computationBackendService.getAndVerifyByName(job.backend)
-
-                when (event.newState) {
-                    JobState.VALIDATED -> {
-                        // Ask backend to prepare the job
-                        transferFilesToCompute(jobWithToken)
-                        db.withTransaction(autoFlush = true) {
-                            jobDao.updateStateAndStatus(it, job.id, JobState.PREPARED)
-                        }
-
-                        val jobWithNewState = job.copy(currentState = JobState.PREPARED)
-                        backend.jobPrepared.call(jobWithNewState, serviceCloud).orThrow()
-                    }
-
-                    JobState.PREPARED, JobState.SCHEDULED, JobState.RUNNING, JobState.TRANSFER_SUCCESS -> {
-                        // Do nothing (apart from updating state). It is mostly working.
-                    }
-
-                    JobState.SUCCESS, JobState.FAILURE -> {
-                        // This one should _NEVER_ throw an exception
-                        val resp = backend.cleanup.call(job, serviceCloud)
-                        if (resp is IngoingCallResponse.Error) {
-                            log.info("unable to clean up for job $job.")
-                            log.info(resp.toString())
-                        }
-                    }
+            db.withTransaction {
+                jobDao.findJobsCreatedBefore(it, System.currentTimeMillis()).forEach { jobWithToken ->
+                    count++
+                    handleStateChange(
+                        jobWithToken,
+                        JobStateChange(jobWithToken.job.id, jobWithToken.job.currentState),
+                        isReplay = true
+                    )
                 }
             }
         }
-    }
-
-    // TODO Move this
-    private suspend fun transferFilesToCompute(jobWithToken: VerifiedJobWithAccessToken) {
-        val (job, accessToken) = jobWithToken
-        val backend = computationBackendService.getAndVerifyByName(job.backend)
-        coroutineScope {
-            job.files.map { file ->
-                async {
-                    runCatching {
-                        val userCloud = serviceCloud.withoutAuthentication().bearerAuth(accessToken)
-                        val fileStream = FileDescriptions.download.call(
-                            DownloadByURI(file.sourcePath, null),
-                            userCloud
-                        ).orRethrowAs { throw JobException.TransferError() }.asIngoing()
-
-                        backend.submitFile.call(
-                            SubmitFileToComputation(
-                                job.id,
-                                file.id,
-                                BinaryStream.outgoingFromChannel(
-                                    fileStream.channel,
-                                    contentType = fileStream.contentType ?: ContentType.Application.OctetStream,
-                                    contentLength = fileStream.length
-                                )
-                            ),
-                            serviceCloud
-                        ).orThrow()
-                    }
-                }
-            }.awaitAll().firstOrNull { it.isFailure }.let {
-                if (it != null) {
-                    throw it.exceptionOrNull()!!
-                }
-            }
-        }
+        log.info("No more lost jobs! We recovered $count jobs.")
     }
 
     fun lookupOwnJob(jobId: String, securityPrincipal: SecurityPrincipal): VerifiedJob {
@@ -354,9 +308,7 @@ class JobOrchestrator<DBSession>(
     }
 
     private fun findJobForId(id: String): VerifiedJobWithAccessToken =
-        db.withTransaction { session ->
-            jobDao.findOrNull(session, id) ?: throw JobException.NotFound("Job: $id")
-        }
+        db.withTransaction { session -> jobDao.find(session, id) }
 
     companion object : Loggable {
         override val log = logger()
@@ -376,14 +328,8 @@ class JobOrchestrator<DBSession>(
     }
 }
 
-inline fun <T : Any, E : Any> IngoingCallResponse<T, E>.orThrowOnError(
-    onError: (IngoingCallResponse.Error<T, E>) -> Nothing
-): IngoingCallResponse.Ok<T, E> {
-    return when (this) {
-        is IngoingCallResponse.Ok -> this
-        is IngoingCallResponse.Error -> onError(this)
-        else -> throw IllegalStateException()
-    }
+fun <DBSession> JobDao<DBSession>.find(session: DBSession, id: String): VerifiedJobWithAccessToken {
+    return findOrNull(session, id) ?: throw JobException.NotFound("Job: $id")
 }
 
 fun resolveBackend(backend: String?): String = backend ?: "abacus"

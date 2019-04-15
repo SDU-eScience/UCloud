@@ -36,7 +36,7 @@ export const getQueryParamOrElse = (
 
 export const buildQueryString = (path: string, params: any): string => {
     const builtParams = Object.entries(params).map(
-        (pair) => {
+        pair => {
             let [key, val] = pair;
             // normalize val to always an array
             const arr = (val instanceof Array) ? val : [val];
@@ -44,7 +44,7 @@ export const buildQueryString = (path: string, params: any): string => {
             const encodedKey = encodeURIComponent(key);
             // then make a different query string for each val member
             return arr.map(
-                (member) => `${encodedKey}=${encodeURIComponent(member)}`
+                member => `${encodedKey}=${encodeURIComponent(member)}`
             ).join('&');
         }
     ).join('&');

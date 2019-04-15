@@ -25,11 +25,11 @@ export const setError = (error?: string): ClearError => ({
 });
 
 export const fetchApplicationPageFromName = (query: string, itemsPerPage: number, page: number) =>
-    Cloud.get(hpcApplicationsSearchQuery(query, page, itemsPerPage))
+    Cloud.get(hpcApplicationsSearchQuery({ query, page, itemsPerPage }))
         .then(({ response }) => receiveApplications(response))
         .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));
 
 export const fetchApplicationPageFromTag = (query: string, itemsPerPage: number, page: number) =>
-    Cloud.get(hpcApplicationsTagSearchQuery(query, page, itemsPerPage))
+    Cloud.get(hpcApplicationsTagSearchQuery({ query, page, itemsPerPage }))
         .then(({ response }) => receiveApplications(response))
         .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));

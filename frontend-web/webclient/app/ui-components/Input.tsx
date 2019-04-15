@@ -9,8 +9,8 @@ import Text from './Text';
 
 export const borders = ({ color, theme, noBorder }: { color?: string, theme?: any, noBorder?: boolean }) => {
   if (noBorder) return "";
-  const borderColor = color ? theme.colors[color] : theme.colors.borderGray
-  const focusColor = color ? borderColor : theme.colors.blue
+  const borderColor = color ? theme.colors[color] : theme.colors.borderGray;
+  const focusColor = color ? borderColor : theme.colors.blue;
   return {
     'border-color': borderColor,
     'box-shadow': `0 0 0 1px ${borderColor}`,
@@ -20,16 +20,16 @@ export const borders = ({ color, theme, noBorder }: { color?: string, theme?: an
       'box-shadow': `0 0 0 2px ${focusColor}`
     }
   }
-}
+};
 
-export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps,
-  FontSizeProps {
+export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, FontSizeProps {
   leftLabel?: boolean
   rightLabel?: boolean
   id?: string
   color?: string
   noBorder?: boolean
   error?: boolean
+  showError?: boolean
 }
 
 const left = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
@@ -53,6 +53,10 @@ const Input = styled.input<InputProps>`
 
   margin: 0;
 
+  ${({ showError, theme }) => showError ? `&:invalid { 
+    background-color: ${theme.colors.lightRed}; 
+  }` : null} 
+  
   ::placeholder {
     color: ${themeGet("colors.gray")};
   }
@@ -90,10 +94,14 @@ const leftLabel = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `borde
 
 export const InputLabel = styled(Text) <{ leftLabel?: boolean, rightLabel?: boolean }>`
   border: ${themeGet("colors.borderGray")} solid 1px;
-  margin: -1px;
+  margin: ${props => props.margin};
   ${leftLabel}
   ${rightLabel}
   padding-left: 1%;
   padding-right: 1%;
   padding-top: 6px;
-`
+`;
+
+InputLabel.defaultProps = {
+  margin: "-1px"
+};
