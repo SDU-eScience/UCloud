@@ -32,16 +32,12 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.runBlocking
 
 class JobOrchestrator<DBSession>(
     private val serviceCloud: AuthenticatedClient,
 
-    private val stateChangeProducer: EventProducer<JobStateChange>,
     private val accountingEventProducer: EventProducer<JobCompletedEvent>,
 
     private val db: DBSessionFactory<DBSession>,
@@ -56,7 +52,7 @@ class JobOrchestrator<DBSession>(
      * Will return the result if [rethrow] is false, otherwise the original exception is thrown without wrapping.
      */
     @Suppress("TooGenericExceptionCaught")
-    private suspend inline fun <R> withJobExceptionHandler(jobId: String, rethrow: Boolean = true, body: () -> R): R? {
+    private inline fun <R> withJobExceptionHandler(jobId: String, rethrow: Boolean = true, body: () -> R): R? {
         return try {
             body()
         } catch (ex: Exception) {
@@ -93,12 +89,11 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    private suspend fun failJob(existingJob: VerifiedJobWithAccessToken?) {
+    private fun failJob(existingJob: VerifiedJobWithAccessToken?) {
         // If we don't check for an existing failure state we can loop forever in a crash
         if (existingJob != null && existingJob.job.currentState != JobState.FAILURE) {
             val stateChange = JobStateChange(existingJob.job.id, JobState.FAILURE)
-            stateChangeProducer.produce(stateChange)
-            handleStateChangeImmediately(existingJob, stateChange, null)
+            handleStateChange(existingJob, stateChange)
         }
     }
 
@@ -109,7 +104,7 @@ class JobOrchestrator<DBSession>(
     ): String {
         val (initialState, jobWithToken) = validateJob(req, principal, cloud)
         db.withTransaction { session -> jobDao.create(session, jobWithToken) }
-        stateChangeProducer.produce(initialState)
+        handleStateChange(jobWithToken, initialState)
         return initialState.systemId
     }
 
@@ -126,7 +121,7 @@ class JobOrchestrator<DBSession>(
         return Pair(JobStateChange(jobWithToken.job.id, JobState.VALIDATED), jobWithToken)
     }
 
-    suspend fun handleProposedStateChange(
+    fun handleProposedStateChange(
         event: JobStateChange,
         newStatus: String?,
         securityPrincipal: SecurityPrincipal
@@ -141,8 +136,7 @@ class JobOrchestrator<DBSession>(
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
             if (proposedState in validStates) {
                 if (proposedState != job.currentState) {
-                    stateChangeProducer.produce(event)
-                    handleStateChangeImmediately(jobWithToken, event, newStatus)
+                    handleStateChange(jobWithToken, event, newStatus)
                 }
             } else {
                 log.info("NOPE!")
@@ -239,37 +233,19 @@ class JobOrchestrator<DBSession>(
     }
 
     /**
-     * Handles a state change immediately (as we emit it to Kafka)
+     * Handles a state change
      */
-    private suspend fun handleStateChangeImmediately(
+    private fun handleStateChange(
         jobWithToken: VerifiedJobWithAccessToken,
         event: JobStateChange,
-        newStatus: String?
+        newStatus: String? = null
     ) {
-        log.info("Received $event")
-        db.withTransaction(autoFlush = true) {
-            jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
-        }
-
-        when (event.newState) {
-            JobState.TRANSFER_SUCCESS -> {
-                // We need to create the directory immediately
-                jobFileService.initializeResultFolder(jobWithToken)
-            }
-
-            else -> {
-                // Do nothing
-            }
-        }
-    }
-
-    /**
-     * Handles a state change as we are told through Kafka
-     */
-    fun handleStateChange(event: JobStateChange) {
-        runBlocking {
+        OrchestrationScope.launch {
             withJobExceptionHandler(event.systemId, rethrow = false) {
-                val jobWithToken = findJobForId(event.systemId)
+                db.withTransaction(autoFlush = true) {
+                    jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
+                }
+
                 val (job, _) = jobWithToken
                 val backend = computationBackendService.getAndVerifyByName(job.backend)
 
@@ -277,19 +253,16 @@ class JobOrchestrator<DBSession>(
                     JobState.VALIDATED -> {
                         // Ask backend to prepare the job
                         transferFilesToCompute(jobWithToken)
-                        db.withTransaction(autoFlush = true) {
-                            if (jobDao.findOrNull(it, job.id)?.job?.currentState != JobState.VALIDATED) {
-                                log.info("Kafka event sent twice since real jobstate is beyond Validated - ignoring")
-                                return@runBlocking
-                            }
-                            jobDao.updateStateAndStatus(it, job.id, JobState.PREPARED)
-                        }
 
                         val jobWithNewState = job.copy(currentState = JobState.PREPARED)
                         backend.jobPrepared.call(jobWithNewState, serviceCloud).orThrow()
                     }
 
-                    JobState.PREPARED, JobState.SCHEDULED, JobState.RUNNING, JobState.TRANSFER_SUCCESS -> {
+                    JobState.TRANSFER_SUCCESS -> {
+                        jobFileService.initializeResultFolder(jobWithToken)
+                    }
+
+                    JobState.PREPARED, JobState.SCHEDULED, JobState.RUNNING -> {
                         // Do nothing (apart from updating state). It is mostly working.
                     }
 
@@ -326,7 +299,8 @@ class JobOrchestrator<DBSession>(
                                 file.id,
                                 BinaryStream.outgoingFromChannel(
                                     fileStream.channel,
-                                    contentType = fileStream.contentType ?: ContentType.Application.OctetStream,
+                                    contentType = fileStream.contentType
+                                        ?: ContentType.Application.OctetStream,
                                     contentLength = fileStream.length
                                 )
                             ),

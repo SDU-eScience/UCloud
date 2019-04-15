@@ -3,45 +3,21 @@ package dk.sdu.cloud.app
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.AccountingEvents
 import dk.sdu.cloud.app.api.ApplicationDescription
-import dk.sdu.cloud.app.api.JobStreams
 import dk.sdu.cloud.app.api.ToolDescription
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.CallbackController
 import dk.sdu.cloud.app.http.JobController
 import dk.sdu.cloud.app.http.ToolController
-import dk.sdu.cloud.app.services.ApplicationHibernateDAO
-import dk.sdu.cloud.app.services.ComputationBackendService
-import dk.sdu.cloud.app.services.JobFileService
-import dk.sdu.cloud.app.services.JobHibernateDao
-import dk.sdu.cloud.app.services.JobOrchestrator
-import dk.sdu.cloud.app.services.JobVerificationService
-import dk.sdu.cloud.app.services.ToolHibernateDAO
+import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.events.EventConsumer
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.tokenValidation
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.service.startServices
-import kotlinx.coroutines.io.jvm.javaio.copyTo
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
-import java.nio.file.Files
 
 class Server(
     private val config: Configuration,
@@ -57,6 +33,8 @@ class Server(
         val db = micro.hibernateDatabase
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
+        OrchestrationScope.init()
+
         val toolDao = ToolHibernateDAO()
         val applicationDao = ApplicationHibernateDAO(toolDao)
 
@@ -67,7 +45,6 @@ class Server(
 
         val jobOrchestrator = JobOrchestrator(
             serviceClient,
-            streams.createProducer(JobStreams.jobStateEvents),
             streams.createProducer(AccountingEvents.jobCompleted),
             db,
             jobVerificationService,
@@ -82,10 +59,6 @@ class Server(
             }
             return
         }
-
-        streams.subscribe(JobStreams.jobStateEvents, EventConsumer.Immediate { event ->
-            jobOrchestrator.handleStateChange(event)
-        })
 
         with(micro.server) {
             log.info("Configuring HTTP server")
@@ -144,5 +117,10 @@ class Server(
         startServices()
 
         initialized = true
+    }
+
+    override fun stop() {
+        super.stop()
+        OrchestrationScope.stop()
     }
 }

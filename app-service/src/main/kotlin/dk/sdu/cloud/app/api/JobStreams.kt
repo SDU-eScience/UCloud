@@ -3,10 +3,6 @@ package dk.sdu.cloud.app.api
 import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.file.api.StorageFile
 
-object JobStreams : EventStreamContainer() {
-    val jobStateEvents = stream<JobStateChange>("app.job-state", { it.systemId })
-}
-
 data class JobStateChange(val systemId: String, val newState: JobState)
 
 enum class JobState {
