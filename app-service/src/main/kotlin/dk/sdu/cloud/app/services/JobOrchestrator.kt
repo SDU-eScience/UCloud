@@ -255,15 +255,24 @@ class JobOrchestrator<DBSession>(
                         transferFilesToCompute(jobWithToken)
 
                         val jobWithNewState = job.copy(currentState = JobState.PREPARED)
-                        backend.jobPrepared.call(jobWithNewState, serviceCloud).orThrow()
+                        val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
+
+                        handleStateChange(
+                            jobWithTokenAndNewState,
+                            JobStateChange(jobWithNewState.id, JobState.PREPARED)
+                        )
+                    }
+
+                    JobState.PREPARED -> {
+                        backend.jobPrepared.call(jobWithToken.job, serviceCloud).orThrow()
+                    }
+
+                    JobState.SCHEDULED, JobState.RUNNING -> {
+                        // Do nothing (apart from updating state). It is mostly working.
                     }
 
                     JobState.TRANSFER_SUCCESS -> {
                         jobFileService.initializeResultFolder(jobWithToken)
-                    }
-
-                    JobState.PREPARED, JobState.SCHEDULED, JobState.RUNNING -> {
-                        // Do nothing (apart from updating state). It is mostly working.
                     }
 
                     JobState.SUCCESS, JobState.FAILURE -> {

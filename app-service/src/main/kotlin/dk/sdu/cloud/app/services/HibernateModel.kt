@@ -84,6 +84,7 @@ class ApplicationEntity(
 
     var title: String,
 
+    @Column(length = 1024 * 64)
     var description: String,
 
     var website: String?,
