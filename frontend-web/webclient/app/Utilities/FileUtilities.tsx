@@ -77,7 +77,7 @@ export function copyOrMoveFiles({ operation, files, copyMoveOps, cloud, setLoadi
             if (policy === UploadPolicy.RENAME) copyMoveOps.fetchFilesPage(getParentPath(pathToFetch));
             else copyMoveOps.fetchPageFromPath(pathToFetch);
         }
-        if (!failures && successes) onOnlySuccess(operation === CopyOrMove.Copy ? "Copied" : "Moved", files.length);
+        if (!failures && successes) onOnlySuccess({ operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: files.length, addSnack });
         else if (failures)
             addSnack({
                 message: `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`,
@@ -98,8 +98,13 @@ async function moveCopySetup({ targetPath, path, cloud }: MoveCopySetup) {
     return { exists, allowRewrite: false, newPathForFile };
 }
 
-function onOnlySuccess(operation: string, fileCount: number) {
-    UF.successNotification(`${operation} ${fileCount} files`);
+interface OnOnlySuccess extends AddSnackOperation {
+    operation: string
+    fileCount: number
+}
+
+function onOnlySuccess({ operation, fileCount, addSnack }: OnOnlySuccess) {
+    addSnack({ message: `${operation} ${fileCount} files`, type: SnackType.Success });
 }
 
 interface ResetFileSelector {
@@ -221,7 +226,7 @@ export const StateLessOperations = ({ setLoading, onSensitivityChange, addSnack 
     },
     {
         text: "Copy Path",
-        onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard(files[0].path, `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`),
+        onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard({ value: files[0].path,  message: `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`, addSnack}),
         disabled: (files: File[], cloud: SDUCloud) => !UF.inDevEnvironment() || files.length !== 1,
         icon: "chat",
         color: undefined
@@ -265,14 +270,19 @@ export const FileSelectorOperations = ({ fileSelectorOperations, setLoading, add
 export const archiveExtensions: string[] = [".tar.gz", ".zip"]
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
+
+interface ExtractionOperation extends AddSnackOperation {
+    onFinished: () => void
+}
+
 /**
  * 
  * @param onFinished called when extraction is completed successfully.
  */
-export const ExtractionOperation = (onFinished: () => void): Operation[] => [
+export const ExtractionOperation = ({ onFinished, addSnack }: ExtractionOperation): Operation[] => [
     {
         text: "Extract archive",
-        onClick: (files, cloud) => extractArchive({ files, cloud, onFinished }),
+        onClick: (files, cloud) => extractArchive({ files, cloud, onFinished, addSnack }),
         disabled: (files, cloud) => !files.every(it => isArchiveExtension(it.path)),
         icon: "open",
         color: undefined
@@ -299,22 +309,20 @@ export const MoveFileToTrashOperation = ({ onMoved, setLoading, addSnack }: Move
     },
     {
         text: "Delete Files",
-        onClick: (files, cloud) => batchDeleteFiles({ files, cloud, setLoading, callback: onMoved }),
+        onClick: (files, cloud) => batchDeleteFiles({ files, cloud, setLoading, callback: onMoved, addSnack }),
         disabled: (files, cloud) => !files.every(f => getParentPath(f.path) === cloud.trashFolder),
         icon: "trash",
         color: "red"
     }
 ];
 
-export const ClearTrashOperations = (toHome: () => void): Operation[] => [
-    {
-        text: "Clear Trash",
-        onClick: (files, cloud) => clearTrash(cloud, toHome),
-        disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
-        icon: "trash",
-        color: "red"
-    }
-];
+export const ClearTrashOperations = (toHome: () => void): Operation[] => [{
+    text: "Clear Trash",
+    onClick: (files, cloud) => clearTrash(cloud, toHome),
+    disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
+    icon: "trash",
+    color: "red"
+}];
 
 /**
  * @returns Properties and Project Operations for files.
@@ -386,7 +394,7 @@ export function allFileOperations({
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation({ onMoved: onDeleted, setLoading, addSnack }) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history, addSnack) : [];
-    const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
+    const extractionOperations = !!onExtracted ? ExtractionOperation({ onFinished: onExtracted, addSnack }) : [];
     return [
         ...stateLessOperations,
         ...fileSelectorOps,
@@ -561,24 +569,27 @@ export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callba
         if (result.dismiss) {
             return;
         } else {
-            cloud.delete("/files", { path: filePath }).then(() => callback ? callback() : null);
+            cloud.delete("/files", { path: filePath }).then(() => !!callback ? callback() : null);
         }
     });
 
 
 const extractFilesQuery = "/files/extract";
-interface ExtractArchive {
+interface ExtractArchive extends AddSnackOperation {
     files: File[]
     cloud: SDUCloud
     onFinished: () => void
 }
-export const extractArchive = ({ files, cloud, onFinished }: ExtractArchive): void => {
+export const extractArchive = ({ files, cloud, onFinished, addSnack }: ExtractArchive): void => {
     files.forEach(async f => {
         try {
             await cloud.post(extractFilesQuery, { path: f.path });
-            UF.successNotification("File extracted");
+            addSnack({ message: "File extracted", type: SnackType.Success });
         } catch (e) {
-            UF.failureNotification(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));
+            addSnack({
+                message: UF.errorMessageOrDefault(e, "An error occurred extracting the file."),
+                type: SnackType.Failure
+            });
         }
     });
     onFinished();
@@ -751,22 +762,26 @@ export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: Mo
     });
 };
 
-interface BatchDeleteFiles {
+interface BatchDeleteFiles extends AddSnackOperation {
     files: File[]
     cloud: SDUCloud
     setLoading: () => void
     callback: () => void
 }
 
-export const batchDeleteFiles = ({ files, cloud, setLoading, callback }: BatchDeleteFiles) => {
+export const batchDeleteFiles = ({ files, cloud, setLoading, callback, addSnack }: BatchDeleteFiles) => {
     const paths = files.map(f => f.path);
     deletionSwal(paths).then((result: any) => {
         if (result.dismiss) return;
         setLoading();
         let i = 0;
+        // FIXME: Rewrite using Promise.all
         paths.forEach(path => {
             cloud.delete("/files", { path }).then(() => {
-                if (++i === paths.length) { UF.successNotification("Trash emptied"); callback() }
+                if (++i === paths.length) {
+                    addSnack({ message: "Trash emptied", type: SnackType.Success });
+                    callback();
+                }
             }).catch(() => i++);
         });
     });

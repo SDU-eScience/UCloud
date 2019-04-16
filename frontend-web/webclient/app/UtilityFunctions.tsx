@@ -44,22 +44,6 @@ export function failureNotification(title: string, seconds: number = 3) {
     });
 }
 
-/**
- * Renders a success notification in the upper right corner, with provided text
- * @param {string} title The success message to be rendered
- * @param {number} seconds the amount of seconds the content is rendered
- */
-export function successNotification(title: string, seconds: number = 3) {
-    return swal({
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: seconds * 1_000,
-        type: "success",
-        title
-    });
-}
-
 export function uploadsNotifications(finished: number, total: number) {
     return swal({
         title: finished !== total ? `${finished} out of ${total} files uploaded` : "Uploads finished",
@@ -293,15 +277,23 @@ interface CreateProject extends AddSnackOperation {
 // FIXME Remove navigation when backend support comes.
 export const createProject = ({ filePath, cloud, navigate, addSnack }: CreateProject) => {
     cloud.put("/projects", { fsRoot: filePath }).then(() => {
-        redirectToProject(filePath, cloud, navigate, 5);
+        redirectToProject({ path: filePath, cloud, navigate, remainingTries: 5, addSnack });
     }).catch(() => addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure }));
 }
 
-const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) => void, remainingTries: number) => {
+interface RedirectToProject extends AddSnackOperation {
+    path: string
+    cloud: Cloud
+    navigate: (path: string) => void
+    remainingTries: number
+}
+
+const redirectToProject = ({ path, cloud, navigate, remainingTries, addSnack }: RedirectToProject) => {
     cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(() => navigate(path)).catch(_ => {
-        remainingTries > 0 ?
-            setTimeout(() => redirectToProject(path, cloud, navigate, remainingTries - 1), 400) :
-            successNotification(`Project ${path} is being created.`)
+        if (remainingTries > 0) 
+            setTimeout(() => redirectToProject({ path, cloud, navigate, remainingTries: remainingTries - 1, addSnack }), 400);
+        else
+            addSnack({ message: `Project ${path} is being created.`, type: SnackType.Success });
     });
 };
 
@@ -397,14 +389,19 @@ export function humanReadableNumber(
         .replace(regex, '$&' + sectionDelim);
 }
 
-export function copyToClipboard(value: string | undefined, message: string) {
+interface CopyToClipboard extends AddSnackOperation {
+    value: string | undefined
+    message: string
+}
+
+export function copyToClipboard({ value, message, addSnack }: CopyToClipboard) {
     const input = document.createElement("input");
     input.value = value || "";
     document.body.appendChild(input);
     input.select();
     document.execCommand("copy");
     document.body.removeChild(input);
-    successNotification(message);
+    addSnack({ message, type: SnackType.Success });
 }
 
 export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any } | { status: number, response: string }, defaultMessage: string): string {
