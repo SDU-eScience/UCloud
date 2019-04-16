@@ -303,7 +303,7 @@ describe("If Present", () => {
         expect(fun).toBeCalled();
     });
 
-    test("Present", () => {
+    test("Not present", () => {
         const fun = jest.fn();
         UF.ifPresent(undefined, fun);
         expect(fun).toBeCalledTimes(0);
