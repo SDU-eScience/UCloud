@@ -7,16 +7,10 @@ import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
-import java.lang.Exception
-import java.nio.file.DirectoryNotEmptyException
-import java.nio.file.NotDirectoryException
-import java.nio.file.NotLinkException
+import java.nio.file.*
 import java.util.*
 import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -91,23 +85,25 @@ inline fun <T> runAndRethrowNIOExceptions(block: () -> T): T {
     return try {
         block()
     } catch (ex: FileSystemException) {
-        when (ex) {
-            is DirectoryNotEmptyException -> throw FSException.BadRequest("Directory not empty")
+        when {
+            ex is DirectoryNotEmptyException -> throw FSException.BadRequest("Directory not empty", cause = ex)
 
-            is FileAlreadyExistsException -> throw FSException.AlreadyExists()
+            ex is FileAlreadyExistsException -> throw FSException.AlreadyExists(cause = ex)
 
-            is NoSuchFileException -> throw FSException.NotFound()
+            ex is NoSuchFileException -> throw FSException.NotFound(cause = ex)
 
-            is NotDirectoryException -> throw FSException.BadRequest("Not a directory")
+            ex is NotDirectoryException -> throw FSException.BadRequest("Not a directory", cause = ex)
 
-            is NotLinkException -> throw FSException.BadRequest("Not a link")
+            ex is NotLinkException -> throw FSException.BadRequest("Not a link", cause = ex)
 
-            is AccessDeniedException -> throw FSException.PermissionException()
+            ex is AccessDeniedException -> throw FSException.PermissionException(cause = ex)
 
-            else -> throw FSException.CriticalException(ex.message ?: "Internal error")
+            ex.reason.contains("File name too long") -> throw FSException.BadRequest("File name too long")
+
+            else -> throw FSException.CriticalException(ex.message ?: "Internal error", cause = ex)
         }
     } catch (ex: NativeException) {
-        throwExceptionBasedOnStatus(ex.statusCode)
+        throwExceptionBasedOnStatus(ex.statusCode, ex)
     } catch (ex: LastErrorException) {
         throwExceptionBasedOnStatus(ex.errorCode)
     }

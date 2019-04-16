@@ -1,34 +1,16 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.file.api.StorageFileImpl
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
-import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileRow
-import dk.sdu.cloud.file.services.IndexingService
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.UIDLookupService
-import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
-import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertCollectionHasItem
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import dk.sdu.cloud.storage.util.createFS
-import dk.sdu.cloud.storage.util.inode
-import dk.sdu.cloud.storage.util.mkdir
-import dk.sdu.cloud.storage.util.storageUserDaoWithFixedAnswer
-import dk.sdu.cloud.storage.util.timestamps
-import dk.sdu.cloud.storage.util.touch
+import dk.sdu.cloud.storage.util.*
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -68,17 +50,18 @@ class DiffTest {
     }
 
     private fun ctx(
-        consumer: TestingContext<UnixFSCommandRunner>.() -> Unit = {},
+        consumer: TestingContext<LinuxFSRunner>.() -> Unit = {},
         builder: File.() -> Unit
-    ): TestingContext<UnixFSCommandRunner> {
+    ): TestingContext<LinuxFSRunner> {
         EventServiceMock.reset()
         val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
-        val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao)
-        val cephFs = UnixFileSystem(commandRunnerFactory, userDao, FileAttributeParser(userDao), root.absolutePath)
+        val commandRunnerFactory = LinuxFSRunnerFactory(userDao)
+        val cephFs = LinuxFS(commandRunnerFactory, root, userDao)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
+
 
         return TestingContext(
             root,

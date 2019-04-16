@@ -2,7 +2,7 @@ package dk.sdu.cloud.file.services.linuxfs
 
 import java.util.concurrent.atomic.AtomicInteger
 
-// TODO We need to be sure we get a native thread! https://medium.com/@unmeshvjoshi/how-java-thread-maps-to-os-thread-e280a9fb2e06
+// https://medium.com/@unmeshvjoshi/how-java-thread-maps-to-os-thread-e280a9fb2e06
 
 class NativeThread(private val block: () -> Unit) {
     init {

@@ -88,8 +88,11 @@ object StandardCLib {
     }
 
     fun setxattr(path: String, name: String, value: String, allowOverwrite: Boolean): Int {
+        // Why should this be stable across platforms? Let's just make up values for different platforms.
         val opts = if (!allowOverwrite) {
-            0x0002
+            if (Platform.isLinux()) 1
+            else if (Platform.isMac()) 2
+            else 0
         } else {
             0
         }

@@ -95,6 +95,7 @@ object ACL : Loggable {
     }
 
     fun addEntry(path: String, uid: Int, permissions: Set<AccessRight>, defaultList: Boolean = false) {
+        log.debug("ACL.addEntry($path, $uid, $permissions, defaultList = $defaultList)")
         if (!Platform.isLinux()) return
         with(ACLLibrary.INSTANCE) {
             val type = if (defaultList) DEFAULT else ACCESS

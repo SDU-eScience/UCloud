@@ -2,10 +2,10 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
+import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -45,8 +45,8 @@ class BulkDownloadTest {
     }
 
     private fun createService(root: String):
-            Pair<UnixFSCommandRunnerFactory, BulkDownloadService<UnixFSCommandRunner>> {
-        val (runner, fs) = unixFSWithRelaxedMocks(root)
+            Pair<LinuxFSRunnerFactory, BulkDownloadService<LinuxFSRunner>> {
+        val (runner, fs) = linuxFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
 
         return Pair(runner, BulkDownloadService(coreFs))

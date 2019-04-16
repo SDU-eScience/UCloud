@@ -1,41 +1,19 @@
 package dk.sdu.cloud.file.services.linuxfs
 
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.FileChecksum
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.services.FSACLEntity
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
-import dk.sdu.cloud.file.services.FSResult
-import dk.sdu.cloud.file.services.FileAttribute
-import dk.sdu.cloud.file.services.FileRow
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.StorageUserDao
+import com.sun.jna.Native
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.unixfs.FileOwnerLookupService
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
-import java.nio.file.LinkOption
-import java.nio.file.NoSuchFileException
-import java.nio.file.OpenOption
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
@@ -43,9 +21,11 @@ import kotlin.streams.toList
 
 class LinuxFS(
     processRunner: FSCommandRunnerFactory<LinuxFSRunner>,
-    private val fsRoot: File,
+    fsRoot: File,
     private val userDao: StorageUserDao<Long>
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
+    private val fsRoot = fsRoot.normalize().absoluteFile
+
     private var inputStream: FileChannel? = null
     private var inputSystemFile: File? = null
 
@@ -91,7 +71,19 @@ class LinuxFS(
         val systemTo = File(translateAndCheckFile(to))
 
         // We need to record some information from before the move
-        val fromStat = stat(ctx, systemFrom, setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH), HashMap())
+        val fromStat = stat(
+            ctx,
+            systemFrom,
+            setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.FILE_TYPE),
+            HashMap()
+        )
+
+        val targetType =
+            runCatching { stat(ctx, systemTo, setOf(FileAttribute.FILE_TYPE), HashMap()) }.getOrNull()?.fileType
+
+        if (targetType != null && fromStat.fileType != targetType) {
+            throw FSException.BadRequest("Target already exists and is not of same type as source.")
+        }
 
         Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
 
@@ -133,6 +125,7 @@ class LinuxFS(
         directory: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>> = ctx.submit {
+        log.debug("listDirectory($directory, $mode)")
         ctx.requireContext()
 
         val file = File(translateAndCheckFile(directory))
@@ -142,8 +135,13 @@ class LinuxFS(
 
         FSResult(
             0,
-            (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).map { child ->
-                stat(ctx, child, mode, pathCache)
+            (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).mapNotNull { child ->
+                log.trace("NEXT FILE: $child")
+                try {
+                    stat(ctx, child, mode, pathCache)
+                } catch (ex: NoSuchFileException) {
+                    null
+                }
             }
         )
     }
@@ -153,9 +151,10 @@ class LinuxFS(
         systemFile: File,
         mode: Set<FileAttribute>,
         pathCache: MutableMap<String, String>,
-        followLink: Boolean = true
+        followLink: Boolean = false
     ): FileRow {
         ctx.requireContext()
+        log.debug("stat(${systemFile.absolutePath}, $mode)")
 
         var fileType: FileType? = null
         var isLink: Boolean? = null
@@ -203,20 +202,18 @@ class LinuxFS(
             // Basic file attributes and symlinks
             val basicAttributes = run {
                 val opts = ArrayList<String>()
-                if (FileAttribute.TIMESTAMPS in mode) {
-                    opts.addAll(listOf("lastAccessTime", "lastModifiedTime", "creationTime"))
-                }
 
-                if (FileAttribute.SIZE in mode) {
-                    opts.add("size")
+                // We always add SIZE. This will make sure we always get a stat executed and thus throw if the
+                // file doesn't actually exist.
+                opts.add("size")
+
+                if (FileAttribute.TIMESTAMPS in mode) {
+                    // Note we don't rely on the creationTime due to not being available in all file systems.
+                    opts.addAll(listOf("lastAccessTime", "lastModifiedTime"))
                 }
 
                 if (FileAttribute.FILE_TYPE in mode) {
                     opts.add("isDirectory")
-                }
-
-                if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
-                    opts.add("isSymbolicLink")
                 }
 
                 if (opts.isEmpty()) {
@@ -224,7 +221,7 @@ class LinuxFS(
                 } else {
                     Files.readAttributes(systemPath, opts.joinToString(","), *linkOpts)
                 }
-            } ?: return@run
+            }
 
             if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
             if (FileAttribute.PATH in mode || FileAttribute.XOWNER in mode) { // xowner requires path
@@ -240,33 +237,57 @@ class LinuxFS(
                     }
                 }
 
+                log.trace(pathCache.toString())
+
+                log.trace("Real path is $realParent, we combine this with ${systemFile.name}")
                 path = joinPath(realParent, systemFile.name).toCloudPath()
-            }
-            if (FileAttribute.SIZE in mode) size = basicAttributes.getValue("size") as Long
-
-            if (FileAttribute.FILE_TYPE in mode) {
-                fileType = if (basicAttributes.getValue("isDirectory") as Boolean) FileType.DIRECTORY else FileType.FILE
+                log.trace("path = $path")
             }
 
-            if (FileAttribute.TIMESTAMPS in mode) {
-                val lastAccess = basicAttributes.getValue("lastAccessTime") as FileTime
-                val lastModified = basicAttributes.getValue("lastModifiedTime") as FileTime
-                val creationTime = basicAttributes.getValue("creationTime") as FileTime
-                timestamps = Timestamps(
-                    lastAccess.toMillis(),
-                    creationTime.toMillis(),
-                    lastModified.toMillis()
-                )
-            }
+            if (basicAttributes != null) {
+                if (FileAttribute.SIZE in mode) size = basicAttributes.getValue("size") as Long
 
-            if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
-                val linkStatus = basicAttributes["isSymbolicLink"] as Boolean
-                isLink = linkStatus
+                if (FileAttribute.FILE_TYPE in mode) {
+                    fileType =
+                        if (basicAttributes.getValue("isDirectory") as Boolean) FileType.DIRECTORY else FileType.FILE
+                }
 
-                if (linkStatus && (FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode)) {
-                    val readSymbolicLink = Files.readSymbolicLink(systemPath)
-                    linkTarget = readSymbolicLink?.toFile()?.absolutePath
-                    linkInode = Files.readAttributes(readSymbolicLink, "unix:ino")["ino"] as String
+                if (FileAttribute.TIMESTAMPS in mode) {
+                    val lastAccess = basicAttributes.getValue("lastAccessTime") as FileTime
+                    val lastModified = basicAttributes.getValue("lastModifiedTime") as FileTime
+
+                    // The extended attribute is set by CoreFS
+                    val creationTime =
+                        getExtendedAttributeInternal(ctx, systemFile, XATTR_BITH)?.toLongOrNull()?.let { it * 1000 }
+                            ?: lastModified.toMillis()
+
+                    timestamps = Timestamps(
+                        lastAccess.toMillis(),
+                        creationTime,
+                        lastModified.toMillis()
+                    )
+                }
+
+                if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
+                    val linkStatus = Files.isSymbolicLink(systemFile.toPath())
+                    isLink = linkStatus
+
+                    if (linkStatus && (FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode)) {
+                        val readSymbolicLink = Files.readSymbolicLink(systemPath)
+                        var targetExists = true
+                        linkInode = try {
+                            Files.readAttributes(readSymbolicLink, "unix:ino")["ino"].toString()
+                        } catch (ex: NoSuchFileException) {
+                            targetExists = false
+                            "0"
+                        }
+
+                        if (targetExists) {
+                            linkTarget = readSymbolicLink?.toFile()?.absolutePath?.toCloudPath()
+                        } else {
+                            linkTarget = "/"
+                        }
+                    }
                 }
             }
         }
@@ -312,7 +333,9 @@ class LinuxFS(
             sensitivityLevel,
             linkInode,
             realOwner
-        )
+        ).also {
+            log.debug("result is $it")
+        }
     }
 
     override suspend fun delete(ctx: LinuxFSRunner, path: String): FSResult<List<StorageEvent.Deleted>> = ctx.submit {
@@ -483,12 +506,14 @@ class LinuxFS(
         systemFile: File,
         attribute: String
     ): String? {
+        log.debug("getExtendedAttribute(systemFile=$systemFile,attribute=$attribute)")
         ctx.requireContext()
 
         return try {
-            StandardCLib.getxattr(systemFile.absolutePath, "user.$attribute")
+            StandardCLib.getxattr(systemFile.absolutePath, "user.$attribute").also { log.trace("value = $it") }
         } catch (ex: NativeException) {
             if (ex.statusCode == 61) return null
+            if (ex.statusCode == 2) return null
             throw ex
         }
     }
@@ -513,10 +538,16 @@ class LinuxFS(
         value: String,
         allowOverwrite: Boolean
     ): FSResult<Unit> = ctx.submit {
+        log.debug("setExtendedAttribute(path=$path,attribute=$attribute,value=$value,allowOverwrite=$allowOverwrite)")
         ctx.requireContext()
 
         FSResult(
-            StandardCLib.setxattr(translateAndCheckFile(path), "user.$attribute", value, allowOverwrite),
+            StandardCLib.setxattr(
+                translateAndCheckFile(path),
+                "user.$attribute",
+                value,
+                allowOverwrite
+            ).also { log.trace("setxattr = $it, ${Native.getLastError()}") },
             Unit
         )
     }
@@ -633,10 +664,18 @@ class LinuxFS(
         if (entity !is FSACLEntity.User) throw FSException.BadRequest()
         val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
 
+        val rootFile = File(translateAndCheckFile(path))
+        if (!rootFile.isDirectory && defaultList) return@submit FSResult(0, Unit) // Files don't have a default list
 
-        Files.walk(File(translateAndCheckFile(path)).toPath()).forEach {
-            ACL.addEntry(it.toFile().absolutePath, uid.toInt(), rights, defaultList)
+        if (recursive) {
+            Files.walk(rootFile.toPath()).forEach {
+                if (!Files.isDirectory(it) && defaultList) return@forEach // Files don't have a default list
+                ACL.addEntry(it.toFile().absolutePath, uid.toInt(), rights, defaultList)
+            }
+        } else {
+            ACL.addEntry(rootFile.absolutePath, uid.toInt(), rights, defaultList)
         }
+
         FSResult(0, Unit)
     }
 
@@ -694,15 +733,21 @@ class LinuxFS(
         )
     }
 
-    private fun translateAndCheckFile(path: String): String {
-        val potentialResult = File(fsRoot, path)
-        val normalizedResult = potentialResult.normalize().absolutePath
-        if (!normalizedResult.startsWith(fsRoot.absolutePath + "/")) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+    private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
+        val userRoot = File(fsRoot, "home").absolutePath.normalize().removeSuffix("/") + "/"
+        val path = File(fsRoot, internalPath)
+            .normalize()
+            .absolutePath
+            .let { it + (if (isDirectory) "/" else "") }
+
+        if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) {
+            throw FSException.BadRequest("path is not in user-root")
         }
 
-        if (normalizedResult.length >= PATH_MAX) throw FSException.BadRequest("Path too long")
-        return normalizedResult
+        if (path.contains("\n")) throw FSException.BadRequest("Path cannot contain new-lines")
+        if (path.length >= PATH_MAX) throw FSException.BadRequest("Path is too long")
+
+        return path
     }
 
     private fun String.toCloudPath(): String {

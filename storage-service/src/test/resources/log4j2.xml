@@ -18,5 +18,11 @@
         <Logger name="dk.sdu.cloud.file.services.unixfs.UnixFSUserDao" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="dk.sdu.cloud.file.services.linuxfs.LinuxFS" level="debug" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="dk.sdu.cloud.file.services.unixfs.FileOwnerLookupService" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

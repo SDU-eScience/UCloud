@@ -4,21 +4,15 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.services.BackgroundScope
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.test.EventServiceMock
+import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.touch
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
+import org.slf4j.Logger
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -27,25 +21,25 @@ import kotlin.test.assertEquals
 class SensitivityTest {
     val user = "user"
 
-    data class TestContext(
-        val runner: UnixFSCommandRunnerFactory,
-        val fs: LowLevelFileSystemInterface<UnixFSCommandRunner>,
-        val coreFs: CoreFileSystemService<UnixFSCommandRunner>,
-        val sensitivityService: FileSensitivityService<UnixFSCommandRunner>,
-        val lookupService: FileLookupService<UnixFSCommandRunner>
+    data class TestContext<Ctx : FSUserContext>(
+        val runner: FSCommandRunnerFactory<Ctx>,
+        val fs: LowLevelFileSystemInterface<Ctx>,
+        val coreFs: CoreFileSystemService<Ctx>,
+        val sensitivityService: FileSensitivityService<Ctx>,
+        val lookupService: FileLookupService<Ctx>
     )
 
-    private fun initTest(root: String): TestContext {
+    private fun initTest(root: String): TestContext<FSUserContext> {
         BackgroundScope.init()
 
-        val (runner, fs) = unixFSWithRelaxedMocks(root)
+        val (runner, fs) = linuxFSWithRelaxedMocks(root)
         val storageEventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val sensitivityService =
             FileSensitivityService(fs, storageEventProducer)
         val coreFs = CoreFileSystemService(fs, storageEventProducer)
         val fileLookupService = FileLookupService(coreFs)
 
-        return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService)
+        return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService) as TestContext<FSUserContext>
     }
 
     private fun createRoot(): File = Files.createTempDirectory("sensitivity-test").toFile()
@@ -296,6 +290,7 @@ class SensitivityTest {
             }
 
             runner.withBlockingContext(user) { ctx ->
+                // The expected behavior is that the link has same confidentiality as target (even if this is inherited)
                 sensitivityService.setSensitivityLevel(ctx, "/home/user/confidential", SensitivityLevel.CONFIDENTIAL)
                 coreFs.createSymbolicLink(ctx, "/home/user/confidential/file", "/home/user/link")
                 coreFs.createSymbolicLink(ctx, "/home/user/link", "/home/user/link2")
@@ -306,15 +301,21 @@ class SensitivityTest {
                     lookupService.stat(ctx, "/home/user/confidential/file").sensitivityLevel
                 )
 
+                repeat(10) { log.info("---") }
+
                 assertEquals(
                     SensitivityLevel.CONFIDENTIAL,
                     lookupService.stat(ctx, "/home/user/link").sensitivityLevel
                 )
 
+                repeat(10) { log.info("---") }
+
                 assertEquals(
                     SensitivityLevel.CONFIDENTIAL,
                     lookupService.stat(ctx, "/home/user/link2").sensitivityLevel
                 )
+
+                repeat(10) { log.info("---") }
 
                 assertEquals(
                     SensitivityLevel.CONFIDENTIAL,
@@ -322,5 +323,9 @@ class SensitivityTest {
                 )
             }
         }
+    }
+
+    companion object : Loggable {
+        override val log: Logger = logger()
     }
 }

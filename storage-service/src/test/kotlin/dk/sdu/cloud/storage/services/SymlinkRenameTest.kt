@@ -2,21 +2,16 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.services.BackgroundScope
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatProperty
+import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.touch
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -26,16 +21,16 @@ class SymlinkRenameTest {
     val user = "user"
 
     data class TestContext(
-        val runner: UnixFSCommandRunnerFactory,
-        val fs: LowLevelFileSystemInterface<UnixFSCommandRunner>,
-        val coreFs: CoreFileSystemService<UnixFSCommandRunner>,
-        val lookupService: FileLookupService<UnixFSCommandRunner>
+        val runner: LinuxFSRunnerFactory,
+        val fs: LowLevelFileSystemInterface<LinuxFSRunner>,
+        val coreFs: CoreFileSystemService<LinuxFSRunner>,
+        val lookupService: FileLookupService<LinuxFSRunner>
     )
 
     private fun initTest(root: File): TestContext {
         BackgroundScope.init()
 
-        val (runner, fs) = unixFSWithRelaxedMocks(root.absolutePath)
+        val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val coreFs = CoreFileSystemService(fs, eventProducer)
         val fileLookupService = FileLookupService(coreFs)
