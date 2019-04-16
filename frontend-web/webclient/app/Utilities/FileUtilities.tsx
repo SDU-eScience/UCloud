@@ -177,23 +177,27 @@ export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) 
     files.every(f => hasAccess(accessRight, f));
 
 
-interface CreateFileLink {
+interface CreateFileLink extends AddSnackOperation {
     file: File
     cloud: SDUCloud
     setLoading: () => void
     fetchPageFromPath: (p: string) => void
 }
 
-export const createFileLink = ({ file, cloud, setLoading, fetchPageFromPath }: CreateFileLink) => {
+export const createFileLink = async ({ file, cloud, setLoading, fetchPageFromPath, addSnack }: CreateFileLink) => {
     const fileName = getFilenameFromPath(file.path);
     const linkPath = file.path.replace(fileName, `Link to ${fileName} `)
     setLoading();
-    cloud.post("/files/create-link", {
-        linkTargetPath: file.path,
-        linkPath: linkPath
-    }).then(it => fetchPageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
+    try {
+        await cloud.post("/files/create-link", {
+            linkTargetPath: file.path,
+            linkPath
+        });
+        fetchPageFromPath(linkPath);
+    } catch {
+        addSnack({ message: "An error occurred creating link.", type: SnackType.Failure });
+    }
 };
-
 
 interface StateLessOperations extends AddSnackOperation {
     setLoading: () => void
@@ -219,23 +223,28 @@ export const StateLessOperations = ({ setLoading, onSensitivityChange, addSnack 
     },
     {
         text: "Sensitivity",
-        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity(files, cloud, onSensitivityChange),
+        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity({ files, cloud, onSensitivityChange, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => false,
         icon: "verified",
         color: undefined
     },
     {
         text: "Copy Path",
-        onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard({ value: files[0].path,  message: `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`, addSnack}),
+        onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard({ value: files[0].path, message: `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => !UF.inDevEnvironment() || files.length !== 1,
         icon: "chat",
         color: undefined
     }
 ];
 
-export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void, setLoading: () => void) => [{
+interface CreateLinkOperation extends AddSnackOperation {
+    fetchPageFromPath: (p: string) => void
+    setLoading: () => void
+}
+
+export const CreateLinkOperation = ({ fetchPageFromPath, setLoading, addSnack }: CreateLinkOperation) => [{
     text: "Create link",
-    onClick: (files: File[], cloud: SDUCloud) => createFileLink({ file: files[0], cloud, setLoading, fetchPageFromPath }),
+    onClick: (files: File[], cloud: SDUCloud) => createFileLink({ file: files[0], cloud, setLoading, fetchPageFromPath, addSnack }),
     disabled: (files: File[], cloud: SDUCloud) => files.length > 1,
     icon: "link",
     color: undefined
@@ -467,18 +476,23 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
     isMockFolder: true
 });
 
+interface IsInvalidPathname extends AddSnackOperation {
+    path: string
+    filePaths: string[]
+}
+
 /**
  * Checks if a pathname is legal/already in use
  * @param {string} path The path being tested
  * @param {string[]} filePaths the other file paths path is being compared against
  * @returns whether or not the path is invalid
  */
-export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
-    if (["..", "/"].some((it) => path.includes(it))) { UF.failureNotification("Folder name cannot contain '..' or '/'"); return true }
-    if (path === "" || path === ".") { UF.failureNotification("Folder name cannot be empty or be \".\""); return true; }
+export const isInvalidPathName = ({ path, filePaths, addSnack }: IsInvalidPathname): boolean => {
+    if (["..", "/"].some((it) => path.includes(it))) { addSnack({ message: "Folder name cannot contain '..' or '/'", type: SnackType.Failure }); return true }
+    if (path === "" || path === ".") { addSnack({ message: "Folder name cannot be empty or be \".\"", type: SnackType.Failure }); return true; }
     const existingName = filePaths.some(it => it === path);
     if (existingName) {
-        UF.failureNotification("File with that name already exists");
+        addSnack({ message: "File with that name already exists", type: SnackType.Failure });
         return true;
     }
     return false;
@@ -537,11 +551,17 @@ export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<Fi
 
 const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
-export const reclassifyFile = async (file: File, sensitivity: SensitivityLevelMap, cloud: SDUCloud): Promise<File> => {
+interface ReclassifyFile extends AddSnackOperation {
+    file: File
+    sensitivity: SensitivityLevelMap
+    cloud: SDUCloud
+}
+
+export const reclassifyFile = async ({ file, sensitivity, cloud, addSnack }: ReclassifyFile): Promise<File> => {
     const serializedSensitivity = sensitivity === SensitivityLevelMap.INHERIT ? null : sensitivity;
     const callResult = await unwrap(cloud.post<void>("/files/reclassify", { path: file.path, sensitivity: serializedSensitivity }));
     if (isError(callResult)) {
-        UF.failureNotification((callResult as ErrorMessage).errorMessage)
+        addSnack({ message: (callResult as ErrorMessage).errorMessage, type: SnackType.Failure })
         return file;
     }
     return { ...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity };
@@ -648,12 +668,17 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
         }));
 }
 
+interface UpdateSensitivty extends AddSnackOperation {
+    files: File[]
+    cloud: SDUCloud
+    onSensitivityChange?: () => void
+}
 
-function updateSensitivity(files: File[], cloud: SDUCloud, onSensitivityChange?: () => void) {
+function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivty) {
     UF.sensitivitySwal().then(input => {
         if (!!input.dismiss) return;
         Promise.all(
-            files.map(file => reclassifyFile(file, input.value as SensitivityLevelMap, cloud))
+            files.map(file => reclassifyFile({ file, sensitivity: input.value as SensitivityLevelMap, cloud, addSnack }))
         ).catch(e =>
             UF.errorMessageOrDefault(e, "Could not reclassify file")
         ).then(() => !!onSensitivityChange ? onSensitivityChange() : null);
@@ -758,7 +783,7 @@ export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: Mo
             .then(({ response }) => (resultToNotification({
                 failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack
             }), callback()))
-            .catch(({ response }) => (UF.failureNotification(response.why), callback()));
+            .catch(({ response }) => (addSnack({ message: response.why, type: SnackType.Failure }), callback()));
     });
 };
 
@@ -801,7 +826,7 @@ const deletionSwal = (filePaths: string[]) => {
     });
 };
 
-interface MoveFile {
+interface MoveFile extends AddSnackOperation {
     oldPath: string
     newPath: string
     cloud: SDUCloud
@@ -809,28 +834,28 @@ interface MoveFile {
     onSuccess: () => void
 }
 
-export async function moveFile({ oldPath, newPath, cloud, setLoading, onSuccess }: MoveFile): Promise<void> {
+export async function moveFile({ oldPath, newPath, cloud, setLoading, onSuccess, addSnack }: MoveFile): Promise<void> {
     setLoading();
     try {
         await cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
         onSuccess();
     } catch {
-        UF.failureNotification("An error ocurred trying to rename the file.");
+        addSnack({ message: "An error ocurred trying to rename the file.", type: SnackType.Failure });
     }
 }
 
-interface CreateFolder {
+interface CreateFolder extends AddSnackOperation {
     path: string
     cloud: SDUCloud
     onSuccess: () => void
 }
 
-export async function createFolder({ path, cloud, onSuccess }: CreateFolder): Promise<void> {
+export async function createFolder({ path, cloud, onSuccess, addSnack }: CreateFolder): Promise<void> {
     try {
         await cloud.post("/files/directory", { path })
         onSuccess();
     } catch {
-        UF.failureNotification("An error ocurred trying to creating the file.");
+        addSnack({ message: "An error ocurred trying to creating the file.", type: SnackType.Failure });
     }
 }
 

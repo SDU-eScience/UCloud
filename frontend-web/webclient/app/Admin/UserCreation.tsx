@@ -57,7 +57,7 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
                 this.props.addSnack({ message: `User '${username}' successfully created`, type: SnackType.Success });
                 this.setState(() => this.initialState);
             } catch (e) {
-                const status = defaultErrorHandler(e);
+                const status = defaultErrorHandler(e, this.props.addSnack);
                 if (status == 400)  this.setState(() => ({ usernameError: true }));
             };
         }

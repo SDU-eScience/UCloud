@@ -68,7 +68,7 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
                 this.setState(() => this.initialState());
 
             } catch (e) {
-                let status = defaultErrorHandler(e);
+                let status = defaultErrorHandler(e, this.props.addSnack);
                 this.setState(() => ({ error: true }));
             };
         }
@@ -137,7 +137,7 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
                                         Change password
                                     </Button>
                                 </form> : null}
-                                <TwoFactorSetup />
+                                <TwoFactorSetup addSnack={this.props.addSnack} />
                             </>
                         }
                     />
@@ -156,4 +156,4 @@ const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
     addSnack: snack => dispatch(addSnack(snack))
 });
 
-export default connect(() => ({}), mapDispatchToProps)(UserSettings);
+export default connect(null , mapDispatchToProps)(UserSettings);

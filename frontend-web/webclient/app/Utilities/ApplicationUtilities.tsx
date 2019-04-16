@@ -1,8 +1,9 @@
-import { failureNotification, removeTrailingSlash } from "UtilityFunctions";
+import { removeTrailingSlash } from "UtilityFunctions";
 import { ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
-import { getFilenameFromPath, expandHomeFolder } from "./FileUtilities";
+import { expandHomeFolder } from "./FileUtilities";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -28,7 +29,7 @@ export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPC
     `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 
-interface FavoriteApplicationFromPage {
+interface FavoriteApplicationFromPage extends AddSnackOperation {
     name: string
     version: string
     page: Page<WithAppMetadata & WithAppFavorite>
@@ -39,13 +40,15 @@ interface FavoriteApplicationFromPage {
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = async ({ name, version, page, cloud }: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
+export const favoriteApplicationFromPage = async ({ name, version, page, cloud, addSnack }: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     // FIXME better error handling. Pass as callback, call on success?
     try {
-        await cloud.post(hpcFavoriteApp(name, version)).catch(() => failureNotification(`An error ocurred favoriting ${name}`));
+        await cloud.post(hpcFavoriteApp(name, version));
         a.favorite = !a.favorite;
-    } catch { }
+    } catch {
+        addSnack({ message: `An error ocurred favoriting ${name}`, type: SnackType.Failure });
+    }
     return page;
 }
 

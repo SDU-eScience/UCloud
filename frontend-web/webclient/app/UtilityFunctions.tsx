@@ -5,7 +5,7 @@ import { SortBy, SortOrder, File, Acl, FileType } from "Files";
 import { dateToString } from "Utilities/DateUtilities";
 import { getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { HTTP_STATUS_CODES } from "Utilities/XHRUtils";
-import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
+import { SnackType, AddSnackOperation, Snack } from "Snackbar/Snackbars";
 
 /**
  * Lowercases the string and capitalizes the first letter of the string
@@ -27,22 +27,6 @@ export const getOwnerFromAcls = (acls?: Acl[]): string => {
         return "Only You";
     }
 };
-
-/**
- * Renders a failure notification in the upper right corner, with provided text
- * @param {string} title The failure to be rendered
- * @param {number} seconds the amount of seconds the failure is rendered
- */
-export function failureNotification(title: string, seconds: number = 3) {
-    return swal({
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: seconds * 1_000,
-        type: "error",
-        title
-    });
-}
 
 export function uploadsNotifications(finished: number, total: number) {
     return swal({
@@ -327,7 +311,7 @@ export const downloadAllowed = (files: File[]) =>
  */
 export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ")
 
-export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }): number {
+export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }, addSnack: (snack: Snack) => void): number {
     let request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
     let why: string | null = null;
@@ -351,7 +335,7 @@ export function defaultErrorHandler(error: { request: XMLHttpRequest, response: 
             }
         }
 
-        failureNotification(why);
+        addSnack({ message: why, type: SnackType.Failure });
         return request.status;
     }
     return 500;

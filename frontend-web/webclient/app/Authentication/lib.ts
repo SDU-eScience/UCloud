@@ -1,6 +1,5 @@
 import * as jwt from "jsonwebtoken";
 import {
-    failureNotification,
     inRange,
     is5xxStatusCode,
     inSuccessRange
@@ -451,7 +450,8 @@ export default class SDUCloud {
             };
             throw Error("The server was unreachable, please try again later.")
         } catch (err) {
-            failureNotification(err.message);
+            // FIXME: Show error, somehow
+            err.message;
         }
     }
 

@@ -120,37 +120,6 @@ describe("Filelookup query", () => {
     )
 });
 
-
-describe("Is Invalid Path Name", () => {
-    test("Valid path with no provided filePaths", () => {
-        expect(isInvalidPathName("valid_path", [])).toBe(false);
-    });
-
-    test("Valid path with provided filePaths", () => {
-        expect(isInvalidPathName("valid_path", ["path1", "path2"])).toBe(false);
-    });
-
-    test("Valid path but with existing filePath", () => {
-        expect(isInvalidPathName("valid_path", ["valid_path", "path2"])).toBe(true);
-    });
-
-    test("Invalid path, consisting of .", () => {
-        expect(isInvalidPathName(".", [])).toBe(true);
-    });
-
-    test("Invalid path, consisting of empty string", () => {
-        expect(isInvalidPathName("", [])).toBe(true);
-    });
-
-    test("Invalid path, containing \"..\"", () => {
-        expect(isInvalidPathName("..", [])).toBe(true);
-    });
-
-    test("Invalid path, containing \"/\"", () => {
-        expect(isInvalidPathName("/", [])).toBe(true);
-    });
-});
-
 /*
 
 // Doesn't return a value, so missing something we can test for

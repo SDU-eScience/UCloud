@@ -312,7 +312,7 @@ describe("If Present", () => {
 
 describe("defaultErrorHandler", () => {
     test.skip("Todo", () =>
-        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined })).toBe(0)
+        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined }, () => undefined)).toBe(0)
     );
 });
 

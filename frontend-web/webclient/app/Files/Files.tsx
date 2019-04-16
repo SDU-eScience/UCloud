@@ -46,7 +46,7 @@ class Files extends React.Component<FilesProps> {
         return this.urlPathFromProps(this.props);
     }
 
-    onRenameFile = (key: number, file: File, name: string) => {
+    private onRenameFile = (key: number, file: File, name: string) => {
         const { path, fetchPageFromPath, updateFiles, page } = this.props;
         if (key === KeyCode.ESC) {
             const item = page.items.find(f => f.path === file.path);
@@ -55,14 +55,15 @@ class Files extends React.Component<FilesProps> {
             updateFiles(page);
         } else if (key === KeyCode.ENTER) {
             const fileNames = page.items.map(file => getFilenameFromPath(file.path));
-            if (isInvalidPathName(name, fileNames)) return;
+            if (isInvalidPathName({ path: name, filePaths: fileNames, addSnack: this.props.addSnack })) return;
             const fullPath = `${UF.addTrailingSlash(path)}${name}`;
             const { sortOrder, sortBy } = this.props;
             if (file.isMockFolder) {
                 createFolder({
                     path: fullPath,
                     cloud: Cloud,
-                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy)
+                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy),
+                    addSnack: this.props.addSnack
                 })
             } else {
                 moveFile({
@@ -70,7 +71,8 @@ class Files extends React.Component<FilesProps> {
                     newPath: fullPath,
                     cloud: Cloud,
                     setLoading: () => this.props.setLoading(true),
-                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy)
+                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy),
+                    addSnack: this.props.addSnack
                 });
             }
         }
