@@ -59,21 +59,6 @@ export function successNotification(title: string, seconds: number = 3) {
         title
     });
 }
-/**
- * Renders an information notification in the upper right corner, with provided text
- * @param {string} title The information to be rendered
- * @param {number} seconds the amount of seconds the content is rendered. Default is 3 seconds
- */
-/* export function infoNotification(title: string, seconds: number = 3) {
-    return swal({
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: seconds * 1_000,
-        type: "info",
-        title
-    });
-} */
 
 export function uploadsNotifications(finished: number, total: number) {
     return swal({
