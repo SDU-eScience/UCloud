@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.Loggable
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.call.receive
+import io.ktor.client.engine.cio.ConnectException
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
@@ -37,16 +38,31 @@ class SlackNotifier(
 
         """.trimIndent() + ticket.message.lines().joinToString("\n") { "> $it" }
 
-        val postResult = httpClient.call(hook) {
-            method = HttpMethod.Post
-            body = TextContent(defaultMapper.writeValueAsString(SlackMessage(message)), ContentType.Application.Json)
-        }
 
-        val status = postResult.response.status
-        if (!status.isSuccess()) {
-            log.warn("unsuccessful message from slack ($status)")
-            runCatching { log.warn(postResult.receive()) }
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        var retries = 0
+        while (true) {
+            retries++
+            if (retries == 3) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+            }
+            val postResult = try {
+                httpClient.call(hook) {
+                    method = HttpMethod.Post
+                    body = TextContent(
+                        defaultMapper.writeValueAsString(SlackMessage(message)),
+                        ContentType.Application.Json
+                    )
+                }
+            } catch (ex: ConnectException) {
+                log.debug("Connect Exception caught : ${ex.message}")
+                continue
+            }
+            val status = postResult.response.status
+            if (!status.isSuccess()) {
+                log.warn("unsuccessful message from slack ($status)")
+                runCatching { log.warn(postResult.receive()) }
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
         }
     }
 
