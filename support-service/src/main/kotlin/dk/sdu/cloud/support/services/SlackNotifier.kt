@@ -6,7 +6,6 @@ import dk.sdu.cloud.service.Loggable
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.call.receive
-import io.ktor.client.engine.cio.ConnectException
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
@@ -53,9 +52,18 @@ class SlackNotifier(
                         ContentType.Application.Json
                     )
                 }
-            } catch (ex: ConnectException) {
-                log.debug("Connect Exception caught : ${ex.message}")
+            } catch (ex: Exception) {
+                when (ex) {
+                    is java.net.ConnectException -> {
+                        log.debug("Java.net.Connect Exception caught : ${ex.message}")
+
+                    }
+                    is io.ktor.client.engine.cio.ConnectException -> {
+                        log.debug("Cio ConnectException caught : ${ex.message}")
+                    }
+                }
                 continue
+
             }
             val status = postResult.response.status
             if (!status.isSuccess()) {
