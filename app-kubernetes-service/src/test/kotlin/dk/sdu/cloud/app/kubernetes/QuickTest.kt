@@ -11,8 +11,5 @@ fun main() = runBlocking {
     val service = PodService(DefaultKubernetesClient())
     val requestId = "testing-${UUID.randomUUID()}"
     service.create(requestId)
-    service.submitFile(requestId, "./hello", StreamingFile.fromFile(File.createTempFile("prefix", "suffix").also {
-        it.writeText("Hello, World!")
-    }))
     service.startContainer(requestId)
 }

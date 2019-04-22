@@ -1,7 +1,5 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.service.BashEscaper
 import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
@@ -11,9 +9,11 @@ import io.fabric8.kubernetes.client.dsl.ExecListener
 import io.fabric8.kubernetes.client.dsl.ExecWatch
 import io.fabric8.kubernetes.client.dsl.PodResource
 import io.fabric8.kubernetes.client.dsl.internal.PodOperationsImpl
-import kotlinx.coroutines.io.jvm.javaio.copyTo
 import okhttp3.Response
-import java.io.*
+import java.io.InputStream
+import java.io.OutputStream
+import java.io.PipedInputStream
+import java.io.PipedOutputStream
 import java.time.ZonedDateTime
 import java.util.concurrent.CountDownLatch
 
@@ -21,16 +21,14 @@ class PodService(
     private val k8sClient: KubernetesClient
 ) {
     private fun podName(requestId: String): String = "job-$requestId"
-    private val fileTransferContainer = "file-transfer"
+    private val dataDirectory = "/data"
+    private val localDirectory = "/scratch"
     private val collectionContainer = "collection-job"
     private val temporaryStorage = "temporary-storage"
+    private val dataStorage = "workspace-storage"
     private val namespace = "app-testing"
 
     fun create(/*request: VerifiedJob*/requestId: String) {
-        // Create an init container which awaits file transfer
-        // Files are transferred in submitFile. startContainer will trigger the init container to finish and start
-        // the real container.
-
         // TODO Network policy. Should at least block all ingress and block egress to the entire container CIDR.
 
         val podName = podName(requestId)
@@ -49,26 +47,27 @@ class PodService(
             .spec {
                 withInitContainers(
                     container {
-                        withName(fileTransferContainer)
-                        withImage("busybox:1.28")
-                        withCommand(
-                            listOf(
-                                "sh",
-                                "-c",
-                                "until stat /tmp/file-transfer-done; do sleep 0.1; done;"
-                            )
-                        )
-                        withVolumeMounts(
-                            VolumeMount("/scratch", null, temporaryStorage, false, null)
-                        )
-                    },
-                    container {
                         withName("user-job")
                         withImage("busybox:1.28")
                         withRestartPolicy("Never")
                         withCommand(listOf("sleep", "0.1"))
+                        withSecurityContext(
+                            PodSecurityContext(
+                                1337L,
+                                1337L,
+                                true,
+                                1337L,
+                                null,
+                                null,
+                                null
+                            )
+                        )
+
+                        withWorkingDir(dataDirectory)
+
                         withVolumeMounts(
-                            VolumeMount("/scratch", null, temporaryStorage, false, null)
+                            VolumeMount(localDirectory, null, temporaryStorage, false, null),
+                            VolumeMount(dataDirectory, null, dataStorage, false, "workspace/testing")
                         )
                     }
                 )
@@ -78,15 +77,17 @@ class PodService(
                         withName(collectionContainer)
                         withImage("busybox:1.28")
                         withRestartPolicy("Never")
+
                         withCommand(
                             listOf(
                                 "sh",
                                 "-c",
                                 "sleep 120"
                             )
-                        ) // This one should for us to have collected all files
+                        )
+
                         withVolumeMounts(
-                            VolumeMount("/scratch", null, temporaryStorage, false, null)
+                            VolumeMount(localDirectory, null, temporaryStorage, false, null)
                         )
                     }
                 )
@@ -95,6 +96,11 @@ class PodService(
                     volume {
                         withName(temporaryStorage)
                         withEmptyDir(EmptyDirVolumeSource())
+                    },
+
+                    volume {
+                        withName(dataStorage)
+                        withPersistentVolumeClaim(PersistentVolumeClaimVolumeSource("cephfs", false))
                     }
                 )
             }
@@ -106,40 +112,6 @@ class PodService(
         }
     }
 
-    suspend fun submitFile(
-        requestId: String,
-        relativePath: String,
-        fileData: StreamingFile
-    ) {
-        val absolutePath = File("/scratch", relativePath).absolutePath
-
-        println(listOf("sh -c", "cat - > ${BashEscaper.safeBashArgument(absolutePath)}"))
-
-        val openLatch = CountDownLatch(1)
-        val fileTransferChannel = k8sClient
-            .pods()
-            .inNamespace(namespace)
-            .withName(podName(requestId))
-            .inContainer(fileTransferContainer)
-            .redirectingInput()
-            .usingListener(object : ExecListener {
-                override fun onOpen(response: Response?) {
-                    openLatch.countDown()
-                }
-
-                override fun onFailure(t: Throwable?, response: Response?) {}
-                override fun onClose(code: Int, reason: String?) {
-                }
-            })
-            .exec("sh", "-c", "cat - > ${BashEscaper.safeBashArgument(absolutePath)}")
-
-        fileTransferChannel.input
-        openLatch.await()
-        fileTransferChannel.use {
-            fileData.channel.copyTo(it.input)
-        }
-    }
-
     fun startContainer(requestId: String) {
         lateinit var watch: Watch
         watch = k8sClient.pods().withName(podName(requestId)).watch(object : Watcher<Pod> {
@@ -147,7 +119,7 @@ class PodService(
             }
 
             override fun eventReceived(action: Watcher.Action, resource: Pod) {
-                val userContainer = resource.status.initContainerStatuses[1] ?: return
+                val userContainer = resource.status.initContainerStatuses[0] ?: return
                 if (userContainer.state.terminated != null) {
                     val startAt =
                         ZonedDateTime.parse(userContainer.state.terminated.startedAt).toInstant().toEpochMilli()
@@ -160,15 +132,6 @@ class PodService(
                 }
             }
         })
-
-        k8sClient
-            .pods()
-            .inNamespace(namespace)
-            .withName(podName(requestId))
-            .inContainer(fileTransferContainer)
-            .redirectingError()
-            .exec("touch", "/tmp/file-transfer-done")
-            .use { }
     }
 
     private fun collectFiles(globs: List<String>, requestId: String) {
@@ -187,7 +150,7 @@ class PodService(
 
             println("I will now write stuff: " + output!!.bufferedReader().readText())
             println("Done!")
-       }
+        }
     }
 }
 

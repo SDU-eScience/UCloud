@@ -21,26 +21,7 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.submitFile) {
-            request.asIngoing().receiveBlocks { block ->
-                val file = block.job.files.find { it.id == block.parameterName } ?: throw RPCException(
-                    "Bad request. File with id '${block.parameterName}' does not exist!",
-                    HttpStatusCode.BadRequest
-                )
-                val relativePath =
-                    if (file.destinationPath.startsWith("/")) ".${file.destinationPath}" else file.destinationPath
-
-                podService.submitFile(
-                    /*
-                    block.job,
-                    block.parameterName,
-                    block.fileData
-                    */
-                    block.job.id,
-                    relativePath,
-                    block.fileData
-                )
-            }
-            ok(Unit)
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) // Not supported
         }
 
         implement(AppKubernetesDescriptions.jobPrepared) {
