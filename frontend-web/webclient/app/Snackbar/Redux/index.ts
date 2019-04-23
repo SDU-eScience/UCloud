@@ -1,9 +1,10 @@
 import snackbar from "./SnackbarsReducer";
 import { Snack } from "Snackbar/Snackbars";
 
-export const init = (): Object => ({
+export const init = (): Wrapper => ({
     snackbar: {
-        snackbar: [] as Snack[]
+        snackbar: [] as Snack[],
+        nextId: 0
     }
 });
 
@@ -11,6 +12,11 @@ export const reducers = {
     snackbar
 };
 
+export interface Wrapper {
+    snackbar: Object
+}
+
 export interface Object {
-    snackbar: { snackbar: Snack[] }
+    snackbar: Snack[]
+    nextId: number
 }

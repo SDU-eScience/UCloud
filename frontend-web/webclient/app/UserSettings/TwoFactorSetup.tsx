@@ -4,36 +4,35 @@ import { TwoFactorSetupState } from ".";
 import * as UF from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
 import { Image, Flex, Divider, Input, LoadingButton, ExternalLink } from "ui-components";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
 
-export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
+export class TwoFactorSetup extends React.Component<AddSnackOperation, TwoFactorSetupState> {
     constructor(props) {
         super(props);
         this.state = this.initialState();
     }
 
-    componentDidMount() {
+    public componentDidMount() {
         this.loadStatus();
     }
 
-    private loadStatus() {
+    private async loadStatus() {
         this.setLoading(true);
-        Cloud.get("2fa/status", "/auth")
-            .then((res) => {
-                this.setState(() => ({
-                    isConnectedToAccount: res.response.connected
-                }));
-            })
-            .catch(res => {
-                const why: string = res.response.why ? res.response.why : "";
-                UF.failureNotification("Could not fetch 2FA status. " + why);
-            })
-            .then(() => this.setLoading(false));
+        try {
+            const res = await Cloud.get("2fa/status", "/auth");
+            this.setState(() => ({ isConnectedToAccount: res.response.connected }));
+        } catch (res) {
+            const why: string = res.response.why ? res.response.why : "";
+            this.props.addSnack({ message: `Could not fetch 2FA status. ${why}`, type: SnackType.Failure });
+        } finally {
+            this.setLoading(false);
+        }
     }
 
-    initialState = (): TwoFactorSetupState => ({
+    private readonly initialState = (): TwoFactorSetupState => ({
         verificationCode: "",
         isConnectedToAccount: false,
         isLoading: false
@@ -168,24 +167,24 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
     private setLoading = (isLoading: boolean) => this.setState(() => ({ isLoading }));
 
 
-    private onVerificationSubmit() {
+    private async onVerificationSubmit(): Promise<void> {
         this.setLoading(true);
-        Cloud.post("2fa/challenge", {
-            challengeId: this.state.challengeId,
-            verificationCode: this.state.verificationCode
-        }, "/auth").then((res) => {
-            this.setState(() => ({
-                isConnectedToAccount: true
-            }));
-        }).catch((res) => {
+        try {
+            await Cloud.post("2fa/challenge", {
+                challengeId: this.state.challengeId,
+                verificationCode: this.state.verificationCode
+            }, "/auth");
+
+            this.setState(() => ({ isConnectedToAccount: true }));
+        } catch (res) {
             let response = res.response;
             let why: string = "Could not submit verification code. Try again later";
             if (response !== undefined && response.why !== undefined) {
                 why = response.why;
             }
-            UF.failureNotification(why);
-        }).then(() => {
+            this.props.addSnack({ message: why, type: SnackType.Failure });
+        } finally {
             this.setLoading(false);
-        });
+        }
     }
 }

@@ -8,7 +8,6 @@ import { setZenodoLoading, setErrorMessage } from "./Redux/ZenodoActions";
 import { connect } from "react-redux";
 import { History } from "history";
 import { removeEntry } from "Utilities/CollectionUtilities";
-import { failureNotification } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { File } from "Files";
 import { SET_ZENODO_ERROR } from "Zenodo/Redux/ZenodoReducer";
@@ -18,6 +17,8 @@ import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
 import { SidebarPages } from "ui-components/Sidebar";
 import { ReduxObject } from "DefaultObjects";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 interface ZenodoPublishState {
     files: string[]
@@ -32,7 +33,7 @@ interface ZenodoPublishProps {
     error?: string
 }
 
-interface ZenodoPublishOperations {
+interface ZenodoPublishOperations extends AddSnackOperation {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     setErrorMessage: (error?: string) => void
@@ -53,7 +54,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
 
     componentWillUnmount = () => this.props.setErrorMessage();
 
-    submit = e => {
+    private submit = e => {
         e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
         Cloud.post("/zenodo/publish/", { filePaths, name: this.state.name }).then((res) => {
@@ -63,23 +64,26 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
 
     }
 
-    removeFile = (index: number) => {
+    private removeFile = (index: number) => {
         const { files } = this.state;
-        const remainderFiles = removeEntry<string>(files, index);
+        const remainderFiles = removeEntry(files, index);
         this.setState(() => ({ files: remainderFiles }));
     }
 
-    handleFileSelection = (file: File, index: number) => {
+    private handleFileSelection = (file: File, index: number) => {
         const files = this.state.files.slice();
         if (files.some(f => getFilenameFromPath(f) === getFilenameFromPath(file.path))) {
-            failureNotification("Zenodo does not allow duplicate filenames. Please rename either file and try again.", 8);
+            this.props.addSnack({
+                message: "Zenodo does not allow duplicate filenames. Please rename either file and try again.",
+                type: SnackType.Failure
+            });
             return;
         }
         files[index] = file.path;
         this.setState(() => ({ files }));
     }
 
-    newFile() {
+    private newFile() {
         const files = this.state.files.slice();
         files.push("");
         this.setState(() => ({ files }));
@@ -91,7 +95,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
         if (this.props.loading) {
             return (<MainContainer main={<LoadingIcon size={18} />} />);
         } else if (!this.props.connected) {
-            return (<MainContainer main={<NotConnectedToZenodo />} />);
+            return (<MainContainer main={<NotConnectedToZenodo addSnack={this.props.addSnack} />} />);
         }
 
         const header = (
@@ -169,7 +173,8 @@ const mapDispatchToProps = (dispatch: Dispatch): ZenodoPublishOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Publish")),
     setErrorMessage: (error?: string) => dispatch(setErrorMessage(SET_ZENODO_ERROR, error)),
     setLoading: (loading: boolean) => dispatch(setZenodoLoading(loading)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Publish))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Publish)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(ZenodoPublish);

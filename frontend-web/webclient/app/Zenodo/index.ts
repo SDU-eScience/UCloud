@@ -1,8 +1,9 @@
 import PromiseKeeper from "PromiseKeeper";
 import { match } from "react-router-dom";
 import { Page } from "Types";
+import { AddSnackOperation } from "Snackbar/Snackbars";
 
-export interface ZenodoOperations {
+export interface ZenodoOperations extends AddSnackOperation {
     onErrorDismiss: () => void
     fetchPublications: (a: number, b: number) => void
     updatePageTitle: () => void

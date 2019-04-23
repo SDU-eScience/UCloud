@@ -1,10 +1,7 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import {
-    successNotification,
-    defaultErrorHandler
-} from "UtilityFunctions";
+import { defaultErrorHandler } from "UtilityFunctions";
 import { UserSettingsFields, UserSettingsState } from ".";
 import { TwoFactorSetup } from "./TwoFactorSetup";
 import * as Heading from "ui-components/Heading";
@@ -14,6 +11,8 @@ import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { SidebarPages } from "ui-components/Sidebar";
+import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 class UserSettings extends React.Component<UserSettingsOperations, UserSettingsState> {
     constructor(props: Readonly<UserSettingsOperations>) {
@@ -30,7 +29,7 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
         repeatPasswordError: false
     });
 
-    updateField(field: UserSettingsFields, value: string | boolean): void {
+    private updateField(field: UserSettingsFields, value: string | boolean): void {
         const state = { ...this.state }
         state[field] = value;
         state.error = false;
@@ -38,7 +37,7 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
         this.setState(() => state);
     }
 
-    validateAndSubmit(e: React.SyntheticEvent): void {
+    private async validateAndSubmit(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
 
         let error = false;
@@ -62,19 +61,16 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
         this.setState(() => ({ error, repeatPasswordError }));
 
         if (!error) {
-            this.state.promiseKeeper.makeCancelable(
-                Cloud.post(
-                    "/auth/users/password",
-                    { currentPassword, newPassword },
-                    ""
-                )
-            ).promise.then(f => {
-                successNotification("Password successfully changed");
+            try {
+                await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/password",{ currentPassword, newPassword }, "")).promise;
+            
+                this.props.addSnack({ message: "Password successfully changed", type: SnackType.Success });
                 this.setState(() => this.initialState());
-            }).catch(error => {
-                let status = defaultErrorHandler(error);
+
+            } catch (e) {
+                let status = defaultErrorHandler(e, this.props.addSnack);
                 this.setState(() => ({ error: true }));
-            });
+            };
         }
     }
 
@@ -141,7 +137,7 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
                                         Change password
                                     </Button>
                                 </form> : null}
-                                <TwoFactorSetup />
+                                <TwoFactorSetup addSnack={this.props.addSnack} />
                             </>
                         }
                     />
@@ -151,12 +147,13 @@ class UserSettings extends React.Component<UserSettingsOperations, UserSettingsS
     }
 }
 
-interface UserSettingsOperations {
+interface UserSettingsOperations extends AddSnackOperation {
     setActivePage: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
-    setActivePage: () => dispatch(setActivePage(SidebarPages.None))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
-export default connect(() => ({}), mapDispatchToProps)(UserSettings);
+export default connect(null , mapDispatchToProps)(UserSettings);

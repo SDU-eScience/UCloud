@@ -3,17 +3,17 @@ import { MainContainer } from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
 import { Box, Button, Select, Flex } from "ui-components";
-import { successNotification, prettierString } from "UtilityFunctions";
+import { prettierString } from "UtilityFunctions";
 import { connect } from "react-redux";
 import { UserAvatar } from "Navigation/Header";
 import { defaultAvatar } from "UserSettings/Avataaar";
 import styled from "styled-components";
 import { Dispatch } from "redux";
 import { fetchProjectMembers, setError } from "./Redux/ManagementActions";
-import { ReduxObject } from "DefaultObjects";
 import { TextSpan } from "ui-components/Text";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
-import { updateAvatar } from "UserSettings/Redux/AvataaarActions";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 export enum ProjectRole {
     PI = "PI",
@@ -22,10 +22,16 @@ export enum ProjectRole {
     USER = "USER"
 }
 
-class Management extends React.Component<ManagementOperations, {
-    projectName: string, memberCount: number, admins: string[], datastewards: string[],
-    users: string[], project: any
-}> {
+interface ManagementState {
+    projectName: string
+    memberCount: number
+    admins: string[]
+    datastewards: string[]
+    users: string[]
+    project: any
+}
+
+class Management extends React.Component<ManagementOperations, ManagementState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -47,7 +53,11 @@ class Management extends React.Component<ManagementOperations, {
             <Heading.h3>Project Management: <b>{state.projectName}</b></Heading.h3>
             <Spacer
                 left={<Box>{state.memberCount} Members</Box>}
-                right={<Button onClick={() => successNotification("Wouldn't it be great if this button worked?")}>Invite member</Button>}
+                right={<Button onClick={() => this.props.addSnack({ 
+                    message: "Wouldn't it be great if this button worked?",
+                    type: SnackType.Custom,
+                    icon: "ellipsis"
+                })}>Invite member</Button>}
             />
         </>)
         const main = (<>
@@ -157,17 +167,15 @@ const MemberSelect = styled(Select)`
 `;
 
 
-interface ManagementOperations {
+interface ManagementOperations extends AddSnackOperation {
     fetchProjectMembers: (id: string) => void
     clearError: () => void
 }
 
-// TODO
-const mapStateToProps = (state: ReduxObject) => state;
-
 const mapDispatchToProps = (dispatch: Dispatch): ManagementOperations => ({
     fetchProjectMembers: async id => dispatch(await fetchProjectMembers(id)),
-    clearError: () => dispatch(setError())
+    clearError: () => dispatch(setError()),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
-export default connect<void, ManagementOperations>(undefined, mapDispatchToProps)(Management);
+export default connect<void, ManagementOperations>(null, mapDispatchToProps)(Management);

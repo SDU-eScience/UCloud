@@ -1,19 +1,20 @@
 import { RECEIVE_SINGLE_NOTIFICATION, RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT, NOTIFICATIONS_ERROR, READ_ALL, SET_NOTIFICATIONS_ERROR } from "./NotificationsReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Page, ReceivePage, PayloadAction } from "Types";
+import { Page, PayloadAction } from "Types";
 import { Action } from "redux";
-import { failureNotification, inSuccessRange } from "UtilityFunctions";
+import { errorMessageOrDefault } from "UtilityFunctions";
 import { Notification } from ".."
 import { notificationsQuery, readNotificationQuery, readAllNotificationsQuery } from "Utilities/NotificationUtilities";
 
-export type NotificationActions = 
+export type NotificationActions =
     ReceiveNotificationAction |
     ReceiveSingleNotificationAction |
     SetRedirectToAction |
-    ReadAction | 
-    { type: typeof NOTIFICATIONS_ERROR } | 
+    ReadAction |
+    SetNotificationError |
     ReadAllAction;
 
+type SetNotificationError = PayloadAction<typeof NOTIFICATIONS_ERROR, { error?: string }>
 interface ReceiveSingleNotificationAction {
     type: typeof RECEIVE_SINGLE_NOTIFICATION,
     payload: { item: Notification }
@@ -40,15 +41,16 @@ export const receiveNotifications = (page: Page<Notification>): ReceiveNotificat
 /**
  * Fetches notifications for the user.
  */
-export const fetchNotifications = (): Promise<ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> | Action> =>
-    Cloud.get(notificationsQuery)
-        .then(({ response }) => receiveNotifications(response))
-        .catch(() => {
-            failureNotification("Failed to retrieve notifications, please try again later");
-            return { type: NOTIFICATIONS_ERROR };
-        });
+export async function fetchNotifications(): Promise<ReceiveNotificationAction | SetNotificationError> {
+    try {
+        const res = await Cloud.get<Page<Notification>>(notificationsQuery);
+        return receiveNotifications(res.response);
+    } catch (e) {
+        return setNotificationError(errorMessageOrDefault(e, "Failed to retrieve notifications, please try again later"));
+    };
+}
 
-interface ReadAction extends PayloadAction<typeof NOTIFICATION_READ, { id: Number }> { }
+type ReadAction = PayloadAction<typeof NOTIFICATION_READ, { id: Number }>
 /**
  * Sets a notification as read, based on the id
  * @param id the id of the notification that has been read
@@ -61,17 +63,23 @@ export const notificationRead = async (id: number): Promise<ReadAction> => {
     };
 }
 
+export const setNotificationError = (error?: string): SetNotificationError => ({
+    type: NOTIFICATIONS_ERROR,
+    payload: { error }
+})
+
 
 type ReadAllAction = Action<typeof READ_ALL>
 /**
  * Sets all notifications as read.
  */
-export const readAllNotifications = async (): Promise<ReadAllAction | { type: typeof NOTIFICATIONS_ERROR }> => {
-    const { request } = await Cloud.post(readAllNotificationsQuery);
-    if (inSuccessRange(request.status))
+export const readAllNotifications = async (): Promise<ReadAllAction | SetNotificationError> => {
+    try {
+        await Cloud.post(readAllNotificationsQuery);
         return { type: READ_ALL };
-    failureNotification("Failed to retrieve notifications, please try again later");
-    return { type: NOTIFICATIONS_ERROR }
+    } catch (e) {
+        return setNotificationError(errorMessageOrDefault(e, "Failed to mark notifications as read, please try again later"));
+    }
 
 }
 

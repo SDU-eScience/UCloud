@@ -19,8 +19,10 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import { FileInfoReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
 import { SidebarPages } from "ui-components/Sidebar";
+import { AddSnackOperation } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
-interface FileInfoOperations {
+interface FileInfoOperations extends AddSnackOperation {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchFileStat: (path: string) => void
@@ -76,8 +78,8 @@ class FileInfo extends React.Component<FileInfo> {
                         <FileView
                             file={file}
                             onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
-                            onReclassify={async level => {
-                                props.receiveFileStat(await reclassifyFile(file, level, Cloud))
+                            onReclassify={async sensitivity => {
+                                props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud, addSnack: this.props.addSnack }))
                                 props.fetchFileStat(this.path)
                             }} />
                         {activity.items.length ? (
@@ -163,7 +165,8 @@ const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     fetchFileStat: async path => dispatch(await fetchFileStat(path)),
     fetchFileActivity: async path => dispatch(await fetchFileActivity(path)),
     receiveFileStat: file => dispatch(receiveFileStat(file)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Files))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Files)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect<FileInfoReduxObject, FileInfoOperations>(mapStateToProps, mapDispatchToProps)(FileInfo);
