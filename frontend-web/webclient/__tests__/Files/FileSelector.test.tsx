@@ -1,9 +1,9 @@
 import * as React from "react";
 import * as Renderer from "react-test-renderer";
-import { FileSelectorModal } from "Files/FileSelector";
-import files from "Files/Redux/FilesReducer";
-import { initFiles } from "DefaultObjects";
-import { configureStore } from "Utilities/ReduxUtilities";
+import { FileSelectorModal } from "../../app/Files/FileSelector";
+import files from "../../app/Files/Redux/FilesReducer";
+import { initFiles } from "../../app/DefaultObjects";
+import { configureStore } from "../../app/Utilities/ReduxUtilities";
 import { MemoryRouter } from "react-router";
 import "jest-styled-components";
 
