@@ -309,9 +309,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const main = (
             <ContainerForText>
-                <Error
-                    clearError={() => this.setState(() => ({ error: undefined }))}
-                    error={error} />
+                <Error clearError={() => this.setState(() => ({ error: undefined }))} error={error} />
 
                 <Parameters
                     initialSubmit={this.state.initialSubmit}
@@ -395,14 +393,14 @@ const Parameters = (props: ParameterProps) => {
     const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values.get(parameter.name)!.current != null));
     const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values.get(parameter.name)!.current == null);
 
-    const mapParamToComponent = (parameter: ApplicationParameter, index: number) => {
+    const mapParamToComponent = (parameter: ApplicationParameter) => {
         let ref = props.values.get(parameter.name)!;
 
         return (
             <Parameter
+                key={parameter.name}
                 initialSubmit={props.initialSubmit}
                 parameterRef={ref}
-                key={index}
                 parameter={parameter}
             />
         );

@@ -64,14 +64,11 @@ RUN apk add --no-cache libacl
 RUN apk add --no-cache sudo
 RUN apk add --no-cache bash
 RUN apk add --no-cache acl
-RUN addgroup sftponly
+RUN apk add --no-cache nss
 
 COPY build/service /opt/service
 COPY --from=build-production-ready /bin/ceph-interpreter /bin/ceph-interpreter
 COPY bin/sdu_cloud_add_user /bin/sdu_cloud_add_user
 RUN chmod +x /bin/sdu_cloud_add_user
-
-RUN rm /etc/passwd
-RUN ln -s /mnt/cephfs/passwd /etc/passwd
 
 CMD ["/opt/service/bin/service", "--config-dir", "/etc/service"]

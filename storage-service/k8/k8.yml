@@ -1,12 +1,10 @@
----
 apiVersion: v1
 kind: Service
 metadata:
-  name: storage
   annotations:
     getambassador.io/config: |
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: storage_list
       prefix: ^/*/api/files(/(lookup|stat))?$
@@ -20,18 +18,29 @@ metadata:
       precedence: 10
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: storage_list_2
       timeout_ms: 0
       rewrite: ""
       prefix: /api/files/
       service: storage:8080
+      use_websocket: true
 
-
+      ---
+      apiVersion: ambassador/v1
+      kind: Mapping
+      name: storage_list_3
+      timeout_ms: 0
+      rewrite: ""
+      prefix: ^/api/files(/)?$
+      prefix_regex: true
+      service: storage:8080
+      method: DELETE
+  name: storage
+  namespace: default
 spec:
   clusterIP: None
-  type: ClusterIP
   ports:
   - name: web
     port: 8080
@@ -39,3 +48,4 @@ spec:
     targetPort: 8080
   selector:
     app: storage-service
+  type: ClusterIP

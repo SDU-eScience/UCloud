@@ -19,7 +19,11 @@ import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
@@ -33,9 +37,11 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.io.jvm.javaio.copyTo
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
+import java.nio.file.Files
 
 class Server(
     private val config: Configuration,

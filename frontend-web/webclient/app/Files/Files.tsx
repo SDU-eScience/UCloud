@@ -34,7 +34,7 @@ class Files extends React.Component<FilesProps> {
     componentDidMount() {
         const { page, sortOrder, sortBy, history, ...props } = this.props;
         props.onInit();
-        props.setUploaderCallback((path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
+        props.setUploaderCallback(path => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 

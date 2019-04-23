@@ -38,7 +38,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version "1.3.3"
+version "1.3.4"
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
@@ -93,6 +93,7 @@ dependencies {
     // ktor
     compile group: "io.ktor", name: "ktor-server-core", version: "$ktor_version"
     compile group: "io.ktor", name: "ktor-jackson", version: "$ktor_version"
+    compile group: "io.ktor", name: "ktor-server-netty", version: "$ktor_version"
     compile group: "io.ktor", name: "ktor-server-host-common", version: "$ktor_version"
     compile "io.ktor:ktor-websockets:$ktor_version"
 

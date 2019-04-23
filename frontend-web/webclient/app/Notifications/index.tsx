@@ -14,7 +14,8 @@ import styled from "styled-components";
 import { IconName } from "ui-components/Icon";
 import { ReduxObject } from "DefaultObjects";
 import { WebSocketConnection } from "Authentication/ws";
-import { WSFactory } from "Authentication/SDUCloudObject";
+import { WSFactory, Cloud } from "Authentication/SDUCloudObject";
+import { replaceHomeFolder } from "Utilities/FileUtilities";
 
 interface NotificationProps {
     items: Notification[]
@@ -83,7 +84,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             return <Redirect to={this.props.redirectTo} />
         }
 
-        const unreadLength = this.props.items.filter((e) => !e.read).length;
+        const unreadLength = this.props.items.filter(e => !e.read).length;
         const readAllButton = unreadLength ? (
             <>
                 <Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
@@ -144,7 +145,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
                 <Box mr="0.4em" width="10%"><Icon name={this.resolveEventIcon(notification.type)} /></Box>
                 <Flex width="90%" flexDirection="column">
                     <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
-                    <TextSpan fontSize={1}>{notification.message}</TextSpan>
+                    <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Cloud.homeFolder)}</TextSpan>
                 </Flex>
             </NotificationWrapper>
         );
@@ -191,7 +192,7 @@ interface NotificationsDispatchToProps {
     setError: (error?: string) => void
 }
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
-    receiveNotification: (notification) => dispatch(receiveSingleNotification(notification)),
+    receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     showUploader: () => dispatch(setUploaderVisible(true)),

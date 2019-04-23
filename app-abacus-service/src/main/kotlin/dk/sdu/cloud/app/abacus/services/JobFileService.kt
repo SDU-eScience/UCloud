@@ -27,7 +27,9 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.copyTo
 import kotlinx.coroutines.joinAll
@@ -79,48 +81,52 @@ class JobFileService(
             throw JobFileException.ErrorDuringTransfer("Bad destination path: $filesDirectoryForJob <=> $location")
         }
 
-        sshConnectionPool.use {
-            mkdir(location.parent, createParents = true)
+        coroutineScope {
+            launch(Dispatchers.IO) {
+                sshConnectionPool.use {
+                    mkdir(location.parent, createParents = true)
 
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                if (length != null) {
-                    scpUpload(length, location.name, location.parent, "0600") { outs ->
-                        stream.copyTo(outs, limit = length)
-                    }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativePath)
-                } else {
-                    val temporaryFile = Files.createTempFile("", "").toFile()
-                    temporaryFile.outputStream().use { outs ->
-                        stream.copyTo(outs)
-                    }
+                    @Suppress("TooGenericExceptionCaught")
+                    try {
+                        if (length != null) {
+                            scpUpload(length, location.name, location.parent, "0600") { outs ->
+                                stream.copyTo(outs, limit = length)
+                            }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativePath)
+                        } else {
+                            val temporaryFile = Files.createTempFile("", "").toFile()
+                            temporaryFile.outputStream().use { outs ->
+                                stream.copyTo(outs)
+                            }
 
-                    scpUpload(temporaryFile.length(), location.name, location.parent, "0600") { outs ->
-                        temporaryFile.inputStream().use { ins ->
-                            ins.copyTo(outs)
+                            scpUpload(temporaryFile.length(), location.name, location.parent, "0600") { outs ->
+                                temporaryFile.inputStream().use { ins ->
+                                    ins.copyTo(outs)
+                                }
+                            }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativePath)
                         }
-                    }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativePath)
-                }
-            } catch (ex: Exception) {
-                // Maybe a bit too generic
-                log.warn("Caught exception during upload")
-                log.warn(ex.stackTraceToString())
-                throw JobFileException.ErrorDuringTransfer(relativePath)
-            }
-
-            when (file.needsExtractionOfType) {
-                FileForUploadArchiveType.ZIP -> {
-                    val status = unzip(location.absolutePath, location.parent)
-                    if (status >= ZIP_ERROR_STATUS) {
-                        throw JobFileException.CouldNotExtractArchive(relativePath)
+                    } catch (ex: Exception) {
+                        // Maybe a bit too generic
+                        log.warn("Caught exception during upload")
+                        log.warn(ex.stackTraceToString())
+                        throw JobFileException.ErrorDuringTransfer(relativePath)
                     }
 
-                    rm(location.absolutePath)
-                }
+                    when (file.needsExtractionOfType) {
+                        FileForUploadArchiveType.ZIP -> {
+                            val status = unzip(location.absolutePath, location.parent)
+                            if (status >= ZIP_ERROR_STATUS) {
+                                throw JobFileException.CouldNotExtractArchive(relativePath)
+                            }
 
-                else -> {
-                    // Do nothing
+                            rm(location.absolutePath)
+                        }
+
+                        else -> {
+                            // Do nothing
+                        }
+                    }
                 }
-            }
+            }.join()
         }
     }
 
