@@ -92,8 +92,15 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             }
         });
 
-        if (missingParameters.length > 0) return;
-
+        if (missingParameters.length > 0) {
+            this.props.addSnack({
+                message: `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
+                 ${missingParameters.length > 3 ? `and ${missingParameters.length} others.` : ``}`,
+                 type: SnackType.Failure,
+                 lifetime: 5000
+            });
+            return;
+        }
         let maxTime = Run.extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
 
