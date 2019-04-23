@@ -26,12 +26,6 @@ class LinuxFS(
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
     private val fsRoot = fsRoot.normalize().absoluteFile
 
-    private var inputStream: FileChannel? = null
-    private var inputSystemFile: File? = null
-
-    private var outputStream: OutputStream? = null
-    private var outputSystemFile: File? = null
-
     // Note: We should generally avoid these cyclic dependencies
     private val fileOwnerLookupService = FileOwnerLookupService(processRunner, this)
 
@@ -392,7 +386,7 @@ class LinuxFS(
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         ctx.requireContext()
 
-        if (outputStream == null) {
+        if (ctx.outputStream == null) {
             val options = HashSet<OpenOption>()
             options.add(StandardOpenOption.TRUNCATE_EXISTING)
             options.add(StandardOpenOption.WRITE)
@@ -405,10 +399,10 @@ class LinuxFS(
             val systemFile = File(translateAndCheckFile(path))
             try {
                 val systemPath = systemFile.toPath()
-                outputStream = Channels.newOutputStream(
+                ctx.outputStream = Channels.newOutputStream(
                     Files.newByteChannel(systemPath, options, PosixFilePermissions.asFileAttribute(DEFAULT_FILE_MODE))
                 )
-                outputSystemFile = systemFile
+                ctx.outputSystemFile = systemFile
             } catch (ex: FileAlreadyExistsException) {
                 throw FSException.AlreadyExists()
             }
@@ -434,8 +428,8 @@ class LinuxFS(
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         ctx.requireContext()
 
-        val stream = outputStream
-        val file = outputSystemFile
+        val stream = ctx.outputStream
+        val file = ctx.outputSystemFile
         if (stream == null || file == null) {
             log.warn("write() called without openForWriting()!")
             throw FSException.CriticalException("Internal error")
@@ -447,8 +441,8 @@ class LinuxFS(
             }
         } finally {
             stream.close()
-            outputStream = null
-            outputSystemFile = null
+            ctx.outputStream = null
+            ctx.outputSystemFile = null
         }
 
         FSResult(
@@ -587,14 +581,14 @@ class LinuxFS(
     override suspend fun openForReading(ctx: LinuxFSRunner, path: String): FSResult<Unit> = ctx.submit {
         ctx.requireContext()
 
-        if (inputStream != null) {
+        if (ctx.inputStream != null) {
             log.warn("openForReading() called without closing last stream")
             throw FSException.CriticalException("Internal error")
         }
 
         val systemFile = File(translateAndCheckFile(path))
-        inputStream = FileChannel.open(systemFile.toPath(), StandardOpenOption.READ)
-        inputSystemFile = systemFile
+        ctx.inputStream = FileChannel.open(systemFile.toPath(), StandardOpenOption.READ)
+        ctx.inputSystemFile = systemFile
         FSResult(0, Unit)
     }
 
@@ -604,8 +598,8 @@ class LinuxFS(
         consumer: suspend (InputStream) -> R
     ): R = ctx.submit {
         ctx.requireContext()
-        val stream = inputStream
-        val file = inputSystemFile
+        val stream = ctx.inputStream
+        val file = ctx.inputSystemFile
         if (stream == null || file == null) {
             log.warn("read() called without calling openForReading()")
             throw FSException.CriticalException("Internal error")
@@ -624,8 +618,8 @@ class LinuxFS(
             }
         } finally {
             convertedToStream.close()
-            inputSystemFile = null
-            inputStream = null
+            ctx.inputSystemFile = null
+            ctx.inputStream = null
         }
     }
 

@@ -8,6 +8,9 @@ import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
+import java.io.File
+import java.io.OutputStream
+import java.nio.channels.FileChannel
 import java.nio.file.AccessDeniedException
 import java.nio.file.DirectoryNotEmptyException
 import java.nio.file.FileAlreadyExistsException
@@ -29,6 +32,12 @@ class LinuxFSRunner(
     private val queue = ArrayBlockingQueue<() -> Any?>(64)
     private var thread: Thread? = null
     private var isRunning: Boolean = false
+
+    internal var inputStream: FileChannel? = null
+    internal var inputSystemFile: File? = null
+
+    internal var outputStream: OutputStream? = null
+    internal var outputSystemFile: File? = null
 
     private fun init() {
         synchronized(this) {
