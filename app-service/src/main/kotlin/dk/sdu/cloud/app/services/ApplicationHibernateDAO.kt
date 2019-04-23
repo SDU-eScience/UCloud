@@ -149,7 +149,6 @@ class ApplicationHibernateDAO(
                     from {h-schema}applications b
                     where a.name = b.name
                     group by a.name
-                    order by a.name
                   )
                 order by a.name
                 """.trimIndent(),
