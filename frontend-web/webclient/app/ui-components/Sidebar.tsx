@@ -16,6 +16,9 @@ import { ReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
 import { FlexCProps } from "./Flex";
 import { inDevEnvironment, copyToClipboard } from "UtilityFunctions";
+import { AddSnackOperation } from "Snackbar/Snackbars";
+import { Dispatch } from "redux";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
     justify-content: left;
@@ -175,11 +178,11 @@ interface SidebarStateProps {
     page: SidebarPages
     loggedIn: boolean
 }
-interface SidebarProps extends SidebarStateProps {
+interface SidebarProps extends SidebarStateProps, AddSnackOperation {
     sideBarEntries?: any
 }
 
-const Sidebar = ({ sideBarEntries = sideBarMenuElements, page, loggedIn }: SidebarProps) => {
+const Sidebar = ({ sideBarEntries = sideBarMenuElements, page, loggedIn, addSnack }: SidebarProps) => {
     if (!loggedIn) return null;
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
@@ -200,7 +203,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page, loggedIn }: Sideb
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
             {Cloud.isLoggedIn ? <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
-                <Tooltip left="-50%" top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard(Cloud.username, "Username copied to clipboard")} width={"140px"}>{Cloud.username}</EllipsedText>}>
+                <Tooltip left="-50%" top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard({ value: Cloud.username, message: "Username copied to clipboard", addSnack })} width={"140px"}>{Cloud.username}</EllipsedText>}>
                     {`Click to copy "${Cloud.username}" to clipboard`}
                 </Tooltip>
             </TextLabel> : null}
@@ -221,6 +224,10 @@ const mapStateToProps = ({ status }: ReduxObject): SidebarStateProps => ({
     loggedIn: Cloud.isLoggedIn
 });
 
+const mapDispatchToProps = (dispatch: Dispatch): AddSnackOperation => ({
+    addSnack: snack => dispatch(addSnack(snack))
+});
+
 export const enum SidebarPages {
     Files,
     Shares,
@@ -233,4 +240,4 @@ export const enum SidebarPages {
     None
 }
 
-export default connect<SidebarStateProps>(mapStateToProps)(Sidebar);
+export default connect<SidebarStateProps, AddSnackOperation>(mapStateToProps, mapDispatchToProps)(Sidebar);

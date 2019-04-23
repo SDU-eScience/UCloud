@@ -18,8 +18,8 @@ const fadeIn = keyframes`
 `;
 
 export const /* Admiral */ Snackbar = styled(Box) <{ visible: boolean }>`
-    min-width: ${props => props.minWidth};
-    margin-left: calc(-${props => props.minWidth} / 2);
+    min-width: 250px;
+    width: auto;
     background-color: ${props => props.theme.colors.black};
     color: ${props => props.theme.colors.white};
     text-align: center;
@@ -28,6 +28,7 @@ export const /* Admiral */ Snackbar = styled(Box) <{ visible: boolean }>`
     position: fixed;
     z-index: 1;
     left: 50%;
+    transform: translate(-50%);
     bottom: 30px;
 
     ${visibility}

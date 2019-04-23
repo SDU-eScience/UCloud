@@ -40,7 +40,7 @@ const nullOp = () => null;
 
 const fileOperations = allFileOperations({
     stateless: true,
-    fileSelectorOps: {
+    fileSelectorOperations: {
         setFileSelectorCallback: nullOp,
         showFileSelector: nullOp,
         setDisallowedPaths: nullOp,
@@ -51,7 +51,8 @@ const fileOperations = allFileOperations({
     onExtracted: nullOp,
     onClearTrash: nullOp,
     history: mockHistory,
-    setLoading: nullOp
+    setLoading: nullOp,
+    addSnack: nullOp
 });
 
 describe("FilesTable", () => {

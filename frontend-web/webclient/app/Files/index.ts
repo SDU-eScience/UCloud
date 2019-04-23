@@ -6,6 +6,7 @@ import { Activity } from "Activity";
 import { ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
+import {AddSnackOperation} from "Snackbar/Snackbars";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -78,7 +79,7 @@ export interface FilesStateProps { // Redux Props
     responsive?: ResponsiveReduxObject 
 }
 
-export interface FilesOperations extends ClearRefresh {
+export interface FilesOperations extends ClearRefresh, AddSnackOperation {
     onInit: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void

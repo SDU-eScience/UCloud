@@ -1,7 +1,7 @@
 import * as React from "react";
 import { allLicenses } from "./licenses";
 import { Contributor, RelatedIdentifier, Subject, getByPath, updateById, ProjectMetadataWithRights } from "./api";
-import { blankOrUndefined, failureNotification } from "UtilityFunctions";
+import { blankOrUndefined } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 import { getQueryParam } from "Utilities/URIUtilities";
@@ -12,6 +12,8 @@ import { TextSpan } from "ui-components/Text";
 import { connect } from "react-redux";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Dispatch } from "redux";
+import { SnackType } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -61,7 +63,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, CreateUpdateState>
 
     componentDidMount() {
         getByPath(this.state.path).then(it => this.setMetadata(it, this.state.path)).catch(it =>
-            failureNotification("An error occurred fetching project data"));
+            this.props.addSnack({ message: "An error occurred fetching project data", type: SnackType.Failure }));
     }
 
     setMetadata(it: ProjectMetadataWithRights, path: string) {
@@ -93,7 +95,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, CreateUpdateState>
         const path = filePathFromProps(nextProps);
         if (!!path && path !== this.state.path) {
             getByPath(path).then(it => this.setMetadata(it, path)).catch(it =>
-                failureNotification("An error occurred fetching project data"));
+                this.props.addSnack({ message: "An error occurred fetching project data", type: SnackType.Failure }));
         }
         return true;
     }
@@ -112,7 +114,8 @@ class CreateUpdate extends React.Component<CreateUpdateProps, CreateUpdateState>
                 description: s.description,
                 license: licenseIdentifier,
                 keywords: s.keywords.filter(e => !blankOrUndefined(e)),
-                // notes, // TODO Needs to be user editable
+                // notes,
+                // TODO Needs to be user editable
                 // dataManagementPlan: s.dataManagementPlan,
                 contributors: s.contributors.filter(e => contributorHasValue(e)),
                 references: s.references.filter(e => !blankOrUndefined(e)),
@@ -526,4 +529,8 @@ const FormFieldList = ({ items, name, onChange }) =>
 
 const Required = () => <TextSpan color="red">{" *"}</TextSpan>
 
-export default connect()(CreateUpdate);
+const mapDispatchToProps = (dispatch: Dispatch) => ({
+    addSnack: snack => dispatch(addSnack(snack))
+});
+
+export default connect(null, mapDispatchToProps)(CreateUpdate);

@@ -5,8 +5,9 @@ import { IconName } from "ui-components/Icon";
 import { Flex, Icon } from "ui-components";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
-import { removeSnack, SnackbarAction, addSnack } from "./Redux/SnackbarsActions";
+import { removeSnack, SnackbarAction } from "./Redux/SnackbarsActions";
 import { ThemeColor } from "ui-components/theme";
+import { Object } from "./Redux";
 
 interface RemoveSnackOperation {
     removeSnack: (number: number) => void
@@ -16,10 +17,11 @@ export interface AddSnackOperation {
     addSnack: (snack: Snack) => void
 }
 
-type SnackbarOperations = AddSnackOperation & RemoveSnackOperation;
+type SnackbarOperations = RemoveSnackOperation;
 interface IconColorAndName { name: IconName, color: ThemeColor, color2: ThemeColor }
-class Snackbars extends React.Component<{ snackbar: Snack[] } & SnackbarOperations> {
+class Snackbars extends React.Component<Object & SnackbarOperations> {
 
+    // FIXME: Couldn't these be merged rather easily?
     private renderCustom(customSnack: CustomSnack) {
         return <Flex><Icon color="white" color2="white" name={customSnack.icon} pr="10px" />{customSnack.message}</Flex>
     }
@@ -27,6 +29,14 @@ class Snackbars extends React.Component<{ snackbar: Snack[] } & SnackbarOperatio
     private renderDefault(defaultSnack: DefaultSnack) {
         const icon = Snackbars.iconNameAndColorFromSnack(defaultSnack.type);
         return <Flex><Icon pr="10px" {...icon} />{defaultSnack.message}</Flex>
+    }
+    // FIXME END
+
+    shouldComponentUpdate(nextProps: Object) {
+        if (nextProps.snackbar.length === this.props.snackbar.length) return false;
+        const [snack] = nextProps.snackbar;
+        if (!!snack) setTimeout(() => this.props.removeSnack(snack.id!), snack.lifetime);
+        return true;
     }
 
     private static iconNameAndColorFromSnack(type: Exclude<SnackType, SnackType.Custom>): IconColorAndName {
@@ -44,17 +54,15 @@ class Snackbars extends React.Component<{ snackbar: Snack[] } & SnackbarOperatio
         const { snackbar } = this.props;
         if (!snackbar.length) return null;
         const [currentSnack] = snackbar;
-        return (<Snackbar onClick={() => this.props.removeSnack(0)} visible={true} width="auto" minWidth="250px">
+        return (<Snackbar onClick={() => this.props.removeSnack(currentSnack.id!)} visible={true}>
             {this.renderSnack(currentSnack)}
         </Snackbar>);
     }
 }
 
-const mapStateToProps = ({ snackbar }: ReduxObject): { snackbar: Snack[] } => snackbar;
+const mapStateToProps = ({ snackbar }: ReduxObject): Object => snackbar;
 const mapDispatchToProps = (dispatch: Dispatch<SnackbarAction>): SnackbarOperations => ({
-    removeSnack: index => dispatch(removeSnack(index)),
-    // FIXME: Likely not necessary.
-    addSnack: snack => dispatch(addSnack(snack))
+    removeSnack: index => dispatch(removeSnack(index))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Snackbars);
@@ -69,28 +77,16 @@ export const enum SnackType {
 interface DefaultSnack {
     message: string
     type: SnackType.Success | SnackType.Information | SnackType.Failure
+    id?: number
+    lifetime?: number
 }
 
 interface CustomSnack {
     message: string
     type: SnackType.Custom
+    id?: number
+    lifetime?: number
     icon: IconName
 }
 
 export type Snack = CustomSnack | DefaultSnack;
-type Snacks = Snack[];
-
-const mockSnacks: Snacks = [{
-    message: "I am a success",
-    type: SnackType.Success
-}, {
-    message: "I am information",
-    type: SnackType.Information
-}, {
-    message: "I am a failure",
-    type: SnackType.Failure
-}, {
-    message: "I am custom",
-    type: SnackType.Custom,
-    icon: "apps"
-}]

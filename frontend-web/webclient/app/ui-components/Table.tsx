@@ -17,7 +17,7 @@ Table.defaultProps = {
 
 export const TableBody = styled.tbody``;
 
-export const TableCell = styled.td<TextAlignProps >`
+export const TableCell = styled.td<TextAlignProps>`
     border: 0px;
     border-spacing: 0;
     ${textAlign};
