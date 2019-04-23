@@ -5,7 +5,7 @@ import { IconName } from "ui-components/Icon";
 import { Flex, Icon } from "ui-components";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
-import { removeSnack, SnackbarAction, addSnack } from "./Redux/SnackbarsActions";
+import { removeSnack, SnackbarAction } from "./Redux/SnackbarsActions";
 import { ThemeColor } from "ui-components/theme";
 import { Object } from "./Redux";
 
@@ -17,10 +17,11 @@ export interface AddSnackOperation {
     addSnack: (snack: Snack) => void
 }
 
-type SnackbarOperations = RemoveSnackOperation & AddSnackOperation;
+type SnackbarOperations = RemoveSnackOperation;
 interface IconColorAndName { name: IconName, color: ThemeColor, color2: ThemeColor }
 class Snackbars extends React.Component<Object & SnackbarOperations> {
 
+    // FIXME: Couldn't these be merged rather easily?
     private renderCustom(customSnack: CustomSnack) {
         return <Flex><Icon color="white" color2="white" name={customSnack.icon} pr="10px" />{customSnack.message}</Flex>
     }
@@ -29,6 +30,7 @@ class Snackbars extends React.Component<Object & SnackbarOperations> {
         const icon = Snackbars.iconNameAndColorFromSnack(defaultSnack.type);
         return <Flex><Icon pr="10px" {...icon} />{defaultSnack.message}</Flex>
     }
+    // FIXME END
 
     shouldComponentUpdate(nextProps: Object) {
         if (nextProps.snackbar.length === this.props.snackbar.length) return false;
@@ -50,10 +52,9 @@ class Snackbars extends React.Component<Object & SnackbarOperations> {
 
     render() {
         const { snackbar } = this.props;
-        console.log(snackbar.map(it => it.id))
         if (!snackbar.length) return null;
         const [currentSnack] = snackbar;
-        return (<Snackbar onClick={() => this.props.removeSnack(currentSnack.id!)} visible={true} width="auto" minWidth="250px">
+        return (<Snackbar onClick={() => this.props.removeSnack(currentSnack.id!)} visible={true}>
             {this.renderSnack(currentSnack)}
         </Snackbar>);
     }
@@ -61,8 +62,7 @@ class Snackbars extends React.Component<Object & SnackbarOperations> {
 
 const mapStateToProps = ({ snackbar }: ReduxObject): Object => snackbar;
 const mapDispatchToProps = (dispatch: Dispatch<SnackbarAction>): SnackbarOperations => ({
-    removeSnack: index => dispatch(removeSnack(index)),
-    addSnack: snack => dispatch(addSnack(snack))
+    removeSnack: index => dispatch(removeSnack(index))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Snackbars);
