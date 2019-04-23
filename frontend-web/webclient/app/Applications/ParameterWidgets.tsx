@@ -49,7 +49,7 @@ const InputFileParameter = (props: InputFileParameterProps) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
-                showError={props.initialSubmit}
+                showError={props.initialSubmit || props.parameter.optional}
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
                 onFileSelect={file => { props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)) }}
@@ -64,7 +64,7 @@ const InputDirectoryParameter = (props: InputFileParameterProps) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
-                showError={props.initialSubmit}
+                showError={props.initialSubmit || props.parameter.optional}
                 key={props.parameter.name}
                 path={props.parameterRef.current && props.parameterRef.current.value || ""}
                 onFileSelect={file => { props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))) }}
@@ -87,7 +87,7 @@ const TextParameter = (props: TextParameterProps) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <Input
-                showError={props.initialSubmit}
+                showError={props.initialSubmit || props.parameter.optional}
                 key={props.parameter.name}
                 ref={props.parameterRef as React.RefObject<HTMLInputElement>}
                 placeholder={placeholder}
@@ -121,7 +121,7 @@ const BooleanParameter = (props: BooleanParameter) => {
         <GenericParameter parameter={props.parameter}>
             <Flex>
                 <Select
-                    showError={props.initialSubmit}
+                    showError={props.initialSubmit || props.parameter.optional}
                     id="select"
                     selectRef={props.parameterRef}
                     key={props.parameter.name}
@@ -144,10 +144,11 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
     const hasUnitName = !!props.parameter.unitName;
     if (optSliderRef.current && parameterRef.current && parameterRef.current.value !== optSliderRef.current!.value)
         optSliderRef.current.value = parameterRef.current.value;
+
     let baseField = (
         <Flex>
             <Input
-                showError={props.initialSubmit}
+                showError={props.initialSubmit || props.parameter.optional}
                 required={!props.parameter.optional}
                 name={props.parameter.name}
                 type="number"
@@ -169,7 +170,7 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
     if (parameter.min !== null && parameter.max !== null) {
         slider = (
             <Input
-                showError={props.initialSubmit}
+                showError={props.initialSubmit || props.parameter.optional}
                 key={`${parameter.name}-slider`}
                 mt="2px"
                 noBorder
@@ -361,7 +362,7 @@ export class OptionalParameter extends React.Component<{ parameter: Types.Applic
                     <Button
                         type="button"
                         lineHeight={"16px"}
-                        onClick={(e) => {
+                        onClick={e => {
                             e.stopPropagation();
                             e.preventDefault();
                             onUse();
