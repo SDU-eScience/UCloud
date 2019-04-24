@@ -3,11 +3,11 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import { defaultErrorHandler } from "UtilityFunctions";
 import { UserCreationState, UserCreationField } from ".";
-import { Input, Label, LoadingButton } from "ui-components";
+import { Input, Label, Button } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
-import { setActivePage } from "Navigation/Redux/StatusActions";
+import { setActivePage, SetStatusLoading, setLoading } from "Navigation/Redux/StatusActions";
 import { SidebarPages } from "ui-components/Sidebar";
 import { MainContainer } from "MainContainer/MainContainer";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
@@ -53,13 +53,16 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
         this.setState(() => ({ usernameError, passwordError }));
         if (!usernameError && !passwordError) {
             try {
+                this.props.setLoading(true);
                 await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/register", { username, password }, "")).promise;
                 this.props.addSnack({ message: `User '${username}' successfully created`, type: SnackType.Success });
                 this.setState(() => this.initialState);
             } catch (e) {
                 const status = defaultErrorHandler(e, this.props.addSnack);
                 if (status == 400)  this.setState(() => ({ usernameError: true }));
-            };
+            } finally {
+                this.props.setLoading(false);
+            }
         }
     }
 
@@ -113,26 +116,25 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
                             placeholder="Repeat password..."
                         />
                     </Label>
-                    <LoadingButton
+                    <Button
                         type="submit"
-                        content="Create user"
-                        hovercolor="darkGreen"
                         color="green"
-                        loading={submitted}
-                    />
+                        disabled={submitted}
+                    >Create user</Button>
                 </form>}
             />
         );
     }
 }
 
-interface UserCreationOperations extends AddSnackOperation {
+interface UserCreationOperations extends AddSnackOperation, SetStatusLoading {
     setActivePage: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => dispatch(addSnack(snack)),
+    setLoading: loading => dispatch(setLoading(loading))
 });
 
 export default connect(null, mapDispatchToProps)(UserCreation);

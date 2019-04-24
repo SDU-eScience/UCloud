@@ -7,7 +7,7 @@ import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
-import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button, Icon } from "ui-components";
+import { Error, ButtonGroup, Text, Box, Flex, Card, Divider, Button, Icon } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
@@ -192,7 +192,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                 <Flex>
                     <Box ml="auto" />
                     {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
-                        <LoadingButton color="red" disabled={isLoading} loading={isLoading} content="Remove" onClick={() => this.onRevoke(actualShare)} />
+                        <Button color="red" disabled={isLoading} onClick={() => this.onRevoke(actualShare)}>Remove</Button>
                         : null}
                 </Flex>
                 {!hasBeenShared ? (
@@ -201,8 +201,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         <Flex>
                             <Box ml="auto" />
                             <ButtonGroup width="200px">
-                                <LoadingButton loading={isLoading} disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)} hovercolor="darkGreen" content="Accept" />
-                                <LoadingButton loading={isLoading} disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)} hovercolor="darkRed" content="Reject" />
+                                <Button disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)}>Accept</Button>
+                                <Button disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)}>Reject</Button>
                             </ButtonGroup>
                         </Flex>
                     </>)
@@ -228,12 +228,10 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         />
                     </Box>}
                     right={
-                        <LoadingButton
+                        <Button
                             height="40px"
-                            width="auto"
                             color="red"
                             disabled={isLoading}
-                            loading={isLoading}
                             size="mini"
                             onClick={() => this.onRevoke(e)}
                         >
@@ -241,7 +239,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                                 <Icon size={18} name="close" />
                                 <Text ml="3px">Revoke</Text>
                             </Flex>
-                        </LoadingButton>}
+                        </Button>}
                 />
                 {i !== length - 1 ? <Divider /> : null}
             </Box>
@@ -257,14 +255,12 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         {getFilenameFromPath(groupedShare.path)}
                     </Flex>
                     <TextSpan fontSize={1} ml="0.8em" mr="0.8em" color="text">Shared with {groupedShare.shares.length} collaborators</TextSpan>
-                    <LoadingButton
+                    <Button
                         size={"small"}
-                        content="Share this with another user"
                         color="green"
                         disabled={isLoading}
-                        loading={isLoading}
                         onClick={() => this.onCreateShare(groupedShare.path)}
-                    />
+                    >Share this with another user</Button>
                 </Heading.h4>
                 {shareComponents}
             </Card >

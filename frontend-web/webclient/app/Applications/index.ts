@@ -6,6 +6,7 @@ import { History } from "history";
 import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 import { ParameterValues } from "Utilities/ApplicationUtilities";
 import { AddSnackOperation } from "Snackbar/Snackbars";
+import { SetStatusLoading } from "Navigation/Redux/StatusActions";
 
 export interface Analysis {
     status: string
@@ -161,7 +162,6 @@ export interface RunAppState {
     initialSubmit: boolean
 
     error?: string
-    loading: boolean
 
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: ParameterValues
@@ -170,7 +170,7 @@ export interface RunAppState {
     favoriteLoading: boolean
 }
 
-export interface RunOperations extends AddSnackOperation {
+export interface RunOperations extends AddSnackOperation, SetStatusLoading {
     updatePageTitle: () => void
 }
 

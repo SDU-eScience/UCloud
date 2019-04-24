@@ -45,7 +45,7 @@ export { default as TextArea } from "./TextArea";
 export { default as Sidebar } from './Sidebar'
 export { default as Support } from './SupportBox'
 
-export { default as LoadingButton } from "./LoadingButton";
+/* export { default as LoadingButton } from "./LoadingButton"; */
 
 export { default as theme } from './theme'
 export { default as UIGlobalStyle } from './GlobalStyle'

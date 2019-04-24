@@ -4,10 +4,10 @@ import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { errorMessageOrDefault } from "UtilityFunctions";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations } from "."
+import { updatePageTitle, setLoading } from "Navigation/Redux/StatusActions";
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations } from ".";
 import { Dispatch } from "redux";
-import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
+import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter, OptionalParameters } from "./ParameterWidgets";
@@ -27,8 +27,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
             initialSubmit: false,
-
-            loading: false,
+            
             error: undefined,
 
             parameterValues: new Map(),
@@ -114,11 +113,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         };
 
         this.setState(() => ({ jobSubmitted: true }));
+        this.props.setLoading(true);
         try {
             const req = await Cloud.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
             this.setState(() => ({ error: errorMessageOrDefault(err, "An error ocurred submitting the job."), jobSubmitted: false }))
+            this.props.setLoading(false);
         }
     };
 
@@ -151,7 +152,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     private async retrieveApplication(name: string, version: string) {
         try {
-            this.setState(() => ({ loading: true }));
+            this.props.setLoading(true);
             const { response } = await this.state.promises.makeCancelable(
                 Cloud.get<WithAppMetadata & WithAppInvocation & WithAppFavorite>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
             ).promise;
@@ -179,7 +180,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         } catch (e) {
             this.setState(() => ({ error: errorMessageOrDefault(e, `An error occurred fetching ${name}`) }));
         } finally {
-            this.setState(() => ({ loading: false }));
+            this.props.setLoading(false);
         }
     }
 
@@ -350,9 +351,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                             if (e.target.files) this.importParameters(e.target.files[0])
                         }} />
                 </OutlineButton>
-                <LoadingButton fullWidth loading={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
+                <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                     {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
-                </LoadingButton>
+                </Button>
                 <SubmitButton
                     parameters={application.invocation.parameters}
                     jobSubmitted={jobSubmitted}
@@ -379,7 +380,7 @@ interface SubmitButton {
 }
 
 const SubmitButton = ({ onSubmit, jobSubmitted }: SubmitButton) => {
-    return (<LoadingButton onClick={onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>);
+    return (<Button onClick={onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>);
 };
 
 interface ParameterProps {
@@ -502,7 +503,8 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
 
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => dispatch(addSnack(snack)),
+    setLoading: loading => dispatch(setLoading(loading))
 });
 
 export default connect(null, mapDispatchToProps)(Run);

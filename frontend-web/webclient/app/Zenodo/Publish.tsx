@@ -12,7 +12,7 @@ import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { File } from "Files";
 import { SET_ZENODO_ERROR } from "Zenodo/Redux/ZenodoReducer";
 import { Dispatch } from "redux";
-import { Button, Error, Input, Label, Flex, LoadingButton, Box, Link } from "ui-components";
+import { Button, Error, Input, Label, Flex, Box, Link } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
 import { SidebarPages } from "ui-components/Sidebar";
@@ -129,14 +129,12 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
                             onClick={() => this.newFile()}
                         >Add file</Button>
                         <Box ml="auto" />
-                        <LoadingButton
-                            disabled={!name || this.state.files.filter(p => p).length === 0}
+                        <Button
+                            disabled={!name || this.state.files.filter(p => p).length === 0 || this.state.requestSent}
                             color="blue"
                             type="submit"
-                            loading={this.state.requestSent}
-                            content="Upload files"
                             onClick={this.submit}
-                        />
+                        >Upload files</Button>
                     </Flex>
                 </form>
             </Box>);

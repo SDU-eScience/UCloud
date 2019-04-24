@@ -1,6 +1,6 @@
 import * as React from "react";
 import { searchPage } from "Utilities/SearchUtilities";
-import { Flex, Box, Error, Input, LoadingButton } from "ui-components";
+import { Flex, Box, Error, Input, Button } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
@@ -49,7 +49,7 @@ class DetailedProjectSearch extends React.Component<DetailedProjectSearchProps &
                             placeholder="Search by name..."
                             ref={this.inputField}
                         />
-                        <LoadingButton mt="0.5em" type="submit" fullWidth loading={this.props.loading} content="Search" color="blue" />
+                        <Button mt="0.5em" type="submit" fullWidth disabled={this.props.loading} color="blue">Search</Button>
                     </form>
                 </Box>
             </Flex>)
