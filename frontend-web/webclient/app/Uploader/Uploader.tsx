@@ -3,7 +3,7 @@ import * as Modal from "react-modal";
 import { Text, Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import Dropzone from "react-dropzone";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal, inRange, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, prettierString, timestampUnixMs, overwriteSwal, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
 import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -95,7 +95,12 @@ class Uploader extends React.Component<UploaderProps> {
 
     private beforeUnload = (e: { returnValue: string; }) => {
         e.returnValue = "foo";
-        uploadsNotifications(finishedUploads(this.props.uploads), this.props.uploads.length)
+        const finished = finishedUploads(this.props.uploads);
+        const total = this.props.uploads.length;
+        this.props.addSnack({ 
+            message: finished !== total ? `${finished} out of ${total} files uploaded` : "Uploads finished",
+            type: SnackType.Information
+        });
         return e;
     }
 

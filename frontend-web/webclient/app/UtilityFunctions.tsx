@@ -28,17 +28,6 @@ export const getOwnerFromAcls = (acls?: Acl[]): string => {
     }
 };
 
-export function uploadsNotifications(finished: number, total: number) {
-    return swal({
-        title: finished !== total ? `${finished} out of ${total} files uploaded` : "Uploads finished",
-        toast: true,
-        position: "top",
-        timer: 2000,
-        showConfirmButton: false,
-        type: finished !== total ? "warning" : "success",
-    });
-}
-
 export function overwriteSwal() {
     return swal({
         allowEscapeKey: true,
