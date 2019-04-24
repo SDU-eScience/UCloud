@@ -45,7 +45,8 @@ describe("Initialize Redux Objects", () => {
         expect(Defaults.initStatus()).toEqual({
             status: Defaults.DefaultStatus,
             title: "",
-            page: SidebarPages.None
+            page: SidebarPages.None,
+            loading: false
         } as Defaults.StatusReduxObject)
     );
 
