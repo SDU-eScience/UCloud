@@ -14,7 +14,7 @@ class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterfac
         recursive: Boolean = true
     ) {
         // Add to both the default and the actual list. This needs to be recursively applied
-        // We need to apply this process to both the owner and the entity.
+        // We need to apply this process to both the creator and the entity.
         fs.createACLEntry(ctx, path, FSACLEntity.User(ctx.user), rights, defaultList = true, recursive = recursive).setfaclUnwrap()
         fs.createACLEntry(ctx, path, FSACLEntity.User(ctx.user), rights, defaultList = false, recursive = recursive).setfaclUnwrap()
 

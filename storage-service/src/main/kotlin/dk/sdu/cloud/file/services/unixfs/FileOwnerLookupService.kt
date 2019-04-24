@@ -13,9 +13,9 @@ import dk.sdu.cloud.service.Loggable
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * A service for determining the real owner of a file.
+ * A service for determining the real creator of a file.
  *
- * This works by looking up the root directory of the file and looking at the "creator" ([FileAttribute.OWNER]). The
+ * This works by looking up the root directory of the file and looking at the "creator" ([FileAttribute.CREATOR]). The
  * results are cached for performance.
  */
 class FileOwnerLookupService<Ctx : CommandRunner>(
@@ -34,10 +34,10 @@ class FileOwnerLookupService<Ctx : CommandRunner>(
             val cachedResult = cache[rootDir]
             if (cachedResult != null) return cachedResult
 
-            log.debug("Result not in cache. Looking up owner of root dir...")
+            log.debug("Result not in cache. Looking up creator of root dir...")
             return commandRunner
                 .withContext(SERVICE_USER) { ctx ->
-                    unixFs.stat(ctx, joinPath(components[0], components[1]), setOf(FileAttribute.OWNER)).unwrap().owner
+                    unixFs.stat(ctx, joinPath(components[0], components[1]), setOf(FileAttribute.CREATOR)).unwrap().creator
                 }.also {
                     log.debug("Directory is owned by $it")
                     cache[rootDir] = it
@@ -45,7 +45,7 @@ class FileOwnerLookupService<Ctx : CommandRunner>(
         } else {
             log.debug("$path is outside of /home/. Not using cache!")
             return commandRunner.withContext(SERVICE_USER) { ctx ->
-                unixFs.stat(ctx, path, setOf(FileAttribute.OWNER)).unwrap().owner
+                unixFs.stat(ctx, path, setOf(FileAttribute.CREATOR)).unwrap().creator
             }
         }
     }

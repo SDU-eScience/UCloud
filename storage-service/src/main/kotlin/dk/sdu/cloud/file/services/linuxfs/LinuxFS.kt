@@ -94,8 +94,8 @@ class LinuxFS(
             return StorageEvent.Moved(
                 id = row.inode,
                 path = row.path,
-                owner = row.xowner,
-                creator = row.owner,
+                owner = row.owner,
+                creator = row.creator,
                 timestamp = System.currentTimeMillis(),
                 oldPath = oldPath
             )
@@ -173,7 +173,7 @@ class LinuxFS(
             val attributes = run {
                 val opts = ArrayList<String>()
                 if (FileAttribute.INODE in mode) opts.add("ino")
-                if (FileAttribute.OWNER in mode) opts.add("uid")
+                if (FileAttribute.CREATOR in mode) opts.add("uid")
                 if (FileAttribute.UNIX_MODE in mode) opts.add("mode")
 
                 if (opts.isEmpty()) {
@@ -185,7 +185,7 @@ class LinuxFS(
 
             if (FileAttribute.INODE in mode) inode = (attributes.getValue("ino") as Long).toString()
             if (FileAttribute.UNIX_MODE in mode) unixMode = attributes["mode"] as Int
-            if (FileAttribute.OWNER in mode) {
+            if (FileAttribute.CREATOR in mode) {
                 runBlocking {
                     owner = userDao.findCloudUser((attributes.getValue("uid") as Int).toLong())
                 }
@@ -218,7 +218,7 @@ class LinuxFS(
             }
 
             if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
-            if (FileAttribute.PATH in mode || FileAttribute.XOWNER in mode) { // xowner requires path
+            if (FileAttribute.PATH in mode || FileAttribute.OWNER in mode) { // owner requires path
                 val realParent = run {
                     val parent = systemFile.parent
                     val cached = pathCache[parent]
@@ -286,7 +286,7 @@ class LinuxFS(
             }
         }
 
-        val realOwner = if (FileAttribute.XOWNER in mode) {
+        val realOwner = if (FileAttribute.OWNER in mode) {
             val realPath = path!!.toCloudPath()
             runBlocking { fileOwnerLookupService.lookupOwner(realPath) }
         } else {
@@ -347,9 +347,9 @@ class LinuxFS(
                     StorageEvent.Deleted(
                         stat.inode,
                         stat.path,
-                        stat.owner,
+                        stat.creator,
                         System.currentTimeMillis(),
-                        stat.xowner,
+                        stat.owner,
                         ctx.user
                     )
                 )
@@ -752,8 +752,8 @@ class LinuxFS(
         return StorageEvent.CreatedOrRefreshed(
             id = it.inode,
             path = it.path,
-            owner = it.xowner,
-            creator = it.owner,
+            owner = it.owner,
+            creator = it.creator,
             timestamp = it.timestamps.modified,
 
             fileType = it.fileType,
@@ -784,8 +784,8 @@ class LinuxFS(
             FileAttribute.INODE,
             FileAttribute.PATH,
             FileAttribute.TIMESTAMPS,
+            FileAttribute.CREATOR,
             FileAttribute.OWNER,
-            FileAttribute.XOWNER,
             FileAttribute.SIZE,
             FileAttribute.IS_LINK,
             FileAttribute.LINK_TARGET,
@@ -798,16 +798,16 @@ class LinuxFS(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
             FileAttribute.PATH,
-            FileAttribute.OWNER,
-            FileAttribute.XOWNER
+            FileAttribute.CREATOR,
+            FileAttribute.OWNER
         )
 
         @Suppress("ObjectPropertyNaming")
         private val DELETED_ATTRIBUTES = setOf(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
+            FileAttribute.CREATOR,
             FileAttribute.OWNER,
-            FileAttribute.XOWNER,
             FileAttribute.GROUP,
             FileAttribute.PATH
         )

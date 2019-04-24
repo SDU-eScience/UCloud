@@ -124,8 +124,8 @@ class UnixFileSystem(
                     StorageEvent.Moved(
                         id = it.inode,
                         path = it.path,
-                        owner = it.xowner,
-                        creator = it.owner,
+                        owner = it.owner,
+                        creator = it.creator,
                         timestamp = timestamp,
                         oldPath = oldPath
                     )
@@ -164,8 +164,8 @@ class UnixFileSystem(
                     StorageEvent.Deleted(
                         id = it.inode,
                         path = it.path,
-                        owner = it.xowner,
-                        creator = it.owner,
+                        owner = it.owner,
+                        creator = it.creator,
                         timestamp = timestamp,
                         eventCausedBy = ctx.user
                     )
@@ -501,8 +501,8 @@ class UnixFileSystem(
         return StorageEvent.CreatedOrRefreshed(
             id = it.inode,
             path = it.path,
-            owner = it.xowner,
-            creator = it.owner,
+            owner = it.owner,
+            creator = it.creator,
             timestamp = it.timestamps.modified,
 
             fileType = it.fileType,
@@ -556,7 +556,7 @@ class UnixFileSystem(
     }
 
     private fun processRequestedAttributes(requestedAttributes: Set<FileAttribute>): Set<FileAttribute> {
-        if (FileAttribute.XOWNER in requestedAttributes) return requestedAttributes + setOf(FileAttribute.PATH)
+        if (FileAttribute.OWNER in requestedAttributes) return requestedAttributes + setOf(FileAttribute.PATH)
         return requestedAttributes
     }
 
@@ -589,7 +589,7 @@ class UnixFileSystem(
             }
         }
 
-        val realOwner = if (FileAttribute.XOWNER in attributes) {
+        val realOwner = if (FileAttribute.OWNER in attributes) {
             val realPath = path.toCloudPath()
             runBlocking { fileOwnerLookupService.lookupOwner(realPath) }
         } else {
@@ -601,7 +601,7 @@ class UnixFileSystem(
             _isLink,
             _linkTarget?.toCloudPath(),
             _unixMode,
-            _owner,
+            _creator,
             _group,
             _timestamps,
             _path?.toCloudPath(),
@@ -652,8 +652,8 @@ class UnixFileSystem(
             FileAttribute.INODE,
             FileAttribute.PATH,
             FileAttribute.TIMESTAMPS,
+            FileAttribute.CREATOR,
             FileAttribute.OWNER,
-            FileAttribute.XOWNER,
             FileAttribute.SIZE,
             FileAttribute.IS_LINK,
             FileAttribute.LINK_TARGET,
@@ -666,16 +666,16 @@ class UnixFileSystem(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
             FileAttribute.PATH,
-            FileAttribute.OWNER,
-            FileAttribute.XOWNER
+            FileAttribute.CREATOR,
+            FileAttribute.OWNER
         )
 
         @Suppress("ObjectPropertyNaming")
         private val DELETED_ATTRIBUTES = setOf(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
+            FileAttribute.CREATOR,
             FileAttribute.OWNER,
-            FileAttribute.XOWNER,
             FileAttribute.GROUP,
             FileAttribute.PATH
         )

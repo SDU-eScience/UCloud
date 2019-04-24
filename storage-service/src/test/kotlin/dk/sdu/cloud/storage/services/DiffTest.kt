@@ -23,7 +23,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-private const val FILE_OWNER = "file owner"
+private const val FILE_OWNER = "file creator"
 
 class DiffTest {
     private data class TestingContext<Ctx : FSUserContext>(

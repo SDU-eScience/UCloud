@@ -48,7 +48,6 @@ class LinuxFSRunner(
                         val cloudUser = runBlocking { userDao.findStorageUser(user) }
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
-
                         StandardCLib.setfsgid(cloudUser)
                         StandardCLib.setfsuid(cloudUser)
 

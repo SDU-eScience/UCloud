@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.services.unixfs
 
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.Timestamps
@@ -92,7 +91,7 @@ class FileAttributeParser(
 
                     FileAttribute.UNIX_MODE -> unixMode = currentLine.toInt()
 
-                    FileAttribute.OWNER -> owner = runBlocking { uidLookupService.reverseLookup(currentLine.toLong()) }
+                    FileAttribute.CREATOR -> owner = runBlocking { uidLookupService.reverseLookup(currentLine.toLong()) }
 
                     FileAttribute.GROUP -> group = runBlocking { uidLookupService.reverseLookup(currentLine.toLong()) }
 
@@ -153,7 +152,7 @@ class FileAttributeParser(
                         linkInode = currentLine
                     }
 
-                    FileAttribute.XOWNER -> {
+                    FileAttribute.OWNER -> {
                         // Not included in server output
                     }
                 }
@@ -187,7 +186,7 @@ class FileAttributeParser(
     }
 
     companion object {
-        private val ATTRIBUTES_FROM_SERVER = FileAttribute.values().toSet() - FileAttribute.XOWNER
+        private val ATTRIBUTES_FROM_SERVER = FileAttribute.values().toSet() - FileAttribute.OWNER
     }
 }
 

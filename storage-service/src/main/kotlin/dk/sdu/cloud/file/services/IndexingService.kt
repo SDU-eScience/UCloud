@@ -190,8 +190,8 @@ class IndexingService<Ctx : FSUserContext>(
                         StorageEvent.Moved(
                             id = realFile.inode,
                             path = realFile.path,
-                            owner = realFile.xowner,
-                            creator = realFile.owner,
+                            owner = realFile.owner,
+                            creator = realFile.creator,
                             timestamp = realFile.timestamps.modified,
                             oldPath = referenceFile.path
                         )
@@ -207,8 +207,8 @@ class IndexingService<Ctx : FSUserContext>(
                             StorageEvent.Invalidated(
                                 id = realFile.inode,
                                 path = referenceFile.path,
-                                owner = realFile.xowner,
-                                creator = realFile.owner,
+                                owner = realFile.owner,
+                                creator = realFile.creator,
                                 timestamp = realFile.timestamps.modified
                             )
                         )
@@ -219,9 +219,9 @@ class IndexingService<Ctx : FSUserContext>(
 
                 if (
                     referenceFile.fileType != realFile.fileType ||
-                    referenceFile.ownerName != realFile.owner ||
+                    referenceFile.ownerName != realFile.creator ||
                     referenceFile.ownSensitivityLevel != realFile.sensitivityLevel ||
-                    referenceFile.creator != realFile.owner
+                    referenceFile.creator != realFile.creator
                 ) {
                     log.debug("Metadata difference for ${realFile.path}")
 

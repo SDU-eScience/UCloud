@@ -117,7 +117,7 @@ object ACL : Loggable {
                 acl_add_perm(permset.single(), EXECUTE).orThrow()
 
                 if (defaultList) {
-                    // For the default list we _also_ need to add entries for the owner and group
+                    // For the default list we _also_ need to add entries for the creator and group
                     run {
                         acl_create_entry(PointerByReference(acl), entry).orThrow()
                         acl_set_tag_type(entry.single(), USER_OWNER).orThrow()

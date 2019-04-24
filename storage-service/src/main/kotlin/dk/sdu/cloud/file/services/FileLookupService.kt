@@ -129,8 +129,8 @@ class FileLookupService<Ctx : FSUserContext>(
         row: FileRow,
         cache: MutableMap<String, SensitivityLevel> = HashMap()
     ): StorageFile? {
-        val owner = row._xowner?.takeIf { it.isNotBlank() } ?: row._owner
-        val creator = row._owner
+        val owner = row._owner?.takeIf { it.isNotBlank() } ?: row._creator
+        val creator = row._creator
         if (owner == null || creator == null) return null
 
         return StorageFile(
@@ -185,13 +185,13 @@ class FileLookupService<Ctx : FSUserContext>(
             FileAttribute.FILE_TYPE,
             FileAttribute.RAW_PATH,
             FileAttribute.TIMESTAMPS,
-            FileAttribute.OWNER,
+            FileAttribute.CREATOR,
             FileAttribute.SIZE,
             FileAttribute.SHARES,
             FileAttribute.SENSITIVITY,
             FileAttribute.INODE,
             FileAttribute.IS_LINK,
-            FileAttribute.XOWNER
+            FileAttribute.OWNER
         )
     }
 }
