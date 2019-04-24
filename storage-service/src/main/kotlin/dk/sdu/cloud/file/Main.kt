@@ -26,7 +26,6 @@ fun main(args: Array<String>) {
                 basePackages = listOf("dk.sdu.cloud.file.api")
             )
         )
-        install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
     }
 

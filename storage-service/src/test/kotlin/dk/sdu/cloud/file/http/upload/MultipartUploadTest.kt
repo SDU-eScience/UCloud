@@ -59,7 +59,6 @@ class MultipartUploadTest {
         runner: FSCommandRunnerFactory<UnixFSCommandRunner>,
         fs: LowLevelFileSystemInterface<UnixFSCommandRunner>
     ): List<Controller> {
-        micro.install(HibernateFeature)
         TestContext.micro = micro
         val storageEventProducer = StorageEventProducer(micro.eventStreamService.createProducer(StorageEvents.events), {})
         val coreFs = CoreFileSystemService(fs, storageEventProducer)
