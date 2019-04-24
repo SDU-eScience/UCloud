@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.accounting.storage.api.StorageUsedResourceDescription
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -15,6 +16,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.service.Controller
+import io.ktor.http.HttpStatusCode
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -77,7 +79,8 @@ class StorageUsedController<DBSession>(
                         storageAccountingService.listEvents(
                             request,
                             ctx.securityPrincipal.username
-                        ).last().bytesUsed
+                        ).takeIf { it.isNotEmpty() }?.last()?.bytesUsed ?:
+                        throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                     }
                 }
 
