@@ -65,7 +65,7 @@ class Header extends React.Component<HeaderProps> {
                 </Hide>
                 <Box mr="auto" />
                 <BackgroundTask />
-                <Refresh spin={spin} onClick={refresh} />
+                <Refresh spin={spin} onClick={refresh} headerLoading={this.props.statusLoading} />
                 <Support />
                 <Notification />
                 <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={this.props.avatar} /> : null}</Flex>}>
@@ -95,8 +95,8 @@ class Header extends React.Component<HeaderProps> {
     }
 }
 
-export const Refresh = ({ onClick, spin }: { onClick?: () => void, spin: boolean }) => !!onClick ?
-    <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin} onClick={() => onClick()} /> : <Box width="24px" />
+export const Refresh = ({ onClick, spin, headerLoading }: { onClick?: () => void, spin: boolean, headerLoading?: boolean }) => !!onClick || headerLoading ?
+    <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading} onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
@@ -263,7 +263,7 @@ const ContextSwitcher = ({ addSnack }: AddSnackOperation) => {
             </ContextSwitcherFlex>
         } width="174px">
             {[Cloud.username, "Project 1", "Project 2"].filter(it => it !== userContext).map(it => (
-                <EllipsedText 
+                <EllipsedText
                     key={it}
                     onClick={() => (addSnack({ message: "Not yet.", type: SnackType.Information }), setUserContext(it))}
                     width="150px"
@@ -289,7 +289,8 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
 const mapStateToProps = ({ header, avatar, responsive, ...rest }: ReduxObject): HeaderStateToProps => ({
     ...header,
     avatar,
-    spin: anyLoading(rest as ReduxObject)
+    spin: anyLoading(rest as ReduxObject),
+    statusLoading: rest.status.loading
 });
 
 const anyLoading = (rO: ReduxObject): boolean =>

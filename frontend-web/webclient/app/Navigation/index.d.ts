@@ -16,4 +16,5 @@ interface HeaderStateToProps {
     refresh?: () => void
     avatar: typeof defaultAvatar
     spin: boolean
+    statusLoading: boolean
 }

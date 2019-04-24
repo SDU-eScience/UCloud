@@ -163,6 +163,7 @@ export interface StatusReduxObject {
     status: Status
     title: string
     page: SidebarPages
+    loading: boolean
 }
 
 export interface SidebarReduxObject {
@@ -267,7 +268,8 @@ export const initHeader = (): HeaderSearchReduxObject => ({
 export const initStatus = (): StatusReduxObject => ({
     status: DefaultStatus,
     title: "",
-    page: SidebarPages.None
+    page: SidebarPages.None,
+    loading: false
 });
 
 export const initDashboard = (): DashboardStateProps => ({
