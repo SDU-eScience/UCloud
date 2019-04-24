@@ -4,6 +4,8 @@ import {
     is5xxStatusCode,
     inSuccessRange
 } from "UtilityFunctions";
+import { GLOBAL_addSnack } from "App";
+import { SnackType } from "Snackbar/Snackbars";
 
 export interface Override {
     path: string,
@@ -394,7 +396,7 @@ export default class SDUCloud {
         const bail = (): never => {
             this.clearTokens();
             this.openBrowserLoginPage();
-            return void(0) as never;
+            return void (0) as never;
         };
         try {
             const token = jwt.decode(accessToken, { complete: true });
@@ -450,8 +452,8 @@ export default class SDUCloud {
             };
             throw Error("The server was unreachable, please try again later.")
         } catch (err) {
-            // FIXME: Show error, somehow
-            err.message;
+            // FIXME, not ideal way of showing error
+            GLOBAL_addSnack({ message: err.message, type: SnackType.Failure });
         }
     }
 
