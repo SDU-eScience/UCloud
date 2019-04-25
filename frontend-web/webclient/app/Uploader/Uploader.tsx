@@ -98,7 +98,7 @@ class Uploader extends React.Component<UploaderProps> {
         const finished = finishedUploads(this.props.uploads);
         const total = this.props.uploads.length;
         this.props.addSnack({ 
-            message: finished !== total ? `${finished} out of ${total} files uploaded` : "Uploads finished",
+            message: `${finished} out of ${total} files uploaded`,
             type: SnackType.Information
         });
         return e;
