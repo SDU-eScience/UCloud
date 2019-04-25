@@ -30,7 +30,7 @@ class LinuxFSRunner(
     override val user: String
 ) : CommandRunner {
     private val queue = ArrayBlockingQueue<() -> Any?>(64)
-    private var thread: Thread? = null
+    private var thread: NativeThread? = null
     private var isRunning: Boolean = false
 
     internal var inputStream: FileChannel? = null
@@ -43,21 +43,20 @@ class LinuxFSRunner(
         synchronized(this) {
             if (thread == null) {
                 isRunning = true
-                thread = Thread(
-                    {
-                        val cloudUser = runBlocking { userDao.findStorageUser(user) }
-                            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                thread = NativeThread(THREAD_PREFIX + user + "-" + UUID.randomUUID().toString()) {
+                    val cloudUser = runBlocking { userDao.findStorageUser(user) }
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
-                        StandardCLib.setfsgid(cloudUser)
-                        StandardCLib.setfsuid(cloudUser)
+                    StandardCLib.setfsgid(cloudUser)
+                    StandardCLib.setfsuid(cloudUser)
 
-                        while (isRunning) {
-                            val nextJob = queue.poll(1, TimeUnit.SECONDS) ?: continue
-                            nextJob()
-                        }
-                    },
-                    THREAD_PREFIX + user + "-" + UUID.randomUUID().toString()
-                ).also { it.start() }
+                    while (isRunning) {
+                        val nextJob = queue.poll(1, TimeUnit.SECONDS) ?: continue
+                        nextJob()
+                    }
+                }.also {
+                    it.start()
+                }
             }
         }
     }
@@ -82,6 +81,7 @@ class LinuxFSRunner(
 
     fun requireContext() {
         if (!Thread.currentThread().name.startsWith("$THREAD_PREFIX$user-")) {
+            println(Thread.currentThread().name)
             throw IllegalStateException("Code is running in an invalid context!")
         }
     }

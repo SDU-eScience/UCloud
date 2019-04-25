@@ -142,7 +142,6 @@ class FileLookupService<Ctx : FSUserContext>(
             size = row.size,
             acl = row.shares,
             sensitivityLevel = run {
-                log.info("SENSITIVITY BASED ON THIS: " + row.toString())
                 if (row.isLink) lookupInheritedSensitivity(ctx, row.path, cache)
                 else row.sensitivityLevel ?: lookupInheritedSensitivity(ctx, row.path.parent(), cache)
             },

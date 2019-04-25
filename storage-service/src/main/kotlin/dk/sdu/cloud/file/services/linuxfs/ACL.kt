@@ -31,8 +31,8 @@ object ACL : Loggable {
     private const val ACCESS = 0x8000
     private const val DEFAULT = 0x4000
 
-    fun getEntries(path: String): Sequence<Entry> = sequence {
-        if (!Platform.isLinux()) return@sequence
+    fun getEntries(path: String): List<Entry> {
+        if (!Platform.isLinux()) return emptyList()
 
         with(ACLLibrary.INSTANCE) {
             val type = ACCESS
@@ -40,8 +40,9 @@ object ACL : Loggable {
             val tag = ACLTag()
             val permset = ACLPermSet()
 
-            val acl = acl_get_file(path, type) ?: return@sequence
+            val acl = acl_get_file(path, type) ?: return emptyList()
 
+            val result = ArrayList<Entry>()
             var idx = 0
             while (idx++ >= 0) {
                 if (acl_get_entry(acl, if (idx == 1) 0 else 1, entry) != 1) {
@@ -76,7 +77,7 @@ object ACL : Loggable {
                         val hasWrite = acl_get_perm(permsetValue, WRITE) == 1
                         val hasExecute = acl_get_perm(permsetValue, EXECUTE) == 1
 
-                        yield(
+                        result.add(
                             Entry(
                                 isUser,
                                 uid.toString(),
@@ -88,14 +89,12 @@ object ACL : Loggable {
                     }
                 }
             }
-
-            log.debug("Found $idx entries in ACL")
             acl_free(acl)
+            return result
         }
     }
 
     fun addEntry(path: String, uid: Int, permissions: Set<AccessRight>, defaultList: Boolean = false) {
-        log.debug("ACL.addEntry($path, $uid, $permissions, defaultList = $defaultList)")
         if (!Platform.isLinux()) return
         with(ACLLibrary.INSTANCE) {
             val type = if (defaultList) DEFAULT else ACCESS
@@ -104,8 +103,6 @@ object ACL : Loggable {
 
             val acl = acl_get_file(path, type) ?: throw NativeException(Native.getLastError())
             val initialEntryCount = acl_entries(acl)
-
-            log.debug("Initial entry count: $initialEntryCount")
 
             if ((initialEntryCount == 3L && !defaultList) || (initialEntryCount == 0L && defaultList)) {
                 // Create mask if we have not created it yet
@@ -200,7 +197,6 @@ object ACL : Loggable {
                     acl_free(qualifier)
 
                     if (entryUid == uid) {
-                        log.debug("Found the entry. Calling delete now!")
                         acl_delete_entry(acl, entry.single())
                     }
                 }

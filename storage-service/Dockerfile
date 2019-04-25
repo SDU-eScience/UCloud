@@ -1,32 +1,14 @@
-# Dockerfile template for production containers of microservices
-
-FROM alpine:3.8 as build-dependencies
-
-# Add basic dependencies
-ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
-    PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
-
-RUN apk add --no-cache openjdk8
-RUN apk add --no-cache cmake
-RUN apk add --no-cache make
-RUN apk add --no-cache gcc
-RUN apk add --no-cache g++
-RUN apk add --no-cache musl-dev
-RUN apk add --no-cache linux-headers
-RUN apk add --no-cache fts-dev
-RUN apk add --no-cache fts
-RUN apk add --no-cache acl-dev
-RUN apk add --no-cache libacl
-RUN apk add --no-cache sudo
-RUN apk add --no-cache bash
-RUN apk add --no-cache acl
-RUN addgroup sftponly
-
-RUN apk add --no-cache curl zip bash
+FROM adoptopenjdk/openjdk11-openj9 as build-dependencies
+RUN apt-get update
+RUN apt-get install -y \
+    libacl1-dev \
+    build-essential \
+    unzip \
+    zip
 RUN curl -s "https://get.sdkman.io" | bash
 SHELL ["/bin/bash", "-c"]
-RUN source $HOME/.bashrc ; sdk install gradle 4.10.2
-
+RUN source "/root/.sdkman/bin/sdkman-init.sh" ; sdk install gradle 4.10.2
+   
 #
 # Development container
 #
@@ -54,7 +36,8 @@ ARG GRADLE_PROPS
 RUN mkdir /root/.gradle/ && \
     echo "${GRADLE_PROPS}" > /root/.gradle/gradle.properties
 
-RUN source $HOME/.bashrc && \
+# Build microservice
+RUN source "/root/.sdkman/bin/sdkman-init.sh" && \
     set -x && \
     rm -rf build/ && \
     gradle distTar && \
@@ -64,37 +47,13 @@ RUN source $HOME/.bashrc && \
     tar xvf ../service.tar --strip-components=1 && \
     mv /opt/service/bin/${SERVICE_NAME} /opt/service/bin/service
 
-RUN set -x && \
-    cd /usr/src/app/native && \
-    ./cmakeclean.sh && \
-    cmake . && \
-    make clean && \
-    make && \
-    cp ceph-interpreter /bin/ceph-interpreter
-
 #
-# Production container is only capable of running the code
+# Production container
 #
-
-FROM alpine:3.8 as production
-
-ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
-    PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
-
-RUN apk add --no-cache openjdk8-jre
-RUN apk add --no-cache fts
-RUN apk add --no-cache libacl
-RUN apk add --no-cache sudo
-RUN apk add --no-cache bash
-RUN apk add --no-cache acl
-RUN addgroup sftponly
+FROM build-dependencies as production
 
 COPY --from=build-production-ready /opt/service/ /opt/service/
-COPY --from=build-production-ready /bin/ceph-interpreter /bin/ceph-interpreter
 COPY bin/sdu_cloud_add_user /bin/sdu_cloud_add_user
 RUN chmod +x /bin/sdu_cloud_add_user
-
-RUN rm /etc/passwd
-RUN ln -s /mnt/cephfs/passwd /etc/passwd
 
 CMD ["/opt/service/bin/service", "--config-dir", "/etc/service"]

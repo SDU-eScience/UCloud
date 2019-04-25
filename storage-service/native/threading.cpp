@@ -21,9 +21,10 @@ public:
 
 JNIEnv* JavaThreadWrapper::attachToJvm() {
     JNIEnv *env;
-    if (jvm->AttachCurrentThread((void **)&env, NULL) != 0)
+    jint code = jvm->AttachCurrentThread((void **)&env, NULL);
+    if (code != 0)
     {
-        std::cout << "Failed to attach" << std::endl;
+        std::cout << "Failed to attach. Error: " << code << std::endl;
     }
     return env;
 }
@@ -43,7 +44,6 @@ void JavaThreadWrapper::callRunMethod() {
     jmethodID runId = env->GetMethodID(cls, "run", "()V");
     if (runId != nullptr) {
         env->CallVoidMethod(threadObjectRef, runId);
-        
     } else {         
         cout << "No run method found in the Thread object!!" << endl;
     }
@@ -53,8 +53,6 @@ void JavaThreadWrapper::callRunMethod() {
 
 void *thread_entry_point(void *args)
 {
-    std::cout << "Starting  thread_entry_point";
-    
     JavaThreadWrapper *javaThreadWrapper = (JavaThreadWrapper*)args;
     javaThreadWrapper->callRunMethod();
 
@@ -84,7 +82,6 @@ Java_dk_sdu_cloud_file_services_linuxfs_NativeThread_start0(JNIEnv *env, jobject
         return;
     }
 
-    std::cout << "Started a linux thread " << tid << "!" << endl;
     return;
 }
 

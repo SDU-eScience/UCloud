@@ -38,7 +38,7 @@ object StandardCLib {
     }
 
     fun setfsuid(uid: Long): StatusCode {
-        return if (Platform.isWindows()) {
+        return if (!Platform.isLinux()) {
             StatusCode.OK
         } else {
             StatusCode(
@@ -50,7 +50,7 @@ object StandardCLib {
     }
 
     fun setfsgid(uid: Long): StatusCode {
-        return if (Platform.isWindows()) {
+        return if (!Platform.isLinux()) {
             StatusCode.OK
         } else {
             StatusCode(

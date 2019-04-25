@@ -1,23 +1,13 @@
 package dk.sdu.cloud.file.services.linuxfs
 
-import java.util.concurrent.atomic.AtomicInteger
+import com.sun.jna.Platform
+import java.nio.file.Files
 
 // https://medium.com/@unmeshvjoshi/how-java-thread-maps-to-os-thread-e280a9fb2e06
 
-class NativeThread(private val block: () -> Unit) {
-    init {
-        val toString = LinuxFS::class.java.classLoader.getResource("libthreading.dylib").toURI().path
-        System.load(toString)
-    }
-
-    var name: String
-        get() = Thread.currentThread().name
-        set(value) {
-            Thread.currentThread().name = value
-        }
-
+class NativeThread(private val name: String, private val block: () -> Unit) {
     fun run() {
-        println("Running Thread " + threadId.getAndIncrement())
+        Thread.currentThread().name = name
         block()
     }
 
@@ -28,6 +18,21 @@ class NativeThread(private val block: () -> Unit) {
     private external fun start0()
 
     companion object {
-        val threadId = AtomicInteger(1)
+        init {
+            val tempFile = Files.createTempFile("libthreading", ".so").toFile()
+            val resourceStream = if (Platform.isMac()) {
+                LinuxFS::class.java.classLoader.getResourceAsStream("libthreading.dylib")
+            } else {
+                LinuxFS::class.java.classLoader.getResourceAsStream("libthreading.so")
+            }
+
+            tempFile.outputStream().use { out ->
+                resourceStream.use { it.copyTo(out) }
+            }
+
+            tempFile.deleteOnExit()
+            System.load(tempFile.absolutePath)
+        }
     }
+
 }

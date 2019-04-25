@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.file.services.linuxfs.NativeThread
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.api.StorageServiceDescription

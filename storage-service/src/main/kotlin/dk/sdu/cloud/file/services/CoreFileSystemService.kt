@@ -16,7 +16,7 @@ import dk.sdu.cloud.service.Loggable
 import java.io.InputStream
 import java.io.OutputStream
 
-const val XATTR_BITH = "birth"
+const val XATTR_BIRTH = "birth"
 
 class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
@@ -30,7 +30,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         fs.setExtendedAttribute(
             ctx,
             path,
-            XATTR_BITH,
+            XATTR_BIRTH,
             (System.currentTimeMillis() / 1000).toString(),
             allowOverwrite = false
         )
