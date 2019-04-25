@@ -114,10 +114,10 @@ class Uploader extends React.Component<UploaderProps> {
 
     private onUploadFinished(upload: Upload, xhr: XMLHttpRequest) {
         xhr.onloadend = () => {
-            if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
+            if (uploadsFinished(this.props.uploads))
                 window.removeEventListener("beforeunload", this.beforeUnload);
+            if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads))
                 this.props.onFilesUploaded(this.props.location);
-            }
             this.props.setUploads(this.props.uploads);
             this.startPending();
         }
