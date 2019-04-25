@@ -8,7 +8,7 @@ import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { ReduxObject, KeyCode, HeaderSearchType } from "DefaultObjects";
-import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide } from "ui-components";
+import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide, Badge } from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -64,6 +64,7 @@ class Header extends React.Component<HeaderProps> {
                     <Icon name="search" size="32" mr="3px" cursor="pointer" onClick={() => this.props.history.push("/search/files")} />
                 </Hide>
                 <Box mr="auto" />
+                {window.location.host === "dev.cloud.sdu.dk" ? <Badge bg="red" mt="15px" ml="5px" mr="25px" mb="14px" color="white">DEVELOPMENT</Badge> : null}
                 <BackgroundTask />
                 <Refresh spin={spin} onClick={refresh} headerLoading={this.props.statusLoading} />
                 <Support />

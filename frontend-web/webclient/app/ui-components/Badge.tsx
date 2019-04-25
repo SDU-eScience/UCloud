@@ -1,7 +1,6 @@
 import styled from "styled-components";
-import { themeGet, space, color } from "styled-system";
+import { themeGet, space, color, SpaceProps } from "styled-system";
 import theme, { ThemeColor } from "./theme";
-import { NumberOrStringOrArray } from "./Types";
 
 export const colorScheme = (props) => {
   const badgeColors = {
@@ -52,7 +51,7 @@ export const colorScheme = (props) => {
   )
 }
 
-const Badge = styled("div") <BadgeProps>`
+const Badge = styled.div<SpaceProps & { color?: ThemeColor, bg?: ThemeColor }>`
   border-radius: 99999px;
   display: inline-block;
   font-size: ${props => props.theme.fontSizes[0]}px;
@@ -64,16 +63,10 @@ const Badge = styled("div") <BadgeProps>`
 
 Badge.displayName = "Badge";
 
-interface BadgeProps {
-  bg?: NumberOrStringOrArray
-  px?: NumberOrStringOrArray
-  py?: NumberOrStringOrArray
-}
-
 Badge.defaultProps = {
   px: 2,
   py: 1,
-  theme: theme
+  theme
 }
 
 export default Badge
