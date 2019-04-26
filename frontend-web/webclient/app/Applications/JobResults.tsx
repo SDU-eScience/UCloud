@@ -18,6 +18,7 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { EntriesPerPageSelector } from "Pagination";
 import { Spacer } from "ui-components/Spacer";
 import * as moment from "moment";
+import "moment/locale/en-gb";
 import { JobStateIcon } from "./JobStateIcon";
 
 interface FetchJobsOptions {
@@ -28,6 +29,7 @@ interface FetchJobsOptions {
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
         super(props);
+        moment.locale("en-gb");
         props.setActivePage();
         props.updatePageTitle();
     }

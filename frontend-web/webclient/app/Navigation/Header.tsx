@@ -28,10 +28,14 @@ import { EllipsedText, TextSpan } from "ui-components/Text";
 import { AppLogoRaw } from "Applications/Card";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { DevelopmentBadgeBase } from "ui-components/Badge";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
 }
+
+const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ? 
+    <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
 
 // NOTE: Ideal for hooks, if useRouter ever happens
 class Header extends React.Component<HeaderProps> {
@@ -64,6 +68,7 @@ class Header extends React.Component<HeaderProps> {
                     <Icon name="search" size="32" mr="3px" cursor="pointer" onClick={() => this.props.history.push("/search/files")} />
                 </Hide>
                 <Box mr="auto" />
+                <DevelopmentBadge />
                 <BackgroundTask />
                 <Refresh spin={spin} onClick={refresh} headerLoading={this.props.statusLoading} />
                 <Support />

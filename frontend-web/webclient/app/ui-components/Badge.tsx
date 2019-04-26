@@ -1,7 +1,6 @@
-import styled from "styled-components";
-import { themeGet, space, color } from "styled-system";
+import styled, { keyframes } from "styled-components";
+import { themeGet, space, color, SpaceProps } from "styled-system";
 import theme, { ThemeColor } from "./theme";
-import { NumberOrStringOrArray } from "./Types";
 
 export const colorScheme = (props) => {
   const badgeColors = {
@@ -52,7 +51,17 @@ export const colorScheme = (props) => {
   )
 }
 
-const Badge = styled("div") <BadgeProps>`
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+`;
+
+const Badge = styled.div<SpaceProps & { color?: ThemeColor, bg?: ThemeColor }>`
   border-radius: 99999px;
   display: inline-block;
   font-size: ${props => props.theme.fontSizes[0]}px;
@@ -60,20 +69,25 @@ const Badge = styled("div") <BadgeProps>`
   text-transform: uppercase;
   letter-spacing: ${themeGet("letterSpacings.caps")};
   ${space} ${colorScheme} ${color};
+
+  animation: ${fadeIn} 1.5s ease 1.5s infinite alternate;
+  animation-direction: alternate;
 `
 
 Badge.displayName = "Badge";
 
-interface BadgeProps {
-  bg?: NumberOrStringOrArray
-  px?: NumberOrStringOrArray
-  py?: NumberOrStringOrArray
-}
-
 Badge.defaultProps = {
   px: 2,
   py: 1,
-  theme: theme
+  theme
 }
 
-export default Badge
+const DevelopmentBadgeBase = styled(Badge)`
+  background-color: ${({ theme }) => theme.colors.red};
+  margin: 15px 25px 14px 5px;
+  color: white;
+`;
+
+export default Badge;
+
+export { DevelopmentBadgeBase };
