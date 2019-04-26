@@ -337,13 +337,9 @@ class LinuxFS(
                         val start = System.nanoTime()
                         if (!it.isUser) return@mapNotNull null
                         val cloudUser = userDao.findCloudUser(it.id.toLong()) ?: return@mapNotNull null
-                        val rights = HashSet<AccessRight>()
-                        if (it.execute) rights += AccessRight.EXECUTE
-                        if (it.read) rights += AccessRight.READ
-                        if (it.write) rights += AccessRight.WRITE
 
                         timer += System.nanoTime() - start
-                        AccessEntry(cloudUser, false, rights)
+                        AccessEntry(cloudUser, false, it.rights)
                     }
                 }
             }

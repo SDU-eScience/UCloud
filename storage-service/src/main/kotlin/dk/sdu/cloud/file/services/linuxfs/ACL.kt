@@ -10,9 +10,7 @@ import org.slf4j.Logger
 data class Entry(
     val isUser: Boolean,
     val id: String,
-    val read: Boolean,
-    val write: Boolean,
-    val execute: Boolean
+    val rights: Set<AccessRight>
 )
 
 object ACL : Loggable {
@@ -77,20 +75,31 @@ object ACL : Loggable {
                         val hasWrite = acl_get_perm(permsetValue, WRITE) == 1
                         val hasExecute = acl_get_perm(permsetValue, EXECUTE) == 1
 
+                        val rights = HashSet<AccessRight>()
+                        if (hasRead) rights += AccessRight.READ
+                        if (hasWrite) rights += AccessRight.WRITE
+                        if (hasExecute) rights += AccessRight.EXECUTE
+
                         result.add(
                             Entry(
                                 isUser,
                                 uid.toString(),
-                                hasRead,
-                                hasWrite,
-                                hasExecute
+                                rights
                             )
                         )
                     }
                 }
             }
             acl_free(acl)
-            return result
+
+            // Normalize ACL by collapsing entries of identical IDs
+            return result.groupBy { Pair(it.id, it.isUser) }.map { (kv, entries) ->
+                val (id, isUser) = kv
+                val rights = HashSet<AccessRight>()
+
+                entries.forEach { rights.addAll(it.rights) }
+                Entry(isUser, id, rights)
+            }
         }
     }
 
