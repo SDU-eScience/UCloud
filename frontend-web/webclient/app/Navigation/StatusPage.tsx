@@ -3,14 +3,17 @@ import { connect } from "react-redux";
 import { updatePageTitle } from "./Redux/StatusActions";
 import { Dispatch } from "redux";
 import { Box } from "ui-components";
+import { MainContainer } from "MainContainer/MainContainer";
 
 const Status = ({ status, updatePageTitle }) => {
     updatePageTitle();
     return (
-        <React.StrictMode>
-            <Box>{status.title}</Box>
-            <Box>{status.body}</Box>
-        </React.StrictMode>
+        <MainContainer
+            main={<>
+                <Box>{status.title}</Box>
+                <Box>{status.body}</Box>
+            </>}
+        />
     );
 };
 

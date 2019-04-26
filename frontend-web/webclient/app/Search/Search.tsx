@@ -31,6 +31,7 @@ import { prettierString, inDevEnvironment } from "UtilityFunctions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 class Search extends React.Component<SearchProps> {
 
@@ -133,7 +134,8 @@ class Search extends React.Component<SearchProps> {
             onDeleted: () => refreshFiles(),
             onExtracted: () => refreshFiles(),
             onSensitivityChange: () => refreshFiles(),
-            setLoading: () => this.props.setFilesLoading(true)
+            setLoading: () => this.props.setFilesLoading(true),
+            addSnack: snack => this.props.addSnack(snack)
         });
 
         const Tab = ({ searchType }: { searchType: HeaderSearchType }): JSX.Element => (
@@ -240,8 +242,8 @@ class Search extends React.Component<SearchProps> {
 // FIXME: Move to own file.
 export const SearchOptions = styled(Flex)`
     border-bottom: 1px solid ${theme.colors.lightGray};
-                cursor: pointer;
-            `;
+    cursor: pointer;
+`;
 
 SearchOptions.defaultProps = {
     theme
@@ -249,7 +251,7 @@ SearchOptions.defaultProps = {
 
 export const SelectableText = styled(Text) <{ selected: boolean }>`
     border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
-            `;
+`;
 
 SelectableText.defaultProps = {
     theme
@@ -265,7 +267,7 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
         dispatch(SSActions.receiveFiles(emptyPage))
         dispatch(SSActions.receiveProjects(emptyPage))
     },
-    searchFiles: async (body) => {
+    searchFiles: async body => {
         dispatch(SSActions.setFilesLoading(true));
         dispatch(await SSActions.searchFiles(body));
         dispatch(setFilename(body.fileName || ""));
@@ -286,7 +288,8 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden()),
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 const mapStateToProps = ({ simpleSearch, detailedFileSearch, detailedApplicationSearch }: ReduxObject): SimpleSearchStateProps & { favFilesCount: number } => ({

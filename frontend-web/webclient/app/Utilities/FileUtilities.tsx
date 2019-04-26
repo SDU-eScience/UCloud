@@ -9,6 +9,7 @@ import { projectViewPage } from "Utilities/ProjectUtilities";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
+import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
 
 function initialSetup(operations: MoveCopyOperations) {
     resetFileSelector(operations);
@@ -16,7 +17,7 @@ function initialSetup(operations: MoveCopyOperations) {
 }
 
 async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
-    return !!(await rewritePolicy(newPath, homeFolder, filesRemaining)).value;
+    return !!(await rewritePolicy({ path: newPath, homeFolder, filesRemaining })).value;
 }
 
 function getNewPath(newParentPath: string, currentPath: string): string {
@@ -28,16 +29,24 @@ enum CopyOrMove {
     Copy
 }
 
-export function copyOrMove(operation: CopyOrMove, files: File[], operations: MoveCopyOperations, cloud: SDUCloud, setLoading: () => void): void {
+interface CopyOrMoveFiles extends AddSnackOperation {
+    operation: CopyOrMove
+    files: File[]
+    copyMoveOps: MoveCopyOperations
+    cloud: SDUCloud
+    setLoading: () => void
+}
+
+export function copyOrMoveFiles({ operation, files, copyMoveOps, cloud, setLoading, addSnack }: CopyOrMoveFiles): void {
     const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
     let successes = 0, failures = 0, pathToFetch = "";
-    operations.showFileSelector(true);
-    operations.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
-    operations.setFileSelectorCallback(async (targetPathFolder: File) => {
-        let { failurePaths, applyToAll, policy } = initialSetup(operations);
+    copyMoveOps.showFileSelector(true);
+    copyMoveOps.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
+    copyMoveOps.setFileSelectorCallback(async (targetPathFolder: File) => {
+        let { failurePaths, applyToAll, policy } = initialSetup(copyMoveOps);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
-            let { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
+            let { exists, allowRewrite, newPathForFile } = await moveCopySetup({ targetPath: targetPathFolder.path, path: f.path, cloud });
             if (exists && !applyToAll) {
                 allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
                 policy = UF.selectValue("policy") as UploadPolicy;
@@ -49,32 +58,53 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
                 if (UF.inSuccessRange(request.request.status)) {
                     successes++;
                     pathToFetch = newPathForFile;
-                    if (request.request.status === 202) UF.successNotification(`Operation for ${f.path} is in progress.`)
+                    if (request.request.status === 202) addSnack({
+                        message: `Operation for ${f.path} is in progress.`,
+                        type: SnackType.Success
+                    })
                 } else {
                     failures++;
                     failurePaths.push(getFilenameFromPath(f.path))
-                    UF.failureNotification(`An error occurred ${operation === CopyOrMove.Copy ? "copying" : "moving"} ${f.path}`)
+                    addSnack({
+                        message: `An error occurred ${operation === CopyOrMove.Copy ? "copying" : "moving"} ${f.path}`,
+                        type: SnackType.Failure
+                    });
                 }
             }
-        };
+        }
         if (successes) {
             setLoading();
-            if (policy === UploadPolicy.RENAME) operations.fetchFilesPage(getParentPath(pathToFetch));
-            else operations.fetchPageFromPath(pathToFetch);
+            if (policy === UploadPolicy.RENAME) copyMoveOps.fetchFilesPage(getParentPath(pathToFetch));
+            else copyMoveOps.fetchPageFromPath(pathToFetch);
         }
-        if (!failures && successes) onOnlySuccess(operation === CopyOrMove.Copy ? "Copied" : "Moved", files.length);
-        else if (failures) UF.failureNotification(`Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`, 10);
+        if (!failures && successes) onOnlySuccess({ operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: files.length, addSnack });
+        else if (failures)
+            addSnack({
+                message: `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`,
+                type: SnackType.Failure
+            });
     });
 };
 
-async function moveCopySetup(targetPath: string, path: string, cloud: SDUCloud) {
+interface MoveCopySetup {
+    targetPath: string
+    path: string
+    cloud: SDUCloud
+}
+
+async function moveCopySetup({ targetPath, path, cloud }: MoveCopySetup) {
     const newPathForFile = getNewPath(targetPath, path);
     const exists = await checkIfFileExists(newPathForFile, cloud);
     return { exists, allowRewrite: false, newPathForFile };
 }
 
-function onOnlySuccess(operation: string, fileCount: number) {
-    UF.successNotification(`${operation} ${fileCount} files`);
+interface OnOnlySuccess extends AddSnackOperation {
+    operation: string
+    fileCount: number
+}
+
+function onOnlySuccess({ operation, fileCount, addSnack }: OnOnlySuccess) {
+    addSnack({ message: `${operation} ${fileCount} files`, type: SnackType.Success });
 }
 
 interface ResetFileSelector {
@@ -98,7 +128,13 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
     }
 }
 
-function rewritePolicy(path: string, homeFolder: string, filesRemaining: number): Promise<SweetAlertResult> {
+interface RewritePolicy {
+    path: string
+    homeFolder: string
+    filesRemaining: number
+}
+
+function rewritePolicy({ path, homeFolder, filesRemaining }: RewritePolicy): Promise<SweetAlertResult> {
     return swal({
         title: "File exists",
         text: ``,
@@ -107,8 +143,8 @@ function rewritePolicy(path: string, homeFolder: string, filesRemaining: number)
                         <option value="RENAME">Rename</option>
                         <option value="OVERWRITE">Overwrite</option>
                     </select>
-                ${ filesRemaining > 1 ? `<br/>
-                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""} `,
+                ${filesRemaining > 1 ? `<br/>
+                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""}`,
         allowEscapeKey: true,
         allowOutsideClick: true,
         allowEnterKey: false,
@@ -121,11 +157,8 @@ function rewritePolicy(path: string, homeFolder: string, filesRemaining: number)
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
     const paths = files.map(it => it.path);
-    // FIXME Very slow
     page.items.forEach(file => {
-        if (paths.some(p => p === file.path)) {
-            file.beingRenamed = true
-        }
+        if (paths.includes(file.path)) file.beingRenamed = true
     });
     return page;
 }
@@ -143,23 +176,40 @@ const hasAccess = (accessRight: AccessRight, file: File) => {
 export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) =>
     files.every(f => hasAccess(accessRight, f));
 
-export const createFileLink = (file: File, cloud: SDUCloud, setLoading: () => void, pageFromPath: (p: string) => void) => {
+
+interface CreateFileLink extends AddSnackOperation {
+    file: File
+    cloud: SDUCloud
+    setLoading: () => void
+    fetchPageFromPath: (p: string) => void
+}
+
+export const createFileLink = async ({ file, cloud, setLoading, fetchPageFromPath, addSnack }: CreateFileLink) => {
     const fileName = getFilenameFromPath(file.path);
     const linkPath = file.path.replace(fileName, `Link to ${fileName} `)
     setLoading();
-    cloud.post("/files/create-link", {
-        linkTargetPath: file.path,
-        linkPath: linkPath
-    }).then(it => pageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
+    try {
+        await cloud.post("/files/create-link", {
+            linkTargetPath: file.path,
+            linkPath
+        });
+        fetchPageFromPath(linkPath);
+    } catch {
+        addSnack({ message: "An error occurred creating link.", type: SnackType.Failure });
+    }
 };
 
+interface StateLessOperations extends AddSnackOperation {
+    setLoading: () => void
+    onSensitivityChange?: () => void
+}
 /**
  * @returns Stateless operations for files
  */
-export const StateLessOperations = (setLoading: () => void, onSensitivityChange?: () => void): Operation[] => [
+export const StateLessOperations = ({ setLoading, onSensitivityChange, addSnack }: StateLessOperations): Operation[] => [
     {
         text: "Share",
-        onClick: (files: File[], cloud: SDUCloud) => shareFiles(files, setLoading, cloud),
+        onClick: (files: File[], cloud: SDUCloud) => shareFiles({ files, cloud, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files),
         icon: "share",
         color: undefined
@@ -173,42 +223,53 @@ export const StateLessOperations = (setLoading: () => void, onSensitivityChange?
     },
     {
         text: "Sensitivity",
-        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity(files, cloud, onSensitivityChange),
+        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity({ files, cloud, onSensitivityChange, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => false,
         icon: "verified",
         color: undefined
     },
     {
-        text: "To Clipholder",
-        onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard(files[0].path, `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`),
+        text: "Copy Path",
+        onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard({ value: files[0].path, message: `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => !UF.inDevEnvironment() || files.length !== 1,
         icon: "chat",
         color: undefined
     }
 ];
 
-export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void, setLoading: () => void) => [{
+interface CreateLinkOperation extends AddSnackOperation {
+    fetchPageFromPath: (p: string) => void
+    setLoading: () => void
+}
+
+export const CreateLinkOperation = ({ fetchPageFromPath, setLoading, addSnack }: CreateLinkOperation) => [{
     text: "Create link",
-    onClick: (files: File[], cloud: SDUCloud) => createFileLink(files[0], cloud, setLoading, fetchPageFromPath),
+    onClick: (files: File[], cloud: SDUCloud) => createFileLink({ file: files[0], cloud, setLoading, fetchPageFromPath, addSnack }),
     disabled: (files: File[], cloud: SDUCloud) => files.length > 1,
     icon: "link",
     color: undefined
 }]
 
+
+interface FileSelectorOperations {
+    fileSelectorOperations: MoveCopyOperations
+    setLoading: () => void
+    addSnack: (snack: Snack) => void
+}
 /**
  * @returns Move and Copy operations for files
  */
-export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations, setLoading: () => void): Operation[] => [
+export const FileSelectorOperations = ({ fileSelectorOperations, setLoading, addSnack }: FileSelectorOperations): Operation[] => [
     {
         text: "Copy",
-        onClick: (files: File[], cloud: SDUCloud) => copyOrMove(CopyOrMove.Copy, files, fileSelectorOperations, cloud, setLoading),
+        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({ operation: CopyOrMove.Copy, files, copyMoveOps: fileSelectorOperations, cloud, setLoading, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files),
         icon: "copy",
         color: undefined
     },
     {
         text: "Move",
-        onClick: (files: File[], cloud: SDUCloud) => copyOrMove(CopyOrMove.Move, files, fileSelectorOperations, cloud, setLoading),
+        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({ operation: CopyOrMove.Move, files, copyMoveOps: fileSelectorOperations, cloud, setLoading, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)),
         icon: "move",
         color: undefined
@@ -218,56 +279,64 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
 export const archiveExtensions: string[] = [".tar.gz", ".zip"]
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
+
+interface ExtractionOperation extends AddSnackOperation {
+    onFinished: () => void
+}
+
 /**
  * 
  * @param onFinished called when extraction is completed successfully.
  */
-export const ExtractionOperation = (onFinished: () => void): Operation[] => [
+export const ExtractionOperation = ({ onFinished, addSnack }: ExtractionOperation): Operation[] => [
     {
         text: "Extract archive",
-        onClick: (files, cloud) => extractArchive(files, cloud, onFinished),
+        onClick: (files, cloud) => extractArchive({ files, cloud, onFinished, addSnack }),
         disabled: (files, cloud) => !files.every(it => isArchiveExtension(it.path)),
         icon: "open",
         color: undefined
     }
 ];
 
+
+interface MoveFileToTrashOperation extends AddSnackOperation {
+    onMoved: () => void
+    setLoading: () => void
+}
 /**
  * 
  * @param onMoved To be called on completed deletion of files
  * @returns the Delete operation in an array
  */
-export const MoveFileToTrashOperation = (onMoved: () => void, setLoading: () => void): Operation[] => [
+export const MoveFileToTrashOperation = ({ onMoved, setLoading, addSnack }: MoveFileToTrashOperation): Operation[] => [
     {
         text: "Move to Trash",
-        onClick: (files, cloud) => moveToTrash(files, cloud, setLoading, onMoved),
+        onClick: (files, cloud) => moveToTrash({ files, cloud, setLoading, callback: onMoved, addSnack }),
         disabled: (files: File[], cloud: SDUCloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({ path }) => inTrashDir(path, cloud))),
         icon: "trash",
         color: "red"
     },
     {
         text: "Delete Files",
-        onClick: (files, cloud) => batchDeleteFiles(files, cloud, setLoading, onMoved),
+        onClick: (files, cloud) => batchDeleteFiles({ files, cloud, setLoading, callback: onMoved, addSnack }),
         disabled: (files, cloud) => !files.every(f => getParentPath(f.path) === cloud.trashFolder),
         icon: "trash",
         color: "red"
     }
 ];
 
-export const ClearTrashOperations = (toHome: () => void): Operation[] => [
-    {
-        text: "Clear Trash",
-        onClick: (files, cloud) => clearTrash(cloud, toHome),
-        disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
-        icon: "trash",
-        color: "red"
-    }
-];
+export const ClearTrashOperations = (toHome: () => void): Operation[] => [{
+    text: "Clear Trash",
+    onClick: (files, cloud) => clearTrash(cloud, toHome),
+    disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
+    icon: "trash",
+    color: "red"
+}];
 
 /**
  * @returns Properties and Project Operations for files.
  */
-export const HistoryFilesOperations = (history: History): FileOperation[] => {
+export const HistoryFilesOperations = (history: History, addSnack: (snack: Snack) => void): FileOperation[] => {
     let ops: FileOperation[] = [{
         text: "Properties",
         onClick: (files: File[], cloud: SDUCloud) => history.push(fileInfoPage(files[0].path)),
@@ -287,11 +356,12 @@ export const HistoryFilesOperations = (history: History): FileOperation[] => {
             onFalse: {
                 text: "Create Project",
                 onClick: (files: File[], cloud: SDUCloud) =>
-                    UF.createProject(
-                        files[0].path,
+                    UF.createProject({
+                        filePath: files[0].path,
                         cloud,
-                        projectPath => history.push(projectViewPage(projectPath))
-                    ),
+                        navigate: projectPath => history.push(projectViewPage(projectPath)),
+                        addSnack
+                    }),
                 disabled: (files: File[], cloud: SDUCloud) =>
                     files.length !== 1 || !canBeProject(files, cloud.homeFolder) ||
                     !allFilesHasAccessRight("READ", files) || !allFilesHasAccessRight("WRITE", files),
@@ -307,9 +377,9 @@ export const filePreviewPage = (path: string) => `/files/preview?path=${encodeUR
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
 
-interface AllFileOperations {
+interface AllFileOperations extends AddSnackOperation {
     stateless?: boolean,
-    fileSelectorOps?: MoveCopyOperations
+    fileSelectorOperations?: MoveCopyOperations
     onDeleted?: () => void
     onExtracted?: () => void
     onClearTrash?: () => void
@@ -319,23 +389,24 @@ interface AllFileOperations {
 }
 export function allFileOperations({
     stateless,
-    fileSelectorOps,
+    fileSelectorOperations,
     onDeleted,
     onExtracted,
     onClearTrash,
     history,
     setLoading,
-    onSensitivityChange
+    onSensitivityChange,
+    addSnack
 }: AllFileOperations) {
-    const stateLessOperations = stateless ? StateLessOperations(setLoading, onSensitivityChange) : [];
-    const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps, setLoading) : [];
-    const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
+    const stateLessOperations = stateless ? StateLessOperations({ setLoading, addSnack, onSensitivityChange }) : [];
+    const fileSelectorOps = !!fileSelectorOperations ? FileSelectorOperations({ fileSelectorOperations, setLoading, addSnack }) : [];
+    const deleteOperation = !!onDeleted ? MoveFileToTrashOperation({ onMoved: onDeleted, setLoading, addSnack }) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
-    const historyOperations = !!history ? HistoryFilesOperations(history) : [];
-    const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
+    const historyOperations = !!history ? HistoryFilesOperations(history, addSnack) : [];
+    const extractionOperations = !!onExtracted ? ExtractionOperation({ onFinished: onExtracted, addSnack }) : [];
     return [
         ...stateLessOperations,
-        ...fileSelectorOperations,
+        ...fileSelectorOps,
         ...deleteOperation,
         ...extractionOperations,        // ...clearTrash,
         ...historyOperations,
@@ -405,17 +476,25 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
     isMockFolder: true
 });
 
+interface IsInvalidPathname extends AddSnackOperation {
+    path: string
+    filePaths: string[]
+}
+
 /**
  * Checks if a pathname is legal/already in use
  * @param {string} path The path being tested
  * @param {string[]} filePaths the other file paths path is being compared against
  * @returns whether or not the path is invalid
  */
-export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
-    if (["..", "/"].some((it) => path.includes(it))) { UF.failureNotification("Folder name cannot contain '..' or '/'"); return true }
-    if (path === "" || path === ".") { UF.failureNotification("Folder name cannot be empty or be \".\""); return true; }
+export const isInvalidPathName = ({ path, filePaths, addSnack }: IsInvalidPathname): boolean => {
+    if (["..", "/"].some((it) => path.includes(it))) { addSnack({ message: "Folder name cannot contain '..' or '/'", type: SnackType.Failure }); return true }
+    if (path === "" || path === ".") { addSnack({ message: "Folder name cannot be empty or be \".\"", type: SnackType.Failure }); return true; }
     const existingName = filePaths.some(it => it === path);
-    if (existingName) { UF.failureNotification("File with that name already exists"); return true; }
+    if (existingName) {
+        addSnack({ message: "File with that name already exists", type: SnackType.Failure });
+        return true;
+    }
     return false;
 };
 
@@ -472,11 +551,17 @@ export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<Fi
 
 const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
-export const reclassifyFile = async (file: File, sensitivity: SensitivityLevelMap, cloud: SDUCloud): Promise<File> => {
+interface ReclassifyFile extends AddSnackOperation {
+    file: File
+    sensitivity: SensitivityLevelMap
+    cloud: SDUCloud
+}
+
+export const reclassifyFile = async ({ file, sensitivity, cloud, addSnack }: ReclassifyFile): Promise<File> => {
     const serializedSensitivity = sensitivity === SensitivityLevelMap.INHERIT ? null : sensitivity;
     const callResult = await unwrap(cloud.post<void>("/files/reclassify", { path: file.path, sensitivity: serializedSensitivity }));
     if (isError(callResult)) {
-        UF.failureNotification((callResult as ErrorMessage).errorMessage)
+        addSnack({ message: (callResult as ErrorMessage).errorMessage, type: SnackType.Failure })
         return file;
     }
     return { ...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity };
@@ -504,19 +589,27 @@ export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callba
         if (result.dismiss) {
             return;
         } else {
-            cloud.delete("/files", { path: filePath }).then(() => callback ? callback() : null);
+            cloud.delete("/files", { path: filePath }).then(() => !!callback ? callback() : null);
         }
     });
 
 
-const extractFilesQuery = "/files/extract"
-export const extractArchive = (files: File[], cloud: SDUCloud, onFinished: () => void): void => {
+const extractFilesQuery = "/files/extract";
+interface ExtractArchive extends AddSnackOperation {
+    files: File[]
+    cloud: SDUCloud
+    onFinished: () => void
+}
+export const extractArchive = ({ files, cloud, onFinished, addSnack }: ExtractArchive): void => {
     files.forEach(async f => {
         try {
             await cloud.post(extractFilesQuery, { path: f.path });
-            UF.successNotification("File extracted");
+            addSnack({ message: "File extracted", type: SnackType.Success });
         } catch (e) {
-            UF.failureNotification(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));
+            addSnack({
+                message: UF.errorMessageOrDefault(e, "An error occurred extracting the file."),
+                type: SnackType.Failure
+            });
         }
     });
     onFinished();
@@ -575,12 +668,17 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
         }));
 }
 
+interface UpdateSensitivty extends AddSnackOperation {
+    files: File[]
+    cloud: SDUCloud
+    onSensitivityChange?: () => void
+}
 
-function updateSensitivity(files: File[], cloud: SDUCloud, onSensitivityChange?: () => void) {
+function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivty) {
     UF.sensitivitySwal().then(input => {
         if (!!input.dismiss) return;
         Promise.all(
-            files.map(file => reclassifyFile(file, input.value as SensitivityLevelMap, cloud))
+            files.map(file => reclassifyFile({ file, sensitivity: input.value as SensitivityLevelMap, cloud, addSnack }))
         ).catch(e =>
             UF.errorMessageOrDefault(e, "Could not reclassify file")
         ).then(() => !!onSensitivityChange ? onSensitivityChange() : null);
@@ -611,7 +709,8 @@ export const sizeToString = (bytes: number): string => {
     }
 };
 
-export const shareFiles = (files: File[], setLoading: () => void, cloud: SDUCloud) =>
+interface ShareFiles extends AddSnackOperation { files: File[], cloud: SDUCloud }
+export const shareFiles = ({ files, cloud, addSnack }: ShareFiles) =>
     UF.shareSwal().then(input => {
         if (input.dismiss) return;
         const rights: string[] = [];
@@ -624,8 +723,8 @@ export const shareFiles = (files: File[], setLoading: () => void, cloud: SDUClou
                 path,
                 rights
             };
-            cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) UF.successNotification("Files shared successfully") })
-                .catch(({ response }) => UF.failureNotification(`${response.why}`));
+            cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) addSnack({ message: "Files shared successfully", type: SnackType.Success }) })
+                .catch(({ response }) => addSnack({ message: `${response.why}`, type: SnackType.Failure }));
         });
     });
 
@@ -652,38 +751,63 @@ export const clearTrashSwal = () => {
     });
 };
 
+interface ResultToNotification extends AddSnackOperation {
+    failures: string[]
+    paths: string[]
+    homeFolder: string
+}
 
-function resultToNotification(failures: string[], paths: string[], homeFolder: string) {
+function resultToNotification({ failures, paths, homeFolder, addSnack }: ResultToNotification) {
     const successMessage = successResponse(paths, homeFolder);
-    if (failures.length === 0) UF.successNotification(successMessage);
-    else if (failures.length === paths.length) UF.failureNotification(`Failed moving all files, please try again later`, 5);
-    else UF.infoNotification(`${successMessage}\n Failed to move files: ${failures.join(", ")}`, 15);
+    if (failures.length === 0) addSnack({ message: successMessage, type: SnackType.Success });
+    else if (failures.length === paths.length) addSnack({ message: "Failed moving all files, please try again later", type: SnackType.Failure });
+    else addSnack({ message: `${successMessage}\n Failed to move files: ${failures.join(", ")}`, type: SnackType.Information });
 }
 
 const successResponse = (paths: string[], homeFolder: string) =>
     paths.length > 1 ? `${paths.length} files moved to trash.` : `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
 
 type Failures = { failures: string[] }
-export const moveToTrash = (files: File[], cloud: SDUCloud, setLoading: () => void, callback: () => void) => {
+interface MoveToTrash extends AddSnackOperation {
+    files: File[]
+    cloud: SDUCloud
+    setLoading: () => void
+    callback: () => void
+}
+export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: MoveToTrash) => {
     const paths = files.map(f => f.path);
     moveToTrashSwal(paths).then((result: any) => {
         if (result.dismiss) return;
         setLoading();
         cloud.post<Failures>("/files/trash/", { files: paths })
-            .then(({ response }) => (resultToNotification(response.failures, paths, cloud.homeFolder), callback()))
-            .catch(({ response }) => (UF.failureNotification(response.why), callback()));
+            .then(({ response }) => (resultToNotification({
+                failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack
+            }), callback()))
+            .catch(({ response }) => (addSnack({ message: response.why, type: SnackType.Failure }), callback()));
     });
 };
 
-export const batchDeleteFiles = (files: File[], cloud: SDUCloud, setLoading: () => void, callback: () => void) => {
+interface BatchDeleteFiles extends AddSnackOperation {
+    files: File[]
+    cloud: SDUCloud
+    setLoading: () => void
+    callback: () => void
+}
+
+export const batchDeleteFiles = ({ files, cloud, setLoading, callback, addSnack }: BatchDeleteFiles) => {
     const paths = files.map(f => f.path);
     deletionSwal(paths).then((result: any) => {
         if (result.dismiss) return;
         setLoading();
         let i = 0;
+        // FIXME: Rewrite using Promise.all
         paths.forEach(path => {
-            cloud.delete("/files", { path }).then(() => { if (++i === paths.length) { UF.successNotification("Trash emptied"); callback() } })
-                .catch(() => i++);
+            cloud.delete("/files", { path }).then(() => {
+                if (++i === paths.length) {
+                    addSnack({ message: "Trash emptied", type: SnackType.Success });
+                    callback();
+                }
+            }).catch(() => i++);
         });
     });
 };
@@ -702,22 +826,36 @@ const deletionSwal = (filePaths: string[]) => {
     });
 };
 
-export async function moveFile(oldPath: string, newPath: string, cloud: SDUCloud, setLoading: () => void, onSuccess: () => void): Promise<void> {
+interface MoveFile extends AddSnackOperation {
+    oldPath: string
+    newPath: string
+    cloud: SDUCloud
+    setLoading: () => void
+    onSuccess: () => void
+}
+
+export async function moveFile({ oldPath, newPath, cloud, setLoading, onSuccess, addSnack }: MoveFile): Promise<void> {
     setLoading();
     try {
         await cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
         onSuccess();
     } catch {
-        UF.failureNotification("An error ocurred trying to rename the file.");
+        addSnack({ message: "An error ocurred trying to rename the file.", type: SnackType.Failure });
     }
 }
 
-export async function createFolder(path: string, cloud: SDUCloud, onSuccess: () => void): Promise<void> {
+interface CreateFolder extends AddSnackOperation {
+    path: string
+    cloud: SDUCloud
+    onSuccess: () => void
+}
+
+export async function createFolder({ path, cloud, onSuccess, addSnack }: CreateFolder): Promise<void> {
     try {
         await cloud.post("/files/directory", { path })
         onSuccess();
     } catch {
-        UF.failureNotification("An error ocurred trying to creating the file.");
+        addSnack({ message: "An error ocurred trying to creating the file.", type: SnackType.Failure });
     }
 }
 

@@ -1,0 +1,26 @@
+---
+application: v1
+
+title: Simple File
+name: simple-file
+version: 1.0.0
+
+tool:
+  name: figlet
+  version: 1.0.0
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: >
+  Simple file!
+
+invocation:
+- figlet-count
+- type: var
+  vars: n
+ 
+parameters:
+  n:
+    title: File
+    type: input_file

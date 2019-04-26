@@ -6,6 +6,7 @@ import { Activity } from "Activity";
 import { ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
+import {AddSnackOperation} from "Snackbar/Snackbars";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -78,8 +79,8 @@ export interface FilesStateProps { // Redux Props
     responsive?: ResponsiveReduxObject 
 }
 
-export interface FilesOperations extends ClearRefresh {
-    prioritizeFileSearch: () => void
+export interface FilesOperations extends ClearRefresh, AddSnackOperation {
+    onInit: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
@@ -88,7 +89,6 @@ export interface FilesOperations extends ClearRefresh {
     fetchFileSelectorFavorites: (pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
     checkFile: (checked: boolean, path: string) => void
-    setPageTitle: () => void
     setLoading: (loading: boolean) => void
     updateFiles: (files: Page<File>) => void
     updatePath: (path: string) => void
@@ -98,17 +98,18 @@ export interface FilesOperations extends ClearRefresh {
     showUploader: () => void
     setUploaderCallback: (callback: (s: string) => void) => void
     createFolder: () => void
-    setActivePage: () => void
 }
 
 export interface FileSelectorProps {
     allowUpload?: boolean
     inputRef?: React.RefObject<HTMLInputElement>
+    showError?: boolean
     onFileSelect: (file: { path: string }) => void
     path: string
     isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
+    unitName?: string
     remove?: () => void
 }
 

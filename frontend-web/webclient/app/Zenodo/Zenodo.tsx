@@ -19,6 +19,7 @@ import { ReduxObject } from "DefaultObjects";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Spacer } from "ui-components/Spacer";
 import { EntriesPerPageSelector } from "Pagination";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 type Props = ZenodoHomeProps & ZenodoOperations
 class ZenodoHome extends React.Component<Props, ZenodoHomeState> {
@@ -52,14 +53,14 @@ class ZenodoHome extends React.Component<Props, ZenodoHomeState> {
     render() {
         const { connected, loading, fetchPublications, page, error, onErrorDismiss } = this.props;
         if (!connected && !loading) {
-            return (<MainContainer main={<NotConnectedToZenodo />} />);
+            return (<MainContainer main={<NotConnectedToZenodo addSnack={this.props.addSnack} />} />);
         } else {
             return (
                 <MainContainer
                     header={<Spacer left={<Box><Heading.h2>Upload progress</Heading.h2>
                         <Heading.h5>Connected to Zenodo</Heading.h5></ Box>}
                         right={<EntriesPerPageSelector
-                            onChange={itemsPerPage => fetchPublications(page.pageNumber, itemsPerPage)}
+                            onChange={itemsPerPage => fetchPublications(0, itemsPerPage)}
                             content="Publications per page"
                             entriesPerPage={page.itemsPerPage}
                         />}
@@ -130,7 +131,8 @@ const mapDispatchToProps = (dispatch: Dispatch): ZenodoOperations => ({
         dispatch(await fetchPublications(pageNo, pageSize))
     },
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Overview")),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 const mapStateToProps = (state: ReduxObject): ZenodoHomeStateProps => state.zenodo;

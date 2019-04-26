@@ -1,4 +1,4 @@
-import * as React from "react";
+/* import * as React from "react";
 import Icon from "./Icon";
 import { ButtonProps, default as Button } from "./Button";
 import { ThemeColor } from "./theme";
@@ -11,4 +11,4 @@ const LoadingButton = ({ loading, ...props }: ButtonProps & { loading: boolean, 
         {props.content}{props.children}
     </Button>
 
-export default LoadingButton;
+export default LoadingButton; */

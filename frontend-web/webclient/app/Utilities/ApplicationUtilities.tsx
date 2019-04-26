@@ -1,8 +1,9 @@
-import { failureNotification } from "UtilityFunctions";
+import { removeTrailingSlash } from "UtilityFunctions";
 import { ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
-import { getFilenameFromPath, expandHomeFolder } from "./FileUtilities";
+import { expandHomeFolder } from "./FileUtilities";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -20,29 +21,46 @@ export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
 export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
-export const hpcApplicationsSearchQuery = (query: string, page: number, itemsPerPage: number) =>
+interface HPCApplicationsSearchQuery { query: string, page: number, itemsPerPage: number }
+export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }): string =>
     `/hpc/apps/search?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
-export const hpcApplicationsTagSearchQuery = (tag: string, page: number, itemsPerPage: number) =>
-    `/hpc/apps/searchTags?query=${encodeURIComponent(tag)}&page=${page}&itemsPerPage=${itemsPerPage}`;
+export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
+    `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
+
+interface FavoriteApplicationFromPage extends AddSnackOperation {
+    name: string
+    version: string
+    page: Page<WithAppMetadata & WithAppFavorite>
+    cloud: Cloud
+}
 /**
 * Favorites an application. 
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = async (name: string, version: string, page: Page<WithAppMetadata & WithAppFavorite>, cloud: Cloud): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
+export const favoriteApplicationFromPage = async ({ name, version, page, cloud, addSnack }: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     // FIXME better error handling. Pass as callback, call on success?
     try {
-        await cloud.post(hpcFavoriteApp(name, version)).catch(() => failureNotification(`An error ocurred favoriting ${name}`));
+        await cloud.post(hpcFavoriteApp(name, version));
         a.favorite = !a.favorite;
-    } catch { }
+    } catch {
+        addSnack({ message: `An error ocurred favoriting ${name}`, type: SnackType.Failure });
+    }
     return page;
 }
 
+type StringMap = { [k: string]: string } 
 interface AllowedParameterKey { name: string, type: ParameterTypes }
-export const extractParameters = (parameters, allowedParameterKeys: AllowedParameterKey[], siteVersion: number): { [key: string]: string } => {
+interface ExtractParameters {
+    parameters: StringMap
+    allowedParameterKeys: AllowedParameterKey[]
+    siteVersion: number
+}
+
+export const extractParameters = ({ parameters, allowedParameterKeys, siteVersion }: ExtractParameters): StringMap => {
     let extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({ name, type }) => {
@@ -69,7 +87,7 @@ const compareType = (type: ParameterTypes, parameter: string): boolean => {
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
             return typeof parameter === "string";
-            
+
     }
 }
 
@@ -79,11 +97,18 @@ interface ExtractedParameters {
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
 
-export function extractParametersFromMap(map: ParameterValues, appParameters: ApplicationParameter[], cloud: Cloud): ExtractedParameters {
+interface ExtractParametersFromMap {
+    map: ParameterValues
+    appParameters: ApplicationParameter[]
+    cloud: Cloud
+}
+
+export function extractParametersFromMap({ map, appParameters, cloud }: ExtractParametersFromMap): ExtractedParameters {
     const extracted: ExtractedParameters = {};
     map.forEach(({ current }, key) => {
         const parameter = appParameters.find(it => it.name === key);
         if (!current) return;
+        if (!current.value || !current.checkValidity()) return;
         if (!parameter) return;
         switch (parameter.type) {
             case ParameterTypes.InputDirectory:
@@ -91,7 +116,7 @@ export function extractParametersFromMap(map: ParameterValues, appParameters: Ap
                 const expandedValue = expandHomeFolder(current.value, cloud.homeFolder)
                 extracted[key] = {
                     source: expandedValue,
-                    destination: getFilenameFromPath(expandedValue)
+                    destination: removeTrailingSlash(expandedValue).split("/").pop()!
                 };
                 return;
             case ParameterTypes.Boolean:

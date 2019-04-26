@@ -3,7 +3,7 @@ import * as Modal from "react-modal";
 import { Text, Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import Dropzone from "react-dropzone";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal, inRange, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, prettierString, timestampUnixMs, overwriteSwal, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
 import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -23,6 +23,8 @@ import { File as SDUCloudFile } from "Files";
 import { Refresh } from "Navigation/Header";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Error from "ui-components/Error";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { SnackType } from "Snackbar/Snackbars";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -66,9 +68,10 @@ class Uploader extends React.Component<UploaderProps> {
 
     private readonly MAX_CONCURRENT_UPLOADS = 5;
 
-    private onFilesAdded = async (files: File[]) => {
-        if (files.some(it => it.size === 0)) infoNotification("It is not possible to upload empty files.");
-        if (files.some(it => it.name.length > 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
+    private onFilesAdded = async (files: File[]): Promise<void> => {
+        const { addSnack } = this.props;
+        if (files.some(it => it.size === 0)) addSnack({ message: "It is not possible to upload empty files.", type: SnackType.Information });
+        if (files.some(it => it.name.length > 1025)) addSnack({ message: "Filenames can't exceed a length of 1024 characters.", type: SnackType.Information });
         const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it, this.props.location));
         if (filteredFiles.length == 0) return;
 
@@ -92,7 +95,12 @@ class Uploader extends React.Component<UploaderProps> {
 
     private beforeUnload = (e: { returnValue: string; }) => {
         e.returnValue = "foo";
-        uploadsNotifications(finishedUploads(this.props.uploads), this.props.uploads.length)
+        const finished = finishedUploads(this.props.uploads);
+        const total = this.props.uploads.length;
+        this.props.addSnack({ 
+            message: `${finished} out of ${total} files uploaded`,
+            type: SnackType.Information
+        });
         return e;
     }
 
@@ -106,10 +114,10 @@ class Uploader extends React.Component<UploaderProps> {
 
     private onUploadFinished(upload: Upload, xhr: XMLHttpRequest) {
         xhr.onloadend = () => {
-            if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
+            if (uploadsFinished(this.props.uploads))
                 window.removeEventListener("beforeunload", this.beforeUnload);
+            if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads))
                 this.props.onFilesUploaded(this.props.location);
-            }
             this.props.setUploads(this.props.uploads);
             this.startPending();
         }
@@ -135,29 +143,33 @@ class Uploader extends React.Component<UploaderProps> {
         }
 
         if (!upload.extractArchive) {
-            multipartUpload(
-                `${upload.parentPath}/${upload.file.name}`,
-                upload.file,
-                upload.sensitivity,
-                upload.resolution,
-                e => {
+            multipartUpload({
+                location: `${upload.parentPath}/${upload.file.name}`,
+                file: upload.file,
+                sensitivity: upload.sensitivity,
+                policy: upload.resolution,
+                onProgress: e => {
                     addProgressEvent(upload, e);
                     this.props.setUploads(this.props.uploads);
                 },
-                err => setError(err)
-            ).then(xhr => this.onUploadFinished(upload, xhr)); // FIXME Add error handling
+                onError: err => setError(err),
+                addSnack: snack => this.props.addSnack(snack)
+            }).then(xhr => this.onUploadFinished(upload, xhr))
+                .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         } else {
-            bulkUpload(
-                upload.parentPath,
-                upload.file,
-                upload.sensitivity,
-                upload.resolution,
-                e => {
+            bulkUpload({
+                location: upload.parentPath,
+                file: upload.file,
+                sensitivity: upload.sensitivity,
+                policy: upload.resolution,
+                onProgress: e => {
                     addProgressEvent(upload, e);
                     this.props.setUploads(this.props.uploads);
                 },
-                err => setError(err)
-            ).then(xhr => this.onUploadFinished(upload, xhr)); // FIXME Add error handling
+                onError: err => setError(err),
+                addSnack: snack => this.props.addSnack(snack)
+            }).then(xhr => this.onUploadFinished(upload, xhr))
+                .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         }
     }
 
@@ -480,7 +492,8 @@ const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploads: uploads => dispatch(setUploads(uploads)),
     setUploaderError: err => dispatch(setUploaderError(err)),
     setUploaderVisible: visible => dispatch(setUploaderVisible(visible)),
-    setLoading: loading => dispatch(setLoading(loading))
+    setLoading: loading => dispatch(setLoading(loading)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect<UploaderStateProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);

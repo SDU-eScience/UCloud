@@ -16,5 +16,4 @@ export interface TwoFactorSetupState {
     qrCode?: string
     verificationCode: string
     isConnectedToAccount?: boolean
-    isLoading: boolean
 }

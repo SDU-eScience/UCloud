@@ -3,7 +3,6 @@ package dk.sdu.cloud.service
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.eventStreamService
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -39,16 +38,13 @@ val CommonServer.isRunning: Boolean
     }
 
 fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
-    launch(Dispatchers.Default) {
-        log.info("Starting Event Stream Services")
-        try {
-            micro.eventStreamService.start()
-            log.info("Done?")
-        } catch (ex: Exception) {
-            log.error("Caught fatal exception in Event Stream Services")
-            log.error(ex.stackTraceToString())
-            stopServices()
-        }
+    log.info("Starting Event Stream Services")
+    try {
+        micro.eventStreamService.start()
+    } catch (ex: Exception) {
+        log.error("Caught fatal exception in Event Stream Services")
+        log.error(ex.stackTraceToString())
+        stopServices()
     }
 
     val serverFeature = micro.featureOrNull(ServerFeature)
@@ -82,7 +78,5 @@ fun CommonServer.stopServices() {
         serverFeature.server.stop()
     }
 
-    runBlocking {
-        micro.eventStreamService.stop()
-    }
+    micro.eventStreamService.stop()
 }

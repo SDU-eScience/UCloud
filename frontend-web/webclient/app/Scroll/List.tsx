@@ -1,8 +1,7 @@
 import * as React from "react";
 import { ScrollResult, ScrollRequest, ScrollSize } from "./Types";
-import { Error, LoadingButton, Flex, Box } from "ui-components";
+import { Error, Flex, Button } from "ui-components";
 import * as Heading from "ui-components/Heading";
-import { timestampUnixMs } from "UtilityFunctions";
 
 interface ListProps<Item, OffsetType> {
     scroll?: ScrollResult<Item, OffsetType>
@@ -244,11 +243,10 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         const { loading } = this.props;
 
         return <Flex justifyContent={"center"}>
-            <LoadingButton
+            <Button
                 onClick={() => this.requestMore(true)}
-                loading={loading}
-                content={"Load more"}
-            />
+                disabled={loading}
+            >Load more</Button>
         </Flex>;
     }
 

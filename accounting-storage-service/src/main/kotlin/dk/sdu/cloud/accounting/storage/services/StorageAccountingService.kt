@@ -112,7 +112,9 @@ class StorageAccountingService<DBSession>(
         val returnList = db.withTransaction {
             dao.findAllList(it, context, user)
         }
-        if (returnList.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        if (returnList.isEmpty()) {
+            log.debug("No Events recorded yet.")
+        }
         return returnList
     }
 

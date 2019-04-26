@@ -15,6 +15,10 @@ function findpodjson() {
     kubectl get pods --all-namespaces --selector=app=$1 -o json | json items[0].metadata
 }
 
+function findpodpostgres() {
+    kubectl get pods --all-namespaces --selector=component=stolon-proxy -o json | json items[0].metadata
+}
+
 # Verify requirements
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export PATH=$PATH:$SCRIPT_DIR
@@ -45,7 +49,7 @@ if test "$#" -lt 1; then
 fi
 
 # Find postgres
-pod=`findpodjson postgresql`
+pod=`findpodpostgres`
 name=`echo $pod | json name`
 namespace=`echo $pod | json namespace`
 
@@ -68,10 +72,13 @@ echo "Password is: $password"
 
 confirm;
 
-tokens=`sducloud POST https://cloud.sdu.dk/auth/users/register username=_$service_name password=dummy role=SERVICE | json`
+tokens=`sducloud POST https://cloud.sdu.dk/auth/users/register username=_$service_name password=dummy role=SERVICE | json .[0]`
 refreshToken=`echo $tokens | json refreshToken`
-kubectl exec -t -n $namespace $name -- psql -c "create user $db_user password '$password';"
-kubectl exec -t -n $namespace $name -- psql -c "create schema $schema authorization $db_user;"
+
+echo "PSQL SU Password:"
+read -s psqlpwd;
+kubectl exec -t -n $namespace $name -- psql -c "create user \"${db_user}\" password '$password';" postgresql://stolon:${psqlpwd}@localhost/postgres
+kubectl exec -t -n $namespace $name -- psql -c "create schema \"$schema\" authorization \"$db_user\";" postgresql://stolon:${psqlpwd}@localhost/postgres
 
 refreshFile=/tmp/refresh-`uuidgen`.yml
 cat > $refreshFile << EOF

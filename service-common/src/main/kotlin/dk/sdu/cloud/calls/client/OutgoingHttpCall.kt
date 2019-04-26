@@ -17,7 +17,7 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.call.receive
-import io.ktor.client.engine.apache.Apache
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.request.header
@@ -25,6 +25,7 @@ import io.ktor.client.request.url
 import io.ktor.client.response.HttpResponse
 import io.ktor.client.utils.EmptyContent
 import io.ktor.http.ContentType
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
@@ -51,7 +52,7 @@ class OutgoingHttpCall(val builder: KtorHttpRequestBuilder) : OutgoingCall {
 class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCall, OutgoingHttpCall.Companion> {
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
 
-    private val httpClient = HttpClient(Apache) {
+    private val httpClient = HttpClient(OkHttp) {
         install(JsonFeature) {
             serializer = JacksonSerializer()
         }
@@ -106,6 +107,23 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                 body = http.serializeBody(request, call)
                 http.serializeHeaders(request, call).forEach { (name, value) ->
                     header(name, value)
+                }
+
+                if (request is HttpClientConverter.OutgoingCustomHeaders) {
+                    request.clientAddCustomHeaders(call).forEach { (key, value) ->
+                        header(key, value)
+                    }
+                }
+
+                // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
+                if (body == EmptyContent && method in setOf(
+                        HttpMethod.Put,
+                        HttpMethod.Delete,
+                        HttpMethod.Post,
+                        HttpMethod.Patch
+                    )
+                ) {
+                    body = TextContent("Fix", ContentType.Text.Plain)
                 }
 
                 log.debug("[$callId] -> $url: $shortRequestMessage")
@@ -332,6 +350,10 @@ object HttpClientConverter {
 
     interface OutgoingHeader {
         fun clientOutgoingHeader(call: CallDescription<*, *, *>, headerName: String): String
+    }
+
+    interface OutgoingCustomHeaders {
+        fun clientAddCustomHeaders(call: CallDescription<*, *, *>): List<Pair<String, String>>
     }
 
     interface IngoingBody<T : Any> {

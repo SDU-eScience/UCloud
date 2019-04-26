@@ -11,7 +11,6 @@ import dk.sdu.cloud.micro.runScriptHandler
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(FileGatewayServiceDescription, args)
-        install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
     }
 

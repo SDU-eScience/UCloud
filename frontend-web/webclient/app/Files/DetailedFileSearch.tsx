@@ -7,7 +7,7 @@ import {
 import { DatePicker } from "ui-components/DatePicker";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Flex, Input, Label, Stamp, InputGroup, Checkbox, Error, OutlineButton, LoadingButton } from "ui-components";
+import { Flex, Input, Label, Stamp, InputGroup, Checkbox, Error, OutlineButton, Button } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { History } from "history";
 import { ReduxObject, KeyCode } from "DefaultObjects";
@@ -121,7 +121,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     render() {
         const { hidden, cantHide } = this.props;
         if (hidden && !cantHide) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
-        const { sensitivities, extensions, allowFiles, allowFolders } = this.props;
+        const { extensions, allowFiles, allowFolders } = this.props;
 
         return (
             <>
@@ -247,22 +247,21 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 placeholder={"Add extensions..."}
                             />
                             <ClickableDropdown
-                                width={"100%"}
+                                width="100%"
                                 chevron
                                 trigger={"Extension presets"}
                                 onChange={value => this.onAddPresets(value)}
                                 options={extensionPresets}
                             />
-                            <LoadingButton 
+                            <Button 
                                 type="submit" 
                                 fullWidth 
-                                loading={this.props.loading} 
+                                disabled={this.props.loading} 
                                 mt="1em" 
                                 mb={"1.5em"} 
                                 color={"blue"} 
                                 onClick={() => this.onSearch()} 
-                                content="Search" 
-                            />
+                            >Search</Button>
                         </form>
                     </Box>
                 </Flex>

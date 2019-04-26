@@ -1,7 +1,6 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.KafkaTopicFeatureConfiguration
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
@@ -11,7 +10,8 @@ import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 
 val SERVICE_USER = "_${StorageServiceDescription.name}"
-const val SERVICE_UNIX_USER = "storage" // Note: root is also supported. Should only be done in a container
+@Deprecated("No longer in use")
+const val SERVICE_UNIX_USER = "storage"
 
 data class StorageConfiguration(
     val filePermissionAcl: Set<String> = emptySet()
@@ -26,16 +26,13 @@ fun main(args: Array<String>) {
                 basePackages = listOf("dk.sdu.cloud.file.api")
             )
         )
-        install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
     }
 
     if (micro.runScriptHandler()) return
 
-    val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
-
     Server(
-        config,
+        micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration(),
         micro
     ).start()
 }

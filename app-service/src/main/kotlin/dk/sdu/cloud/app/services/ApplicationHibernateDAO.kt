@@ -150,6 +150,7 @@ class ApplicationHibernateDAO(
                     where a.name = b.name
                     group by a.name
                   )
+                order by a.name
                 """.trimIndent(),
                 ApplicationEntity::class.java
             )

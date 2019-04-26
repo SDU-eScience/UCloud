@@ -239,71 +239,6 @@ test("Download disallowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
 
-describe("Success swals", () => {
-
-    test("Success swal", () =>
-        UF.successNotification("title", 1)
-    );
-
-    test("Success swal, with defaults", () =>
-        UF.successNotification("title")
-    );
-});
-
-describe("Info Notification", () => {
-    test("Info Notification swal", () => {
-        const swal: any = UF.infoNotification("title", 5);
-        expect(swal.params).toEqual({
-            toast: true,
-            position: "top-end",
-            showConfirmButton: false,
-            timer: 5_000,
-            type: "info",
-            title: "title"
-        })
-    });
-
-    test("Info Notification swal, defaults", () => {
-        const swal: any = UF.infoNotification("title");
-        expect(swal.params).toEqual({
-            toast: true,
-            position: "top-end",
-            showConfirmButton: false,
-            timer: 3_000,
-            type: "info",
-            title: "title"
-        })
-    });
-})
-
-describe("Failure Notification swal", () => {
-    test("Failure notification", () => {
-        const swal: any = UF.failureNotification("title", 5);
-        expect(swal.params).toEqual({
-            toast: true,
-            position: "top-end",
-            showConfirmButton: false,
-            timer: 5_000,
-            type: "error",
-            title: "title"
-        })
-    });
-
-    test("Failure notification, defaults", () => {
-        const swal: any = UF.failureNotification("title");
-        expect(swal.params).toEqual({
-            toast: true,
-            position: "top-end",
-            showConfirmButton: false,
-            timer: 3_000,
-            type: "error",
-            title: "title"
-        })
-    });
-});
-
-
-
 test("shareSwal", () => {
     const swal: any = UF.shareSwal();
     expect(JSON.parse(JSON.stringify(swal.params))).toEqual(JSON.parse(JSON.stringify({
@@ -368,7 +303,7 @@ describe("If Present", () => {
         expect(fun).toBeCalled();
     });
 
-    test("Present", () => {
+    test("Not present", () => {
         const fun = jest.fn();
         UF.ifPresent(undefined, fun);
         expect(fun).toBeCalledTimes(0);
@@ -377,7 +312,7 @@ describe("If Present", () => {
 
 describe("defaultErrorHandler", () => {
     test.skip("Todo", () =>
-        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined })).toBe(0)
+        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined }, () => undefined)).toBe(0)
     );
 });
 

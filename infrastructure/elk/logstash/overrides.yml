@@ -7,9 +7,9 @@ elasticsearch:
   host: elasticsearch-client.elasticsearch.svc.cluster.local
 
 livenessProbe:
-  initialDelaySeconds: 60
+  initialDelaySeconds: 90
 readinessProbe:
-  initialDelaySeconds: 60
+  initialDelaySeconds: 90
 
 inputs:
   main: |-

@@ -21,7 +21,7 @@ const Notifications = (state: NotificationsReduxObject = initNotifications(), ac
         case NOTIFICATION_READ: {
             return {
                 ...state,
-                items: state.items.map((n) => {
+                items: state.items.map(n =>  {
                     if (n.id === action.payload.id) n.read = true;
                     return n;
                 })
@@ -30,13 +30,14 @@ const Notifications = (state: NotificationsReduxObject = initNotifications(), ac
         case READ_ALL: {
             return {
                 ...state,
-                items: state.items.map((n) => {
+                items: state.items.map(n => {
                     n.read = true;
                     return n;
                 })
             }
         }
         case NOTIFICATIONS_ERROR:
+            return { ...state, ...action.payload  }
         default: {
             return state;
         }

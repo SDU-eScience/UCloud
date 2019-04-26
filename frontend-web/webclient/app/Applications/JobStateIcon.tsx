@@ -1,6 +1,6 @@
 import * as React from "react";
 import { AppState } from "Applications";
-import Icon, { IconName, IconProps } from "ui-components/Icon";
+import Icon, { IconName } from "ui-components/Icon";
 import { ThemeColor, colors } from "ui-components/theme";
 import { SpaceProps } from "styled-system";
 

@@ -1,16 +1,18 @@
 package dk.sdu.cloud.app.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.bindToSubProperty
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.calls.types.StreamingRequest
+import dk.sdu.cloud.calls.types.BinaryStream
 import io.ktor.http.HttpMethod
 
 data class AddStatusJob(val id: String, val status: String)
@@ -25,7 +27,7 @@ data class SubmitComputationResult(
     val jobId: String,
     val filePath: String,
     val needsExtraction: Boolean?,
-    val fileData: StreamingFile
+    @JsonIgnore val fileData: BinaryStream
 )
 
 object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute") {
@@ -78,7 +80,7 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
      *
      * This can only happen while the job is in state [JobState.RUNNING]
      */
-    val submitFile = call<StreamingRequest<SubmitComputationResult>, Unit, CommonErrorMessage>("submitFile") {
+    val submitFile = call<SubmitComputationResult, Unit, CommonErrorMessage>("submitFileV2") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
@@ -92,7 +94,13 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
                 +"submit"
             }
 
-            body { bindEntireRequestFromBody() }
+            headers {
+                +boundTo("JobSubmit-Id", SubmitComputationResult::jobId)
+                +boundTo("JobSubmit-Path", SubmitComputationResult::filePath)
+                +boundTo("JobSubmit-Extraction", SubmitComputationResult::needsExtraction)
+            }
+
+            body { bindToSubProperty(SubmitComputationResult::fileData) }
         }
     }
 

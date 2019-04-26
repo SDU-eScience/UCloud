@@ -146,7 +146,7 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
 }
 
 const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
-    <Input ref={inputRef} autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
+    <Input ref={inputRef} autoComplete="off" autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
 ) : null;
 
 const Login = ({ enabled2fa, usernameRef, passwordRef }) => !enabled2fa ? (

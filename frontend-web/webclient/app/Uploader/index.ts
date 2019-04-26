@@ -3,6 +3,7 @@ export { Uploader };
 import { Sensitivity } from "DefaultObjects";
 import { File as SDUCloudFile } from "Files";
 import { UploadPolicy } from "./api";
+import { AddSnackOperation } from "Snackbar/Snackbars";
 
 
 export interface Upload {
@@ -31,7 +32,7 @@ export interface UploaderStateProps {
     onFilesUploaded?: (path: string) => void
 }
 
-export interface UploadOperations {
+export interface UploadOperations extends AddSnackOperation {
     setUploads: (uploads: Upload[]) => void
     setUploaderError: (err?: string) => void
     setUploaderVisible: (visible: boolean) => void

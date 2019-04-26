@@ -17,6 +17,7 @@ import styled from "styled-components";
 import { Refresh } from "Navigation/Header";
 import { Page } from "Types";
 import { SelectableText, SearchOptions } from "Search/Search";
+import { InputLabel } from "ui-components/Input";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -38,7 +39,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         let fileCopy = { path: file.path };
         this.setState(() => ({ modalShown: false }));
         this.props.onFileSelect(fileCopy);
-    }
+    };
 
     private fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
         this.setState(() => ({ loading: true }));
@@ -48,10 +49,10 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 path: resolvePath(path),
                 error: undefined,
                 isFavorites: false
-            }))
-        ).catch((_) => this.setState(() => ({ error: "An error occurred fetching files" })))
-            .finally(() => this.setState(() => ({ loading: false })))
-    }
+            })))
+        .catch(() => this.setState(() => ({ error: "An error occurred fetching files" })))
+        .finally(() => this.setState(() => ({ loading: false })))
+    };
 
     private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
         this.setState(() => ({ loading: true }));
@@ -71,25 +72,25 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     }
 
     render() {
-        const onUpload = () => {
-            if (!this.props.allowUpload) return;
-        };
+        const onUpload = () => { if (!this.props.allowUpload) return; };
         const path = this.props.path ? this.props.path : "";
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={() => this.props.remove!()} />) : null;
-        // FIXME: Not that readable.
-        const inputValue = this.props.inputRef && this.props.inputRef.current && this.props.inputRef.current.value || replaceHomeFolder(path, Cloud.homeFolder);
+        const inputRefValueOrNull = this.props.inputRef && this.props.inputRef.current && this.props.inputRef.current.value;
+        const inputValue = inputRefValueOrNull || replaceHomeFolder(path, Cloud.homeFolder);
         return (
             <Flex>
                 <FileSelectorInput
-                    ref={this.props.inputRef}
-                    readOnly
+                    showError={this.props.showError && this.props.isRequired}
+                    ref={this.props.inputRef} 
                     required={this.props.isRequired}
                     placeholder="No file selected"
                     value={inputValue}
+                    rightLabel={!!this.props.unitName}
                     onChange={() => undefined}
                     onClick={() => this.setState(() => ({ modalShown: true }))}
                 />
+                {this.props.unitName ? <InputLabel rightLabel>{this.props.unitName}</InputLabel> : null}
                 {uploadButton}
                 {removeButton}
                 <FileSelectorModal
@@ -122,7 +123,7 @@ const FileSelectorModalStyle = {
         left: "25%",
         right: "25%"
     }
-}
+};
 
 export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => {
     const fetchFiles = (settings: { path?: string, pageNumber?: number, itemsPerPage?: number }) => {
@@ -131,7 +132,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
         const itemsPerPage = settings.itemsPerPage !== undefined ? settings.itemsPerPage : props.page.itemsPerPage;
 
         props.fetchFiles(path, pageNumber, itemsPerPage);
-    }
+    };
 
     return (
         <ReactModal
@@ -202,7 +203,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             />
         </ReactModal>
     );
-}
+};
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;

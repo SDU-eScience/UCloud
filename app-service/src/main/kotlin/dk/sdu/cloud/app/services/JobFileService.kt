@@ -1,25 +1,20 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.app.api.ComputationDescriptions
+import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.ClientAndBackend
-import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.calls.types.StreamingRequest
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.ExtractRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.UploadRequest
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.defaultForFilePath
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.ByteReadChannel
 import java.io.File
 import java.time.LocalDateTime
@@ -28,18 +23,19 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 class JobFileService(
-    private val client: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient
 ) {
     private fun AuthenticatedClient.bearerAuth(token: String): AuthenticatedClient {
         return ClientAndBackend(client, companion).bearerAuth(token)
     }
 
     suspend fun initializeResultFolder(
-        jobWithToken: VerifiedJobWithAccessToken
+        jobWithToken: VerifiedJobWithAccessToken,
+        isReplay: Boolean = false
     ) {
         val (job, accessToken) = jobWithToken
 
-        val userCloud = client.bearerAuth(accessToken)
+        val userCloud = serviceClient.bearerAuth(accessToken)
 
         val path = jobFolder(job)
         FileDescriptions.createDirectory.call(
@@ -47,10 +43,18 @@ class JobFileService(
             userCloud
         )
 
-        FileDescriptions.createDirectory.call(
+        val dirResp = FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path, null),
             userCloud
-        ).orThrow()
+        ).throwIfInternal()
+
+        if (!dirResp.statusCode.isSuccess()) {
+            // We allow conflicts during replay
+            if (isReplay && dirResp.statusCode == HttpStatusCode.Conflict) return
+
+            // Throw if we didn't allow this case
+            throw RPCException.fromStatusCode(dirResp.statusCode)
+        }
     }
 
     suspend fun acceptFile(
@@ -82,20 +86,17 @@ class JobFileService(
                 ?: SensitivityLevel.PRIVATE
 
         val (_, accessToken) = jobWithToken
-        MultiPartUploadDescriptions.upload.call(
-            StreamingRequest.Outgoing(
-                UploadRequest(
-                    location = destPath.path,
-                    sensitivity = sensitivityLevel,
-                    upload = StreamingFile(
-                        contentType = ContentType.defaultForFilePath(filePath),
-                        length = length,
-                        fileName = destPath.name,
-                        channel = fileData
-                    )
+        MultiPartUploadDescriptions.simpleUpload.call(
+            SimpleUploadRequest(
+                location = destPath.path,
+                sensitivity = sensitivityLevel,
+                file = BinaryStream.outgoingFromChannel(
+                    fileData,
+                    contentLength = length,
+                    contentType = ContentType.defaultForFilePath(filePath)
                 )
             ),
-            client.bearerAuth(accessToken)
+            serviceClient.bearerAuth(accessToken)
         ).orThrow()
 
         if (needsExtraction) {
@@ -104,7 +105,7 @@ class JobFileService(
                     destPath.path,
                     removeOriginalArchive = true
                 ),
-                client.bearerAuth(accessToken)
+                serviceClient.bearerAuth(accessToken)
             ).orThrow()
         }
     }
@@ -112,7 +113,7 @@ class JobFileService(
     suspend fun jobFolder(job: VerifiedJob): String {
         val homeFolder = FileDescriptions.findHomeFolder.call(
             FindHomeFolderRequest(job.owner),
-            client
+            serviceClient
         ).orThrow().path
 
         return joinPath(
@@ -121,6 +122,41 @@ class JobFileService(
             job.archiveInCollection,
             timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
         )
+    }
+
+    suspend fun transferFilesToBackend(jobWithToken: VerifiedJobWithAccessToken, backend: ComputationDescriptions) {
+        val (job, accessToken) = jobWithToken
+        coroutineScope {
+            job.files.map { file ->
+                async {
+                    runCatching {
+                        val userCloud = serviceClient.withoutAuthentication().bearerAuth(accessToken)
+                        val fileStream = FileDescriptions.download.call(
+                            DownloadByURI(file.sourcePath, null),
+                            userCloud
+                        ).orRethrowAs { throw JobException.TransferError() }.asIngoing()
+
+                        backend.submitFile.call(
+                            SubmitFileToComputation(
+                                job.id,
+                                file.id,
+                                BinaryStream.outgoingFromChannel(
+                                    fileStream.channel,
+                                    contentType = fileStream.contentType
+                                        ?: ContentType.Application.OctetStream,
+                                    contentLength = fileStream.length
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow()
+                    }
+                }
+            }.awaitAll().firstOrNull { it.isFailure }.let {
+                if (it != null) {
+                    throw it.exceptionOrNull()!!
+                }
+            }
+        }
     }
 
 

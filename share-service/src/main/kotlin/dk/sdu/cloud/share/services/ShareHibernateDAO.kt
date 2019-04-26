@@ -209,7 +209,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         // We then retrieve all shares for each group
         return session
             .criteria<ShareEntity>(
-                orderBy = { listOf(ascending(entity[ShareEntity::owner]), ascending(entity[ShareEntity::sharedWith])) },
+                orderBy = { listOf(ascending(entity[ShareEntity::owner]), ascending(entity[ShareEntity::sharedWith]), ascending(entity[ShareEntity::filename])) },
                 predicate = {
                     allOf(
                         entity[ShareEntity::path] isInCollection distinctPaths,

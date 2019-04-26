@@ -15,6 +15,8 @@ import { fetchFavorites, setLoading, receiveFavorites } from "./Redux/FavoritesA
 import { MasterCheckbox } from "UtilityComponents";
 import { Page } from "Types";
 import { History } from "history";
+import { AddSnackOperation } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 type FavoriteFilesProps = FavoritesOperations & ReduxType & { header: any, history: History }
 
@@ -49,7 +51,8 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
             stateless: true,
             history: this.props.history,
             onDeleted: () => undefined,
-            setLoading: () => this.props.setLoading(true)
+            setLoading: () => this.props.setLoading(true),
+            addSnack: snack => this.props.addSnack(snack)
         });
         const { page } = this.props;
         const { pageNumber, itemsPerPage } = page;
@@ -88,7 +91,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
     }
 }
 
-interface FavoritesOperations {
+interface FavoritesOperations extends AddSnackOperation {
     setRefresh: (refresh?: () => void) => void
     fetchFileFavorites: (pageNumber: number, itemsPerPage: number) => void
     receiveFavorites: (page: Page<File>) => void
@@ -103,7 +106,8 @@ const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
         dispatch(setLoading(false));
     },
     receiveFavorites: page => dispatch(receiveFavorites(page)),
-    setLoading: loading => dispatch(setLoading(loading))
+    setLoading: loading => dispatch(setLoading(loading)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 const mapStateToProps = ({ favorites }: ReduxObject): ReduxType & { checkedCount: number } => ({ ...favorites, checkedCount: favorites.page.items.filter(it => it.isChecked).length });

@@ -240,7 +240,7 @@ exports[`UserCreation Mount 1`] = `
       <button
         className="c7"
         color="green"
-        content="Create user"
+        disabled={false}
         type="submit"
       >
         Create user

@@ -21,7 +21,7 @@ data class ListAtDirectoryRequest internal constructor(
     val order: SortOrder?,
     val sortBy: FileSortBy?,
 
-    override val load: String?
+    override val attributes: String?
 ) : WithPaginationRequest, LoadFileResource
 
 fun ListAtDirectoryRequest(
@@ -42,7 +42,7 @@ data class LookupFileInDirectoryRequest(
     val itemsPerPage: Int,
     val order: SortOrder,
     val sortBy: FileSortBy,
-    override val load: String?
+    override val attributes: String?
 ) : LoadFileResource
 
 fun LookupFileInDirectoryRequest(
@@ -60,7 +60,7 @@ typealias LookupFileInDirectoryResponse = Page<StorageFileWithMetadata>
 
 data class StatRequest(
     val path: String,
-    override val load: String?
+    override val attributes: String?
 ) : LoadFileResource
 
 typealias StatResponse = StorageFileWithMetadata
@@ -69,8 +69,8 @@ typealias StatResponse = StorageFileWithMetadata
  * The file gateway provides additional information to file lookups.
  *
  * It mirrors the API provided by the underlying file API but adds additional arguments for loading more
- * associated data. A client can request additional data by setting the load query parameter to a set of resources to
- * load (see [FileResource.text]). This list should be comma separated.
+ * associated data. A client can request additional data by setting the attributes query parameter to a set of resources to
+ * attributes (see [FileResource.text]). This list should be comma separated.
  */
 object FileGatewayDescriptions : CallDescriptionContainer("${FileDescriptions.namespace}.gateway") {
     val baseContext = "/api/files"
@@ -95,7 +95,7 @@ object FileGatewayDescriptions : CallDescriptionContainer("${FileDescriptions.na
                 +boundTo(ListAtDirectoryRequest::order)
                 +boundTo(ListAtDirectoryRequest::sortBy)
 
-                +boundTo(ListAtDirectoryRequest::load)
+                +boundTo(ListAtDirectoryRequest::attributes)
             }
         }
     }
@@ -120,7 +120,7 @@ object FileGatewayDescriptions : CallDescriptionContainer("${FileDescriptions.na
                     +boundTo(LookupFileInDirectoryRequest::itemsPerPage)
                     +boundTo(LookupFileInDirectoryRequest::sortBy)
                     +boundTo(LookupFileInDirectoryRequest::order)
-                    +boundTo(LookupFileInDirectoryRequest::load)
+                    +boundTo(LookupFileInDirectoryRequest::attributes)
                 }
             }
         }
@@ -141,7 +141,7 @@ object FileGatewayDescriptions : CallDescriptionContainer("${FileDescriptions.na
 
             params {
                 +boundTo(StatRequest::path)
-                +boundTo(StatRequest::load)
+                +boundTo(StatRequest::attributes)
             }
         }
     }

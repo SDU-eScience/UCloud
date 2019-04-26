@@ -8,8 +8,8 @@ import dk.sdu.cloud.file.services.FileRow
 fun FileRow.toCreatedEvent() = StorageEvent.CreatedOrRefreshed(
     id = inode,
     path = path,
-    creator = owner,
-    owner = xowner,
+    creator = creator,
+    owner = owner,
     timestamp = timestamps.created,
     fileType = fileType,
     fileTimestamps = timestamps,
@@ -31,11 +31,11 @@ val STORAGE_EVENT_MODE = setOf(
     FileAttribute.INODE,
     FileAttribute.PATH,
     FileAttribute.TIMESTAMPS,
-    FileAttribute.OWNER,
+    FileAttribute.CREATOR,
     FileAttribute.SIZE,
     FileAttribute.IS_LINK,
     FileAttribute.LINK_TARGET,
     FileAttribute.LINK_INODE,
     FileAttribute.SENSITIVITY,
-    FileAttribute.XOWNER
+    FileAttribute.OWNER
 )

@@ -12,7 +12,6 @@ module.exports = webpackMerge(commonConfig, {
 
 
     entry: {
-        vendor: "./app/Vendor.tsx",
         app: "./app/App.tsx"
     },
 
@@ -53,7 +52,7 @@ module.exports = webpackMerge(commonConfig, {
         inline: true,
         proxy: [{
             context: ["/auth", "/api"],
-            target: "https://cloud.sdu.dk",
+            target: "https://dev.cloud.sdu.dk",
             secure: false,
             changeOrigin: true,
             ws: true,

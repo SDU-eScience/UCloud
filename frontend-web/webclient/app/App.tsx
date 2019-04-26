@@ -36,6 +36,8 @@ import { responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-res
 import { responsiveBP } from "ui-components/theme";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { Snack } from "Snackbar/Snackbars";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
@@ -59,7 +61,7 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     ...AppRedux.reducers,
     ...AccountingRedux.reducers,
     ...FavoritesRedux.reducers,
-    snackbar: SnackbarRedux.reducers,
+    ...SnackbarRedux.reducers,
     avatar,
     shares,
     responsive: createResponsiveStateReducer(
@@ -69,6 +71,10 @@ const store = configureStore(initObject(Cloud.homeFolder), {
 
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
     store.dispatch({ type })
+}
+
+export function GLOBAL_addSnack(snack: Snack) {
+    store.dispatch(addSnack(snack))
 }
 
 export async function onLogin() {

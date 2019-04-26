@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.services.JobDao
 import dk.sdu.cloud.app.services.JobOrchestrator
+import dk.sdu.cloud.app.services.StreamFollowService
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
@@ -35,6 +36,7 @@ class JobController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val jobOrchestrator: JobOrchestrator<DBSession>,
     private val jobDao: JobDao<DBSession>,
+    private val streamFollowService: StreamFollowService<DBSession>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
     private val serviceClient: AuthenticatedClient
 ) : Controller {
@@ -60,7 +62,7 @@ class JobController<DBSession>(
                 TokenExtensionRequest(
                     ctx.bearer!!,
                     listOf(
-                        MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
+                        MultiPartUploadDescriptions.simpleUpload.requiredAuthScope.toString(),
                         FileDescriptions.download.requiredAuthScope.toString(),
                         FileDescriptions.createDirectory.requiredAuthScope.toString(),
                         FileDescriptions.stat.requiredAuthScope.toString(),
@@ -86,7 +88,7 @@ class JobController<DBSession>(
         }
 
         implement(JobDescriptions.follow) {
-            ok(jobOrchestrator.followStreams(request))
+            ok(streamFollowService.followStreams(request))
         }
     }
 

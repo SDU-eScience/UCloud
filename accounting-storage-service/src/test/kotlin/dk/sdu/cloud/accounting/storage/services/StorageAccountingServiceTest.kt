@@ -29,6 +29,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -147,10 +148,11 @@ class StorageAccountingServiceTest {
         TestUsers.user.username
     )
 
-    @Test(expected = RPCException::class)
+    @Test
     fun `List all Test`() {
         val storageAccountingService = setupService()
-        storageAccountingService.listEvents(context, TestUsers.user.username)
+        val returnedList = storageAccountingService.listEvents(context, TestUsers.user.username)
+        assertTrue(returnedList.isEmpty())
     }
 
     @Test

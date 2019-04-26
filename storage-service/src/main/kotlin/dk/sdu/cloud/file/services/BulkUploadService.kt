@@ -7,7 +7,7 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.notification.api.CreateNotification
@@ -20,7 +20,6 @@ import kotlinx.coroutines.launch
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import org.slf4j.Logger
-import java.io.File
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipEntry
@@ -54,18 +53,18 @@ sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: 
 }
 
 @Suppress("unused")
-object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandRunner::class), Loggable {
+object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class), Loggable {
     override val log = logger()
 
     override suspend fun upload(
         serviceCloud: AuthenticatedClient,
-        fs: CoreFileSystemService<UnixFSCommandRunner>,
-        contextFactory: suspend () -> UnixFSCommandRunner,
+        fs: CoreFileSystemService<LinuxFSRunner>,
+        contextFactory: suspend () -> LinuxFSRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<UnixFSCommandRunner>,
+        sensitivityService: FileSensitivityService<LinuxFSRunner>,
         archiveName: String
     ): List<String> {
         return BasicUploader.uploadFromSequence(
@@ -88,15 +87,16 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
                             log.debug("Skipping Entry: " + entry.name)
                             entry = zipStream.nextEntry
                         } else {
-                            if (entry.isDirectory) {
+                            val allComponents = initialTargetPath.components().dropLast(1)
+                            val paths = (3..allComponents.size).map { i ->
+                                joinPath(*allComponents.take(i).toTypedArray())
+                            }
+                            paths.forEach {
+                                yield(ArchiveEntry.Directory(it))
+                            }
 
-                                val allComponents = initialTargetPath.components()
-                                val paths = (2..allComponents.size).map { i ->
-                                    joinPath(*allComponents.take(i).toTypedArray())
-                                }
-                                paths.forEach {
-                                    yield(ArchiveEntry.Directory(it))
-                                }
+                            if (entry.isDirectory) {
+                                yield(ArchiveEntry.Directory(initialTargetPath))
                             } else {
                                 yield(ArchiveEntry.File(
                                     path = initialTargetPath,
@@ -113,18 +113,18 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
 }
 
 @Suppress("unused")
-object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRunner::class), Loggable {
+object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class), Loggable {
     override val log: Logger = logger()
 
     override suspend fun upload(
         serviceCloud: AuthenticatedClient,
-        fs: CoreFileSystemService<UnixFSCommandRunner>,
-        contextFactory: suspend () -> UnixFSCommandRunner,
+        fs: CoreFileSystemService<LinuxFSRunner>,
+        contextFactory: suspend () -> LinuxFSRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<UnixFSCommandRunner>,
+        sensitivityService: FileSensitivityService<LinuxFSRunner>,
         archiveName: String
     ): List<String> {
         return BasicUploader.uploadFromSequence(
@@ -205,7 +205,6 @@ private object BasicUploader : Loggable {
         var nextNotification = System.currentTimeMillis() + NOTIFICATION_COOLDOWN_PERIOD
         val notificationMeta = mapOf("destination" to path)
         val job: Job
-        val destinationPathForNotification = joinPath(*path.components().drop(2).toTypedArray())
 
         try {
             job = BackgroundScope.launch {
@@ -223,6 +222,7 @@ private object BasicUploader : Loggable {
             }
 
             sequence.forEach { entry ->
+                log.debug("New Entry: $entry}")
                 try {
                     if (System.currentTimeMillis() > nextNotification) {
                         nextNotification = System.currentTimeMillis() + NOTIFICATION_COOLDOWN_PERIOD
@@ -243,13 +243,15 @@ private object BasicUploader : Loggable {
                         }
                     }
 
-                    log.debug("New entry $entry")
                     if (rejectedDirectories.any { entry.path.startsWith(it) }) {
                         log.debug("Skipping entry: $entry")
                         rejectedFiles += entry.path
                         return@forEach
                     }
-                    log.debug("Downloading $entry")
+
+                    if (entry is ArchiveEntry.Directory && entry.path in createdDirectories) {
+                        return@forEach
+                    }
 
                     val existing = fs.statOrNull(ctx, entry.path, setOf(FileAttribute.FILE_TYPE))
 
@@ -257,25 +259,20 @@ private object BasicUploader : Loggable {
                         // TODO This is technically handled by upload also
                         val existingIsDirectory = existing.fileType == FileType.DIRECTORY
                         if (entry is ArchiveEntry.Directory != existingIsDirectory) {
-                            log.debug("Type of existing and new does not match. Rejecting regardless of policy")
                             rejectedDirectories += entry.path
                             null
                         } else {
                             if (entry is ArchiveEntry.Directory) {
-                                log.debug("Directory already exists. Skipping")
                                 null
                             } else {
                                 entry.path // Renaming/rejection handled by upload
                             }
                         }
                     } else {
-                        log.debug("File does not exist")
                         entry.path
                     }
 
                     if (targetPath != null) {
-                        log.debug("Accepting file ${entry.path} ($targetPath)")
-
                         try {
                             when (entry) {
                                 is ArchiveEntry.Directory -> {
@@ -287,21 +284,13 @@ private object BasicUploader : Loggable {
                                 }
 
                                 is ArchiveEntry.File -> {
-                                    val parentDir = File(targetPath).parentFile.path
-                                    if (parentDir !in createdDirectories) {
-                                        createdDirectories += parentDir
-                                        try {
-                                            fs.makeDirectory(ctx, parentDir)
-                                            if (sensitivity != null) {
-                                                sensitivityService.setSensitivityLevel(ctx, parentDir, sensitivity)
-                                            }
-                                        } catch (ex: FSException.AlreadyExists) {
-                                            log.debug("Parent directory already exists")
-                                        }
-                                    }
-
-                                    val newFile = fs.write(ctx, targetPath, conflictPolicy) { entry.stream.copyTo(this) }
-                                    if (sensitivity != null) sensitivityService.setSensitivityLevel(ctx, newFile, sensitivity)
+                                    val newFile =
+                                        fs.write(ctx, targetPath, conflictPolicy) { entry.stream.copyTo(this) }
+                                    if (sensitivity != null) sensitivityService.setSensitivityLevel(
+                                        ctx,
+                                        newFile,
+                                        sensitivity
+                                    )
                                 }
                             }
                         } catch (ex: FSException.PermissionException) {

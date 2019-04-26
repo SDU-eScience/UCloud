@@ -7,7 +7,7 @@ import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
-import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button, Icon } from "ui-components";
+import { Error, ButtonGroup, Text, Box, Flex, Card, Divider, Button, Icon } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
@@ -16,7 +16,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { FileIcon } from "UtilityComponents";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
-import { ReduxObject, SharesReduxObject } from "DefaultObjects";
+import { ReduxObject, SharesReduxObject, emptyPage } from "DefaultObjects";
 import { retrieveShares, receiveShares, setErrorMessage, setShareState, fetchSharesByPath, setLoading } from "./Redux/SharesActions";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { useState } from "react";
@@ -84,7 +84,7 @@ class List extends React.Component<ListProps & SharesReduxObject & SharesOperati
             <>
                 {this.props.innerComponent ? header : null}
                 <Error clearError={() => this.props.setError()} error={error} />
-                {this.props.loading ? <LoadingIcon size={18} /> : null}
+                {this.props.page === emptyPage && this.props.loading ? <LoadingIcon size={18} /> : null}
                 <Heading.h3>Shared with Me</Heading.h3>
                 {
                     noSharesWith ? <NoShares /> : page.items.filter(it => !it.sharedByMe).map(it =>
@@ -192,7 +192,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                 <Flex>
                     <Box ml="auto" />
                     {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
-                        <LoadingButton color="red" disabled={isLoading} loading={isLoading} content="Remove" onClick={() => this.onRevoke(actualShare)} />
+                        <Button color="red" disabled={isLoading} onClick={() => this.onRevoke(actualShare)}>Remove</Button>
                         : null}
                 </Flex>
                 {!hasBeenShared ? (
@@ -201,8 +201,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         <Flex>
                             <Box ml="auto" />
                             <ButtonGroup width="200px">
-                                <LoadingButton loading={isLoading} disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)} hovercolor="darkGreen" content="Accept" />
-                                <LoadingButton loading={isLoading} disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)} hovercolor="darkRed" content="Reject" />
+                                <Button disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)}>Accept</Button>
+                                <Button disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)}>Reject</Button>
                             </ButtonGroup>
                         </Flex>
                     </>)
@@ -228,12 +228,10 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         />
                     </Box>}
                     right={
-                        <LoadingButton
+                        <Button
                             height="40px"
-                            width="auto"
                             color="red"
                             disabled={isLoading}
-                            loading={isLoading}
                             size="mini"
                             onClick={() => this.onRevoke(e)}
                         >
@@ -241,7 +239,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                                 <Icon size={18} name="close" />
                                 <Text ml="3px">Revoke</Text>
                             </Flex>
-                        </LoadingButton>}
+                        </Button>}
                 />
                 {i !== length - 1 ? <Divider /> : null}
             </Box>
@@ -257,14 +255,12 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         {getFilenameFromPath(groupedShare.path)}
                     </Flex>
                     <TextSpan fontSize={1} ml="0.8em" mr="0.8em" color="text">Shared with {groupedShare.shares.length} collaborators</TextSpan>
-                    <LoadingButton
+                    <Button
                         size={"small"}
-                        content="Share this with another user"
                         color="green"
                         disabled={isLoading}
-                        loading={isLoading}
                         onClick={() => this.onCreateShare(groupedShare.path)}
-                    />
+                    >Share this with another user</Button>
                 </Heading.h4>
                 {shareComponents}
             </Card >
@@ -277,33 +273,34 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
     async onAcceptChange(share: Share, accessRights: Set<AccessRight>) {
         this.setState(() => ({ isLoading: true }));
-        await updateShare(share.id, [...accessRights])
-            .then(it => this.maybeInvoke(it.id, this.props.onRights))
-            .catch(e => {
-                if (!e.isCanceled) {
-                    this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError)
-                }
-            });
-        this.setState(() => ({ isLoading: false }));
+        try {
+            const it = await updateShare(share.id, [...accessRights]);
+            this.maybeInvoke(it.id, this.props.onRights);
+        } catch (e) {
+            if (!e.isCanceled)
+                this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError)
+        } finally {
+            this.setState(() => ({ isLoading: false }));
+        }
     }
 
-    onCreateShare(path: string) {
+    private async onCreateShare(path: string) {
         this.setState(() => ({ isLoading: true }));
-        shareSwal().then(async ({ dismiss, value }) => {
-            if (dismiss) { this.setState(() => ({ isLoading: false })); return; }
-            const rights: AccessRight[] = [];
-            // FIXME Fix immediately when SweetAlert allows forms
-            (document.getElementById("read") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
-            (document.getElementById("read_edit") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
-            await createShare(value, path, rights)
-                .then(it => this.maybeInvoke(it.id, this.props.onShared))
-                .catch(e => {
-                    if (!e.isCanceled) {
-                        this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError);
-                    }
-                })
+        const { dismiss, value } = await shareSwal();
+        if (dismiss) { this.setState(() => ({ isLoading: false })); return; }
+        const rights: AccessRight[] = [];
+        (document.getElementById("read") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
+        (document.getElementById("read_edit") as HTMLInputElement).checked ? rights.push(AccessRight.READ, AccessRight.WRITE) : null;
+        try {
+            const it = await createShare(value, path, rights)
+            this.maybeInvoke(it.id, this.props.onShared)
+        } catch (e) {
+            if (!e.isCanceled) {
+                this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError);
+            }
+        } finally {
             this.setState(() => ({ isLoading: false }))
-        })
+        }
     }
 
     componentWillUnmount() {
@@ -312,30 +309,38 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
     async onRevoke(share: Share) {
         this.setState(() => ({ isLoading: true }));
-
-        await this.state.promises.makeCancelable(revokeShare(share.id))
-            .promise
-            .then(() => (this.maybeInvoke(share, this.props.onRevoked)))
-            .catch(e => (this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError)));
-        this.setState(() => ({ isLoading: false }))
+        try {
+            await this.state.promises.makeCancelable(revokeShare(share.id)).promise;
+            this.maybeInvoke(share, this.props.onRevoked);
+        } catch (e) {
+            this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError);
+        } finally {
+            this.setState(() => ({ isLoading: false }))
+        }
     }
 
     async onAccept(share: Share) {
         this.setState(() => ({ isLoading: true }))
-
-        await this.state.promises.makeCancelable(acceptShare(share.id)).promise
-            .then(() => this.maybeInvoke(share, this.props.onAccepted))
-            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-        this.setState(() => ({ isLoading: false }));
+        try {
+            await this.state.promises.makeCancelable(acceptShare(share.id)).promise;
+            this.maybeInvoke(share, this.props.onAccepted);
+        } catch (e) {
+            this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError)
+        } finally {
+            this.setState(() => ({ isLoading: false }));
+        }
     }
 
     async onReject(share: Share) {
         this.setState(() => ({ isLoading: true }))
-
-        await this.state.promises.makeCancelable(revokeShare(share.id)).promise
-            .then(() => this.maybeInvoke(share, this.props.onRejected))
-            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError));
-        this.setState(() => ({ isLoading: false }))
+        try {
+            await this.state.promises.makeCancelable(revokeShare(share.id)).promise;
+            this.maybeInvoke(share, this.props.onRejected);
+        } catch (e) {
+            this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError);
+        } finally {
+            this.setState(() => ({ isLoading: false }));
+        }
     }
 }
 
@@ -409,10 +414,10 @@ function fileTypeGuess({ path }: FileTypeGuess) {
 }
 
 const acceptShare = async (shareId: ShareId): Promise<any> =>
-    (await Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
+    (await Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`)).response;
 
 const revokeShare = async (shareId: ShareId): Promise<any> =>
-    (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
+    (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response;
 
 const createShare = async (user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> =>
     (await Cloud.put(`/shares/`, { sharedWith: user, path, rights })).response; // FIXME Add error handling

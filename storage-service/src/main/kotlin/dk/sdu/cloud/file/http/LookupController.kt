@@ -7,6 +7,8 @@ import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
+import dk.sdu.cloud.file.api.StorageFileAttribute
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
@@ -17,18 +19,27 @@ class LookupController<Ctx : FSUserContext>(
     private val fileLookupService: FileLookupService<Ctx>,
     private val homeFolderService: HomeFolderService
 ) : Controller {
+    private fun attributesOrDefault(attributes: String?): List<StorageFileAttribute> =
+        attributes?.takeIf { it.isNotEmpty() }?.split(",")
+            ?.mapNotNull { runCatching { StorageFileAttribute.valueOf(it) }.getOrNull() }
+            ?: StorageFileAttribute.values().toList()
+
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.listAtPath) {
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
                 val stat = fileLookupService.stat(ctx, request.path)
+
+                val attributes = attributesOrDefault(request.attributes)
+
                 val result = fileLookupService.listDirectory(
                     ctx,
                     request.path,
                     request.normalize(),
                     request.sortBy ?: FileSortBy.TYPE,
-                    request.order ?: SortOrder.ASCENDING
+                    request.order ?: SortOrder.ASCENDING,
+                    attributes
                 )
 
                 audit(SingleFileAudit(stat.fileId, request))
@@ -40,12 +51,14 @@ class LookupController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
+                val attributes = attributesOrDefault(request.attributes)
                 val result = fileLookupService.lookupFileInDirectory(
                     ctx,
                     request.path,
                     request.itemsPerPage,
                     request.sortBy,
-                    request.order
+                    request.order,
+                    attributes = attributes
                 )
 
                 val fileId = fileLookupService.stat(ctx, request.path).fileId
@@ -58,7 +71,13 @@ class LookupController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
-                val result = fileLookupService.stat(ctx, request.path)
+                val attributes = attributesOrDefault(request.attributes) +
+                        setOf(StorageFileAttribute.fileId) // needed for audit
+                val result = fileLookupService.stat(
+                    ctx,
+                    request.path,
+                    attributes = attributes
+                )
                 audit(SingleFileAudit(result.fileId, request))
                 ok(result)
             }

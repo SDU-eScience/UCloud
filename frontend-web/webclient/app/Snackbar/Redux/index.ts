@@ -1,14 +1,22 @@
 import snackbar from "./SnackbarsReducer";
 import { Snack } from "Snackbar/Snackbars";
 
-export const init = (): SnackbarReduxObject => ({
-    snacks: []
+export const init = (): Wrapper => ({
+    snackbar: {
+        snackbar: [] as Snack[],
+        nextId: 0
+    }
 });
 
-export const reducers = (): { snackbar: any } => ({
+export const reducers = {
     snackbar
-})
+};
 
-export interface SnackbarReduxObject {
-    snacks: Snack[]   
+export interface Wrapper {
+    snackbar: Object
+}
+
+export interface Object {
+    snackbar: Snack[]
+    nextId: number
 }

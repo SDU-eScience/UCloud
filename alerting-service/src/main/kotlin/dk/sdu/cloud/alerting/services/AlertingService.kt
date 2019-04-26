@@ -30,7 +30,7 @@ class AlertingService(private val notifiers: List<AlertNotifier>) {
             val hasSuccess = result.any { it.isSuccess }
             if (!hasSuccess) {
                 val exceptions = result.mapNotNull { it.exceptionOrNull() }
-                log.warn("Caught exception for ticket: $alert")
+                log.warn("Caught exception for alert: $alert")
                 exceptions.forEach { log.warn(it.stackTraceToString()) }
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }

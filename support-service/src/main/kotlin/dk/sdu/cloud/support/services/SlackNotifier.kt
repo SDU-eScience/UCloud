@@ -37,16 +37,40 @@ class SlackNotifier(
 
         """.trimIndent() + ticket.message.lines().joinToString("\n") { "> $it" }
 
-        val postResult = httpClient.call(hook) {
-            method = HttpMethod.Post
-            body = TextContent(defaultMapper.writeValueAsString(SlackMessage(message)), ContentType.Application.Json)
-        }
 
-        val status = postResult.response.status
-        if (!status.isSuccess()) {
-            log.warn("unsuccessful message from slack ($status)")
-            runCatching { log.warn(postResult.receive()) }
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        var retries = 0
+        while (true) {
+            retries++
+            if (retries == 3) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+            }
+            val postResult = try {
+                httpClient.call(hook) {
+                    method = HttpMethod.Post
+                    body = TextContent(
+                        defaultMapper.writeValueAsString(SlackMessage(message)),
+                        ContentType.Application.Json
+                    )
+                }
+            } catch (ex: Exception) {
+                when (ex) {
+                    is java.net.ConnectException -> {
+                        log.debug("Java.net.Connect Exception caught : ${ex.message}")
+
+                    }
+                    is io.ktor.client.engine.cio.ConnectException -> {
+                        log.debug("Cio ConnectException caught : ${ex.message}")
+                    }
+                }
+                continue
+
+            }
+            val status = postResult.response.status
+            if (!status.isSuccess()) {
+                log.warn("unsuccessful message from slack ($status)")
+                runCatching { log.warn(postResult.receive()) }
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
         }
     }
 

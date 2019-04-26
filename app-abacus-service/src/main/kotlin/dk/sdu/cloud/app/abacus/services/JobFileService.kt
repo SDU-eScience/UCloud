@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.abacus.services
 
 import com.jcraft.jsch.SftpATTRS
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnection
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.abacus.services.ssh.createZipFileOfDirectory
@@ -20,14 +21,15 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.calls.types.StreamingRequest
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.copyTo
 import kotlinx.coroutines.joinAll
@@ -59,59 +61,72 @@ class JobFileService(
 
     suspend fun uploadFile(
         jobId: String,
-        relativeLocation: String,
+        parameterName: String,
         length: Long?,
-        needsExtractionOfType: FileForUploadArchiveType?,
         stream: ByteReadChannel
     ) {
+        val job = ComputationCallbackDescriptions.lookup.call(FindByStringId(jobId), cloud).orThrow()
+
+        val file = job.files.find { it.id == parameterName } ?: throw RPCException(
+            "Bad request. File with id '$parameterName' does not exist!",
+            HttpStatusCode.BadRequest
+        )
+
+        val relativePath =
+            if (file.destinationPath.startsWith("/")) ".${file.destinationPath}" else file.destinationPath
+
         val filesDirectoryForJob = filesDirectoryForJob(jobId)
-        val location = filesDirectoryForJob.resolve(relativeLocation).normalize()
+        val location = filesDirectoryForJob.resolve(relativePath).normalize()
         if (!location.absolutePath.startsWith(filesDirectoryForJob.absolutePath)) {
             throw JobFileException.ErrorDuringTransfer("Bad destination path: $filesDirectoryForJob <=> $location")
         }
 
-        sshConnectionPool.use {
-            mkdir(location.parent, createParents = true)
+        coroutineScope {
+            launch(Dispatchers.IO) {
+                sshConnectionPool.use {
+                    mkdir(location.parent, createParents = true)
 
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                if (length != null) {
-                    scpUpload(length, location.name, location.parent, "0600") { outs ->
-                        stream.copyTo(outs, limit = length)
-                    }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativeLocation)
-                } else {
-                    val temporaryFile = Files.createTempFile("", "").toFile()
-                    temporaryFile.outputStream().use { outs ->
-                        stream.copyTo(outs)
-                    }
+                    @Suppress("TooGenericExceptionCaught")
+                    try {
+                        if (length != null) {
+                            scpUpload(length, location.name, location.parent, "0600") { outs ->
+                                stream.copyTo(outs, limit = length)
+                            }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativePath)
+                        } else {
+                            val temporaryFile = Files.createTempFile("", "").toFile()
+                            temporaryFile.outputStream().use { outs ->
+                                stream.copyTo(outs)
+                            }
 
-                    scpUpload(temporaryFile.length(), location.name, location.parent, "0600") { outs ->
-                        temporaryFile.inputStream().use { ins ->
-                            ins.copyTo(outs)
+                            scpUpload(temporaryFile.length(), location.name, location.parent, "0600") { outs ->
+                                temporaryFile.inputStream().use { ins ->
+                                    ins.copyTo(outs)
+                                }
+                            }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativePath)
                         }
-                    }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativeLocation)
-                }
-            } catch (ex: Exception) {
-                // Maybe a bit too generic
-                log.warn("Caught exception during upload")
-                log.warn(ex.stackTraceToString())
-                throw JobFileException.ErrorDuringTransfer(relativeLocation)
-            }
-
-            when (needsExtractionOfType) {
-                FileForUploadArchiveType.ZIP -> {
-                    val status = unzip(location.absolutePath, location.parent)
-                    if (status >= ZIP_ERROR_STATUS) {
-                        throw JobFileException.CouldNotExtractArchive(relativeLocation)
+                    } catch (ex: Exception) {
+                        // Maybe a bit too generic
+                        log.warn("Caught exception during upload")
+                        log.warn(ex.stackTraceToString())
+                        throw JobFileException.ErrorDuringTransfer(relativePath)
                     }
 
-                    rm(location.absolutePath)
-                }
+                    when (file.needsExtractionOfType) {
+                        FileForUploadArchiveType.ZIP -> {
+                            val status = unzip(location.absolutePath, location.parent)
+                            if (status >= ZIP_ERROR_STATUS) {
+                                throw JobFileException.CouldNotExtractArchive(relativePath)
+                            }
 
-                else -> {
-                    // Do nothing
+                            rm(location.absolutePath)
+                        }
+
+                        else -> {
+                            // Do nothing
+                        }
+                    }
                 }
-            }
+            }.join()
         }
     }
 
@@ -180,18 +195,13 @@ class JobFileService(
 
             ComputationCallbackDescriptions.submitFile
                 .call(
-                    StreamingRequest.Outgoing(
-                        @Suppress("DEPRECATION")
-                        SubmitComputationResult(
-                            jobId,
-                            relativePath,
-                            needsExtraction,
-                            StreamingFile(
-                                ContentType.Application.OctetStream,
-                                temporaryFile.length(),
-                                relativePath,
-                                temporaryFile.readChannel()
-                            )
+                    SubmitComputationResult(
+                        jobId,
+                        relativePath,
+                        needsExtraction,
+                        BinaryStream.outgoingFromChannel(
+                            temporaryFile.readChannel(),
+                            contentLength = temporaryFile.length()
                         )
                     ),
                     cloud

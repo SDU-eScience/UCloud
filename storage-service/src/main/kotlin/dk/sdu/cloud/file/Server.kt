@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
@@ -28,9 +29,9 @@ import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
-import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.file.services.ZipBulkUploader
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
@@ -44,6 +45,8 @@ import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
+import java.io.FileInputStream
+import kotlin.system.exitProcess
 
 class Server(
     private val config: StorageConfiguration,
@@ -56,6 +59,8 @@ class Server(
         val cloud = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         log.info("Creating core services")
+
+
         BackgroundScope.init()
 
         // Authentication
@@ -69,9 +74,8 @@ class Server(
         val fsRoot = fsRootFile.normalize().absolutePath
 
         // Low level FS
-        val processRunner = UnixFSCommandRunnerFactory(uidLookupService)
-        val fileAttributeParser = FileAttributeParser(uidLookupService)
-        val fs = UnixFileSystem(processRunner, uidLookupService, fileAttributeParser, fsRoot)
+        val processRunner = LinuxFSRunnerFactory(uidLookupService)
+        val fs = LinuxFS(processRunner, fsRootFile, uidLookupService)
 
         // High level FS
         val storageEventProducer = StorageEventProducer(streams.createProducer(StorageEvents.events)) {
@@ -99,6 +103,21 @@ class Server(
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
 
         log.info("Core services constructed!")
+
+        if (micro.commandLineArguments.contains("--bug-test")) {
+            ZipBulkUploader.upload(
+                cloud,
+                coreFileSystem,
+                { processRunner("dthrane@imada.sdu.dk") },
+                "/home/dthrane@imada.sdu.dk/foobar",
+                WriteConflictPolicy.OVERWRITE,
+                FileInputStream("/tmp/myupload.zip"),
+                null,
+                sensitivityService,
+                "foo.zip"
+            )
+            exitProcess(0)
+        }
 
         UserProcessor(
             streams,

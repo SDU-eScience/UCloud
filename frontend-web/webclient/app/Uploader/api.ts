@@ -1,24 +1,38 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { failureNotification, inSuccessRange } from "UtilityFunctions";
+import { inSuccessRange } from "UtilityFunctions";
 import { STATUS_CODES } from "http";
 import { Sensitivity } from "DefaultObjects";
+import { Snack, SnackType } from "Snackbar/Snackbars";
 
 const timeBetweenUpdates = 150;
 
-export const multipartUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: UploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
-    const newFile = new File([file], "ignored");
+
+interface UploadArgs {
+    location: string
+    file: File
+    sensitivity: Sensitivity
+    policy: UploadPolicy
+    addSnack: (snack: Snack) => void
+    onProgress?: (e: ProgressEvent) => void,
+    onError?: (error: string) => void
+}
+export const multipartUpload = async ({
+    location,
+    file,
+    sensitivity,
+    policy,
+    onProgress,
+    onError,
+    addSnack
+}: UploadArgs): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
-    let formData = new FormData();
-    formData.append("location", location);
-    if (sensitivity !== "INHERIT") formData.append("sensitivity", sensitivity);
-    formData.append("policy", policy);
-    formData.append("upload", newFile);
+
     let request = new XMLHttpRequest();
-    request.open("POST", "/api/files/upload");
+    request.open("POST", "/api/files/upload/file");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                failureNotification(statusToError(request.status))
+                addSnack({ message: statusToError(request.status), type: SnackType.Failure })
         }
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -33,26 +47,31 @@ export const multipartUpload = async (location: string, file: File, sensitivity:
         }
     };
     request.responseType = "text";
-    request.send(formData);
+    request.setRequestHeader("Upload-Location", location);
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", sensitivity);
+    request.setRequestHeader("Upload-Policy", policy);
+    request.send(file);
     return request;
 }
 
-export const bulkUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: UploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
-    const newFile = new File([file], "ignored");
+export const bulkUpload = async ({
+    location,
+    file,
+    sensitivity,
+    policy,
+    onProgress,
+    onError,
+    addSnack
+}: UploadArgs): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = formatFromType(file.type);
-    let formData = new FormData();
-    formData.append("location", location);
-    formData.append("format", format);
-    if (sensitivity !== "INHERIT") formData.append("sensitivity", sensitivity);
-    formData.append("policy", policy);
-    formData.append("upload", newFile);
+
     let request = new XMLHttpRequest();
-    request.open("POST", "/api/files/upload/bulk");
+    request.open("POST", "/api/files/upload/archive");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                failureNotification(statusToError(request.status))
+                addSnack({ message: statusToError(request.status), type: SnackType.Failure })
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     let nextProgressUpdate = new Date().getTime();
@@ -66,7 +85,12 @@ export const bulkUpload = async (location: string, file: File, sensitivity: Sens
         }
     };
     request.responseType = "text";
-    request.send(formData);
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", sensitivity);
+    request.setRequestHeader("Upload-Policy", policy);
+    request.setRequestHeader("Upload-Location", location);
+    request.setRequestHeader("Upload-Format", format);
+    request.setRequestHeader("Upload-Name", file.name);
+    request.send(file);
     return request;
 }
 

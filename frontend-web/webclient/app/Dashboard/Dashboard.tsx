@@ -60,7 +60,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
     }
 
     private reload(loading: boolean) {
-        const { ...props } = this.props;
+        const { props } = this;
         props.setAllLoading(loading)
         props.fetchFavorites();
         props.fetchRecentFiles();

@@ -19,17 +19,23 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import { Dropdown } from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch"
-import { prettierString, infoNotification, inDevEnvironment } from "UtilityFunctions";
+import { prettierString, inDevEnvironment } from "UtilityFunctions";
 import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
 import { EllipsedText, TextSpan } from "ui-components/Text";
 import { AppLogoRaw } from "Applications/Card";
+import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { DevelopmentBadgeBase } from "ui-components/Badge";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
 }
+
+const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ? 
+    <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
 
 // NOTE: Ideal for hooks, if useRouter ever happens
 class Header extends React.Component<HeaderProps> {
@@ -62,8 +68,9 @@ class Header extends React.Component<HeaderProps> {
                     <Icon name="search" size="32" mr="3px" cursor="pointer" onClick={() => this.props.history.push("/search/files")} />
                 </Hide>
                 <Box mr="auto" />
+                <DevelopmentBadge />
                 <BackgroundTask />
-                <Refresh spin={spin} onClick={refresh} />
+                <Refresh spin={spin} onClick={refresh} headerLoading={this.props.statusLoading} />
                 <Support />
                 <Notification />
                 <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={this.props.avatar} /> : null}</Flex>}>
@@ -93,8 +100,8 @@ class Header extends React.Component<HeaderProps> {
     }
 }
 
-export const Refresh = ({ onClick, spin }: { onClick?: () => void, spin: boolean }) => !!onClick ?
-    <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin} onClick={() => onClick()} /> : <Box width="24px" />
+export const Refresh = ({ onClick, spin, headerLoading }: { onClick?: () => void, spin: boolean, headerLoading?: boolean }) => !!onClick || headerLoading ?
+    <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading} onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
@@ -245,27 +252,33 @@ export const UserAvatar = ({ avatar }: UserAvatar) => (
         />
     </ClippedBox>);
 
-const ContextSwitcher = () => {
+const ContextSwitcherFlex = styled(Flex)`
+    border-radius: 4px;
+    border: 1px solid white;
+`;
+
+const ContextSwitcher = ({ addSnack }: AddSnackOperation) => {
     if (!inDevEnvironment()) return null;
     const [userContext, setUserContext] = React.useState(Cloud.username);
     return (<Box ml="6px">
         <ClickableDropdown trigger={
-            <Flex style={{
-                borderRadius: "4px",
-                border: "1px solid white"
-            }}>
+            <ContextSwitcherFlex>
                 <EllipsedText pl="8px" pr="6px" width="150px" title={userContext}>{userContext}</EllipsedText>
                 <Box cursor="pointer" pr="8px"><Icon size={"10"} name={"chevronDown"} /></Box>
-            </Flex>
+            </ContextSwitcherFlex>
         } width="174px">
             {[Cloud.username, "Project 1", "Project 2"].filter(it => it !== userContext).map(it => (
-                <EllipsedText key={it} onClick={() => (infoNotification("Not yet."), setUserContext(it))} width="150px">{it}</EllipsedText>
+                <EllipsedText
+                    key={it}
+                    onClick={() => (addSnack({ message: "Not yet.", type: SnackType.Information }), setUserContext(it))}
+                    width="150px"
+                >{it}</EllipsedText>
             ))}
         </ClickableDropdown>
     </Box>);
 }
 
-interface HeaderOperations {
+interface HeaderOperations extends AddSnackOperation {
     fetchLoginStatus: () => void
     fetchAvatar: () => void
     setSearchType: (st: HeaderSearchType) => void
@@ -274,13 +287,15 @@ interface HeaderOperations {
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
     fetchAvatar: async () => dispatch(await findAvatar()),
-    setSearchType: st => dispatch(setPrioritizedSearch(st))
+    setSearchType: st => dispatch(setPrioritizedSearch(st)),
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
 const mapStateToProps = ({ header, avatar, responsive, ...rest }: ReduxObject): HeaderStateToProps => ({
     ...header,
     avatar,
-    spin: anyLoading(rest as ReduxObject)
+    spin: anyLoading(rest as ReduxObject),
+    statusLoading: rest.status.loading
 });
 
 const anyLoading = (rO: ReduxObject): boolean =>

@@ -3,17 +3,20 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault, inDevEnvironment } from "UtilityFunctions";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite } from "."
+import { errorMessageOrDefault } from "UtilityFunctions";
+import { updatePageTitle, setLoading } from "Navigation/Redux/StatusActions";
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations } from ".";
 import { Dispatch } from "redux";
-import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
+import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter, OptionalParameters } from "./ParameterWidgets";
 import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
+import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
+import { SnackType } from "Snackbar/Snackbars";
+import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -23,8 +26,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.state = {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
+            initialSubmit: false,
 
-            loading: false,
             error: undefined,
 
             parameterValues: new Map(),
@@ -40,10 +43,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             favorite: false,
             favoriteLoading: false
         };
-        this.props.updatePageTitle();
+        props.updatePageTitle();
     };
 
     componentDidMount() {
+        this.props.updatePageTitle();
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
         this.retrieveApplication(name, version);
@@ -59,35 +63,68 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             schedulingOptions[field] = value;
         }
         this.setState(() => ({ schedulingOptions }));
-    }
+    };
 
-    private onSubmit = (event: React.FormEvent) => {
+    private onSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
         const { invocation } = this.state.application;
+        this.setState(() => ({ initialSubmit: true }));
 
-        const parameters = extractParametersFromMap(this.state.parameterValues, this.state.application!.invocation.parameters, Cloud);
+        const parameters = extractParametersFromMap({
+            map: this.state.parameterValues,
+            appParameters: this.state.application!.invocation.parameters,
+            cloud: Cloud
+        });
         const requiredParams = invocation.parameters.filter(it => !it.optional);
         const missingParameters: string[] = [];
         requiredParams.forEach(rParam => {
             const parameterValue = parameters[rParam.name];
             // Number, string, boolean 
             if (!parameterValue) missingParameters.push(rParam.title);
-            // { source, destination }
+            // { source, destination }, might need refactoring in the event that other types become objects
             else if (typeof parameterValue === "object") {
                 if (!parameterValue.source) {
                     missingParameters.push(rParam.title);
                 }
             }
         });
-        
+
+        // FIXME: Not DRY 
+
+        // Check missing values for required input fields.
         if (missingParameters.length > 0) {
-            failureNotification(`Missing values for ${missingParameters.join(", ")}`, missingParameters.length)
+            this.props.addSnack({
+                message: `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
+                 ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,
+                type: SnackType.Failure,
+                lifetime: 5000
+            });
             return;
         }
 
-        let maxTime = this.extractJobInfo(this.state.schedulingOptions).maxTime;
+        // Check optional input fields with errors
+        const optionalErrors = [] as string[];
+        const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it => ({ name: it.name, title: it.title }));
+        optionalParams.forEach(it => {
+            const param = this.state.parameterValues.get(it.name)!;
+            if (!param.current!.checkValidity()) optionalErrors.push(it.title);
+        })
+
+        if (optionalErrors.length > 0) {
+            this.props.addSnack({
+                message: `Invalid values for ${optionalErrors.slice(0, 3).join(", ")}
+                    ${optionalErrors.length > 3 ? `and ${optionalErrors.length - 3} others` : ""}`,
+                type: SnackType.Failure,
+                lifetime: 5000
+            });
+            return;
+        }
+
+        // FIXME END
+
+        let maxTime = Run.extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
 
         let job = {
@@ -100,17 +137,17 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         };
 
         this.setState(() => ({ jobSubmitted: true }));
+        this.props.setLoading(true);
+        try {
+            const req = await Cloud.post(hpcJobQueryPost, job);
+            this.props.history.push(`/applications/results/${req.response.jobId}`);
+        } catch (err) {
+            this.setState(() => ({ error: errorMessageOrDefault(err, "An error ocurred submitting the job."), jobSubmitted: false }))
+            this.props.setLoading(false);
+        }
+    };
 
-        Cloud.post(hpcJobQueryPost, job).then(req =>
-            inSuccessRange(req.request.status) ?
-                this.props.history.push(`/applications/results/${req.response.jobId}`) :
-                this.setState(() => ({ error: "An error occured", jobSubmitted: false }))
-        ).catch(err => {
-            this.setState(() => ({ error: err.message, jobSubmitted: false }))
-        });
-    }
-
-    private extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
+    private static extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
         let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
         const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
         if (maxTime != null && (maxTime.hours != null || maxTime.minutes != null || maxTime.seconds != null)) {
@@ -139,7 +176,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     private async retrieveApplication(name: string, version: string) {
         try {
-            this.setState(() => ({ loading: true }));
+            this.props.setLoading(true);
             const { response } = await this.state.promises.makeCancelable(
                 Cloud.get<WithAppMetadata & WithAppInvocation & WithAppFavorite>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
             ).promise;
@@ -148,7 +185,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const parameterValues = new Map();
 
             app.invocation.parameters.forEach(it => {
-                if ((["input_file", "input_directory", "integer", "floating_point", "text"] as ParameterTypes[]).some(type => type === it.type)) {
+                if (Object.values(ParameterTypes).includes(it.type)) {
                     parameterValues.set(it.name, React.createRef<HTMLInputElement>());
                 } else if (it.type === "boolean") {
                     parameterValues.set(it.name, React.createRef<HTMLSelectElement>());
@@ -167,7 +204,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         } catch (e) {
             this.setState(() => ({ error: errorMessageOrDefault(e, `An error occurred fetching ${name}`) }));
         } finally {
-            this.setState(() => ({ loading: false }));
+            this.props.setLoading(false);
         }
     }
 
@@ -176,35 +213,60 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (!thisApp) return;
 
         const fileReader = new FileReader();
-        fileReader.onload = () => {
+        fileReader.onload = async () => {
             const result = fileReader.result as string;
             try {
                 const { application, parameters, numberOfNodes, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
                 if (application.name !== thisApp.metadata.name) {
-                    failureNotification("Application name does not match");
+                    this.props.addSnack({
+                        message: "Application name does not match",
+                        type: SnackType.Failure
+                    });
                     return;
                 } else if (application.version !== thisApp.metadata.version) {
-                    infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
+                    this.props.addSnack({
+                        message: "Application version does not match. Some parameters may not be filled out correctly.",
+                        type: SnackType.Information
+                    });
                 }
 
-                const extractedParameters = extractParameters(
+                const extractedParameters = extractParameters({
                     parameters,
-                    thisApp.invocation.parameters.map(it => ({
+                    allowedParameterKeys: thisApp.invocation.parameters.map(it => ({
                         name: it.name, type: it.type
                     })),
                     siteVersion
-                );
+                });
 
+                const fileParams = thisApp.invocation.parameters.filter(({ type }) => type === "input_file" || type === "input_directory");
+
+                const invalidFiles: string[] = [];
+
+                for (const paramKey in fileParams) {
+                    const param = fileParams[paramKey];
+                    if (!!extractedParameters[param.name])
+                        if (!await checkIfFileExists(expandHomeFolder(extractedParameters[param.name], Cloud.homeFolder), Cloud)) {
+                            invalidFiles.push(extractedParameters[param.name]);
+                            delete extractedParameters[param.name];
+                        }
+                }
+
+                if (invalidFiles.length) {
+                    this.props.addSnack({
+                        message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
+                        type: SnackType.Failure
+                    });
+                }
                 const { parameterValues } = this.state;
 
                 const extractedParameterKeys = Object.keys(extractedParameters);
-                
+
                 // Show hidden fields.
                 extractedParameterKeys.forEach(key => {
                     thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
                 });
                 this.setState(() => ({ application: thisApp }));
-                
+
                 extractedParameterKeys.forEach(key => {
                     thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
                     const ref = parameterValues.get(key);
@@ -216,11 +278,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 this.setState(() => ({
                     parameterValues,
-                    schedulingOptions: this.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
+                    schedulingOptions: Run.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
                 }));
             } catch (e) {
                 console.warn(e);
-                failureNotification("An error occured");
+                this.props.addSnack({ message: "An error ocurred", type: SnackType.Failure });
             }
         };
         fileReader.readAsText(file);
@@ -231,7 +293,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (!application) return;
         const appInfo = application.metadata;
 
-        const jobInfo = this.extractJobInfo(schedulingOptions);
+        const jobInfo = Run.extractJobInfo(schedulingOptions);
         const element = document.createElement("a");
 
         const values: { [key: string]: string } = {};
@@ -279,11 +341,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const main = (
             <ContainerForText>
-                <Error
-                    clearError={() => this.setState(() => ({ error: undefined }))}
-                    error={error} />
+                <Error clearError={() => this.setState(() => ({ error: undefined }))} error={error} />
 
                 <Parameters
+                    initialSubmit={this.state.initialSubmit}
                     values={parameterValues}
                     parameters={application.invocation.parameters}
                     onSubmit={this.onSubmit}
@@ -310,11 +371,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     Import parameters
                     <HiddenInputField
                         type="file"
-                        onChange={e => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
+                        onChange={e => {
+                            if (e.target.files) this.importParameters(e.target.files[0])
+                        }} />
                 </OutlineButton>
-                <LoadingButton fullWidth loading={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
+                <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                     {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
-                </LoadingButton>
+                </Button>
                 <SubmitButton
                     parameters={application.invocation.parameters}
                     jobSubmitted={jobSubmitted}
@@ -341,10 +404,11 @@ interface SubmitButton {
 }
 
 const SubmitButton = ({ onSubmit, jobSubmitted }: SubmitButton) => {
-    return (<LoadingButton onClick={onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>);
-}
+    return (<Button onClick={onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>);
+};
 
 interface ParameterProps {
+    initialSubmit: boolean
     values: ParameterValues
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
@@ -355,23 +419,24 @@ interface ParameterProps {
 }
 
 const Parameters = (props: ParameterProps) => {
-    if (!props.parameters) return null
+    if (!props.parameters) return null;
 
     const mandatory = props.parameters.filter(parameter => !parameter.optional);
     const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values.get(parameter.name)!.current != null));
     const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values.get(parameter.name)!.current == null);
 
-    const mapParamToComponent = (parameter: ApplicationParameter, index: number) => {
+    const mapParamToComponent = (parameter: ApplicationParameter) => {
         let ref = props.values.get(parameter.name)!;
 
         return (
             <Parameter
+                key={parameter.name}
+                initialSubmit={props.initialSubmit}
                 parameterRef={ref}
-                key={index}
                 parameter={parameter}
             />
         );
-    }
+    };
 
     let mandatoryParams = mandatory.map(mapParamToComponent);
     let visibleParams = visible.map(mapParamToComponent);
@@ -460,12 +525,10 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
         </>)
 };
 
-interface RunOperations {
-    updatePageTitle: () => void
-}
-
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
-    updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
+    updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
+    addSnack: snack => dispatch(addSnack(snack)),
+    setLoading: loading => dispatch(setLoading(loading))
 });
 
 export default connect(null, mapDispatchToProps)(Run);

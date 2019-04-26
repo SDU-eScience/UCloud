@@ -2,9 +2,8 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.storage.util.simpleStorageUserDao
 import org.junit.Ignore
@@ -18,8 +17,8 @@ class UnixUploadTest {
     fun `test storage events for new file`() {
         val userDao = simpleStorageUserDao()
         val fsRoot = Files.createTempDirectory("ceph-fs").toFile()
-        val factory = UnixFSCommandRunnerFactory(userDao)
-        val cephFs = UnixFileSystem(factory, userDao, FileAttributeParser(userDao), fsRoot.absolutePath)
+        val factory = LinuxFSRunnerFactory(userDao)
+        val cephFs = LinuxFS(factory, fsRoot, userDao)
         val owner = SERVICE_USER
 
         factory.withBlockingContext(owner) { ctx ->

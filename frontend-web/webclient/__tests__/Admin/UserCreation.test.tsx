@@ -14,9 +14,6 @@ import status from "Navigation/Redux/StatusReducer";
 
 configure({ adapter: new Adapter() });
 
-
-
-
 const store = configureStore({ status: initStatus(), responsive: initResponsive() }, {
     status,
     responsive: createResponsiveStateReducer(

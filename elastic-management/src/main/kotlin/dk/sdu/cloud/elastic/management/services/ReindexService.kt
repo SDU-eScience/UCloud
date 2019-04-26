@@ -46,12 +46,12 @@ class ReindexService(
             elastic.reindex(request, RequestOptions.DEFAULT)
         } catch (ex: IOException) {
             //Did not finish reindexing in 2 min (timeout)
-            val fromCount = getDocumentCount(fromIndices, elasticHostAndPort)
-            var toCount = getDocumentCount(listOf(toIndex), elasticHostAndPort)
+            val fromCount = getDocumentCountSum(fromIndices, elasticHostAndPort)
+            var toCount = getDocumentCountSum(listOf(toIndex), elasticHostAndPort)
             while (fromCount != toCount) {
                 log.info("Waiting for target index to reach count: $fromCount. Currently doc count is: $toCount")
                 Thread.sleep(1000)
-                toCount = getDocumentCount(listOf(toIndex), elasticHostAndPort)
+                toCount = getDocumentCountSum(listOf(toIndex), elasticHostAndPort)
             }
         }
         //Delete old indices

@@ -1,21 +1,21 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Button } from "ui-components";
-import { failureNotification } from "UtilityFunctions";
+import { Snack, SnackType } from "Snackbar/Snackbars";
 
 
 
 const zenodoRedirectPath = (returnTo: string) => `/zenodo/request?returnTo=${encodeURIComponent(returnTo)}`;
 
-const ZenodoRedirect = () =>
+const ZenodoRedirect = (addSnack: (snack: Snack) => void) =>
     Cloud.post(zenodoRedirectPath(window.location.href)).then(({ response }) => {
         const redirectTo = response.redirectTo;
         if (redirectTo) window.location.href = redirectTo;
-    }).catch(() => failureNotification(`An error occurred redirecting to ${window.location.href}`))
-        
-export const NotConnectedToZenodo = () => (
+    }).catch(() => addSnack({ message: `An error occurred redirecting to ${window.location.href}`, type: SnackType.Failure }));
+
+export const NotConnectedToZenodo = ({ addSnack }: { addSnack: (snack: Snack) => void }) => (
     <>
         <h1>You are not connected to Zenodo</h1>
-        <Button onClick={() => ZenodoRedirect()}>Connect to Zenodo</Button>
+        <Button onClick={() => ZenodoRedirect(addSnack)}>Connect to Zenodo</Button>
     </>
 );

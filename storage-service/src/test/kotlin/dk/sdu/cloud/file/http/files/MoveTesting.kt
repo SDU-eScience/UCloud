@@ -109,4 +109,23 @@ class MoveTesting {
             }
         )
     }
+
+    @Test
+    fun `move file with unsupported path`() {
+        withKtorTest(
+            setup = { configureServerWithFileController() },
+
+            test = {
+                val fileToMove = "/home/user1/folder/a"
+                val newLocation =
+                    "/home/user1/another-one/ด้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็ ด้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็ ด้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็"
+
+                val response = engine.stat(fileToMove)
+                assertEquals(HttpStatusCode.OK, response.status())
+
+                val response2 = engine.move(fileToMove, newLocation)
+                assertEquals(HttpStatusCode.BadRequest, response2.status())
+            }
+        )
+    }
 }

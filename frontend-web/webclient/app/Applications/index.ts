@@ -5,6 +5,8 @@ import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
 import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 import { ParameterValues } from "Utilities/ApplicationUtilities";
+import { AddSnackOperation } from "Snackbar/Snackbars";
+import { SetStatusLoading } from "Navigation/Redux/StatusActions";
 
 export interface Analysis {
     status: string
@@ -39,7 +41,7 @@ export interface AnalysesOperations {
 export interface AnalysesState {
 }
 
-export interface DetailedResultOperations {
+export interface DetailedResultOperations extends AddSnackOperation {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
@@ -157,9 +159,9 @@ export interface JobSchedulingOptionsForInput {
 export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
+    initialSubmit: boolean
 
     error?: string
-    loading: boolean
 
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: ParameterValues
@@ -168,7 +170,11 @@ export interface RunAppState {
     favoriteLoading: boolean
 }
 
-export interface RunAppProps {
+export interface RunOperations extends AddSnackOperation, SetStatusLoading {
+    updatePageTitle: () => void
+}
+
+export interface RunAppProps extends RunOperations {
     match: match<{ appName: string, appVersion: string }>
     history: History
     updatePageTitle: () => void

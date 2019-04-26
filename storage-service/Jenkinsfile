@@ -32,6 +32,7 @@ def initialize() {
 				apk add --no-cache sudo
 				apk add --no-cache bash
 				apk add --no-cache acl
+				apk add --no-cache nss
 
 	    	cd storage-service/native
 	    	./cmakeclean.sh
