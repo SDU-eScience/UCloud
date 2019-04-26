@@ -71,7 +71,6 @@ class ShareService<DBSession>(
                 FileDescriptions.stat
                     .call(FindByPath(share.path), userCloud)
                     .orNull()
-                    ?.takeIf { devMode || it.ownerName == user } ?: throw ShareException.NotFound()
             }
 
             log.debug("Verifying that user exists")
@@ -87,7 +86,12 @@ class ShareService<DBSession>(
                     ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
             }
 
-            fileId = statJob.await().fileId
+            val file = statJob.await() ?: throw ShareException.NotFound()
+            if (!devMode && (file.ownerName != user || file.link)) {
+                throw ShareException.NotAllowed()
+            }
+
+            fileId = file.fileId
             log.debug("File exists")
             lookupJob.join()
             log.debug("User exists")
