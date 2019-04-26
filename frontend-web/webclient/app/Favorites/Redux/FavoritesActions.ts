@@ -41,3 +41,4 @@ export const setFavoritesShown = (shown: FavoriteType): SetFavoritesShown => ({
     type: SET_FAVORITES_SHOWN,
     payload: { shown }
 });
+

@@ -337,16 +337,16 @@ export const ClearTrashOperations = (toHome: () => void): Operation[] => [{
  * @returns Properties and Project Operations for files.
  */
 export const HistoryFilesOperations = (history: History, addSnack: (snack: Snack) => void): FileOperation[] => {
-    let ops: FileOperation[] = [{
+    const ops: FileOperation[] = [{
         text: "Properties",
         onClick: (files: File[], cloud: SDUCloud) => history.push(fileInfoPage(files[0].path)),
         disabled: (files: File[], cloud: SDUCloud) => files.length !== 1,
         icon: "properties", color: "blue"
-    }]
+    }];
 
-    if (process.env.NODE_ENV === "development")
+    /* if (process.env.NODE_ENV === "development")
         ops.push({
-            predicate: (files: File[], cloud: SDUCloud) => false /* FIXME */,
+            predicate: (files: File[], cloud: SDUCloud) => false,
             onTrue: {
                 text: "Edit Project",
                 onClick: (files: File[], cloud: SDUCloud) => history.push(projectViewPage(files[0].path)),
@@ -368,7 +368,7 @@ export const HistoryFilesOperations = (history: History, addSnack: (snack: Snack
                 icon: "projects",
                 color: "blue"
             },
-        });
+        }); */
     return ops;
 }
 
@@ -434,7 +434,7 @@ export function resolvePath(path: string) {
 }
 
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH, attrs: SortBy[] = []): string =>{
-    const attributes = attrs.length > 0 ? `?attrs=${attrs.join(",")}` : "";
+    const attributes = attrs.length > 0 ? `?attributes=${attrs.join(",")}` : "";
     return `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${attributes}`;
 }
 // FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues

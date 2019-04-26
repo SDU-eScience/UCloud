@@ -56,7 +56,7 @@ export interface MockedTableProps {
     creatingFolder: boolean
 }
 
-export interface FilesStateProps { // Redux Props
+export interface FilesStateProps {
     path: string
     page: Page<File>
     loading: boolean
