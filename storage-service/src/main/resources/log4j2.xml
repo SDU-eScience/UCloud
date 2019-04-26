@@ -48,7 +48,7 @@
         <Logger name="dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="dk.sdu.cloud.file.services.unixfs.FileOwnerLookupService" level="info" additivity="false">
+        <Logger name="dk.sdu.cloud.file.services.linuxfs.FileOwnerLookupService" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="dk.sdu.cloud.file" level="debug" additivity="false">

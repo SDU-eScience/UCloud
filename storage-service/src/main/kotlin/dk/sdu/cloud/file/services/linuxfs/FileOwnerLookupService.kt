@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.services.unixfs
+package dk.sdu.cloud.file.services.linuxfs
 
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.components

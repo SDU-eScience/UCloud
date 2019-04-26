@@ -20,10 +20,6 @@ import kotlinx.coroutines.selects.select
 import org.slf4j.LoggerFactory
 import kotlin.math.absoluteValue
 
-fun homeDirectory(ctx: FSUserContext): String = homeDirectory(ctx.user)
-
-fun favoritesDirectory(ctx: FSUserContext): String = favoritesDirectory(ctx.user)
-
 fun <T> FSResult<T>.unwrap(): T {
     if (statusCode != 0) {
         throwExceptionBasedOnStatus(statusCode)

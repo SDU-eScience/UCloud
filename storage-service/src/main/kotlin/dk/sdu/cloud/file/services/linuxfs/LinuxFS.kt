@@ -17,7 +17,6 @@ import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.XATTR_BIRTH
-import dk.sdu.cloud.file.services.unixfs.FileOwnerLookupService
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable

@@ -5,9 +5,6 @@ import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
 import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.service.test.TestUsers
 import java.io.File
 import java.nio.file.Files
@@ -22,22 +19,6 @@ fun simpleStorageUserDao(): UIDLookupService {
 
 fun storageUserDaoWithFixedAnswer(answer: String): UIDLookupService {
     return DevelopmentUIDLookupService(answer)
-}
-
-fun unixFSWithRelaxedMocks(
-    fsRoot: String,
-    userDao: UIDLookupService = simpleStorageUserDao()
-): Pair<UnixFSCommandRunnerFactory, UnixFileSystem> {
-    val commandRunner = UnixFSCommandRunnerFactory(userDao)
-    return Pair(
-        commandRunner,
-        UnixFileSystem(
-            commandRunner,
-            userDao,
-            FileAttributeParser(userDao),
-            fsRoot
-        )
-    )
 }
 
 fun linuxFSWithRelaxedMocks(
