@@ -79,13 +79,13 @@ val StorageFile.size: Long
     get() = sizeOrNull!!
 
 val StorageFile.acl: List<AccessEntry>?
-    get() = acl
+    get() = aclOrNull
 
 val StorageFile.sensitivityLevel: SensitivityLevel
     get() = sensitivityLevelOrNull!!
 
 val StorageFile.ownSensitivityLevel: SensitivityLevel?
-    get() = ownSensitivityLevel
+    get() = ownSensitivityLevelOrNull
 
 val StorageFile.link: Boolean
     get() = linkOrNull!!
