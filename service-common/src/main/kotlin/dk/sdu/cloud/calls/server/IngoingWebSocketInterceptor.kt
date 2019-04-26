@@ -130,7 +130,15 @@ class IngoingWebSocketInterceptor(
         if (handlers.isEmpty()) return
 
         engine.application.install(WebSockets) {
-            pingPeriod = Duration.ofMinutes(1)
+            // NOTE(Dan):
+            // We explicitly disable pings. As of ktor 1.1.5 this caused about 0.5-1% of requests to randomly get
+            // dropped. We assume that this was due to the ping/pong protocol not being correctly implemented. We don't
+            // know which side dropped the ball. This may also have been due to bad concurrency from our side.
+            //
+            // Setting pingPeriod to null fixes all of this. It does, however, mean that a lot of open subscriptions
+            // will timeout after some time (whenever the load balancer decides).
+
+            pingPeriod = null
         }
 
         engine.application.routing {
@@ -142,7 +150,6 @@ class IngoingWebSocketInterceptor(
 
                     try {
                         while (isActive && session.isActive) {
-                            log.info("Receiving frame!")
                             val frame = try {
                                 withTimeout(1_000) {
                                     incoming.receive()
@@ -195,7 +202,7 @@ class IngoingWebSocketInterceptor(
                     } catch (ex: ClosedReceiveChannelException) {
                         log.debug("Channel was closed")
                     } finally {
-                        log.info("Receive channel is closing down!")
+                        log.debug("Receive channel is closing down!")
                         session.onCloseHandlers.forEach { it() }
 
                         handlers.flatMap { it.value }.forEach { handler ->
