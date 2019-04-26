@@ -51,6 +51,11 @@ data class ChmodRequest(
     val recurse: Boolean
 )
 
+data class StatRequest(
+    val path: String,
+    val attributes: String? = null
+)
+
 data class FindByPath(val path: String)
 
 data class CreateDirectoryRequest(
@@ -71,8 +76,7 @@ enum class FileSortBy {
     MODIFIED_AT,
     SIZE,
     ACL,
-    SENSITIVITY,
-    ANNOTATION
+    SENSITIVITY
 }
 
 enum class SortOrder {
@@ -110,19 +114,37 @@ data class BulkFileAudit<Request>(
     val request: Request
 )
 
+@Suppress("EnumEntryName")
+enum class StorageFileAttribute {
+    fileType,
+    path,
+    createdAt,
+    modifiedAt,
+    ownerName,
+    size,
+    acl,
+    sensitivityLevel,
+    ownSensitivityLevel,
+    link,
+    fileId,
+    creator
+}
+
 data class ListDirectoryRequest(
     val path: String,
     override val itemsPerPage: Int?,
     override val page: Int?,
     val order: SortOrder?,
-    val sortBy: FileSortBy?
+    val sortBy: FileSortBy?,
+    val attributes: String? = null
 ) : WithPaginationRequest
 
 data class LookupFileInDirectoryRequest(
     val path: String,
     val itemsPerPage: Int,
     val order: SortOrder,
-    val sortBy: FileSortBy
+    val sortBy: FileSortBy,
+    val attributes: String? = null
 )
 
 data class DeleteFileRequest(val path: String)
@@ -217,6 +239,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 +boundTo(ListDirectoryRequest::page)
                 +boundTo(ListDirectoryRequest::order)
                 +boundTo(ListDirectoryRequest::sortBy)
+                +boundTo(ListDirectoryRequest::attributes)
             }
 
             headers {
@@ -246,6 +269,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
                     +boundTo(LookupFileInDirectoryRequest::itemsPerPage)
                     +boundTo(LookupFileInDirectoryRequest::sortBy)
                     +boundTo(LookupFileInDirectoryRequest::order)
+                    +boundTo(LookupFileInDirectoryRequest::attributes)
                 }
 
                 headers {
@@ -255,10 +279,10 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
 
     val stat = call<
-            FindByPath,
+            StatRequest,
             StorageFile,
             CommonErrorMessage>("stat") {
-        audit<SingleFileAudit<FindByPath>>()
+        audit<SingleFileAudit<StatRequest>>()
 
         auth {
             access = AccessRight.READ
@@ -273,7 +297,8 @@ object FileDescriptions : CallDescriptionContainer("files") {
             }
 
             params {
-                +boundTo(FindByPath::path)
+                +boundTo(StatRequest::path)
+                +boundTo(StatRequest::attributes)
             }
 
             headers {

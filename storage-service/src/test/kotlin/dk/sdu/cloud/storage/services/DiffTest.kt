@@ -1,16 +1,34 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.StorageFileImpl
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FSUserContext
+import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageEventProducer
+import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertCollectionHasItem
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import dk.sdu.cloud.storage.util.*
+import dk.sdu.cloud.storage.util.createFS
+import dk.sdu.cloud.storage.util.inode
+import dk.sdu.cloud.storage.util.mkdir
+import dk.sdu.cloud.storage.util.storageUserDaoWithFixedAnswer
+import dk.sdu.cloud.storage.util.timestamps
+import dk.sdu.cloud.storage.util.touch
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -36,7 +54,7 @@ class DiffTest {
         val commandRunnerFactory: FSCommandRunnerFactory<Ctx>
     ) {
         fun File.asMaterialized(): StorageFileImpl =
-            StorageFileImpl(
+            StorageFile(
                 fileType = if (isDirectory) FileType.DIRECTORY else FileType.FILE,
                 fileId = inode(),
                 path = absolutePath.removePrefix(fsRoot.absolutePath).removePrefix("/").let { "/$it" },
@@ -78,15 +96,15 @@ class DiffTest {
 
     private fun fakeMaterializedFile(id: String, path: String, fileType: FileType): StorageFileImpl {
         return StorageFileImpl(
-            fileId = id,
-            path = path,
-            fileType = fileType,
-            createdAt = 0L,
-            modifiedAt = 0L,
-            creator = "user",
-            ownerName = "user",
-            size = 0L,
-            ownSensitivityLevel = null
+            fileIdOrNull = id,
+            pathOrNull = path,
+            fileTypeOrNull = fileType,
+            createdAtOrNull = 0L,
+            modifiedAtOrNull = 0L,
+            creatorOrNull = "user",
+            ownerNameOrNull = "user",
+            sizeOrNull = 0L,
+            ownSensitivityLevelOrNull = null
         )
     }
 
@@ -224,7 +242,7 @@ class DiffTest {
                         "/home",
                         listOf(
                             referenceFile,
-                            referenceFile.copy(fileId = "invalid id")
+                            referenceFile.copy(fileIdOrNull = "invalid id")
                         )
                     )
 
@@ -275,7 +293,7 @@ class DiffTest {
                     val realFile = fsRoot.resolvePath("/home/b")
                     val diff = indexingService.calculateDiff(
                         it, "/home", listOf(
-                            realFile.asMaterialized().copy(path = "/home/a")
+                            realFile.asMaterialized().copy(pathOrNull = "/home/a")
                         )
                     )
 
@@ -311,7 +329,7 @@ class DiffTest {
                     val realFile = fsRoot.resolvePath("/home/b")
                     val diff = indexingService.calculateDiff(
                         it, "/home", listOf(
-                            realFile.asMaterialized().copy(path = "/home/a")
+                            realFile.asMaterialized().copy(pathOrNull = "/home/a")
                         )
                     )
 
@@ -366,7 +384,7 @@ class DiffTest {
                     val diff = indexingService.calculateDiff(
                         ctx,
                         "/home",
-                        listOf(realFile.asMaterialized().copy(ownSensitivityLevel = SensitivityLevel.SENSITIVE))
+                        listOf(realFile.asMaterialized().copy(ownSensitivityLevelOrNull = SensitivityLevel.SENSITIVE))
                     )
 
                     assertCollectionHasItem(diff.diff) {

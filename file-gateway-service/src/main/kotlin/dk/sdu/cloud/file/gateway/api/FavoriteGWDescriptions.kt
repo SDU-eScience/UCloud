@@ -14,7 +14,7 @@ import dk.sdu.cloud.service.WithPaginationRequest
 data class ListRequest(
     override val itemsPerPage: Int?,
     override val page: Int?,
-    override val load: String?
+    override val attributes: String?
 ) : WithPaginationRequest, LoadFileResource
 
 fun ListRequest(
@@ -46,7 +46,7 @@ object FavoriteGWDescriptions : CallDescriptionContainer("${FileFavoriteDescript
             params {
                 +boundTo(ListRequest::itemsPerPage)
                 +boundTo(ListRequest::page)
-                +boundTo(ListRequest::load)
+                +boundTo(ListRequest::attributes)
             }
         }
     }

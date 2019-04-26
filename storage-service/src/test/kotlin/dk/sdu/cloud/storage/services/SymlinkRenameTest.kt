@@ -16,6 +16,7 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import dk.sdu.cloud.file.api.*
 
 class SymlinkRenameTest {
     val user = "user"

@@ -4,7 +4,13 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.creator
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.ownSensitivityLevel
+import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent

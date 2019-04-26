@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFile
