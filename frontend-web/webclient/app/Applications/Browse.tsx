@@ -38,11 +38,11 @@ const CategoryItem: React.StatelessComponent<{ tag?: string }> = props => (
 );
 
 const Sidebar: React.StatelessComponent<{ itemsPerPage: number }> = ({ itemsPerPage }) => (<>
-<Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
- 
+    <Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
+
     <Heading.h4 m="0 0 -14px">Categories</Heading.h4>
     <CategoryList>
-        <CategoryItem tag="Bioinformatics">Bioinformatics</CategoryItem> 
+        <CategoryItem tag="Bioinformatics">Bioinformatics</CategoryItem>
         <CategoryItem tag="Natural Science">Natural Sciences</CategoryItem>
         <CategoryItem tag="Toy">Toys</CategoryItem>
     </CategoryList>
@@ -62,6 +62,7 @@ export interface ApplicationsOperations extends AddSnackOperation {
     onInit: () => void
     fetchDefault: (itemsPerPage: number, page: number) => void
     fetchByTag: (tag: string, itemsPerPage: number, page: number) => void
+    receiveApplications: (page: Page<WithAppMetadata>) => void
     setActivePage: () => void
     setRefresh: (refresh?: () => void) => void
 }
@@ -143,15 +144,13 @@ class Applications extends React.Component<ApplicationsProps> {
                         {page.items.map((app, index) =>
                             <ApplicationCard
                                 key={index}
-                                onFavorite={async () => {
-                                    // FIXME: Merge into call, and modify own contents instead of refetching
-                                    await favoriteApplicationFromPage({
+                                onFavorite={async () =>
+                                    this.props.receiveApplications(await favoriteApplicationFromPage({
                                         name: app.metadata.name,
                                         version: app.metadata.version, page, cloud: Cloud,
                                         addSnack: this.props.addSnack
-                                    });
-                                    this.fetch(this.props);
-                                }}
+                                    }))
+                                }
                                 app={app}
                                 isFavorite={app.favorite}
                             />
@@ -197,11 +196,16 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
         dispatch(await Actions.fetch(itemsPerPage, page));
     },
 
+    receiveApplications: page => dispatch(Actions.receivePage(page)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.AppStore)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     addSnack: snack => dispatch(addSnack(snack))
 });
 
-const mapStateToProps = (state: ReduxObject): ReduxType => state.applicationsBrowse;
+const mapStateToProps = ({ applicationsBrowse }: ReduxObject): ReduxType & { favCount } => ({
+    ...applicationsBrowse,
+    favCount: applicationsBrowse.applications.content ? 
+        applicationsBrowse.applications.content.items.filter((it: any) => it.favorite).length : 0
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);
