@@ -51,7 +51,7 @@ const FilesTable = ({
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
                         <TableCell>
-                            <SensitivityIcon sensitivity={file.sensitivityLevel} />
+                            {file.sensitivityLevel ? <SensitivityIcon sensitivity={file.sensitivityLevel} /> : null}
                         </TableCell>
                         {columns.filter(it => it != null).map((sC, i) => (
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
