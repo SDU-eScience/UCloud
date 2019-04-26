@@ -23,11 +23,14 @@ import io.ktor.server.engine.ApplicationEngine
 import io.ktor.websocket.WebSocketServerSession
 import io.ktor.websocket.WebSockets
 import io.ktor.websocket.webSocket
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import java.time.Duration
 import java.util.*
 
@@ -62,6 +65,8 @@ class WSCall internal constructor(
 
 class WSSession internal constructor(val id: String, val underlyingSession: WebSocketServerSession) {
     internal val onCloseHandlers = ArrayList<suspend () -> Unit>()
+    internal var isActive: Boolean = true
+        private set
 
     fun addOnCloseHandler(handler: suspend () -> Unit) {
         onCloseHandlers.add(handler)
@@ -92,6 +97,7 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
     }
 
     suspend fun close(reason: String? = null) {
+        isActive = false
         underlyingSession.close(CloseReason(CloseReason.Codes.NORMAL, reason ?: "Unspecified reason"))
     }
 
@@ -128,15 +134,23 @@ class IngoingWebSocketInterceptor(
         }
 
         engine.application.routing {
-            handlers.forEach { path, calls ->
+            handlers.forEach { (path, calls) ->
                 webSocket(path) {
                     log.info("New websocket connection at $path")
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
 
                     try {
-                        while (isActive) {
-                            val frame = incoming.receive()
+                        while (isActive && session.isActive) {
+                            log.info("Receiving frame!")
+                            val frame = try {
+                                withTimeout(1_000) {
+                                    incoming.receive()
+                                }
+                            } catch (ex: TimeoutCancellationException) {
+                                continue
+                            }
+
                             if (frame is Frame.Text) {
                                 val text = frame.readText()
 
@@ -181,11 +195,14 @@ class IngoingWebSocketInterceptor(
                     } catch (ex: ClosedReceiveChannelException) {
                         log.debug("Channel was closed")
                     } finally {
+                        log.info("Receive channel is closing down!")
                         session.onCloseHandlers.forEach { it() }
 
                         handlers.flatMap { it.value }.forEach { handler ->
                             handler.wsServerConfig.onClose?.invoke(session)
                         }
+
+                        session.close()
                     }
                 }
             }
@@ -243,7 +260,14 @@ class IngoingWebSocketInterceptor(
 
             log.debug(response)
             ctx.responseHasBeenSent()
-            ctx.session.rawSend(response)
+
+            try {
+                ctx.session.rawSend(response)
+            } catch (ex: ClosedSendChannelException) {
+                // TODO For some reason the client won't notice that we are actually closing.
+                ctx.session.close()
+                throw ex
+            }
         }
     }
 

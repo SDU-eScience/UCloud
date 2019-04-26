@@ -4,9 +4,15 @@ RUN apt-get install -y \
     libacl1-dev \
     build-essential \
     unzip \
-    zip
+    zip \
+    locales
+
 RUN curl -s "https://get.sdkman.io" | bash
 SHELL ["/bin/bash", "-c"]
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 RUN source "/root/.sdkman/bin/sdkman-init.sh" ; sdk install gradle 4.10.2
    
 #

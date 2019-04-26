@@ -1,10 +1,7 @@
 package dk.sdu.cloud.file
 
-import dk.sdu.cloud.auth.api.LookupUsersRequest
-import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.securityPrincipal
@@ -106,22 +103,6 @@ class Server(
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
 
         log.info("Core services constructed!")
-
-        Thread {
-            runBlocking {
-                while (true) {
-                    UserDescriptions.lookupUsers
-                        .call(
-                            LookupUsersRequest(listOf("easytosearchfor")),
-                            cloud
-                        )
-
-                    Thread.sleep(5000)
-                }
-
-            }
-        }.start()
-
 
         if (micro.commandLineArguments.contains("--bug-test")) {
             ZipBulkUploader.upload(

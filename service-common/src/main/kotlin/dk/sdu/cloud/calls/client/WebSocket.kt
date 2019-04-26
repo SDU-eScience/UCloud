@@ -25,6 +25,7 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
@@ -32,8 +33,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
@@ -111,17 +114,26 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val response = coroutineScope {
             lateinit var response: WSMessage.Response<Any>
             val channel = processMessagesFromStream(call, subscription, streamId)
-            for (message in channel) {
-                if (message is WSMessage.Response) {
-                    log.info("[$callId] <- $url (${call.fullName}, $streamId) RESPONSE ${System.currentTimeMillis() - start}ms")
-                    response = message
-                    channel.cancel()
-                    session.unsubscribe(streamId)
-                    break
-                } else if (message is WSMessage.Message && handler != null) {
-                    log.info("[$callId] <- $url (${call.fullName}, $streamId) MESSAGE ${System.currentTimeMillis() - start}ms")
-                    handler(message.payload)
+
+            try {
+                while (!channel.isClosedForReceive) {
+                    withTimeout(10_000) {
+                        val message = channel.receive()
+                        if (message is WSMessage.Response) {
+                            log.info("[$callId] <- $url (${call.fullName}, $streamId) RESPONSE ${System.currentTimeMillis() - start}ms")
+                            response = message
+                            channel.cancel()
+                            session.unsubscribe(streamId)
+                        } else if (message is WSMessage.Message && handler != null) {
+                            log.info("[$callId] <- $url (${call.fullName}, $streamId) MESSAGE ${System.currentTimeMillis() - start}ms")
+                            handler(message.payload)
+                        }
+                    }
                 }
+            } catch (ex: TimeoutCancellationException) {
+                // We are closing the connection since this is currently a sign that the entire connection is dead.
+                log.warn("Timeout while polling new event from websocket. Closing entire connection.")
+                session.underlyingSession.close(ex)
             }
             response
         }

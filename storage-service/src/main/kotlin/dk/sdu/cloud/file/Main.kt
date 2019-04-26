@@ -1,13 +1,17 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.file.services.linuxfs.NativeThread
-import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.micro.KafkaTopicFeatureConfiguration
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.installDefaultFeatures
+import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 
 val SERVICE_USER = "_${StorageServiceDescription.name}"
-@Deprecated("No longer in use") const val SERVICE_UNIX_USER = "storage"
+@Deprecated("No longer in use")
+const val SERVICE_UNIX_USER = "storage"
 
 data class StorageConfiguration(
     val filePermissionAcl: Set<String> = emptySet()
