@@ -17,6 +17,7 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import dk.sdu.cloud.file.api.*
 
 class LookupTests {
     private val mapper = jacksonObjectMapper()

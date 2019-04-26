@@ -111,18 +111,20 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val response = coroutineScope {
             lateinit var response: WSMessage.Response<Any>
             val channel = processMessagesFromStream(call, subscription, streamId)
-            for (message in channel) {
+
+            while (!channel.isClosedForReceive) {
+                val message = channel.receive()
                 if (message is WSMessage.Response) {
                     log.info("[$callId] <- $url (${call.fullName}, $streamId) RESPONSE ${System.currentTimeMillis() - start}ms")
                     response = message
                     channel.cancel()
                     session.unsubscribe(streamId)
-                    break
                 } else if (message is WSMessage.Message && handler != null) {
                     log.info("[$callId] <- $url (${call.fullName}, $streamId) MESSAGE ${System.currentTimeMillis() - start}ms")
                     handler(message.payload)
                 }
             }
+
             response
         }
 

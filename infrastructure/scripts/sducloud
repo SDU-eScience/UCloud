@@ -18,7 +18,7 @@ sducloud = os.path.expanduser("~/.sducloud")
 if not os.path.exists(sducloud):
     os.makedirs(sducloud)
 
-host = "https://cloud.sdu.dk"
+host = "https://dev.cloud.sdu.dk"
 config_file = os.path.expanduser("~/.sducloud/config.json")
 refresh_token = None
 try:
@@ -32,7 +32,7 @@ except:
     pass
 
 if refresh_token == None:
-    print("Found no refresh token in ~/.sducloud/refresh")
+    print("Found no refresh token in ~/.sducloud/config.json")
     print('It should contain: {"refreshToken": "<TOKEN>"}')
     exit(1)
 

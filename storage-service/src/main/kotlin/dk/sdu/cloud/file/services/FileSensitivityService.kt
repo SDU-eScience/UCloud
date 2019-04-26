@@ -20,8 +20,8 @@ class FileSensitivityService<Ctx : FSUserContext>(
             StorageEvent.SensitivityUpdated(
                 id = stat.inode,
                 path = stat.path,
-                owner = stat.xowner,
-                creator = stat.owner,
+                owner = stat.owner,
+                creator = stat.creator,
                 timestamp = System.currentTimeMillis(),
                 sensitivityLevel = level,
                 eventCausedBy = eventCausedBy
@@ -37,8 +37,8 @@ class FileSensitivityService<Ctx : FSUserContext>(
             StorageEvent.SensitivityUpdated(
                 id = stat.inode,
                 path = stat.path,
-                owner = stat.xowner,
-                creator = stat.owner,
+                owner = stat.owner,
+                creator = stat.creator,
                 timestamp = System.currentTimeMillis(),
                 sensitivityLevel = null,
                 eventCausedBy = eventCausedBy

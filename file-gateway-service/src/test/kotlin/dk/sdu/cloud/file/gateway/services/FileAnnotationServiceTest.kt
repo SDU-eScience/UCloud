@@ -3,6 +3,10 @@ package dk.sdu.cloud.file.gateway.services
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.ownerName
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.gateway.api.FileResource

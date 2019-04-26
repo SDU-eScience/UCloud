@@ -5,13 +5,13 @@ import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.storage.util.createDummyFS
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
+import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.Assert.assertFalse
@@ -22,8 +22,8 @@ class RemoveTest {
     private fun createService(
         root: String,
         emitter: StorageEventProducer = mockk(relaxed = true)
-    ): Pair<UnixFSCommandRunnerFactory, CoreFileSystemService<UnixFSCommandRunner>> {
-        val (runner, fs) = unixFSWithRelaxedMocks(root)
+    ): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
+        val (runner, fs) = linuxFSWithRelaxedMocks(root)
         return Pair(runner, CoreFileSystemService(fs, emitter))
     }
 

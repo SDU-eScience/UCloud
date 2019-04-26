@@ -16,6 +16,8 @@ import dk.sdu.cloud.service.Loggable
 import java.io.InputStream
 import java.io.OutputStream
 
+const val XATTR_BIRTH = "birth"
+
 class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer
@@ -28,7 +30,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         fs.setExtendedAttribute(
             ctx,
             path,
-            "birth",
+            XATTR_BIRTH,
             (System.currentTimeMillis() / 1000).toString(),
             allowOverwrite = false
         )
@@ -53,7 +55,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     suspend fun <R> read(
         ctx: Ctx,
         path: String,
-        range: IntRange? = null,
+        range: LongRange? = null,
         consumer: suspend InputStream.() -> R
     ): R {
         fs.openForReading(ctx, path).unwrap()

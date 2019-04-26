@@ -30,9 +30,8 @@ import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.ZipBulkUploader
-import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
@@ -75,9 +74,8 @@ class Server(
         val fsRoot = fsRootFile.normalize().absolutePath
 
         // Low level FS
-        val processRunner = UnixFSCommandRunnerFactory(uidLookupService)
-        val fileAttributeParser = FileAttributeParser(uidLookupService)
-        val fs = UnixFileSystem(processRunner, uidLookupService, fileAttributeParser, fsRoot)
+        val processRunner = LinuxFSRunnerFactory(uidLookupService)
+        val fs = LinuxFS(processRunner, fsRootFile, uidLookupService)
 
         // High level FS
         val storageEventProducer = StorageEventProducer(streams.createProducer(StorageEvents.events)) {

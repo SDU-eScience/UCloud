@@ -117,17 +117,17 @@ class FileSecurityController<Ctx : FSUserContext>(
     }
 
     private suspend fun CallHandler<*, *, *>.runCodeAsUnixOwner(path: String, handler: suspend (Ctx) -> Unit) {
-        log.debug("We need to run request at '$path' as real owner")
+        log.debug("We need to run request at '$path' as real creator")
         lateinit var stat: FileRow
         commandRunnerFactory.withCtx(this, SERVICE_USER) { ctx ->
-            stat = coreFs.stat(ctx, path, setOf(FileAttribute.OWNER, FileAttribute.XOWNER))
+            stat = coreFs.stat(ctx, path, setOf(FileAttribute.CREATOR, FileAttribute.OWNER))
         }
 
-        val realOwner = stat.xowner
-        val creator = stat.owner
+        val realOwner = stat.owner
+        val creator = stat.creator
 
         val user = ctx.securityPrincipal.username
-        log.debug("Real owner is $realOwner and user is $user")
+        log.debug("Real creator is $realOwner and user is $user")
 
         if (realOwner != user) throw FSException.PermissionException()
 

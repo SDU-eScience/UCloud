@@ -14,6 +14,7 @@ import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.request.contentType
 import io.ktor.request.receive
+import io.ktor.request.receiveChannel
 import kotlinx.coroutines.io.ByteReadChannel
 
 sealed class BinaryStream {
@@ -54,7 +55,7 @@ sealed class BinaryStream {
 
         override suspend fun serverIngoingBody(description: CallDescription<*, *, *>, call: HttpCall): BinaryStream {
             return Ingoing(
-                call.call.receive(),
+                call.call.receiveChannel(),
                 call.call.request.contentType(),
                 call.call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
             )

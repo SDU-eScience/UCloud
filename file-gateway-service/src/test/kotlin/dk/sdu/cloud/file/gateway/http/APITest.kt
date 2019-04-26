@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.gateway.api.StorageFileWithMetadata
 import dk.sdu.cloud.file.gateway.services.FileAnnotationService
 import dk.sdu.cloud.file.gateway.services.UserCloudService

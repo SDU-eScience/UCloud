@@ -6,14 +6,14 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.service.test.assertCollectionHasItem
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
+import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import io.mockk.mockk
 import junit.framework.Assert.*
 import org.junit.Test
@@ -74,8 +74,9 @@ class BulkUploadTest {
         }
     }
 
-    private fun createService(root: String): Pair<UnixFSCommandRunnerFactory, CoreFileSystemService<UnixFSCommandRunner>> {
-        val (runner, fs) = unixFSWithRelaxedMocks(root)
+    private fun createService(root: String): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
+        BackgroundScope.reset() // TODO Bad place to put this call. But it works.
+        val (runner, fs) = linuxFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
         return Pair(runner, coreFs)
     }
@@ -99,7 +100,7 @@ class BulkUploadTest {
         try {
             val (runner, service) = createService(fsRoot.absolutePath)
             runner.withBlockingContext("user") {
-                BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                BulkUploader.fromFormat("tgz", LinuxFSRunner::class)!!.upload(
                     cloud,
                     service,
                     { it },
@@ -152,7 +153,7 @@ class BulkUploadTest {
             val (runner, service) = createService(fsRoot.absolutePath)
             runner.withBlockingContext("user") {
                 val result =
-                    BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                    BulkUploader.fromFormat("tgz", LinuxFSRunner::class)!!.upload(
                         cloud,
                         service,
                         { it },
@@ -212,7 +213,7 @@ class BulkUploadTest {
             val (runner, service) = createService(fsRoot.absolutePath)
             runner.withBlockingContext("user") {
                 val result =
-                    BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                    BulkUploader.fromFormat("tgz", LinuxFSRunner::class)!!.upload(
                         cloud,
                         service,
                         { it },
@@ -265,7 +266,7 @@ class BulkUploadTest {
         val (runner, service) = createService(fsRoot.absolutePath)
         runner.withBlockingContext("user") {
             val result =
-                BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                BulkUploader.fromFormat("tgz", LinuxFSRunner::class)!!.upload(
                     cloud,
                     service,
                     { it },
@@ -317,7 +318,7 @@ class BulkUploadTest {
         val (runner, service) = createService(fsRoot.absolutePath)
         runner.withBlockingContext("user") { ctx ->
             val result =
-                BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                BulkUploader.fromFormat("tgz", LinuxFSRunner::class)!!.upload(
                     cloud,
                     service,
                     { ctx },
@@ -367,7 +368,7 @@ class BulkUploadTest {
         val (runner, service) = createService(fsRoot.absolutePath)
         runner.withBlockingContext("user") {
             val result =
-                BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                BulkUploader.fromFormat("tgz", LinuxFSRunner::class)!!.upload(
                     cloud,
                     service,
                     { it },
@@ -413,7 +414,7 @@ class BulkUploadTest {
             val (runner, service) = createService(fsRoot.absolutePath)
             runner.withBlockingContext("user") {
                 val result =
-                    BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                    BulkUploader.fromFormat("tgz", LinuxFSRunner::class)!!.upload(
                         cloud,
                         service,
                         { it },

@@ -3,6 +3,8 @@ package dk.sdu.cloud.storage.util
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
 import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
@@ -34,6 +36,21 @@ fun unixFSWithRelaxedMocks(
             userDao,
             FileAttributeParser(userDao),
             fsRoot
+        )
+    )
+}
+
+fun linuxFSWithRelaxedMocks(
+    fsRoot: String,
+    userDao: UIDLookupService = simpleStorageUserDao()
+): Pair<LinuxFSRunnerFactory, LinuxFS> {
+    val commandRunner = LinuxFSRunnerFactory(userDao)
+    return Pair(
+        commandRunner,
+        LinuxFS(
+            commandRunner,
+            File(fsRoot),
+            userDao
         )
     )
 }
