@@ -39,9 +39,9 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 */
 
 type FetchFiles = Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError | InvalidPathAction>
-export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): FetchFiles => {
+export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy, attrs?: SortBy[]): FetchFiles => {
     try {
-        const response = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy));
+        const response = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy, attrs));
         return receiveFiles(response.response, path, order, sortBy)
     } catch (e) {
         const error = errorMessageOrDefault(e, "An error occurred fetching contents of folder.");

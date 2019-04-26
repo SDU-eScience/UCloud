@@ -77,7 +77,7 @@ function getFilesSortingColumnOrDefault(columnIndex: number): SortBy {
             window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);
             return SortBy.MODIFIED_AT;
         } else if (columnIndex === 1) {
-            window.localStorage.setItem("filesSorting1", SortBy.ACL);
+            window.localStorage.setItem("filesSorting1", SortBy.SIZE);
             return SortBy.ACL;
         }
     }

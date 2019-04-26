@@ -475,7 +475,7 @@ const PolicySelect = ({ setRewritePolicy }: PolicySelect) =>
 
 interface ConflictFile { file?: SDUCloudFile }
 const ConflictFile = ({ file }: ConflictFile) => !!file ?
-    <Box>File already exists in folder, {sizeToString(file.size)}</Box> : null;
+    <Box>File already exists in folder, {sizeToString(file.size!)}</Box> : null;
 
 const mapStateToProps = ({ files, uploader }: ReduxObject): UploaderStateProps => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
