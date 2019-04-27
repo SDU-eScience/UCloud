@@ -16,7 +16,6 @@ class AppKubernetesController(
         implement(AppKubernetesDescriptions.follow) {}
 
         implement(AppKubernetesDescriptions.jobVerified) {
-            podService.create(request.id)
             ok(Unit)
         }
 

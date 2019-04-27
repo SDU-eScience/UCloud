@@ -1,6 +1,18 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import io.fabric8.kubernetes.api.model.*
+import dk.sdu.cloud.app.api.VerifiedJob
+import io.fabric8.kubernetes.api.model.Container
+import io.fabric8.kubernetes.api.model.ContainerBuilder
+import io.fabric8.kubernetes.api.model.DoneablePod
+import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
+import io.fabric8.kubernetes.api.model.Pod
+import io.fabric8.kubernetes.api.model.PodSecurityContext
+import io.fabric8.kubernetes.api.model.PodSpecBuilder
+import io.fabric8.kubernetes.api.model.Volume
+import io.fabric8.kubernetes.api.model.VolumeBuilder
+import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.Watch
@@ -28,10 +40,10 @@ class PodService(
     private val dataStorage = "workspace-storage"
     private val namespace = "app-testing"
 
-    fun create(/*request: VerifiedJob*/requestId: String) {
+    fun create(verifiedJob: VerifiedJob) {
         // TODO Network policy. Should at least block all ingress and block egress to the entire container CIDR.
 
-        val podName = podName(requestId)
+        val podName = podName(verifiedJob.id)
 
         k8sClient.pods().createNew()
             .metadata {
@@ -47,10 +59,26 @@ class PodService(
             .spec {
                 withInitContainers(
                     container {
+                        val app = verifiedJob.application.invocation
+                        val tool = verifiedJob.application.invocation.tool.tool!!.description
+                        val givenParameters = verifiedJob.jobInput.asMap().mapNotNull { (paramName, value) ->
+                            if (value != null) {
+                                app.parameters.find { it.name == paramName }!! to value
+                            } else {
+                                null
+                            }
+                        }.toMap()
+
+                        val command = app.invocation.mapNotNull {
+                            runCatching {
+                                it.buildInvocationSnippet(givenParameters)
+                            }.getOrNull()
+                        }
+
                         withName("user-job")
-                        withImage("busybox:1.28")
+                        withImage(tool.container)
                         withRestartPolicy("Never")
-                        withCommand(listOf("sleep", "0.1"))
+                        withCommand(command)
                         withSecurityContext(
                             PodSecurityContext(
                                 1337L,
@@ -110,11 +138,9 @@ class PodService(
             val pod = k8sClient.pods().inNamespace(namespace).withName(podName).get()
             pod.status.initContainerStatuses.first().state.running != null
         }
-    }
 
-    fun startContainer(requestId: String) {
         lateinit var watch: Watch
-        watch = k8sClient.pods().withName(podName(requestId)).watch(object : Watcher<Pod> {
+        k8sClient.pods().withName(podName(verifiedJob.id)).watch(object : Watcher<Pod> {
             override fun onClose(cause: KubernetesClientException?) {
             }
 
@@ -127,30 +153,9 @@ class PodService(
                         ZonedDateTime.parse(userContainer.state.terminated.finishedAt).toInstant().toEpochMilli()
                     println("App finished in ${finishedAt - startAt}ms")
                     watch.close()
-
-                    collectFiles(listOf("*"), requestId)
                 }
             }
         })
-    }
-
-    private fun collectFiles(globs: List<String>, requestId: String) {
-        val podName = podName(requestId)
-        awaitCatching(retries = 600, delay = 100) {
-            val pod = k8sClient.pods().inNamespace(namespace).withName(podName).get()
-            pod.status.containerStatuses.first().state.running != null
-        }
-
-        globs.forEach { glob ->
-            println("Glob: $glob")
-            val (output, _, _) = k8sClient.pods()
-                .inNamespace(namespace)
-                .withName(podName)
-                .execWithDefaultListener(listOf("ls", "/scratch"))
-
-            println("I will now write stuff: " + output!!.bufferedReader().readText())
-            println("Done!")
-        }
     }
 }
 
