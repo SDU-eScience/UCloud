@@ -128,7 +128,7 @@ class JobOrchestrator<DBSession>(
         return initialState.systemId
     }
 
-    fun handleProposedStateChange(
+    suspend fun handleProposedStateChange(
         event: JobStateChange,
         newStatus: String?,
         securityPrincipal: SecurityPrincipal
@@ -142,7 +142,12 @@ class JobOrchestrator<DBSession>(
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
             if (proposedState in validStates) {
                 if (proposedState != job.currentState) {
-                    handleStateChange(jobWithToken, event, newStatus)
+                    val asyncJob = handleStateChange(jobWithToken, event, newStatus)
+
+                    // Some states we want to wait for
+                    if (proposedState == JobState.TRANSFER_SUCCESS) {
+                        asyncJob.join()
+                    }
                 }
             } else {
                 throw JobException.BadStateTransition(job.currentState, event.newState)

@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Loggable
 import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClient
@@ -15,6 +16,7 @@ import io.fabric8.kubernetes.client.dsl.ExecWatch
 import io.fabric8.kubernetes.client.dsl.PodResource
 import io.fabric8.kubernetes.client.dsl.internal.PodOperationsImpl
 import io.ktor.http.HttpStatusCode
+import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import okhttp3.Response
@@ -22,6 +24,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
+import java.nio.file.Files
 import java.time.Duration
 import java.time.ZonedDateTime
 import java.util.concurrent.CountDownLatch
@@ -47,46 +50,78 @@ class PodService(
     private val finishedJobs = HashSet<String>()
 
     fun initializeListeners() {
+        fun handlePodEvent(resource: Pod) {
+            val podName = resource.metadata.name
+            val jobId = reverseLookupPodName(podName) ?: return
+            val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
+
+            val containerState = userContainer.state.terminated
+            if (containerState != null && jobId !in finishedJobs) {
+                val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
+                val finishedAt =
+                    ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
+                log.info("App finished in ${finishedAt - startAt}ms")
+
+                log.debug("Downloading log")
+                val logFile = Files.createTempFile("log", ".txt").toFile()
+                k8sClient.pods().inNamespace(namespace).withName(podName).logReader.use { ins ->
+                    logFile.writer().use { out ->
+                        ins.copyTo(out)
+                    }
+                }
+                log.debug("Log retrieved")
+
+                val duration = run {
+                    val duration = Duration.ofMillis(finishedAt - startAt)
+                    val days = duration.toDaysPart()
+                    val hours = duration.toHoursPart()
+                    val minutes = duration.toMinutesPart()
+                    val seconds = duration.toSecondsPart()
+                    SimpleDuration((days * 24).toInt() + hours, minutes, seconds)
+                }
+                log.info("Simple duration $duration")
+
+                finishedJobs.add(jobId)
+
+                GlobalScope.launch {
+                    ComputationCallbackDescriptions.requestStateChange.call(
+                        StateChangeRequest(jobId, JobState.TRANSFER_SUCCESS),
+                        serviceClient
+                    ).orThrow()
+
+                    ComputationCallbackDescriptions.submitFile.call(
+                        SubmitComputationResult(
+                            jobId,
+                            "stdout.txt",
+                            false,
+                            BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
+                        ),
+                        serviceClient
+                    ).orThrow()
+
+
+                    log.info("Calling completed")
+                    ComputationCallbackDescriptions.completed.call(
+                        JobCompletedRequest(jobId, duration, containerState.exitCode == 0),
+                        serviceClient
+                    ).orThrow()
+                }
+            }
+        }
+
+        // Handle old pods on start up
+        k8sClient.pods().inNamespace(namespace).withLabel(ROLE_LABEL, APP_ROLE).list().items.forEach {
+            handlePodEvent(it)
+        }
+
+        // Watch for new pods
         k8sClient.pods().inNamespace(namespace).withLabel(ROLE_LABEL, APP_ROLE).watch(object : Watcher<Pod> {
             override fun onClose(cause: KubernetesClientException?) {
+                // Do nothing
             }
 
             override fun eventReceived(action: Watcher.Action, resource: Pod) {
-                val podName = resource.metadata.name
-                val jobId = reverseLookupPodName(podName) ?: return
-                val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
-
-                val containerState = userContainer.state.terminated
-                if (containerState != null && jobId !in finishedJobs) {
-                    val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
-                    val finishedAt =
-                        ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
-                    log.info("App finished in ${finishedAt - startAt}ms")
-
-                    log.info("Final log:")
-                    log.info("\n" + k8sClient.pods().inNamespace(namespace).withName(podName).log)
-
-                    log.info("Got log. This is no longer listening for a log.")
-                    val duration = run {
-                        val duration = Duration.ofMillis(finishedAt - startAt)
-                        val days = duration.toDaysPart()
-                        val hours = duration.toHoursPart()
-                        val minutes = duration.toMinutesPart()
-                        val seconds = duration.toSecondsPart()
-                        SimpleDuration((days * 24).toInt() + hours, minutes, seconds)
-                    }
-                    log.info("Simple duration $duration")
-
-                    finishedJobs.add(jobId)
-
-                    GlobalScope.launch {
-                        log.info("Calling completed")
-                        ComputationCallbackDescriptions.completed.call(
-                            JobCompletedRequest(jobId, duration, containerState.exitCode == 0),
-                            serviceClient
-                        ).orThrow()
-                    }
-                }
+                handlePodEvent(resource)
             }
         })
     }
