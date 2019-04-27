@@ -144,6 +144,15 @@ class JobHibernateDao(
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
+    override fun updateWorkspace(session: HibernateSession, systemId: String, workspace: String) {
+        session.updateCriteria<JobInformationEntity>(
+            where = { entity[JobInformationEntity::systemId] equal systemId },
+            setProperties = {
+                criteria.set(entity[JobInformationEntity::workspace], workspace)
+            }
+        ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
+    }
+
     override fun findOrNull(
         session: HibernateSession,
         systemId: String,

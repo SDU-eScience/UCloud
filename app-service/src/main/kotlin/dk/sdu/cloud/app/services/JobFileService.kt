@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.defaultForFilePath
@@ -159,11 +160,52 @@ class JobFileService(
         }
     }
 
+    suspend fun createWorkspace(jobWithToken: VerifiedJobWithAccessToken): String {
+        val (job, _) = jobWithToken
+        val mounts = job.files.map { file ->
+            WorkspaceMount(file.sourcePath, file.destinationPath)
+        }
+
+        // TODO Deal with failures
+        return WORKSPACE_PATH + WorkspaceDescriptions.create.call(
+            WorkspaceDescriptions.Create.Request(mounts),
+            serviceClient
+        ).orThrow().workspaceId
+    }
+
+    suspend fun transferWorkspace(
+        jobWithToken: VerifiedJobWithAccessToken,
+        replay: Boolean
+    ) {
+        val (job, _) = jobWithToken
+        try {
+            WorkspaceDescriptions.transfer.call(
+                WorkspaceDescriptions.Transfer.Request(
+                    workspaceId = job.workspace?.removePrefix(WORKSPACE_PATH) ?: throw RPCException(
+                        "No workspace found",
+                        HttpStatusCode.InternalServerError
+                    ),
+                    transferGlobs = job.application.invocation.outputFileGlobs,
+                    destination = jobFolder(job),
+                    deleteWorkspace = true
+                ),
+                serviceClient
+            ).orThrow()
+        } catch (ex: Throwable) {
+            if (replay) {
+                log.info("caught exception while replaying transfer of workspace. ${ex.message}")
+                log.debug(ex.stackTraceToString())
+            } else {
+                throw ex
+            }
+        }
+    }
 
     companion object : Loggable {
         override val log = logger()
 
         private val zoneId = ZoneId.of("Europe/Copenhagen")
         private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS")
+        private const val WORKSPACE_PATH = "/workspace/"
     }
 }

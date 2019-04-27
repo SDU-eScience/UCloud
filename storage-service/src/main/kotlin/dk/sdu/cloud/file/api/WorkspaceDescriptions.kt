@@ -12,8 +12,8 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
     const val baseContext = "/api/files/workspaces"
 
     object Create {
-        class Request(val mounts: List<WorkspaceMount>)
-        class Response(val workspaceId: String, val failures: List<WorkspaceMount>)
+        data class Request(val mounts: List<WorkspaceMount>)
+        data class Response(val workspaceId: String, val failures: List<WorkspaceMount>)
     }
 
     val create = call<Create.Request, Create.Response, CommonErrorMessage>("create") {
@@ -30,14 +30,14 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
     }
 
     object Transfer {
-        class Request(
+        data class Request(
             val workspaceId: String,
             val transferGlobs: List<String>,
             val destination: String,
             val deleteWorkspace: Boolean
         )
 
-        class Response(val filesTransferred: List<String>)
+        data class Response(val filesTransferred: List<String>)
     }
 
     val transfer = call<Transfer.Request, Transfer.Response, CommonErrorMessage>("transfer") {
@@ -57,7 +57,7 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
     }
 
     object Delete {
-        class Request(val workspaceId: String)
+        data class Request(val workspaceId: String)
         object Response
     }
 

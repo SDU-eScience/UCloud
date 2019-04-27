@@ -53,7 +53,7 @@ import kotlinx.coroutines.runBlocking
  * [replayLostJobs]. Only one instance of this microservice must run at the same time!
  */
 class JobOrchestrator<DBSession>(
-    private val serviceCloud: AuthenticatedClient,
+    private val serviceClient: AuthenticatedClient,
 
     private val accountingEventProducer: EventProducer<JobCompletedEvent>,
 
@@ -121,7 +121,7 @@ class JobOrchestrator<DBSession>(
         val unverifiedJob = UnverifiedJob(req, principal)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
         val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
-        backend.jobVerified.call(jobWithToken.job, serviceCloud).orThrow()
+        backend.jobVerified.call(jobWithToken.job, serviceClient).orThrow()
 
         db.withTransaction { session -> jobDao.create(session, jobWithToken) }
         handleStateChange(jobWithToken, initialState)
@@ -234,13 +234,17 @@ class JobOrchestrator<DBSession>(
             log.info("New state ${job.id} is ${event.newState}")
             when (event.newState) {
                 JobState.VALIDATED -> {
+                    var workspace: String? = null
                     if (!backendConfig.useWorkspaces) {
                         jobFileService.transferFilesToBackend(jobWithToken, backend)
                     } else {
-                        // TODO Prepare workspace with file-service
+                        workspace = jobFileService.createWorkspace(jobWithToken)
+                        db.withTransaction(autoFlush = true) {
+                            jobDao.updateWorkspace(it, event.systemId, workspace)
+                        }
                     }
 
-                    val jobWithNewState = job.copy(currentState = JobState.PREPARED)
+                    val jobWithNewState = job.copy(currentState = JobState.PREPARED, workspace = workspace)
                     val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
 
                     handleStateChange(
@@ -250,7 +254,7 @@ class JobOrchestrator<DBSession>(
                 }
 
                 JobState.PREPARED -> {
-                    backend.jobPrepared.call(jobWithToken.job, serviceCloud).orThrow()
+                    backend.jobPrepared.call(jobWithToken.job, serviceClient).orThrow()
                 }
 
                 JobState.SCHEDULED, JobState.RUNNING -> {
@@ -259,11 +263,17 @@ class JobOrchestrator<DBSession>(
 
                 JobState.TRANSFER_SUCCESS -> {
                     jobFileService.initializeResultFolder(jobWithToken, isReplay)
+
+                    if (backendConfig.useWorkspaces) {
+                        OrchestrationScope.launch {
+                            jobFileService.transferWorkspace(jobWithToken, isReplay)
+                        }
+                    }
                 }
 
                 JobState.SUCCESS, JobState.FAILURE -> {
                     // This one should _NEVER_ throw an exception
-                    val resp = backend.cleanup.call(job, serviceCloud)
+                    val resp = backend.cleanup.call(job, serviceClient)
                     if (resp is IngoingCallResponse.Error) {
                         log.info("unable to clean up for job $job.")
                         log.info(resp.toString())
