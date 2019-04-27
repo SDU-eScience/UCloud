@@ -72,7 +72,9 @@ class PodService(
                 log.debug("Log retrieved")
 
                 val duration = run {
-                    val duration = Duration.ofMillis(finishedAt - startAt)
+                    // We add 5 seconds for just running the application.
+                    // It seems unfair that a job completing instantly is accounted for nothing.
+                    val duration = Duration.ofMillis((finishedAt - startAt) + 5_000)
                     val days = duration.toDaysPart()
                     val hours = duration.toHoursPart()
                     val minutes = duration.toMinutesPart()
