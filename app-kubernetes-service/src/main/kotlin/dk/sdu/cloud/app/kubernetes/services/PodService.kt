@@ -9,7 +9,6 @@ import dk.sdu.cloud.service.Loggable
 import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
-import io.fabric8.kubernetes.client.Watch
 import io.fabric8.kubernetes.client.Watcher
 import io.fabric8.kubernetes.client.dsl.ExecListener
 import io.fabric8.kubernetes.client.dsl.ExecWatch
@@ -27,16 +26,70 @@ import java.time.Duration
 import java.time.ZonedDateTime
 import java.util.concurrent.CountDownLatch
 
+private const val JOB_PREFIX = "job-"
+private const val ROLE_LABEL = "role"
+private const val APP_ROLE = "sducloud-app"
+
 class PodService(
     private val k8sClient: KubernetesClient,
     private val serviceClient: AuthenticatedClient
 ) {
-    private fun podName(requestId: String): String = "job-$requestId"
     private val dataDirectory = "/data"
     private val localDirectory = "/scratch"
     private val temporaryStorage = "temporary-storage"
     private val dataStorage = "workspace-storage"
     private val namespace = "app-testing"
+
+    private fun podName(requestId: String): String = "$JOB_PREFIX$requestId"
+    private fun reverseLookupPodName(podName: String): String? =
+        if (podName.startsWith(JOB_PREFIX)) podName.removePrefix(JOB_PREFIX) else null
+
+    private val finishedJobs = HashSet<String>()
+
+    fun initializeListeners() {
+        k8sClient.pods().inNamespace(namespace).withLabel(ROLE_LABEL, APP_ROLE).watch(object : Watcher<Pod> {
+            override fun onClose(cause: KubernetesClientException?) {
+            }
+
+            override fun eventReceived(action: Watcher.Action, resource: Pod) {
+                val podName = resource.metadata.name
+                val jobId = reverseLookupPodName(podName) ?: return
+                val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
+
+                val containerState = userContainer.state.terminated
+                if (containerState != null && jobId !in finishedJobs) {
+                    val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
+                    val finishedAt =
+                        ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
+                    log.info("App finished in ${finishedAt - startAt}ms")
+
+                    log.info("Final log:")
+                    log.info("\n" + k8sClient.pods().inNamespace(namespace).withName(podName).log)
+
+                    log.info("Got log. This is no longer listening for a log.")
+                    val duration = run {
+                        val duration = Duration.ofMillis(finishedAt - startAt)
+                        val days = duration.toDaysPart()
+                        val hours = duration.toHoursPart()
+                        val minutes = duration.toMinutesPart()
+                        val seconds = duration.toSecondsPart()
+                        SimpleDuration((days * 24).toInt() + hours, minutes, seconds)
+                    }
+                    log.info("Simple duration $duration")
+
+                    finishedJobs.add(jobId)
+
+                    GlobalScope.launch {
+                        log.info("Calling completed")
+                        ComputationCallbackDescriptions.completed.call(
+                            JobCompletedRequest(jobId, duration, containerState.exitCode == 0),
+                            serviceClient
+                        ).orThrow()
+                    }
+                }
+            }
+        })
+    }
 
     fun create(verifiedJob: VerifiedJob) {
         // TODO Network policy. Should at least block all ingress and block egress to the entire container CIDR.
@@ -52,7 +105,7 @@ class PodService(
 
                 withLabels(
                     mapOf(
-                        "role" to "sducloud-app"
+                        ROLE_LABEL to APP_ROLE
                     )
                 )
             }
@@ -137,52 +190,6 @@ class PodService(
                     serviceClient
                 )
             }
-
-            k8sClient.pods().inNamespace(namespace).withName(podName).watchLog(System.out)
-
-            log.info("Attaching watch event!")
-            lateinit var watch: Watch
-            watch = k8sClient.pods().inNamespace(namespace).withName(podName).watch(object : Watcher<Pod> {
-                override fun onClose(cause: KubernetesClientException?) {
-                }
-
-                override fun eventReceived(action: Watcher.Action, resource: Pod) {
-                    log.debug("Received event: $action")
-                    val userContainer = resource.status.containerStatuses[0] ?: return
-                    if (userContainer.state.terminated != null) {
-                        val startAt =
-                            ZonedDateTime.parse(userContainer.state.terminated.startedAt).toInstant().toEpochMilli()
-                        val finishedAt =
-                            ZonedDateTime.parse(userContainer.state.terminated.finishedAt).toInstant().toEpochMilli()
-                        log.info("App finished in ${finishedAt - startAt}ms")
-
-                        log.info("Final log:")
-                        log.info("\n" + k8sClient.pods().inNamespace(namespace).withName(podName).log)
-
-                        log.info("Got log. This is no longer listening for a log.")
-                        val duration = run {
-                            val duration = Duration.ofMillis(finishedAt - startAt)
-                            val days = duration.toDaysPart()
-                            val hours = duration.toHoursPart()
-                            val minutes = duration.toMinutesPart()
-                            val seconds = duration.toSecondsPart()
-                            SimpleDuration((days * 24).toInt() + hours, minutes, seconds)
-                        }
-                        log.info("Simple duration $duration")
-
-                        GlobalScope.launch {
-                            log.info("Calling completed")
-                            ComputationCallbackDescriptions.completed.call(
-                                JobCompletedRequest(verifiedJob.id, duration, true),
-                                serviceClient
-                            ).orThrow()
-                        }
-
-                        log.info("Closing watch")
-                        watch.close()
-                    }
-                }
-            })
         }
     }
 

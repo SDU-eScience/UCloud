@@ -16,6 +16,8 @@ class Server(override val micro: Micro) : CommonServer {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val podService = PodService(DefaultKubernetesClient(), serviceClient)
 
+        podService.initializeListeners()
+
         with(micro.server) {
             configureControllers(
                 AppKubernetesController(podService)
