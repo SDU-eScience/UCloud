@@ -2,16 +2,7 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.api.FollowStdStreamsRequest
-import dk.sdu.cloud.app.api.FollowStdStreamsResponse
-import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
-import dk.sdu.cloud.app.api.JobCompletedEvent
-import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.JobStateChange
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.StartJobRequest
-import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.http.JOB_MAX_TIME
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -24,11 +15,10 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.io.ByteReadChannel
-import dk.sdu.cloud.app.api.ComputationDescriptions
-import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
-import dk.sdu.cloud.app.api.AccountingEvents
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * The job orchestrator is responsible for the orchestration of computation backends.
@@ -234,11 +224,16 @@ class JobOrchestrator<DBSession>(
 
             val (job, _) = jobWithToken
             val backend = computationBackendService.getAndVerifyByName(job.backend)
+            val backendConfig = backend.config
 
             log.info("New state ${job.id} is ${event.newState}")
             when (event.newState) {
                 JobState.VALIDATED -> {
-                    jobFileService.transferFilesToBackend(jobWithToken, backend)
+                    if (!backendConfig.useWorkspaces) {
+                        jobFileService.transferFilesToBackend(jobWithToken, backend)
+                    } else {
+                        // TODO Prepare workspace with file-service
+                    }
 
                     val jobWithNewState = job.copy(currentState = JobState.PREPARED)
                     val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
@@ -319,7 +314,7 @@ class JobOrchestrator<DBSession>(
             JobState.PREPARED to (setOf(JobState.SCHEDULED, JobState.RUNNING, JobState.TRANSFER_SUCCESS) + finalStates),
             // We allow scheduled to skip running in case of quick jobs
             JobState.SCHEDULED to (setOf(JobState.RUNNING, JobState.TRANSFER_SUCCESS) + finalStates),
-            JobState.RUNNING to (setOf(JobState.TRANSFER_SUCCESS, JobState.FAILURE)),
+            JobState.RUNNING to (setOf(JobState.TRANSFER_SUCCESS, JobState.SUCCESS, JobState.FAILURE)),
             JobState.TRANSFER_SUCCESS to (setOf(JobState.SUCCESS, JobState.FAILURE)),
             // In case of really bad failures we allow for a "failure -> failure" transition
             JobState.FAILURE to setOf(JobState.FAILURE),

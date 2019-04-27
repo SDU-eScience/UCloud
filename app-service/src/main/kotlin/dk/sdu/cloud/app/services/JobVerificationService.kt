@@ -18,6 +18,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
@@ -40,7 +41,8 @@ data class VerifiedJobWithAccessToken(
 class JobVerificationService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val applicationDAO: ApplicationDAO<DBSession>,
-    private val toolDAO: ToolDAO<DBSession>
+    private val toolDAO: ToolDAO<DBSession>,
+    private val tokenValidation: TokenValidation<DecodedJWT>
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -63,12 +65,14 @@ class JobVerificationService<DBSession>(
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
 
+        val token = tokenValidation.decodeToken(unverifiedJob.principal)
+
         return VerifiedJobWithAccessToken(
             VerifiedJob(
                 application = application,
                 files = files,
                 id = jobId,
-                owner = unverifiedJob.principal.subject,
+                owner = token.principal.username,
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,
                 maxTime = maxTime,
@@ -76,6 +80,8 @@ class JobVerificationService<DBSession>(
                 backend = resolveBackend(unverifiedJob.request.backend),
                 currentState = JobState.VALIDATED,
                 status = "Validated",
+                workspace = "/workspace/testing", // TODO Replace this with the correct workspace
+                ownerUid = token.principal.uid,
                 archiveInCollection = archiveInCollection
             ),
             unverifiedJob.principal.token

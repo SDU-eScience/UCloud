@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
+import dk.sdu.cloud.app.api.InternalStdStreamsResponse
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.services.PodService
 import dk.sdu.cloud.calls.RPCException
@@ -12,8 +13,14 @@ class AppKubernetesController(
     private val podService: PodService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        implement(AppKubernetesDescriptions.cleanup) {}
-        implement(AppKubernetesDescriptions.follow) {}
+        implement(AppKubernetesDescriptions.cleanup) {
+            podService.cleanup(request.id)
+            ok(Unit)
+        }
+
+        implement(AppKubernetesDescriptions.follow) {
+            ok(InternalStdStreamsResponse("", 0, "", 0))
+        }
 
         implement(AppKubernetesDescriptions.jobVerified) {
             ok(Unit)
@@ -24,7 +31,7 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.jobPrepared) {
-//            podService.startContainer(request)
+            podService.create(request)
             ok(Unit)
         }
         return@configure

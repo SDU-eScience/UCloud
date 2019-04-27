@@ -1,19 +1,12 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
-import io.fabric8.kubernetes.api.model.Container
-import io.fabric8.kubernetes.api.model.ContainerBuilder
-import io.fabric8.kubernetes.api.model.DoneablePod
-import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
-import io.fabric8.kubernetes.api.model.Pod
-import io.fabric8.kubernetes.api.model.PodSecurityContext
-import io.fabric8.kubernetes.api.model.PodSpecBuilder
-import io.fabric8.kubernetes.api.model.Volume
-import io.fabric8.kubernetes.api.model.VolumeBuilder
-import io.fabric8.kubernetes.api.model.VolumeMount
+import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.Watch
@@ -22,21 +15,25 @@ import io.fabric8.kubernetes.client.dsl.ExecListener
 import io.fabric8.kubernetes.client.dsl.ExecWatch
 import io.fabric8.kubernetes.client.dsl.PodResource
 import io.fabric8.kubernetes.client.dsl.internal.PodOperationsImpl
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import okhttp3.Response
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
+import java.time.Duration
 import java.time.ZonedDateTime
 import java.util.concurrent.CountDownLatch
 
 class PodService(
-    private val k8sClient: KubernetesClient
+    private val k8sClient: KubernetesClient,
+    private val serviceClient: AuthenticatedClient
 ) {
     private fun podName(requestId: String): String = "job-$requestId"
     private val dataDirectory = "/data"
     private val localDirectory = "/scratch"
-    private val collectionContainer = "collection-job"
     private val temporaryStorage = "temporary-storage"
     private val dataStorage = "workspace-storage"
     private val namespace = "app-testing"
@@ -83,10 +80,10 @@ class PodService(
                         withCommand(command)
                         withSecurityContext(
                             PodSecurityContext(
-                                1337L,
-                                1337L,
+                                verifiedJob.ownerUid,
+                                verifiedJob.ownerUid,
                                 true,
-                                1337L,
+                                verifiedJob.ownerUid,
                                 null,
                                 null,
                                 null
@@ -97,7 +94,16 @@ class PodService(
 
                         withVolumeMounts(
                             VolumeMount(localDirectory, null, temporaryStorage, false, null),
-                            VolumeMount(dataDirectory, null, dataStorage, false, "workspace/testing")
+                            VolumeMount(
+                                dataDirectory,
+                                null,
+                                dataStorage,
+                                false,
+                                verifiedJob.workspace?.removePrefix("/") ?: throw RPCException(
+                                    "No workspace found",
+                                    HttpStatusCode.BadRequest
+                                )
+                            )
                         )
                     }
                 )
@@ -116,37 +122,73 @@ class PodService(
             }
             .done()
 
-        log.info("Awaiting container start!")
-        awaitCatching(retries = 600, delay = 100) {
-            val pod = k8sClient.pods().inNamespace(namespace).withName(podName).get()
-            val state = pod.status.containerStatuses.first().state
-            state.running != null || state.terminated != null
-        }
-
-        k8sClient.pods().inNamespace(namespace).withName(podName).watchLog(System.out)
-
-        log.info("Attaching watch event!")
-        lateinit var watch: Watch
-        watch = k8sClient.pods().inNamespace(namespace).withName(podName).watch(object : Watcher<Pod> {
-            override fun onClose(cause: KubernetesClientException?) {
+        GlobalScope.launch {
+            log.info("Awaiting container start!")
+            awaitCatching(retries = 600, delay = 100) {
+                val pod = k8sClient.pods().inNamespace(namespace).withName(podName).get()
+                val state = pod.status.containerStatuses.first().state
+                state.running != null || state.terminated != null
             }
 
-            override fun eventReceived(action: Watcher.Action, resource: Pod) {
-                log.debug("Received event: ${action}")
-                val userContainer = resource.status.containerStatuses[0] ?: return
-                if (userContainer.state.terminated != null) {
-                    val startAt =
-                        ZonedDateTime.parse(userContainer.state.terminated.startedAt).toInstant().toEpochMilli()
-                    val finishedAt =
-                        ZonedDateTime.parse(userContainer.state.terminated.finishedAt).toInstant().toEpochMilli()
-                    log.info("App finished in ${finishedAt - startAt}ms")
 
-                    log.info("Final log:")
-                    log.info("\n" + k8sClient.pods().inNamespace(namespace).withName(podName).log)
-                    watch.close()
+            launch {
+                ComputationCallbackDescriptions.requestStateChange.call(
+                    StateChangeRequest(verifiedJob.id, JobState.RUNNING),
+                    serviceClient
+                )
+            }
+
+            k8sClient.pods().inNamespace(namespace).withName(podName).watchLog(System.out)
+
+            log.info("Attaching watch event!")
+            lateinit var watch: Watch
+            watch = k8sClient.pods().inNamespace(namespace).withName(podName).watch(object : Watcher<Pod> {
+                override fun onClose(cause: KubernetesClientException?) {
                 }
-            }
-        })
+
+                override fun eventReceived(action: Watcher.Action, resource: Pod) {
+                    log.debug("Received event: $action")
+                    val userContainer = resource.status.containerStatuses[0] ?: return
+                    if (userContainer.state.terminated != null) {
+                        val startAt =
+                            ZonedDateTime.parse(userContainer.state.terminated.startedAt).toInstant().toEpochMilli()
+                        val finishedAt =
+                            ZonedDateTime.parse(userContainer.state.terminated.finishedAt).toInstant().toEpochMilli()
+                        log.info("App finished in ${finishedAt - startAt}ms")
+
+                        log.info("Final log:")
+                        log.info("\n" + k8sClient.pods().inNamespace(namespace).withName(podName).log)
+
+                        log.info("Got log. This is no longer listening for a log.")
+                        val duration = run {
+                            val duration = Duration.ofMillis(finishedAt - startAt)
+                            val days = duration.toDaysPart()
+                            val hours = duration.toHoursPart()
+                            val minutes = duration.toMinutesPart()
+                            val seconds = duration.toSecondsPart()
+                            SimpleDuration((days * 24).toInt() + hours, minutes, seconds)
+                        }
+                        log.info("Simple duration $duration")
+
+                        GlobalScope.launch {
+                            log.info("Calling completed")
+                            ComputationCallbackDescriptions.completed.call(
+                                JobCompletedRequest(verifiedJob.id, duration, true),
+                                serviceClient
+                            ).orThrow()
+                        }
+
+                        log.info("Closing watch")
+                        watch.close()
+                    }
+                }
+            })
+        }
+    }
+
+    fun cleanup(requestId: String) {
+        val pod = podName(requestId)
+        k8sClient.pods().inNamespace(namespace).withName(pod).delete()
     }
 
     companion object : Loggable {

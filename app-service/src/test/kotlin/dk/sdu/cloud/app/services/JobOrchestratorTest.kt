@@ -14,6 +14,8 @@ import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
@@ -47,11 +49,12 @@ class JobOrchestratorTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
+        val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         val toolDao = ToolHibernateDAO()
         val appDao = ApplicationHibernateDAO(toolDao)
-        val jobDao = JobHibernateDao(appDao, toolDao)
-        val compBackend = ComputationBackendService(listOf(ToolBackend.UDOCKER.name), true)
+        val jobDao = JobHibernateDao(appDao, toolDao, tokenValidation)
+        val compBackend = ComputationBackendService(listOf(BackendConfiguration("backend")), true)
 
         db.withTransaction {
             toolDao.create(it, "user", normToolDesc)
@@ -62,13 +65,13 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(db, appDao, toolDao),
+            JobVerificationService(db, appDao, toolDao, tokenValidation),
             compBackend,
             jobFileService,
             jobDao
         )
 
-        backend = compBackend.getAndVerifyByName(ToolBackend.UDOCKER.name)
+        backend = compBackend.getAndVerifyByName("backend")
         ClientMock.mockCallSuccess(
             backend.jobVerified,
             Unit

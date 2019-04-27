@@ -12,7 +12,9 @@ data class VerifiedJob(
     val backend: String,
     val currentState: JobState,
     val status: String,
+    val archiveInCollection: String,
+    val ownerUid: Long,
+    val workspace: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val modifiedAt: Long = System.currentTimeMillis(),
-    val archiveInCollection: String
+    val modifiedAt: Long = System.currentTimeMillis()
 )

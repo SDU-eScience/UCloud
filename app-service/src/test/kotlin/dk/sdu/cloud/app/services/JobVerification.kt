@@ -8,6 +8,8 @@ import dk.sdu.cloud.app.api.StartJobRequest
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.initializeMicro
@@ -40,6 +42,7 @@ class JobVerification {
         val cloud = ClientMock.authenticatedClient
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
+        val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         val toolDao = ToolHibernateDAO()
         val appDao = ApplicationHibernateDAO(toolDao)
@@ -47,7 +50,7 @@ class JobVerification {
             toolDao.create(it, "user", normToolDesc)
             appDao.create(it, "user", normAppDesc3)
         }
-        val service = JobVerificationService(db, appDao, toolDao)
+        val service = JobVerificationService(db, appDao, toolDao, tokenValidation)
         val verified = runBlocking {
             service.verifyOrThrow(unverifiedJob, cloud)
         }
@@ -82,6 +85,7 @@ class JobVerification {
         micro.install(HibernateFeature)
         val cloud = ClientMock.authenticatedClient
         val db = micro.hibernateDatabase
+        val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         val toolDao = ToolHibernateDAO()
         val appDao = ApplicationHibernateDAO(toolDao)
@@ -89,7 +93,7 @@ class JobVerification {
             toolDao.create(it, "user", normToolDesc)
             appDao.create(it, "user", normAppDesc3)
         }
-        val service = JobVerificationService(db, appDao, toolDao)
+        val service = JobVerificationService(db, appDao, toolDao, tokenValidation)
         runBlocking {
             service.verifyOrThrow(unverifiedJobWithWrongParamType, cloud)
         }
@@ -116,13 +120,14 @@ class JobVerification {
 
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
+        val tokenValidation = micro.tokenValidation as TokenValidationJWT
         val toolDao = ToolHibernateDAO()
         val appDao = ApplicationHibernateDAO(toolDao)
         db.withTransaction {
             toolDao.create(it, "user", normToolDesc)
             appDao.create(it, "user", normAppDesc3)
         }
-        val service = JobVerificationService(db, appDao, toolDao)
+        val service = JobVerificationService(db, appDao, toolDao, tokenValidation)
         runBlocking {
             service.verifyOrThrow(unverifiedJobWithMissingNonOptional, cloud)
         }

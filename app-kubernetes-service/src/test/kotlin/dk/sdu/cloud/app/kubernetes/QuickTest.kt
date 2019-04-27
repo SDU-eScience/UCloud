@@ -1,26 +1,11 @@
 package dk.sdu.cloud.app.kubernetes
 
-import dk.sdu.cloud.app.api.Application
-import dk.sdu.cloud.app.api.ApplicationInvocationDescription
-import dk.sdu.cloud.app.api.ApplicationMetadata
-import dk.sdu.cloud.app.api.ApplicationParameter
-import dk.sdu.cloud.app.api.InvocationParameter
-import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedToolDescription
-import dk.sdu.cloud.app.api.ParsedApplicationParameter
-import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.StringApplicationParameter
-import dk.sdu.cloud.app.api.Tool
-import dk.sdu.cloud.app.api.ToolBackend
-import dk.sdu.cloud.app.api.ToolReference
-import dk.sdu.cloud.app.api.VariableInvocationParameter
-import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.app.api.VerifiedJobInput
-import dk.sdu.cloud.app.api.WordInvocationParameter
+import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.kubernetes.services.PodService
+import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.initializeMicro
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
-import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import java.util.*
 
@@ -96,7 +81,11 @@ fun Application.withOutputFiles(fileGlobs: List<String>): Application = copy(
 
 
 fun main() = runBlocking {
-    val service = PodService(DefaultKubernetesClient())
+    val micro = initializeMicro()
+    ClientMock.mockCallSuccess(ComputationCallbackDescriptions.completed, Unit)
+    ClientMock.mockCallSuccess(ComputationCallbackDescriptions.requestStateChange, Unit)
+
+    val service = PodService(DefaultKubernetesClient(), ClientMock.authenticatedClient)
     val job = VerifiedJob(
         normAppDesc,
         emptyList(),
@@ -109,6 +98,7 @@ fun main() = runBlocking {
         "kubernetes",
         JobState.VALIDATED,
         "",
+        ownerUid = 1337L,
         archiveInCollection = "f"
     )
 

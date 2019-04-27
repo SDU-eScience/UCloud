@@ -1,22 +1,6 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.Application
-import dk.sdu.cloud.app.api.ApplicationInvocationDescription
-import dk.sdu.cloud.app.api.ApplicationMetadata
-import dk.sdu.cloud.app.api.ApplicationParameter
-import dk.sdu.cloud.app.api.InvocationParameter
-import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.JobStateChange
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedToolDescription
-import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.StartJobRequest
-import dk.sdu.cloud.app.api.ToolBackend
-import dk.sdu.cloud.app.api.ToolReference
-import dk.sdu.cloud.app.api.ValidatedFileForUpload
-import dk.sdu.cloud.app.api.VariableInvocationParameter
-import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.app.api.VerifiedJobInput
+import dk.sdu.cloud.app.api.*
 import io.mockk.mockk
 
 val normAppDesc = Application(
@@ -107,9 +91,10 @@ val verifiedJob = VerifiedJob(
     "backend",
     JobState.SCHEDULED,
     "scheduled",
-    12345678,
-    123456789,
-    archiveInCollection = normAppDesc.metadata.title
+    archiveInCollection = normAppDesc.metadata.title,
+    createdAt = 12345678,
+    modifiedAt = 123456789,
+    ownerUid = 1337L
 )
 
 val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(
@@ -122,6 +107,6 @@ val startJobRequest = StartJobRequest(
     emptyMap(),
     1,
     1,
-    SimpleDuration(1,0,0),
+    SimpleDuration(1, 0, 0),
     ToolBackend.UDOCKER.name
 )
