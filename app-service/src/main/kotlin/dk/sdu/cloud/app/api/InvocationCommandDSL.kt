@@ -19,12 +19,17 @@ private val log = LoggerFactory.getLogger(InvocationParameter::class.java)
     JsonSubTypes.Type(value = VariableInvocationParameter::class, name = "var")
 )
 sealed class InvocationParameter {
-    abstract fun buildInvocationSnippet(parameters: AppParametersWithValues): String?
+    abstract fun buildInvocationList(parameters: AppParametersWithValues): List<String>
+}
+
+fun InvocationParameter.buildInvocationSnippet(parameters: AppParametersWithValues): String? {
+    return buildInvocationList(parameters)
+        .takeIf { it.isNotEmpty() }?.joinToString(" ") { BashEscaper.safeBashArgument(it) }
 }
 
 data class WordInvocationParameter(val word: String) : InvocationParameter() {
-    override fun buildInvocationSnippet(parameters: AppParametersWithValues): String? {
-        return word
+    override fun buildInvocationList(parameters: AppParametersWithValues): List<String> {
+        return listOf(word)
     }
 }
 
@@ -36,31 +41,66 @@ data class VariableInvocationParameter(
     val suffixGlobal: String = "",
     val prefixVariable: String = "",
     val suffixVariable: String = "",
-    val variableSeparator: String = " "
+    val isPrefixVariablePartOfArg: Boolean = false,
+    val isSuffixVariablePartOfArg: Boolean = false
 ) : InvocationParameter() {
-    override fun buildInvocationSnippet(parameters: AppParametersWithValues): String? {
+    override fun buildInvocationList(parameters: AppParametersWithValues): List<String> {
         val fieldToValue = parameters.filter { it.key.name in variableNames }
         val nameToFieldAndValue = fieldToValue.entries.associateBy { it.key.name }
 
         // We assume that verification has already taken place. If we have no values it should mean that they are all
         // optional. We don't include anything (including prefixGlobal) if no values were given.
         if (fieldToValue.isEmpty()) {
-            return ""
+            return emptyList()
         }
 
-        val middlePart = variableNames.asSequence().mapNotNull {
-            val fieldAndValue = nameToFieldAndValue[it] ?: return@mapNotNull null
-            val value = fieldAndValue.value ?: return@mapNotNull null
+        val middlePart = variableNames.flatMap {
+            val fieldAndValue = nameToFieldAndValue[it] ?: return@flatMap emptyList<String>()
+            val value = fieldAndValue.value ?: return@flatMap emptyList<String>()
 
             @Suppress("UNCHECKED_CAST")
             val parameter = fieldAndValue.key as ApplicationParameter<ParsedApplicationParameter>
 
-            prefixVariable +
-                    BashEscaper.safeBashArgument(parameter.toInvocationArgument(value)) +
-                    suffixVariable
-        }.joinToString(variableSeparator)
+            val args = ArrayList<String>()
+            val mainArg = StringBuilder()
+            if (isPrefixVariablePartOfArg) {
+                mainArg.append(prefixVariable)
+            } else {
+                if (prefixVariable.isNotBlank()) {
+                    args.add(prefixVariable)
+                }
+            }
 
-        return prefixGlobal + middlePart + suffixGlobal
+            mainArg.append(parameter.toInvocationArgument(value))
+
+            if (isSuffixVariablePartOfArg) {
+                mainArg.append(suffixVariable)
+                args.add(mainArg.toString())
+            } else {
+                args.add(mainArg.toString())
+                if (suffixVariable.isNotBlank()) {
+                    args.add(suffixVariable)
+                }
+            }
+
+            args
+        }
+
+        return run {
+            val result = ArrayList<String>()
+            if (prefixGlobal.isNotBlank()) {
+                result.add(prefixGlobal)
+            }
+
+            result.addAll(middlePart)
+
+            if (suffixGlobal.isNotBlank()) {
+                result.add(suffixGlobal)
+            }
+
+            result
+        }
+
     }
 }
 
@@ -68,9 +108,9 @@ data class BooleanFlagParameter(
     val variableName: String,
     val flag: String
 ) : InvocationParameter() {
-    override fun buildInvocationSnippet(parameters: AppParametersWithValues): String? {
+    override fun buildInvocationList(parameters: AppParametersWithValues): List<String> {
         val parameter = parameters.filterKeys { it.name == variableName }.keys.singleOrNull()
-            ?: return null
+            ?: return emptyList()
 
         val value = parameters[parameter] as? BooleanApplicationParameter ?: throw InvalidParamUsage(
             "Invalid type",
@@ -78,7 +118,7 @@ data class BooleanFlagParameter(
             parameters
         )
 
-        return if (value.value) flag else null
+        return if (value.value) listOf(flag) else emptyList()
     }
 }
 

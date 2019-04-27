@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.service.Loggable
 import io.fabric8.kubernetes.api.model.Container
 import io.fabric8.kubernetes.api.model.ContainerBuilder
 import io.fabric8.kubernetes.api.model.DoneablePod
@@ -45,6 +46,8 @@ class PodService(
 
         val podName = podName(verifiedJob.id)
 
+        log.info("Creating new job with name: $podName")
+
         k8sClient.pods().createNew()
             .metadata {
                 withName(podName)
@@ -57,7 +60,7 @@ class PodService(
                 )
             }
             .spec {
-                withInitContainers(
+                withContainers(
                     container {
                         val app = verifiedJob.application.invocation
                         val tool = verifiedJob.application.invocation.tool.tool!!.description
@@ -69,11 +72,10 @@ class PodService(
                             }
                         }.toMap()
 
-                        val command = app.invocation.mapNotNull {
-                            runCatching {
-                                it.buildInvocationSnippet(givenParameters)
-                            }.getOrNull()
-                        }
+                        val command = app.invocation.flatMap { it.buildInvocationList(givenParameters) }
+
+                        log.debug("Container is: ${tool.container}")
+                        log.debug("Executing command: $command")
 
                         withName("user-job")
                         withImage(tool.container)
@@ -100,26 +102,6 @@ class PodService(
                     }
                 )
 
-                withContainers(
-                    container {
-                        withName(collectionContainer)
-                        withImage("busybox:1.28")
-                        withRestartPolicy("Never")
-
-                        withCommand(
-                            listOf(
-                                "sh",
-                                "-c",
-                                "sleep 120"
-                            )
-                        )
-
-                        withVolumeMounts(
-                            VolumeMount(localDirectory, null, temporaryStorage, false, null)
-                        )
-                    }
-                )
-
                 withVolumes(
                     volume {
                         withName(temporaryStorage)
@@ -134,28 +116,41 @@ class PodService(
             }
             .done()
 
+        log.info("Awaiting container start!")
         awaitCatching(retries = 600, delay = 100) {
             val pod = k8sClient.pods().inNamespace(namespace).withName(podName).get()
-            pod.status.initContainerStatuses.first().state.running != null
+            val state = pod.status.containerStatuses.first().state
+            state.running != null || state.terminated != null
         }
 
+        k8sClient.pods().inNamespace(namespace).withName(podName).watchLog(System.out)
+
+        log.info("Attaching watch event!")
         lateinit var watch: Watch
-        k8sClient.pods().withName(podName(verifiedJob.id)).watch(object : Watcher<Pod> {
+        watch = k8sClient.pods().inNamespace(namespace).withName(podName).watch(object : Watcher<Pod> {
             override fun onClose(cause: KubernetesClientException?) {
             }
 
             override fun eventReceived(action: Watcher.Action, resource: Pod) {
-                val userContainer = resource.status.initContainerStatuses[0] ?: return
+                log.debug("Received event: ${action}")
+                val userContainer = resource.status.containerStatuses[0] ?: return
                 if (userContainer.state.terminated != null) {
                     val startAt =
                         ZonedDateTime.parse(userContainer.state.terminated.startedAt).toInstant().toEpochMilli()
                     val finishedAt =
                         ZonedDateTime.parse(userContainer.state.terminated.finishedAt).toInstant().toEpochMilli()
-                    println("App finished in ${finishedAt - startAt}ms")
+                    log.info("App finished in ${finishedAt - startAt}ms")
+
+                    log.info("Final log:")
+                    log.info("\n" + k8sClient.pods().inNamespace(namespace).withName(podName).log)
                     watch.close()
                 }
             }
         })
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
