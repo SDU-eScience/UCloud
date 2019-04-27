@@ -19,7 +19,13 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.follow) {
-            ok(InternalStdStreamsResponse("", 0, "", 0))
+            val (log, nextLine) = podService.retrieveLogs(
+                request.job.id,
+                request.stdoutLineStart,
+                request.stdoutMaxLines
+            )
+
+            ok(InternalStdStreamsResponse(log, nextLine, "", 0))
         }
 
         implement(AppKubernetesDescriptions.jobVerified) {

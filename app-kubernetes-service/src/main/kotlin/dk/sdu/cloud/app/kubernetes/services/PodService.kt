@@ -235,6 +235,15 @@ class PodService(
         k8sClient.pods().inNamespace(namespace).withName(pod).delete()
     }
 
+    fun retrieveLogs(requestId: String, startLine: Int, maxLines: Int): Pair<String, Int> {
+        // This is a stupid implementation that works with the current API. We should be using websockets.
+        val podName = podName(requestId)
+        val completeLog = k8sClient.pods().inNamespace(namespace).withName(podName).log.lines()
+        val lines = completeLog.drop(startLine).take(maxLines)
+        val nextLine = startLine + lines.size
+        return Pair(lines.joinToString("\n"), nextLine)
+    }
+
     companion object : Loggable {
         override val log = logger()
     }
