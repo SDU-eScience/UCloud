@@ -1,22 +1,8 @@
 package dk.sdu.cloud.file.services.linuxfs
 
-import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.FileChecksum
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.services.FSACLEntity
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
-import dk.sdu.cloud.file.services.FSResult
-import dk.sdu.cloud.file.services.FileAttribute
-import dk.sdu.cloud.file.services.FileRow
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.StorageUserDao
-import dk.sdu.cloud.file.services.XATTR_BIRTH
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
@@ -26,14 +12,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
-import java.nio.file.LinkOption
-import java.nio.file.NoSuchFileException
-import java.nio.file.OpenOption
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
@@ -760,22 +739,6 @@ class LinuxFS(
         )
     }
 
-    private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
-        val userRoot = File(fsRoot, "home").absolutePath.normalize().removeSuffix("/") + "/"
-        val path = File(fsRoot, internalPath)
-            .normalize()
-            .absolutePath
-            .let { it + (if (isDirectory) "/" else "") }
-
-        if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) {
-            throw FSException.BadRequest("path is not in user-root")
-        }
-
-        if (path.contains("\n")) throw FSException.BadRequest("Path cannot contain new-lines")
-        if (path.length >= PATH_MAX) throw FSException.BadRequest("Path is too long")
-
-        return path
-    }
 
     private fun String.toCloudPath(): String {
         return ("/" + substringAfter(fsRoot.absolutePath).removePrefix("/")).normalize()
@@ -805,6 +768,10 @@ class LinuxFS(
             annotations = emptySet(),
             checksum = FileChecksum("", "")
         )
+    }
+
+    private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
+        return translateAndCheckFile(fsRoot, internalPath, isDirectory)
     }
 
     companion object : Loggable {
@@ -863,3 +830,21 @@ class LinuxFS(
         )
     }
 }
+
+fun translateAndCheckFile(fsRoot: File, internalPath: String, isDirectory: Boolean = false): String {
+    val userRoot = File(fsRoot, "home").absolutePath.normalize().removeSuffix("/") + "/"
+    val path = File(fsRoot, internalPath)
+        .normalize()
+        .absolutePath
+        .let { it + (if (isDirectory) "/" else "") }
+
+    if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) {
+        throw FSException.BadRequest("path is not in user-root")
+    }
+
+    if (path.contains("\n")) throw FSException.BadRequest("Path cannot contain new-lines")
+    if (path.length >= PATH_MAX) throw FSException.BadRequest("Path is too long")
+
+    return path
+}
+
