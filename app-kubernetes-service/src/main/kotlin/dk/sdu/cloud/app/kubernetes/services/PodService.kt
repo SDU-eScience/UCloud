@@ -56,7 +56,7 @@ class PodService(
             val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
 
             val containerState = userContainer.state.terminated
-            if (containerState != null && jobId !in finishedJobs) {
+            if (containerState != null && jobId !in finishedJobs && containerState.startedAt != null) {
                 val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
                 val finishedAt =
                     ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
@@ -214,18 +214,23 @@ class PodService(
 
         GlobalScope.launch {
             log.info("Awaiting container start!")
-            awaitCatching(retries = 600, delay = 100) {
-                val pod = k8sClient.pods().inNamespace(namespace).withName(podName).get()
-                val state = pod.status.containerStatuses.first().state
-                state.running != null || state.terminated != null
-            }
+            try {
+                awaitCatching(retries = 1200, delay = 100) {
+                    val pod = k8sClient.pods().inNamespace(namespace).withName(podName).get()
+                    val state = pod.status.containerStatuses.first().state
+                    state.running != null || state.terminated != null
+                }
 
-
-            launch {
                 ComputationCallbackDescriptions.requestStateChange.call(
                     StateChangeRequest(verifiedJob.id, JobState.RUNNING),
                     serviceClient
-                )
+                ).orThrow()
+            } catch (ex: Throwable) {
+                log.warn("Container did not start within deadline!")
+                ComputationCallbackDescriptions.requestStateChange.call(
+                    StateChangeRequest(verifiedJob.id, JobState.FAILURE, "Job did not start within deadline."),
+                    serviceClient
+                ).orThrow()
             }
         }
     }

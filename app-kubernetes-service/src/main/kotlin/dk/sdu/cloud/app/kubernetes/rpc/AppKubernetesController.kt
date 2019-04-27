@@ -40,6 +40,7 @@ class AppKubernetesController(
             podService.create(request)
             ok(Unit)
         }
+
         return@configure
     }
 
