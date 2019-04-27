@@ -17,6 +17,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -111,18 +113,25 @@ class JobFileService(
         }
     }
 
-    suspend fun jobFolder(job: VerifiedJob): String {
-        val homeFolder = FileDescriptions.findHomeFolder.call(
-            FindHomeFolderRequest(job.owner),
-            serviceClient
-        ).orThrow().path
+    private val jobFolderCache = HashMap<String, String>()
+    private val jobFolderLock = Mutex()
 
-        return joinPath(
-            homeFolder,
-            "Jobs",
-            job.archiveInCollection,
-            timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
-        )
+    suspend fun jobFolder(job: VerifiedJob): String {
+        jobFolderLock.withLock {
+            val cached = jobFolderCache[job.owner]
+            if (cached != null) return cached
+            val homeFolder = FileDescriptions.findHomeFolder.call(
+                FindHomeFolderRequest(job.owner),
+                serviceClient
+            ).orThrow().path
+
+            return joinPath(
+                homeFolder,
+                "Jobs",
+                job.archiveInCollection,
+                timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+            ).also { jobFolderCache[job.owner] = it }
+        }
     }
 
     suspend fun transferFilesToBackend(jobWithToken: VerifiedJobWithAccessToken, backend: ComputationDescriptions) {
