@@ -12,7 +12,7 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
     const val baseContext = "/api/files/workspaces"
 
     object Create {
-        data class Request(val mounts: List<WorkspaceMount>)
+        data class Request(val mounts: List<WorkspaceMount>, val allowFailures: Boolean)
         data class Response(val workspaceId: String, val failures: List<WorkspaceMount>)
     }
 

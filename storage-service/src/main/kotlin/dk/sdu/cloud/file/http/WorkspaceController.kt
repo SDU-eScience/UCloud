@@ -10,7 +10,7 @@ class WorkspaceController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(WorkspaceDescriptions.create) {
-            val response = workspaceService.create(request.mounts)
+            val response = workspaceService.create(request.mounts, request.allowFailures)
             ok(WorkspaceDescriptions.Create.Response(response.workspaceId, response.failures))
         }
 

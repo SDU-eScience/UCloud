@@ -24,7 +24,7 @@ class WorkspaceService(
 
     fun workspace(id: String) = File(workspaceFile, id).toPath().normalize().toAbsolutePath()
 
-    fun create(mounts: List<WorkspaceMount>): CreatedWorkspace {
+    fun create(mounts: List<WorkspaceMount>, allowFailures: Boolean): CreatedWorkspace {
         val workspaceId = UUID.randomUUID().toString()
         val workspace = workspace(workspaceId).also { Files.createDirectories(it) }
 
@@ -62,6 +62,11 @@ class WorkspaceService(
 
                 failures.add(it)
             }
+        }
+
+        if (failures.isNotEmpty() && !allowFailures) {
+            delete(workspaceId)
+            throw RPCException("Workspace creation had failures: $failures", HttpStatusCode.BadRequest)
         }
 
         return CreatedWorkspace(workspaceId, failures)

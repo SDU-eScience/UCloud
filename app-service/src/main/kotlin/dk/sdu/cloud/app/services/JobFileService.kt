@@ -175,9 +175,8 @@ class JobFileService(
             WorkspaceMount(file.sourcePath, file.destinationPath)
         }
 
-        // TODO Deal with failures
         return WORKSPACE_PATH + WorkspaceDescriptions.create.call(
-            WorkspaceDescriptions.Create.Request(mounts),
+            WorkspaceDescriptions.Create.Request(mounts, allowFailures = false),
             serviceClient
         ).orThrow().workspaceId
     }
