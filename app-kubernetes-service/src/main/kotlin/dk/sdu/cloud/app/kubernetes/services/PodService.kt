@@ -129,8 +129,6 @@ class PodService(
     }
 
     fun create(verifiedJob: VerifiedJob) {
-        // TODO Network policy. Should at least block all ingress and block egress to the entire container CIDR.
-
         val podName = podName(verifiedJob.id)
 
         log.info("Creating new job with name: $podName")
