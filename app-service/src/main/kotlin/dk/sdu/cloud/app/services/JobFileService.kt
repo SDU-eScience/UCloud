@@ -40,9 +40,13 @@ class JobFileService(
 
         val userCloud = serviceClient.bearerAuth(accessToken)
 
+        val sensitivityLevel =
+            jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
+                ?: SensitivityLevel.PRIVATE
+
         val path = jobFolder(job)
         FileDescriptions.createDirectory.call(
-            CreateDirectoryRequest(path.parent(), null),
+            CreateDirectoryRequest(path.parent(), null, sensitivity = sensitivityLevel),
             userCloud
         )
 
@@ -176,7 +180,7 @@ class JobFileService(
         }
 
         return WORKSPACE_PATH + WorkspaceDescriptions.create.call(
-            WorkspaceDescriptions.Create.Request(mounts, allowFailures = false),
+            WorkspaceDescriptions.Create.Request(job.owner, mounts, allowFailures = false),
             serviceClient
         ).orThrow().workspaceId
     }
@@ -189,6 +193,7 @@ class JobFileService(
         try {
             WorkspaceDescriptions.transfer.call(
                 WorkspaceDescriptions.Transfer.Request(
+                    username = job.owner,
                     workspaceId = job.workspace?.removePrefix(WORKSPACE_PATH) ?: throw RPCException(
                         "No workspace found",
                         HttpStatusCode.InternalServerError

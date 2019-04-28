@@ -168,10 +168,10 @@ class PodService(
                         withCommand(command)
                         withSecurityContext(
                             PodSecurityContext(
-                                verifiedJob.ownerUid,
-                                verifiedJob.ownerUid,
+                                verifiedJob.ownerUid + 1000,
+                                verifiedJob.ownerUid + 1000,
                                 true,
-                                verifiedJob.ownerUid,
+                                verifiedJob.ownerUid + 1000,
                                 null,
                                 null,
                                 null

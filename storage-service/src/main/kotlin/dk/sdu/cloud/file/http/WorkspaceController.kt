@@ -10,7 +10,7 @@ class WorkspaceController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(WorkspaceDescriptions.create) {
-            val response = workspaceService.create(request.mounts, request.allowFailures)
+            val response = workspaceService.create(request.username, request.mounts, request.allowFailures)
             ok(WorkspaceDescriptions.Create.Response(response.workspaceId, response.failures))
         }
 
@@ -21,7 +21,12 @@ class WorkspaceController(
 
         implement(WorkspaceDescriptions.transfer) {
             val transferredFiles =
-                workspaceService.transfer(request.workspaceId, request.transferGlobs, request.destination)
+                workspaceService.transfer(
+                    request.username,
+                    request.workspaceId,
+                    request.transferGlobs,
+                    request.destination
+                )
 
             if (request.deleteWorkspace) {
                 workspaceService.delete(request.workspaceId)

@@ -64,7 +64,7 @@ class Server(
         val fileLookupService = FileLookupService(coreFileSystem)
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
-        val workspaceService = WorkspaceService(fsRootFile, fileScanner)
+        val workspaceService = WorkspaceService(fsRootFile, fileScanner, fs, processRunner)
 
         // Metadata services
         val aclService = ACLService(fs)

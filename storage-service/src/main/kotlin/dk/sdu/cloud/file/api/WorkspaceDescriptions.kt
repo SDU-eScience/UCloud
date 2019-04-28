@@ -12,7 +12,11 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
     const val baseContext = "/api/files/workspaces"
 
     object Create {
-        data class Request(val mounts: List<WorkspaceMount>, val allowFailures: Boolean)
+        data class Request(
+            val username: String,
+            val mounts: List<WorkspaceMount>,
+            val allowFailures: Boolean
+        )
         data class Response(val workspaceId: String, val failures: List<WorkspaceMount>)
     }
 
@@ -31,6 +35,7 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
 
     object Transfer {
         data class Request(
+            val username: String,
             val workspaceId: String,
             val transferGlobs: List<String>,
             val destination: String,
