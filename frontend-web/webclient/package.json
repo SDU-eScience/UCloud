@@ -55,6 +55,7 @@
     "icons-index": "node scripts/create-icons-index.js"
   },
   "dependencies": {
+    "@novnc/novnc": "^1.1.0",
     "@svgr/cli": "^4.2.0",
     "avataaars": "^1.2.1",
     "fuse.js": "^3.4.4",
