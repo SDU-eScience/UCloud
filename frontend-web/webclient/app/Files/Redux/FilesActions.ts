@@ -19,7 +19,7 @@ import {
 } from "./FilesReducer";
 import { getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath, favoritesQuery } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
-import { SortOrder, SortBy, File } from "..";
+import { SortOrder, SortBy, File, FileResource } from "..";
 import { Action } from "redux";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
 import { errorMessageOrDefault } from "UtilityFunctions";
@@ -39,7 +39,7 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 */
 
 type FetchFiles = Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError | InvalidPathAction>
-export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy, attrs?: SortBy[]): FetchFiles => {
+export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy, attrs: FileResource[]): FetchFiles => {
     try {
         const response = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy, attrs));
         return receiveFiles(response.response, path, order, sortBy)

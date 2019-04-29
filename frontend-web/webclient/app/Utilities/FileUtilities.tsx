@@ -1,11 +1,10 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, FileType, FileOperation } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, FileType, FileOperation, FileResource } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal, { SweetAlertResult } from "sweetalert2";
 import * as UF from "UtilityFunctions";
-import { projectViewPage } from "Utilities/ProjectUtilities";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
@@ -164,7 +163,7 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
 }
 
 export type AccessRight = "READ" | "WRITE" | "EXECUTE";
-const hasAccess = (accessRight: AccessRight, file: File) => {
+function hasAccess(accessRight: AccessRight, file: File) {
     const username = Cloud.username;
     if (file.ownerName === username) return true;
     if (file.acl === undefined) return false;
@@ -184,7 +183,7 @@ interface CreateFileLink extends AddSnackOperation {
     fetchPageFromPath: (p: string) => void
 }
 
-export const createFileLink = async ({ file, cloud, setLoading, fetchPageFromPath, addSnack }: CreateFileLink) => {
+export async function createFileLink({ file, cloud, setLoading, fetchPageFromPath, addSnack }: CreateFileLink) {
     const fileName = getFilenameFromPath(file.path);
     const linkPath = file.path.replace(fileName, `Link to ${fileName} `)
     setLoading();
@@ -197,7 +196,7 @@ export const createFileLink = async ({ file, cloud, setLoading, fetchPageFromPat
     } catch {
         addSnack({ message: "An error occurred creating link.", type: SnackType.Failure });
     }
-};
+}
 
 interface StateLessOperations extends AddSnackOperation {
     setLoading: () => void
@@ -433,8 +432,8 @@ export function resolvePath(path: string) {
     return result.join("/");
 }
 
-export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH, attrs: SortBy[] = []): string =>{
-    const attributes = attrs.length > 0 ? `?attributes=${attrs.join(",")}` : "";
+export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH, attrs: FileResource[] = []): string =>{
+    const attributes = attrs.length > 0 ? `&attributes=${attrs.join(",")}` : "";
     return `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${attributes}`;
 }
 // FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues
