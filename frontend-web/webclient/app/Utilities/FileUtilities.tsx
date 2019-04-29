@@ -166,9 +166,9 @@ export type AccessRight = "READ" | "WRITE" | "EXECUTE";
 function hasAccess(accessRight: AccessRight, file: File) {
     const username = Cloud.username;
     if (file.ownerName === username) return true;
-    if (file.acl === undefined) return false;
+    if (file.acl === null) return false;
     
-    const relevantEntries = file.acl!.filter(item => !item.group && item.entity === username);
+    const relevantEntries = file.acl.filter(item => !item.group && item.entity === username);
     return relevantEntries.some(entry => entry.rights.includes(accessRight));
 };
 

@@ -246,7 +246,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
         const fetch = async () => {
             dispatch(Actions.setLoading(true));
             dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy, attrs));
-        };bindActionCreators
+        };
         if (index != null) dispatch(Actions.setSortingColumn(sortBy, index));
         fetch();
         dispatch(setRefreshFunction(fetch));
