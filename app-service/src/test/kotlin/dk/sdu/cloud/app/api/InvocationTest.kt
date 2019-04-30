@@ -63,13 +63,13 @@ class InvocationTest {
             "true"
         )
 
-        val result = boolFlag.buildInvocationSnippet(
+        val result = boolFlag.buildInvocationList(
             mapOf(
                 ApplicationParameter.Bool("Variable") to BooleanApplicationParameter(true)
             )
         )
 
-        assertEquals("true", result)
+        assertEquals(listOf("true"), result)
     }
 
     @Test
@@ -104,6 +104,6 @@ class InvocationTest {
     @Test
     fun `test word invocation`() {
         val word = WordInvocationParameter("this")
-        assertEquals("this", word.buildInvocationSnippet(emptyMap()))
+        assertEquals(listOf("this"), word.buildInvocationList(emptyMap()))
     }
 }

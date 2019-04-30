@@ -107,6 +107,5 @@ val startJobRequest = StartJobRequest(
     emptyMap(),
     1,
     1,
-    SimpleDuration(1, 0, 0),
-    ToolBackend.UDOCKER.name
+    SimpleDuration(1, 0, 0)
 )

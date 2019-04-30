@@ -52,7 +52,8 @@ class JobOrchestratorTest {
         val toolDao = ToolHibernateDAO()
         val appDao = ApplicationHibernateDAO(toolDao)
         val jobDao = JobHibernateDao(appDao, toolDao, tokenValidation)
-        val compBackend = ComputationBackendService(listOf(ApplicationBackend("backend")), true)
+        val backendName = "backend"
+        val compBackend = ComputationBackendService(listOf(ApplicationBackend(backendName)), true)
 
         db.withTransaction {
             toolDao.create(it, "user", normToolDesc)
@@ -63,14 +64,14 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(db, appDao, toolDao, tokenValidation, "abacus"),
+            JobVerificationService(db, appDao, toolDao, tokenValidation, backendName),
             compBackend,
             jobFileService,
             jobDao,
-            "abacus"
+            backendName
         )
 
-        backend = compBackend.getAndVerifyByName("backend")
+        backend = compBackend.getAndVerifyByName(backendName)
         ClientMock.mockCallSuccess(
             backend.jobVerified,
             Unit

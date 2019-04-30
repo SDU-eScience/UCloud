@@ -13,7 +13,7 @@ class InvocationCommandASTTest {
         val m: AppParametersWithValues = mapOf(
             Pair(ApplicationParameter.Bool("variable"), BooleanApplicationParameter(true))
         )
-        assertEquals("This is the flag", bo.buildInvocationSnippet(m))
+        assertEquals(listOf("This is the flag"), bo.buildInvocationList(m))
         assertEquals("This is the flag", bo.flag)
         assertEquals("variable", bo.variableName)
     }
