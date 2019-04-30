@@ -123,7 +123,7 @@ data class BooleanFlagParameter(
             parameters
         )
 
-        return if (value.value) listOf(flag) else emptyList()
+        return if (value.value) listOf(flag.trim()) else emptyList()
     }
 }
 

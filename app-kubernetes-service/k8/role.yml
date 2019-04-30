@@ -8,6 +8,9 @@ rules:
 - apiGroups: [""] # "" indicates the core API group
   resources: ["pods", "pods/log"]
   verbs: ["*"]
+- apiGroups: ["batch", "extensions"]
+  resources: ["jobs"]
+  verbs: ["*"]
 
 ---
 kind: RoleBinding

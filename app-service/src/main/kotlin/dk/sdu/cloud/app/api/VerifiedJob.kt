@@ -17,4 +17,6 @@ data class VerifiedJob(
     val workspace: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val modifiedAt: Long = System.currentTimeMillis()
-)
+) {
+    override fun toString() = "VerifiedJob(${application.metadata.name}@${application.metadata.version})"
+}
