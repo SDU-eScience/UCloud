@@ -35,13 +35,13 @@ private const val APP_ROLE = "sducloud-app"
 
 class PodService(
     private val k8sClient: KubernetesClient,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val namespace: String = "app-kubernetes"
 ) {
     private val dataDirectory = "/data"
     private val localDirectory = "/scratch"
     private val temporaryStorage = "temporary-storage"
     private val dataStorage = "workspace-storage"
-    private val namespace = "app-testing"
 
     private fun podName(requestId: String): String = "$JOB_PREFIX$requestId"
     private fun reverseLookupPodName(podName: String): String? =
@@ -74,12 +74,13 @@ class PodService(
                 val duration = run {
                     // We add 5 seconds for just running the application.
                     // It seems unfair that a job completing instantly is accounted for nothing.
-                    val duration = Duration.ofMillis((finishedAt - startAt) + 5_000)
-                    val days = duration.toDaysPart()
-                    val hours = duration.toHoursPart()
-                    val minutes = duration.toMinutesPart()
-                    val seconds = duration.toSecondsPart()
-                    SimpleDuration((days * 24).toInt() + hours, minutes, seconds)
+                    val durationMs = (finishedAt - startAt) + 5_000
+                    val hours = durationMs / (1000 * 60 * 60)
+                    val minutes = (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+                    val seconds = ((durationMs % (1000 * 60 * 60)) % (1000 * 60)) / 1000
+
+
+                    SimpleDuration(hours.toInt(), minutes.toInt(), seconds.toInt())
                 }
                 log.info("Simple duration $duration")
 
@@ -87,7 +88,11 @@ class PodService(
 
                 GlobalScope.launch {
                     ComputationCallbackDescriptions.requestStateChange.call(
-                        StateChangeRequest(jobId, JobState.TRANSFER_SUCCESS),
+                        StateChangeRequest(
+                            jobId,
+                            JobState.TRANSFER_SUCCESS,
+                            "Job has finished. Total duration: $duration."
+                        ),
                         serviceClient
                     ).orThrow()
 
@@ -104,7 +109,11 @@ class PodService(
 
                     log.info("Calling completed")
                     ComputationCallbackDescriptions.completed.call(
-                        JobCompletedRequest(jobId, duration, containerState.exitCode == 0),
+                        JobCompletedRequest(
+                            jobId,
+                            duration,
+                            containerState.exitCode == 0
+                        ),
                         serviceClient
                     ).orThrow()
                 }
@@ -133,7 +142,7 @@ class PodService(
 
         log.info("Creating new job with name: $podName")
 
-        k8sClient.pods().createNew()
+        k8sClient.pods().inNamespace(namespace).createNew()
             .metadata {
                 withName(podName)
                 withNamespace(this@PodService.namespace)
@@ -166,17 +175,6 @@ class PodService(
                         withImage(tool.container)
                         withRestartPolicy("Never")
                         withCommand(command)
-                        withSecurityContext(
-                            PodSecurityContext(
-                                verifiedJob.ownerUid + 1000,
-                                verifiedJob.ownerUid + 1000,
-                                true,
-                                verifiedJob.ownerUid + 1000,
-                                null,
-                                null,
-                                null
-                            )
-                        )
 
                         withWorkingDir(dataDirectory)
 
@@ -220,7 +218,11 @@ class PodService(
                 }
 
                 ComputationCallbackDescriptions.requestStateChange.call(
-                    StateChangeRequest(verifiedJob.id, JobState.RUNNING),
+                    StateChangeRequest(
+                        verifiedJob.id,
+                        JobState.RUNNING,
+                        "Your job is now running. You will be able to follow the logs while the job is running."
+                    ),
                     serviceClient
                 ).orThrow()
             } catch (ex: Throwable) {
@@ -239,12 +241,19 @@ class PodService(
     }
 
     fun retrieveLogs(requestId: String, startLine: Int, maxLines: Int): Pair<String, Int> {
-        // This is a stupid implementation that works with the current API. We should be using websockets.
-        val podName = podName(requestId)
-        val completeLog = k8sClient.pods().inNamespace(namespace).withName(podName).log.lines()
-        val lines = completeLog.drop(startLine).take(maxLines)
-        val nextLine = startLine + lines.size
-        return Pair(lines.joinToString("\n"), nextLine)
+        return try {
+            // This is a stupid implementation that works with the current API. We should be using websockets.
+            val podName = podName(requestId)
+            val completeLog = k8sClient.pods().inNamespace(namespace).withName(podName).log.lines()
+            val lines = completeLog.drop(startLine).take(maxLines)
+            val nextLine = startLine + lines.size
+            Pair(lines.joinToString("\n"), nextLine)
+        } catch (ex: KubernetesClientException) {
+            when (ex.status.code) {
+                404, 400 -> Pair("", 0)
+                else -> throw ex
+            }
+        }
     }
 
     companion object : Loggable {

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.app.api.ApplicationBackend
 import dk.sdu.cloud.service.test.TestUsers
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -7,7 +8,10 @@ import kotlin.test.assertTrue
 
 class ComputationBackendTest {
     private val services =
-        ComputationBackendService(listOf(BackendConfiguration("backend1"), BackendConfiguration("backend2")), false)
+        ComputationBackendService(listOf(
+            ApplicationBackend("backend1"),
+            ApplicationBackend("backend2")
+        ), false)
 
     @Test
     fun `backend Principal name test`() {

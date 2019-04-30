@@ -40,7 +40,8 @@ class JobVerificationService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val applicationDAO: ApplicationDAO<DBSession>,
     private val toolDAO: ToolDAO<DBSession>,
-    private val tokenValidation: TokenValidation<DecodedJWT>
+    private val tokenValidation: TokenValidation<DecodedJWT>,
+    private val defaultBackend: String
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -75,7 +76,7 @@ class JobVerificationService<DBSession>(
                 tasksPerNode = tasksPerNode,
                 maxTime = maxTime,
                 jobInput = verifiedParameters,
-                backend = resolveBackend(unverifiedJob.request.backend),
+                backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
                 currentState = JobState.VALIDATED,
                 status = "Validated",
                 ownerUid = token.principal.uid,

@@ -1,21 +1,17 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.api.ApplicationBackend
 import dk.sdu.cloud.app.api.ComputationDescriptions
 import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
 
 class NamedComputationBackendDescriptions(
-    val config: BackendConfiguration
+    val config: ApplicationBackend
 ) : ComputationDescriptions(config.name)
 
-data class BackendConfiguration(
-    val name: String,
-    val useWorkspaces: Boolean = false
-)
-
 class ComputationBackendService(
-    backends: List<BackendConfiguration>,
+    backends: List<ApplicationBackend>,
     private val developmentModeEnabled: Boolean
 ) {
     private val backends = backends.associateBy { it.name }

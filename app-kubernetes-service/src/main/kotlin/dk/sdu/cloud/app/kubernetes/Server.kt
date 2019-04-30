@@ -1,11 +1,16 @@
 package dk.sdu.cloud.app.kubernetes
 
+import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
+import dk.sdu.cloud.app.kubernetes.services.PodService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
+import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.ktor.application.install
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -23,7 +28,6 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun start() {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        /*
         val podService = PodService(DefaultKubernetesClient(), serviceClient)
 
         podService.initializeListeners()
@@ -35,7 +39,7 @@ class Server(override val micro: Micro) : CommonServer {
             )
         }
 
-        */
+        /*
         val ktorEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
 
         val client = HttpClient(CIO).config {
@@ -83,6 +87,7 @@ class Server(override val micro: Micro) : CommonServer {
                 }
             }
         }
+        */
 
         startServices()
     }

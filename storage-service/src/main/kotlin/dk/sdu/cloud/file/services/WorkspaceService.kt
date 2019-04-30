@@ -2,16 +2,19 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.WorkspaceMount
-import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.StandardCLib
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.runBlocking
 import java.io.File
-import java.nio.file.*
+import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import kotlin.streams.toList
 
@@ -21,8 +24,7 @@ class WorkspaceService(
     fsRoot: File,
     private val fileScanner: FileScanner<*>,
 
-    // Note: Avoid using the fs since we do not want events to be emitted.
-    private val fs: LinuxFS,
+    private val userDao: StorageUserDao<Long>,
 
     private val fsCommandRunnerFactory: FSCommandRunnerFactory<LinuxFSRunner>
 ) {
@@ -32,12 +34,13 @@ class WorkspaceService(
     fun workspace(id: String) = File(workspaceFile, id).toPath().normalize().toAbsolutePath()
 
     suspend fun create(user: String, mounts: List<WorkspaceMount>, allowFailures: Boolean): CreatedWorkspace {
-        val workspaceId = UUID.randomUUID().toString()
-        val workspace = workspace(workspaceId).also { Files.createDirectories(it) }
-
         return fsCommandRunnerFactory.withContext(user) { ctx ->
             ctx.submit {
                 ctx.requireContext()
+
+                val workspaceId = UUID.randomUUID().toString()
+                val workspace = workspace(workspaceId).also { Files.createDirectories(it) }
+                // TODO chmod this folder
 
                 fun transferFile(file: Path, destination: Path, relativeTo: Path) {
                     val resolvedDestination = if (Files.isSameFile(file, relativeTo)) {
@@ -68,15 +71,7 @@ class WorkspaceService(
                             file
                         }
 
-                        // We will first try the cheapest solution, which is to create a hard link. Creating a hard link
-                        // will require read/write permissions. In case we do not have write permissions we will attempt
-                        // to copy the file. Copying the file is obviously more expensive, but only requires read
-                        // permissions.
-                        try {
-                            Files.createLink(resolvedDestination, resolvedFile)
-                        } catch (ex: AccessDeniedException) {
-                            Files.copy(resolvedFile, resolvedDestination, StandardCopyOption.REPLACE_EXISTING)
-                        }
+                        Files.copy(resolvedFile, resolvedDestination, StandardCopyOption.REPLACE_EXISTING)
                     }
                 }
 
@@ -113,56 +108,66 @@ class WorkspaceService(
         val workspace = workspace(workspaceId)
         if (!Files.exists(workspace)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-        return fsCommandRunnerFactory.withContext(user) { ctx ->
-            ctx.submit {
-                ctx.requireContext()
+        val uid = userDao.findStorageUser(user) ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
-                val matchers = fileGlobs.map { FileSystems.getDefault().getPathMatcher("glob:$it") }
-                val destinationDir = File(translateAndCheckFile(fsRoot, destination)).toPath()
+        val matchers = fileGlobs.map { FileSystems.getDefault().getPathMatcher("glob:$it") }
+        val destinationDir = File(translateAndCheckFile(fsRoot, destination)).toPath()
 
-                val transferred = ArrayList<String>()
+        val transferred = ArrayList<String>()
 
-                Files.list(workspace)
-                    .filter { path ->
-                        log.debug("Checking if we match $path")
-                        matchers.any { it.matches(path.fileName) }
-                    }
-                    .toList()
-                    .forEach {
-                        try {
-                            val resolvedDestination = destinationDir.resolve(workspace.relativize(it))
-                            if (resolvedDestination.startsWith(destinationDir)) {
-                                val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
-
-                                // We use the birth attribute to check if a file is tracked in SDUCloud.
-                                val isTrackedFile =
-                                    runBlocking { fs.getExtendedAttribute(ctx, path, XATTR_BIRTH).statusCode == 0 }
-
-                                if (isTrackedFile) {
-                                    // Copy files that were mounted to give them a fresh ID
-                                    Files.copy(it, resolvedDestination)
-                                } else {
-                                    // Non-tracked files can just be moved to the destination. They will have a
-                                    // unique ID.
-                                    Files.move(it, resolvedDestination)
-                                }
-                                transferred.add(path)
-                            } else {
-                                log.info("Resolved destination is not within destination directory! $it $resolvedDestination")
-                            }
-                        } catch (ex: Throwable) {
-                            log.info("Failed to transfer $it. ${ex.message}")
-                            log.debug(ex.stackTraceToString())
-                        }
-                    }
-
-                transferred
+        Files.list(workspace)
+            .filter { path ->
+                val result = matchers.any { it.matches(path.fileName) }
+                log.debug("Checking if we match $path. Do we? $result")
+                result
             }
-        }.also { transferred ->
-            transferred.forEach { path ->
-                fileScanner.scanFilesCreatedExternally(path)
+            .toList()
+            .forEach {
+                log.debug("Transferring file: $it")
+                try {
+                    val resolvedDestination = destinationDir.resolve(workspace.relativize(it))
+                    log.debug("resolvedDestination: $resolvedDestination")
+                    if (resolvedDestination.startsWith(destinationDir)) {
+                        val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
+
+                        Chown.setOwner(it, uid.toInt(), uid.toInt())
+                        Files.move(it, resolvedDestination)
+                        transferred.add(path)
+                    } else {
+                        log.info("Resolved destination is not within destination directory! $it $resolvedDestination")
+                    }
+                } catch (ex: Throwable) {
+                    log.info("Failed to transfer $it. ${ex.message}")
+                    log.debug(ex.stackTraceToString())
+                }
             }
+
+        log.debug("Transferred ${transferred.size} files")
+        transferred.forEach { path ->
+            log.debug("Fixing permissions of $path")
+            val realPath = File(translateAndCheckFile(fsRoot, path)).toPath()
+            Files.walk(realPath).forEach { file ->
+                Chown.setOwner(file, uid.toInt(), uid.toInt())
+                Files.setPosixFilePermissions(
+                    file, setOf(
+                        PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_EXECUTE,
+                        PosixFilePermission.GROUP_WRITE,
+                        PosixFilePermission.GROUP_READ,
+                        PosixFilePermission.GROUP_EXECUTE
+                    )
+                )
+            }
+
+            log.debug("Scanning external files")
+            fileScanner.scanFilesCreatedExternally(path)
+            log.debug("Scanning external files done")
         }
+
+        log.debug("Done!")
+
+        return transferred
     }
 
     fun delete(workspaceId: String) {

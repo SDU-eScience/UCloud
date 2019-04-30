@@ -18,6 +18,7 @@ interface CLibrary : Library {
     fun listxattr(path: String, destination: ByteArray, length: Int): Int
     fun removexattr(path: String, name: String): Int
     fun umask(value: Int): Int
+    fun chown(path: String, owner: Int, group: Int): Int
 
     companion object {
         val INSTANCE =

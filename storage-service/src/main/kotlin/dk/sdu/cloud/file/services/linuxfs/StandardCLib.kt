@@ -67,6 +67,16 @@ object StandardCLib {
         }
     }
 
+    fun chown(path: String, owner: Int, group: Int): StatusCode {
+        return if (!Platform.isLinux()) {
+            StatusCode(
+                CLibrary.INSTANCE.chown(path, owner, group)
+            )
+        } else {
+            StatusCode.OK
+        }
+    }
+
     fun realPath(path: String): String? {
         return CLibrary.INSTANCE.realpath(path, null)
     }

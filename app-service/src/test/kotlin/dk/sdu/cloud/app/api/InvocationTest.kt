@@ -39,7 +39,7 @@ class InvocationTest {
                 ApplicationParameter.Text("variable2") to StringApplicationParameter("Text")
             )
         )
-        assertEquals("prefixGlobalprefixVar\"1\"suffixVar prefixVar\"Text\"suffixVarsuffixGlobal", buildInvocation)
+        assertEquals("\"prefixGlobal\" \"prefixVar\" \"1\" \"suffixVar\" \"prefixVar\" \"Text\" \"suffixVar\" \"suffixGlobal\"", buildInvocation)
     }
 
     @Test

@@ -39,6 +39,8 @@ class LinuxFSRunner(
     internal var outputStream: OutputStream? = null
     internal var outputSystemFile: File? = null
 
+    internal var uid: Long = Long.MAX_VALUE
+
     private fun init() {
         synchronized(this) {
             if (thread == null) {
@@ -46,6 +48,7 @@ class LinuxFSRunner(
                 thread = NativeThread(THREAD_PREFIX + user + "-" + UUID.randomUUID().toString()) {
                     val cloudUser = runBlocking { userDao.findStorageUser(user) }
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                    uid = cloudUser
 
                     StandardCLib.setfsgid(cloudUser)
                     StandardCLib.setfsuid(cloudUser)

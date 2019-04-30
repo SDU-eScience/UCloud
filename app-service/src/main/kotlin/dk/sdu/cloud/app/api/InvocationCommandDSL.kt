@@ -45,6 +45,11 @@ data class VariableInvocationParameter(
     val isSuffixVariablePartOfArg: Boolean = false
 ) : InvocationParameter() {
     override fun buildInvocationList(parameters: AppParametersWithValues): List<String> {
+        val prefixGlobal = this.prefixGlobal.trim()
+        val suffixGlobal = this.suffixGlobal.trim()
+        val prefixVariable = this.prefixVariable.trim()
+        val suffixVariable = this.suffixVariable.trim()
+
         val fieldToValue = parameters.filter { it.key.name in variableNames }
         val nameToFieldAndValue = fieldToValue.entries.associateBy { it.key.name }
 

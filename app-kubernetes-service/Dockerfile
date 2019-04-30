@@ -7,6 +7,7 @@ ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
     PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
 
 RUN apk add --no-cache openjdk8
+RUN apk add --no-cache nss
 
 RUN apk add --no-cache curl zip bash
 RUN curl -s "https://get.sdkman.io" | bash

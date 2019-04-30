@@ -2,12 +2,12 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.app.api.AccountingEvents
+import dk.sdu.cloud.app.api.ApplicationBackend
 import dk.sdu.cloud.app.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.api.InternalStdStreamsResponse
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
@@ -22,12 +22,10 @@ import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
-import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
-import org.hibernate.Session
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
@@ -54,7 +52,7 @@ class JobOrchestratorTest {
         val toolDao = ToolHibernateDAO()
         val appDao = ApplicationHibernateDAO(toolDao)
         val jobDao = JobHibernateDao(appDao, toolDao, tokenValidation)
-        val compBackend = ComputationBackendService(listOf(BackendConfiguration("backend")), true)
+        val compBackend = ComputationBackendService(listOf(ApplicationBackend("backend")), true)
 
         db.withTransaction {
             toolDao.create(it, "user", normToolDesc)
@@ -65,10 +63,11 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(db, appDao, toolDao, tokenValidation),
+            JobVerificationService(db, appDao, toolDao, tokenValidation, "abacus"),
             compBackend,
             jobFileService,
-            jobDao
+            jobDao,
+            "abacus"
         )
 
         backend = compBackend.getAndVerifyByName("backend")

@@ -4,9 +4,28 @@ import dk.sdu.cloud.app.api.ComputationDescriptions
 import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.ClientAndBackend
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.throwIfInternal
+import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.CreateDirectoryRequest
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.ExtractRequest
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SimpleUploadRequest
+import dk.sdu.cloud.file.api.WorkspaceDescriptions
+import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
@@ -122,19 +141,24 @@ class JobFileService(
 
     suspend fun jobFolder(job: VerifiedJob): String {
         jobFolderLock.withLock {
-            val cached = jobFolderCache[job.owner]
-            if (cached != null) return cached
-            val homeFolder = FileDescriptions.findHomeFolder.call(
-                FindHomeFolderRequest(job.owner),
-                serviceClient
-            ).orThrow().path
+            val cachedHomeFolder = jobFolderCache[job.owner]
+            val homeFolder = if (cachedHomeFolder != null) {
+                cachedHomeFolder
+            } else {
+                FileDescriptions.findHomeFolder.call(
+                    FindHomeFolderRequest(job.owner),
+                    serviceClient
+                ).orThrow().path
+            }
+
+            jobFolderCache[job.owner] = homeFolder
 
             return joinPath(
                 homeFolder,
                 "Jobs",
                 job.archiveInCollection,
                 timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
-            ).also { jobFolderCache[job.owner] = it }
+            )
         }
     }
 

@@ -12,6 +12,7 @@ import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.file.services.linuxfs.StandardCLib
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import kotlinx.coroutines.runBlocking
@@ -64,7 +65,7 @@ class Server(
         val fileLookupService = FileLookupService(coreFileSystem)
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
-        val workspaceService = WorkspaceService(fsRootFile, fileScanner, fs, processRunner)
+        val workspaceService = WorkspaceService(fsRootFile, fileScanner, uidLookupService, processRunner)
 
         // Metadata services
         val aclService = ACLService(fs)
@@ -77,20 +78,6 @@ class Server(
 
         log.info("Core services constructed!")
 
-        if (micro.commandLineArguments.contains("--bug-test")) {
-            ZipBulkUploader.upload(
-                cloud,
-                coreFileSystem,
-                { processRunner("dthrane@imada.sdu.dk") },
-                "/home/dthrane@imada.sdu.dk/foobar",
-                WriteConflictPolicy.OVERWRITE,
-                FileInputStream("/tmp/myupload.zip"),
-                null,
-                sensitivityService,
-                "foo.zip"
-            )
-            exitProcess(0)
-        }
 
         UserProcessor(
             streams,

@@ -81,6 +81,7 @@ fun Application.withOutputFiles(fileGlobs: List<String>): Application = copy(
 
 
 fun main() = runBlocking {
+    /*
     val micro = initializeMicro()
     ClientMock.mockCallSuccess(ComputationCallbackDescriptions.completed, Unit)
     ClientMock.mockCallSuccess(ComputationCallbackDescriptions.requestStateChange, Unit)
@@ -103,4 +104,5 @@ fun main() = runBlocking {
     )
 
     service.create(job)
+    */
 }

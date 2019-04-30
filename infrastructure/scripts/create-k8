@@ -72,7 +72,7 @@ echo "Password is: $password"
 
 confirm;
 
-tokens=`sducloud POST https://cloud.sdu.dk/auth/users/register username=_$service_name password=dummy role=SERVICE | json .[0]`
+tokens=`sducloud POST https://dev.cloud.sdu.dk/auth/users/register username=_$service_name password=dummy role=SERVICE | json .[0]`
 refreshToken=`echo $tokens | json refreshToken`
 
 echo "PSQL SU Password:"

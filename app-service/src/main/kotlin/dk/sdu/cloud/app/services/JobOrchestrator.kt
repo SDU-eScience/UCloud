@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.Configuration
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.http.JOB_MAX_TIME
 import dk.sdu.cloud.calls.RPCException
@@ -61,7 +62,9 @@ class JobOrchestrator<DBSession>(
     private val jobVerificationService: JobVerificationService<DBSession>,
     private val computationBackendService: ComputationBackendService,
     private val jobFileService: JobFileService,
-    private val jobDao: JobDao<DBSession>
+    private val jobDao: JobDao<DBSession>,
+
+    private val defaultBackend: String
 ) {
     /**
      * Shared error handling for methods that work with a live job.
@@ -117,7 +120,7 @@ class JobOrchestrator<DBSession>(
         principal: DecodedJWT,
         userCloud: AuthenticatedClient
     ): String {
-        val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend))
+        val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend, defaultBackend))
         val unverifiedJob = UnverifiedJob(req, principal)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
         val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
@@ -342,4 +345,4 @@ fun <DBSession> JobDao<DBSession>.find(session: DBSession, id: String): Verified
     return findOrNull(session, id) ?: throw JobException.NotFound("Job: $id")
 }
 
-fun resolveBackend(backend: String?): String = backend ?: "abacus"
+fun resolveBackend(backend: String?, defaultBackend: String): String = backend ?: defaultBackend

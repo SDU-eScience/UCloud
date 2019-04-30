@@ -1,0 +1,33 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: app-kubernetes-role
+  namespace: default
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods", "pods/log"]
+  verbs: ["*"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: app-kubernetes-rb
+  namespace: app-kubernetes
+subjects:
+- kind: ServiceAccount
+  name: app-kubernetes
+  namespace: default
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: app-kubernetes-role
+  apiGroup: ""
+
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: app-kubernetes
+  namespace: default

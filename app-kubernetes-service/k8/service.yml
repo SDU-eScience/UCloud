@@ -9,7 +9,7 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: app-kubernetes
-      prefix: ^/api/app/kubernetes(/.*)?$
+      prefix: ^/api/app/compute/kubernetes(/.*)?$
       prefix_regex: true
       service: app-kubernetes:8080
       rewrite: ""

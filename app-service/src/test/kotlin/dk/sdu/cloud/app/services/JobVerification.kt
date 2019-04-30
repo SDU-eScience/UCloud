@@ -50,7 +50,7 @@ class JobVerification {
             toolDao.create(it, "user", normToolDesc)
             appDao.create(it, "user", normAppDesc3)
         }
-        val service = JobVerificationService(db, appDao, toolDao, tokenValidation)
+        val service = JobVerificationService(db, appDao, toolDao, tokenValidation, "abacus")
         val verified = runBlocking {
             service.verifyOrThrow(unverifiedJob, cloud)
         }
@@ -93,7 +93,7 @@ class JobVerification {
             toolDao.create(it, "user", normToolDesc)
             appDao.create(it, "user", normAppDesc3)
         }
-        val service = JobVerificationService(db, appDao, toolDao, tokenValidation)
+        val service = JobVerificationService(db, appDao, toolDao, tokenValidation, "abacus")
         runBlocking {
             service.verifyOrThrow(unverifiedJobWithWrongParamType, cloud)
         }
@@ -127,7 +127,7 @@ class JobVerification {
             toolDao.create(it, "user", normToolDesc)
             appDao.create(it, "user", normAppDesc3)
         }
-        val service = JobVerificationService(db, appDao, toolDao, tokenValidation)
+        val service = JobVerificationService(db, appDao, toolDao, tokenValidation, "abacus")
         runBlocking {
             service.verifyOrThrow(unverifiedJobWithMissingNonOptional, cloud)
         }

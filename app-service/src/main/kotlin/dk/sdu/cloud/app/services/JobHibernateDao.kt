@@ -227,7 +227,7 @@ class JobHibernateDao(
                 status,
                 archiveInCollection,
                 tokenValidation.validateAndDecodeOrNull(accessToken)?.principal?.uid
-                    ?: throw RPCException("Unauthorized (Invalid token)", HttpStatusCode.Unauthorized),
+                    ?: Long.MAX_VALUE, // TODO This is a safe value to map to, but we shouldn't just map it to long max
                 workspace,
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time
