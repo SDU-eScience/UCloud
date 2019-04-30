@@ -58,7 +58,6 @@ class ActionController<Ctx : FSUserContext>(
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = coreFs.stat(it, request.path, setOf(FileAttribute.INODE))
                 coreFs.delete(it, request.path)
-
                 audit(SingleFileAudit(stat.inode, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
@@ -98,7 +97,6 @@ class ActionController<Ctx : FSUserContext>(
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
                 val targetPath = coreFs.copy(it, request.path, request.newPath, request.policy ?: WriteConflictPolicy.OVERWRITE)
-
                 val newSensitivity = fileLookupService.stat(it, targetPath).sensitivityLevel
                 if (stat.sensitivityLevel != newSensitivity) {
                     sensitivityService.setSensitivityLevel(
