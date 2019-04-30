@@ -34,7 +34,7 @@ class Files extends React.Component<FilesProps> {
         const { page, sortOrder, sortBy, history, ...props } = this.props;
         props.onInit();
         props.setUploaderCallback(path => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs));
-        props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs);
+        props.fetchFiles(this.urlPath, page.itemsPerPage, 0, sortOrder, sortBy, this.baseFRs);
     }
 
     componentWillUnmount = () => this.props.clearRefresh();
