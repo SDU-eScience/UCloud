@@ -70,7 +70,9 @@ class Header extends React.Component<HeaderProps> {
                 <Box mr="auto" />
                 <DevelopmentBadge />
                 <BackgroundTask />
-                <Refresh spin={spin} onClick={refresh} headerLoading={this.props.statusLoading} />
+                <Flex width="48px" justifyContent="center">
+                    <Refresh spin={spin} onClick={refresh} headerLoading={this.props.statusLoading} />
+                </Flex>
                 <Support />
                 <Notification />
                 <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={this.props.avatar} /> : null}</Flex>}>
