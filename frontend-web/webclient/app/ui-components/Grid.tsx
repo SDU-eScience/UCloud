@@ -8,8 +8,8 @@ import {
     justifyItems,
     JustifyItemsProps,
     gridGap, GridGapProps,
-    gridTemplateColumns, GridTemplatesColumnsProps,
-    gridTemplateRows, GridTemplatesRowsProps,
+    gridTemplateColumns, GridTemplateColumnsProps,
+    gridTemplateRows, GridTemplateRowsProps,
 } from "styled-system";
 
 export type GridProps =
@@ -20,8 +20,8 @@ export type GridProps =
     AlignItemsProps &
     JustifyItemsProps &
     GridGapProps &
-    GridTemplatesColumnsProps &
-    GridTemplatesRowsProps
+    GridTemplateColumnsProps &
+    GridTemplateRowsProps
 
 const Grid = styled.div<GridProps>`
     display: grid;
