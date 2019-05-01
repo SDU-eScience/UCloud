@@ -116,7 +116,8 @@ sealed class ApplicationDescription(val application: String) {
                                 val prefixGlobal = map["prefixGlobal"]?.toString() ?: ""
                                 val suffixGlobal = map["suffixGlobal"]?.toString() ?: ""
                                 val prefixVariable = map["prefixVariable"]?.toString() ?: ""
-                                val variableSeparator = map["variableSeparator"]?.toString() ?: " "
+                                val isPrefixVariablePartOfArg = map["isPrefixVariablePartOfArg"] as? Boolean ?: false
+                                val isSuffixVariablePartOfArg = map["isSuffixVariablePartOfArg"] as? Boolean ?: false
 
                                 VariableInvocationParameter(
                                     variableNames,
@@ -124,7 +125,8 @@ sealed class ApplicationDescription(val application: String) {
                                     suffixGlobal,
                                     prefixVariable,
                                     suffixGlobal,
-                                    variableSeparator
+                                    isPrefixVariablePartOfArg,
+                                    isSuffixVariablePartOfArg
                                 )
                             }
 

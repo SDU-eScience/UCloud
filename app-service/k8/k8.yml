@@ -1,80 +1,61 @@
 ---
-apiVersion: apps/v1beta1
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: app-service-deployment
   labels:
-    app: app-service
+    app: app
+  name: app
+  namespace: default
 spec:
-  replicas: 1
   selector:
     matchLabels:
-      app: app-service
+      app: app
   template:
     metadata:
       labels:
-        app: app-service
+        app: app
     spec:
       containers:
-      - name: app-service
-        image: registry.cloud.sdu.dk/sdu-cloud/app-service:0.2.0
-        command:
+      - command:
         - /opt/service/bin/service
         - --config-dir
         - /etc/psql
         - --config-dir
-        - /etc/service-config
-        - --config-dir
         - /etc/refresh-token
         - --config-dir
-        - /etc/ssh-password
+        - /etc/service-config
+        - --config-dir
+        - /etc/token-validation
+        image: registry.cloud.sdu.dk/sdu-cloud/app-service:1.6.0-ALPHA.4
+        name: app
         volumeMounts:
         - mountPath: /etc/psql
           name: psql-secrets
         - mountPath: /etc/refresh-token
           name: refresh-token
-        - mountPath: /root/.ssh/id_rsa_abc
-          name: abc-ssh-key
-          subPath: id_rsa_abc
-        - mountPath: /root/.ssh/id_rsa_abc.pub
-          name: abc-ssh-pub
-          subPath: id_rsa_abc.pub
         - mountPath: /etc/service-config
           name: service-config
-        - mountPath: /etc/ssh-password
-          name: ssh-password
-
+        - mountPath: /etc/token-validation
+          name: token-validation
+      imagePullSecrets:
+      - name: esci-docker
       volumes:
       - name: psql-secrets
         secret:
+          defaultMode: 420
           optional: false
           secretName: app-psql
       - name: refresh-token
         secret:
+          defaultMode: 420
           optional: false
           secretName: app-refresh-token
-      - name: abc-ssh-key
-        secret:
-          optional: false
-          secretName: app-ssh
-          items:
-          - key: id_rsa_abc
-            path: id_rsa_abc
-      - name: abc-ssh-pub
-        secret:
-          optional: false
-          secretName: app-ssh
-          items:
-          - key: id_rsa_abc.pub
-            path: id_rsa_abc.pub
-
-      - name: ssh-password
-        secret:
-          optional: false
-          secretName: app-ssh-password
-      - name: service-config
-        configMap:
+      - configMap:
+          defaultMode: 420
           name: app-config
+        name: service-config
+      - configMap:
+          defaultMode: 420
+          name: token-validation
+        name: token-validation
 
-      imagePullSecrets:
-        - name: esci-docker

@@ -1,8 +1,7 @@
 package dk.sdu.cloud.file.api
 
-import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.annotation.JsonValue
 
 enum class AccessRight {
     READ,
@@ -20,35 +19,101 @@ enum class FileType {
 
 @JsonTypeInfo(defaultImpl = StorageFileImpl::class, use = JsonTypeInfo.Id.MINIMAL_CLASS)
 interface StorageFile {
-    val fileType: FileType
-    val path: String
-    val createdAt: Long
-    val modifiedAt: Long
-    val ownerName: String
-    val size: Long
-    val acl: List<AccessEntry>?
-    val sensitivityLevel: SensitivityLevel
-    val ownSensitivityLevel: SensitivityLevel?
-    val link: Boolean
-    val annotations: Set<String>
-    val fileId: String
-    val creator: String
+    @get:JsonProperty("fileType")
+    val fileTypeOrNull: FileType?
+
+    @get:JsonProperty("path")
+    val pathOrNull: String?
+
+    @get:JsonProperty("createdAt")
+    val createdAtOrNull: Long?
+
+    @get:JsonProperty("modifiedAt")
+    val modifiedAtOrNull: Long?
+
+    @get:JsonProperty("ownerName")
+    val ownerNameOrNull: String?
+
+    @get:JsonProperty("size")
+    val sizeOrNull: Long?
+
+    @get:JsonProperty("acl")
+    val aclOrNull: List<AccessEntry>?
+
+    @get:JsonProperty("sensitivityLevel")
+    val sensitivityLevelOrNull: SensitivityLevel?
+
+    @get:JsonProperty("ownSensitivityLevel")
+    val ownSensitivityLevelOrNull: SensitivityLevel?
+
+    @get:JsonProperty("link")
+    val linkOrNull: Boolean?
+
+    @get:JsonProperty("annotations")
+    @Deprecated("no longer in use")
+    val annotationsOrNull: Set<String>?
+
+    @get:JsonProperty("fileId")
+    val fileIdOrNull: String?
+
+    @get:JsonProperty("creator")
+    val creatorOrNull: String?
 }
 
+val StorageFile.fileType: FileType
+    get() = fileTypeOrNull!!
+
+val StorageFile.path: String
+    get() = pathOrNull!!
+
+val StorageFile.createdAt: Long
+    get() = createdAtOrNull!!
+
+val StorageFile.modifiedAt: Long
+    get() = modifiedAtOrNull!!
+
+val StorageFile.ownerName: String
+    get() = ownerNameOrNull!!
+
+val StorageFile.size: Long
+    get() = sizeOrNull!!
+
+val StorageFile.acl: List<AccessEntry>?
+    get() = aclOrNull
+
+val StorageFile.sensitivityLevel: SensitivityLevel
+    get() = sensitivityLevelOrNull!!
+
+val StorageFile.ownSensitivityLevel: SensitivityLevel?
+    get() = ownSensitivityLevelOrNull
+
+val StorageFile.link: Boolean
+    get() = linkOrNull!!
+
+@Deprecated("no longer in use")
+val StorageFile.annotations: Set<String>
+    get() = annotationsOrNull!!
+
+val StorageFile.fileId: String
+    get() = fileIdOrNull!!
+
+val StorageFile.creator: String
+    get() = creatorOrNull!!
+
 data class StorageFileImpl(
-    override val fileType: FileType,
-    override val path: String,
-    override val createdAt: Long,
-    override val modifiedAt: Long,
-    override val ownerName: String,
-    override val size: Long,
-    override val acl: List<AccessEntry>? = emptyList(),
-    override val sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
-    override val link: Boolean = false,
-    override val annotations: Set<String> = emptySet(),
-    override val fileId: String,
-    override val creator: String,
-    override val ownSensitivityLevel: SensitivityLevel?
+    override val fileTypeOrNull: FileType?,
+    override val pathOrNull: String?,
+    override val createdAtOrNull: Long?,
+    override val modifiedAtOrNull: Long?,
+    override val ownerNameOrNull: String?,
+    override val sizeOrNull: Long?,
+    override val aclOrNull: List<AccessEntry>? = emptyList(),
+    override val sensitivityLevelOrNull: SensitivityLevel? = SensitivityLevel.PRIVATE,
+    override val linkOrNull: Boolean? = false,
+    override val annotationsOrNull: Set<String>? = emptySet(),
+    override val fileIdOrNull: String?,
+    override val creatorOrNull: String?,
+    override val ownSensitivityLevelOrNull: SensitivityLevel?
 ) : StorageFile
 
 fun StorageFile(
@@ -65,7 +130,7 @@ fun StorageFile(
     fileId: String = "",
     creator: String = ownerName,
     ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE
-): StorageFile {
+): StorageFileImpl {
     return StorageFileImpl(
         fileType,
         path,
@@ -82,7 +147,6 @@ fun StorageFile(
         ownSensitivityLevel
     )
 }
-
 
 /**
  * Describes the sensitivity classification of a file

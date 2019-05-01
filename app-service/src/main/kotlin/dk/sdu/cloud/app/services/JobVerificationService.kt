@@ -14,10 +14,9 @@ import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.util.orThrowOnError
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
@@ -40,7 +39,9 @@ data class VerifiedJobWithAccessToken(
 class JobVerificationService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val applicationDAO: ApplicationDAO<DBSession>,
-    private val toolDAO: ToolDAO<DBSession>
+    private val toolDAO: ToolDAO<DBSession>,
+    private val tokenValidation: TokenValidation<DecodedJWT>,
+    private val defaultBackend: String
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -63,19 +64,22 @@ class JobVerificationService<DBSession>(
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
 
+        val token = tokenValidation.decodeToken(unverifiedJob.principal)
+
         return VerifiedJobWithAccessToken(
             VerifiedJob(
                 application = application,
                 files = files,
                 id = jobId,
-                owner = unverifiedJob.principal.subject,
+                owner = token.principal.username,
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,
                 maxTime = maxTime,
                 jobInput = verifiedParameters,
-                backend = resolveBackend(unverifiedJob.request.backend),
+                backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
                 currentState = JobState.VALIDATED,
                 status = "Validated",
+                ownerUid = token.principal.uid,
                 archiveInCollection = archiveInCollection
             ),
             unverifiedJob.principal.token
@@ -149,7 +153,7 @@ class JobVerificationService<DBSession>(
         val transferDescription = verifiedParameters[fileAppParameter] ?: return null
 
         val sourcePath = transferDescription.source
-        val stat = FileDescriptions.stat.call(FindByPath(sourcePath), cloud)
+        val stat = FileDescriptions.stat.call(StatRequest(sourcePath), cloud)
             .orThrowOnError {
                 throw JobException.VerificationError("Missing file in storage: $sourcePath. Are you sure it exists?")
             }

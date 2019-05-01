@@ -16,7 +16,7 @@ data class SimpleSearchRequest(
     val query: String,
     override val itemsPerPage: Int?,
     override val page: Int?,
-    override val load: String?
+    override val attributes: String?
 ) : WithPaginationRequest, LoadFileResource
 
 /**
@@ -25,7 +25,7 @@ data class SimpleSearchRequest(
 data class AdvancedSearchRequestWithLoad(
     val request: AdvancedSearchRequest,
 
-    override val load: String?
+    override val attributes: String?
 ) : LoadFileResource
 
 object SearchGWDescriptions : CallDescriptionContainer("${FileSearchDescriptions.namespace}.gateway") {
@@ -50,7 +50,7 @@ object SearchGWDescriptions : CallDescriptionContainer("${FileSearchDescriptions
                 +boundTo(SimpleSearchRequest::query)
                 +boundTo(SimpleSearchRequest::itemsPerPage)
                 +boundTo(SimpleSearchRequest::page)
-                +boundTo(SimpleSearchRequest::load)
+                +boundTo(SimpleSearchRequest::attributes)
             }
         }
     }
@@ -73,7 +73,7 @@ object SearchGWDescriptions : CallDescriptionContainer("${FileSearchDescriptions
                 }
 
                 params {
-                    +boundTo(AdvancedSearchRequestWithLoad::load)
+                    +boundTo(AdvancedSearchRequestWithLoad::attributes)
                 }
 
                 body { bindToSubProperty(AdvancedSearchRequestWithLoad::request) }

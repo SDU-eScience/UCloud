@@ -16,6 +16,8 @@ import dk.sdu.cloud.service.Loggable
 import java.io.InputStream
 import java.io.OutputStream
 
+const val XATTR_BIRTH = "birth"
+
 class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer
@@ -28,7 +30,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         fs.setExtendedAttribute(
             ctx,
             path,
-            "birth",
+            XATTR_BIRTH,
             (System.currentTimeMillis() / 1000).toString(),
             allowOverwrite = false
         )
@@ -53,7 +55,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     suspend fun <R> read(
         ctx: Ctx,
         path: String,
-        range: IntRange? = null,
+        range: LongRange? = null,
         consumer: suspend InputStream.() -> R
     ): R {
         fs.openForReading(ctx, path).unwrap()
@@ -77,9 +79,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
             fs.makeDirectory(ctx, newRoot).emitAll()
 
-            tree(ctx, from, setOf(FileAttribute.PATH)).forEach { currentFile ->
-                val currentPath = currentFile.path.normalize()
-
+            tree(ctx, from, setOf(FileAttribute.RAW_PATH)).forEach { currentFile ->
+                val currentPath = currentFile.rawPath.normalize()
                 retryWithCatch(
                     retryDelayInMs = 0L,
                     exceptionFilter = { it is FSException.AlreadyExists },
@@ -87,7 +88,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                         val desired = joinPath(newRoot, relativize(normalizedFrom, currentPath)).normalize()
                         if (desired == newRoot) return@forEach
                         val targetPath = renameAccordingToPolicy(ctx, desired, conflictPolicy)
-
                         fs.copy(ctx, currentPath, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
                         writeTimeOfBirth(ctx, targetPath)
                     }

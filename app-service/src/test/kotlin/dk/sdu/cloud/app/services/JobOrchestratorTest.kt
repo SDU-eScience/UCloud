@@ -2,30 +2,30 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.app.api.AccountingEvents
+import dk.sdu.cloud.app.api.ApplicationBackend
 import dk.sdu.cloud.app.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.api.InternalStdStreamsResponse
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
-import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
-import org.hibernate.Session
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
@@ -47,11 +47,13 @@ class JobOrchestratorTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
+        val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         val toolDao = ToolHibernateDAO()
         val appDao = ApplicationHibernateDAO(toolDao)
-        val jobDao = JobHibernateDao(appDao, toolDao)
-        val compBackend = ComputationBackendService(listOf(ToolBackend.UDOCKER.name), true)
+        val jobDao = JobHibernateDao(appDao, toolDao, tokenValidation)
+        val backendName = "backend"
+        val compBackend = ComputationBackendService(listOf(ApplicationBackend(backendName)), true)
 
         db.withTransaction {
             toolDao.create(it, "user", normToolDesc)
@@ -62,13 +64,14 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(db, appDao, toolDao),
+            JobVerificationService(db, appDao, toolDao, tokenValidation, backendName),
             compBackend,
             jobFileService,
-            jobDao
+            jobDao,
+            backendName
         )
 
-        backend = compBackend.getAndVerifyByName(ToolBackend.UDOCKER.name)
+        backend = compBackend.getAndVerifyByName(backendName)
         ClientMock.mockCallSuccess(
             backend.jobVerified,
             Unit

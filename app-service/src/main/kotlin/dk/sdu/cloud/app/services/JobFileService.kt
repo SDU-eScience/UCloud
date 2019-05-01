@@ -4,10 +4,30 @@ import dk.sdu.cloud.app.api.ComputationDescriptions
 import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.ClientAndBackend
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.throwIfInternal
+import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.CreateDirectoryRequest
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.ExtractRequest
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SimpleUploadRequest
+import dk.sdu.cloud.file.api.WorkspaceDescriptions
+import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.defaultForFilePath
@@ -16,6 +36,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -37,9 +59,13 @@ class JobFileService(
 
         val userCloud = serviceClient.bearerAuth(accessToken)
 
+        val sensitivityLevel =
+            jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
+                ?: SensitivityLevel.PRIVATE
+
         val path = jobFolder(job)
         FileDescriptions.createDirectory.call(
-            CreateDirectoryRequest(path.parent(), null),
+            CreateDirectoryRequest(path.parent(), null, sensitivity = sensitivityLevel),
             userCloud
         )
 
@@ -110,18 +136,30 @@ class JobFileService(
         }
     }
 
-    suspend fun jobFolder(job: VerifiedJob): String {
-        val homeFolder = FileDescriptions.findHomeFolder.call(
-            FindHomeFolderRequest(job.owner),
-            serviceClient
-        ).orThrow().path
+    private val jobFolderCache = HashMap<String, String>()
+    private val jobFolderLock = Mutex()
 
-        return joinPath(
-            homeFolder,
-            "Jobs",
-            job.archiveInCollection,
-            timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
-        )
+    suspend fun jobFolder(job: VerifiedJob): String {
+        jobFolderLock.withLock {
+            val cachedHomeFolder = jobFolderCache[job.owner]
+            val homeFolder = if (cachedHomeFolder != null) {
+                cachedHomeFolder
+            } else {
+                FileDescriptions.findHomeFolder.call(
+                    FindHomeFolderRequest(job.owner),
+                    serviceClient
+                ).orThrow().path
+            }
+
+            jobFolderCache[job.owner] = homeFolder
+
+            return joinPath(
+                homeFolder,
+                "Jobs",
+                job.archiveInCollection,
+                timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+            )
+        }
     }
 
     suspend fun transferFilesToBackend(jobWithToken: VerifiedJobWithAccessToken, backend: ComputationDescriptions) {
@@ -159,11 +197,52 @@ class JobFileService(
         }
     }
 
+    suspend fun createWorkspace(jobWithToken: VerifiedJobWithAccessToken): String {
+        val (job, _) = jobWithToken
+        val mounts = job.files.map { file ->
+            WorkspaceMount(file.sourcePath, file.destinationPath)
+        }
+
+        return WORKSPACE_PATH + WorkspaceDescriptions.create.call(
+            WorkspaceDescriptions.Create.Request(job.owner, mounts, allowFailures = false),
+            serviceClient
+        ).orThrow().workspaceId
+    }
+
+    suspend fun transferWorkspace(
+        jobWithToken: VerifiedJobWithAccessToken,
+        replay: Boolean
+    ) {
+        val (job, _) = jobWithToken
+        try {
+            WorkspaceDescriptions.transfer.call(
+                WorkspaceDescriptions.Transfer.Request(
+                    username = job.owner,
+                    workspaceId = job.workspace?.removePrefix(WORKSPACE_PATH) ?: throw RPCException(
+                        "No workspace found",
+                        HttpStatusCode.InternalServerError
+                    ),
+                    transferGlobs = job.application.invocation.outputFileGlobs,
+                    destination = jobFolder(job),
+                    deleteWorkspace = true
+                ),
+                serviceClient
+            ).orThrow()
+        } catch (ex: Throwable) {
+            if (replay) {
+                log.info("caught exception while replaying transfer of workspace. ${ex.message}")
+                log.debug(ex.stackTraceToString())
+            } else {
+                throw ex
+            }
+        }
+    }
 
     companion object : Loggable {
         override val log = logger()
 
         private val zoneId = ZoneId.of("Europe/Copenhagen")
         private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS")
+        private const val WORKSPACE_PATH = "/workspace/"
     }
 }

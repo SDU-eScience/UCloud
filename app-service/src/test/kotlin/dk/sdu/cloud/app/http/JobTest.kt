@@ -77,7 +77,8 @@ class JobTest {
             backend = "abacus",
             currentState = JobState.SUCCESS,
             status = "Prepared",
-            archiveInCollection = app.metadata.title
+            archiveInCollection = app.metadata.title,
+            ownerUid = 1337L
         ),
         "accessToken"
     )

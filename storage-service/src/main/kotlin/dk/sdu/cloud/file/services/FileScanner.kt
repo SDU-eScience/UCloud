@@ -18,6 +18,7 @@ class FileScanner<FSCtx : CommandRunner>(
     private val eventProducer: StorageEventProducer
 ) {
     suspend fun scanFilesCreatedExternally(path: String) {
+        log.debug("scanFilesCreatedExternally($path)")
         val events = ArrayList<StorageEvent>()
 
         try {

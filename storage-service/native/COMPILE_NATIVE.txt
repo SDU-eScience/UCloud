@@ -1,0 +1,9 @@
+$JAVA_HOME points to install folder of JDK
+
+To compile the threading cpp run following command
+
+Mac:
+g++ -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/darwin" -dynamiclib -o ../src/main/resources/libthreading threading.cpp
+
+linux: (UNTESTED)
+g++ -fPIC -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" -shared -o ../src/main/resources/libthreading.so threading.cpp

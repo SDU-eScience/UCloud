@@ -5,6 +5,7 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
@@ -14,10 +15,9 @@ import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.UIDLookupService
-import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.test.EventServiceMock
@@ -41,7 +41,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-private const val FILE_OWNER = "file owner"
+private const val FILE_OWNER = "file creator"
 
 class DiffTest {
     private data class TestingContext<Ctx : FSUserContext>(
@@ -54,7 +54,7 @@ class DiffTest {
         val commandRunnerFactory: FSCommandRunnerFactory<Ctx>
     ) {
         fun File.asMaterialized(): StorageFileImpl =
-            StorageFileImpl(
+            StorageFile(
                 fileType = if (isDirectory) FileType.DIRECTORY else FileType.FILE,
                 fileId = inode(),
                 path = absolutePath.removePrefix(fsRoot.absolutePath).removePrefix("/").let { "/$it" },
@@ -68,17 +68,18 @@ class DiffTest {
     }
 
     private fun ctx(
-        consumer: TestingContext<UnixFSCommandRunner>.() -> Unit = {},
+        consumer: TestingContext<LinuxFSRunner>.() -> Unit = {},
         builder: File.() -> Unit
-    ): TestingContext<UnixFSCommandRunner> {
+    ): TestingContext<LinuxFSRunner> {
         EventServiceMock.reset()
         val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
-        val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao)
-        val cephFs = UnixFileSystem(commandRunnerFactory, userDao, FileAttributeParser(userDao), root.absolutePath)
+        val commandRunnerFactory = LinuxFSRunnerFactory(userDao)
+        val cephFs = LinuxFS(commandRunnerFactory, root, userDao)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
+
 
         return TestingContext(
             root,
@@ -95,15 +96,15 @@ class DiffTest {
 
     private fun fakeMaterializedFile(id: String, path: String, fileType: FileType): StorageFileImpl {
         return StorageFileImpl(
-            fileId = id,
-            path = path,
-            fileType = fileType,
-            createdAt = 0L,
-            modifiedAt = 0L,
-            creator = "user",
-            ownerName = "user",
-            size = 0L,
-            ownSensitivityLevel = null
+            fileIdOrNull = id,
+            pathOrNull = path,
+            fileTypeOrNull = fileType,
+            createdAtOrNull = 0L,
+            modifiedAtOrNull = 0L,
+            creatorOrNull = "user",
+            ownerNameOrNull = "user",
+            sizeOrNull = 0L,
+            ownSensitivityLevelOrNull = null
         )
     }
 
@@ -241,7 +242,7 @@ class DiffTest {
                         "/home",
                         listOf(
                             referenceFile,
-                            referenceFile.copy(fileId = "invalid id")
+                            referenceFile.copy(fileIdOrNull = "invalid id")
                         )
                     )
 
@@ -292,7 +293,7 @@ class DiffTest {
                     val realFile = fsRoot.resolvePath("/home/b")
                     val diff = indexingService.calculateDiff(
                         it, "/home", listOf(
-                            realFile.asMaterialized().copy(path = "/home/a")
+                            realFile.asMaterialized().copy(pathOrNull = "/home/a")
                         )
                     )
 
@@ -328,7 +329,7 @@ class DiffTest {
                     val realFile = fsRoot.resolvePath("/home/b")
                     val diff = indexingService.calculateDiff(
                         it, "/home", listOf(
-                            realFile.asMaterialized().copy(path = "/home/a")
+                            realFile.asMaterialized().copy(pathOrNull = "/home/a")
                         )
                     )
 
@@ -383,7 +384,7 @@ class DiffTest {
                     val diff = indexingService.calculateDiff(
                         ctx,
                         "/home",
-                        listOf(realFile.asMaterialized().copy(ownSensitivityLevel = SensitivityLevel.SENSITIVE))
+                        listOf(realFile.asMaterialized().copy(ownSensitivityLevelOrNull = SensitivityLevel.SENSITIVE))
                     )
 
                     assertCollectionHasItem(diff.diff) {

@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
@@ -38,7 +39,7 @@ class FileIndexScanner(
     private val cloud: AuthenticatedClient,
     private val elasticClient: RestHighLevelClient
 ) {
-    private val mapper = jacksonObjectMapper()
+    private val mapper = defaultMapper
 
     fun scan() {
         // We will end up traversing the entries it has just corrected for us.

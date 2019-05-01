@@ -7,7 +7,7 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.notification.api.CreateNotification
@@ -20,7 +20,6 @@ import kotlinx.coroutines.launch
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import org.slf4j.Logger
-import java.io.File
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipEntry
@@ -54,18 +53,18 @@ sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: 
 }
 
 @Suppress("unused")
-object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandRunner::class), Loggable {
+object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class), Loggable {
     override val log = logger()
 
     override suspend fun upload(
         serviceCloud: AuthenticatedClient,
-        fs: CoreFileSystemService<UnixFSCommandRunner>,
-        contextFactory: suspend () -> UnixFSCommandRunner,
+        fs: CoreFileSystemService<LinuxFSRunner>,
+        contextFactory: suspend () -> LinuxFSRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<UnixFSCommandRunner>,
+        sensitivityService: FileSensitivityService<LinuxFSRunner>,
         archiveName: String
     ): List<String> {
         return BasicUploader.uploadFromSequence(
@@ -114,18 +113,18 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
 }
 
 @Suppress("unused")
-object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRunner::class), Loggable {
+object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class), Loggable {
     override val log: Logger = logger()
 
     override suspend fun upload(
         serviceCloud: AuthenticatedClient,
-        fs: CoreFileSystemService<UnixFSCommandRunner>,
-        contextFactory: suspend () -> UnixFSCommandRunner,
+        fs: CoreFileSystemService<LinuxFSRunner>,
+        contextFactory: suspend () -> LinuxFSRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<UnixFSCommandRunner>,
+        sensitivityService: FileSensitivityService<LinuxFSRunner>,
         archiveName: String
     ): List<String> {
         return BasicUploader.uploadFromSequence(
