@@ -23,8 +23,9 @@ type FavoriteFilesProps = FavoritesOperations & ReduxType & { header: any, histo
 class FavoriteFiles extends React.Component<FavoriteFilesProps> {
     
     componentWillMount() {
-        this.props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage);
-        this.props.setRefresh(() => this.props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage));
+        const { page } = this.props;
+        this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage);
+        this.props.setRefresh(() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage));
     }
 
     public componentWillUnmount = () => this.props.setRefresh();
@@ -54,7 +55,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
             setLoading: () => this.props.setLoading(true),
             addSnack: snack => this.props.addSnack(snack)
         });
-        const { page } = this.props;
+        const { page, fetchFileFavorites } = this.props;
         const { pageNumber, itemsPerPage } = page;
         const selectedFiles = page.items.filter(it => it.isChecked);
         return (<MainContainer
@@ -66,15 +67,14 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
                 onPageChanged={pageNumber => this.props.fetchFileFavorites(pageNumber, itemsPerPage)}
                 pageRenderer={page =>
                     <FilesTable
-                        onFavoriteFile={async files => (await favoriteFileAsync(files[0], Cloud), this.props.fetchFileFavorites(pageNumber, itemsPerPage))}
+                        onFavoriteFile={async files => (await favoriteFileAsync(files[0], Cloud), fetchFileFavorites(pageNumber, itemsPerPage))}
                         fileOperations={fileoperations}
                         files={page.items}
                         sortBy={SortBy.PATH}
                         sortOrder={SortOrder.DESCENDING}
-                        /* FIXME: ADD */
+                        /* Can't currently be done, as the backend ignores attributes, and doesn't take  */
                         sortFiles={() => undefined}
-                        /* FIXME: ADD */
-                        refetchFiles={() => undefined}
+                        refetchFiles={() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage)}
                         sortingColumns={[SortBy.MODIFIED_AT, SortBy.SIZE]}
                         onCheckFile={(checked, file) => this.checkFile(checked, file.path)}
                         masterCheckbox={
@@ -83,6 +83,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
                                 checked={page.items.length === selectedFiles.length && page.items.length > 0}
                             />}
                     />}
+
             />}
             sidebar={
                 <FileOptions files={this.props.page.items.filter(it => it.isChecked)} fileOperations={fileoperations} />
