@@ -1,153 +1,143 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`RunApp component Mount 1`] = `
+.c0 {
+  position: relative;
+  margin: 20px auto;
+  width: 18px;
+  height: 18px;
+}
+
+.c1 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
+.c2 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.3s;
+  animation-delay: 0.3s;
+}
+
+.c3 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.4s;
+  animation-delay: 0.4s;
+}
+
+.c4 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.1s;
+  animation-delay: 0.1s;
+}
+
+.c5 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
+.c6 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.3s;
+  animation-delay: 0.3s;
+}
+
+.c7 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0s;
+  animation-delay: 0s;
+}
+
+.c8 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.1s;
+  animation-delay: 0.1s;
+}
+
+.c9 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
 <div
-  className="ui container sixteen column grid"
+  className="c0"
+  height={18}
+  width={18}
 >
   <div
-    className="sixteen wide column"
-  >
-    <i
-      aria-hidden="true"
-      className="circle notched loading icon"
-    />
-    <h1
-      className="ui header"
-    >
-      <div
-        className="content float-right"
-      >
-        <button
-          className="ui button"
-          onClick={[Function]}
-          role="button"
-        >
-          Export parameters
-        </button>
-        <label
-          className="ui button"
-          onClick={[Function]}
-          role="button"
-        >
-          Import parameters
-          <input
-            className="import-parameters"
-            onChange={[Function]}
-            type="file"
-          />
-        </label>
-        <a
-          className="ui blue basic button"
-          href="/applications/details/appName/appVersion/"
-          onClick={[Function]}
-          role="button"
-        >
-          More information
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        appName
-        <span
-          className="app-favorite-padding"
-        >
-          <div
-            className="ui star huge rating"
-            onClick={[Function]}
-            onMouseLeave={[Function]}
-            role="radiogroup"
-          >
-            <i
-              aria-checked={false}
-              aria-posinset={1}
-              aria-setsize={1}
-              className="icon"
-              onClick={[Function]}
-              onKeyUp={[Function]}
-              onMouseEnter={[Function]}
-              role="radio"
-              tabIndex={0}
-            />
-          </div>
-        </span>
-        <h4>
-          appVersion
-        </h4>
-        <h4>
-          Author
-          : 
-          
-        </h4>
-      </div>
-    </h1>
-    <form
-      className="ui form"
-      onSubmit={[Function]}
-    >
-      <div
-        className="disabled field"
-      >
-        <label>
-          Jobname
-        </label>
-        <div
-          className="ui disabled input"
-        >
-          <input
-            disabled={true}
-            onChange={[Function]}
-            placeholder="Jobname will be assigned if field left empty"
-            tabIndex={-1}
-            type="text"
-          />
-        </div>
-      </div>
-      <div
-        className="disabled field"
-      >
-        <label>
-          Tags (Separated by space)
-        </label>
-        <div
-          className="ui disabled input"
-        >
-          <input
-            disabled={true}
-            onChange={[Function]}
-            placeholder="Assign tags to jobs"
-            tabIndex={-1}
-            type="text"
-          />
-        </div>
-      </div>
-      <div
-        className="disabled field"
-      >
-        <label>
-          Comment
-        </label>
-        <textarea
-          disabled={true}
-          onChange={[Function]}
-          onInput={[Function]}
-          placeholder="Comment..."
-          rows={3}
-          style={
-            Object {
-              "resize": "",
-            }
-          }
-        />
-      </div>
-      <button
-        className="ui blue button"
-        onClick={[Function]}
-        role="button"
-      >
-        Submit
-      </button>
-    </form>
-  </div>
+    className="c1"
+  />
+  <div
+    className="c2"
+  />
+  <div
+    className="c3"
+  />
+  <div
+    className="c4"
+  />
+  <div
+    className="c5"
+  />
+  <div
+    className="c6"
+  />
+  <div
+    className="c7"
+  />
+  <div
+    className="c8"
+  />
+  <div
+    className="c9"
+  />
 </div>
 `;
