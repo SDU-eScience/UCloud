@@ -4,14 +4,14 @@ version '1.1.4'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.gateway.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.8/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
 
 repositories {
     jcenter()
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.3.7"
+    ext.serviceCommonVersion = "1.3.9-RC.1"
     ext.fileApiVersion = "1.6.0"
 }
 

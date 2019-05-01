@@ -5,11 +5,11 @@ apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
 
 buildscript {
-    ext.serviceCommonVersion = '1.3.7'
+    ext.serviceCommonVersion = '1.3.9-RC.1'
     ext.fileApiVersion = '1.7.0-ALPHA.2'
 }
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.9/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
 
 dokka {
     outputFormat = "gfm"
