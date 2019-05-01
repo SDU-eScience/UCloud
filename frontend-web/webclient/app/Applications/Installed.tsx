@@ -40,6 +40,7 @@ class Installed extends React.Component<InstalledProps & { header: any }> {
 
     }
 
+    // FIXME, should be replaced;
     componentWillReceiveProps(nextProps: InstalledProps) {
         const { content } = nextProps.applications;
         const pageNumber = !!content ? content.pageNumber : 0;

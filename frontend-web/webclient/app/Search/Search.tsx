@@ -45,6 +45,7 @@ class Search extends React.Component<SearchProps> {
         this.props.setRefresh(() => this.fetchAll(query));
     }
 
+    // FIXME, should be replaced;
     componentWillReceiveProps() {
         this.props.setRefresh(() => this.fetchAll(this.query));
     }

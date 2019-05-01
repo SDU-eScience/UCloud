@@ -45,6 +45,7 @@ class ZenodoHome extends React.Component<Props, ZenodoHomeState> {
         this.props.setRefresh();
     }
 
+    // FIXME, should be replaced;
     componentWillReceiveProps(nextProps: Props) {
         const { fetchPublications } = this.props;
         this.props.setRefresh(() => fetchPublications(nextProps.page.pageNumber, nextProps.page.itemsPerPage));

@@ -85,6 +85,7 @@ class Applications extends React.Component<ApplicationsProps> {
         }
     }
 
+    // FIXME, should be replaced;
     componentWillReceiveProps(nextProps: ApplicationsProps) {
         this.props.setRefresh(() => this.fetch(nextProps));
     }
