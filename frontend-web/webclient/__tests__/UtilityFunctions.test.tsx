@@ -1,6 +1,6 @@
-import * as UF from "UtilityFunctions";
-import { getFilenameFromPath, sizeToString } from "Utilities/FileUtilities";
-import { SortBy, SortOrder, Acl } from "Files";
+import * as UF from "../app/UtilityFunctions";
+import { getFilenameFromPath, sizeToString } from "../app/Utilities/FileUtilities";
+import { SortBy, SortOrder, Acl } from "../app/Files";
 
 // TO LOWER CASE AND CAPITALIZE
 
@@ -215,8 +215,8 @@ test("To same UUDI", () =>
 // Download allowed
 
 import { mockFiles_SensitivityConfidential, newMockFile } from "./mock/Files"
-import { dateToString } from "Utilities/DateUtilities";
-import { SensitivityLevel, SensitivityLevelMap } from "DefaultObjects";
+import { dateToString } from "../app/Utilities/DateUtilities";
+import { SensitivityLevel, SensitivityLevelMap } from "../app/DefaultObjects";
 
 test("Download allowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(false)
@@ -280,19 +280,19 @@ describe("sortingColumnToValue", () => {
         expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path))
     })
     test("CREATED_AT", () => {
-        expect(UF.sortingColumnToValue(SortBy.CREATED_AT, file)).toBe(dateToString(file.createdAt))
+        expect(UF.sortingColumnToValue(SortBy.CREATED_AT, file)).toBe(dateToString(file.createdAt as number))
     })
     test("MODIFIED_AT", () => {
-        expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt))
+        expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt as number))
     })
     test("SIZE", () => {
-        expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size))
+        expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size as number))
     })
     test("ACL", () => {
-        expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getOwnerFromAcls(file.acl))
+        expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getOwnerFromAcls(file.acl as Acl[]))
     })
     test("SENSITIVITY", () => {
-        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY, file)).toBe(SensitivityLevel[file.sensitivityLevel])
+        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY, file)).toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
     })
 });
 
