@@ -17,7 +17,7 @@ import {
     CREATE_FOLDER,
     FILES_INVALID_PATH
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath, favoritesQuery } from "Utilities/FileUtilities";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath, favoritesQuery, markFileAsChecked } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
 import { SortOrder, SortBy, File, FileResource } from "..";
 import { Action } from "redux";
@@ -96,7 +96,7 @@ interface ReceiveFiles extends PayloadAction<typeof RECEIVE_FILES, { path: strin
  * @param {SortOrder} sortOrder - The order in which the files were sorted
  * @param {SortBy} sortBy - the value the sorting was based on
  */
-const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => ({
+export const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => ({
     type: RECEIVE_FILES,
     payload: {
         page,
@@ -153,13 +153,11 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string, fileSel
  * @param {SortOrder} order the order to sort by, either ascending or descending
  * @param {SortBy} sortBy the field to be sorted by
  */
-export async function fetchPageFromPath(path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR> | InvalidPathAction> {
+export async function fetchPageFromPath(path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH, attrs: FileResource[]): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR> | InvalidPathAction> {
     try {
-        const { response } = await Cloud.get<Page<File>>(fileLookupQuery(path, itemsPerPage, order, sortBy))
-        const resolvedPath = resolvePath(path);
-        const i = response.items.findIndex(it => it.path === resolvedPath);
-        response.items[i].isChecked = true;
-        return receiveFiles(response, getParentPath(resolvedPath), order, sortBy)
+        const { response } = await Cloud.get<Page<File>>(fileLookupQuery(path, itemsPerPage, order, sortBy, attrs))
+        markFileAsChecked(path, response);
+        return receiveFiles(response, getParentPath(resolvePath(path)), order, sortBy)
     } catch (e) {
         if (e.request.status === 404) return setInvalidPath("Not found");
         return setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)

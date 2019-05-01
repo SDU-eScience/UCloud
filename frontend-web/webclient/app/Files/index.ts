@@ -89,6 +89,7 @@ export interface FilesStateProps {
     fileSelectorError?: string
     favFilesCount: number
     renamingCount: number
+    aclCount: number
     fileCount: number
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
@@ -101,7 +102,7 @@ export interface FilesOperations extends ClearRefresh, AddSnackOperation {
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, attrs: FileResource[], index?: number) => void
-    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
+    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy, attrs: FileResource[]) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     fetchFileSelectorFavorites: (pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void

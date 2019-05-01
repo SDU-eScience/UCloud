@@ -110,8 +110,8 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
         case SortBy.SIZE:
             return sizeToString(file.size!);
         case SortBy.ACL:
-            if (file.acl !== undefined)
-                return getOwnerFromAcls(file.acl!)
+            if (file.acl !== null)
+                return getOwnerFromAcls(file.acl)
             else
                 return "";
         case SortBy.SENSITIVITY:
