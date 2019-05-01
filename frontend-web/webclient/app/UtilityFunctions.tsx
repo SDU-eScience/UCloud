@@ -104,18 +104,18 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
         case SortBy.PATH:
             return getFilenameFromPath(file.path);
         case SortBy.CREATED_AT:
-            return dateToString(file.createdAt);
+            return dateToString(file.createdAt!);
         case SortBy.MODIFIED_AT:
-            return dateToString(file.modifiedAt);
+            return dateToString(file.modifiedAt!);
         case SortBy.SIZE:
-            return sizeToString(file.size);
+            return sizeToString(file.size!);
         case SortBy.ACL:
             if (file.acl !== undefined)
-                return getOwnerFromAcls(file.acl)
+                return getOwnerFromAcls(file.acl!)
             else
                 return "";
         case SortBy.SENSITIVITY:
-            return SensitivityLevel[file.sensitivityLevel];
+            return SensitivityLevel[file.sensitivityLevel!];
     }
 }
 

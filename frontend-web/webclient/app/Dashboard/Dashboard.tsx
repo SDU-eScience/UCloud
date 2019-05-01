@@ -171,7 +171,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
                 <Flex alignItems="center" key={i} pt="0.5em" pb="0.3em">
                     <ListFileContent file={file} link={file.link} pixelsWide={130} />
                     <Box ml="auto" />
-                    <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
+                    <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt!)).fromNow()}</Text>
                 </Flex>
             ))}
         </List>

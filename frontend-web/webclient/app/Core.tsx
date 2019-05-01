@@ -31,6 +31,7 @@ import Snackbars from "Snackbar/Snackbars";
 import Favorites from "Favorites/Favorites";
 import { LoginPage } from "Login/Login";
 import Wayf from "Login/Wayf";
+import NoVNCClient from "NoVNC/NoVNCClient";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { dispatchUserAction, onLogin } from "App";
 import { USER_LOGIN } from "Navigation/Redux/HeaderReducer";
@@ -60,6 +61,7 @@ const Core = () => (
                 <Route exact path="/status" component={requireAuth(Status)} />
                 <Route exact path="/accounting/:resource/:subResource" component={requireAuth(Accounting.DetailedPage)} />
 
+                <Route exact path="/novnc" component={requireAuth(NoVNCClient)} />
 
                 <Route exact path="/applications" component={requireAuth(Applications)} />
                 <Route exact path="/applications/installed" component={requireAuth(ApplicationsInstalled.default)} />

@@ -120,15 +120,15 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
     !file ? null : (
         <Flex flexDirection="row" justifyContent="center" flexWrap="wrap">
             <AttributeBox>
-                <Attribute name="Created at" value={dateToString(file.createdAt)} />
-                <Attribute name="Modified at" value={dateToString(file.modifiedAt)} />
+                <Attribute name="Created at" value={dateToString(file.createdAt!)} />
+                <Attribute name="Modified at" value={dateToString(file.modifiedAt!)} />
                 <Attribute name="Favorite">
                     <Icon name={file.favorited ? "starFilled" : "starEmpty"}
                         onClick={() => onFavorite()}
                         color="blue"
                     />
                 </Attribute>
-                <Attribute name="Shared with" value={`${file.acl !== undefined ? file.acl.length : 0} people`} />
+                <Attribute name="Shared with" value={`${file.acl !== undefined ? file.acl!.length : 0} people`} />
             </AttributeBox>
             <AttributeBox>
                 <Attribute name="Sensitivity">
@@ -144,8 +144,8 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
                             }))
                         } />
                 </Attribute>
-                <Attribute name="Computed sensitivity" value={SensitivityLevel[file.sensitivityLevel]} />
-                <Attribute name="Size" value={sizeToString(file.size)} />
+                <Attribute name="Computed sensitivity" value={SensitivityLevel[file.sensitivityLevel!]} />
+                <Attribute name="Size" value={sizeToString(file.size!)} />
             </AttributeBox>
         </Flex >
     );

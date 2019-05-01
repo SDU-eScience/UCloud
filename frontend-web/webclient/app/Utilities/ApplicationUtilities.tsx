@@ -42,7 +42,6 @@ interface FavoriteApplicationFromPage extends AddSnackOperation {
 */
 export const favoriteApplicationFromPage = async ({ name, version, page, cloud, addSnack }: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
-    // FIXME better error handling. Pass as callback, call on success?
     try {
         await cloud.post(hpcFavoriteApp(name, version));
         a.favorite = !a.favorite;

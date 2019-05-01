@@ -17,19 +17,20 @@ export type FileType = "FILE" | "DIRECTORY" | "FAVFOLDER" | "TRASHFOLDER" | "RES
 export interface File {
     fileType: FileType
     path: string
-    createdAt: number
-    modifiedAt: number
-    ownerName: string
-    size: number
-    acl?: Acl[]
-    favorited?: boolean
-    sensitivityLevel: SensitivityLevelMap
-    ownSensitivityLevel?: SensitivityLevelMap
+    creator: string | null
+    fileId: string | null
+    createdAt: number | null
+    modifiedAt: number | null
+    ownerName: string | null
+    size: number | null
+    acl: Acl[] | null
+    favorited: boolean | null
+    sensitivityLevel: SensitivityLevelMap | null
+    ownSensitivityLevel: SensitivityLevelMap | null
     isChecked?: boolean
-    beingRenamed?: boolean
+    beingRenamed?: boolean | null
     link: boolean
-    isMockFolder?: boolean
-    content?: any
+    isMockFolder?: boolean | null
 }
 
 export interface Acl {
@@ -48,14 +49,14 @@ export enum SortBy {
     SENSITIVITY = "SENSITIVITY"
 };
 
-export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps { }
+export type FilesProps = FilesStateProps & FilesOperations & RouterLocationProps;
 
 export interface MockedTableProps {
     onCreateFolder: (a: number, c: number) => void
     creatingFolder: boolean
 }
 
-export interface FilesStateProps { // Redux Props
+export interface FilesStateProps {
     path: string
     page: Page<File>
     loading: boolean

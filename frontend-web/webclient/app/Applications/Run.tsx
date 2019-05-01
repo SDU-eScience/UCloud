@@ -106,7 +106,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         // Check optional input fields with errors
         const optionalErrors = [] as string[];
-        const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it => ({ name: it.name, title: it.title }));
+        const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it => 
+            ({ name: it.name, title: it.title })
+        );
         optionalParams.forEach(it => {
             const param = this.state.parameterValues.get(it.name)!;
             if (!param.current!.checkValidity()) optionalErrors.push(it.title);

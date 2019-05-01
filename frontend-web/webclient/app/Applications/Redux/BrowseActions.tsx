@@ -1,7 +1,7 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import { PayloadAction, Page } from "Types";
-import { Application, ApplicationMetadata, WithAppMetadata } from "Applications";
-import { LoadableEvent, unwrapCall } from "LoadableContent";
+import { WithAppMetadata } from "Applications";
+import { LoadableEvent, unwrapCall, LoadableEventTag } from "LoadableContent";
 import { buildQueryString } from "Utilities/URIUtilities";
 
 export enum Tag {
@@ -11,6 +11,14 @@ export enum Tag {
 export type Type = ReceiveApp;
 
 type ReceiveApp = PayloadAction<typeof Tag.RECEIVE_APP, LoadableEvent<Page<WithAppMetadata>>>;
+
+export const receivePage = (page: Page<WithAppMetadata>): ReceiveApp => ({
+    type: Tag.RECEIVE_APP,
+    payload: { 
+        type: LoadableEventTag.CONTENT,
+        content: page 
+    }
+})
 
 export const fetchByTag = async (tag: string, itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
     type: Tag.RECEIVE_APP,

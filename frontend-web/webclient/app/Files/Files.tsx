@@ -241,7 +241,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, index) => {
         dispatch(Actions.updatePath(path));
         /* FIXME: Must be a better way */
-        const fetch = async () => {
+        const fetch = async (): Promise<void> => {
             dispatch(Actions.setLoading(true));
             dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));
         };
@@ -250,12 +250,12 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
         dispatch(setRefreshFunction(fetch));
     },
     fetchPageFromPath: (path, itemsPerPage, sortOrder, sortBy) => {
-        const fetch = async () => {
+        const fetch = async (): Promise<void> => {
             dispatch(Actions.setLoading(true));
             dispatch(await Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
         };
         fetch();
-        dispatch(setRefreshFunction(fetch))
+        dispatch(setRefreshFunction(fetch));
     },
     setLoading: loading => dispatch(Actions.setLoading(loading)),
     updatePath: path => dispatch(Actions.updatePath(path)),

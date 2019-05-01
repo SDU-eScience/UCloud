@@ -23,17 +23,13 @@ import { useState } from "react";
 import { SearchOptions, SelectableText } from "Search/Search";
 
 class List extends React.Component<ListProps & SharesReduxObject & SharesOperations> {
-    constructor(props: Readonly<ListProps & SharesReduxObject & SharesOperations>) {
-        super(props);
-        // FIXME potentially move following to a parent component
-        if (!props.innerComponent) {
-            props.updatePageTitle();
-            props.setError();
-            props.setActivePage();
-        }
-    }
 
     public componentDidMount = () => {
+        if (!this.props.innerComponent) {
+            this.props.updatePageTitle();
+            this.props.setError();
+            this.props.setActivePage();
+        }
         this.reload();
         if (!this.props.innerComponent) { this.props.setRefresh(() => (this.reload(), this.props.setError())) }
     }
@@ -420,7 +416,7 @@ const revokeShare = async (shareId: ShareId): Promise<any> =>
     (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response;
 
 const createShare = async (user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> =>
-    (await Cloud.put(`/shares/`, { sharedWith: user, path, rights })).response; // FIXME Add error handling
+    (await Cloud.put(`/shares/`, { sharedWith: user, path, rights })).response;
 
 const updateShare = async (id: ShareId, rights: AccessRight[]): Promise<any> =>
     (await Cloud.post(`/shares/`, { id, rights })).response;

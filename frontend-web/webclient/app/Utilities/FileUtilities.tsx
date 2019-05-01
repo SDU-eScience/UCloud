@@ -168,8 +168,8 @@ const hasAccess = (accessRight: AccessRight, file: File) => {
     const username = Cloud.username;
     if (file.ownerName === username) return true;
     if (file.acl === undefined) return false;
-
-    const relevantEntries = file.acl.filter(item => !item.group && item.entity === username);
+    
+    const relevantEntries = file.acl!.filter(item => !item.group && item.entity === username);
     return relevantEntries.some(entry => entry.rights.includes(accessRight));
 };
 
@@ -337,16 +337,16 @@ export const ClearTrashOperations = (toHome: () => void): Operation[] => [{
  * @returns Properties and Project Operations for files.
  */
 export const HistoryFilesOperations = (history: History, addSnack: (snack: Snack) => void): FileOperation[] => {
-    let ops: FileOperation[] = [{
+    const ops: FileOperation[] = [{
         text: "Properties",
         onClick: (files: File[], cloud: SDUCloud) => history.push(fileInfoPage(files[0].path)),
         disabled: (files: File[], cloud: SDUCloud) => files.length !== 1,
         icon: "properties", color: "blue"
-    }]
+    }];
 
-    if (process.env.NODE_ENV === "development")
+    /* if (process.env.NODE_ENV === "development")
         ops.push({
-            predicate: (files: File[], cloud: SDUCloud) => false /* FIXME */,
+            predicate: (files: File[], cloud: SDUCloud) => false,
             onTrue: {
                 text: "Edit Project",
                 onClick: (files: File[], cloud: SDUCloud) => history.push(projectViewPage(files[0].path)),
@@ -368,7 +368,7 @@ export const HistoryFilesOperations = (history: History, addSnack: (snack: Snack
                 icon: "projects",
                 color: "blue"
             },
-        });
+        }); */
     return ops;
 }
 
@@ -433,9 +433,10 @@ export function resolvePath(path: string) {
     return result.join("/");
 }
 
-export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}`;
-
+export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH, attrs: SortBy[] = []): string =>{
+    const attributes = attrs.length > 0 ? `?attributes=${attrs.join(",")}` : "";
+    return `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${attributes}`;
+}
 // FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files/lookup?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}`;
@@ -456,13 +457,16 @@ export function copyFileQuery(path: string, newPath: string, policy: UploadPolic
     return query;
 }
 
-export const statFileQuery = (path: string) => `/files/stat?path=${encodeURIComponent(path)}`;
-export const favoritesQuery = (page: number = 0, itemsPerPage: number = 25) =>
+export const statFileQuery = (path: string): string => `/files/stat?path=${encodeURIComponent(path)}`;
+export const favoritesQuery = (page: number = 0, itemsPerPage: number = 25): string =>
     `/files/favorite?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
     fileType: "DIRECTORY",
     path,
+    creator: "Creator",
+    fileId: "",
+    ownSensitivityLevel: null,
     createdAt: new Date().getTime(),
     modifiedAt: new Date().getTime(),
     ownerName: "",
