@@ -56,7 +56,7 @@ volumes: [
             int jumpsize = 5
             int i = 0
 
-            def resultList = new [""] * size
+            def resultList = [""] * size
 
             while (true) {
                 stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}, ${serviceList[i+4]}") {
