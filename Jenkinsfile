@@ -55,24 +55,25 @@ volumes: [
                 if (i >= size) {
                     println("BREAKS")
                     break
+                } else {
+                    stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
+                        parallel (
+                            (serviceList[i]): {
+                                println("running " + i)
+                            },
+                            (serviceList[i+1]): {
+                                println("running " + i+1)
+                            },
+                            (serviceList[i+2]): {
+                                println("running " + i+2)
+                            },
+                            (serviceList[i+3]): {
+                                println("running " + i+3)
+                            }
+                        )
+                    }
+                    i = i+4
                 }
-                stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
-                    parallel (
-                        (needToBuild[i]): {
-                            println("running " + i)
-                        },
-                        (needToBuild[i+1]): {
-                            println("running " + i+1)
-                        },
-                        (needToBuild[i+2]): {
-                            println("running " + i+2)
-                        },
-                        (needToBuild[i+3]): {
-                            println("running " + i+3)
-                        }
-                    )
-                }
-                i = i+4
             }
             println("OUT of while")
             i = i-4
