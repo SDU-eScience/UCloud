@@ -52,20 +52,20 @@ volumes: [
             int i = 0
             while (true) {
                 stage("build and test") {
-                    parallel {
-                        "name1" {
+                    parallel (
+                        "name1": {
                             println("running " + i)
                         }
-                        "name2" {
+                        "name2": {
                             println("running " + i+1)
                         }
-                        "name3" {
+                        "name3": {
                             println("running " + i+2)
                         }
-                        "name4" {
+                        "name4": {
                             println("running " + i+3)
                         }
-                    }
+                    )
                 }
                 if (i > size) {
                     break
