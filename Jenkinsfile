@@ -46,7 +46,10 @@ volumes: [
                 needToBuild.add(item + "/Jenkinsfile")
             }          
 
-            String currentResult
+            String currentResult1
+            String currentResult2
+            String currentResult3
+            String currentResult4
             Boolean allSucceed = true
             int size = needToBuild.size()
             int jumpsize = 4
@@ -56,30 +59,31 @@ volumes: [
                 stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
                     parallel (
                         (serviceList[i]): {
-                            println("running " + i)
+                            currentResult1 = runBuild(needToBuild[i])
                         },
                         (serviceList[i+1]): {
-                            println("running " + i+1)
+                            currentResult2 = runBuild(needToBuild[i+1])
                         },
                         (serviceList[i+2]): {
-                            println("running " + i+2)
+                            currentResult3 = runBuild(needToBuild[i+2])
                         },
                         (serviceList[i+3]): {
-                            println("running " + i+3)
+                            currentResult4 = runBuild(needToBuild[i+3])
                         }
                     )
                 }
+                println("STATUS OF RUNS: ${currentResult1}, ${currentResult2}, ${currentResult3}, ${currentResult4}")
                 i = i+jumpsize
                 if (i >= size-jumpsize) {
                     println("BREAKS")
                     break
                 }
             }
-            println("OUT of while")
-            i = i-4
+
             for (i; i < needToBuild.size(); i++) {
                 stage("building and testing ${serviceList[i]}"){
-                    println("running last")
+                    String currentResult = runBuild(needToBuild[i])
+                    println ("THIS IS A RESULT: ${currentResult}")
                 }
             }
         /*
@@ -124,6 +128,19 @@ volumes: [
     //            )
     //        }
         }
+    }
+}
+
+String runBuild(String item) {
+    def loaded = load(item)
+    withCredentials(
+        [usernamePassword(
+            credentialsId: "archiva",
+            usernameVariable: "ESCIENCE_MVN_USER",
+            passwordVariable: "ESCIENCE_MVN_PASSWORD"
+        )]
+    ) {
+        return loaded.initialize()
     }
 }
 
