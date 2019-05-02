@@ -47,22 +47,23 @@ volumes: [
             }
 
 
-            def size = needToBuild.size()
+            def size = needToBuild.size
+            println("size " + size)
             int i = 0
             do {
                 stage("build and test") {
                     parallel {
                         stage("name1") {
-                            println("running" + i)
+                            println("running " + i)
                         }
                         stage("name2") {
-                            println("running" + i+1)
+                            println("running " + i+1)
                         }
                         stage("name3") {
-                            println("running" + i+2)
+                            println("running " + i+2)
                         }
                         stage("name4") {
-                            println("running" + i+3)
+                            println("running " + i+3)
                         }
                     }
                 }
