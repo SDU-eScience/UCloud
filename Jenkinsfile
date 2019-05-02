@@ -52,6 +52,9 @@ volumes: [
             int i = 0
 
             while (true) {
+                if (i >= size) {
+                    break
+                }
                 stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
                     parallel (
                         (needToBuild[i]): {
@@ -67,11 +70,8 @@ volumes: [
                             println("running " + i+3)
                         }
                     )
-                    i = i+4
-                    if (i >= size) {
-                        break
-                    }
                 }
+                i = i+4
             }
             println("OUT of while")
             i = i-4
