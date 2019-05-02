@@ -53,16 +53,16 @@ volumes: [
             while (true) {
                 stage("build and test") {
                     parallel {
-                        stage("name1") {
+                        "name1" {
                             println("running " + i)
                         }
-                        stage("name2") {
+                        "name2" {
                             println("running " + i+1)
                         }
-                        stage("name3") {
+                        "name3" {
                             println("running " + i+2)
                         }
-                        stage("name4") {
+                        "name4" {
                             println("running " + i+3)
                         }
                     }
