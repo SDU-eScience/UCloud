@@ -55,13 +55,13 @@ volumes: [
                     parallel (
                         "name1": {
                             println("running " + i)
-                        }
+                        },
                         "name2": {
                             println("running " + i+1)
-                        }
+                        },
                         "name3": {
                             println("running " + i+2)
-                        }
+                        },
                         "name4": {
                             println("running " + i+3)
                         }
