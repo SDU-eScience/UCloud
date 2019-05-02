@@ -10,7 +10,12 @@ class WorkspaceController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(WorkspaceDescriptions.create) {
-            val response = workspaceService.create(request.username, request.mounts, request.allowFailures)
+            val response = workspaceService.create(
+                request.username,
+                request.mounts,
+                request.allowFailures,
+                request.createSymbolicLinkAt
+            )
             ok(WorkspaceDescriptions.Create.Response(response.workspaceId, response.failures))
         }
 

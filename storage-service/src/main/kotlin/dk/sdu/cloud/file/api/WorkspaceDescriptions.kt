@@ -15,7 +15,8 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
         data class Request(
             val username: String,
             val mounts: List<WorkspaceMount>,
-            val allowFailures: Boolean
+            val allowFailures: Boolean,
+            val createSymbolicLinkAt: String? = null
         )
         data class Response(val workspaceId: String, val failures: List<WorkspaceMount>)
     }

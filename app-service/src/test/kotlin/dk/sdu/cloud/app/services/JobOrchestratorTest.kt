@@ -257,7 +257,8 @@ class JobOrchestratorTest {
             InternalStdStreamsResponse("stdout", 10, "stderr", 10)
         )
         runBlocking {
-            val result = streamFollowService.followStreams(FollowStdStreamsRequest(returnedID, 0, 0, 0, 0))
+            val result =
+                streamFollowService.followStreams(FollowStdStreamsRequest(returnedID, 0, 0, 0, 0), decodedJWT.subject)
             assertEquals("stdout", result.stdout)
             assertEquals("stderr", result.stderr)
             assertEquals(10, result.stderrNextLine)

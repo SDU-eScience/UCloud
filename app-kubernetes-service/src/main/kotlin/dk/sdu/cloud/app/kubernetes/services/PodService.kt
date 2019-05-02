@@ -16,7 +16,6 @@ import dk.sdu.cloud.service.Loggable
 import io.fabric8.kubernetes.api.model.Container
 import io.fabric8.kubernetes.api.model.ContainerBuilder
 import io.fabric8.kubernetes.api.model.DoneablePod
-import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
@@ -40,6 +39,7 @@ import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import okhttp3.Response
+import java.io.Closeable
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.PipedInputStream
@@ -57,9 +57,8 @@ class PodService(
     private val serviceClient: AuthenticatedClient,
     private val namespace: String = "app-kubernetes"
 ) {
-    private val dataDirectory = "/data"
-    private val localDirectory = "/scratch"
-    private val temporaryStorage = "temporary-storage"
+    private val inputDirectory = "/input"
+    private val workingDirectory = "/work"
     private val dataStorage = "workspace-storage"
     private val finishedJobs = HashSet<String>()
 
@@ -77,7 +76,8 @@ class PodService(
 
             val firstOrNull = job.status?.conditions?.firstOrNull()
             if (firstOrNull != null && firstOrNull.type == "Failed" && firstOrNull.reason == "DeadlineExceeded" &&
-                jobId !in finishedJobs) {
+                jobId !in finishedJobs
+            ) {
                 finishedJobs.add(jobId)
 
                 GlobalScope.launch {
@@ -248,30 +248,37 @@ class PodService(
                                     withRestartPolicy("Never")
                                     withCommand(command)
 
-                                    withWorkingDir(dataDirectory)
+                                    withWorkingDir(workingDirectory)
 
                                     withVolumeMounts(
-                                        VolumeMount(localDirectory, null, temporaryStorage, false, null),
                                         VolumeMount(
-                                            dataDirectory,
+                                            workingDirectory,
                                             null,
                                             dataStorage,
                                             false,
-                                            verifiedJob.workspace?.removePrefix("/") ?: throw RPCException(
-                                                "No workspace found",
-                                                HttpStatusCode.BadRequest
-                                            )
+                                            verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/output" }
+                                                ?: throw RPCException(
+                                                    "No workspace found",
+                                                    HttpStatusCode.BadRequest
+                                                )
+                                        ),
+
+                                        VolumeMount(
+                                            inputDirectory,
+                                            null,
+                                            dataStorage,
+                                            true,
+                                            verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/input" }
+                                                ?: throw RPCException(
+                                                    "No workspace found",
+                                                    HttpStatusCode.BadRequest
+                                                )
                                         )
                                     )
                                 }
                             )
 
                             withVolumes(
-                                volume {
-                                    withName(temporaryStorage)
-                                    withEmptyDir(EmptyDirVolumeSource())
-                                },
-
                                 volume {
                                     withName(dataStorage)
                                     withPersistentVolumeClaim(PersistentVolumeClaimVolumeSource("cephfs", false))
@@ -339,9 +346,36 @@ class PodService(
         }
     }
 
+    private val tunnelCache = HashMap<Pair<String, Int>, Tunnel>()
+    fun createTunnel(jobId: String, remotePort: Int): Tunnel {
+        val key = Pair(jobId, remotePort)
+        val k8sTunnel = synchronized(tunnelCache) {
+            val cached = tunnelCache[key]
+            if (cached != null) return cached
+
+            val pod = findPod(podName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).portForward(remotePort)
+        }
+
+        return Tunnel(jobId, k8sTunnel.localPort, _close = {
+            synchronized(tunnelCache) {
+                tunnelCache.remove(key)
+                k8sTunnel.close()
+            }
+        })
+    }
+
     companion object : Loggable {
         override val log = logger()
     }
+}
+
+class Tunnel(
+    val jobId: String,
+    val localPort: Int,
+    private val _close: () -> Unit
+) : Closeable {
+    override fun close() = _close()
 }
 
 data class RemoteProcess(

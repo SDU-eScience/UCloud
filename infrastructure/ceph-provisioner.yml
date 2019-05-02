@@ -91,8 +91,8 @@ spec:
     spec:
       containers:
       - name: rbd-provisioner
-        #image: "quay.io/external_storage/rbd-provisioner:v1.0.0-k8s1.10"
-        image: "registry.cloud.sdu.dk/sdu-cloud/ceph-rbd-provisioner:ceph14.2"
+        image: "quay.io/external_storage/rbd-provisioner:v1.0.0-k8s1.10"
+        #image: "registry.cloud.sdu.dk/sdu-cloud/ceph-rbd-provisioner:ceph14.2"
         env:
         - name: PROVISIONER_NAME
           value: ceph.com/rbd

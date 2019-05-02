@@ -26,11 +26,6 @@ data class StorageConfiguration(
 )
 
 fun main(args: Array<String>) {
-    if (args.contains("--bug-test")) {
-        Chown.setOwner(File("/mnt/cephfs/workspace/test").toPath(), 1337, 1337)
-        exitProcess(0)
-    }
-
     val micro = Micro().apply {
         init(StorageServiceDescription, args)
         installDefaultFeatures(

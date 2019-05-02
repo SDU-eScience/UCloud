@@ -54,7 +54,8 @@ private fun KtorApplicationTestSetupContext.configureJobServer(
             jobService,
             followService,
             tokenValidation,
-            ClientMock.authenticatedClient
+            ClientMock.authenticatedClient,
+            mockk(relaxed = true)
         )
     )
 }
@@ -228,7 +229,7 @@ class JobTest {
                 val orchestrator = mockk<JobOrchestrator<HibernateSession>>()
                 val followService = mockk<StreamFollowService<HibernateSession>>()
 
-                coEvery { followService.followStreams(any()) } answers {
+                coEvery { followService.followStreams(any(), any()) } answers {
                     FollowStdStreamsResponse(
                         "stdout",
                         10,

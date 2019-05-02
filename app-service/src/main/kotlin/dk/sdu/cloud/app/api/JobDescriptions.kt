@@ -103,6 +103,21 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
             }
         }
     }
+
+    val queryVncParameters =
+        call<QueryVncParametersRequest, QueryVncParametersResponse, CommonErrorMessage>("queryVncParameters") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                path {
+                    using(baseContext)
+                    +"query-vnc"
+                    +boundTo(QueryVncParametersRequest::jobId)
+                }
+            }
+        }
 }
 
 data class FindByNameAndVersion(val name: String, val version: String)
@@ -245,4 +260,13 @@ data class InternalStdStreamsResponse(
     val stdoutNextLine: Int,
     val stderr: String,
     val stderrNextLine: Int
+)
+
+data class QueryVncParametersRequest(
+    val jobId: String
+)
+
+data class QueryVncParametersResponse(
+    val path: String,
+    val password: String? = null
 )

@@ -4,7 +4,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.WorkspaceMount
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
-import dk.sdu.cloud.file.services.linuxfs.StandardCLib
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -13,7 +12,6 @@ import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import kotlin.streams.toList
@@ -33,14 +31,31 @@ class WorkspaceService(
 
     fun workspace(id: String) = File(workspaceFile, id).toPath().normalize().toAbsolutePath()
 
-    suspend fun create(user: String, mounts: List<WorkspaceMount>, allowFailures: Boolean): CreatedWorkspace {
+    suspend fun create(
+        user: String,
+        mounts: List<WorkspaceMount>,
+        allowFailures: Boolean,
+        createSymbolicLinkAt: String? = null
+    ): CreatedWorkspace {
         return fsCommandRunnerFactory.withContext(user) { ctx ->
             ctx.submit {
                 ctx.requireContext()
 
                 val workspaceId = UUID.randomUUID().toString()
-                val workspace = workspace(workspaceId).also { Files.createDirectories(it) }
-                // TODO chmod this folder
+                val workspace = workspace(workspaceId).also {
+                    Files.createDirectories(it)
+                    Files.setPosixFilePermissions(
+                        it,
+                        setOf(
+                            PosixFilePermission.OWNER_READ,
+                            PosixFilePermission.OWNER_WRITE,
+                            PosixFilePermission.OWNER_EXECUTE
+                        )
+                    )
+                }
+                val inputWorkspace = workspace.resolve("input").also { Files.createDirectories(it) }
+                val outputWorkspace = workspace.resolve("output").also { Files.createDirectories(it) }
+                val symLinkPath = createSymbolicLinkAt?.let { File(it).absoluteFile.toPath() }
 
                 fun transferFile(file: Path, destination: Path, relativeTo: Path) {
                     val resolvedDestination = if (Files.isSameFile(file, relativeTo)) {
@@ -52,15 +67,6 @@ class WorkspaceService(
                     if (Files.isDirectory(file)) {
                         Files.createDirectories(resolvedDestination)
 
-                        // Set the birth attribute to indicate to the system later that this file is a mount
-                        // See the transfer method for more details.
-                        StandardCLib.setxattr(
-                            resolvedDestination.toFile().absolutePath,
-                            "user.$XATTR_BIRTH",
-                            (System.currentTimeMillis() / 1000).toString(),
-                            false
-                        )
-
                         Files.list(file).forEach {
                             transferFile(it, destination, relativeTo)
                         }
@@ -71,7 +77,7 @@ class WorkspaceService(
                             file
                         }
 
-                        Files.copy(resolvedFile, resolvedDestination, StandardCopyOption.REPLACE_EXISTING)
+                        Files.createLink(resolvedDestination, resolvedFile)
                     }
                 }
 
@@ -79,7 +85,14 @@ class WorkspaceService(
                 mounts.forEach {
                     try {
                         val file = File(translateAndCheckFile(fsRoot, it.source)).toPath()
-                        transferFile(file, workspace.resolve(it.destination), file)
+                        transferFile(file, inputWorkspace.resolve(it.destination), file)
+
+                        if (symLinkPath != null) {
+                            val target = symLinkPath.resolve(it.destination)
+                            val destination = outputWorkspace.resolve(it.destination)
+
+                            Files.createSymbolicLink(destination, target)
+                        }
                     } catch (ex: Throwable) {
                         log.info("Failed to add ${it.source}. ${ex.message}")
                         log.debug(ex.stackTraceToString())
@@ -106,6 +119,7 @@ class WorkspaceService(
         destination: String
     ): List<String> {
         val workspace = workspace(workspaceId)
+        val outputWorkspace = workspace.resolve("output")
         if (!Files.exists(workspace)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         val uid = userDao.findStorageUser(user) ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
@@ -115,17 +129,20 @@ class WorkspaceService(
 
         val transferred = ArrayList<String>()
 
-        Files.list(workspace)
+        Files.list(outputWorkspace)
             .filter { path ->
                 val result = matchers.any { it.matches(path.fileName) }
                 log.debug("Checking if we match $path. Do we? $result")
                 result
             }
+            .filter { path ->
+                !Files.isSymbolicLink(path)
+            }
             .toList()
             .forEach {
                 log.debug("Transferring file: $it")
                 try {
-                    val resolvedDestination = destinationDir.resolve(workspace.relativize(it))
+                    val resolvedDestination = destinationDir.resolve(outputWorkspace.relativize(it))
                     log.debug("resolvedDestination: $resolvedDestination")
                     if (resolvedDestination.startsWith(destinationDir)) {
                         val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path

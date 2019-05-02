@@ -242,7 +242,8 @@ sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpS
 }
 
 enum class ApplicationType {
-    BATCH
+    BATCH,
+    VNC
 }
 
 data class ResourceRequirements(

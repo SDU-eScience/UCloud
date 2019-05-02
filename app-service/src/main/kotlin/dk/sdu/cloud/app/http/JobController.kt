@@ -9,6 +9,8 @@ import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.services.JobDao
 import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.app.services.StreamFollowService
+import dk.sdu.cloud.app.services.VncService
+import dk.sdu.cloud.app.services.exportForEndUser
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
@@ -38,7 +40,8 @@ class JobController<DBSession>(
     private val jobDao: JobDao<DBSession>,
     private val streamFollowService: StreamFollowService<DBSession>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val vncService: VncService<DBSession>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
@@ -88,7 +91,11 @@ class JobController<DBSession>(
         }
 
         implement(JobDescriptions.follow) {
-            ok(streamFollowService.followStreams(request))
+            ok(streamFollowService.followStreams(request, ctx.securityPrincipal.username))
+        }
+
+        implement(JobDescriptions.queryVncParameters) {
+            ok(vncService.queryVncParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
     }
 

@@ -4,11 +4,13 @@ import dk.sdu.cloud.app.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.api.FollowStdStreamsResponse
 import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
 import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.http.HttpStatusCode
 
 class StreamFollowService<DBSession>(
     private val jobFileService: JobFileService,
@@ -18,9 +20,12 @@ class StreamFollowService<DBSession>(
     private val jobDao: JobDao<DBSession>
 ) {
     suspend fun followStreams(
-        request: FollowStdStreamsRequest
+        request: FollowStdStreamsRequest,
+        requestedBy: String
     ): FollowStdStreamsResponse {
         val (job, _) = db.withTransaction { jobDao.find(it, request.jobId) }
+        if (job.owner != requestedBy) throw RPCException("Not found", HttpStatusCode.NotFound)
+
         val backend = computationBackendService.getAndVerifyByName(job.backend, null)
         val internalResult = backend.follow.call(
             InternalFollowStdStreamsRequest(

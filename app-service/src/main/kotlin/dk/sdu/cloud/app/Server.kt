@@ -17,6 +17,7 @@ import dk.sdu.cloud.app.services.JobVerificationService
 import dk.sdu.cloud.app.services.OrchestrationScope
 import dk.sdu.cloud.app.services.StreamFollowService
 import dk.sdu.cloud.app.services.ToolHibernateDAO
+import dk.sdu.cloud.app.services.VncService
 import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -69,6 +70,7 @@ class Server(
             db,
             jobDao
         )
+        val vncService = VncService(computationBackendService, db, jobDao, serviceClient)
 
         val jobOrchestrator = JobOrchestrator(
             serviceClient,
@@ -103,7 +105,8 @@ class Server(
                     jobDao,
                     streamFollowService,
                     tokenValidation as TokenValidationJWT,
-                    serviceClient
+                    serviceClient,
+                    vncService
                 ),
 
                 CallbackController(jobOrchestrator),

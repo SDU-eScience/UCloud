@@ -204,7 +204,12 @@ class JobFileService(
         }
 
         return WORKSPACE_PATH + WorkspaceDescriptions.create.call(
-            WorkspaceDescriptions.Create.Request(job.owner, mounts, allowFailures = false),
+            WorkspaceDescriptions.Create.Request(
+                job.owner,
+                mounts,
+                allowFailures = false,
+                createSymbolicLinkAt = "/input"
+            ),
             serviceClient
         ).orThrow().workspaceId
     }

@@ -11,8 +11,6 @@ import dk.sdu.cloud.calls.bindToSubProperty
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.calls.types.StreamingRequest
 import io.ktor.http.HttpMethod
 
 data class ComputationErrorMessage(
@@ -24,6 +22,15 @@ data class SubmitFileToComputation(
     val jobId: String,
     val parameterName: String,
     @JsonIgnore val fileData: BinaryStream
+)
+
+data class QueryInternalVncParametersRequest(
+    val verifiedJob: VerifiedJob
+)
+
+data class QueryInternalVncParametersResponse(
+    val path: String,
+    val password: String? = null
 )
 
 /**
@@ -146,4 +153,23 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
             body { bindEntireRequestFromBody() }
         }
     }
+
+    val queryInternalVncParameters =
+        call<QueryInternalVncParametersRequest, QueryInternalVncParametersResponse, CommonErrorMessage>("queryInternalVncParameters") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"query-vnc"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
 }

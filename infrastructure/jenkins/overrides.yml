@@ -1,7 +1,7 @@
 ---
 
-Master:
-  ServiceType: ClusterIP
+master:
+  serviceType: ClusterIP
 
   resources:
     requests:
@@ -10,14 +10,14 @@ Master:
     limits:
       cpu: 8000m
       memory: 8192Mi
-  ScriptApproval:
+  scriptApproval:
     - "method hudson.model.Actionable getActions"
     - "method hudson.model.Run getPreviousSuccessfulBuild"
     - "method jenkins.plugins.git.AbstractGitSCMSource$SCMRevisionImpl getHash"
     - "method jenkins.scm.api.SCMRevisionAction getRevision"
     - "method org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper getRawBuild"
     - "method org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper getRawBuild"
-  InstallPlugins:
+  installPlugins:
     - "blueocean-bitbucket-pipeline:1.8.4"
     - "jdk-tool:1.1"
     - "docker-commons:1.13"
@@ -117,7 +117,7 @@ Master:
     - "blueocean-config:1.8.4"
     - "workflow-aggregator:2.6"
 
-Agent:
+agent:
   resources:
     requests:
       cpu: 2000m
@@ -126,10 +126,6 @@ Agent:
       cpu: 8000m
       memory: 8192Mi
 
-Persistence:
-  Enabled: true
-  Size: 25Gi
-  StorageClass: rbd
-
-rbac:
-  install: true
+persistence:
+  enabled: true
+  existingClaim: jenkins
