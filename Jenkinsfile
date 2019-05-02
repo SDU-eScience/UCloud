@@ -49,31 +49,30 @@ volumes: [
             String currentResult
             Boolean allSucceed = true
             int size = needToBuild.size()
+            int jumpsize = 4
             int i = 0
 
             while (true) {
-                println(i)
-                if (i >= size-4) {
+                stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
+                    parallel (
+                        (serviceList[i]): {
+                            println("running " + i)
+                        },
+                        (serviceList[i+1]): {
+                            println("running " + i+1)
+                        },
+                        (serviceList[i+2]): {
+                            println("running " + i+2)
+                        },
+                        (serviceList[i+3]): {
+                            println("running " + i+3)
+                        }
+                    )
+                }
+                i = i+jumpsize
+                if (i >= size-jumpsize) {
                     println("BREAKS")
                     break
-                } else {
-                    stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
-                        parallel (
-                            (serviceList[i]): {
-                                println("running " + i)
-                            },
-                            (serviceList[i+1]): {
-                                println("running " + i+1)
-                            },
-                            (serviceList[i+2]): {
-                                println("running " + i+2)
-                            },
-                            (serviceList[i+3]): {
-                                println("running " + i+3)
-                            }
-                        )
-                    }
-                    i = i+4
                 }
             }
             println("OUT of while")
