@@ -53,6 +53,7 @@ volumes: [
 
             while (true) {
                 if (i >= size) {
+                    println("BREAKS")
                     break
                 }
                 stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
