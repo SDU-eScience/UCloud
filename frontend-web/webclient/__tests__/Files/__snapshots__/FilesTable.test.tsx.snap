@@ -1,0 +1,19 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`FilesTable Mount 1`] = `
+<Memo(ConnectFunction)
+  fileOperations={Array []}
+  files={Array []}
+  onCheckFile={[Function]}
+  refetchFiles={[Function]}
+  sortBy="PATH"
+  sortFiles={[Function]}
+  sortOrder="ASCENDING"
+  sortingColumns={
+    Array [
+      "ACL",
+      "CREATED_AT",
+    ]
+  }
+/>
+`;
