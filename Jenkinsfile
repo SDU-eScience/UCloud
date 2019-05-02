@@ -49,6 +49,7 @@ volumes: [
 
             def size = needToBuild.size()
             println("size " + size)
+            println(needToBuild)
             int i = 0
             while (true) {
                 stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
