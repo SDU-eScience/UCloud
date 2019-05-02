@@ -6,12 +6,12 @@ import { favoriteFileAsync, allFileOperations } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { SortBy, SortOrder, File } from "Files";
-import { emptyPage, ReduxObject } from "DefaultObjects";
+import { ReduxObject } from "DefaultObjects";
 import * as Heading from "ui-components/Heading";
 import FilesTable, { FileOptions } from "Files/FilesTable";
 import { Dispatch } from "redux";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
-import { fetchFavorites, setLoading, receiveFavorites } from "./Redux/FavoritesActions";
+import { fetchFavorites, setLoading, receiveFavorites, checkFile, checkAllFiles } from "./Redux/FavoritesActions";
 import { MasterCheckbox } from "UtilityComponents";
 import { Page } from "Types";
 import { History } from "history";
@@ -33,18 +33,6 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
     public componentWillReceiveProps(nextProps: FavoriteFilesProps) {
         const { setRefresh, page, fetchFileFavorites } = nextProps;
         setRefresh(() => fetchFileFavorites(page.pageNumber, page.itemsPerPage));
-    }
-
-    // FIXME: Make action instead
-    private checkFile(checked: boolean, path: string) {
-        this.props.page.items.find(it => it.path === path)!.isChecked = checked;
-        this.props.receiveFavorites(this.props.page);
-    }
-
-    // FIXME: Make action instead
-    private checkAll(checked: boolean) {
-        this.props.page.items.forEach(it => it.isChecked = checked);
-        this.props.receiveFavorites(this.props.page);
     }
 
     public render() {
@@ -76,10 +64,10 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
                         sortFiles={() => undefined}
                         refetchFiles={() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage)}
                         sortingColumns={[SortBy.MODIFIED_AT, SortBy.SIZE]}
-                        onCheckFile={(checked, file) => this.checkFile(checked, file.path)}
+                        onCheckFile={(checked, file) => this.props.checkFile(file.path, checked)}
                         masterCheckbox={
                             <MasterCheckbox
-                                onClick={check => this.checkAll(check)}
+                                onClick={check => this.props.checkAllFiles(check)}
                                 checked={page.items.length === selectedFiles.length && page.items.length > 0}
                             />}
                     />}
@@ -97,6 +85,8 @@ interface FavoritesOperations extends AddSnackOperation {
     fetchFileFavorites: (pageNumber: number, itemsPerPage: number) => void
     receiveFavorites: (page: Page<File>) => void
     setLoading: (loading: boolean) => void
+    checkFile: (path: string, checked: boolean) => void
+    checkAllFiles: (checked: boolean) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
@@ -108,7 +98,9 @@ const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
     },
     receiveFavorites: page => dispatch(receiveFavorites(page)),
     setLoading: loading => dispatch(setLoading(loading)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => dispatch(addSnack(snack)),
+    checkFile: (path, checked) => dispatch(checkFile(path, checked)),
+    checkAllFiles: checked => dispatch(checkAllFiles(checked))
 });
 
 const mapStateToProps = ({ favorites }: ReduxObject): ReduxType & { checkedCount: number } => ({ ...favorites, checkedCount: favorites.page.items.filter(it => it.isChecked).length });
