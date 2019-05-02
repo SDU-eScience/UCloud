@@ -50,13 +50,16 @@ volumes: [
             String currentResult2
             String currentResult3
             String currentResult4
+            String currentResult5
             Boolean allSucceed = true
             int size = needToBuild.size()
-            int jumpsize = 4
+            int jumpsize = 5
             int i = 0
 
+            def resultList = new [""] * size
+
             while (true) {
-                stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
+                stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}, ${serviceList[i+4]}") {
                     parallel (
                         (serviceList[i]): {
                             currentResult1 = runBuild(needToBuild[i])
@@ -69,13 +72,21 @@ volumes: [
                         },
                         (serviceList[i+3]): {
                             currentResult4 = runBuild(needToBuild[i+3])
+                        },
+                        (serviceList[i+4]): {
+                            currentResult5 = runBuild(needToBuild[i+4])
                         }
                     )
                 }
-                println("STATUS OF RUNS: ${currentResult1}, ${currentResult2}, ${currentResult3}, ${currentResult4}")
+                resultList[i] = currentResult1
+                resultList[i+1] = currentResult2
+                resultList[i+2] = currentResult3
+                resultList[i+3] = currentResult4
+                resultList[i+4] = currentResult5
+                println("STATUS OF RUNS: ${currentResult1}, ${currentResult2}, ${currentResult3}, ${currentResult4}, ${currentResult5}")
+                println(resultList)
                 i = i+jumpsize
                 if (i >= size-jumpsize) {
-                    println("BREAKS")
                     break
                 }
             }
@@ -83,7 +94,9 @@ volumes: [
             for (i; i < needToBuild.size(); i++) {
                 stage("building and testing ${serviceList[i]}"){
                     String currentResult = runBuild(needToBuild[i])
+                    resultList[i] = currentResult
                     println ("THIS IS A RESULT: ${currentResult}")
+                    println(resultList)
                 }
             }
         /*
