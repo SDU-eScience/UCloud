@@ -1,0 +1,148 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Error component Error with error and dismiss button 1`] = `
+.c2 {
+  cursor: auto;
+}
+
+.c4 {
+  cursor: auto;
+  margin-left: auto;
+}
+
+.c1 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c3 {
+  cursor: inherit;
+  font-size: 16px;
+  color: red;
+}
+
+.c5 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  color: #000;
+}
+
+.c0 {
+  padding: 1em 1em 1em 1em;
+  height: auto;
+  color: #000;
+  background-color: #fcc;
+  height: auto;
+  border: 1px solid #c00;
+  border-radius: 0.5em;
+}
+
+<div
+  className="c0"
+  color="black"
+  height="auto"
+>
+  <div
+    className="c1"
+    cursor="inherit"
+  >
+    <div
+      className="c2"
+      cursor="auto"
+    >
+      <div
+        className="c3"
+        color="red"
+        cursor="inherit"
+        fontSize={2}
+      >
+        This is an error
+      </div>
+    </div>
+    <div
+      className="c4"
+      cursor="auto"
+    >
+      <svg
+        className="c5"
+        clipRule="evenodd"
+        cursor="inherit"
+        fill="currentcolor"
+        fillRule="evenodd"
+        height={24}
+        onClick={[Function]}
+        viewBox="0 0 25 24"
+        width={24}
+      >
+        <path
+          d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+          fillRule="nonzero"
+        />
+      </svg>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Error component Error with error and no dismiss button 1`] = `
+.c2 {
+  cursor: auto;
+}
+
+.c1 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c3 {
+  cursor: inherit;
+  font-size: 16px;
+  color: red;
+}
+
+.c0 {
+  padding: 1em 1em 1em 1em;
+  height: auto;
+  color: #000;
+  background-color: #fcc;
+  height: auto;
+  border: 1px solid #c00;
+  border-radius: 0.5em;
+}
+
+<div
+  className="c0"
+  color="black"
+  height="auto"
+>
+  <div
+    className="c1"
+    cursor="inherit"
+  >
+    <div
+      className="c2"
+      cursor="auto"
+    >
+      <div
+        className="c3"
+        color="red"
+        cursor="inherit"
+        fontSize={2}
+      >
+        This is an error
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Error component Error without error and no dismiss button 1`] = `null`;

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { EveryIcon } from "ui-components/Icon"
+import { EveryIcon } from "../../app/ui-components/Icon"
 import { create } from "react-test-renderer";
 import "jest-styled-components";
 
