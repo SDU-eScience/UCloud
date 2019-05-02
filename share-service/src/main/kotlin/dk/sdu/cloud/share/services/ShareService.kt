@@ -46,6 +46,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class ShareService<DBSession>(
     private val serviceCloud: AuthenticatedClient,
@@ -227,58 +228,84 @@ class ShareService<DBSession>(
         val auth = AuthRequirements(user, ShareRole.RECIPIENT)
         val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
 
-        coroutineScope {
-            val updateCall = async {
-                val ownerCloud = userCloudFactory(existingShare.ownerToken)
-                updateFSPermissions(existingShare, existingShare.rights, ownerCloud).orThrow()
-            }
+        try {
+            coroutineScope {
+                val updateCall = async {
+                    val ownerCloud = userCloudFactory(existingShare.ownerToken)
+                    updateFSPermissions(existingShare, existingShare.rights, ownerCloud).orThrow()
+                }
 
-            val extendCall = async {
-                AuthDescriptions.tokenExtension.call(
-                    TokenExtensionRequest(
-                        userToken,
-                        listOf(
-                            FileDescriptions.stat.requiredAuthScope,
-                            FileDescriptions.createLink.requiredAuthScope,
-                            FileDescriptions.deleteFile.requiredAuthScope
-                        ).map { it.toString() },
-                        expiresIn = 1000L * 60,
-                        allowRefreshes = true
-                    ),
-                    serviceCloud
-                ).orThrow()
-            }
-
-            val createdLink = if (createLink) {
-                val linkCall = async {
-                    FileDescriptions.createLink.call(
-                        CreateLinkRequest(
-                            linkPath = defaultLinkToShare(existingShare),
-                            linkTargetPath = existingShare.path
+                val extendCall = async {
+                    AuthDescriptions.tokenExtension.call(
+                        TokenExtensionRequest(
+                            userToken,
+                            listOf(
+                                FileDescriptions.stat.requiredAuthScope,
+                                FileDescriptions.createLink.requiredAuthScope,
+                                FileDescriptions.deleteFile.requiredAuthScope
+                            ).map { it.toString() },
+                            expiresIn = 1000L * 60,
+                            allowRefreshes = true
                         ),
-                        userCloud
+                        serviceCloud
                     ).orThrow()
                 }
 
-                val createdLink = linkCall.await()
-                updateCall.await()
+                val createdLink = if (createLink) {
+                    val linkCall = async {
+                        FileDescriptions.createLink.call(
+                            CreateLinkRequest(
+                                linkPath = defaultLinkToShare(existingShare),
+                                linkTargetPath = existingShare.path
+                            ),
+                            userCloud
+                        ).orThrow()
+                    }
+                    val createdLink = linkCall.await()
+                    updateCall.await()
 
-                createdLink
-            } else null
+                    createdLink
+                } else null
 
-            val tokenExtension = extendCall.await().refreshToken
-                ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
+                val tokenExtension = extendCall.await().refreshToken
+                    ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
 
-            db.withTransaction { session ->
-                shareDao.updateShare(
-                    session,
-                    auth,
-                    shareId,
-                    recipientToken = tokenExtension,
-                    state = ShareState.ACCEPTED,
-                    linkId = createdLink?.fileId
-                )
+                db.withTransaction { session ->
+                    shareDao.updateShare(
+                        session,
+                        auth,
+                        shareId,
+                        recipientToken = tokenExtension,
+                        state = ShareState.ACCEPTED,
+                        linkId = createdLink?.fileId
+                    )
+                }
             }
+        } catch (ex: Exception) {
+            runBlocking {
+                //Attempt revoke of permissions
+                val refreshedExistingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
+                val ownerCloud = userCloudFactory(existingShare.ownerToken)
+                println(FileDescriptions.stat.call(FindByPath("/home/user/to_share"),userCloud))
+                val response = FileDescriptions.updateAcl.call(
+                    UpdateAclRequest(
+                        refreshedExistingShare.path,
+                        true,
+                        listOf(
+                            ACLEntryRequest(
+                                refreshedExistingShare.sharedWith,
+                                emptySet(),
+                                revoke = true,
+                                isUser = true
+                            )
+                        )
+                    ),
+                    ownerCloud
+                )
+                println(response)
+                println(FileDescriptions.stat.call(FindByPath("/home/user/to_share"),userCloud))
+            }
+            throw ex
         }
     }
 
