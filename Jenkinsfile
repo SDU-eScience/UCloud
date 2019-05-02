@@ -53,16 +53,16 @@ volumes: [
             while (true) {
                 stage("build and test") {
                     parallel (
-                        needToBuild[i]: {
+                        (needToBuild[i]): {
                             println("running " + i)
                         },
-                        needToBuild[i+1]: {
+                        (needToBuild[i+1]): {
                             println("running " + i+1)
                         },
-                        needToBuild[i+2]: {
+                        (needToBuild[i+2]): {
                             println("running " + i+2)
                         },
-                        needToBuild[i+3]: {
+                        (needToBuild[i+3]): {
                             println("running " + i+3)
                         }
                     )
