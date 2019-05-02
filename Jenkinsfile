@@ -51,7 +51,7 @@ volumes: [
             println("size " + size)
             int i = 0
             while (true) {
-                stage("build and test") {
+                stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[+3]}") {
                     parallel (
                         (needToBuild[i]): {
                             println("running " + i)
@@ -67,10 +67,16 @@ volumes: [
                         }
                     )
                 }
+                i = i+4
                 if (i > size) {
                     break
                 }
-                i = i+4
+            }
+            i = i-4
+            for (i; i<needToBuild.size(); i++) {
+                stage("building and testing ${serviceList[i]}"){
+                    println("running last")
+                }
             }
         /*
             String currentResult
