@@ -50,7 +50,7 @@ volumes: [
             def size = needToBuild.size
             println("size " + size)
             int i = 0
-            do {
+            while (true) {
                 stage("build and test") {
                     parallel {
                         stage("name1") {
@@ -67,8 +67,11 @@ volumes: [
                         }
                     }
                 }
+                if (i > size) {
+                    break
+                }
                 i = i+4
-            } while (i < size)
+            }
         /*
             String currentResult
             Boolean allSucceed = true
