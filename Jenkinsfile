@@ -36,8 +36,7 @@ volumes: [
                 "service-common"
             ]
 
-            String ls = sh(script: 'ls', returnStdout: true)
-            def list = ls.split("\n")
+            def list = sh(script: 'ls', returnStdout: true).split("\n")
             for (String item : list) {
                 if (item.endsWith("-service")) {
                     serviceList.add(item)
@@ -46,7 +45,30 @@ volumes: [
             for (String item : serviceList) {
                 needToBuild.add(item + "/Jenkinsfile")
             }
-        
+
+
+            def size = needToBuild.size()
+            int i = 0
+            do {
+                stage("build and test") {
+                    parallel {
+                        stage("name1") {
+                            println("running" + i)
+                        }
+                        stage("name2") {
+                            println("running" + i+1)
+                        }
+                        stage("name3") {
+                            println("running" + i+2)
+                        }
+                        stage("name4") {
+                            println("running" + i+3)
+                        }
+                    }
+                }
+                i = i+4
+            } while (i < size)
+        /*
             String currentResult
             Boolean allSucceed = true
             for (String item : needToBuild) {
@@ -92,15 +114,15 @@ volumes: [
                     }
                 }
             }
-
-            if (allSucceed) {
-                junit '**/build/test-results/**/*.xml'      
-                jacoco(
-                    execPattern: '**/**.exec',
-                    exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
-                    sourcePattern: '**/src/main/kotlin/**'
-                )
-            }
+    */
+    //        if (allSucceed) {
+    //            junit '**/build/test-results/**/*.xml'      
+    //            jacoco(
+    //                execPattern: '**/**.exec',
+    //                exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
+    //                sourcePattern: '**/src/main/kotlin/**'
+    //            )
+    //        }
         }
     }
 }
