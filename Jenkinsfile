@@ -47,7 +47,7 @@ volumes: [
             }
 
 
-            def size = needToBuild.size
+            def size = needToBuild.size()
             println("size " + size)
             int i = 0
             while (true) {
