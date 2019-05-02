@@ -44,13 +44,13 @@ volumes: [
             }
             for (String item : serviceList) {
                 needToBuild.add(item + "/Jenkinsfile")
-            }
+            }          
 
-
-            def size = needToBuild.size()
-            println("size " + size)
-            println(needToBuild)
+            String currentResult
+            Boolean allSucceed = true
+            int size = needToBuild.size()
             int i = 0
+
             while (true) {
                 stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
                     parallel (
@@ -67,10 +67,10 @@ volumes: [
                             println("running " + i+3)
                         }
                     )
-                }
-                i = i+4
-                if (i >= size) {
-                    break
+                    i = i+4
+                    if (i >= size) {
+                        break
+                    }
                 }
             }
             println("OUT of while")
@@ -99,13 +99,7 @@ volumes: [
                     if (currentResult == 'UNSTABLE') {
                         echo "Build is unstable"
                         allSucceed = false
-                        withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
-                            slackSend(
-                                baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
-                                message: 'Build Unstable',
-                                token: "$slackToken"
-                            )
-                        }
+                        sendAlert("Build Unstable")
                         error('Aborting due to caught error - marked as unstable')
 
                     }
@@ -113,15 +107,7 @@ volumes: [
                     if (currentResult == 'FAILURE') {
                         println("FAIL")
                         allSucceed = false
-                        withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
-                            withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
-                                slackSend(
-                                    baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
-                                    message: 'Build FAILED',
-                                    token: "$slackToken"
-                                )
-                            }
-                        }
+                        sendAlert("Build FAILED")
                         error('Aborting due to caught error - marked as failure')
                     }
                 }
@@ -136,5 +122,17 @@ volumes: [
     //            )
     //        }
         }
+    }
+}
+
+def sendAlert(String alertMessage) {
+    withCredentials(
+        [string(credentialsId: "slackToken", variable: "slackToken")]
+    ) {
+        slackSend(
+            baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
+            message: alertMessage,
+            token: "$slackToken"
+        )
     }
 }
