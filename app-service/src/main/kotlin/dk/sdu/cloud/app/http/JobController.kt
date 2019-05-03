@@ -26,6 +26,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -61,6 +62,7 @@ class JobController<DBSession>(
         }
 
         implement(JobDescriptions.start) {
+            log.debug("Extending token")
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     ctx.bearer!!,
@@ -81,12 +83,18 @@ class JobController<DBSession>(
                 return@implement
             }
 
+            log.debug("Validating response")
             val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
+            log.debug("This should not be done in production, but: ${extensionResponse.result.accessToken}")
 
+            log.debug("Creating client")
             val userClient =
                 ClientAndBackend(serviceClient.client, serviceClient.companion).bearerAuth(extendedToken.token)
 
+            log.debug("Starting job")
             val jobId = jobOrchestrator.startJob(request, extendedToken, userClient)
+
+            log.debug("Complete")
             ok(JobStartedResponse(jobId))
         }
 
@@ -112,5 +120,9 @@ class JobController<DBSession>(
             job.modifiedAt,
             job.application.metadata
         )
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

@@ -4,6 +4,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.api.ApplicationBackend
 import dk.sdu.cloud.app.api.ComputationDescriptions
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 
 class NamedComputationBackendDescriptions(
@@ -22,6 +23,7 @@ class ComputationBackendService(
         if (backendConfig == null) throw ComputationBackendException.UnrecognizedBackend(backend)
         if (!developmentModeEnabled) {
             if (principal != null && principal.username != backendPrincipalName(backend)) {
+                log.debug("Untrusted source: ${principal.username} expected $backend")
                 throw ComputationBackendException.UntrustedSource()
             }
         }
@@ -32,6 +34,10 @@ class ComputationBackendService(
     }
 
     fun backendPrincipalName(backend: String) = "_app-$backend"
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }
 
 sealed class ComputationBackendException(

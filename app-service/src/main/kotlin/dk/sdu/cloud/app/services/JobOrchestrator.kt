@@ -120,12 +120,16 @@ class JobOrchestrator<DBSession>(
         principal: DecodedJWT,
         userCloud: AuthenticatedClient
     ): String {
+        log.debug("starting job ${req.application.name}@${req.application.version}")
         val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend, defaultBackend))
+        log.debug("Verifying job")
         val unverifiedJob = UnverifiedJob(req, principal)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
         val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
+        log.debug("Notifying compute")
         backend.jobVerified.call(jobWithToken.job, serviceClient).orThrow()
 
+        log.debug("Switching state and preparing job...")
         db.withTransaction { session -> jobDao.create(session, jobWithToken) }
         handleStateChange(jobWithToken, initialState)
         return initialState.systemId

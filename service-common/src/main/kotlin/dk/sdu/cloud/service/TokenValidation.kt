@@ -36,8 +36,13 @@ interface TokenValidation<TokenType> {
         return try {
             validate(token, scopes)
         } catch (ex: TokenValidationException) {
+            log.debug(ex.stackTraceToString())
             null
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

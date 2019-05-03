@@ -38,6 +38,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.Response
 import java.io.Closeable
 import java.io.InputStream
@@ -69,36 +71,42 @@ class PodService(
     private fun findPod(jobName: String?): Pod? =
         k8sClient.pods().inNamespace(namespace).withLabel("job-name", jobName).list().items.firstOrNull()
 
+    // TODO Might be waiting a lot on this under load
+    private val finishedJobsMutex = Mutex()
+
     fun initializeListeners() {
         fun handlePodEvent(job: Job) {
             val jobName = job.metadata.name
             val jobId = reverseLookupJobName(jobName) ?: return
 
+            // Check for failure
             val firstOrNull = job.status?.conditions?.firstOrNull()
-            if (firstOrNull != null && firstOrNull.type == "Failed" && firstOrNull.reason == "DeadlineExceeded" &&
-                jobId !in finishedJobs
-            ) {
-                finishedJobs.add(jobId)
-
+            if (firstOrNull != null && firstOrNull.type == "Failed" && firstOrNull.reason == "DeadlineExceeded") {
                 GlobalScope.launch {
-                    ComputationCallbackDescriptions.requestStateChange.call(
-                        StateChangeRequest(
-                            jobId,
-                            JobState.TRANSFER_SUCCESS,
-                            job.status.conditions.first().message
-                        ),
-                        serviceClient
-                    ).orThrow()
+                    finishedJobsMutex.withLock {
+                        if (jobId !in finishedJobs) {
+                            ComputationCallbackDescriptions.requestStateChange.call(
+                                StateChangeRequest(
+                                    jobId,
+                                    JobState.TRANSFER_SUCCESS,
+                                    job.status.conditions.first().message
+                                ),
+                                serviceClient
+                            ).orThrow()
 
-                    // TODO FIXME We should still do accounting for the time we spent running code
-                    ComputationCallbackDescriptions.completed.call(
-                        JobCompletedRequest(
-                            jobId,
-                            SimpleDuration(0, 0, 0),
-                            false
-                        ),
-                        serviceClient
-                    ).orThrow()
+                            // TODO FIXME We should still do accounting for the time we spent running code
+                            ComputationCallbackDescriptions.completed.call(
+                                JobCompletedRequest(
+                                    jobId,
+                                    SimpleDuration(0, 0, 0),
+                                    false
+                                ),
+                                serviceClient
+                            ).orThrow()
+
+                            finishedJobs.add(jobId)
+                        }
+                    }
                 }
 
                 return
@@ -106,68 +114,73 @@ class PodService(
 
             val resource = findPod(jobName)!!
             val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
-
             val containerState = userContainer.state.terminated
-            if (containerState != null && jobId !in finishedJobs && containerState.startedAt != null) {
-                val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
-                val finishedAt =
-                    ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
-                log.info("App finished in ${finishedAt - startAt}ms")
 
-                log.debug("Downloading log")
-                val logFile = Files.createTempFile("log", ".txt").toFile()
-                k8sClient.pods().inNamespace(namespace).withName(resource.metadata.name).logReader.use { ins ->
-                    logFile.writer().use { out ->
-                        ins.copyTo(out)
-                    }
-                }
-                log.debug("Log retrieved")
-
-                val duration = run {
-                    // We add 5 seconds for just running the application.
-                    // It seems unfair that a job completing instantly is accounted for nothing.
-                    val durationMs = (finishedAt - startAt) + 5_000
-                    val hours = durationMs / (1000 * 60 * 60)
-                    val minutes = (durationMs % (1000 * 60 * 60)) / (1000 * 60)
-                    val seconds = ((durationMs % (1000 * 60 * 60)) % (1000 * 60)) / 1000
-
-
-                    SimpleDuration(hours.toInt(), minutes.toInt(), seconds.toInt())
-                }
-                log.info("Simple duration $duration")
-
-                finishedJobs.add(jobId)
-
+            // Check for completion
+            if (containerState != null && containerState.startedAt != null) {
                 GlobalScope.launch {
-                    ComputationCallbackDescriptions.requestStateChange.call(
-                        StateChangeRequest(
-                            jobId,
-                            JobState.TRANSFER_SUCCESS,
-                            "Job has finished. Total duration: $duration."
-                        ),
-                        serviceClient
-                    ).orThrow()
+                    finishedJobsMutex.withLock {
+                        if (jobId !in finishedJobs) {
+                            val duration = run {
+                                val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
+                                val finishedAt =
+                                    ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
 
-                    ComputationCallbackDescriptions.submitFile.call(
-                        SubmitComputationResult(
-                            jobId,
-                            "stdout.txt",
-                            false,
-                            BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
-                        ),
-                        serviceClient
-                    ).orThrow()
+                                run {
+                                    // We add 5 seconds for just running the application.
+                                    // It seems unfair that a job completing instantly is accounted for nothing.
+                                    val durationMs = (finishedAt - startAt) + 5_000
+                                    val hours = durationMs / (1000 * 60 * 60)
+                                    val minutes = (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+                                    val seconds = ((durationMs % (1000 * 60 * 60)) % (1000 * 60)) / 1000
 
 
-                    log.info("Calling completed")
-                    ComputationCallbackDescriptions.completed.call(
-                        JobCompletedRequest(
-                            jobId,
-                            duration,
-                            containerState.exitCode == 0
-                        ),
-                        serviceClient
-                    ).orThrow()
+                                    SimpleDuration(hours.toInt(), minutes.toInt(), seconds.toInt())
+                                }
+                            }
+                            log.info("App finished in $duration")
+
+                            log.debug("Downloading log")
+                            val logFile = Files.createTempFile("log", ".txt").toFile()
+                            k8sClient.pods().inNamespace(namespace).withName(resource.metadata.name)
+                                .logReader.use { ins ->
+                                logFile.writer().use { out ->
+                                    ins.copyTo(out)
+                                }
+                            }
+
+                            ComputationCallbackDescriptions.requestStateChange.call(
+                                StateChangeRequest(
+                                    jobId,
+                                    JobState.TRANSFER_SUCCESS,
+                                    "Job has finished. Total duration: $duration."
+                                ),
+                                serviceClient
+                            ).orThrow()
+
+                            ComputationCallbackDescriptions.submitFile.call(
+                                SubmitComputationResult(
+                                    jobId,
+                                    "stdout.txt",
+                                    false,
+                                    BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
+                                ),
+                                serviceClient
+                            ).orThrow()
+
+                            log.info("Calling completed")
+                            ComputationCallbackDescriptions.completed.call(
+                                JobCompletedRequest(
+                                    jobId,
+                                    duration,
+                                    containerState.exitCode == 0
+                                ),
+                                serviceClient
+                            ).orThrow()
+
+                            finishedJobs.add(jobId)
+                        }
+                    }
                 }
             }
         }
@@ -299,23 +312,33 @@ class PodService(
                     state.running != null || state.terminated != null
                 }
 
-                ComputationCallbackDescriptions.requestStateChange.call(
-                    StateChangeRequest(
-                        verifiedJob.id,
-                        JobState.RUNNING,
-                        "Your job is now running. You will be able to follow the logs while the job is running."
-                    ),
-                    serviceClient
-                ).orThrow()
+                finishedJobsMutex.withLock {
+                    // We need to hold the lock until we get a response to avoid race conditions.
+                    if (verifiedJob.id !in finishedJobs) {
+                        ComputationCallbackDescriptions.requestStateChange.call(
+                            StateChangeRequest(
+                                verifiedJob.id,
+                                JobState.RUNNING,
+                                "Your job is now running. You will be able to follow the logs while the job is running."
+                            ),
+                            serviceClient
+                        ).orThrow()
+                    }
+                }
             } catch (ex: Throwable) {
-                log.warn("Container did not start within deadline!")
-                ComputationCallbackDescriptions.requestStateChange.call(
-                    StateChangeRequest(verifiedJob.id, JobState.FAILURE, "Job did not start within deadline."),
-                    serviceClient
-                ).orThrow()
+                finishedJobsMutex.withLock {
+                    if (verifiedJob.id !in finishedJobs) {
+                        log.warn("Container did not start within deadline!")
+                        ComputationCallbackDescriptions.requestStateChange.call(
+                            StateChangeRequest(verifiedJob.id, JobState.FAILURE, "Job did not start within deadline."),
+                            serviceClient
+                        ).orThrow()
+                    }
+                }
             }
         }
     }
+
 
     fun cleanup(requestId: String) {
         val pod = podName(requestId)

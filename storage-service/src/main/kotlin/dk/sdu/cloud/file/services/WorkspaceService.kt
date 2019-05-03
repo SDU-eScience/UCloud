@@ -57,18 +57,27 @@ class WorkspaceService(
                 val outputWorkspace = workspace.resolve("output").also { Files.createDirectories(it) }
                 val symLinkPath = createSymbolicLinkAt?.let { File(it).absoluteFile.toPath() }
 
-                fun transferFile(file: Path, destination: Path, relativeTo: Path) {
-                    val resolvedDestination = if (Files.isSameFile(file, relativeTo)) {
+                // TODO Refactor this code a bit. It is duplicating the same information
+                fun transferFile(file: Path, destination: Path, relativeTo: Path, baseFolder: String) {
+                    val useRelative = !Files.isSameFile(file, relativeTo)
+                    val relativizedPath = relativeTo.relativize(file)
+                    val symDest = outputWorkspace.resolve(baseFolder).resolve(relativizedPath)
+
+                    val resolvedDestination = if (!useRelative) {
                         destination
                     } else {
-                        destination.resolve(relativeTo.relativize(file))
+                        destination.resolve(relativizedPath)
                     }
 
                     if (Files.isDirectory(file)) {
                         Files.createDirectories(resolvedDestination)
 
+                        if (symLinkPath != null && useRelative) {
+                            Files.createDirectories(symDest)
+                        }
+
                         Files.list(file).forEach {
-                            transferFile(it, destination, relativeTo)
+                            transferFile(it, destination, relativeTo, baseFolder)
                         }
                     } else {
                         val resolvedFile = if (Files.isSymbolicLink(file)) {
@@ -78,6 +87,11 @@ class WorkspaceService(
                         }
 
                         Files.createLink(resolvedDestination, resolvedFile)
+
+                        if (symLinkPath != null && useRelative) {
+                            val target = symLinkPath.resolve(relativizedPath)
+                            Files.createSymbolicLink(symDest, target)
+                        }
                     }
                 }
 
@@ -85,14 +99,14 @@ class WorkspaceService(
                 mounts.forEach {
                     try {
                         val file = File(translateAndCheckFile(fsRoot, it.source)).toPath()
-                        transferFile(file, inputWorkspace.resolve(it.destination), file)
-
                         if (symLinkPath != null) {
-                            val target = symLinkPath.resolve(it.destination)
-                            val destination = outputWorkspace.resolve(it.destination)
+                            val resolve = outputWorkspace.resolve(it.destination)
 
-                            Files.createSymbolicLink(destination, target)
+                            println(resolve.toString())
+                            if (Files.isDirectory(file)) Files.createDirectory(resolve)
+                            else Files.createSymbolicLink(resolve, symLinkPath.resolve(it.destination))
                         }
+                        transferFile(file, inputWorkspace.resolve(it.destination), file, it.destination)
                     } catch (ex: Throwable) {
                         log.info("Failed to add ${it.source}. ${ex.message}")
                         log.debug(ex.stackTraceToString())
