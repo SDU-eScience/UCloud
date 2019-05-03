@@ -32,10 +32,10 @@ volumes: [
             def needToBuild = []
 
             def serviceList = [
-                "frontend-web",
+      //          "frontend-web",
                 "service-common"
             ]
-
+/*
             def list = sh(script: 'ls', returnStdout: true).split("\n")
             for (String item : list) {
                 if (item.endsWith("-service")) {
@@ -88,7 +88,10 @@ volumes: [
                     String currentResult = runBuild(needToBuild[i])
                     resultList[i] = currentResult
                 }
-            }
+            }*/
+
+            def resultList = ["FAILURE"]
+
 
             if (resultList.contains("FAILURE") || resultList.contains("UNSTABLE")) {
                 String message = "TEST:Following services are marked UNSTABLE due to failing tests:\n"
