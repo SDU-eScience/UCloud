@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ClickableDropdown Closed clickable dropdown 1`] = `
+<div
+  className="sc-feJyhm iJRtTU"
+  data-tag="dropdown"
+>
+  <span
+    className="sc-bZQynM lphChX"
+    cursor="pointer"
+    onClick={[Function]}
+  >
+    <button />
+  </span>
+  <div
+    className="sc-iELTvK eoQvOR"
+    color="black"
+    cursor="pointer"
+    disabled={false}
+    onClick={[Function]}
+    overflow="visible"
+    width="138px"
+  >
+    child
+  </div>
+</div>
+`;

@@ -1,694 +1,1262 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`CreateUpdate Component Mount 1`] = `
-<form
-  className="ui form"
-  onSubmit={[Function]}
+.c1 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-top: 48px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+}
+
+.c2 {
+  cursor: auto;
+  padding-top: 14px;
+  padding-right: 14px;
+}
+
+.c4 {
+  cursor: auto;
+  margin-bottom: 1em;
+}
+
+.c10 {
+  cursor: auto;
+}
+
+.c16 {
+  cursor: auto;
+  margin-top: 8px;
+  margin-left: -32px;
+}
+
+.c19 {
+  cursor: auto;
+  margin-bottom: 0.5em;
+}
+
+.c24 {
+  cursor: auto;
+  margin-right: 0.5em;
+  width: 25%;
+}
+
+.c26 {
+  cursor: auto;
+  margin-right: 0.5em;
+  width: 50%;
+}
+
+.c27 {
+  cursor: auto;
+  width: 50%;
+}
+
+.c29 {
+  cursor: auto;
+  margin-left: auto;
+}
+
+.c30 {
+  cursor: auto;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.c14 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: 0;
+  width: 100%;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.c23 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c6 {
+  cursor: inherit;
+  font-weight: 700;
+}
+
+.c7 {
+  cursor: inherit;
+  color: #c00;
+}
+
+.c12 {
+  cursor: pointer;
+}
+
+.c17 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-bottom: 9px;
+}
+
+.c22 {
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  vertical-align: middle;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #0055d5;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c22:disabled {
+  opacity: 0.25;
+}
+
+.c22:focus {
+  outline: none;
+}
+
+.c22:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c25 {
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  vertical-align: middle;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #0055d5;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+  margin-top: 0.5em;
+}
+
+.c25:disabled {
+  opacity: 0.25;
+}
+
+.c25:focus {
+  outline: none;
+}
+
+.c25:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c28 {
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  vertical-align: middle;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #0055d5;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+  margin-bottom: 1em;
+}
+
+.c28:disabled {
+  opacity: 0.25;
+}
+
+.c28:focus {
+  outline: none;
+}
+
+.c28:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c31 {
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  vertical-align: middle;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #00C05A;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c31:disabled {
+  opacity: 0.25;
+}
+
+.c31:focus {
+  outline: none;
+}
+
+.c31:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c5 {
+  font-size: 10px;
+  -webkit-letter-spacing: 0.2px;
+  -moz-letter-spacing: 0.2px;
+  -ms-letter-spacing: 0.2px;
+  letter-spacing: 0.2px;
+  display: block;
+  width: 100%;
+  margin: 0;
+  font-size: 14px;
+  color: #000;
+  font-weight: 700;
+}
+
+.c8 {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  background-color: transparent;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+  border-color: #c9d3df;
+  box-shadow: 0 0 0 1px #c9d3df;
+  border-radius: 5px;
+}
+
+.c8::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c8::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c8:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c8::placeholder {
+  color: #8393A7;
+}
+
+.c8::-ms-clear {
+  display: none;
+}
+
+.c8:focus {
+  outline: none;
+}
+
+.c8:focus {
+  outline: 0;
+  border-color: #0055d5;
+  box-shadow: 0 0 0 2px #0055d5;
+}
+
+.c15 {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  background-color: transparent;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+  border-color: #c9d3df;
+  box-shadow: 0 0 0 1px #c9d3df;
+  padding-left: 8px;
+  padding-right: 40px;
+  border-radius: 5px;
+}
+
+.c15::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c15::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c15:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c15::placeholder {
+  color: #8393A7;
+}
+
+.c15::-ms-clear {
+  display: none;
+}
+
+.c15:focus {
+  outline: none;
+}
+
+.c15:focus {
+  outline: 0;
+  border-color: #0055d5;
+  box-shadow: 0 0 0 2px #0055d5;
+}
+
+.c20 {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  background-color: transparent;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+  border-color: #c9d3df;
+  box-shadow: 0 0 0 1px #c9d3df;
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+  border-radius: 5px;
+}
+
+.c20::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c20::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c20:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c20::placeholder {
+  color: #8393A7;
+}
+
+.c20::-ms-clear {
+  display: none;
+}
+
+.c20:focus {
+  outline: none;
+}
+
+.c20:focus {
+  outline: 0;
+  border-color: #0055d5;
+  box-shadow: 0 0 0 2px #0055d5;
+}
+
+.c13 {
+  cursor: auto;
+}
+
+.c13 .c0 {
+  pointer-events: none;
+}
+
+.c9 {
+  width: 100%;
+  border-color: #c9d3df;
+  box-shadow: 0 0 0 1px #c9d3df;
+  border-radius: 5px;
+  border: 1px #c9d3df;
+  padding: 5px;
+  resize: none;
+}
+
+.c9:focus {
+  outline: 0;
+  border-color: #0055d5;
+  box-shadow: 0 0 0 2px #0055d5;
+}
+
+.c9:focus {
+  outline: none;
+}
+
+.c11 {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.c11:hover > div {
+  display: block;
+}
+
+.c18 {
+  overflow: visible;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  box-shadow: 0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16);
+  position: absolute;
+  background-color: #fff;
+  color: #000;
+  width: 100%;
+  min-width: 138pxpx;
+  padding: 12px 16px;
+  z-index: 47;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.c18 > *:hover:not(.c21) {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.c18 svg {
+  margin-right: 1em;
+}
+
+.c18 > svg ~ span {
+  margin-right: 1em;
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c3 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c3 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c3 {
+    display: none;
+  }
+}
+
+<div
+  className="c0 c1"
+  cursor="auto"
 >
   <div
-    className="required field"
+    className="c0 c2"
+    cursor="auto"
   >
-    <label>
-      Title
-    </label>
     <div
-      className="required field"
-    >
-      <div
-        className="ui input"
-      >
-        <input
-          onChange={[Function]}
-          placeholder="Title"
-          required={true}
-          type="text"
-          value=""
-        />
-      </div>
-    </div>
-  </div>
-  <div
-    className="required field"
-  >
-    <label>
-      Description
-    </label>
-    <div
-      className="required field"
-    >
-      <textarea
-        onChange={[Function]}
-        onInput={[Function]}
-        placeholder="Description"
-        required={true}
-        rows={15}
-        style={
-          Object {
-            "resize": "",
-          }
-        }
-        value=""
-      />
-    </div>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      License
-    </label>
-    <p>
-      <span>
-        No license selected
-      </span>
-    </p>
-    <div
-      className="ui search"
-      onBlur={[Function]}
-      onFocus={[Function]}
-      onMouseDown={[Function]}
-    >
-      <div
-        className="ui icon input"
-      >
-        <input
-          autoComplete="off"
-          className="prompt"
-          onChange={[Function]}
-          onClick={[Function]}
-          placeholder="Search for a license..."
-          tabIndex="0"
-          type="text"
-          value=""
-        />
-        <i
-          aria-hidden="true"
-          className="search icon"
-        />
-      </div>
-      <div
-        className="results transition"
-      >
-        <div
-          className="message empty"
-        >
-          <div
-            className="header"
-          >
-            No results found.
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      Keywords
-    </label>
-    <div
-      className="field"
-    >
-      <div
-        className="ui input"
-      >
-        <input
-          onChange={[Function]}
-          placeholder="Enter keyword"
-          type="text"
-          value=""
-        />
-      </div>
-    </div>
-    <button
-      className="ui button"
-      onClick={[Function]}
-      role="button"
-      type="button"
-    >
-      New keyword
-    </button>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      Notes
-    </label>
-    <div
-      className="field"
-    >
-      <textarea
-        onChange={[Function]}
-        onInput={[Function]}
-        placeholder="Notes..."
-        rows={3}
-        style={
-          Object {
-            "resize": "",
-          }
-        }
-        value=""
-      />
-    </div>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      Data Management Plan
-    </label>
-    <div
-      className="field"
-    >
-      <textarea
-        onChange={[Function]}
-        onInput={[Function]}
-        placeholder="Data Management Plan..."
-        rows={3}
-        style={
-          Object {
-            "resize": "",
-          }
-        }
-        value=""
-      />
-    </div>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      Contributors
-    </label>
-    <div
-      className="equal width fields"
-    >
-      <div
-        className="field"
-      >
-        <label>
-          Name
-        </label>
-        <div
-          className="ui fluid input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="Name..."
-            type="text"
-            value=""
-          />
-        </div>
-      </div>
-      <div
-        className="field"
-      >
-        <label>
-          Affiliation
-        </label>
-        <div
-          className="ui fluid input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="Affiliation..."
-            type="text"
-            value=""
-          />
-        </div>
-      </div>
-      <div
-        className="field"
-      >
-        <label>
-          ORCID
-        </label>
-        <div
-          className="ui fluid input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="ORCID..."
-            type="text"
-            value=""
-          />
-        </div>
-      </div>
-      <div
-        className="field"
-      >
-        <label>
-          GND
-        </label>
-        <div
-          className="ui fluid input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="GND..."
-            type="text"
-            value=""
-          />
-        </div>
-      </div>
-    </div>
-    <button
-      className="ui button"
-      onClick={[Function]}
-      role="button"
-      type="button"
-    >
-      Add collaborator
-    </button>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      References
-    </label>
-    <div
-      className="field"
-    >
-      <div
-        className="ui input"
-      >
-        <input
-          onChange={[Function]}
-          placeholder="Enter reference"
-          type="text"
-          value=""
-        />
-      </div>
-    </div>
-    <button
-      className="ui button"
-      onClick={[Function]}
-      role="button"
-      type="button"
-    >
-      Add reference
-    </button>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      Grants
-    </label>
-    <div
-      className="field"
-    >
-      <div
-        className="ui input"
-      >
-        <input
-          onChange={[Function]}
-          placeholder="Enter grant"
-          type="text"
-          value=""
-        />
-      </div>
-    </div>
-    <button
-      className="ui button"
-      onClick={[Function]}
-      role="button"
-      type="button"
-    >
-      Add grant
-    </button>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      Subjects
-    </label>
-    <div
-      className="equal width fields"
-    >
-      <div
-        className="field"
-      >
-        <label>
-          Term
-        </label>
-        <div
-          className="ui fluid input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="Term..."
-            type="text"
-            value=""
-          />
-        </div>
-      </div>
-      <div
-        className="field"
-      >
-        <label>
-          Identifier
-        </label>
-        <div
-          className="ui fluid input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="Identifier..."
-            type="text"
-            value=""
-          />
-        </div>
-      </div>
-    </div>
-    <button
-      className="ui button"
-      onClick={[Function]}
-      role="button"
-      type="button"
-    >
-      Add subject
-    </button>
-  </div>
-  <div
-    className="field"
-  >
-    <label>
-      Related identifiers
-    </label>
-    <div
-      className="equal width fields"
-    >
-      <div
-        className="field"
-      >
-        <label>
-          Identifier
-        </label>
-        <div
-          className="ui fluid input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="Identifier..."
-            type="text"
-            value=""
-          />
-        </div>
-      </div>
-      <div
-        className="field"
-      >
-        <label>
-          Type
-        </label>
-        <div
-          aria-expanded={false}
-          className="ui search selection dropdown"
-          onBlur={[Function]}
-          onChange={[Function]}
-          onClick={[Function]}
-          onFocus={[Function]}
-          onMouseDown={[Function]}
-          role="combobox"
-        >
-          <input
-            aria-autocomplete="list"
-            autoComplete="off"
-            className="search"
-            onChange={[Function]}
-            style={
-              Object {
-                "width": undefined,
-              }
-            }
-            tabIndex={0}
-            type="string"
-            value=""
-          />
-          <div
-            aria-live="polite"
-            className="default text"
-            role="alert"
-          >
-            Select type
-          </div>
-          <i
-            aria-hidden="true"
-            className="dropdown icon"
-            onClick={[Function]}
-          />
-          <div
-            className="menu transition"
-            role="listbox"
-          >
-            <div
-              aria-checked={false}
-              aria-selected={true}
-              className="selected item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Cited by
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Cites
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Supplement to
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Supplemented by
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                New version of
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Previous version of
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Part of
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Has part
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Compiles
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Is compiled by
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Identical to
-              </span>
-            </div>
-            <div
-              aria-checked={false}
-              aria-selected={false}
-              className="item"
-              onClick={[Function]}
-              role="option"
-              style={
-                Object {
-                  "pointerEvents": "all",
-                }
-              }
-            >
-              <span
-                className="text"
-              >
-                Alternative identifier
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <button
-      className="ui button"
-      onClick={[Function]}
-      role="button"
-      type="button"
-    >
-      Add identifier
-    </button>
-  </div>
-  <button
-    className="ui positive right floated button"
-    onClick={[Function]}
-    role="button"
-    type="button"
-  >
-    <i
-      aria-hidden="true"
-      className="checkmark icon"
+      className="c0 c3"
     />
-    Submit
-  </button>
-  <div
-    className="clear"
-  />
-</form>
+    <form
+      onSubmit={[Function]}
+    >
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <label
+          className="c5"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+        >
+          <span
+            className="c6"
+            cursor="inherit"
+          >
+            Title
+          </span>
+          <span
+            className="c7"
+            color="red"
+            cursor="inherit"
+          >
+             *
+          </span>
+          <input
+            className="c8"
+            id="default"
+            onChange={[Function]}
+            placeholder="Title"
+            required={true}
+            type="text"
+            value=""
+          />
+        </label>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <label
+          className="c5"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+        >
+          <span
+            className="c6"
+            cursor="inherit"
+          >
+            Description
+          </span>
+          <span
+            className="c7"
+            color="red"
+            cursor="inherit"
+          >
+             *
+          </span>
+          <textarea
+            className="c9"
+            onChange={[Function]}
+            placeholder="Description"
+            required={true}
+            rows={6}
+            value=""
+            width={1}
+          />
+        </label>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <label>
+          <div
+            className="c6"
+            cursor="inherit"
+          >
+            License
+          </div>
+          <div
+            className="c0 c10"
+            cursor="auto"
+          >
+            No license selected
+          </div>
+          <div
+            className="c11"
+            data-tag="dropdown"
+          >
+            <span
+              className="c12"
+              cursor="pointer"
+              onClick={[Function]}
+            >
+              <div
+                className="c0 c13"
+                cursor="auto"
+              >
+                <div
+                  className="c14"
+                  cursor="inherit"
+                  width={1}
+                >
+                  <input
+                    aria-label={null}
+                    autoComplete="off"
+                    className="c15"
+                    id="d"
+                    onChange={[Function]}
+                    placeholder="Search for a license..."
+                    style={
+                      Object {
+                        "paddingBottom": "9.5px",
+                        "paddingTop": "9.5px",
+                        "transition": "padding-top 0.1s, padding-bottom 0.1s",
+                      }
+                    }
+                    type="text"
+                    value=""
+                    width={1}
+                  />
+                  <div
+                    className="c0 c16"
+                    cursor="auto"
+                  >
+                    <svg
+                      className="c17"
+                      clipRule="evenodd"
+                      cursor="inherit"
+                      fill="currentcolor"
+                      fillRule="evenodd"
+                      height={14}
+                      mb="9px"
+                      viewBox="0 0 24 12"
+                      width={14}
+                    >
+                      <path
+                        d="M0 0l11.959 12 12-12H0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </span>
+            <div
+              className="c18"
+              color="black"
+              cursor="pointer"
+              disabled={false}
+              onClick={[Function]}
+              overflow="visible"
+              width="100%"
+            >
+              <div
+                className="c0 c19"
+                cursor="auto"
+                onClick={[Function]}
+              >
+                BSD Zero Clause License
+              </div>
+              <div
+                className="c0 c19"
+                cursor="auto"
+                onClick={[Function]}
+              >
+                Attribution Assurance License
+              </div>
+              <div
+                className="c0 c19"
+                cursor="auto"
+                onClick={[Function]}
+              >
+                Abstyles License
+              </div>
+              <div
+                className="c0 c19"
+                cursor="auto"
+                onClick={[Function]}
+              >
+                Adobe Systems Incorporated Source Code License Agreement
+              </div>
+              <div
+                className="c0 c19"
+                cursor="auto"
+                onClick={[Function]}
+              >
+                Adobe Glyph List License
+              </div>
+              <div
+                className="c0 c19"
+                cursor="auto"
+                onClick={[Function]}
+              >
+                Amazon Digital Services License
+              </div>
+              <div
+                className="c0 c19"
+                cursor="auto"
+                onClick={[Function]}
+              >
+                Academic Free License v1.1
+              </div>
+              <div
+                className="c0 c19"
+                cursor="auto"
+                onClick={[Function]}
+              >
+                Academic Free License v1.2
+              </div>
+            </div>
+          </div>
+        </label>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <div
+          className="c0 c10"
+          cursor="auto"
+        >
+          <label>
+            <span
+              className="c6"
+              cursor="inherit"
+            >
+              Keywords
+            </span>
+            <input
+              className="c20"
+              id="default"
+              onChange={[Function]}
+              placeholder="Enter keyword"
+              value=""
+            />
+          </label>
+        </div>
+        <button
+          className="c21 c22"
+          color="blue"
+          onClick={[Function]}
+          type="button"
+        >
+          New keyword
+        </button>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <label>
+          Notes
+          <textarea
+            className="c9"
+            onChange={[Function]}
+            placeholder="Notes..."
+            value=""
+            width={1}
+          />
+        </label>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <label>
+          Data Management Plan
+          <textarea
+            className="c9"
+            onChange={[Function]}
+            placeholder="Data Management Plan..."
+            value=""
+            width={1}
+          />
+        </label>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <div
+          className="c0 c10"
+          cursor="auto"
+        >
+          <label>
+            <span
+              className="c6"
+              cursor="inherit"
+            >
+              Contributors
+            </span>
+            <div
+              className="c23"
+              cursor="inherit"
+            >
+              <div
+                className="c0 c24"
+                cursor="auto"
+                width={0.25}
+              >
+                <label>
+                  <span
+                    className="c6"
+                    cursor="inherit"
+                  >
+                    Name
+                  </span>
+                  <input
+                    className="c8"
+                    id="default"
+                    onChange={[Function]}
+                    placeholder="Name..."
+                    value=""
+                  />
+                </label>
+              </div>
+              <div
+                className="c0 c24"
+                cursor="auto"
+                width={0.25}
+              >
+                <label>
+                  <span
+                    className="c6"
+                    cursor="inherit"
+                  >
+                    Affiliation
+                  </span>
+                  <input
+                    className="c8"
+                    id="default"
+                    onChange={[Function]}
+                    placeholder="Affiliation..."
+                    value=""
+                  />
+                </label>
+              </div>
+              <div
+                className="c0 c24"
+                cursor="auto"
+                width={0.25}
+              >
+                <label>
+                  <span
+                    className="c6"
+                    cursor="inherit"
+                  >
+                    ORCID
+                  </span>
+                  <input
+                    className="c8"
+                    id="default"
+                    onChange={[Function]}
+                    placeholder="ORCID..."
+                    value=""
+                  />
+                </label>
+              </div>
+              <div
+                className="c0 c24"
+                cursor="auto"
+                width={0.25}
+              >
+                <label>
+                  <span
+                    className="c6"
+                    cursor="inherit"
+                  >
+                    GND
+                  </span>
+                  <input
+                    className="c8"
+                    id="default"
+                    onChange={[Function]}
+                    placeholder="GND..."
+                    value=""
+                  />
+                </label>
+              </div>
+            </div>
+          </label>
+        </div>
+        <button
+          className="c21 c25"
+          color="blue"
+          onClick={[Function]}
+          type="button"
+        >
+          Add collaborator
+        </button>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <div
+          className="c0 c10"
+          cursor="auto"
+        >
+          <label>
+            <span
+              className="c6"
+              cursor="inherit"
+            >
+              References
+            </span>
+            <input
+              className="c20"
+              id="default"
+              onChange={[Function]}
+              placeholder="Enter reference"
+              value=""
+            />
+          </label>
+        </div>
+        <button
+          className="c21 c22"
+          color="blue"
+          onClick={[Function]}
+          type="button"
+        >
+          Add reference
+        </button>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <div
+          className="c0 c10"
+          cursor="auto"
+        >
+          <label>
+            <span
+              className="c6"
+              cursor="inherit"
+            >
+              Grants
+            </span>
+            <input
+              className="c20"
+              id="default"
+              onChange={[Function]}
+              placeholder="Enter grant"
+              value=""
+            />
+          </label>
+        </div>
+        <button
+          className="c21 c22"
+          color="blue"
+          onClick={[Function]}
+          type="button"
+        >
+          Add grant
+        </button>
+      </div>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <label>
+          <span
+            className="c6"
+            cursor="inherit"
+          >
+            Subjects
+          </span>
+          <div
+            className="c23"
+            cursor="inherit"
+          >
+            <div
+              className="c0 c26"
+              cursor="auto"
+              width={0.5}
+            >
+              <label>
+                <span
+                  className="c6"
+                  cursor="inherit"
+                >
+                  Term
+                </span>
+                <input
+                  className="c8"
+                  id="default"
+                  onChange={[Function]}
+                  placeholder="Term..."
+                  value=""
+                />
+              </label>
+            </div>
+            <div
+              className="c0 c27"
+              cursor="auto"
+              width={0.5}
+            >
+              <label>
+                <span
+                  className="c6"
+                  cursor="inherit"
+                >
+                  Identifier
+                </span>
+                <input
+                  className="c8"
+                  id="default"
+                  onChange={[Function]}
+                  placeholder="Identifier..."
+                  value=""
+                />
+              </label>
+            </div>
+          </div>
+        </label>
+      </div>
+      <button
+        className="c21 c28"
+        color="blue"
+        onClick={[Function]}
+        type="button"
+      >
+        Add subject
+      </button>
+      <div
+        className="c0 c4"
+        cursor="auto"
+      >
+        <label>
+          <span
+            className="c6"
+            cursor="inherit"
+          >
+            Related identifiers
+          </span>
+          <div
+            className="c23"
+            cursor="inherit"
+          >
+            <div
+              className="c0 c26"
+              cursor="auto"
+              width={0.5}
+            >
+              <label>
+                <span
+                  className="c6"
+                  cursor="inherit"
+                >
+                  Identifier
+                </span>
+                <input
+                  className="c8"
+                  id="default"
+                  onChange={[Function]}
+                  placeholder="Identifier..."
+                  value=""
+                />
+              </label>
+            </div>
+            <div
+              className="c0 c27"
+              cursor="auto"
+              width={0.5}
+            >
+              <label>
+                <span
+                  className="c6"
+                  cursor="inherit"
+                >
+                  Type
+                </span>
+                <div
+                  className="c11"
+                  data-tag="dropdown"
+                >
+                  <span
+                    className="c12"
+                    cursor="pointer"
+                    onClick={[Function]}
+                  >
+                    <div
+                      className="c0 c13"
+                      cursor="auto"
+                    >
+                      <div
+                        className="c14"
+                        cursor="inherit"
+                        width={1}
+                      >
+                        <input
+                          aria-label={null}
+                          autoComplete="off"
+                          className="c15"
+                          id="d"
+                          onChange={[Function]}
+                          placeholder="Select type"
+                          style={
+                            Object {
+                              "paddingBottom": "9.5px",
+                              "paddingTop": "9.5px",
+                              "transition": "padding-top 0.1s, padding-bottom 0.1s",
+                            }
+                          }
+                          type="text"
+                          value=""
+                          width={1}
+                        />
+                        <div
+                          className="c0 c16"
+                          cursor="auto"
+                        >
+                          <svg
+                            className="c17"
+                            clipRule="evenodd"
+                            cursor="inherit"
+                            fill="currentcolor"
+                            fillRule="evenodd"
+                            height={14}
+                            mb="9px"
+                            viewBox="0 0 24 12"
+                            width={14}
+                          >
+                            <path
+                              d="M0 0l11.959 12 12-12H0z"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </span>
+                  <div
+                    className="c18"
+                    color="black"
+                    cursor="pointer"
+                    disabled={false}
+                    onClick={[Function]}
+                    overflow="visible"
+                    width="100%"
+                  >
+                    <div
+                      className="c0 c19"
+                      cursor="auto"
+                      onClick={[Function]}
+                    >
+                      Cited by
+                    </div>
+                    <div
+                      className="c0 c19"
+                      cursor="auto"
+                      onClick={[Function]}
+                    >
+                      Cites
+                    </div>
+                    <div
+                      className="c0 c19"
+                      cursor="auto"
+                      onClick={[Function]}
+                    >
+                      Supplement to
+                    </div>
+                    <div
+                      className="c0 c19"
+                      cursor="auto"
+                      onClick={[Function]}
+                    >
+                      Supplemented by
+                    </div>
+                    <div
+                      className="c0 c19"
+                      cursor="auto"
+                      onClick={[Function]}
+                    >
+                      New version of
+                    </div>
+                    <div
+                      className="c0 c19"
+                      cursor="auto"
+                      onClick={[Function]}
+                    >
+                      Previous version of
+                    </div>
+                    <div
+                      className="c0 c19"
+                      cursor="auto"
+                      onClick={[Function]}
+                    >
+                      Part of
+                    </div>
+                    <div
+                      className="c0 c19"
+                      cursor="auto"
+                      onClick={[Function]}
+                    >
+                      Has part
+                    </div>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </label>
+      </div>
+      <button
+        className="c21 c22"
+        color="blue"
+        onClick={[Function]}
+        type="button"
+      >
+        Add identifier
+      </button>
+      <div
+        className="c23"
+        cursor="inherit"
+      >
+        <div
+          className="c0 c29"
+          cursor="auto"
+        />
+        <div
+          className="c0 c30"
+          cursor="auto"
+        >
+          <button
+            className="c21 c31"
+            color="green"
+            onClick={[Function]}
+            type="button"
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
 `;

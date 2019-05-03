@@ -1,199 +1,922 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Analyses component Mount component 1`] = `
-Array [
+.c0 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-top: 48px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+}
+
+.c3 {
+  cursor: auto;
+  margin-left: auto;
+}
+
+.c10 {
+  cursor: auto;
+  padding-top: 48px;
+  padding-right: 14px;
+}
+
+.c2 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c5 {
+  cursor: pointer;
+}
+
+.c6 {
+  cursor: inherit;
+}
+
+.c9 {
+  cursor: pointer;
+  margin-left: -17px;
+  margin-right: -17px;
+  padding-left: 17px;
+}
+
+.c7 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c4 {
+  position: relative;
+  display: inline-block;
+}
+
+.c4:hover > div {
+  display: block;
+}
+
+.c8 {
+  overflow: visible;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  box-shadow: 0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16);
+  position: absolute;
+  background-color: #fff;
+  color: #000;
+  width: 80px;
+  min-width: 80pxpx;
+  padding: 12px 16px;
+  z-index: 47;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  left: 85px;
+}
+
+.c8 > *:hover:not(.c22) {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.c8 svg {
+  margin-right: 1em;
+}
+
+.c8 > svg ~ span {
+  margin-right: 1em;
+}
+
+.c1 {
+  cursor: auto;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 204px;
+  padding-right: 14px;
+  width: 100%;
+  height: 48px;
+  background-color: #fff;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  position: fixed;
+  z-index: 50;
+}
+
+.c12 {
+  position: relative;
+  margin: 20px auto;
+  width: 24px;
+  height: 24px;
+}
+
+.c13 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
+.c14 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.3s;
+  animation-delay: 0.3s;
+}
+
+.c15 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.4s;
+  animation-delay: 0.4s;
+}
+
+.c16 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.1s;
+  animation-delay: 0.1s;
+}
+
+.c17 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
+.c18 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.3s;
+  animation-delay: 0.3s;
+}
+
+.c19 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0s;
+  animation-delay: 0s;
+}
+
+.c20 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.1s;
+  animation-delay: 0.1s;
+}
+
+.c21 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c11 {
+    display: none;
+  }
+}
+
+<div
+  className="c0"
+  cursor="auto"
+>
   <div
-    className="sc-ifAKCX dzFYJo"
+    className="c1"
+    cursor="auto"
+    height={48}
+    width={1}
   >
     <div
-      className="sc-bdVaJa KmLFy"
-    />
-    <div
-      className="sc-hSdWYo hKqwIs"
+      className="c2"
+      cursor="inherit"
     >
       <div
-        className="sc-gipzik iadCeV"
+        className="c3"
+        cursor="auto"
+      />
+      <div
+        className="c4"
+        data-tag="dropdown"
       >
         <span
-          className="sc-EHOje gynpeM"
+          className="c5"
           cursor="pointer"
           onClick={[Function]}
         >
-          <div
-            className="sc-ifAKCX hEFUra"
+          <span
+            className="c6"
+            cursor="inherit"
           >
-            <div
-              className="sc-bdVaJa kCeIih"
-            >
-               
-              Items per page 25
-            </div>
-            <div
-              className="sc-bdVaJa kCeIih"
-            >
-              <svg
-                className="sc-gzVnrw dXwGzW"
-                cursor="auto"
-                fill="currentcolor"
-                height={24}
-                viewBox="0 0 24 24"
-                width={24}
-              >
-                <path
-                  d="M7.4 8l4.6 4.6L16.6 8 18 9.4l-6 6-6-6L7.4 8z"
-                />
-              </svg>
-            </div>
-          </div>
+             
+            Jobs per page 25
+          </span>
+          <svg
+            className="c7"
+            clipRule="evenodd"
+            cursor="inherit"
+            fill="currentcolor"
+            fillRule="evenodd"
+            height=".7em"
+            ml=".7em"
+            viewBox="0 0 24 12"
+            width=".7em"
+          >
+            <path
+              d="M0 0l11.959 12 12-12H0z"
+            />
+          </svg>
         </span>
+        <div
+          className="c8"
+          color="black"
+          cursor="pointer"
+          disabled={false}
+          onClick={[Function]}
+          overflow="visible"
+          width="80px"
+        >
+          <div
+            className="c9"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            10
+          </div>
+          <div
+            className="c9"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            25
+          </div>
+          <div
+            className="c9"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            50
+          </div>
+          <div
+            className="c9"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            100
+          </div>
+        </div>
       </div>
-      <i
-        className="fas fa-sync fa-spin"
-        onClick={[Function]}
-      />
     </div>
-  </div>,
+  </div>
   <div
-    className="sc-ifAKCX hEFUra"
+    className="c10"
+    cursor="auto"
   >
     <div
-      className="sc-bdVaJa jhLdJF"
-      width="50%"
+      className="c11"
     />
-    <i
-      className="fas fa-circle-notch fa-spin"
-    />
-  </div>,
-  <div />,
-]
+    <div
+      className="c12"
+      height={24}
+      width={24}
+    >
+      <div
+        className="c13"
+      />
+      <div
+        className="c14"
+      />
+      <div
+        className="c15"
+      />
+      <div
+        className="c16"
+      />
+      <div
+        className="c17"
+      />
+      <div
+        className="c18"
+      />
+      <div
+        className="c19"
+      />
+      <div
+        className="c20"
+      />
+      <div
+        className="c21"
+      />
+    </div>
+  </div>
+</div>
 `;
 
 exports[`Analyses component Mount component with non-empty page 1`] = `
-Array [
-  <i
-    aria-hidden="true"
-    className="sync small circular link loading icon pagination-float-right"
-    onClick={[Function]}
-  />,
-  <span
-    className="items-per-page-padding pagination-float-right"
+.c0 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-top: 48px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+}
+
+.c3 {
+  cursor: auto;
+  margin-left: auto;
+}
+
+.c10 {
+  cursor: auto;
+  padding-top: 48px;
+  padding-right: 14px;
+}
+
+.c13 {
+  cursor: auto;
+  width: 70%;
+  max-width: 1024px;
+}
+
+.c2 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c12 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+}
+
+.c5 {
+  cursor: pointer;
+}
+
+.c6 {
+  cursor: inherit;
+}
+
+.c9 {
+  cursor: pointer;
+  margin-left: -17px;
+  margin-right: -17px;
+  padding-left: 17px;
+}
+
+.c7 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c21 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-right: 8px;
+  color: #c00;
+}
+
+.c22 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-right: 8px;
+  color: #00C05A;
+}
+
+.c4 {
+  position: relative;
+  display: inline-block;
+}
+
+.c4:hover > div {
+  display: block;
+}
+
+.c8 {
+  overflow: visible;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  box-shadow: 0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16);
+  position: absolute;
+  background-color: #fff;
+  color: #000;
+  width: 80px;
+  min-width: 80pxpx;
+  padding: 12px 16px;
+  z-index: 47;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  left: 85px;
+}
+
+.c8 > *:hover:not(.c23) {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.c8 svg {
+  margin-right: 1em;
+}
+
+.c8 > svg ~ span {
+  margin-right: 1em;
+}
+
+.c1 {
+  cursor: auto;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 204px;
+  padding-right: 14px;
+  width: 100%;
+  height: 48px;
+  background-color: #fff;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  position: fixed;
+  z-index: 50;
+}
+
+.c14 {
+  border: 0px;
+  border-spacing: 0;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 15em;
+}
+
+.c20 {
+  border: 0px;
+  border-spacing: 0;
+}
+
+.c16 {
+  cursor: auto;
+}
+
+.c16 > .c19 {
+  border-spacing: 0;
+  border-top: 1px solid rgba(34,36,38,.1);
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.c18 {
+  cursor: pointer;
+}
+
+.c18 > .c19 {
+  border-spacing: 0;
+  border-top: 1px solid rgba(34,36,38,.1);
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.c15 {
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.c17 {
+  border-spacing: 0;
+  border: 0px;
+  text-align: left;
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c11 {
+    display: none;
+  }
+}
+
+<div
+  className="c0"
+  cursor="auto"
+>
+  <div
+    className="c1"
+    cursor="auto"
+    height={48}
+    width={1}
   >
-    <span>
-      Items per page 
-    </span>
     <div
-      aria-expanded={false}
-      className="ui compact inline dropdown"
-      onBlur={[Function]}
-      onChange={[Function]}
-      onClick={[Function]}
-      onFocus={[Function]}
-      onMouseDown={[Function]}
-      role="listbox"
-      tabIndex={0}
+      className="c2"
+      cursor="inherit"
     >
       <div
-        aria-live="polite"
-        className="text"
-        role="alert"
-      >
-        25
-      </div>
-      <i
-        aria-hidden="true"
-        className="dropdown icon"
-        onClick={[Function]}
+        className="c3"
+        cursor="auto"
       />
       <div
-        className="menu transition"
+        className="c4"
+        data-tag="dropdown"
       >
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
+        <span
+          className="c5"
+          cursor="pointer"
           onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
         >
           <span
-            className="text"
+            className="c6"
+            cursor="inherit"
+          >
+             
+            Jobs per page 25
+          </span>
+          <svg
+            className="c7"
+            clipRule="evenodd"
+            cursor="inherit"
+            fill="currentcolor"
+            fillRule="evenodd"
+            height=".7em"
+            ml=".7em"
+            viewBox="0 0 24 12"
+            width=".7em"
+          >
+            <path
+              d="M0 0l11.959 12 12-12H0z"
+            />
+          </svg>
+        </span>
+        <div
+          className="c8"
+          color="black"
+          cursor="pointer"
+          disabled={false}
+          onClick={[Function]}
+          overflow="visible"
+          width="80px"
+        >
+          <div
+            className="c9"
+            cursor="pointer"
+            onClick={[Function]}
           >
             10
-          </span>
-        </div>
-        <div
-          aria-checked={true}
-          aria-selected={true}
-          className="active selected item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
+          </div>
+          <div
+            className="c9"
+            cursor="pointer"
+            onClick={[Function]}
           >
             25
-          </span>
-        </div>
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
+          </div>
+          <div
+            className="c9"
+            cursor="pointer"
+            onClick={[Function]}
           >
             50
-          </span>
-        </div>
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
+          </div>
+          <div
+            className="c9"
+            cursor="pointer"
+            onClick={[Function]}
           >
             100
-          </span>
+          </div>
         </div>
       </div>
     </div>
-  </span>,
+  </div>
   <div
-    className="ui centered middle aligned one column grid"
+    className="c10"
+    cursor="auto"
   >
     <div
-      className="pagination-loader"
+      className="c11"
+    />
+    <div
+      className="c12"
+      cursor="inherit"
     >
-      <i
-        aria-hidden="true"
-        className="circle notched loading icon pagination-list-loading"
-      />
+      <div
+        className="c13"
+        cursor="auto"
+        width={0.7}
+      >
+        <table
+          className="c14"
+          width="100%"
+        >
+          <thead
+            className="c15"
+          >
+            <tr
+              className="c16"
+              cursor="auto"
+            >
+              <th
+                className="c17"
+              >
+                State
+              </th>
+              <th
+                className="c17"
+              >
+                Application
+              </th>
+              <th
+                className="c17"
+              >
+                Started at
+              </th>
+              <th
+                className="c17"
+              >
+                Last update
+              </th>
+            </tr>
+          </thead>
+          <tbody
+            className=""
+          >
+            <tr
+              className="c18"
+              cursor="pointer"
+              onClick={[Function]}
+            >
+              <td
+                className="c19 c20"
+              >
+                <svg
+                  className="c21"
+                  clipRule="evenodd"
+                  cursor="inherit"
+                  fill="currentcolor"
+                  fillRule="evenodd"
+                  height={24}
+                  mr="8px"
+                  state="FAILURE"
+                  viewBox="0 0 25 24"
+                  width={24}
+                >
+                  <path
+                    d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                    fillRule="nonzero"
+                  />
+                </svg>
+                 
+                Failure
+              </td>
+              <td
+                className="c19 c20"
+              >
+                
+                 v
+                
+              </td>
+              <td
+                className="c19 c20"
+              >
+                28/08/2018
+              </td>
+              <td
+                className="c19 c20"
+              >
+                30/08/2018
+              </td>
+            </tr>
+            <tr
+              className="c18"
+              cursor="pointer"
+              onClick={[Function]}
+            >
+              <td
+                className="c19 c20"
+              >
+                <svg
+                  className="c21"
+                  clipRule="evenodd"
+                  cursor="inherit"
+                  fill="currentcolor"
+                  fillRule="evenodd"
+                  height={24}
+                  mr="8px"
+                  state="FAILURE"
+                  viewBox="0 0 25 24"
+                  width={24}
+                >
+                  <path
+                    d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                    fillRule="nonzero"
+                  />
+                </svg>
+                 
+                Failure
+              </td>
+              <td
+                className="c19 c20"
+              >
+                
+                 v
+                
+              </td>
+              <td
+                className="c19 c20"
+              >
+                29/08/2018
+              </td>
+              <td
+                className="c19 c20"
+              >
+                30/08/2018
+              </td>
+            </tr>
+            <tr
+              className="c18"
+              cursor="pointer"
+              onClick={[Function]}
+            >
+              <td
+                className="c19 c20"
+              >
+                <svg
+                  className="c21"
+                  clipRule="evenodd"
+                  cursor="inherit"
+                  fill="currentcolor"
+                  fillRule="evenodd"
+                  height={24}
+                  mr="8px"
+                  state="FAILURE"
+                  viewBox="0 0 25 24"
+                  width={24}
+                >
+                  <path
+                    d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                    fillRule="nonzero"
+                  />
+                </svg>
+                 
+                Failure
+              </td>
+              <td
+                className="c19 c20"
+              >
+                
+                 v
+                
+              </td>
+              <td
+                className="c19 c20"
+              >
+                30/08/2018
+              </td>
+              <td
+                className="c19 c20"
+              >
+                30/08/2018
+              </td>
+            </tr>
+            <tr
+              className="c18"
+              cursor="pointer"
+              onClick={[Function]}
+            >
+              <td
+                className="c19 c20"
+              >
+                <svg
+                  className="c22"
+                  clipRule="evenodd"
+                  cursor="inherit"
+                  fill="currentcolor"
+                  fillRule="evenodd"
+                  height={24}
+                  mr="8px"
+                  state="SUCCESS"
+                  viewBox="0 0 25 19"
+                  width={24}
+                >
+                  <path
+                    d="M8 15L2 8.981l-2 2.02L8 19 24.001 2l-2.002-2L8 15z"
+                    fillRule="nonzero"
+                  />
+                </svg>
+                 
+                Success
+              </td>
+              <td
+                className="c19 c20"
+              >
+                
+                 v
+                
+              </td>
+              <td
+                className="c19 c20"
+              >
+                03/09/2018
+              </td>
+              <td
+                className="c19 c20"
+              >
+                03/09/2018
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>,
-  <div />,
-]
+  </div>
+</div>
 `;

@@ -368,4 +368,4 @@ const mapStateToProps = ({ responsive }: ReduxObject): FilesTableStateProps => (
     responsive: responsive!
 })
 
-export default connect<FilesTableStateProps, {}>(mapStateToProps)(FilesTable);
+export default connect<FilesTableStateProps>(mapStateToProps)(FilesTable);

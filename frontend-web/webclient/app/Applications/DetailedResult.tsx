@@ -408,4 +408,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     addSnack: snack => dispatch(addSnack(snack))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(DetailedResult);
+export default connect<DetailedResultReduxObject, DetailedResultOperations>(mapStateToProps, mapDispatchToProps)(DetailedResult);

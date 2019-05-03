@@ -1,13 +1,13 @@
 import * as React from "react";
-import DetailedResult from "Applications/DetailedResult";
+import DetailedResult from "../../app/Applications/DetailedResult";
 import { createMemoryHistory } from "history";
 import { create } from "react-test-renderer";
-import { configureStore } from "Utilities/ReduxUtilities";
-import { initAnalyses, initDetailedResult } from "DefaultObjects";
-import analyses from "Applications/Redux/AnalysesReducer";
+import { configureStore } from "../../app/Utilities/ReduxUtilities";
+import { initAnalyses, initDetailedResult } from "../../app/DefaultObjects";
+import analyses from "../../app/Applications/Redux/AnalysesReducer";
 import { Provider } from "react-redux";
 import { shallow } from "enzyme";
-import detailedResult from "Applications/Redux/DetailedResultReducer";
+import detailedResult from "../../app/Applications/Redux/DetailedResultReducer";
 import "jest-styled-components";
 // configure({ adapter: new Adapter() });
 

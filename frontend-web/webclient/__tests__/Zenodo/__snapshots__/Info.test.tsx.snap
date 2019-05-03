@@ -1,36 +1,189 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Zenodo Info Mount component 1`] = `
+.c0 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-top: 48px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+}
+
+.c1 {
+  cursor: auto;
+  padding-top: 14px;
+  padding-right: 14px;
+}
+
+.c3 {
+  position: relative;
+  margin: 20px auto;
+  width: 18px;
+  height: 18px;
+}
+
+.c4 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
+.c5 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.3s;
+  animation-delay: 0.3s;
+}
+
+.c6 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.4s;
+  animation-delay: 0.4s;
+}
+
+.c7 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.1s;
+  animation-delay: 0.1s;
+}
+
+.c8 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
+.c9 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.3s;
+  animation-delay: 0.3s;
+}
+
+.c10 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0s;
+  animation-delay: 0s;
+}
+
+.c11 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.1s;
+  animation-delay: 0.1s;
+}
+
+.c12 {
+  width: 33.3333%;
+  height: 33.3333%;
+  background-color: #0055d5;
+  float: left;
+  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
+  animation: kXNajp 1.3s infinite ease-in-out;
+  -webkit-animation-delay: 0.2s;
+  animation-delay: 0.2s;
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c2 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c2 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c2 {
+    display: none;
+  }
+}
+
 <div
-  className="sc-bdVaJa tfARS"
+  className="c0"
+  cursor="auto"
 >
-  <svg
-    className="sc-gzVnrw kudwwP"
-    cursor="inherit"
-    fill="currentcolor"
-    height={24}
-    id="outer_ellipsis_svg__Layer_1"
-    spin={true}
-    viewBox="0 0 24 24"
-    width={24}
-    x={0}
-    xmlSpace="preserve"
-    y={0}
+  <div
+    className="c1"
+    cursor="auto"
   >
-    <style />
-    <ellipse
-      cx={5}
-      cy={12}
-      rx={3}
-      ry={3}
+    <div
+      className="c2"
     />
-    <ellipse
-      cx={19}
-      cy={12}
-      rx={3}
-      ry={3}
-    />
-  </svg>
-   
+    <div
+      className="c3"
+      height={18}
+      width={18}
+    >
+      <div
+        className="c4"
+      />
+      <div
+        className="c5"
+      />
+      <div
+        className="c6"
+      />
+      <div
+        className="c7"
+      />
+      <div
+        className="c8"
+      />
+      <div
+        className="c9"
+      />
+      <div
+        className="c10"
+      />
+      <div
+        className="c11"
+      />
+      <div
+        className="c12"
+      />
+    </div>
+  </div>
 </div>
 `;

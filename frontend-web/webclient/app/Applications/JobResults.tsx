@@ -29,6 +29,7 @@ interface FetchJobsOptions {
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
         super(props);
+        console.error(this.props);
         moment.locale("en-gb");
         props.setActivePage();
         props.updatePageTitle();
