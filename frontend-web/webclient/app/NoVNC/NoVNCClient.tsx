@@ -25,7 +25,7 @@ function NoVNCClient(props: AddSnackOperation) {
                 credentials: { password }
             });
 
-            /* FIXME: Doesn't seem to work properly */
+            /* FIXME: Doesn't seem to work properly, e.g. if connection fails */
             rfb.addEventListener("disconnect", () => setConnected(false));
             /* FIXME END */
             setRFB(rfb);
