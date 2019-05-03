@@ -77,8 +77,6 @@ volumes: [
                 resultList[i+1] = currentResult2
                 resultList[i+2] = currentResult3
                 resultList[i+3] = currentResult4
-                println("STATUS OF RUNS: ${currentResult1}, ${currentResult2}, ${currentResult3}, ${currentResult4}")
-                println(resultList)
                 i = i+jumpsize
                 if (i >= size-jumpsize) {
                     break
@@ -89,67 +87,31 @@ volumes: [
                 stage("building and testing ${serviceList[i]}"){
                     String currentResult = runBuild(needToBuild[i])
                     resultList[i] = currentResult
-                    println ("THIS IS A RESULT: ${currentResult}")
-                    println(resultList)
                 }
             }
 
             if (resultList.contains("FAILURE") || resultList.contains("UNSTABLE")) {
-                String message = "Following services are UNSTABLE:\n"
+                String message = "TEST:Following services are marked UNSTABLE due to failing tests:\n"
                 for (int k = 0; k < resultList.size(); k++) {
                     if (resultList[k] == "UNSTABLE") {
                         message = message + "${serviceList[k]}\n"
                     }
                 }
-                message = message + "\n Following services have FAILED during builds:\n"
+                message = message + "\nFollowing services have FAILED during builds:\n"
                 for (int k = 0; k < resultList.size(); k++) {
                     if (resultList[k] == "FAILED") {
                         message = message + "${serviceList[k]}\n"
                     }
                 }
-                println("Sending Alert: \n $message")
+                sendAlert(message)
+                error('Job failed - message have been sent. JobInfo: $resultList \n Message: $message')
             }
-        /*
-            String currentResult
-            Boolean allSucceed = true
-            for (String item : needToBuild) {
-                def loaded = load(item)
-                withCredentials([usernamePassword(
-                    credentialsId: "archiva",
-                    usernameVariable: "ESCIENCE_MVN_USER",
-                    passwordVariable: "ESCIENCE_MVN_PASSWORD"
-                )]) {
-                    currentResult = loaded.initialize()
-
-                    println("current result = " + currentResult)
-                    currentResult = currentResult ?: 'SUCCESS'
-                    println("current result after ?: = " + currentResult)
-
-                    if (currentResult == 'UNSTABLE') {
-                        echo "Build is unstable"
-                        allSucceed = false
-                        sendAlert("Build Unstable")
-                        error('Aborting due to caught error - marked as unstable')
-
-                    }
-
-                    if (currentResult == 'FAILURE') {
-                        println("FAIL")
-                        allSucceed = false
-                        sendAlert("Build FAILED")
-                        error('Aborting due to caught error - marked as failure')
-                    }
-                }
-            }
-    */
-    //        if (allSucceed) {
-    //            junit '**/build/test-results/**/*.xml'      
-    //            jacoco(
-    //                execPattern: '**/**.exec',
-    //                exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
-    //                sourcePattern: '**/src/main/kotlin/**'
-    //            )
-    //        }
+            junit '**/build/test-results/**/*.xml'      
+            jacoco(
+                execPattern: '**/**.exec',
+                exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
+                sourcePattern: '**/src/main/kotlin/**'
+            )
         }
     }
 }
