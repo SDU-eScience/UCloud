@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.kubernetes
 
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
 import dk.sdu.cloud.app.kubernetes.services.PodService
+import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
@@ -29,65 +30,21 @@ class Server(override val micro: Micro) : CommonServer {
     override fun start() {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val podService = PodService(DefaultKubernetesClient(), serviceClient)
+        val vncService = VncService(podService)
 
         podService.initializeListeners()
 
 
         with(micro.server) {
             configureControllers(
-                AppKubernetesController(podService)
+                AppKubernetesController(podService, vncService)
             )
         }
 
-        /*
         val ktorEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
-
-        val client = HttpClient(CIO).config {
-            install(io.ktor.client.features.websocket.WebSockets, configure = {
-
-            })
-        }
-
-        ktorEngine.application.install(WebSockets)
         ktorEngine.application.routing {
-            webSocket {
-                val clientConn = this
-                client.ws(method = HttpMethod.Get, host = "localhost", port = 5900, path = "/", request = {
-                    // We must use the same protocol and extensions for the proxying to work.
-                    val protocol = clientConn.call.request.header("Sec-WebSocket-Protocol")
-                    if (protocol != null) {
-                        header("Sec-WebSocket-Protocol", protocol)
-                    }
-
-                    val extensions = clientConn.call.request.header("Sec-WebSocket-Extensions")
-                    if (extensions != null) {
-                        header("Sec-WebSocket-Extensions", extensions)
-                    }
-
-                    // Must add an origin for the remote server to trust us
-                    header("Origin", "http://localhost:8000")
-                }) {
-                    val serverConn = this
-                    val clientToServer = launch {
-                        while (true) {
-                            val frame = clientConn.incoming.receive()
-                            serverConn.outgoing.send(frame)
-                        }
-                    }
-
-                    val serverToClient = launch {
-                        while (true) {
-                            val frame = serverConn.incoming.receive()
-                            clientConn.outgoing.send(frame)
-                        }
-                    }
-
-                    clientToServer.join()
-                    serverToClient.join()
-                }
-            }
+            vncService.install(this)
         }
-        */
 
         startServices()
     }

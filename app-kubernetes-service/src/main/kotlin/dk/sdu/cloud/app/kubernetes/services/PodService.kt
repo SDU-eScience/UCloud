@@ -399,23 +399,13 @@ class PodService(
         }
     }
 
-    private val tunnelCache = HashMap<Pair<String, Int>, Tunnel>()
     fun createTunnel(jobId: String, remotePort: Int): Tunnel {
-        val key = Pair(jobId, remotePort)
-        val k8sTunnel = synchronized(tunnelCache) {
-            val cached = tunnelCache[key]
-            if (cached != null) return cached
-
+        val k8sTunnel = run {
             val pod = findPod(podName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).portForward(remotePort)
         }
 
-        return Tunnel(jobId, k8sTunnel.localPort, _close = {
-            synchronized(tunnelCache) {
-                tunnelCache.remove(key)
-                k8sTunnel.close()
-            }
-        })
+        return Tunnel(jobId, k8sTunnel.localPort, _close = { k8sTunnel.close() })
     }
 
     companion object : Loggable {

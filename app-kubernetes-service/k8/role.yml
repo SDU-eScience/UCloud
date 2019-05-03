@@ -6,7 +6,7 @@ metadata:
   namespace: default
 rules:
 - apiGroups: [""] # "" indicates the core API group
-  resources: ["pods", "pods/log"]
+  resources: ["pods", "pods/log", "pods/portforward"]
   verbs: ["*"]
 - apiGroups: ["batch", "extensions"]
   resources: ["jobs"]

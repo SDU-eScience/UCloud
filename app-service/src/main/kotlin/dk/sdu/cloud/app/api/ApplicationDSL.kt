@@ -31,12 +31,15 @@ sealed class ApplicationDescription(val application: String) {
         val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
         outputFileGlobs: List<String> = emptyList(),
 
-        val tags: List<String> = emptyList()
+        val tags: List<String> = emptyList(),
 
+        applicationType: String? = null,
+        val vnc: VncDescription? = null
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
 
         val outputFileGlobs: List<String>
+        val applicationType: ApplicationType
 
         init {
             ::title.requireNotBlank()
@@ -81,6 +84,8 @@ sealed class ApplicationDescription(val application: String) {
 
                 result
             }
+
+            this.applicationType = applicationType?.let { ApplicationType.valueOf(it) } ?: ApplicationType.BATCH
 
             parameters.forEach { name, parameter -> parameter.name = name }
 
@@ -214,7 +219,9 @@ sealed class ApplicationDescription(val application: String) {
                 ToolReference(tool.name, tool.version, null),
                 invocation,
                 parameters.values.toList(),
-                outputFileGlobs
+                outputFileGlobs,
+                applicationType,
+                vnc = vnc
             )
 
             return Application(metadata, invocation)
