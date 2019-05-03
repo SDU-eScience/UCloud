@@ -10,12 +10,12 @@ def initialize() {
         }
     } catch (e) {
         echo "Build Failed"
-        return currentBuild.result ?: 'FAILURE'
+        return 'FAILURE'
     } finally {
         step([$class: 'CoberturaPublisher', coberturaReportFile: 'frontend-web/webclient/coverage/cobertura-coverage.xml'])
     }
 
-    return currentBuild.result ?: 'SUCCESS'
+    return 'SUCCESS'
 
 }
 

@@ -1,20 +1,27 @@
 def initialize() {
 
   try {
-    stage('build metadata-service') {
-      sh '''cd metadata-service
+    stage('build filesearch-service') {
+      sh '''cd filesearch-service
       ./gradlew clean
       ./gradlew build -x test'''
     }
   } catch (e) {
     echo "Build Failed"
-    return currentBuild.result ?: 'FAILURE'
+    return 'FAILURE'
   } finally {
-    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'metadata-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'metadata-service-detekt-Report', reportTitles: ''])
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'filesearch-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'filesearch-service-detekt-Report', reportTitles: ''])
   }
-
-  return currentBuild.result ?: 'SUCCESS'
-  
+  try {
+    stage('test filesearch-service') {
+      sh '''cd filesearch-service
+      ./gradlew test'''
+    } 
+  } catch (e) {
+    echo "Test FAILED"
+    return 'UNSTABLE'
+  }
+  return 'SUCCESS'  
 }
 
 return this

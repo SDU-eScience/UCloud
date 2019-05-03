@@ -17,6 +17,7 @@ Master:
     - "method jenkins.scm.api.SCMRevisionAction getRevision"
     - "method org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper getRawBuild"
     - "method org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper getRawBuild"
+    - "staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods multiply java.util.List java.lang.Number"
   InstallPlugins:
     - "blueocean-bitbucket-pipeline:1.8.4"
     - "jdk-tool:1.1"

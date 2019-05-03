@@ -50,16 +50,14 @@ volumes: [
             String currentResult2
             String currentResult3
             String currentResult4
-            String currentResult5
-            Boolean allSucceed = true
             int size = needToBuild.size()
-            int jumpsize = 5
+            int jumpsize = 4
             int i = 0
 
             def resultList = [""] * size
 
             while (true) {
-                stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}, ${serviceList[i+4]}") {
+                stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
                     parallel (
                         (serviceList[i]): {
                             currentResult1 = runBuild(needToBuild[i])
@@ -72,9 +70,6 @@ volumes: [
                         },
                         (serviceList[i+3]): {
                             currentResult4 = runBuild(needToBuild[i+3])
-                        },
-                        (serviceList[i+4]): {
-                            currentResult5 = runBuild(needToBuild[i+4])
                         }
                     )
                 }
@@ -82,8 +77,7 @@ volumes: [
                 resultList[i+1] = currentResult2
                 resultList[i+2] = currentResult3
                 resultList[i+3] = currentResult4
-                resultList[i+4] = currentResult5
-                println("STATUS OF RUNS: ${currentResult1}, ${currentResult2}, ${currentResult3}, ${currentResult4}, ${currentResult5}")
+                println("STATUS OF RUNS: ${currentResult1}, ${currentResult2}, ${currentResult3}, ${currentResult4}")
                 println(resultList)
                 i = i+jumpsize
                 if (i >= size-jumpsize) {
@@ -98,6 +92,22 @@ volumes: [
                     println ("THIS IS A RESULT: ${currentResult}")
                     println(resultList)
                 }
+            }
+
+            if (resultList.contains("FAILURE") || resultList.contains("UNSTABLE")) {
+                String message = "Following services are UNSTABLE:\n"
+                for (int k = 0; k < resultList.size(); k++) {
+                    if (resultList[k] == "UNSTABLE") {
+                        message = message + "${serviceList[k]}\n"
+                    }
+                }
+                message = message + "\n Following services have FAILED during builds:\n"
+                for (int k = 0; k < resultList.size(); k++) {
+                    if (resultList[k] == "FAILED") {
+                        message = message + "${serviceList[k]}\n"
+                    }
+                }
+                println("Sending Alert: \n $message")
             }
         /*
             String currentResult
