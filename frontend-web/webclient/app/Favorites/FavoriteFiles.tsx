@@ -22,7 +22,7 @@ type FavoriteFilesProps = FavoritesOperations & ReduxType & { header: any, histo
 
 class FavoriteFiles extends React.Component<FavoriteFilesProps> {
     
-    componentWillMount() {
+    componentDidMount() {
         const { page } = this.props;
         this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage);
         this.props.setRefresh(() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage));
@@ -43,6 +43,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
             setLoading: () => this.props.setLoading(true),
             addSnack: snack => this.props.addSnack(snack)
         });
+        
         const { page, fetchFileFavorites } = this.props;
         const { pageNumber, itemsPerPage } = page;
         const selectedFiles = page.items.filter(it => it.isChecked);
