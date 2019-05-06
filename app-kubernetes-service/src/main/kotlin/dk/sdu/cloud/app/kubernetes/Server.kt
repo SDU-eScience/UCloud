@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.ktor.application.install
 import io.ktor.routing.routing
 
 class Server(override val micro: Micro) : CommonServer {
@@ -46,6 +47,7 @@ class Server(override val micro: Micro) : CommonServer {
         }
 
         val ktorEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
+        ktorEngine.application.install(io.ktor.websocket.WebSockets)
         ktorEngine.application.routing {
             vncService.install(this)
             webService.install(this)

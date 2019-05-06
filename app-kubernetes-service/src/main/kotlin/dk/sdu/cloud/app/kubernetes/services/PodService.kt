@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.api.ContainerDescription
 import dk.sdu.cloud.app.api.JobCompletedRequest
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.SimpleDuration
@@ -19,6 +20,7 @@ import io.fabric8.kubernetes.api.model.DoneablePod
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
+import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodSpecBuilder
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
 import io.fabric8.kubernetes.api.model.Volume
@@ -254,6 +256,8 @@ class PodService(
                 )
             }
             .spec {
+                val containerConfig = verifiedJob.application.invocation.container ?: ContainerDescription()
+
                 val deadline = verifiedJob.maxTime.toSeconds()
                 withActiveDeadlineSeconds(deadline)
                 withBackoffLimit(1)
@@ -296,7 +300,23 @@ class PodService(
                                     withRestartPolicy("Never")
                                     withCommand(command)
 
-                                    withWorkingDir(workingDirectory)
+                                    if (containerConfig.changeWorkingDirectory) {
+                                        withWorkingDir(workingDirectory)
+                                    }
+
+                                    if (containerConfig.runAsRoot) {
+                                        withSecurityContext(
+                                            PodSecurityContext(
+                                                0,
+                                                0,
+                                                false,
+                                                0,
+                                                null,
+                                                emptyList(),
+                                                emptyList()
+                                            )
+                                        )
+                                    }
 
                                     withVolumeMounts(
                                         VolumeMount(

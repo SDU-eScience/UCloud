@@ -35,7 +35,8 @@ sealed class ApplicationDescription(val application: String) {
 
         applicationType: String? = null,
         val vnc: VncDescription? = null,
-        val web: WebDescription? = null
+        val web: WebDescription? = null,
+        val container: ContainerDescription? = null
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
 
@@ -223,7 +224,8 @@ sealed class ApplicationDescription(val application: String) {
                 outputFileGlobs,
                 applicationType,
                 vnc = vnc,
-                web = web
+                web = web,
+                container = container
             )
 
             return Application(metadata, invocation)

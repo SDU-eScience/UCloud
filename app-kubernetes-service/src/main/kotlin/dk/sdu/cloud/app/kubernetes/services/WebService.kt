@@ -21,6 +21,7 @@ import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.request.header
 import io.ktor.request.httpMethod
+import io.ktor.request.path
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.Route
@@ -28,11 +29,8 @@ import io.ktor.routing.host
 import io.ktor.routing.route
 import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
+import io.ktor.websocket.webSocket
 import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.collections.set
@@ -57,6 +55,20 @@ class WebService(
     fun install(routing: Route): Unit = with(routing) {
         route("{path...}") {
             host(Regex("${prefix.escapeToRegex()}.*\\.${domain.escapeToRegex()}")) {
+                webSocket {
+                    val path = call.request.path()
+                    log.info("Handling websocket at $path")
+                    val host = call.request.header(HttpHeaders.Host) ?: ""
+                    val id = host.substringAfter(prefix).substringBefore(".")
+                    if (!host.startsWith(prefix)) {
+                        call.respondText(status = HttpStatusCode.NotFound) { "Not found" }
+                        return@webSocket
+                    }
+
+                    val tunnel = createTunnel(id)
+                    runWSProxy(tunnel, path = path)
+                }
+
                 handle {
                     val host = call.request.header(HttpHeaders.Host) ?: ""
                     val id = host.substringAfter(prefix).substringBefore(".")
@@ -65,23 +77,8 @@ class WebService(
                         return@handle
                     }
 
-                    var tunnel: Tunnel? = null
-                    Thread {
-                        runBlocking {
-                            tunnel = createTunnel(id)
-                        }
-                    }.start()
-
-                    GlobalScope.launch {
-                        while (true) {
-                            val capturedTunnel = tunnel
-                            if (capturedTunnel != null) {
-                                proxyResponseToClient(proxyToServer(capturedTunnel))
-                                break
-                            }
-                            delay(100)
-                        }
-                    }.join()
+                    val tunnel = createTunnel(id)
+                    proxyResponseToClient(proxyToServer(tunnel))
                 }
             }
         }

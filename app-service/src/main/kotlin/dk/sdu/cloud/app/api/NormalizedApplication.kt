@@ -21,6 +21,11 @@ data class WebDescription(
     val port: Int = 80
 )
 
+data class ContainerDescription(
+    val changeWorkingDirectory: Boolean = true,
+    val runAsRoot: Boolean = false
+)
+
 data class ApplicationInvocationDescription(
     val tool: ToolReference,
     val invocation: List<InvocationParameter>,
@@ -29,7 +34,8 @@ data class ApplicationInvocationDescription(
     val applicationType: ApplicationType = ApplicationType.BATCH,
     val resources: ResourceRequirements = ResourceRequirements(),
     val vnc: VncDescription? = null,
-    val web: WebDescription? = null
+    val web: WebDescription? = null,
+    val container: ContainerDescription? = null
 )
 
 interface WithAppMetadata {
