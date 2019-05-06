@@ -1,33 +1,40 @@
-import * as DetailedResultActions from "./DetailedResultReducer";
+import * as DRActionsType from "./DetailedResultReducer";
 import { filepathQuery } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Page } from "Types";
+import { Page, PayloadAction, Error, SetLoadingAction } from "Types";
 import { File } from "Files";
 
-export const fetchPage = (folder: string, pageNumber: number, itemsPerPage: number): Promise<any> =>
-    Cloud.get(filepathQuery(folder, pageNumber, itemsPerPage)).then(({ response }) => 
-        receivePage(response)
-    ).catch(() =>
-        detailedResultError("An error occurred fetching files")
-    );
+export type DetailedResultActions = ReceivePage | SetError | SetLoading
 
-export const receivePage = (page: Page<File>) => ({
-    type: DetailedResultActions.SET_DETAILED_RESULT_FILES_PAGE,
+export const fetchPage = async (folder: string, pageNumber: number, itemsPerPage: number): Promise<ReceivePage | SetError> => {
+    try {
+        const { response } = await Cloud.get(filepathQuery(folder, pageNumber, itemsPerPage))
+            return receivePage(response)
+    } catch (e) {
+        return detailedResultError("An error occurred fetching files")
+    }
+}
+
+type ReceivePage = PayloadAction<typeof DRActionsType.SET_DETAILED_RESULT_FILES_PAGE, { page: Page<File>, loading: false }>;
+export const receivePage = (page: Page<File>): ReceivePage => ({
+    type: DRActionsType.SET_DETAILED_RESULT_FILES_PAGE,
     payload: {
         page,
         loading: false
     }
 });
 
-export const detailedResultError = (error?: string) => ({
-    type: DetailedResultActions.SET_DETAILED_RESULT_ERROR,
+type SetError = Error<typeof DRActionsType.SET_DETAILED_RESULT_ERROR>
+export const detailedResultError = (error?: string): SetError => ({
+    type: DRActionsType.SET_DETAILED_RESULT_ERROR,
     payload: {
         error
     }
 });
 
-export const setLoading = (loading: boolean) => ({
-    type: DetailedResultActions.SET_DETAILED_RESULT_LOADING,
+type SetLoading = SetLoadingAction<typeof DRActionsType.SET_DETAILED_RESULT_LOADING>
+export const setLoading = (loading: boolean): SetLoading => ({
+    type: DRActionsType.SET_DETAILED_RESULT_LOADING,
     payload: {
         loading
     }

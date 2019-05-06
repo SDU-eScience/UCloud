@@ -8,11 +8,11 @@ import { List as PaginationList } from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { ReduxObject, DetailedResultReduxObject, emptyPage } from "DefaultObjects";
-import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations, AppState } from ".";
+import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations, AppState, WithAppInvocation } from ".";
 import { File, SortBy, SortOrder } from "Files";
 import { allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
-import { hpcJobQuery } from "Utilities/ApplicationUtilities";
+import { hpcJobQuery, hpcApplicationsQuery } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
@@ -59,7 +59,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             fsPath: Cloud.homeFolder,
             fsError: undefined,
             fsDisallowedPaths: [],
-            fsCallback: () => undefined
+            fsCallback: () => undefined,
+            isVnc: undefined
         };
         this.props.setPageTitle(shortUUID(this.jobId));
     }
@@ -68,14 +69,25 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         return this.props.match.params.jobId;
     }
 
-    componentDidMount() {
-        let reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
-        const { state } = this;
-        this.fetchSelectorFiles(state.fsPath, state.fsPage.pageNumber, state.fsPage.itemsInTotal);
-        this.setState(() => ({ reloadIntervalId: reloadIntervalId }));
+    public async componentDidUpdate() {
+        if (this.state.isVnc === undefined && this.state.app) {
+            const { name, version } = this.state.app;
+
+            const { response } = await this.state.promises.makeCancelable(
+                Cloud.get<WithAppInvocation>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
+            ).promise;
+            this.setState(() => ({ isVnc: response.invocation.applicationType === "VNC" }));
+        }
     }
 
-    componentWillUnmount() {
+    public componentDidMount() {
+        const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
+        const { state } = this;
+        this.fetchSelectorFiles(state.fsPath, state.fsPage.pageNumber, state.fsPage.itemsInTotal);
+        this.setState(() => ({ reloadIntervalId }));
+    }
+
+    public componentWillUnmount() {
         if (this.state.reloadIntervalId) window.clearTimeout(this.state.reloadIntervalId);
         this.state.promises.cancelPromises();
         this.props.receivePage(emptyPage);
@@ -97,7 +109,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         addSnack: snack => this.props.addSnack(snack)
     });
 
-    scrollIfNeeded() {
+    private scrollIfNeeded() {
         if (!this.stdoutEl || !this.stderrEl) return;
 
         if (this.stdoutEl.scrollTop === this.state.stdoutOldTop || this.state.stderrOldTop === -1) {
@@ -117,44 +129,50 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         }));
     }
 
-    private retrieveStdStreams() {
+    private async retrieveStdStreams() {
         if (this.state.complete) {
             this.retrieveStateWhenCompleted();
             return;
-        }
+        } else if (this.state.isVnc && this.state.appState === AppState.RUNNING) {
+            console.log("Setting loading to false");
+            this.props.setLoading(false);
+            this.props.history.push(`/novnc?jobId=${this.jobId}`);
+            return;
+        };
         this.props.setLoading(true);
-        this.state.promises.makeCancelable(
-            Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
-        ).promise.then(
-            ({ response }) => {
-                this.setState(() => ({
-                    stdout: this.state.stdout.concat(response.stdout),
-                    stderr: this.state.stderr.concat(response.stderr),
-                    stdoutLine: response.stdoutNextLine,
-                    stderrLine: response.stderrNextLine,
+        try {
+            const { response } = await this.state.promises.makeCancelable(
+                Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
+            ).promise;
 
-                    app: response.metadata,
-                    status: response.status,
-                    appState: response.state,
-                    complete: response.complete,
-                    outputFolder: response.outputFolder
-                }));
+            this.setState(() => ({
+                stdout: this.state.stdout.concat(response.stdout),
+                stderr: this.state.stderr.concat(response.stderr),
+                stdoutLine: response.stdoutNextLine,
+                stderrLine: response.stderrNextLine,
 
-                this.scrollIfNeeded();
-                if (response.complete) this.retrieveStateWhenCompleted();
-                else {
-                    let reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
-                    this.setState(() => ({ reloadIntervalId: reloadIntervalId }));
-                }
-            },
+                app: response.metadata,
+                status: response.status,
+                appState: response.state,
+                complete: response.complete,
+                outputFolder: response.outputFolder
+            }));
 
-            failure => {
-                if (!failure.isCanceled)
-                    this.props.addSnack({ 
-                        message: "An error occurred retrieving Information and Output from the job.",
-                        type: SnackType.Failure
-                    });
-            }).finally(() => this.props.setLoading(false));
+            this.scrollIfNeeded();
+            if (response.complete) this.retrieveStateWhenCompleted();
+            else {
+                const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
+                this.setState(() => ({ reloadIntervalId }));
+            }
+        } catch (e) {
+            if (!e.isCanceled)
+                this.props.addSnack({
+                    message: "An error occurred retrieving Information and Output from the job.",
+                    type: SnackType.Failure
+                });
+        } finally { 
+            this.props.setLoading(false); 
+        }
     }
 
     private retrieveStateWhenCompleted() {
@@ -172,11 +190,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
         this.setState(() => ({ fsLoading: true }))
         try {
-            const result = await this.state.promises.makeCancelable(Cloud.get(favoritesQuery(pageNumber, itemsPerPage))).promise;
+            const { response } = await this.state.promises.makeCancelable(Cloud.get(favoritesQuery(pageNumber, itemsPerPage))).promise;
             this.setState(() => ({
                 fsIsFavorite: true,
                 fsPath: "Favorites",
-                fsPage: result.response
+                fsPage: response
             }));
         } catch (e) {
             this.setState(() => ({ fsError: errorMessageOrDefault(e, "An error occurred fetching favorites") }));
@@ -187,7 +205,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     private readonly favoriteFile = async (file: File) => this.props.receivePage(await favoriteFileFromPage(this.props.page, [file], Cloud));
 
-    renderProgressPanel = () => (
+    private renderProgressPanel = () => (
         <Panel>
             <StepGroup>
                 <StepTrackerItem
@@ -209,7 +227,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         </Panel>
     );
 
-    renderInfoPanel() {
+    private renderInfoPanel() {
         const { app } = this.state;
         if (app === undefined) return null;
 
@@ -243,7 +261,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         );
     }
 
-    renderStreamPanel() {
+    private renderStreamPanel() {
         if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
         return (
             <Panel width="100%">
@@ -271,7 +289,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         );
     }
 
-    renderFilePanel() {
+    private renderFilePanel() {
         const { page } = this.props;
         if (!page.items.length) return null;
         const { state } = this;
@@ -315,13 +333,14 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             </Panel>
         );
     }
-    fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
+
+    private fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
         this.state.promises.makeCancelable(Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(r => {
             this.setState(() => ({ fsPage: r.response, fsPath: resolvePath(path), fsIsFavorite: false }))
         }).catch(it => this.setState(() => ({ fsError: errorMessageOrDefault(it, "An error occurred fetching files") })));
     }
 
-    render = () => (
+    public render = () => (
         <MainContainer
             main={
                 <ContainerForText>

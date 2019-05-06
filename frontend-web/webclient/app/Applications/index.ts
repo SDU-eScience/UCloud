@@ -134,6 +134,7 @@ export interface DetailedResultState {
     fsCallback: Function
     fsIsFavorite: boolean
     outputFolder?: string
+    isVnc?: boolean
 }
 
 export type StdElement = { scrollTop: number, scrollHeight: number } | null
@@ -305,7 +306,7 @@ export interface ApplicationInvocationDescription {
     invocation: Invocation[]
     parameters: ApplicationParameter[]
     outputFileGlobs: string[]
-    applicationType: "BATCH"
+    applicationType: "BATCH" | "VNC" | "WEB"
     resources: Resources
 }
 
