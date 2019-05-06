@@ -17,6 +17,10 @@ data class VncDescription(
     val port: Int = 5900
 )
 
+data class WebDescription(
+    val port: Int = 80
+)
+
 data class ApplicationInvocationDescription(
     val tool: ToolReference,
     val invocation: List<InvocationParameter>,
@@ -24,7 +28,8 @@ data class ApplicationInvocationDescription(
     val outputFileGlobs: List<String>,
     val applicationType: ApplicationType = ApplicationType.BATCH,
     val resources: ResourceRequirements = ResourceRequirements(),
-    val vnc: VncDescription? = null
+    val vnc: VncDescription? = null,
+    val web: WebDescription? = null
 )
 
 interface WithAppMetadata {

@@ -34,7 +34,8 @@ sealed class ApplicationDescription(val application: String) {
         val tags: List<String> = emptyList(),
 
         applicationType: String? = null,
-        val vnc: VncDescription? = null
+        val vnc: VncDescription? = null,
+        val web: WebDescription? = null
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
 
@@ -221,7 +222,8 @@ sealed class ApplicationDescription(val application: String) {
                 parameters.values.toList(),
                 outputFileGlobs,
                 applicationType,
-                vnc = vnc
+                vnc = vnc,
+                web = web
             )
 
             return Application(metadata, invocation)
@@ -250,7 +252,8 @@ sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpS
 
 enum class ApplicationType {
     BATCH,
-    VNC
+    VNC,
+    WEB
 }
 
 data class ResourceRequirements(

@@ -10,6 +10,7 @@ import dk.sdu.cloud.app.services.JobDao
 import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.app.services.StreamFollowService
 import dk.sdu.cloud.app.services.VncService
+import dk.sdu.cloud.app.services.WebService
 import dk.sdu.cloud.app.services.exportForEndUser
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
@@ -42,7 +43,8 @@ class JobController<DBSession>(
     private val streamFollowService: StreamFollowService<DBSession>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
     private val serviceClient: AuthenticatedClient,
-    private val vncService: VncService<DBSession>
+    private val vncService: VncService<DBSession>,
+    private val webService: WebService<DBSession>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
@@ -85,7 +87,6 @@ class JobController<DBSession>(
 
             log.debug("Validating response")
             val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
-            log.debug("This should not be done in production, but: ${extensionResponse.result.accessToken}")
 
             log.debug("Creating client")
             val userClient =
@@ -104,6 +105,10 @@ class JobController<DBSession>(
 
         implement(JobDescriptions.queryVncParameters) {
             ok(vncService.queryVncParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
+        }
+
+        implement(JobDescriptions.queryWebParameters) {
+            ok(webService.queryWebParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
     }
 
