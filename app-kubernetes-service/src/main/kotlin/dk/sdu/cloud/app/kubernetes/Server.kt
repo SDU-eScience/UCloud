@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes
 
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
+import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
 import dk.sdu.cloud.app.kubernetes.services.PodService
 import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
@@ -10,6 +11,7 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
@@ -32,9 +34,12 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
 
+        val authenticationService = AuthenticationService(serviceClient, micro.tokenValidation)
+
         val vncService = VncService(podService)
         val webService = WebService(
             podService,
+            authenticationService = authenticationService,
             domain = "127.0.0.1.xip.io"
         )
 

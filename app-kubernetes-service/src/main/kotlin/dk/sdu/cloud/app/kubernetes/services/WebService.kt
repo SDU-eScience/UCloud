@@ -12,6 +12,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
 import io.ktor.client.utils.EmptyContent
+import io.ktor.features.origin
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -22,11 +23,15 @@ import io.ktor.http.contentType
 import io.ktor.request.header
 import io.ktor.request.httpMethod
 import io.ktor.request.path
+import io.ktor.request.receiveParameters
 import io.ktor.response.respond
+import io.ktor.response.respondRedirect
 import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.host
+import io.ktor.routing.post
 import io.ktor.routing.route
+import io.ktor.util.date.GMTDate
 import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
 import io.ktor.websocket.webSocket
@@ -39,6 +44,7 @@ private data class TunnelWithUsageTracking(val tunnel: Tunnel, var lastUsed: Lon
 
 class WebService(
     private val podService: PodService,
+    private val authenticationService: AuthenticationService,
     private val prefix: String = "app-",
     private val domain: String = "cloud.sdu.dk"
 ) {
@@ -55,13 +61,21 @@ class WebService(
     fun install(routing: Route): Unit = with(routing) {
         route("{path...}") {
             host(Regex("${prefix.escapeToRegex()}.*\\.${domain.escapeToRegex()}")) {
+                post("/sducloud-auth") {
+                    authorizeWithApplication()
+                }
+
                 webSocket {
                     val path = call.request.path()
-                    log.info("Handling websocket at $path")
                     val host = call.request.header(HttpHeaders.Host) ?: ""
                     val id = host.substringAfter(prefix).substringBefore(".")
                     if (!host.startsWith(prefix)) {
                         call.respondText(status = HttpStatusCode.NotFound) { "Not found" }
+                        return@webSocket
+                    }
+
+                    log.info("Accepting websocket for job $id at ${call.request.path()}")
+                    if (!authorizeUser(call, id)) {
                         return@webSocket
                     }
 
@@ -77,13 +91,72 @@ class WebService(
                         return@handle
                     }
 
-                    val tunnel = createTunnel(id)
-                    proxyResponseToClient(proxyToServer(tunnel))
+                    val path = call.request.path()
+                    log.info("Accepting call for job $id at $path")
+                    if (path == "/sducloud-auth") {
+                        authorizeWithApplication()
+                    } else {
+                        if (!authorizeUser(call, id)) {
+                            return@handle
+                        }
+                        val tunnel = createTunnel(id)
+                        proxyResponseToClient(proxyToServer(tunnel))
+                    }
                 }
             }
         }
 
         return@with
+    }
+
+    private suspend fun PipelineContext<Unit, ApplicationCall>.authorizeWithApplication() {
+        val multipart = call.receiveParameters().toMap()
+        val token = multipart["token"]?.firstOrNull() ?: run {
+            call.respond(HttpStatusCode.BadRequest)
+            return
+        }
+
+        val validated = authenticationService.validate(token)
+        if (validated != null) {
+            call.response.cookies.append(
+                name = "refreshToken",
+                value = token,
+                secure = call.request.origin.scheme == "https",
+                httpOnly = true,
+                expires = GMTDate(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
+                path = "/",
+                extensions = mapOf(
+                    "SameSite" to "strict"
+                )
+            )
+            call.respondRedirect("/")
+        } else {
+            call.respondText("Unauthorized", status = HttpStatusCode.Unauthorized)
+        }
+    }
+
+    private suspend fun authorizeUser(call: ApplicationCall, jobId: String): Boolean {
+        val job = jobIdToJob[jobId] ?: run {
+            call.respondText(status = HttpStatusCode.BadRequest) { "Bad request (Invalid job)." }
+            return false
+        }
+
+        val token = call.request.cookies["refreshToken"] ?: run {
+            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            return false
+        }
+
+        val principal = authenticationService.validate(token) ?: run {
+            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            return false
+        }
+
+        if (job.owner != principal.principal.username) {
+            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            return false
+        }
+
+        return true
     }
 
     private suspend fun PipelineContext<Unit, ApplicationCall>.proxyToServer(tunnel: Tunnel): HttpClientCall {
