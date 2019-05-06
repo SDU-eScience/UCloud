@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.kubernetes
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
 import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
 import dk.sdu.cloud.app.kubernetes.services.PodService
+import dk.sdu.cloud.app.kubernetes.services.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
 import dk.sdu.cloud.auth.api.authenticator
@@ -21,6 +22,7 @@ import io.ktor.routing.routing
 
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
+    lateinit var tunnelManager: TunnelManager
 
     override fun start() {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
@@ -35,11 +37,13 @@ class Server(override val micro: Micro) : CommonServer {
         )
 
         val authenticationService = AuthenticationService(serviceClient, micro.tokenValidation)
+        tunnelManager = TunnelManager(podService)
+        tunnelManager.install()
 
-        val vncService = VncService(podService)
+        val vncService = VncService(tunnelManager)
         val webService = WebService(
-            podService,
             authenticationService = authenticationService,
+            tunnelManager = tunnelManager,
             domain = "127.0.0.1.xip.io"
         )
 
@@ -63,5 +67,6 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun stop() {
         super.stop()
+        tunnelManager.shutdown()
     }
 }

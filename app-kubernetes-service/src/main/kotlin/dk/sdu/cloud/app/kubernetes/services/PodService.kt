@@ -38,6 +38,7 @@ import io.fabric8.kubernetes.client.dsl.PodResource
 import io.fabric8.kubernetes.client.dsl.internal.PodOperationsImpl
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -420,9 +421,7 @@ class PodService(
         }
     }
 
-    fun createTunnel(jobId: String, remotePort: Int): Tunnel {
-        val port = Random.nextInt(30000, 64000) // TODO Ensure port is free.
-
+    fun createTunnel(jobId: String, localPort: Int, remotePort: Int): Tunnel {
         val k8sTunnel = run {
             val pod = findPod(podName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).portForward(remotePort)
@@ -435,16 +434,36 @@ class PodService(
                     "-n",
                     namespace,
                     pod.metadata.name,
-                    "$port:$remotePort"
+                    "$localPort:$remotePort"
                 )
                 log.info("Running command: $cmd")
                 command(cmd)
             }.start()
         }
 
+        // Consume first line (wait for process to be ready)
+        val bufferedReader = k8sTunnel.inputStream.bufferedReader()
+        bufferedReader.readLine()
 
-        log.info("Port forwarding $jobId to $port")
-        return Tunnel(jobId, port, { k8sTunnel.destroyForcibly() })
+        val job = GlobalScope.launch(Dispatchers.IO) {
+            // Read remaining lines to avoid buffer filling up
+            bufferedReader.lineSequence().forEach {
+                // Discard line
+            }
+        }
+
+        log.info("Port forwarding $jobId to $localPort")
+        return Tunnel(
+            jobId = jobId,
+            localPort = localPort,
+            _isAlive = {
+                k8sTunnel.isAlive
+            },
+            _close = {
+                k8sTunnel.destroyForcibly()
+                job.cancel()
+            }
+        )
     }
 
     companion object : Loggable {
@@ -455,8 +474,10 @@ class PodService(
 class Tunnel(
     val jobId: String,
     val localPort: Int,
+    private val _isAlive: () -> Boolean,
     private val _close: () -> Unit
 ) : Closeable {
+    fun isAlive() = _isAlive()
     override fun close() = _close()
 }
 

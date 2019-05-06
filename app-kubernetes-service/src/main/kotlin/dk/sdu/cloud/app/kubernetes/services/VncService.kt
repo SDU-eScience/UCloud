@@ -9,7 +9,7 @@ import io.ktor.routing.Route
 import io.ktor.websocket.webSocket
 
 class VncService(
-    private val podService: PodService
+    private val tunnelManager: TunnelManager
 ) {
     private val jobIdToJob = HashMap<String, VerifiedJob>()
 
@@ -25,8 +25,6 @@ class VncService(
         return@with
     }
 
-
-
     fun queryParameters(job: VerifiedJob): QueryInternalVncParametersResponse {
         jobIdToJob[job.id] = job
         return QueryInternalVncParametersResponse(
@@ -38,6 +36,7 @@ class VncService(
     private suspend fun createTunnel(incomingId: String): Tunnel {
         val jobId = incomingId // Slightly less secure, but should work for prototype
         val job = jobIdToJob[jobId] ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        return podService.createTunnel(jobId, job.application.invocation.vnc?.port ?: 5900)
+        val port = job.application.invocation.vnc?.port ?: 5900
+        return tunnelManager.createTunnel(jobId, port)
     }
 }

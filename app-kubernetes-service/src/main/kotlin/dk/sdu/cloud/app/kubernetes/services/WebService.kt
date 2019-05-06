@@ -36,15 +36,12 @@ import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
 import io.ktor.websocket.webSocket
 import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlin.collections.set
 
-private data class TunnelWithUsageTracking(val tunnel: Tunnel, var lastUsed: Long)
 
 class WebService(
-    private val podService: PodService,
     private val authenticationService: AuthenticationService,
+    private val tunnelManager: TunnelManager,
     private val prefix: String = "app-",
     private val domain: String = "cloud.sdu.dk"
 ) {
@@ -54,9 +51,6 @@ class WebService(
 
     // A bit primitive, should work for most cases.
     private fun String.escapeToRegex(): String = replace(".", "\\.")
-
-    private val openTunnels = HashMap<String, TunnelWithUsageTracking>()
-    private val openTunnelsMutex = Mutex()
 
     fun install(routing: Route): Unit = with(routing) {
         route("{path...}") {
@@ -275,21 +269,9 @@ class WebService(
     }
 
     private suspend fun createTunnel(incomingId: String): Tunnel {
-        openTunnelsMutex.withLock {
-            val jobId = incomingId // Slightly less secure, but should work for prototype
-            val existing = openTunnels[jobId]
-            if (existing != null) {
-                existing.lastUsed = System.currentTimeMillis()
-                return existing.tunnel
-            } else {
-                val job = jobIdToJob[jobId] ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                val remotePort = job.application.invocation.web?.port ?: 80
-                log.info("Creating tunnel to $jobId with remote port $remotePort")
-                val newTunnel = podService.createTunnel(jobId, remotePort)
-                openTunnels[jobId] = TunnelWithUsageTracking(newTunnel, System.currentTimeMillis())
-                return newTunnel
-            }
-        }
+        val job = jobIdToJob[incomingId] ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val remotePort = job.application.invocation.web?.port ?: 80
+        return tunnelManager.createTunnel(incomingId, remotePort)
     }
 
     companion object : Loggable {
