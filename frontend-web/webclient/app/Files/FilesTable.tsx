@@ -347,21 +347,21 @@ export const FileOptions = ({ files, fileOperations }: FileOptionsProps) => file
     </Box>
 ) : null;
 
-interface FileOperations extends SpaceProps { files: File[], fileOperations: FileOperation[], As: any }
-export const FileOperations = ({ files, fileOperations, As, ...props }/* :FileOperations */) => files.length && fileOperations.length ?
-    fileOperations.map((fileOp: FileOperation, i: number) => {
-        let operation = fileOp;
-        if ("predicate" in operation) {
-            operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
-        }
-        operation = operation as Operation;
-        return !operation.disabled(files, Cloud) ? (
-            <As cursor="pointer" key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
-                {operation.icon ? <Icon size={16} mr="1em" color={operation.color} name={operation.icon} /> : null}
-                <span>{operation.text}</span>
-            </As>
-        ) : null;
-    }) : null;
+interface FileOperations extends SpaceProps { files: File[], fileOperations: FileOperation[], As: typeof OutlineButton | typeof Box }
+export const FileOperations = ({ files, fileOperations, As, ...props }: FileOperations) => files.length && fileOperations.length ?
+    <>
+        {fileOperations.map((fileOp: FileOperation, i: number) => {
+            let operation = fileOp;
+            if ("predicate" in operation)
+                operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
+            return !operation.disabled(files, Cloud) ? (
+                <As cursor="pointer" key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
+                    {operation.icon ? <Icon size={16} mr="1em" color={operation.color} name={operation.icon} /> : null}
+                    <span>{operation.text}</span>
+                </As>
+            ) : null;
+        })}
+    </> : null;
 
 type FilesTableStateProps = { responsive: ResponsiveReduxObject }
 const mapStateToProps = ({ responsive }: ReduxObject): FilesTableStateProps => ({
