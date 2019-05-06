@@ -145,6 +145,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
             this.setState(() => ({ error: errorMessageOrDefault(err, "An error ocurred submitting the job."), jobSubmitted: false }))
+        } finally {
             this.props.setLoading(false);
         }
     };
