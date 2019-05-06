@@ -120,7 +120,7 @@
     "style-loader": "0.23.1",
     "terser-webpack-plugin": "^1.2.3",
     "ts-jest": "^24.0.2",
-    "ts-loader": "5.4.6",
+    "ts-loader": "5.4.5",
     "typescript": "3.4.5",
     "url-loader": "1.1.2",
     "webpack": "4.30.0",
