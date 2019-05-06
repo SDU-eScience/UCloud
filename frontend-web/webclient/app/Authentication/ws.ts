@@ -12,7 +12,7 @@ export interface WebSocketOpenSettings {
 }
 
 export class WebSocketFactory {
-    private cloud: Cloud
+    private readonly cloud: Cloud;
     constructor(cloud: Cloud) {
         this.cloud = cloud;
     }

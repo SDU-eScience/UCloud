@@ -31,10 +31,9 @@ export interface AnalysesStateProps {
 
 export interface AnalysesOperations {
     onErrorDismiss: () => void
-    updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchJobs: (itemsPerPage: number, pageNumber: number) => void
-    setActivePage: () => void
+    onInit: () => void
     setRefresh: (refresh?: () => void) => void
 }
 
