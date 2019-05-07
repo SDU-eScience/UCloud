@@ -29,7 +29,6 @@ import io.ktor.response.respondRedirect
 import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.host
-import io.ktor.routing.post
 import io.ktor.routing.route
 import io.ktor.util.date.GMTDate
 import io.ktor.util.pipeline.PipelineContext
@@ -37,7 +36,6 @@ import io.ktor.util.toMap
 import io.ktor.websocket.webSocket
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlin.collections.set
-
 
 class WebService(
     private val authenticationService: AuthenticationService,
@@ -55,10 +53,6 @@ class WebService(
     fun install(routing: Route): Unit = with(routing) {
         route("{path...}") {
             host(Regex("${prefix.escapeToRegex()}.*\\.${domain.escapeToRegex()}")) {
-                post("/sducloud-auth") {
-                    authorizeWithApplication()
-                }
-
                 webSocket {
                     val path = call.request.path()
                     val host = call.request.header(HttpHeaders.Host) ?: ""
