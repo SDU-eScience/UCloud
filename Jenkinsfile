@@ -2,7 +2,8 @@ def label = "worker-${UUID.randomUUID().toString()}"
 
 podTemplate(label: label, containers: [
 containerTemplate(name: 'docker', image: 'docker', command: 'cat', ttyEnabled: true),
-containerTemplate(name: 'node', image: 'node:11-alpine', command: 'cat', ttyEnabled: true)
+containerTemplate(name: 'node', image: 'node:11-alpine', command: 'cat', ttyEnabled: true),
+containerTemplate(name: 'centos', image: 'ubuntu', command: 'cat', ttyEnabled: true)
 ],
 volumes: [
   hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock')
@@ -55,7 +56,7 @@ volumes: [
             int i = 0
 
             def resultList = [""] * size
-
+            
             while (true) {
                 stage("building and testing ${serviceList[i]}, ${serviceList[i+1]}, ${serviceList[i+2]}, ${serviceList[i+3]}") {
                     parallel (

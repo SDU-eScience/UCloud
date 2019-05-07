@@ -1,12 +1,12 @@
 def initialize() {
 
-	try {
-	  stage('build storage-service') {
-	    sh '''cd storage-service
-	    ./gradlew clean
-	    ./gradlew build -x test'''
-	  }
-	} catch (e) {
+  try {
+    stage('build storage-service') {
+      sh '''cd storage-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
     echo "Build Failed"
     return 'FAILURE'
   } finally {
@@ -15,14 +15,25 @@ def initialize() {
 
   try {
     stage('test storage-service') {
-      sh '''cd storage-service
-      ./gradlew test'''
-    } 
+      container('centos'){
+        sh '''
+        apt-get update
+        apt-get -y install openjdk-8-jdk        
+        apt-get -y install gcc
+        apt-get -y install g++
+        apt-get -y install acl
+        JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
+        cd storage-service/native
+        g++ -std=gnu++0x -fPIC -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" -shared -o ../src/main/resources/libthreading.so threading.cpp
+        cd ..
+        ./gradlew test'''
+      } 
+    }
   } catch (e) {
     echo "Test FAILED"
     return 'UNSTABLE'
   }
   return 'SUCCESS'
-}	
+} 
 
 return this
