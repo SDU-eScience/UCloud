@@ -74,6 +74,7 @@ function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
 
     React.useEffect(() => {
         const jobId = getQueryParam(props, "jobId"); 
+        /* FIXME: Wrap in promise keeper */
         Cloud.get(`/hpc/jobs/query-vnc/${jobId}`).then(it => {
             setPassword(it.response.password);
             setPath(it.response.path);

@@ -12,11 +12,11 @@ import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOpe
 import { File, SortBy, SortOrder } from "Files";
 import { allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
-import { hpcJobQuery, hpcApplicationsQuery } from "Utilities/ApplicationUtilities";
+import { hpcJobQuery,  } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
-import { Flex, Box, List, Card, ContainerForText } from "ui-components";
+import { Flex, Box, List, Card, ContainerForText, ExternalLink, Button } from "ui-components";
 import { Step, StepGroup } from "ui-components/Step";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
@@ -60,7 +60,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             fsError: undefined,
             fsDisallowedPaths: [],
             fsCallback: () => undefined,
-            isVnc: undefined
+            appType: undefined,
+            webLink: undefined
         };
         this.props.setPageTitle(shortUUID(this.jobId));
     }
@@ -70,13 +71,13 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     public async componentDidUpdate() {
-        if (this.state.isVnc === undefined && this.state.app) {
+        if (!this.state.appType && this.state.app) {
             const { name, version } = this.state.app;
 
             const { response } = await this.state.promises.makeCancelable(
                 Cloud.get<WithAppInvocation>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
             ).promise;
-            this.setState(() => ({ isVnc: response.invocation.applicationType === "VNC" }));
+            this.setState(() => ({ appType: response.invocation.applicationType }));
         }
     }
 
@@ -133,14 +134,21 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         if (this.state.complete) {
             this.retrieveStateWhenCompleted();
             return;
-        } else if (this.state.isVnc && this.state.appState === AppState.RUNNING) {
-            console.log("Setting loading to false");
-            this.props.setLoading(false);
-            this.props.history.push(`/novnc?jobId=${this.jobId}`);
-            return;
-        };
-        this.props.setLoading(true);
+        } else if (this.state.appState === AppState.RUNNING) {
+            if (this.state.appType === "VNC") {
+                this.props.setLoading(false);
+                this.props.history.push(`/novnc?jobId=${this.jobId}`);
+                return;
+                
+            } else if (this.state.appType === "WEB" && !this.state.webLink) {
+                this.props.setLoading(false);
+                /* FIXME: Wrap in PromiseKeeper */
+                const { response } = await Cloud.get(`/hpc/jobs/query-web/${this.jobId}`);
+                this.setState(() => ({ webLink: response.path }));
+            }
+        }
         try {
+            this.props.setLoading(true);
             const { response } = await this.state.promises.makeCancelable(
                 Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
             ).promise;
@@ -170,8 +178,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     message: "An error occurred retrieving Information and Output from the job.",
                     type: SnackType.Failure
                 });
-        } finally { 
-            this.props.setLoading(false); 
+        } finally {
+            this.props.setLoading(false);
         }
     }
 
@@ -334,6 +342,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         );
     }
 
+    private renderWebLink() {
+        if (!this.state.webLink) return null;
+        return <ExternalLink href={this.state.webLink}><Button color="green">Go to web interface</Button></ExternalLink>
+    }
+
     private fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
         this.state.promises.makeCancelable(Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(r => {
             this.setState(() => ({ fsPage: r.response, fsPath: resolvePath(path), fsIsFavorite: false }))
@@ -347,6 +360,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     {this.renderProgressPanel()}
                     {this.renderInfoPanel()}
                     {this.renderFilePanel()}
+                    {this.renderWebLink()}
                     {this.renderStreamPanel()}
                 </ContainerForText>
             } />
