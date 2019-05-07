@@ -14,7 +14,7 @@ class VncService(
     private val jobIdToJob = HashMap<String, VerifiedJob>()
 
     fun install(routing: Route): Unit = with(routing) {
-        webSocket("${AppKubernetesDescriptions.baseContext}/vnc/{id}") {
+        webSocket("${AppKubernetesDescriptions.baseContext}/vnc/{id}", protocol = "binary") {
             val id = call.parameters["id"] ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             val tunnel = createTunnel(id)
 
