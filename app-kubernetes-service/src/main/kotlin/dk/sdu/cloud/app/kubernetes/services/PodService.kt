@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.api.ContainerDescription
 import dk.sdu.cloud.app.api.JobCompletedRequest
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.SimpleDuration
@@ -19,6 +20,7 @@ import io.fabric8.kubernetes.api.model.DoneablePod
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
+import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodSpecBuilder
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
 import io.fabric8.kubernetes.api.model.Volume
@@ -36,6 +38,7 @@ import io.fabric8.kubernetes.client.dsl.PodResource
 import io.fabric8.kubernetes.client.dsl.internal.PodOperationsImpl
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -49,10 +52,10 @@ import java.io.PipedOutputStream
 import java.nio.file.Files
 import java.time.ZonedDateTime
 import java.util.concurrent.CountDownLatch
+import kotlin.random.Random
 
 private const val JOB_PREFIX = "job-"
 private const val ROLE_LABEL = "role"
-private const val APP_ROLE = "sducloud-app"
 
 class K8JobState(val id: String) {
     private val mutex: Mutex = Mutex()
@@ -100,7 +103,8 @@ class JobManager {
 class PodService(
     private val k8sClient: KubernetesClient,
     private val serviceClient: AuthenticatedClient,
-    private val namespace: String = "app-kubernetes"
+    private val namespace: String = "app-kubernetes",
+    private val appRole: String = "sducloud-app"
 ) {
     private val inputDirectory = "/input"
     private val workingDirectory = "/work"
@@ -220,12 +224,12 @@ class PodService(
         }
 
         // Handle old pods on start up
-        k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, APP_ROLE).list().items.forEach {
+        k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, appRole).list().items.forEach {
             handlePodEvent(it)
         }
 
         // Watch for new pods
-        k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, APP_ROLE).watch(object : Watcher<Job> {
+        k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, appRole).watch(object : Watcher<Job> {
             override fun onClose(cause: KubernetesClientException?) {
                 // Do nothing
             }
@@ -248,11 +252,13 @@ class PodService(
 
                 withLabels(
                     mapOf(
-                        ROLE_LABEL to APP_ROLE
+                        ROLE_LABEL to appRole
                     )
                 )
             }
             .spec {
+                val containerConfig = verifiedJob.application.invocation.container ?: ContainerDescription()
+
                 val deadline = verifiedJob.maxTime.toSeconds()
                 withActiveDeadlineSeconds(deadline)
                 withBackoffLimit(1)
@@ -266,7 +272,7 @@ class PodService(
 
                             withLabels(
                                 mapOf(
-                                    ROLE_LABEL to APP_ROLE
+                                    ROLE_LABEL to appRole
                                 )
                             )
                         }
@@ -295,7 +301,23 @@ class PodService(
                                     withRestartPolicy("Never")
                                     withCommand(command)
 
-                                    withWorkingDir(workingDirectory)
+                                    if (containerConfig.changeWorkingDirectory) {
+                                        withWorkingDir(workingDirectory)
+                                    }
+
+                                    if (containerConfig.runAsRoot) {
+                                        withSecurityContext(
+                                            PodSecurityContext(
+                                                0,
+                                                0,
+                                                false,
+                                                0,
+                                                null,
+                                                emptyList(),
+                                                emptyList()
+                                            )
+                                        )
+                                    }
 
                                     withVolumeMounts(
                                         VolumeMount(
@@ -399,13 +421,49 @@ class PodService(
         }
     }
 
-    fun createTunnel(jobId: String, remotePort: Int): Tunnel {
+    fun createTunnel(jobId: String, localPort: Int, remotePort: Int): Tunnel {
         val k8sTunnel = run {
             val pod = findPod(podName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).portForward(remotePort)
+
+            // Using kubectl port-forward appears to be a lot more reliable than using the built-in.
+            ProcessBuilder().apply {
+                val cmd = listOf(
+                    "kubectl",
+                    "port-forward",
+                    "-n",
+                    namespace,
+                    pod.metadata.name,
+                    "$localPort:$remotePort"
+                )
+                log.info("Running command: $cmd")
+                command(cmd)
+            }.start()
         }
 
-        return Tunnel(jobId, k8sTunnel.localPort, _close = { k8sTunnel.close() })
+        // Consume first line (wait for process to be ready)
+        val bufferedReader = k8sTunnel.inputStream.bufferedReader()
+        bufferedReader.readLine()
+
+        val job = GlobalScope.launch(Dispatchers.IO) {
+            // Read remaining lines to avoid buffer filling up
+            bufferedReader.lineSequence().forEach {
+                // Discard line
+            }
+        }
+
+        log.info("Port forwarding $jobId to $localPort")
+        return Tunnel(
+            jobId = jobId,
+            localPort = localPort,
+            _isAlive = {
+                k8sTunnel.isAlive
+            },
+            _close = {
+                k8sTunnel.destroyForcibly()
+                job.cancel()
+            }
+        )
     }
 
     companion object : Loggable {
@@ -416,8 +474,10 @@ class PodService(
 class Tunnel(
     val jobId: String,
     val localPort: Int,
+    private val _isAlive: () -> Boolean,
     private val _close: () -> Unit
 ) : Closeable {
+    fun isAlive() = _isAlive()
     override fun close() = _close()
 }
 

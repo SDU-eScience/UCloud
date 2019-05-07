@@ -9,6 +9,10 @@ ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
 RUN apk add --no-cache openjdk8
 RUN apk add --no-cache nss
 
+RUN wget https://storage.googleapis.com/kubernetes-release/release/v1.13.0/bin/linux/amd64/kubectl
+RUN mv kubectl /usr/bin/kubectl
+RUN chmod +x /usr/bin/kubectl
+
 RUN apk add --no-cache curl zip bash
 RUN curl -s "https://get.sdkman.io" | bash
 SHELL ["/bin/bash", "-c"]

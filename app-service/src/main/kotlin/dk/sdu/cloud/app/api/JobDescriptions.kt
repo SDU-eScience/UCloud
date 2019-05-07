@@ -118,6 +118,21 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
                 }
             }
         }
+
+    val queryWebParameters =
+        call<QueryWebParametersRequest, QueryWebParametersResponse, CommonErrorMessage>("queryWebParameters") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                path {
+                    using(baseContext)
+                    +"query-web"
+                    +boundTo(QueryWebParametersRequest::jobId)
+                }
+            }
+        }
 }
 
 data class FindByNameAndVersion(val name: String, val version: String)
@@ -254,7 +269,6 @@ data class InternalFollowStdStreamsRequest(
     }
 }
 
-
 data class InternalStdStreamsResponse(
     val stdout: String,
     val stdoutNextLine: Int,
@@ -269,4 +283,12 @@ data class QueryVncParametersRequest(
 data class QueryVncParametersResponse(
     val path: String,
     val password: String? = null
+)
+
+data class QueryWebParametersRequest(
+    val jobId: String
+)
+
+data class QueryWebParametersResponse(
+    val path: String
 )
