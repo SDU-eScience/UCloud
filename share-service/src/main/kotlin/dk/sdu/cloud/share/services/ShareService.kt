@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.bearerAuth
@@ -304,6 +305,14 @@ class ShareService<DBSession>(
                 )
                 println(response)
                 println(FileDescriptions.stat.call(FindByPath("/home/user/to_share"),userCloud))
+
+                val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
+                val pathToLink = findShareLink(existingShare)
+                //Attempt to remove link if exists
+                if (pathToLink != null) {
+                    FileDescriptions.deleteFile.call(DeleteFileRequest(pathToLink), userCloud)
+                }
+
             }
             throw ex
         }

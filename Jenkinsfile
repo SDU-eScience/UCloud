@@ -90,7 +90,7 @@ volumes: [
                     resultList[i] = currentResult
                 }
             }
-
+            
             if (resultList.contains("FAILURE") || resultList.contains("UNSTABLE")) {
                 String message = "Following services are marked UNSTABLE due to failing tests:\n"
                 for (int k = 0; k < resultList.size(); k++) {
