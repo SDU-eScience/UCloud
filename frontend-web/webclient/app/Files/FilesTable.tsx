@@ -347,7 +347,7 @@ export const FileOptions = ({ files, fileOperations }: FileOptionsProps) => file
     </Box>
 ) : null;
 
-interface FileOperations extends SpaceProps { files: File[], fileOperations: FileOperation[], As: typeof OutlineButton | typeof Box }
+interface FileOperations extends SpaceProps { files: File[], fileOperations: FileOperation[], As: typeof OutlineButton | typeof Box | typeof Button }
 export const FileOperations = ({ files, fileOperations, As, ...props }: FileOperations) => files.length && fileOperations.length ?
     <>
         {fileOperations.map((fileOp: FileOperation, i: number) => {
