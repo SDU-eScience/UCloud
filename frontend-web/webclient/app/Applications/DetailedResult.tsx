@@ -12,7 +12,7 @@ import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOpe
 import { File, SortBy, SortOrder } from "Files";
 import { allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
-import { hpcJobQuery,  } from "Utilities/ApplicationUtilities";
+import { hpcJobQuery, } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
@@ -343,7 +343,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private renderWebLink() {
-        if (!this.state.webLink) return null;
+        if (this.state.appState !== AppState.RUNNING || this.state.appType !== "WEB" || !this.state.webLink) return null;
         return <ExternalLink href={this.state.webLink}><Button color="green">Go to web interface</Button></ExternalLink>
     }
 

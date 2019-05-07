@@ -85,7 +85,8 @@ function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
 
     function connect() {
         try {
-            const rfb = new RFB(document.getElementsByClassName("noVNC")[0], `ws://${window.location.host}${path}`, {
+            const protocol = window.location.protocol === "http:" ? "ws:" : "wss:";
+            const rfb = new RFB(document.getElementsByClassName("noVNC")[0], `${protocol}//${window.location.host}${path}`, {
                 credentials: { password }
             });
 
