@@ -278,7 +278,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     &nbsp;
                     <Dropdown>
                         <Icon name="info" color="white" color2="black" />
-                        <DropdownContent visible colorOnHover={false} color="white" backgroundColor="black">
+                        <DropdownContent width="200px" visible colorOnHover={false} color="white" backgroundColor="black">
                             <TextSpan fontSize={1}>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</TextSpan>
                         </DropdownContent>
                     </Dropdown>

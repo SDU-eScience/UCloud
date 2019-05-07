@@ -146,15 +146,15 @@ export interface MaxTime {
 }
 
 export interface MaxTimeForInput {
-    hours: number | null,
-    minutes: number | null,
-    seconds: number | null
+    hours: number
+    minutes: number
+    seconds: number
 }
 
 export interface JobSchedulingOptionsForInput {
-    maxTime: MaxTimeForInput | null
-    numberOfNodes: number | null
-    tasksPerNode: number | null
+    maxTime: MaxTimeForInput
+    numberOfNodes: number
+    tasksPerNode: number
 }
 
 export interface RunAppState {

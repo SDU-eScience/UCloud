@@ -33,12 +33,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             parameterValues: new Map(),
             schedulingOptions: {
                 maxTime: {
-                    hours: null,
-                    minutes: null,
-                    seconds: null
+                    hours: 0,
+                    minutes: 0,
+                    seconds: 0
                 },
-                numberOfNodes: null,
-                tasksPerNode: null,
+                numberOfNodes: 1,
+                tasksPerNode: 1,
             },
             favorite: false,
             favoriteLoading: false
@@ -46,14 +46,14 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         props.updatePageTitle();
     };
 
-    componentDidMount() {
+    public componentDidMount() {
         this.props.updatePageTitle();
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
         this.retrieveApplication(name, version);
     }
 
-    componentWillUnmount = () => this.state.promises.cancelPromises();
+    public componentWillUnmount = () => this.state.promises.cancelPromises();
 
     private onJobSchedulingParamsChange = (field: string | number, value: number, timeField: string) => {
         const { schedulingOptions } = this.state;
@@ -106,7 +106,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         // Check optional input fields with errors
         const optionalErrors = [] as string[];
-        const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it => 
+        const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it =>
             ({ name: it.name, title: it.title })
         );
         optionalParams.forEach(it => {
@@ -126,10 +126,17 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         // FIXME END
 
-        let maxTime = Run.extractJobInfo(this.state.schedulingOptions).maxTime;
-        if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
+        const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
+        if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
+            this.props.addSnack({
+                message: "Scheduling times must be more than 0 seconds.",
+                type: SnackType.Failure,
+                lifetime: 5000
+            });
+            return;
+        }
 
-        let job = {
+        const job = {
             application: { name: this.state.application!.metadata.name, version: this.state.application!.metadata.version },
             parameters,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
@@ -149,19 +156,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             this.props.setLoading(false);
         }
     };
-
-    private static extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
-        let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
-        const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
-        if (maxTime != null && (maxTime.hours != null || maxTime.minutes != null || maxTime.seconds != null)) {
-            extractedJobInfo.maxTime.hours = maxTime.hours ? maxTime.hours : 0;
-            extractedJobInfo.maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
-            extractedJobInfo.maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
-        }
-        extractedJobInfo.numberOfNodes = numberOfNodes;
-        extractedJobInfo.tasksPerNode = tasksPerNode;
-        return extractedJobInfo;
-    }
 
     private async toggleFavorite() {
         if (!this.state.application) return;
@@ -281,7 +275,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 this.setState(() => ({
                     parameterValues,
-                    schedulingOptions: Run.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
+                    schedulingOptions: extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
                 }));
             } catch (e) {
                 console.warn(e);
@@ -289,39 +283,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             }
         };
         fileReader.readAsText(file);
-    }
-
-    private exportParameters() {
-        const { application, schedulingOptions } = this.state;
-        if (!application) return;
-        const appInfo = application.metadata;
-
-        const jobInfo = Run.extractJobInfo(schedulingOptions);
-        const element = document.createElement("a");
-
-        const values: { [key: string]: string } = {};
-
-        for (const [key, ref] of this.state.parameterValues[Symbol.iterator]()) {
-            if (ref && ref.current) values[key] = ref.current.value;
-        }
-
-        element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-            siteVersion: this.siteVersion,
-            application: {
-                name: appInfo.name,
-                version: appInfo.version
-            },
-            parameters: values,
-            numberOfNodes: jobInfo.numberOfNodes,
-            tasksPerNode: jobInfo.tasksPerNode,
-            maxTime: jobInfo.maxTime,
-        })));
-
-        element.setAttribute("download", `${application.metadata.name}-${application.metadata.version}-params.json`);
-        element.style.display = "none";
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
     }
 
     render() {
@@ -367,7 +328,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 <OutlineButton
                     fullWidth
                     color="darkGreen"
-                    onClick={() => this.exportParameters()}>
+                    onClick={() => exportParameters({
+                        application: this.state.application,
+                        schedulingOptions: this.state.schedulingOptions,
+                        parameterValues: this.state.parameterValues,
+                        siteVersion: this.siteVersion
+                    })}>
                     Export parameters
                 </OutlineButton>
                 <OutlineButton fullWidth color="darkGreen" as={"label"}>
@@ -493,7 +459,7 @@ const SchedulingField: React.StatelessComponent<SchedulingFieldProps> = props =>
             step="1"
             min={props.min}
             max={props.max}
-            value={props.value == null || isNaN(props.value) ? "" : props.value}
+            value={props.value == null || isNaN(props.value) ? "0" : props.value}
             placeholder={`${props.defaultValue}`}
             onChange={({ target: { value } }) => {
                 const parsed = parseInt(value);
@@ -527,6 +493,54 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
             }
         </>)
 };
+
+function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOptionsForInput {
+    let extractedJobInfo = { maxTime: { hours: 0, minutes: 0, seconds: 0 }, numberOfNodes: 1, tasksPerNode: 1 };
+    const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
+    extractedJobInfo.maxTime.hours = Math.abs(maxTime.hours);
+    extractedJobInfo.maxTime.minutes = Math.abs(maxTime.minutes);
+    extractedJobInfo.maxTime.seconds = Math.abs(maxTime.seconds);
+    extractedJobInfo.numberOfNodes = numberOfNodes;
+    extractedJobInfo.tasksPerNode = tasksPerNode;
+    return extractedJobInfo;
+}
+
+function exportParameters({ application, schedulingOptions, parameterValues, siteVersion }: {
+    application?: WithAppFavorite & WithAppInvocation & WithAppMetadata, // FIXME Should be something like FullApp
+    schedulingOptions: JobSchedulingOptionsForInput,
+    parameterValues: ParameterValues,
+    siteVersion: number
+}) {
+    if (!application) return;
+    const appInfo = application.metadata;
+
+    const jobInfo = extractJobInfo(schedulingOptions);
+    const element = document.createElement("a");
+
+    const values: { [key: string]: string } = {};
+
+    for (const [key, ref] of parameterValues[Symbol.iterator]()) {
+        if (ref && ref.current) values[key] = ref.current.value;
+    }
+
+    element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+        siteVersion: siteVersion,
+        application: {
+            name: appInfo.name,
+            version: appInfo.version
+        },
+        parameters: values,
+        numberOfNodes: jobInfo.numberOfNodes,
+        tasksPerNode: jobInfo.tasksPerNode,
+        maxTime: jobInfo.maxTime,
+    })));
+
+    element.setAttribute("download", `${application.metadata.name}-${application.metadata.version}-params.json`);
+    element.style.display = "none";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+}
 
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
