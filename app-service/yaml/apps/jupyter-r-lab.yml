@@ -1,7 +1,7 @@
 ---
 application: v1
 
-title: "Jupyter: R Notebook"
+title: "Jupyter: R Lab"
 name: jupyter-r
 version: 1.0.0
 

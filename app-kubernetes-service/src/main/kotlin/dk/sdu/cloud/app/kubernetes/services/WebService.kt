@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
@@ -23,11 +24,11 @@ import io.ktor.http.contentType
 import io.ktor.request.header
 import io.ktor.request.httpMethod
 import io.ktor.request.path
-import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.response.respondText
 import io.ktor.routing.Route
+import io.ktor.routing.get
 import io.ktor.routing.host
 import io.ktor.routing.route
 import io.ktor.util.date.GMTDate
@@ -37,9 +38,17 @@ import io.ktor.websocket.webSocket
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlin.collections.set
 
+private const val SDU_CLOUD_REFRESH_TOKEN = "refreshToken"
+private const val APP_REFRESH_TOKEN = "appRefreshToken"
+
 class WebService(
     private val authenticationService: AuthenticationService,
     private val tunnelManager: TunnelManager,
+    /**
+     * For some dev environments it might not be possible to set a cookie on the app domain. We allow configuration
+     * to skip the authentication.
+     */
+    private val performAuthentication: Boolean,
     private val prefix: String = "app-",
     private val domain: String = "cloud.sdu.dk"
 ) {
@@ -51,6 +60,43 @@ class WebService(
     private fun String.escapeToRegex(): String = replace(".", "\\.")
 
     fun install(routing: Route): Unit = with(routing) {
+        get("${AppKubernetesDescriptions.baseContext}/authorize-app/{id}") {
+            val id = call.parameters["id"] ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            if (performAuthentication) {
+                val job = jobIdToJob[id] ?: run {
+                    call.respond(HttpStatusCode.BadRequest)
+                    return@get
+                }
+
+                val ingoingToken = call.request.cookies[SDU_CLOUD_REFRESH_TOKEN] ?: run {
+                    call.respond(HttpStatusCode.Unauthorized)
+                    return@get
+                }
+
+                val validated = authenticationService.validate(ingoingToken)
+                if (validated == null || job.owner != validated.principal.username) {
+                    call.respond(HttpStatusCode.Unauthorized)
+                    return@get
+                }
+
+                call.response.cookies.append(
+                    name = APP_REFRESH_TOKEN,
+                    value = ingoingToken,
+                    secure = call.request.origin.scheme == "https",
+                    httpOnly = true,
+                    expires = GMTDate(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
+                    path = "/",
+                    domain = domain
+                )
+            }
+
+            call.respondRedirect("http://$prefix$id.$domain/")
+        }
+
         route("{path...}") {
             host(Regex("${prefix.escapeToRegex()}.*\\.${domain.escapeToRegex()}")) {
                 webSocket {
@@ -81,15 +127,11 @@ class WebService(
 
                     val path = call.request.path()
                     log.info("Accepting call for job $id at $path")
-                    if (path == "/sducloud-auth") {
-                        authorizeWithApplication()
-                    } else {
-                        if (!authorizeUser(call, id)) {
-                            return@handle
-                        }
-                        val tunnel = createTunnel(id)
-                        proxyResponseToClient(proxyToServer(tunnel))
+                    if (!authorizeUser(call, id)) {
+                        return@handle
                     }
+                    val tunnel = createTunnel(id)
+                    proxyResponseToClient(proxyToServer(tunnel))
                 }
             }
         }
@@ -97,39 +139,14 @@ class WebService(
         return@with
     }
 
-    private suspend fun PipelineContext<Unit, ApplicationCall>.authorizeWithApplication() {
-        val multipart = call.receiveParameters().toMap()
-        val token = multipart["token"]?.firstOrNull() ?: run {
-            call.respond(HttpStatusCode.BadRequest)
-            return
-        }
-
-        val validated = authenticationService.validate(token)
-        if (validated != null) {
-            call.response.cookies.append(
-                name = "refreshToken",
-                value = token,
-                secure = call.request.origin.scheme == "https",
-                httpOnly = true,
-                expires = GMTDate(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
-                path = "/",
-                extensions = mapOf(
-                    "SameSite" to "strict"
-                )
-            )
-            call.respondRedirect("/")
-        } else {
-            call.respondText("Unauthorized", status = HttpStatusCode.Unauthorized)
-        }
-    }
-
     private suspend fun authorizeUser(call: ApplicationCall, jobId: String): Boolean {
+        if (!performAuthentication) return true
         val job = jobIdToJob[jobId] ?: run {
             call.respondText(status = HttpStatusCode.BadRequest) { "Bad request (Invalid job)." }
             return false
         }
 
-        val token = call.request.cookies["refreshToken"] ?: run {
+        val token = call.request.cookies[APP_REFRESH_TOKEN] ?: run {
             call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
             return false
         }
@@ -153,8 +170,8 @@ class WebService(
         val method = call.request.httpMethod
         val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
             // Remove authentication tokens
-            remove("refreshToken")
-            remove("csrfToken")
+            remove(APP_REFRESH_TOKEN)
+            remove(SDU_CLOUD_REFRESH_TOKEN)
         }
 
         val requestHeaders = call.request.headers.toMap().mapKeys { it.key.toLowerCase() }.toMutableMap().apply {
@@ -164,12 +181,13 @@ class WebService(
             remove(HttpHeaders.TransferEncoding.toLowerCase())
             remove(HttpHeaders.Cookie.toLowerCase())
             remove(HttpHeaders.Upgrade.toLowerCase())
-            // TODO Add referer?
-        }
+            remove(HttpHeaders.Host.toLowerCase())
+            remove(HttpHeaders.Origin.toLowerCase())
 
-        // Cookies: Should not send refreshToken. Should send app specific ones.
-        // Referer: Should normalize referer.
-        // X-Forwarded?
+            put(HttpHeaders.Host, listOf("127.0.0.1:${tunnel.localPort}"))
+            put(HttpHeaders.Referrer, listOf("http://127.0.0.1:${tunnel.localPort}/"))
+            put(HttpHeaders.Origin, listOf("http://127.0.0.1:${tunnel.localPort}"))
+        }
 
         val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
         val requestContentType = call.request.header(HttpHeaders.ContentType)?.let {
@@ -178,7 +196,6 @@ class WebService(
             }.getOrNull()
         } ?: ContentType.Application.OctetStream
 
-        // TODO Perhaps a bit too primitive
         val hasRequestBody = requestContentLength != null ||
                 call.request.header(HttpHeaders.TransferEncoding) != null
 
@@ -222,7 +239,6 @@ class WebService(
         with(clientCall) {
             val statusCode = response.status
             val responseHeaders = response.headers.toMap().mapKeys { it.key.toLowerCase() }.toMutableMap().apply {
-                // TODO
                 remove(HttpHeaders.Server.toLowerCase())
                 remove(HttpHeaders.ContentLength.toLowerCase())
                 remove(HttpHeaders.ContentType.toLowerCase())
@@ -258,7 +274,7 @@ class WebService(
     fun queryParameters(job: VerifiedJob): QueryInternalWebParametersResponse {
         jobIdToJob[job.id] = job
         return QueryInternalWebParametersResponse(
-            "$prefix${job.id}.$domain"
+            "${AppKubernetesDescriptions.baseContext}/authorize-app/${job.id}"
         )
     }
 

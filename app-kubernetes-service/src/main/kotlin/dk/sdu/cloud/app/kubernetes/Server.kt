@@ -20,7 +20,7 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.ktor.application.install
 import io.ktor.routing.routing
 
-class Server(override val micro: Micro) : CommonServer {
+class Server(override val micro: Micro, private val configuration: Configuration) : CommonServer {
     override val log = logger()
     lateinit var tunnelManager: TunnelManager
 
@@ -44,7 +44,9 @@ class Server(override val micro: Micro) : CommonServer {
         val webService = WebService(
             authenticationService = authenticationService,
             tunnelManager = tunnelManager,
-            domain = "127.0.0.1.xip.io"
+            performAuthentication = configuration.performAuthentication,
+            prefix = configuration.prefix,
+            domain = configuration.domain
         )
 
         podService.initializeListeners()
