@@ -23,6 +23,7 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.SimpleUploadRequest
 import dk.sdu.cloud.file.api.WorkspaceDescriptions
 import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.api.Workspaces
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.sensitivityLevel
@@ -204,7 +205,7 @@ class JobFileService(
         }
 
         return WORKSPACE_PATH + WorkspaceDescriptions.create.call(
-            WorkspaceDescriptions.Create.Request(
+            Workspaces.Create.Request(
                 job.owner,
                 mounts,
                 allowFailures = false,
@@ -221,7 +222,7 @@ class JobFileService(
         val (job, _) = jobWithToken
         try {
             WorkspaceDescriptions.transfer.call(
-                WorkspaceDescriptions.Transfer.Request(
+                Workspaces.Transfer.Request(
                     username = job.owner,
                     workspaceId = job.workspace?.removePrefix(WORKSPACE_PATH) ?: throw RPCException(
                         "No workspace found",

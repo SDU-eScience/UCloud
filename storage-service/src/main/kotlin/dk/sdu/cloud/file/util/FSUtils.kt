@@ -3,20 +3,12 @@ package dk.sdu.cloud.file.util
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.file.api.LongRunningResponse
-import dk.sdu.cloud.file.api.favoritesDirectory
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSResult
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.selects.select
 import org.slf4j.LoggerFactory
 import kotlin.math.absoluteValue
 
@@ -79,15 +71,32 @@ fun throwExceptionBasedOnStatus(status: Int, cause: Throwable? = null): Nothing 
 }
 
 sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
-    class NotReady(override val cause: Throwable? = null) : FSException("File system is not ready yet", HttpStatusCode.ExpectationFailed)
-    class BadRequest(why: String = "", override val cause: Throwable? = null) : FSException("Bad request $why", HttpStatusCode.BadRequest)
-    class NotFound(val file: String? = null, override val cause: Throwable? = null) : FSException("Not found ${file ?: ""}", HttpStatusCode.NotFound)
-    class NoAttributeFound(override val cause: Throwable? = null) : FSException("Attribute not found", HttpStatusCode.NotFound)
-    class AlreadyExists(val file: String? = null, override val cause: Throwable? = null) : FSException("Already exists ${file ?: ""}", HttpStatusCode.Conflict)
-    class PermissionException(override val cause: Throwable? = null) : FSException("Permission denied", HttpStatusCode.Forbidden)
-    class CriticalException(why: String, override val cause: Throwable? = null) : FSException("Critical exception: $why", HttpStatusCode.InternalServerError)
-    class IOException(override val cause: Throwable? = null) : FSException("Internal server error (IO)", HttpStatusCode.InternalServerError)
-    class IsDirectoryConflict(override val cause: Throwable? = null) : FSException("File cannot overwrite directory.", HttpStatusCode.Conflict)
+    class NotReady(override val cause: Throwable? = null) :
+        FSException("File system is not ready yet", HttpStatusCode.ExpectationFailed)
+
+    class BadRequest(why: String = "", override val cause: Throwable? = null) :
+        FSException("Bad request $why", HttpStatusCode.BadRequest)
+
+    class NotFound(val file: String? = null, override val cause: Throwable? = null) :
+        FSException("Not found ${file ?: ""}", HttpStatusCode.NotFound)
+
+    class NoAttributeFound(override val cause: Throwable? = null) :
+        FSException("Attribute not found", HttpStatusCode.NotFound)
+
+    class AlreadyExists(val file: String? = null, override val cause: Throwable? = null) :
+        FSException("Already exists ${file ?: ""}", HttpStatusCode.Conflict)
+
+    class PermissionException(override val cause: Throwable? = null) :
+        FSException("Permission denied", HttpStatusCode.Forbidden)
+
+    class CriticalException(why: String, override val cause: Throwable? = null) :
+        FSException("Critical exception: $why", HttpStatusCode.InternalServerError)
+
+    class IOException(override val cause: Throwable? = null) :
+        FSException("Internal server error (IO)", HttpStatusCode.InternalServerError)
+
+    class IsDirectoryConflict(override val cause: Throwable? = null) :
+        FSException("File cannot overwrite directory.", HttpStatusCode.Conflict)
 }
 
 @Deprecated("Deprecated")
