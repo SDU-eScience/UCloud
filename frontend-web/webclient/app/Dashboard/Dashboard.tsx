@@ -78,7 +78,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
                 this.props.history.push("/shares");
                 break;
         }
-    }
+    };
 
     public componentWillUnmount() {
         this.props.setRefresh();
@@ -161,7 +161,7 @@ const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean
             </Link>
         </Flex>
     );
-}
+};
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
     <DashboardCard title="Recently Used Files" isLoading={isLoading}>
@@ -237,7 +237,7 @@ const statusToIconName = (status: AppState) => {
         default:
             return "ellipsis";
     }
-}
+};
 
 const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" : "green";
 

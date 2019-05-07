@@ -6,9 +6,10 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 
-data class WorkspaceMount(val source: String, val destination: String)
+data class WorkspaceMount(val source: String, val destination: String, val readOnly: Boolean = true)
 
-object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
+typealias WorkspaceDescriptions = Workspaces
+object Workspaces : CallDescriptionContainer("files.workspace") {
     const val baseContext = "/api/files/workspaces"
 
     object Create {
@@ -16,7 +17,7 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
             val username: String,
             val mounts: List<WorkspaceMount>,
             val allowFailures: Boolean,
-            val createSymbolicLinkAt: String? = null
+            val createSymbolicLinkAt: String
         )
         data class Response(val workspaceId: String, val failures: List<WorkspaceMount>)
     }
@@ -40,7 +41,8 @@ object WorkspaceDescriptions : CallDescriptionContainer("files.workspace") {
             val workspaceId: String,
             val transferGlobs: List<String>,
             val destination: String,
-            val deleteWorkspace: Boolean
+            val deleteWorkspace: Boolean,
+            val replaceExisting: Boolean = true
         )
 
         data class Response(val filesTransferred: List<String>)

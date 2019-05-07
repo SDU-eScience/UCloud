@@ -34,7 +34,7 @@ interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
 }
 
-const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ? 
+const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
     <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
 
 // NOTE: Ideal for hooks, if useRouter ever happens
@@ -291,7 +291,7 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     addSnack: snack => dispatch(addSnack(snack))
 });
 
-const mapStateToProps = ({ header, avatar, responsive, ...rest }: ReduxObject): HeaderStateToProps => ({
+const mapStateToProps = ({ header, avatar, ...rest }: ReduxObject): HeaderStateToProps => ({
     ...header,
     avatar,
     spin: anyLoading(rest as ReduxObject),
@@ -300,10 +300,10 @@ const mapStateToProps = ({ header, avatar, responsive, ...rest }: ReduxObject): 
 
 const anyLoading = (rO: ReduxObject): boolean =>
     rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
-    || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
-    || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
-    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
-    || rO.shares.loading || rO.accounting.resources["compute/timeUsed"].events.loading
-    || rO.accounting.resources["storage/bytesUsed"].events.loading
+        || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
+        || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
+        || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
+        || rO.shares.loading || rO.accounting.resources["compute/timeUsed"].events.loading
+        || rO.accounting.resources["storage/bytesUsed"].events.loading
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));

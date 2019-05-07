@@ -15,11 +15,11 @@ export class ErrorBoundary extends React.Component<{}, { hasError: boolean, erro
         }
     }
 
-    static getDerivedStateFromError() {
+    public static getDerivedStateFromError() {
         return { hasError: true, errorSent: false }
     }
 
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
         this.setState(() => ({ error, errorInfo }));
     }
 
@@ -31,16 +31,12 @@ export class ErrorBoundary extends React.Component<{}, { hasError: boolean, erro
                 message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nAdditional info: ${textAreaContent}`
             })
         } catch (e) {
-            if (!!e.response.why) {
-                this.setState(() => ({ submissionError: e.response.why }));
-            } else {
-                this.setState(() => ({ submissionError: "An error occured" }));
-            }
+            this.setState(() => ({ submissionError: !!e.response.why ? e.response.why : "An error occurred" }));
         }
-        this.redirectToDashboard();
-    }
+        ErrorBoundary.redirectToDashboard();
+    };
 
-    private redirectToDashboard() {
+    private static redirectToDashboard() {
         Cloud.openLandingPage();
     }
 
@@ -50,7 +46,7 @@ export class ErrorBoundary extends React.Component<{}, { hasError: boolean, erro
                 <UIError error={this.state.submissionError} clearError={() => this.setState(() => ({ submissionError: undefined }))} />
                 <Box>An error occurred. Would you like to submit an error report?</Box>
                 <Box mb="0.5em"><TextArea placeholder="Please enter any information regarding the action you performed that caused an error" rows={5} width="100%" ref={this.ref} /></Box>
-                <Button mr="1em" onClick={this.submitError} color="blue">Submit</Button><Button onClick={this.redirectToDashboard}>Go to dashboard</Button>
+                <Button mr="1em" onClick={this.submitError} color="blue">Submit</Button><Button onClick={ErrorBoundary.redirectToDashboard}>Go to dashboard</Button>
             </Box>} />)
         }
 

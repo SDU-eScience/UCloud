@@ -31,10 +31,9 @@ export interface AnalysesStateProps {
 
 export interface AnalysesOperations {
     onErrorDismiss: () => void
-    updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchJobs: (itemsPerPage: number, pageNumber: number) => void
-    setActivePage: () => void
+    onInit: () => void
     setRefresh: (refresh?: () => void) => void
 }
 
@@ -134,6 +133,8 @@ export interface DetailedResultState {
     fsCallback: Function
     fsIsFavorite: boolean
     outputFolder?: string
+    appType?: ApplicationType
+    webLink?: string
 }
 
 export type StdElement = { scrollTop: number, scrollHeight: number } | null
@@ -300,12 +301,14 @@ export interface ApplicationMetadata {
     website?: string
 }
 
+type ApplicationType = "BATCH" | "VNC" | "WEB"
+
 export interface ApplicationInvocationDescription {
     tool: Tool
     invocation: Invocation[]
     parameters: ApplicationParameter[]
     outputFileGlobs: string[]
-    applicationType: "BATCH"
+    applicationType: ApplicationType
     resources: Resources
 }
 

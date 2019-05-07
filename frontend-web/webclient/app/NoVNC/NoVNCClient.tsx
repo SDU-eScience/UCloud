@@ -7,21 +7,86 @@ import { connect } from "react-redux";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { Dispatch } from "redux";
 import { errorMessageOrDefault } from "UtilityFunctions";
+import { getQueryParam, RouterLocationProps } from "Utilities/URIUtilities";
+import { Cloud } from "Authentication/SDUCloudObject";
 
-function NoVNCClient(props: AddSnackOperation) {
+interface RFB {
+    constructor(): RFB
+    // Properties
+    viewOnly: boolean
+    focusOnClick: boolean
+    touchButton: number
+    clipViewPort: boolean
+    dragViewPort: boolean
+    scaleViewPort: boolean
+    resizeSession: boolean
+    showDotCursor: boolean
+    background: string
+    readonly capabilities: {}
+    // Methods
+    /**
+     * Disconnect from the server.
+     */
+    disconnect: () => void
+    /**
+     * Send credentials to server. Should be called after the credentialsrequired event has fired.
+     */
+    sendCredentials: (credentials: any) => void
+    /**
+     * Send a key event.
+     */
+    sendKey: (keysym: number, code: number, down?: boolean) => void
+    /**
+     * Send Ctrl-Alt-Del key sequence.
+     */
+    sendCtrlAltDel: () => void
+    /**
+     * Move keyboard focus to the remote session.
+     */
+    focus: () => void
+    /**
+     * Remove keyboard focus from the remote session.
+     */
+    blur: () => void
+    /**
+     * Request a shutdown of the remote machine.
+     */
+    machineShutdown: () => void
+    /**
+     * Request a reboot of the remote machine.
+     */
+    machineReboot: () => void
+    /**
+     * Request a reset of the remote machine.
+     */
+    machineReset: () => void
+    /**
+     * Send clipboard contents to server.
+     */
+    clipboardPasteFrom: (text: string) => void
+}
+
+function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
     const [isConnected, setConnected] = React.useState(false);
-    const [rfb, setRFB] = React.useState<typeof RFB>(undefined);
+    const [rfb, setRFB] = React.useState<RFB | undefined>(undefined);
+    const [password, setPassword] = React.useState("")
+    const [path, setPath] = React.useState("");
 
-    React.useEffect(() => () => {
-        if (isConnected) rfb.disconnect();
-    }, []);
+    React.useEffect(() => {
+        const jobId = getQueryParam(props, "jobId"); 
+        /* FIXME: Wrap in promise keeper */
+        Cloud.get(`/hpc/jobs/query-vnc/${jobId}`).then(it => {
+            setPassword(it.response.password);
+            setPath(it.response.path);
+        });
+        return () => {
+            if (isConnected) rfb!.disconnect();
+    }}, []);
 
-    async function connect() {
-        // FIXME: Not necessary when hooked up to backend
-        const password = "vncpassword";
-        // FIXME END
+    function connect() {
         try {
-            const rfb = await new RFB(document.getElementsByClassName("noVNC")[0], "ws://127.0.0.1:6901", {
+            const protocol = window.location.protocol === "http:" ? "ws:" : "wss:";
+            const rfb = new RFB(document.getElementsByClassName("noVNC")[0], `${protocol}//${window.location.host}${path}`, {
                 credentials: { password }
             });
 
@@ -39,7 +104,7 @@ function NoVNCClient(props: AddSnackOperation) {
     }
 
     function disconnect() {
-        rfb.disconnect();
+        rfb!.disconnect();
         setConnected(false);
     }
 

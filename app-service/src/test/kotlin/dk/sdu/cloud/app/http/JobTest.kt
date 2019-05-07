@@ -55,6 +55,7 @@ private fun KtorApplicationTestSetupContext.configureJobServer(
             followService,
             tokenValidation,
             ClientMock.authenticatedClient,
+            mockk(relaxed = true),
             mockk(relaxed = true)
         )
     )

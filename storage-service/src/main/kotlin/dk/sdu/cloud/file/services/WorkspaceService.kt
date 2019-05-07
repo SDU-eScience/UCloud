@@ -9,9 +9,11 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import java.io.File
+import java.nio.file.CopyOption
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import kotlin.streams.toList
@@ -26,7 +28,7 @@ class WorkspaceService(
 
     private val fsCommandRunnerFactory: FSCommandRunnerFactory<LinuxFSRunner>
 ) {
-    private val fsRoot = fsRoot.absoluteFile
+    private val fsRoot = fsRoot.absoluteFile.normalize()
     private val workspaceFile = File(fsRoot, WORKSPACE_PATH)
 
     fun workspace(id: String) = File(workspaceFile, id).toPath().normalize().toAbsolutePath()
@@ -35,7 +37,7 @@ class WorkspaceService(
         user: String,
         mounts: List<WorkspaceMount>,
         allowFailures: Boolean,
-        createSymbolicLinkAt: String? = null
+        createSymbolicLinkAt: String
     ): CreatedWorkspace {
         return fsCommandRunnerFactory.withContext(user) { ctx ->
             ctx.submit {
@@ -55,42 +57,46 @@ class WorkspaceService(
                 }
                 val inputWorkspace = workspace.resolve("input").also { Files.createDirectories(it) }
                 val outputWorkspace = workspace.resolve("output").also { Files.createDirectories(it) }
-                val symLinkPath = createSymbolicLinkAt?.let { File(it).absoluteFile.toPath() }
+                val symLinkPath = createSymbolicLinkAt.let { File(it).absoluteFile.toPath() }
 
-                // TODO Refactor this code a bit. It is duplicating the same information
-                fun transferFile(file: Path, destination: Path, relativeTo: Path, baseFolder: String) {
-                    val useRelative = !Files.isSameFile(file, relativeTo)
-                    val relativizedPath = relativeTo.relativize(file)
-                    val symDest = outputWorkspace.resolve(baseFolder).resolve(relativizedPath)
+                fun transferFile(
+                    file: Path,
+                    rootPath: Path,
+                    initialDestination: String,
+                    readOnly: Boolean
+                ) {
+                    val isInitialFile = Files.isSameFile(file, rootPath)
+                    val relativePath = rootPath.relativize(file)
 
-                    val resolvedDestination = if (!useRelative) {
-                        destination
-                    } else {
-                        destination.resolve(relativizedPath)
-                    }
+                    val inputRoot = inputWorkspace.resolve(initialDestination)
+                    val outputRoot = outputWorkspace.resolve(initialDestination)
+                    val symlinkRoot = symLinkPath.resolve(initialDestination)
+
+                    val inputDestinationPath =
+                        if (isInitialFile) inputRoot
+                        else inputRoot.resolve(relativePath)
+
+                    val outputDestinationPath =
+                        if (isInitialFile) outputRoot
+                        else outputRoot.resolve(relativePath)
 
                     if (Files.isDirectory(file)) {
-                        Files.createDirectories(resolvedDestination)
-
-                        if (symLinkPath != null && useRelative) {
-                            Files.createDirectories(symDest)
-                        }
+                        if (!readOnly) Files.createDirectories(inputDestinationPath)
+                        Files.createDirectories(outputDestinationPath)
 
                         Files.list(file).forEach {
-                            transferFile(it, destination, relativeTo, baseFolder)
+                            transferFile(it, rootPath, initialDestination, readOnly)
                         }
                     } else {
-                        val resolvedFile = if (Files.isSymbolicLink(file)) {
-                            Files.readSymbolicLink(file)
+                        val resolvedFile =
+                            if (Files.isSymbolicLink(file)) Files.readSymbolicLink(file)
+                            else file
+
+                        if (readOnly) {
+                            Files.createLink(inputDestinationPath, resolvedFile)
+                            Files.createSymbolicLink(outputDestinationPath, symlinkRoot.resolve(relativePath))
                         } else {
-                            file
-                        }
-
-                        Files.createLink(resolvedDestination, resolvedFile)
-
-                        if (symLinkPath != null && useRelative) {
-                            val target = symLinkPath.resolve(relativizedPath)
-                            Files.createSymbolicLink(symDest, target)
+                            Files.copy(resolvedFile, outputDestinationPath)
                         }
                     }
                 }
@@ -99,14 +105,7 @@ class WorkspaceService(
                 mounts.forEach {
                     try {
                         val file = File(translateAndCheckFile(fsRoot, it.source)).toPath()
-                        if (symLinkPath != null) {
-                            val resolve = outputWorkspace.resolve(it.destination)
-
-                            println(resolve.toString())
-                            if (Files.isDirectory(file)) Files.createDirectory(resolve)
-                            else Files.createSymbolicLink(resolve, symLinkPath.resolve(it.destination))
-                        }
-                        transferFile(file, inputWorkspace.resolve(it.destination), file, it.destination)
+                        transferFile(file, file, it.destination, it.readOnly)
                     } catch (ex: Throwable) {
                         log.info("Failed to add ${it.source}. ${ex.message}")
                         log.debug(ex.stackTraceToString())
@@ -130,7 +129,8 @@ class WorkspaceService(
         user: String,
         workspaceId: String,
         fileGlobs: List<String>,
-        destination: String
+        destination: String,
+        replaceExisting: Boolean
     ): List<String> {
         val workspace = workspace(workspaceId)
         val outputWorkspace = workspace.resolve("output")
@@ -140,8 +140,34 @@ class WorkspaceService(
 
         val matchers = fileGlobs.map { FileSystems.getDefault().getPathMatcher("glob:$it") }
         val destinationDir = File(translateAndCheckFile(fsRoot, destination)).toPath()
-
         val transferred = ArrayList<String>()
+
+        val copyOptions = run {
+            val opts = ArrayList<CopyOption>()
+            if (replaceExisting) opts += StandardCopyOption.REPLACE_EXISTING
+            opts.toTypedArray()
+        }
+
+        fun transferFile(sourceFile: Path): Path {
+            val resolvedDestination = destinationDir.resolve(outputWorkspace.relativize(sourceFile))
+            if (!resolvedDestination.startsWith(destinationDir)) {
+                throw IllegalArgumentException("Resolved destination isn't within allowed target")
+            }
+
+            if (Files.isDirectory(sourceFile)) {
+                val targetIsDir = Files.isDirectory(resolvedDestination)
+                if (targetIsDir) {
+                    Files.list(sourceFile).forEach { child ->
+                        transferFile(child)
+                    }
+                } else {
+                    Files.move(sourceFile, resolvedDestination, *copyOptions)
+                }
+            } else {
+                Files.move(sourceFile, resolvedDestination, *copyOptions)
+            }
+            return resolvedDestination
+        }
 
         Files.list(outputWorkspace)
             .filter { path ->
@@ -153,44 +179,39 @@ class WorkspaceService(
                 !Files.isSymbolicLink(path)
             }
             .toList()
-            .forEach {
-                log.debug("Transferring file: $it")
+            .forEach { currentFile ->
+                log.debug("Transferring file: $currentFile")
                 try {
-                    val resolvedDestination = destinationDir.resolve(outputWorkspace.relativize(it))
-                    log.debug("resolvedDestination: $resolvedDestination")
-                    if (resolvedDestination.startsWith(destinationDir)) {
-                        val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
 
-                        Chown.setOwner(it, uid.toInt(), uid.toInt())
-                        Files.move(it, resolvedDestination)
-                        transferred.add(path)
-                    } else {
-                        log.info("Resolved destination is not within destination directory! $it $resolvedDestination")
+                    Files.walk(currentFile).forEach { child ->
+                        if (Files.isSymbolicLink(child)) {
+                            Files.deleteIfExists(child)
+                        } else {
+                            Chown.setOwner(child, uid.toInt(), uid.toInt())
+                            Files.setPosixFilePermissions(
+                                child, setOf(
+                                    PosixFilePermission.OWNER_WRITE,
+                                    PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.OWNER_EXECUTE,
+                                    PosixFilePermission.GROUP_WRITE,
+                                    PosixFilePermission.GROUP_READ,
+                                    PosixFilePermission.GROUP_EXECUTE
+                                )
+                            )
+                        }
                     }
+
+                    val resolvedDestination = transferFile(currentFile)
+                    val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
+                    transferred.add(path)
                 } catch (ex: Throwable) {
-                    log.info("Failed to transfer $it. ${ex.message}")
+                    log.info("Failed to transfer $currentFile. ${ex.message}")
                     log.debug(ex.stackTraceToString())
                 }
             }
 
         log.debug("Transferred ${transferred.size} files")
         transferred.forEach { path ->
-            log.debug("Fixing permissions of $path")
-            val realPath = File(translateAndCheckFile(fsRoot, path)).toPath()
-            Files.walk(realPath).forEach { file ->
-                Chown.setOwner(file, uid.toInt(), uid.toInt())
-                Files.setPosixFilePermissions(
-                    file, setOf(
-                        PosixFilePermission.OWNER_WRITE,
-                        PosixFilePermission.OWNER_READ,
-                        PosixFilePermission.OWNER_EXECUTE,
-                        PosixFilePermission.GROUP_WRITE,
-                        PosixFilePermission.GROUP_READ,
-                        PosixFilePermission.GROUP_EXECUTE
-                    )
-                )
-            }
-
             log.debug("Scanning external files")
             fileScanner.scanFilesCreatedExternally(path)
             log.debug("Scanning external files done")

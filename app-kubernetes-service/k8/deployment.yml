@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: app-kubernetes
-        image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.1.0
+        image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.2.0
         command:
         - /opt/service/bin/service
         - --config-dir
@@ -26,6 +26,8 @@ spec:
         - /etc/token-validation
         - --config-dir
         - /etc/psql
+        - --config-dir
+        - /etc/config
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
@@ -33,6 +35,8 @@ spec:
           name: token-validation
         - mountPath: /etc/psql
           name: app-kubernetes-psql
+        - mountPath: /etc/config
+          name: config
         env:
         - name: POD_IP
           valueFrom:
@@ -51,6 +55,11 @@ spec:
         secret:
           optional: false
           secretName: app-kubernetes-psql
+      - name: config
+        configMap:
+          name: app-kubernetes
 
       imagePullSecrets:
         - name: esci-docker
+
+      serviceAccountName: app-kubernetes

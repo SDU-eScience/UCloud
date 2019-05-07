@@ -33,6 +33,14 @@ data class QueryInternalVncParametersResponse(
     val password: String? = null
 )
 
+data class QueryInternalWebParametersRequest(
+    val verifiedJob: VerifiedJob
+)
+
+data class QueryInternalWebParametersResponse(
+    val path: String
+)
+
 /**
  * Abstract [RESTDescriptions] for computation backends.
  *
@@ -167,6 +175,25 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
                 path {
                     using(baseContext)
                     +"query-vnc"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
+
+    val queryInternalWebParameters =
+        call<QueryInternalWebParametersRequest, QueryInternalWebParametersResponse, CommonErrorMessage>("queryInternalWebParameters") {
+            auth {
+                access = AccessRight.READ
+                roles = Roles.PRIVILEDGED
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"query-web"
                 }
 
                 body { bindEntireRequestFromBody() }

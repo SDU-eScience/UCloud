@@ -14,9 +14,10 @@ import files from "../../app/Files/Redux/FilesReducer";
 import { allFileOperations } from "../../app/Utilities/FileUtilities";
 import { configureStore, responsive } from "../../app/Utilities/ReduxUtilities";
 import { initFiles } from "../../app/DefaultObjects";
-import { configure, mount } from "enzyme";
+import { mount } from "enzyme";
 import { Page } from "../../app/Types";
 import "jest-styled-components";
+import { Button } from "react-native";
 // import * as Adapter from "enzyme-adapter-react-16";
 // 
 // configure({ adapter: new Adapter() });
@@ -115,102 +116,6 @@ describe("Files-component", () => {
         ).toMatchSnapshot();
     });
 });
-
-
-describe("File operations", () => {
-    test.skip("Empty files list, button, empty FilesOperations", () => {
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={[]}
-                files={createMockStore().getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        ).toJSON()).toMatchSnapshot()
-    });
-
-    test.skip("Empty files list, dropdown.item, empty FilesOperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={[]}
-                files={createMockStore().getState().files.page.items}
-                As={"Dropdown.Item"}
-            />
-        ).toJSON()).toMatchSnapshot()
-    );
-
-    test.skip("Files list with items, button, empty FilesOperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={[]}
-                files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        ).toJSON()).toMatchSnapshot()
-    );
-
-    test.skip("Files list with items, dropdown.item, empty FilesOperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={[]}
-                files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        ).toJSON()).toMatchSnapshot()
-    );
-
-    test.skip("Empty files list, button, some fileoperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={fileOperations}
-                files={createMockStore().getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        )).toMatchSnapshot()
-    );
-
-    test.skip("Empty files list, dropdown.item, some fileoperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={fileOperations}
-                files={createMockStore().getState().files.page.items}
-                As={"Dropdown.Item"}
-                fluid
-                basic
-            />
-        )).toMatchSnapshot()
-    );
-
-    test.skip("Files list with items, button, some fileoperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={fileOperations}
-                files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        )).toMatchSnapshot()
-    );
-
-    test.skip("Files list with items, dropdown.item, some fileoperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={fileOperations}
-                files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={"Dropdown.Item"}
-            />
-        )).toMatchSnapshot()
-    );
-});
-
 
 const getOperationFrom = (node: Renderer.ReactTestRenderer, operation: string) =>
     node.root.findAllByType(FileOperations)[0].props.fileOperations.find((it: Operation) => it.text === operation);

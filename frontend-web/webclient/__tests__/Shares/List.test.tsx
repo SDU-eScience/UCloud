@@ -12,6 +12,7 @@ import { shares as mock_shares } from "../mock/Shares";
 import { createResponsiveStateReducer, responsiveStoreEnhancer } from "redux-responsive";
 import theme, { responsiveBP } from "../../app/ui-components/theme";
 import { ThemeProvider } from "styled-components";
+import "jest-styled-components";
 
 configure({ adapter: new Adapter() });
 
