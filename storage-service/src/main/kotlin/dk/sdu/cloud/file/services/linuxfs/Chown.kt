@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.services.linuxfs
 
+import com.sun.jna.Platform
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.GroupPrincipal
@@ -17,11 +18,10 @@ object Chown {
     }
 
     fun setOwner(path: Path, uid: Int, gid: Int) {
+        if (!Platform.isLinux()) return
+
         val user = fromUid.invoke(null, uid) as UserPrincipal
         val group = fromGid.invoke(null, gid) as GroupPrincipal
-
-        println(user)
-        println(group)
 
         val view = Files.getFileAttributeView(path, PosixFileAttributeView::class.java)
         view.owner = user

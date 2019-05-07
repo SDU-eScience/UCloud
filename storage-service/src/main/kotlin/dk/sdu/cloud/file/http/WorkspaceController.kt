@@ -31,7 +31,8 @@ class WorkspaceController(
                     request.username,
                     request.workspaceId,
                     request.transferGlobs,
-                    request.destination
+                    request.destination,
+                    request.replaceExisting
                 )
 
             if (request.deleteWorkspace) {

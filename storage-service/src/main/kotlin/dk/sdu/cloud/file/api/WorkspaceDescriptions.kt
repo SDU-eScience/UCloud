@@ -41,7 +41,8 @@ object Workspaces : CallDescriptionContainer("files.workspace") {
             val workspaceId: String,
             val transferGlobs: List<String>,
             val destination: String,
-            val deleteWorkspace: Boolean
+            val deleteWorkspace: Boolean,
+            val replaceExisting: Boolean = true
         )
 
         data class Response(val filesTransferred: List<String>)
