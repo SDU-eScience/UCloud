@@ -16,7 +16,8 @@ data class VerifiedJob(
     val ownerUid: Long,
     val workspace: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val modifiedAt: Long = System.currentTimeMillis()
+    val modifiedAt: Long = System.currentTimeMillis(),
+    val mounts: List<ValidatedFileForUpload>
 ) {
     override fun toString() = "VerifiedJob(${application.metadata.name}@${application.metadata.version})"
 }

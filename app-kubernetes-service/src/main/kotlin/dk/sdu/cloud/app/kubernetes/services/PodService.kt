@@ -119,7 +119,6 @@ class PodService(
     private fun findPod(jobName: String?): Pod? =
         k8sClient.pods().inNamespace(namespace).withLabel("job-name", jobName).list().items.firstOrNull()
 
-
     fun initializeListeners() {
         fun handlePodEvent(job: Job) {
             val jobName = job.metadata.name

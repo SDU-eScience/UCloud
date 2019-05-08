@@ -166,7 +166,7 @@ class JobFileService(
     suspend fun transferFilesToBackend(jobWithToken: VerifiedJobWithAccessToken, backend: ComputationDescriptions) {
         val (job, accessToken) = jobWithToken
         coroutineScope {
-            job.files.map { file ->
+            (job.files + job.mounts).map { file ->
                 async {
                     runCatching {
                         val userCloud = serviceClient.withoutAuthentication().bearerAuth(accessToken)
@@ -200,7 +200,7 @@ class JobFileService(
 
     suspend fun createWorkspace(jobWithToken: VerifiedJobWithAccessToken): String {
         val (job, _) = jobWithToken
-        val mounts = job.files.map { file ->
+        val mounts = (job.files + job.mounts).map { file ->
             WorkspaceMount(file.sourcePath, file.destinationPath)
         }
 
@@ -223,7 +223,6 @@ class JobFileService(
         try {
             WorkspaceDescriptions.transfer.call(
                 Workspaces.Transfer.Request(
-                    username = job.owner,
                     workspaceId = job.workspace?.removePrefix(WORKSPACE_PATH) ?: throw RPCException(
                         "No workspace found",
                         HttpStatusCode.InternalServerError

@@ -28,7 +28,6 @@ class WorkspaceController(
         implement(WorkspaceDescriptions.transfer) {
             val transferredFiles =
                 workspaceService.transfer(
-                    request.username,
                     request.workspaceId,
                     request.transferGlobs,
                     request.destination,
