@@ -43,39 +43,40 @@ export const Parameter = (props: ParameterProps) => {
     return (<>{component}<Box pb="1em" /></>);
 };
 
-type InputFileParameterProps = ParameterProps;
+interface InputFileParameterProps extends ParameterProps {
+    onRemove?: () => void
+}
 
-const InputFileParameter = (props: InputFileParameterProps) => {
-    return (
-        <GenericParameter parameter={props.parameter}>
-            <FileSelector
-                showError={props.initialSubmit || props.parameter.optional}
-                key={props.parameter.name}
-                path={props.parameterRef.current && props.parameterRef.current.value || ""}
-                onFileSelect={file => { props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)) }}
-                inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
-                isRequired={!props.parameter.optional}
-            />
-        </GenericParameter>
-    );
-};
+const InputFileParameter = (props: InputFileParameterProps) => (
+    <GenericParameter parameter={props.parameter}>
+        <FileSelector
+            showError={props.initialSubmit || props.parameter.optional}
+            key={props.parameter.name}
+            path={props.parameterRef.current && props.parameterRef.current.value || ""}
+            onFileSelect={file => { props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)) }}
+            inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
+            isRequired={!props.parameter.optional}
+            unitName={props.parameter.unitName}
+        />
+    </GenericParameter>
+);
 
-const InputDirectoryParameter = (props: InputFileParameterProps) => {
-    return (
-        <GenericParameter parameter={props.parameter}>
-            <FileSelector
-                showError={props.initialSubmit || props.parameter.optional}
-                key={props.parameter.name}
-                path={props.parameterRef.current && props.parameterRef.current.value || ""}
-                onFileSelect={file => { props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))) }}
-                inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
-                canSelectFolders
-                onlyAllowFolders
-                isRequired={!props.parameter.optional}
-            />
-        </GenericParameter>
-    )
-};
+export const InputDirectoryParameter = (props: InputFileParameterProps) => (
+    <GenericParameter parameter={props.parameter}>
+        <FileSelector
+            showError={props.initialSubmit || props.parameter.optional}
+            key={props.parameter.name}
+            path={props.parameterRef.current && props.parameterRef.current.value || ""}
+            onFileSelect={file => { props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))) }}
+            inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
+            canSelectFolders
+            onlyAllowFolders
+            isRequired={!props.parameter.optional}
+            unitName={props.parameter.unitName}
+            remove={props.onRemove}
+        />
+    </GenericParameter>
+);
 
 interface TextParameterProps extends ParameterProps {
     parameter: Types.TextParameter
@@ -102,9 +103,9 @@ const TextParameter = (props: TextParameterProps) => {
 
 type BooleanParameterOption = { value?: boolean, display: string }
 
-interface BooleanParameter { 
+interface BooleanParameter {
     parameter: Types.BooleanParameter
-    parameterRef: React.RefObject<HTMLSelectElement> 
+    parameterRef: React.RefObject<HTMLSelectElement>
     initialSubmit: boolean
 }
 const BooleanParameter = (props: BooleanParameter) => {
@@ -112,9 +113,9 @@ const BooleanParameter = (props: BooleanParameter) => {
     if (props.parameter.optional) {
         options.unshift({ value: undefined, display: "" });
     }
-    
+
     const defaultValue = props.parameter.defaultValue ? props.parameter.defaultValue.value : null;
-    
+
     const hasUnitName = !!props.parameter.unitName;
 
     return (
@@ -128,7 +129,7 @@ const BooleanParameter = (props: BooleanParameter) => {
                     rightLabel={hasUnitName}
                     required={!props.parameter.optional}
                 >
-                    <option/>
+                    <option />
                     <option selected={defaultValue === true}>Yes</option>
                     <option selected={defaultValue === false}>No</option>
                 </Select>
@@ -155,8 +156,8 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
                 step="any"
                 ref={parameterRef}
                 key={parameter.name}
-                onChange={e => { 
-                    if (optSliderRef.current) optSliderRef.current.value = e.target.value 
+                onChange={e => {
+                    if (optSliderRef.current) optSliderRef.current.value = e.target.value
                 }}
                 max={!!parameter.max ? parameter.max : undefined}
                 min={!!parameter.min ? parameter.min : undefined}

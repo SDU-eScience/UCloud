@@ -161,14 +161,13 @@ export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
     initialSubmit: boolean
-
     error?: string
-
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
     favoriteLoading: boolean
+    mountedFolders: { ref: React.RefObject<HTMLInputElement>, readOnly: boolean }[]
 }
 
 export interface RunOperations extends AddSnackOperation, SetStatusLoading {
@@ -216,7 +215,7 @@ interface BaseParameter {
     optional: boolean
     title: string
     description: string
-    unitName?: string | null
+    unitName?: string | React.ReactNode | null
     type: string
     visible?: boolean
 }

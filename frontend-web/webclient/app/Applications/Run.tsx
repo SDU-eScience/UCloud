@@ -3,20 +3,23 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { errorMessageOrDefault } from "UtilityFunctions";
+import { errorMessageOrDefault, addTrailingSlash, removeTrailingSlash } from "UtilityFunctions";
 import { updatePageTitle, setLoading } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations } from ".";
 import { Dispatch } from "redux";
-import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button } from "ui-components";
-import Input, { HiddenInputField } from "ui-components/Input";
+import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button, Icon } from "ui-components";
+import Input, { HiddenInputField, InputLabel } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Parameter, OptionalParameters } from "./ParameterWidgets";
+import { Parameter, OptionalParameters, InputDirectoryParameter } from "./ParameterWidgets";
 import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
-import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
+import { checkIfFileExists, expandHomeFolder, resolvePath, replaceHomeFolder } from "Utilities/FileUtilities";
 import { SnackType } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import FileSelector from "Files/FileSelector";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import { removeEntry } from "Utilities/CollectionUtilities";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -31,6 +34,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             error: undefined,
 
             parameterValues: new Map(),
+            mountedFolders: [],
             schedulingOptions: {
                 maxTime: {
                     hours: 0,
@@ -136,12 +140,24 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             return;
         }
 
+        // FIXME: Unify with extractParametersFromMap
+        const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
+            const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder)
+            return {
+                source: expandedValue,
+                destination: removeTrailingSlash(expandedValue).split("/").pop()!,
+                readOnly: it.readOnly
+            };    
+        });
+        // FIXME end
+
         const job = {
             application: { name: this.state.application!.metadata.name, version: this.state.application!.metadata.version },
             parameters,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
             maxTime: maxTime,
+            mounts,
             type: "start"
         };
 
@@ -289,13 +305,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const { application, error, jobSubmitted, schedulingOptions, parameterValues } = this.state;
 
         if (!application) return (
-            <>
-                <LoadingIcon size={18} />
-                <Error
-                    clearError={() => this.setState(() => ({ error: undefined }))}
-                    error={error} />
-            </>
+            <MainContainer
+                main={<>
+                    <LoadingIcon size={18} />
+                    <Error
+                        clearError={() => this.setState(() => ({ error: undefined }))}
+                        error={error} />
+                </>}
+            />
         );
+
+        const onAccessChange = (index: number, readOnly: boolean) => {
+            const { mountedFolders } = this.state;
+            mountedFolders[index].readOnly = readOnly;
+            this.setState(() => ({ mountedFolders }));
+        }
 
         const header = (
             <Flex ml="12%">
@@ -309,7 +333,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 <Parameters
                     initialSubmit={this.state.initialSubmit}
+                    addFolder={() => this.setState(s => ({ mountedFolders: s.mountedFolders.concat([{ ref: React.createRef<HTMLInputElement>(), readOnly: true }]) }))}
+                    removeDirectory={index => this.setState(s => ({ mountedFolders: removeEntry(s.mountedFolders, index) }))}
+                    additionalDirectories={this.state.mountedFolders}
                     values={parameterValues}
+                    onAccessChange={onAccessChange}
                     parameters={application.invocation.parameters}
                     onSubmit={this.onSubmit}
                     schedulingOptions={schedulingOptions}
@@ -372,19 +400,23 @@ interface SubmitButton {
     jobSubmitted: boolean
 }
 
-const SubmitButton = ({ onSubmit, jobSubmitted }: SubmitButton) => {
-    return (<Button onClick={onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>);
-};
+const SubmitButton = ({ onSubmit, jobSubmitted }: SubmitButton) =>
+    (<Button onClick={onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>);
 
 interface ParameterProps {
     initialSubmit: boolean
     values: ParameterValues
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
+    /* FIXME: Shouldn't  */
+    additionalDirectories: { ref: React.RefObject<HTMLInputElement>, readOnly: boolean }[]
     app: WithAppMetadata & WithAppInvocation
     onSubmit: (e: React.FormEvent) => void
     onJobSchedulingParamsChange: (field: string, value: number | string, subField: number | string) => void
     onParameterUsed: (parameter: ApplicationParameter) => void
+    addFolder: () => void
+    removeDirectory: (index: number) => void
+    onAccessChange: (index: number, readOnly: boolean) => void
 }
 
 const Parameters = (props: ParameterProps) => {
@@ -422,7 +454,32 @@ const Parameters = (props: ParameterProps) => {
                 </>
                 : null
             }
-
+            <Heading.h4 mb="4px">Mount additional folders <Button type="button" ml="5px" onClick={props.addFolder}>+</Button></Heading.h4>
+            {props.additionalDirectories.some(it => !it.readOnly) ? "Note: Giving folders read/write access will make the startup and shutdown of the application longer." : ""}
+            {props.additionalDirectories.map((entry, i) => (
+                <Box key={i} mb="7px">
+                    <InputDirectoryParameter 
+                        initialSubmit={false}
+                        parameterRef={entry.ref}
+                        onRemove={() => props.removeDirectory(i)}
+                        parameter={{
+                            type: ParameterTypes.InputDirectory,
+                            name: "",
+                            optional: true,
+                            title: "",
+                            description: "",
+                            defaultValue: "",
+                            visible: true,
+                            unitName: (<Box width="105px"><ClickableDropdown
+                                chevron
+                                minWidth="150px"
+                                onChange={key => props.onAccessChange(i, key === "READ")}
+                                trigger={entry.readOnly ? "Read only" : "Read/Write"}
+                                options={[{ text: "Read only", value: "READ" }, { text: "Read/Write", value: "READ/WRITE" }]}
+                            ><Box>Read only</Box><Box>Read/Write</Box></ClickableDropdown></Box>),
+                        }}
+                    />
+                </Box>))}
             <Heading.h4>Scheduling</Heading.h4>
             <JobSchedulingOptions
                 onChange={props.onJobSchedulingParamsChange}
