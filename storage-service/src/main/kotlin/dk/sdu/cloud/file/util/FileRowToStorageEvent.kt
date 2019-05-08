@@ -5,7 +5,7 @@ import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 
-fun FileRow.toCreatedEvent() = StorageEvent.CreatedOrRefreshed(
+fun FileRow.toCreatedEvent(copyCausedBy: Boolean = false) = StorageEvent.CreatedOrRefreshed(
     id = inode,
     path = path,
     creator = creator,
@@ -20,7 +20,8 @@ fun FileRow.toCreatedEvent() = StorageEvent.CreatedOrRefreshed(
     sensitivityLevel = sensitivityLevel,
 
     annotations = emptySet(),
-    checksum = FileChecksum("", "")
+    checksum = FileChecksum("", ""),
+    eventCausedBy = if (copyCausedBy) creator else null
 )
 
 /**
