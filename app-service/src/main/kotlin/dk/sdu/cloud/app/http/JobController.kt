@@ -4,6 +4,8 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.JobDescriptions
 import dk.sdu.cloud.app.api.JobStartedResponse
+import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.services.JobDao
@@ -97,6 +99,16 @@ class JobController<DBSession>(
 
             log.debug("Complete")
             ok(JobStartedResponse(jobId))
+        }
+
+        implement(JobDescriptions.cancel) {
+            jobOrchestrator.handleProposedStateChange(
+                JobStateChange(request.jobId, JobState.CANCELING),
+                newStatus = "Job is cancelling...",
+                jobOwner = ctx.securityPrincipal.username
+            )
+
+            ok(Unit)
         }
 
         implement(JobDescriptions.follow) {

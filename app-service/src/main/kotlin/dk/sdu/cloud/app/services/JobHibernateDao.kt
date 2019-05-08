@@ -90,6 +90,8 @@ data class JobInformationEntity(
 
     var maxTimeHours: Int,
 
+    var startedAt: Date?,
+
     override var modifiedAt: Date,
 
     override var createdAt: Date
@@ -124,6 +126,7 @@ class JobHibernateDao(
             job.archiveInCollection,
             job.workspace,
             job.maxTime.hours,
+            null,
             Date(System.currentTimeMillis()),
             Date(System.currentTimeMillis())
         )
@@ -149,6 +152,10 @@ class JobHibernateDao(
                 criteria.set(entity[JobInformationEntity::state], state)
                 if (status != null) {
                     criteria.set(entity[JobInformationEntity::status], status)
+                }
+
+                if (state == JobState.RUNNING) {
+                    criteria.set(entity[JobInformationEntity::startedAt], Date(System.currentTimeMillis()))
                 }
             }
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
@@ -241,7 +248,8 @@ class JobHibernateDao(
                 workspace,
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
-                mounts = mounts
+                _mounts = mounts,
+                startedAt = startedAt?.time
             ),
             accessToken
         )

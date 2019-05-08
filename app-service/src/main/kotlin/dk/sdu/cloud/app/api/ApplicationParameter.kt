@@ -80,8 +80,9 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             val source = params["source"] as String? ?: throw IllegalArgumentException("Missing source property")
             val destination =
                 params["destination"] as String? ?: throw IllegalArgumentException("Missing destination property")
+            val readOnly = params["readOnly"] as? Boolean ?: false
 
-            return FileTransferDescription(source, destination)
+            return FileTransferDescription(source, destination, readOnly)
         }
 
         override fun toInvocationArgument(entry: FileTransferDescription): String =
@@ -168,7 +169,11 @@ sealed class ParsedApplicationParameter {
     abstract val type: String // This is not ideal, but it fixes the serialization issue
 }
 
-data class FileTransferDescription(val source: String, val destination: String) : ParsedApplicationParameter() {
+data class FileTransferDescription(
+    val source: String,
+    val destination: String,
+    val readOnly: Boolean = false
+) : ParsedApplicationParameter() {
     override val type = "file"
 }
 

@@ -92,7 +92,8 @@ class JobVerificationService<DBSession>(
                 status = "Validated",
                 ownerUid = token.principal.uid,
                 archiveInCollection = archiveInCollection,
-                mounts = mounts
+                _mounts = mounts,
+                startedAt = null
             ),
             unverifiedJob.principal.token
         )
@@ -218,7 +219,8 @@ class JobVerificationService<DBSession>(
             name,
             destinationPath,
             sourcePath,
-            if (desiredFileType == FileType.DIRECTORY) FileForUploadArchiveType.ZIP else null
+            if (desiredFileType == FileType.DIRECTORY) FileForUploadArchiveType.ZIP else null,
+            readOnly = transferDescription.readOnly
         )
     }
 

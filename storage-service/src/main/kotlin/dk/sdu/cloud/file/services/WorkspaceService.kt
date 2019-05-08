@@ -92,7 +92,7 @@ class WorkspaceService(
                         else outputRoot.resolve(relativePath)
 
                     if (Files.isDirectory(file)) {
-                        if (!readOnly) Files.createDirectories(inputDestinationPath)
+                        if (readOnly) Files.createDirectories(inputDestinationPath)
                         Files.createDirectories(outputDestinationPath)
 
                         Files.list(file).forEach {
@@ -188,7 +188,7 @@ class WorkspaceService(
 
                 val existingMount = run {
                     val fileName = path.toFile().name
-                    manifest.mounts.find { fileName == it.destination }
+                    manifest.mounts.find { fileName == File(it.destination).name }
                 }
 
                 if (existingMount != null && !existingMount.allowMergeDuringTransfer) return@mapNotNull null

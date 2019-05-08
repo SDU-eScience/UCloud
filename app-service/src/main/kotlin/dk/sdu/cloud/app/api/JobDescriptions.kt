@@ -78,6 +78,22 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
         }
     }
 
+    val cancel = call<CancelRequest, CancelResponse, CommonErrorMessage>("cancel") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
     /**
      * Follows the std streams of a job.
      */
@@ -292,3 +308,6 @@ data class QueryWebParametersRequest(
 data class QueryWebParametersResponse(
     val path: String
 )
+
+data class CancelRequest(val jobId: String)
+typealias CancelResponse = Unit

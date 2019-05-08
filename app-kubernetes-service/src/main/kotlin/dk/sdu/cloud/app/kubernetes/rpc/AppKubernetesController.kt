@@ -54,6 +54,11 @@ class AppKubernetesController(
             ok(webService.queryParameters(request.verifiedJob))
         }
 
+        implement(AppKubernetesDescriptions.cancel) {
+            podService.cancel(request.verifiedJob)
+            ok(Unit)
+        }
+
         return@configure
     }
 

@@ -201,7 +201,7 @@ class JobFileService(
     suspend fun createWorkspace(jobWithToken: VerifiedJobWithAccessToken): String {
         val (job, _) = jobWithToken
         val mounts = (job.files + job.mounts).map { file ->
-            WorkspaceMount(file.sourcePath, file.destinationPath)
+            WorkspaceMount(file.sourcePath, file.destinationPath, readOnly = file.readOnly)
         }
 
         return WORKSPACE_PATH + WorkspaceDescriptions.create.call(
