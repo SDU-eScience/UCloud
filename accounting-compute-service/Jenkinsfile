@@ -8,7 +8,7 @@ def initialize() {
 	  }
 	} catch (e) {
     echo "Build Failed"
-    return currentBuild.result ?: 'FAILURE'
+    return 'FAILURE'
   } finally {
     publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'accounting-compute-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'accounting-compute-service-detekt-Report', reportTitles: ''])
   }
@@ -20,10 +20,10 @@ def initialize() {
        }
      } catch (e) {
        echo "Test FAILED"
-       return currentBuild.result ?: 'UNSTABLE'
+       return 'UNSTABLE'
      }
 
-  return currentBuild.result ?: 'SUCCESS'
+  return 'SUCCESS'
 
 }
 

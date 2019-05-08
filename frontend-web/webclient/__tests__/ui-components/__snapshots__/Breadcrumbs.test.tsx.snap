@@ -1,0 +1,51 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Breadcrumbs Build breadcrumbs 1`] = `
+.c0 {
+  padding: 0;
+  padding-right: 10px;
+  margin: 0;
+  list-style: none;
+}
+
+.c0 li {
+  display: inline;
+  font-size: 18px;
+}
+
+.c0 li + li:before {
+  padding: 8px;
+  color: black;
+  content: "/";
+}
+
+.c0 li span {
+  color: #0275d8;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+}
+
+.c0 li span:hover {
+  cursor: pointer;
+  color: #01447e;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+}
+
+<ul
+  className="c0"
+>
+  <li>
+    <span
+      onClick={[Function]}
+    >
+      Home
+    </span>
+  </li>
+  <li>
+    folder1
+  </li>
+</ul>
+`;
+
+exports[`Breadcrumbs Build breadcrumbs with empty path 1`] = `null`;

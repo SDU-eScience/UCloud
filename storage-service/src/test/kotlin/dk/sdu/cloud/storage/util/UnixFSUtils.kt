@@ -3,9 +3,8 @@ package dk.sdu.cloud.storage.util
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
 import dk.sdu.cloud.file.services.UIDLookupService
-import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.service.test.TestUsers
 import java.io.File
 import java.nio.file.Files
@@ -22,18 +21,17 @@ fun storageUserDaoWithFixedAnswer(answer: String): UIDLookupService {
     return DevelopmentUIDLookupService(answer)
 }
 
-fun unixFSWithRelaxedMocks(
+fun linuxFSWithRelaxedMocks(
     fsRoot: String,
     userDao: UIDLookupService = simpleStorageUserDao()
-): Pair<UnixFSCommandRunnerFactory, UnixFileSystem> {
-    val commandRunner = UnixFSCommandRunnerFactory(userDao)
+): Pair<LinuxFSRunnerFactory, LinuxFS> {
+    val commandRunner = LinuxFSRunnerFactory(userDao)
     return Pair(
         commandRunner,
-        UnixFileSystem(
+        LinuxFS(
             commandRunner,
-            userDao,
-            FileAttributeParser(userDao),
-            fsRoot
+            File(fsRoot),
+            userDao
         )
     )
 }

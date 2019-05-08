@@ -79,7 +79,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
                 this.props.history.push("/shares");
                 break;
         }
-    }
+    };
 
     public componentWillUnmount() {
         this.props.setRefresh();
@@ -162,7 +162,7 @@ const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean
             </Link>
         </Flex>
     );
-}
+};
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
     <DashboardCard title="Recently Used Files" isLoading={isLoading}>
@@ -238,7 +238,8 @@ const statusToIconName = (status: AppState) => {
         default:
             return "ellipsis";
     }
-}
+};
+
 const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" : "green";
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
@@ -255,7 +256,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
-    // FIXME: Make action instead
+    // FIXME: Make action instead (favoriteFile)
     receiveFavorites: files => dispatch(receiveFavorites(files)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });

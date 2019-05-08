@@ -20,8 +20,8 @@ class FileFavoriteServiceTest {
         ClientMock.mockCall(FileDescriptions.stat) { req ->
             val file = when (req.path) {
                 "/home/user/1" -> storageFile
-                "/home/user/2" -> storageFile.copy(path = "/home/user/2", fileId = "fileId2")
-                "/home/user/3" -> storageFile.copy(path = "/home/user/3", fileId = "fileId3")
+                "/home/user/2" -> storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2")
+                "/home/user/3" -> storageFile.copy(pathOrNull = "/home/user/3", fileIdOrNull = "fileId3")
                 else -> null
             }
             if (file != null) {
@@ -53,8 +53,8 @@ class FileFavoriteServiceTest {
             val favorites = service.getFavoriteStatus(
                 listOf(
                     storageFile,
-                    storageFile.copy(path = "/home/user/2", fileId = "fileId2"),
-                    storageFile.copy(path = "/home/user/4", fileId = "fileId4")
+                    storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2"),
+                    storageFile.copy(pathOrNull = "/home/user/4", fileIdOrNull = "fileId4")
                 ),
                 user.username
             )
@@ -75,8 +75,8 @@ class FileFavoriteServiceTest {
             val favorites2 = service.getFavoriteStatus(
                 listOf(
                     storageFile,
-                    storageFile.copy(path = "/home/user/2", fileId = "fileId2"),
-                    storageFile.copy(path = "/home/user/4", fileId = "fileId4")
+                    storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2"),
+                    storageFile.copy(pathOrNull = "/home/user/4", fileIdOrNull = "fileId4")
                 ),
                 user.username
             )
@@ -112,7 +112,7 @@ class FileFavoriteServiceTest {
             val favorites = service.getFavoriteStatus(
                 listOf(
                     storageFile,
-                    storageFile.copy(path = "/home/user/2", fileId = "fileId2")
+                    storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2")
                 ),
                 user.username
             )

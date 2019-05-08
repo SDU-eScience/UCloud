@@ -1,9 +1,6 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.AppParametersWithValues
-import dk.sdu.cloud.app.api.ApplicationParameter
-import dk.sdu.cloud.app.api.BooleanApplicationParameter
-import dk.sdu.cloud.app.api.BooleanFlagParameter
+import dk.sdu.cloud.app.api.*
 import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -16,7 +13,7 @@ class InvocationCommandASTTest {
         val m: AppParametersWithValues = mapOf(
             Pair(ApplicationParameter.Bool("variable"), BooleanApplicationParameter(true))
         )
-        assertEquals("This is the flag", bo.buildInvocationSnippet(m))
+        assertEquals(listOf("This is the flag"), bo.buildInvocationList(m))
         assertEquals("This is the flag", bo.flag)
         assertEquals("variable", bo.variableName)
     }

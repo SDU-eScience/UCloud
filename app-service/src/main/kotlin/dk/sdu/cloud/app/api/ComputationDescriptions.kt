@@ -11,8 +11,6 @@ import dk.sdu.cloud.calls.bindToSubProperty
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.calls.types.StreamingRequest
 import io.ktor.http.HttpMethod
 
 data class ComputationErrorMessage(
@@ -25,6 +23,29 @@ data class SubmitFileToComputation(
     val parameterName: String,
     @JsonIgnore val fileData: BinaryStream
 )
+
+data class QueryInternalVncParametersRequest(
+    val verifiedJob: VerifiedJob
+)
+
+data class QueryInternalVncParametersResponse(
+    val path: String,
+    val password: String? = null
+)
+
+data class QueryInternalWebParametersRequest(
+    val verifiedJob: VerifiedJob
+)
+
+data class QueryInternalWebParametersResponse(
+    val path: String
+)
+
+data class CancelInternalRequest(
+    val verifiedJob: VerifiedJob
+)
+
+typealias CancelInternalResponse = Unit
 
 /**
  * Abstract [RESTDescriptions] for computation backends.
@@ -141,6 +162,62 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
             path {
                 using(baseContext)
                 +"follow"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val queryInternalVncParameters =
+        call<QueryInternalVncParametersRequest, QueryInternalVncParametersResponse, CommonErrorMessage>("queryInternalVncParameters") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"query-vnc"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
+
+    val queryInternalWebParameters =
+        call<QueryInternalWebParametersRequest, QueryInternalWebParametersResponse, CommonErrorMessage>("queryInternalWebParameters") {
+            auth {
+                access = AccessRight.READ
+                roles = Roles.PRIVILEDGED
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"query-web"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
+
+    val cancel = call<CancelInternalRequest, CancelInternalResponse, CommonErrorMessage>("cancel") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEDGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"cancel"
             }
 
             body { bindEntireRequestFromBody() }

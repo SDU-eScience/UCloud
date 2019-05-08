@@ -12,13 +12,30 @@ data class ApplicationMetadata(
     val website: String?
 ) : NameAndVersion
 
+data class VncDescription(
+    val password: String?,
+    val port: Int = 5900
+)
+
+data class WebDescription(
+    val port: Int = 80
+)
+
+data class ContainerDescription(
+    val changeWorkingDirectory: Boolean = true,
+    val runAsRoot: Boolean = false
+)
+
 data class ApplicationInvocationDescription(
     val tool: ToolReference,
     val invocation: List<InvocationParameter>,
     val parameters: List<ApplicationParameter<*>>,
     val outputFileGlobs: List<String>,
     val applicationType: ApplicationType = ApplicationType.BATCH,
-    val resources: ResourceRequirements = ResourceRequirements()
+    val resources: ResourceRequirements = ResourceRequirements(),
+    val vnc: VncDescription? = null,
+    val web: WebDescription? = null,
+    val container: ContainerDescription? = null
 )
 
 interface WithAppMetadata {

@@ -1,0 +1,18 @@
+#
+# Production container copying from locally build artifact
+#
+
+FROM alpine:3.8 as production-cached
+
+ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
+    PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
+
+RUN apk add --no-cache openjdk8-jre
+RUN apk add --no-cache nss
+RUN wget https://storage.googleapis.com/kubernetes-release/release/v1.13.0/bin/linux/amd64/kubectl
+RUN mv kubectl /usr/bin/kubectl
+RUN chmod +x /usr/bin/kubectl
+
+COPY build/service /opt/service/
+
+CMD ["/opt/service/bin/service"]

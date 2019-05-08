@@ -1,45 +1,15 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.ParsedApplicationParameter
-import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.ToolReference
-import dk.sdu.cloud.app.api.ValidatedFileForUpload
-import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.app.api.VerifiedJobInput
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.JSONB_LIST_PARAM_TYPE
-import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
-import dk.sdu.cloud.service.db.WithId
-import dk.sdu.cloud.service.db.WithTimestamps
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
-import dk.sdu.cloud.service.db.updateCriteria
-import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.*
 import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
 import org.slf4j.Logger
 import java.util.*
-import javax.persistence.AttributeOverride
-import javax.persistence.AttributeOverrides
-import javax.persistence.Column
-import javax.persistence.Embedded
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.Id
-import javax.persistence.Table
+import javax.persistence.*
 
 @Entity
 @Table(name = "job_information")
@@ -92,7 +62,16 @@ data class JobInformationEntity(
     )
     var files: List<ValidatedFileForUpload>,
 
-    var maxTimeHours: Int,
+    @Type(
+        type = JSONB_LIST_TYPE,
+        parameters = [
+            Parameter(
+                name = JSONB_LIST_PARAM_TYPE,
+                value = "dk.sdu.cloud.app.api.ValidatedFileForUpload"
+            )
+        ]
+    )
+    var mounts: List<ValidatedFileForUpload>,
 
     var maxTimeMinutes: Int,
 
@@ -106,9 +85,16 @@ data class JobInformationEntity(
     @Column(length = 1024)
     var archiveInCollection: String,
 
-    override var createdAt: Date,
+    @Column(length = 1024)
+    var workspace: String?,
 
-    override var modifiedAt: Date
+    var maxTimeHours: Int,
+
+    var startedAt: Date?,
+
+    override var modifiedAt: Date,
+
+    override var createdAt: Date
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -116,7 +102,8 @@ data class JobInformationEntity(
 
 class JobHibernateDao(
     private val appDao: ApplicationDAO<HibernateSession>,
-    private val toolDao: ToolDAO<HibernateSession>
+    private val toolDao: ToolDAO<HibernateSession>,
+    private val tokenValidation: TokenValidation<*>
 ) : JobDao<HibernateSession> {
     override fun create(session: HibernateSession, jobWithToken: VerifiedJobWithAccessToken) {
         val (job, token) = jobWithToken
@@ -131,12 +118,15 @@ class JobHibernateDao(
             job.tasksPerNode,
             job.jobInput.asMap(),
             job.files,
-            job.maxTime.hours,
+            job.mounts,
             job.maxTime.minutes,
             job.maxTime.seconds,
             job.backend,
             token,
             job.archiveInCollection,
+            job.workspace,
+            job.maxTime.hours,
+            null,
             Date(System.currentTimeMillis()),
             Date(System.currentTimeMillis())
         )
@@ -163,6 +153,19 @@ class JobHibernateDao(
                 if (status != null) {
                     criteria.set(entity[JobInformationEntity::status], status)
                 }
+
+                if (state == JobState.RUNNING) {
+                    criteria.set(entity[JobInformationEntity::startedAt], Date(System.currentTimeMillis()))
+                }
+            }
+        ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
+    }
+
+    override fun updateWorkspace(session: HibernateSession, systemId: String, workspace: String) {
+        session.updateCriteria<JobInformationEntity>(
+            where = { entity[JobInformationEntity::systemId] equal systemId },
+            setProperties = {
+                criteria.set(entity[JobInformationEntity::workspace], workspace)
             }
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
@@ -239,9 +242,14 @@ class JobHibernateDao(
                 backendName,
                 state,
                 status,
-                createdAt.time,
-                modifiedAt.time,
-                archiveInCollection
+                archiveInCollection,
+                tokenValidation.validateAndDecodeOrNull(accessToken)?.principal?.uid
+                    ?: Long.MAX_VALUE, // TODO This is a safe value to map to, but we shouldn't just map it to long max
+                workspace,
+                createdAt = createdAt.time,
+                modifiedAt = modifiedAt.time,
+                _mounts = mounts,
+                startedAt = startedAt?.time
             ),
             accessToken
         )

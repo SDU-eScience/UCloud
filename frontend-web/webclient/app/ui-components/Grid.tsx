@@ -2,14 +2,11 @@ import * as React from "react";
 import styled from "styled-components"
 import {
     space, SpaceProps, width, WidthProps,
-    height, HeightProps,
-    color, ColorProps,
-    alignItems, AlignItemsProps,
-    justifyItems,
-    JustifyItemsProps,
-    gridGap, GridGapProps,
+    height, HeightProps, color, ColorProps,
+    alignItems, AlignItemsProps, justifyItems,
+    JustifyItemsProps, gridGap, GridGapProps,
     gridTemplateColumns, GridTemplateColumnsProps,
-    gridTemplateRows, GridTemplateRowsProps,
+    gridTemplateRows, GridTemplateRowsProps
 } from "styled-system";
 
 export type GridProps =

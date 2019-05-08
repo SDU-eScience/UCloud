@@ -78,6 +78,22 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
         }
     }
 
+    val cancel = call<CancelRequest, CancelResponse, CommonErrorMessage>("cancel") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
     /**
      * Follows the std streams of a job.
      */
@@ -103,6 +119,36 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
             }
         }
     }
+
+    val queryVncParameters =
+        call<QueryVncParametersRequest, QueryVncParametersResponse, CommonErrorMessage>("queryVncParameters") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                path {
+                    using(baseContext)
+                    +"query-vnc"
+                    +boundTo(QueryVncParametersRequest::jobId)
+                }
+            }
+        }
+
+    val queryWebParameters =
+        call<QueryWebParametersRequest, QueryWebParametersResponse, CommonErrorMessage>("queryWebParameters") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                path {
+                    using(baseContext)
+                    +"query-web"
+                    +boundTo(QueryWebParametersRequest::jobId)
+                }
+            }
+        }
 }
 
 data class FindByNameAndVersion(val name: String, val version: String)
@@ -239,10 +285,29 @@ data class InternalFollowStdStreamsRequest(
     }
 }
 
-
 data class InternalStdStreamsResponse(
     val stdout: String,
     val stdoutNextLine: Int,
     val stderr: String,
     val stderrNextLine: Int
 )
+
+data class QueryVncParametersRequest(
+    val jobId: String
+)
+
+data class QueryVncParametersResponse(
+    val path: String,
+    val password: String? = null
+)
+
+data class QueryWebParametersRequest(
+    val jobId: String
+)
+
+data class QueryWebParametersResponse(
+    val path: String
+)
+
+data class CancelRequest(val jobId: String)
+typealias CancelResponse = Unit

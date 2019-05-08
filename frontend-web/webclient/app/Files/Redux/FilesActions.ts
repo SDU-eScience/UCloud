@@ -23,6 +23,7 @@ import { SortOrder, SortBy, File, FileResource } from "..";
 import { Action } from "redux";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
 import { errorMessageOrDefault } from "UtilityFunctions";
+import { emptyPage } from "DefaultObjects";
 
 export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage<typeof UPDATE_FILES, File> |
     SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
@@ -164,10 +165,10 @@ export async function fetchPageFromPath(path: string, itemsPerPage: number, orde
     }
 }
 
-type InvalidPathAction = PayloadAction<typeof FILES_INVALID_PATH, { invalidPath: true, loading: false, error?: string }>
+type InvalidPathAction = PayloadAction<typeof FILES_INVALID_PATH, { invalidPath: true, loading: false, error?: string, page: Page<File> }>
 export const setInvalidPath = (error?: string): InvalidPathAction => ({
     type: FILES_INVALID_PATH,
-    payload: { invalidPath: true, loading: false, error }
+    payload: { invalidPath: true, loading: false, error, page: emptyPage }
 });
 
 /**

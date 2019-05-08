@@ -27,9 +27,9 @@ enum class FileAttribute(val value: Long) {
     UNIX_MODE(1 shl 4),
 
     /**
-     * Unix owner information (this is the file creator)
+     * Unix creator information (this is the file creator)
      */
-    OWNER(1 shl 5),
+    CREATOR(1 shl 5),
 
     /**
      * Unix group information
@@ -66,14 +66,7 @@ enum class FileAttribute(val value: Long) {
      */
     SHARES(1 shl 12),
 
-    /**
-     * Annotations of the file
-     */
 //    ANNOTATIONS(1 shl 13),
-
-    /**
-     * Checksum information (if computed)
-     */
 //    CHECKSUM(1 shl 14),
 
     /**
@@ -82,9 +75,9 @@ enum class FileAttribute(val value: Long) {
     SENSITIVITY(1 shl 15),
 
     /**
-     * The owner (as derived from the xattr)
+     * The creator
      */
-    XOWNER(1 shl 16);
+    OWNER(1 shl 16);
 
     companion object
 }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import View from "Applications/View";
+import View from "../../app/Applications/View";
 import { create } from "react-test-renderer";
 import { mount, shallow } from "enzyme";
 import { configure } from "enzyme";

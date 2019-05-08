@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.bearerAuth
@@ -46,6 +47,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class ShareService<DBSession>(
     private val serviceCloud: AuthenticatedClient,
@@ -71,7 +73,6 @@ class ShareService<DBSession>(
                 FileDescriptions.stat
                     .call(FindByPath(share.path), userCloud)
                     .orNull()
-                    ?.takeIf { devMode || it.ownerName == user } ?: throw ShareException.NotFound()
             }
 
             log.debug("Verifying that user exists")
@@ -87,7 +88,12 @@ class ShareService<DBSession>(
                     ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
             }
 
-            fileId = statJob.await().fileId
+            val file = statJob.await() ?: throw ShareException.NotFound()
+            if (!devMode && (file.ownerName != user || file.link)) {
+                throw ShareException.NotAllowed()
+            }
+
+            fileId = file.fileId
             log.debug("File exists")
             lookupJob.join()
             log.debug("User exists")
@@ -223,58 +229,92 @@ class ShareService<DBSession>(
         val auth = AuthRequirements(user, ShareRole.RECIPIENT)
         val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
 
-        coroutineScope {
-            val updateCall = async {
-                val ownerCloud = userCloudFactory(existingShare.ownerToken)
-                updateFSPermissions(existingShare, existingShare.rights, ownerCloud).orThrow()
-            }
+        try {
+            coroutineScope {
+                val updateCall = async {
+                    val ownerCloud = userCloudFactory(existingShare.ownerToken)
+                    updateFSPermissions(existingShare, existingShare.rights, ownerCloud).orThrow()
+                }
 
-            val extendCall = async {
-                AuthDescriptions.tokenExtension.call(
-                    TokenExtensionRequest(
-                        userToken,
-                        listOf(
-                            FileDescriptions.stat.requiredAuthScope,
-                            FileDescriptions.createLink.requiredAuthScope,
-                            FileDescriptions.deleteFile.requiredAuthScope
-                        ).map { it.toString() },
-                        expiresIn = 1000L * 60,
-                        allowRefreshes = true
-                    ),
-                    serviceCloud
-                ).orThrow()
-            }
-
-            val createdLink = if (createLink) {
-                val linkCall = async {
-                    FileDescriptions.createLink.call(
-                        CreateLinkRequest(
-                            linkPath = defaultLinkToShare(existingShare),
-                            linkTargetPath = existingShare.path
+                val extendCall = async {
+                    AuthDescriptions.tokenExtension.call(
+                        TokenExtensionRequest(
+                            userToken,
+                            listOf(
+                                FileDescriptions.stat.requiredAuthScope,
+                                FileDescriptions.createLink.requiredAuthScope,
+                                FileDescriptions.deleteFile.requiredAuthScope
+                            ).map { it.toString() },
+                            expiresIn = 1000L * 60,
+                            allowRefreshes = true
                         ),
-                        userCloud
+                        serviceCloud
                     ).orThrow()
                 }
 
-                val createdLink = linkCall.await()
-                updateCall.await()
+                val createdLink = if (createLink) {
+                    val linkCall = async {
+                        FileDescriptions.createLink.call(
+                            CreateLinkRequest(
+                                linkPath = defaultLinkToShare(existingShare),
+                                linkTargetPath = existingShare.path
+                            ),
+                            userCloud
+                        ).orThrow()
+                    }
+                    val createdLink = linkCall.await()
+                    updateCall.await()
 
-                createdLink
-            } else null
+                    createdLink
+                } else null
 
-            val tokenExtension = extendCall.await().refreshToken
-                ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
+                val tokenExtension = extendCall.await().refreshToken
+                    ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
 
-            db.withTransaction { session ->
-                shareDao.updateShare(
-                    session,
-                    auth,
-                    shareId,
-                    recipientToken = tokenExtension,
-                    state = ShareState.ACCEPTED,
-                    linkId = createdLink?.fileId
-                )
+                db.withTransaction { session ->
+                    shareDao.updateShare(
+                        session,
+                        auth,
+                        shareId,
+                        recipientToken = tokenExtension,
+                        state = ShareState.ACCEPTED,
+                        linkId = createdLink?.fileId
+                    )
+                }
             }
+        } catch (ex: Exception) {
+            runBlocking {
+                //Attempt revoke of permissions
+                val refreshedExistingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
+                val ownerCloud = userCloudFactory(existingShare.ownerToken)
+                println(FileDescriptions.stat.call(FindByPath("/home/user/to_share"),userCloud))
+                val response = FileDescriptions.updateAcl.call(
+                    UpdateAclRequest(
+                        refreshedExistingShare.path,
+                        true,
+                        listOf(
+                            ACLEntryRequest(
+                                refreshedExistingShare.sharedWith,
+                                emptySet(),
+                                revoke = true,
+                                isUser = true
+                            )
+                        )
+                    ),
+                    ownerCloud
+                )
+                println(response)
+                println(FileDescriptions.stat.call(FindByPath("/home/user/to_share"),userCloud))
+
+                val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
+                val pathToLink = findShareLink(existingShare)
+                //Attempt to remove link if exists
+                if (pathToLink != null) {
+                    FileDescriptions.deleteFile.call(DeleteFileRequest(pathToLink), userCloud)
+                }
+
+            }
+            throw ex
         }
     }
 

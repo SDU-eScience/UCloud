@@ -21,6 +21,7 @@ ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
     PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
 
 RUN apk add --no-cache openjdk8
+RUN apk add --no-cache nss
 
 RUN apk add --no-cache curl zip bash
 RUN curl -s "https://get.sdkman.io" | bash
@@ -56,6 +57,7 @@ RUN source $HOME/.bashrc && \
 FROM alpine:3.8 as production
 
 RUN apk add --no-cache openjdk8
+RUN apk add --no-cache nss
 
 COPY --from=fe-build-production-ready /usr/src/app/dist /var/www/
 COPY --from=srv-build-production-ready /opt/service /opt/service

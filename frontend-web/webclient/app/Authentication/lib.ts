@@ -85,6 +85,7 @@ export default class SDUCloud {
      * @param {string} path - the path, should not contain context or /api/
      * @param {object} body - the request body, assumed to be a JS object to be encoded as JSON.
      * @param {string} context - the base of the request (e.g. "/api")
+     * @param {number} maxRetries - the amount of times the call should be retried on failure (Default: 5).
      * @return {Promise} promise
      */
     async call(method: string, path: string, body?: object, context: string = this.apiContext, maxRetries: number = 5): Promise<any> {
@@ -108,7 +109,7 @@ export default class SDUCloud {
                     } else {
                         reject({ request: req, response: parsedResponse });
                     }
-                }
+                };
 
                 req.onload = async () => {
                     try {
@@ -355,7 +356,7 @@ export default class SDUCloud {
                         resolve(JSON.parse(req.response));
                     } else {
                         if (req.status === 401 || req.status === 400) {
-                            this.clearTokens();
+                            SDUCloud.clearTokens();
                             this.openBrowserLoginPage();
                         }
                         reject({ status: req.status, response: req.response });
@@ -379,7 +380,7 @@ export default class SDUCloud {
      * @param accessToken the (JWT) access token.
      * @param csrfToken the csrf token
      */
-    setTokens(accessToken: string, csrfToken: string) {
+    public setTokens(accessToken: string, csrfToken: string): void {
         if (!accessToken) throw this.missingAuth();
 
         this.accessToken = accessToken;
@@ -394,7 +395,7 @@ export default class SDUCloud {
 
     private decodeToken(accessToken: string): any {
         const bail = (): never => {
-            this.clearTokens();
+            SDUCloud.clearTokens();
             this.openBrowserLoginPage();
             return void (0) as never;
         };
@@ -434,7 +435,7 @@ export default class SDUCloud {
         }
     }
 
-    async logout() {
+    public async logout() {
         try {
             const res = await fetch(`${this.context}${this.authContext}/logout/web`, {
                 headers: {
@@ -449,7 +450,7 @@ export default class SDUCloud {
                 window.localStorage.removeItem("csrfToken");
                 this.openBrowserLoginPage();
                 return;
-            };
+            }
             throw Error("The server was unreachable, please try again later.")
         } catch (err) {
             // FIXME, not ideal way of showing error
@@ -457,7 +458,7 @@ export default class SDUCloud {
         }
     }
 
-    clearTokens() {
+    private static clearTokens() {
         SDUCloud.storedAccessToken = "";
         SDUCloud.storedCsrfToken = "";
     }

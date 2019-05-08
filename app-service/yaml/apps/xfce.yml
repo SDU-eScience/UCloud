@@ -1,0 +1,34 @@
+---
+application: v1
+
+title: XFCE
+name: xfce
+version: 0.1.1
+
+applicationType: VNC
+
+tool:
+  name: xfce
+  version: 0.1.0
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: Interactive Ubuntu container with VNC, Xfce4 and browsers.
+
+invocation:
+- /dockerstartup/vnc_startup.sh
+- --wait
+
+vnc:
+  password: vncpassword
+  port: 6901
+
+parameters:
+  directory:
+    title: Mount
+    type: input_directory
+    optional: true
+
+outputFileGlobs:
+  - "*"

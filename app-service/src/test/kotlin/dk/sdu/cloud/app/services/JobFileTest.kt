@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.services
 
 
-import ch.qos.logback.core.net.server.Client
-import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.LongRunningResponse
@@ -11,7 +9,6 @@ import dk.sdu.cloud.service.test.ClientMock
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class JobFileTest{

@@ -12,8 +12,9 @@ import { TextSpan } from "ui-components/Text";
 import { connect } from "react-redux";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Dispatch } from "redux";
-import { SnackType } from "Snackbar/Snackbars";
+import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { ReduxObject } from "DefaultObjects";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -37,8 +38,8 @@ const identifierHasValue = (identifier: RelatedIdentifier): boolean =>
 
 const filePathFromProps = (props: CreateUpdateProps): string | null => getQueryParam(props, "filePath");
 
-class CreateUpdate extends React.Component<CreateUpdateProps, CreateUpdateState> {
-    constructor(props: Readonly<CreateUpdateProps> & { dispatch: Dispatch }) {
+class CreateUpdate extends React.Component<CreateUpdateProps & CreateUpdateOperations, CreateUpdateState> {
+    constructor(props: Readonly<CreateUpdateProps & CreateUpdateOperations> & { dispatch: Dispatch }) {
         super(props);
         const path = filePathFromProps(props) || "";
         this.state = {
@@ -56,7 +57,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, CreateUpdateState>
             relatedIdentifiers: [newIdentifier()],
             errors: { contributors: {}, subjects: {}, relatedIdentifiers: {} }
         };
-        props.dispatch(updatePageTitle("Edit Project"));
+        props.updateTitle();
         this.setStateEv = this.setStateEv.bind(this);
         this.setStateEvList = this.setStateEvList.bind(this);
     }
@@ -529,8 +530,15 @@ const FormFieldList = ({ items, name, onChange }) =>
 
 const Required = () => <TextSpan color="red">{" *"}</TextSpan>
 
-const mapDispatchToProps = (dispatch: Dispatch) => ({
+interface CreateUpdateOperations extends AddSnackOperation {
+    updateTitle: () => void
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): CreateUpdateOperations => ({
+    updateTitle: () => dispatch(updatePageTitle("Edit Project")),
     addSnack: snack => dispatch(addSnack(snack))
 });
 
-export default connect(null, mapDispatchToProps)(CreateUpdate);
+const mapStateToProps = ({ responsive }: ReduxObject) => responsive;
+
+export default connect(mapStateToProps, mapDispatchToProps)(CreateUpdate);

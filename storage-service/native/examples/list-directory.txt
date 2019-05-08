@@ -1,4 +1,0 @@
-list-directory
-home/user/bah
-512
-ceof

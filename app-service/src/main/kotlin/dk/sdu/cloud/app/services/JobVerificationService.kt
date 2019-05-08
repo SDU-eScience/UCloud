@@ -16,8 +16,10 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.StatRequest
+import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
@@ -37,10 +39,14 @@ data class VerifiedJobWithAccessToken(
     val accessToken: String
 )
 
+private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransferDescription>, FileTransferDescription>
+
 class JobVerificationService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val applicationDAO: ApplicationDAO<DBSession>,
-    private val toolDAO: ToolDAO<DBSession>
+    private val toolDAO: ToolDAO<DBSession>,
+    private val tokenValidation: TokenValidation<DecodedJWT>,
+    private val defaultBackend: String
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -57,26 +63,37 @@ class JobVerificationService<DBSession>(
             )
         }
 
+        val mounts = collectCloudFiles(verifyMounts(unverifiedJob), workDir, cloud).map {
+            it.copy(
+                destinationPath = "./" + it.destinationPath.removePrefix(workDir.path)
+            )
+        }
+
         val numberOfJobs = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes
         val tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode
         val maxTime = unverifiedJob.request.maxTime ?: tool.description.defaultMaxTime
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
 
+        val token = tokenValidation.decodeToken(unverifiedJob.principal)
+
         return VerifiedJobWithAccessToken(
             VerifiedJob(
                 application = application,
                 files = files,
                 id = jobId,
-                owner = unverifiedJob.principal.subject,
+                owner = token.principal.username,
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,
                 maxTime = maxTime,
                 jobInput = verifiedParameters,
-                backend = resolveBackend(unverifiedJob.request.backend),
+                backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
                 currentState = JobState.VALIDATED,
                 status = "Validated",
-                archiveInCollection = archiveInCollection
+                ownerUid = token.principal.uid,
+                archiveInCollection = archiveInCollection,
+                _mounts = mounts,
+                startedAt = null
             ),
             unverifiedJob.principal.token
         )
@@ -114,6 +131,15 @@ class JobVerificationService<DBSession>(
         )
     }
 
+    private fun verifyMounts(
+        job: UnverifiedJob
+    ): List<ParameterWithTransfer> {
+        val fakeParameter = ApplicationParameter.InputDirectory(name = "mount", optional = false)
+        return job.request.mounts
+            .mapNotNull { fakeParameter.map(it) }
+            .mapIndexed { i, transfer -> Pair(fakeParameter.copy(name = "mount-$i"), transfer) }
+    }
+
     private suspend fun collectFiles(
         application: Application,
         verifiedParameters: VerifiedJobInput,
@@ -121,14 +147,30 @@ class JobVerificationService<DBSession>(
         cloud: AuthenticatedClient
     ): List<ValidatedFileForUpload> {
         return coroutineScope {
-            application.invocation.parameters
+            val transfersFromParameters = application.invocation.parameters
                 .asSequence()
                 .filter { it is ApplicationParameter.InputFile || it is ApplicationParameter.InputDirectory }
-                .map {
+                .mapNotNull {
                     @Suppress("UNCHECKED_CAST")
-                    val appParameter = it as ApplicationParameter<FileTransferDescription>
+                    val fileAppParameter = it as ApplicationParameter<FileTransferDescription>
+                    val transfer = verifiedParameters[fileAppParameter] ?: return@mapNotNull null
+                    ParameterWithTransfer(fileAppParameter, transfer)
+                }
+                .toList()
 
-                    async { collectSingleFile(verifiedParameters, workDir, cloud, appParameter) }
+            collectCloudFiles(transfersFromParameters, workDir, cloud)
+        }
+    }
+
+    private suspend fun collectCloudFiles(
+        transfers: List<ParameterWithTransfer>,
+        workDir: URI,
+        cloud: AuthenticatedClient
+    ): List<ValidatedFileForUpload> {
+        return coroutineScope {
+            transfers
+                .map { (parameter, transfer) ->
+                    async { collectSingleFile(transfer, workDir, cloud, parameter) }
                 }
                 .toList()
                 .mapNotNull { it.await() }
@@ -136,7 +178,7 @@ class JobVerificationService<DBSession>(
     }
 
     private suspend fun collectSingleFile(
-        verifiedParameters: VerifiedJobInput,
+        transferDescription: FileTransferDescription,
         workDir: URI,
         cloud: AuthenticatedClient,
         fileAppParameter: ApplicationParameter<FileTransferDescription>
@@ -146,10 +188,8 @@ class JobVerificationService<DBSession>(
             else -> FileType.FILE
         }
 
-        val transferDescription = verifiedParameters[fileAppParameter] ?: return null
-
         val sourcePath = transferDescription.source
-        val stat = FileDescriptions.stat.call(FindByPath(sourcePath), cloud)
+        val stat = FileDescriptions.stat.call(StatRequest(sourcePath), cloud)
             .orThrowOnError {
                 throw JobException.VerificationError("Missing file in storage: $sourcePath. Are you sure it exists?")
             }
@@ -179,7 +219,8 @@ class JobVerificationService<DBSession>(
             name,
             destinationPath,
             sourcePath,
-            if (desiredFileType == FileType.DIRECTORY) FileForUploadArchiveType.ZIP else null
+            if (desiredFileType == FileType.DIRECTORY) FileForUploadArchiveType.ZIP else null,
+            readOnly = transferDescription.readOnly
         )
     }
 

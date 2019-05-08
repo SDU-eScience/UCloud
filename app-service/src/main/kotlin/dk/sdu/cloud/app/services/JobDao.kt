@@ -23,6 +23,12 @@ interface JobDao<Session> {
         status: String
     )
 
+    fun updateWorkspace(
+        session: Session,
+        systemId: String,
+        workspace: String
+    )
+
     fun findOrNull(
         session: Session,
         systemId: String,

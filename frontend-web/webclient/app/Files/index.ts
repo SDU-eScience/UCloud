@@ -127,7 +127,8 @@ export interface FileSelectorProps {
     isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
-    unitName?: string
+    unitName?: string | React.ReactNode
+    unitWidth?: string | number | undefined
     remove?: () => void
 }
 

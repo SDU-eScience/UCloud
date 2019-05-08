@@ -60,7 +60,7 @@ sealed class StorageEvent {
     abstract val path: String
 
     /**
-     * The SDUCloud username of the owner of this file
+     * The SDUCloud username of the creator of this file
      */
     abstract val owner: String
 

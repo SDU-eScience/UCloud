@@ -1,0 +1,59 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Detailed File Search Mount file search 1`] = `
+.c0 {
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  vertical-align: middle;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #00823c;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  width: 100%;
+  font-size: 14px;
+  padding: 9.5px 18px;
+  color: #00823c;
+  border: 2px solid #00823c;
+  border-radius: 5px;
+  background-color: transparent;
+  font-size: 14px;
+  padding: 7.5px 18px;
+}
+
+.c0:disabled {
+  opacity: 0.25;
+}
+
+.c0:focus {
+  outline: none;
+}
+
+.c0:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c0:hover {
+  border: 2px solid;
+  background-color: transparent;
+  -webkit-transition: ease 0.1s;
+  transition: ease 0.1s;
+}
+
+<button
+  className="c0"
+  color="darkGreen"
+  onClick={[Function]}
+>
+  Advanced Search
+</button>
+`;

@@ -194,5 +194,6 @@ data class StartJobRequest(
     val tasksPerNode: Int? = null,
     val maxTime: SimpleDuration? = null,
     val backend: String? = null,
-    val archiveInCollection: String? = null
+    val archiveInCollection: String? = null,
+    val mounts: List<Any> = emptyList()
 )

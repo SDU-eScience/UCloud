@@ -7,42 +7,14 @@ import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.http.ActionController
-import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
-import dk.sdu.cloud.file.http.ExtractController
-import dk.sdu.cloud.file.http.FileSecurityController
-import dk.sdu.cloud.file.http.IndexingController
-import dk.sdu.cloud.file.http.LookupController
-import dk.sdu.cloud.file.http.MultiPartUploadController
-import dk.sdu.cloud.file.http.SimpleDownloadController
+import dk.sdu.cloud.file.http.*
 import dk.sdu.cloud.file.processors.UserProcessor
-import dk.sdu.cloud.file.services.ACLService
-import dk.sdu.cloud.file.services.AuthUIDLookupService
-import dk.sdu.cloud.file.services.BackgroundScope
-import dk.sdu.cloud.file.services.BulkDownloadService
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileScanner
-import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.IndexingService
-import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.WSFileSessionService
-import dk.sdu.cloud.file.services.ZipBulkUploader
-import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.tokenValidation
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.file.services.linuxfs.StandardCLib
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.*
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -75,9 +47,8 @@ class Server(
         val fsRoot = fsRootFile.normalize().absolutePath
 
         // Low level FS
-        val processRunner = UnixFSCommandRunnerFactory(uidLookupService)
-        val fileAttributeParser = FileAttributeParser(uidLookupService)
-        val fs = UnixFileSystem(processRunner, uidLookupService, fileAttributeParser, fsRoot)
+        val processRunner = LinuxFSRunnerFactory(uidLookupService)
+        val fs = LinuxFS(processRunner, fsRootFile, uidLookupService)
 
         // High level FS
         val storageEventProducer = StorageEventProducer(streams.createProducer(StorageEvents.events)) {
@@ -94,6 +65,7 @@ class Server(
         val fileLookupService = FileLookupService(coreFileSystem)
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
+        val workspaceService = WorkspaceService(fsRootFile, fileScanner, uidLookupService, processRunner)
 
         // Metadata services
         val aclService = ACLService(fs)
@@ -106,20 +78,6 @@ class Server(
 
         log.info("Core services constructed!")
 
-        if (micro.commandLineArguments.contains("--bug-test")) {
-            ZipBulkUploader.upload(
-                cloud,
-                coreFileSystem,
-                { processRunner("dthrane@imada.sdu.dk") },
-                "/home/dthrane@imada.sdu.dk/foobar",
-                WriteConflictPolicy.OVERWRITE,
-                FileInputStream("/tmp/myupload.zip"),
-                null,
-                sensitivityService,
-                "foo.zip"
-            )
-            exitProcess(0)
-        }
 
         UserProcessor(
             streams,
@@ -189,7 +147,9 @@ class Server(
                     fileLookupService,
                     processRunner,
                     sensitivityService
-                )
+                ),
+
+                WorkspaceController(workspaceService)
             )
         }
 

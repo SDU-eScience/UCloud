@@ -1,0 +1,126 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Search Mount 1`] = `
+<div
+  className="sc-bdVaJa fENTec"
+  cursor="auto"
+>
+  <div
+    className="sc-bdVaJa sc-bwzfXH sc-eHgmQL ZdyQV"
+    cursor="auto"
+    height={96}
+    width={1}
+  >
+    <div
+      className="sc-EHOje sc-feJyhm iqoSv"
+    >
+      <div
+        className="sc-bZQynM sc-iELTvK DrRrL"
+        cursor="pointer"
+        fontSize={2}
+        onClick={[Function]}
+        selected={false}
+      >
+        Files
+      </div>
+      <div
+        className="sc-bZQynM sc-iELTvK DrRrL"
+        cursor="pointer"
+        fontSize={2}
+        onClick={[Function]}
+        selected={false}
+      >
+        Applications
+      </div>
+    </div>
+    <div
+      className="sc-EHOje fzjOHr"
+      cursor="inherit"
+    >
+      <div
+        className="sc-bdVaJa ehOkeT"
+        cursor="auto"
+      />
+      <div
+        className="sc-tilXH hnDjpX"
+        data-tag="dropdown"
+      >
+        <span
+          className="sc-bZQynM lphChX"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="sc-bZQynM fufZuQ"
+            cursor="inherit"
+          >
+             
+             per page 25
+          </span>
+          <svg
+            className="sc-htoDjs fZlZAn"
+            clipRule="evenodd"
+            cursor="inherit"
+            fill="currentcolor"
+            fillRule="evenodd"
+            height=".7em"
+            ml=".7em"
+            viewBox="0 0 24 12"
+            width=".7em"
+          >
+            <path
+              d="M0 0l11.959 12 12-12H0z"
+            />
+          </svg>
+        </span>
+        <div
+          className="sc-hEsumM dBaQvi"
+          color="black"
+          cursor="pointer"
+          disabled={false}
+          onClick={[Function]}
+          overflow="visible"
+          width="80px"
+        >
+          <div
+            className="sc-bZQynM hdeUCE"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            10
+          </div>
+          <div
+            className="sc-bZQynM hdeUCE"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            25
+          </div>
+          <div
+            className="sc-bZQynM hdeUCE"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            50
+          </div>
+          <div
+            className="sc-bZQynM hdeUCE"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            100
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="sc-bdVaJa ikztbv"
+    cursor="auto"
+  >
+    <div
+      className="sc-bdVaJa sc-jhAzac eTvuVp"
+    />
+  </div>
+</div>
+`;

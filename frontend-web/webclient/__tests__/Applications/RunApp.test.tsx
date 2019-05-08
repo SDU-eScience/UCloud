@@ -1,21 +1,31 @@
 import * as React from "react";
 import { create } from "react-test-renderer";
-import { configureStore } from "Utilities/ReduxUtilities";
-import applications from "Applications/Redux/BrowseReducer";
+import applications from "../../app/Applications/Redux/BrowseReducer";
+import RunApp from "../../app/Applications/Run";
+import { configureStore, responsive } from "../../app/Utilities/ReduxUtilities";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
 import "jest-styled-components";
+import { createMemoryHistory } from "history";
+import { ThemeProvider } from "styled-components";
+import theme from "../../app/ui-components/theme";
 
 describe("RunApp component", () => {
-
-    // FIXME Requires match props, but for some reason isn't allowed
-    test.skip("Mount", () => {
-        const store = configureStore({ }, { applications })
+    test("Mount", () => {
+        const store = configureStore({}, { applications, responsive })
         expect(create(
             <Provider store={store}>
-                <MemoryRouter>
-                    {/* <RunApp match={{ params: { appName: "appName", appVersion: "appVersion" } }} /> */}
-                </MemoryRouter>
+                <ThemeProvider theme={theme}>
+                    <MemoryRouter>
+                        <RunApp match={{
+                            params: { appName: "appName", appVersion: "appVersion" },
+                            isExact: true,
+                            path: "",
+                            url: "",
+                        }}
+                            history={createMemoryHistory()} />
+                    </MemoryRouter>
+                </ThemeProvider>
             </Provider>).toJSON()
         ).toMatchSnapshot();
     });

@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-kubernetes
+  labels:
+    app: app-kubernetes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-kubernetes
+  template:
+    metadata:
+      labels:
+        app: app-kubernetes
+    spec:
+      containers:
+      - name: app-kubernetes
+        image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.2.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/config
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/psql
+          name: app-kubernetes-psql
+        - mountPath: /etc/config
+          name: config
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-kubernetes-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+      - name: app-kubernetes-psql
+        secret:
+          optional: false
+          secretName: app-kubernetes-psql
+      - name: config
+        configMap:
+          name: app-kubernetes
+
+      imagePullSecrets:
+        - name: esci-docker
+
+      serviceAccountName: app-kubernetes

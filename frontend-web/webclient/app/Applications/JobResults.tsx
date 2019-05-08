@@ -30,8 +30,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
         super(props);
         moment.locale("en-gb");
-        props.setActivePage();
-        props.updatePageTitle();
+        props.onInit();
     }
 
     componentDidMount() {
@@ -130,11 +129,13 @@ const Row = ({ analysis, to, hide }: { analysis: Analysis, to: () => void, hide:
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage()),
-    updatePageTitle: () => dispatch(updatePageTitle("My Results")),
     setLoading: loading => dispatch(setLoading(loading)),
     fetchJobs: async (itemsPerPage, pageNumber) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.MyResults)),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+    onInit: () => {
+        dispatch(setActivePage(SidebarPages.MyResults));
+        dispatch(updatePageTitle("My Results"))
+    }
 });
 
 const mapStateToProps = ({ analyses, responsive }: ReduxObject): AnalysesStateProps => ({ ...analyses, responsive: responsive! });

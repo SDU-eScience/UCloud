@@ -244,7 +244,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, attrs, index) => {
         dispatch(Actions.updatePath(path));
         /* FIXME: Must be a better way */
-        const fetch = () => {
+        const fetch = async (): Promise<void> => {
             dispatch(Actions.setLoading(true));
             const promiseWithoutAcl = Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy, attrs)
                 .then(action => (dispatch(action), action));
@@ -288,7 +288,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
 
         };
         fetch();
-        dispatch(setRefreshFunction(fetch))
+        dispatch(setRefreshFunction(fetch));
     },
     setLoading: loading => dispatch(Actions.setLoading(loading)),
     updatePath: path => dispatch(Actions.updatePath(path)),

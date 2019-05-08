@@ -13,18 +13,10 @@ import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.FileSecurityController
 import dk.sdu.cloud.file.http.LookupController
-import dk.sdu.cloud.file.services.ACLService
-import dk.sdu.cloud.file.services.BackgroundScope
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.UIDLookupService
-import dk.sdu.cloud.file.services.WSFileSessionService
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.server
@@ -34,15 +26,11 @@ import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
 import dk.sdu.cloud.storage.util.createDummyFS
+import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.simpleStorageUserDao
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.server.testing.TestApplicationEngine
-import io.ktor.server.testing.TestApplicationRequest
-import io.ktor.server.testing.TestApplicationResponse
-import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.setBody
+import io.ktor.server.testing.*
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.io.File
@@ -52,11 +40,11 @@ data class FileControllerContext(
     val client: RpcClient,
     val authenticatedClient: AuthenticatedClient,
     val fsRoot: String,
-    val runner: UnixFSCommandRunnerFactory,
-    val fs: UnixFileSystem,
-    val coreFs: CoreFileSystemService<UnixFSCommandRunner>,
+    val runner: LinuxFSRunnerFactory,
+    val fs: LinuxFS,
+    val coreFs: CoreFileSystemService<LinuxFSRunner>,
     val eventProducer: StorageEventProducer,
-    val lookupService: FileLookupService<UnixFSCommandRunner>
+    val lookupService: FileLookupService<LinuxFSRunner>
 )
 
 object TestContext {
@@ -71,7 +59,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     BackgroundScope.reset()
 
     val fsRoot = fsRootInitializer()
-    val (runner, fs) = unixFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
+    val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(fs, eventProducer)
     val sensitivityService = FileSensitivityService(fs, eventProducer)

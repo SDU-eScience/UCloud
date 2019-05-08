@@ -1,0 +1,26 @@
+---
+application: v1
+
+title: Figlet
+name: figlet-docker
+version: 1.0.0
+
+tool:
+  name: figlet-docker
+  version: 1.0.0
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: >
+  Render some text with Figlet Docker!
+
+invocation:
+- figlet
+- type: var
+  vars: text
+ 
+parameters:
+  text:
+    title: "Some text to render with figlet"
+    type: text

@@ -4,11 +4,16 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.JobDescriptions
 import dk.sdu.cloud.app.api.JobStartedResponse
+import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.services.JobDao
 import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.app.services.StreamFollowService
+import dk.sdu.cloud.app.services.VncService
+import dk.sdu.cloud.app.services.WebService
+import dk.sdu.cloud.app.services.exportForEndUser
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
@@ -24,6 +29,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -38,7 +44,9 @@ class JobController<DBSession>(
     private val jobDao: JobDao<DBSession>,
     private val streamFollowService: StreamFollowService<DBSession>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val vncService: VncService<DBSession>,
+    private val webService: WebService<DBSession>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
@@ -58,6 +66,7 @@ class JobController<DBSession>(
         }
 
         implement(JobDescriptions.start) {
+            log.debug("Extending token")
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     ctx.bearer!!,
@@ -78,17 +87,40 @@ class JobController<DBSession>(
                 return@implement
             }
 
+            log.debug("Validating response")
             val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
 
+            log.debug("Creating client")
             val userClient =
                 ClientAndBackend(serviceClient.client, serviceClient.companion).bearerAuth(extendedToken.token)
 
+            log.debug("Starting job")
             val jobId = jobOrchestrator.startJob(request, extendedToken, userClient)
+
+            log.debug("Complete")
             ok(JobStartedResponse(jobId))
         }
 
+        implement(JobDescriptions.cancel) {
+            jobOrchestrator.handleProposedStateChange(
+                JobStateChange(request.jobId, JobState.CANCELING),
+                newStatus = "Job is cancelling...",
+                jobOwner = ctx.securityPrincipal.username
+            )
+
+            ok(Unit)
+        }
+
         implement(JobDescriptions.follow) {
-            ok(streamFollowService.followStreams(request))
+            ok(streamFollowService.followStreams(request, ctx.securityPrincipal.username))
+        }
+
+        implement(JobDescriptions.queryVncParameters) {
+            ok(vncService.queryVncParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
+        }
+
+        implement(JobDescriptions.queryWebParameters) {
+            ok(webService.queryWebParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
     }
 
@@ -105,5 +137,9 @@ class JobController<DBSession>(
             job.modifiedAt,
             job.application.metadata
         )
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

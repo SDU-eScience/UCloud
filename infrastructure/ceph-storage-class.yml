@@ -5,13 +5,13 @@ metadata:
   name: rbd
 provisioner: ceph.com/rbd
 parameters:
-  monitors: 10.135.0.15:6789
+  monitors: 10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789
   pool: kube
   adminId: admin
   adminSecretNamespace: kube-system
-  adminSecretName: ceph-admin-secret
+  adminSecretName: ceph-secret
   userId: kube
   userSecretNamespace: kube-system
-  userSecretName: ceph-secret
+  userSecretName: ceph-secret-kube
   imageFormat: "2"
   imageFeatures: layering

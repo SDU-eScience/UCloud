@@ -7,7 +7,7 @@ CREATE_DIR=$3
 
 if [ ! -f /mnt/cephfs/home ]; then
     mkdir -p /mnt/cephfs/home
-    chown 711 /mnt/cephfs/home
+    chmod 711 /mnt/cephfs/home
 fi
 
 if [ "${CREATE_DIR}" != "no" ]; then

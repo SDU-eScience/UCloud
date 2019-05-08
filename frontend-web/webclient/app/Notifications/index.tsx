@@ -35,7 +35,6 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
     }
 
     public componentDidMount() {
-        this.props.setError("this.props.error this.props.error this.props.error this.props.error");
         this.reload();
         this.conn = WSFactory.open("/notifications", {
             init: conn => {

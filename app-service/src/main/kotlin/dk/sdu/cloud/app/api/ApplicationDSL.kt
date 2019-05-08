@@ -31,12 +31,17 @@ sealed class ApplicationDescription(val application: String) {
         val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
         outputFileGlobs: List<String> = emptyList(),
 
-        val tags: List<String> = emptyList()
+        val tags: List<String> = emptyList(),
 
+        applicationType: String? = null,
+        val vnc: VncDescription? = null,
+        val web: WebDescription? = null,
+        val container: ContainerDescription? = null
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
 
         val outputFileGlobs: List<String>
+        val applicationType: ApplicationType
 
         init {
             ::title.requireNotBlank()
@@ -82,6 +87,8 @@ sealed class ApplicationDescription(val application: String) {
                 result
             }
 
+            this.applicationType = applicationType?.let { ApplicationType.valueOf(it) } ?: ApplicationType.BATCH
+
             parameters.forEach { name, parameter -> parameter.name = name }
 
             this.invocation = invocation.mapIndexed { index, it ->
@@ -116,7 +123,8 @@ sealed class ApplicationDescription(val application: String) {
                                 val prefixGlobal = map["prefixGlobal"]?.toString() ?: ""
                                 val suffixGlobal = map["suffixGlobal"]?.toString() ?: ""
                                 val prefixVariable = map["prefixVariable"]?.toString() ?: ""
-                                val variableSeparator = map["variableSeparator"]?.toString() ?: " "
+                                val isPrefixVariablePartOfArg = map["isPrefixVariablePartOfArg"] as? Boolean ?: false
+                                val isSuffixVariablePartOfArg = map["isSuffixVariablePartOfArg"] as? Boolean ?: false
 
                                 VariableInvocationParameter(
                                     variableNames,
@@ -124,7 +132,8 @@ sealed class ApplicationDescription(val application: String) {
                                     suffixGlobal,
                                     prefixVariable,
                                     suffixGlobal,
-                                    variableSeparator
+                                    isPrefixVariablePartOfArg,
+                                    isSuffixVariablePartOfArg
                                 )
                             }
 
@@ -212,7 +221,11 @@ sealed class ApplicationDescription(val application: String) {
                 ToolReference(tool.name, tool.version, null),
                 invocation,
                 parameters.values.toList(),
-                outputFileGlobs
+                outputFileGlobs,
+                applicationType,
+                vnc = vnc,
+                web = web,
+                container = container
             )
 
             return Application(metadata, invocation)
@@ -240,7 +253,9 @@ sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpS
 }
 
 enum class ApplicationType {
-    BATCH
+    BATCH,
+    VNC,
+    WEB
 }
 
 data class ResourceRequirements(

@@ -1,28 +1,26 @@
 import * as React from "react";
 import * as Renderer from "react-test-renderer";
-import { emptyPage, KeyCode } from "DefaultObjects";
-import { updateFiles } from "Files/Redux/FilesActions";
-import Files from "Files/Files";
-import FilesTable, { FileOperations } from "Files/FilesTable";
-import { setLoading } from "Files/Redux/FilesActions"
-import { SortOrder, SortBy, Operation, PredicatedOperation, File } from "Files";
+import { emptyPage, KeyCode } from "../../app/DefaultObjects";
+import { updateFiles } from "../../app/Files/Redux/FilesActions";
+import Files from "../../app/Files/Files";
+import FilesTable, { FileOperations } from "../../app/Files/FilesTable";
+import { setLoading } from "../../app/Files/Redux/FilesActions"
+import { SortOrder, SortBy, Operation, PredicatedOperation, File } from "../../app/Files";
 import { mockFiles_SensitivityConfidential } from "../mock/Files"
 import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { createMemoryHistory } from "history";
-import files from "Files/Redux/FilesReducer";
-import { allFileOperations } from "Utilities/FileUtilities";
-import { configureStore, responsive } from "Utilities/ReduxUtilities";
-import { initFiles } from "DefaultObjects";
-import { configure, mount } from "enzyme";
-import { Page } from "Types";
+import files from "../../app/Files/Redux/FilesReducer";
+import { allFileOperations } from "../../app/Utilities/FileUtilities";
+import { configureStore, responsive } from "../../app/Utilities/ReduxUtilities";
+import { initFiles } from "../../app/DefaultObjects";
+import { mount } from "enzyme";
+import { Page } from "../../app/Types";
 import "jest-styled-components";
+import { Button } from "react-native";
 // import * as Adapter from "enzyme-adapter-react-16";
 // 
 // configure({ adapter: new Adapter() });
-
-import { responsiveBP } from "ui-components/theme";
-import { createResponsiveStateReducer } from "redux-responsive";
 
 const createMockStore = (filesPage?: Page<File>) => {
     const store = configureStore({ files: initFiles("/home/user@test.abc/") }, {
@@ -118,102 +116,6 @@ describe("Files-component", () => {
         ).toMatchSnapshot();
     });
 });
-
-
-describe("File operations", () => {
-    test.skip("Empty files list, button, empty FilesOperations", () => {
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={[]}
-                files={createMockStore().getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        ).toJSON()).toMatchSnapshot()
-    });
-
-    test.skip("Empty files list, dropdown.item, empty FilesOperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={[]}
-                files={createMockStore().getState().files.page.items}
-                As={"Dropdown.Item"}
-            />
-        ).toJSON()).toMatchSnapshot()
-    );
-
-    test.skip("Files list with items, button, empty FilesOperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={[]}
-                files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        ).toJSON()).toMatchSnapshot()
-    );
-
-    test.skip("Files list with items, dropdown.item, empty FilesOperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={[]}
-                files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        ).toJSON()).toMatchSnapshot()
-    );
-
-    test.skip("Empty files list, button, some fileoperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={fileOperations}
-                files={createMockStore().getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        )).toMatchSnapshot()
-    );
-
-    test.skip("Empty files list, dropdown.item, some fileoperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={fileOperations}
-                files={createMockStore().getState().files.page.items}
-                As={"Dropdown.Item"}
-                fluid
-                basic
-            />
-        )).toMatchSnapshot()
-    );
-
-    test.skip("Files list with items, button, some fileoperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={fileOperations}
-                files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={"Button"}
-                fluid
-                basic
-            />
-        )).toMatchSnapshot()
-    );
-
-    test.skip("Files list with items, dropdown.item, some fileoperations", () =>
-        expect(Renderer.create(
-            <FileOperations
-                fileOperations={fileOperations}
-                files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={"Dropdown.Item"}
-            />
-        )).toMatchSnapshot()
-    );
-});
-
 
 const getOperationFrom = (node: Renderer.ReactTestRenderer, operation: string) =>
     node.root.findAllByType(FileOperations)[0].props.fileOperations.find((it: Operation) => it.text === operation);

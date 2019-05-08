@@ -1,12 +1,11 @@
 import { UPDATE_PAGE_TITLE, UPDATE_STATUS, SET_ACTIVE_PAGE, SET_STATUS_LOADING } from "./StatusReducer";
 import { Status } from "..";
-import { Action } from "redux";
 import { PayloadAction, SetLoadingAction } from "Types";
 import { SidebarPages } from "ui-components/Sidebar";
 export type StatusActions = UpdatePageTitleAction | UpdateStatusAction | SetActivePage | SetLoading;
 
 
-export interface UpdatePageTitleAction extends Action<typeof UPDATE_PAGE_TITLE> { payload: { title: string } }
+export type UpdatePageTitleAction = PayloadAction<typeof UPDATE_PAGE_TITLE,{ title: string }>
 /**
  * Sets the title of the window. Stores in the redux store as well
  * @param {string} title the title to be set

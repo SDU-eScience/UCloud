@@ -31,7 +31,7 @@ export const bold = (props: { bold?: boolean, theme: Theme }) =>
 
 export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null)
 
-export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps {
+export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps {
   align?: "left" | "right"
   caps?: boolean
   regular?: boolean
@@ -42,6 +42,7 @@ export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, Co
 
 const Text = styled.div<TextProps>`
   cursor: ${props => props.cursor};
+  ${width}
   ${textStyle}
   ${fontSize}
   ${fontWeight}

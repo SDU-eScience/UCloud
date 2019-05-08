@@ -70,7 +70,7 @@ export interface ApplicationsOperations extends AddSnackOperation {
 export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
 
 class Applications extends React.Component<ApplicationsProps> {
-    componentDidMount() {
+    public componentDidMount() {
         const { props } = this;
         props.onInit();
 
@@ -79,7 +79,7 @@ class Applications extends React.Component<ApplicationsProps> {
         props.setRefresh(() => this.fetch(props));
     }
 
-    componentDidUpdate(prevProps: ApplicationsProps) {
+    public componentDidUpdate(prevProps: ApplicationsProps) {
         if (prevProps.location !== this.props.location) {
             this.fetch(this.props);
         }
@@ -90,7 +90,7 @@ class Applications extends React.Component<ApplicationsProps> {
         this.props.setRefresh(() => this.fetch(nextProps));
     }
 
-    componentWillUnmount() {
+    public componentWillUnmount() {
         this.props.setRefresh();
     }
 

@@ -32,6 +32,11 @@ enum class JobState {
     TRANSFER_SUCCESS,
 
     /**
+     * The job is being terminated via a user initiated cancellation
+     */
+    CANCELING,
+
+    /**
      * The job has completed successfully
      */
     SUCCESS,
@@ -54,7 +59,8 @@ data class ValidatedFileForUpload(
     val destinationFileName: String,
     val destinationPath: String,
     val sourcePath: String,
-    val needsExtractionOfType: FileForUploadArchiveType?
+    val needsExtractionOfType: FileForUploadArchiveType?,
+    val readOnly: Boolean = false
 )
 
 enum class FileForUploadArchiveType {

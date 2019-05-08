@@ -7,5 +7,5 @@ provisioner: ceph.com/cephfs
 parameters:
     monitors: 10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789
     adminId: admin
-    adminSecretName: ceph-admin-secret
+    adminSecretName: ceph-secret
     adminSecretNamespace: "kube-system"

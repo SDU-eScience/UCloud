@@ -259,7 +259,7 @@ class ShareServiceTest {
         }
     }
 
-    @Test(expected = ShareException.NotFound::class)
+    @Test(expected = ShareException.NotAllowed::class)
     fun `test create missing permissions`() {
         runBlocking {
             val mockData = CreateMock(
