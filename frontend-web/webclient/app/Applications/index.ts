@@ -108,7 +108,8 @@ export enum AppState {
     RUNNING = "RUNNING",
     TRANSFER_SUCCESS = "TRANSFER_SUCCESS",
     SUCCESS = "SUCCESS",
-    FAILURE = "FAILURE"
+    FAILURE = "FAILURE",
+    CANCELLING = "CANCELLING"
 }
 
 export interface DetailedResultState {
@@ -146,29 +147,28 @@ export interface MaxTime {
 }
 
 export interface MaxTimeForInput {
-    hours: number | null,
-    minutes: number | null,
-    seconds: number | null
+    hours: number
+    minutes: number
+    seconds: number
 }
 
 export interface JobSchedulingOptionsForInput {
-    maxTime: MaxTimeForInput | null
-    numberOfNodes: number | null
-    tasksPerNode: number | null
+    maxTime: MaxTimeForInput
+    numberOfNodes: number
+    tasksPerNode: number
 }
 
 export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
     initialSubmit: boolean
-
     error?: string
-
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
     favoriteLoading: boolean
+    mountedFolders: { ref: React.RefObject<HTMLInputElement>, readOnly: boolean }[]
 }
 
 export interface RunOperations extends AddSnackOperation, SetStatusLoading {
@@ -216,7 +216,7 @@ interface BaseParameter {
     optional: boolean
     title: string
     description: string
-    unitName?: string | null
+    unitName?: string | React.ReactNode | null
     type: string
     visible?: boolean
 }

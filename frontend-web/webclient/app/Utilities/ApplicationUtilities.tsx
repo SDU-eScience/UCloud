@@ -28,6 +28,8 @@ export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }): strin
 export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
     `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
+export const cancelJobQuery = `hpc/jobs`;
+
 
 interface FavoriteApplicationFromPage extends AddSnackOperation {
     name: string

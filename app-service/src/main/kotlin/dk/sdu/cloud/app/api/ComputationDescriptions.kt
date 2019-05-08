@@ -41,6 +41,12 @@ data class QueryInternalWebParametersResponse(
     val path: String
 )
 
+data class CancelInternalRequest(
+    val verifiedJob: VerifiedJob
+)
+
+typealias CancelInternalResponse = Unit
+
 /**
  * Abstract [RESTDescriptions] for computation backends.
  *
@@ -199,4 +205,22 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
                 body { bindEntireRequestFromBody() }
             }
         }
+
+    val cancel = call<CancelInternalRequest, CancelInternalResponse, CommonErrorMessage>("cancel") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEDGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"cancel"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
 }

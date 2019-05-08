@@ -19,7 +19,7 @@ data class AddStatusJob(val id: String, val status: String)
 data class StateChangeRequest(val id: String, val newState: JobState, val newStatus: String? = null)
 data class JobCompletedRequest(
     val id: String,
-    val wallDuration: SimpleDuration,
+    val wallDuration: SimpleDuration?,
     val success: Boolean
 )
 

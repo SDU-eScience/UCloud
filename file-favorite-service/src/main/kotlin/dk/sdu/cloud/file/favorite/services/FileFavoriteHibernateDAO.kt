@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.favorite.services
 
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page

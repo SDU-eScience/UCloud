@@ -2,8 +2,17 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.Configuration
-import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.app.api.AccountingEvents
+import dk.sdu.cloud.app.api.CancelInternalRequest
+import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.api.ComputationDescriptions
+import dk.sdu.cloud.app.api.JobCompletedEvent
+import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.app.api.JobStateChange
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.StartJobRequest
+import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.http.JOB_MAX_TIME
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -138,13 +147,19 @@ class JobOrchestrator<DBSession>(
     suspend fun handleProposedStateChange(
         event: JobStateChange,
         newStatus: String?,
-        securityPrincipal: SecurityPrincipal
+        computeBackend: SecurityPrincipal? = null,
+        jobOwner: String? = null
     ) {
         withJobExceptionHandler(event.systemId) {
+            if (computeBackend == null && jobOwner == null) {
+                log.warn("computeBackend == null && jobOwner == null in handleProposedStateChange")
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+
             val proposedState = event.newState
-            val jobWithToken = findJobForId(event.systemId)
+            val jobWithToken = findJobForId(event.systemId, jobOwner)
             val (job, _) = jobWithToken
-            computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
+            computationBackendService.getAndVerifyByName(job.backend, computeBackend)
 
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
             if (proposedState in validStates) {
@@ -174,13 +189,26 @@ class JobOrchestrator<DBSession>(
 
     suspend fun handleJobComplete(
         jobId: String,
-        wallDuration: SimpleDuration,
+        wallDuration: SimpleDuration?,
         success: Boolean,
         securityPrincipal: SecurityPrincipal
     ) {
         withJobExceptionHandler(jobId) {
             val (job, _) = findJobForId(jobId)
             computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
+
+            val actualDuration = if (wallDuration != null) {
+                wallDuration
+            } else {
+                val startedAt = job.startedAt
+                if (startedAt == null) {
+                    SimpleDuration.fromMillis(0L)
+                } else {
+                    SimpleDuration.fromMillis(System.currentTimeMillis() - startedAt)
+                }
+            }
+
+            log.debug("Job completed $jobId took $actualDuration")
 
             handleProposedStateChange(
                 JobStateChange(jobId, if (success) JobState.SUCCESS else JobState.FAILURE),
@@ -192,7 +220,7 @@ class JobOrchestrator<DBSession>(
                 JobCompletedEvent(
                     jobId,
                     job.owner,
-                    wallDuration,
+                    actualDuration,
                     job.nodes,
                     System.currentTimeMillis(),
                     NameAndVersion(job.application.metadata.name, job.application.metadata.version),
@@ -268,13 +296,17 @@ class JobOrchestrator<DBSession>(
                     // Do nothing (apart from updating state).
                 }
 
-                JobState.TRANSFER_SUCCESS -> {
+                JobState.CANCELING, JobState.TRANSFER_SUCCESS -> {
                     jobFileService.initializeResultFolder(jobWithToken, isReplay)
 
                     if (backendConfig.useWorkspaces) {
                         OrchestrationScope.launch {
                             jobFileService.transferWorkspace(jobWithToken, isReplay)
                         }
+                    }
+
+                    if (event.newState == JobState.CANCELING) {
+                        backend.cancel.call(CancelInternalRequest(job), serviceClient).orThrow()
                     }
                 }
 
@@ -324,20 +356,41 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    private fun findJobForId(id: String): VerifiedJobWithAccessToken =
-        db.withTransaction { session -> jobDao.find(session, id) }
+    private fun findJobForId(id: String, jobOwner: String? = null): VerifiedJobWithAccessToken =
+        db.withTransaction { session -> jobDao.find(session, id, jobOwner) }
 
     companion object : Loggable {
         override val log = logger()
 
         private val finalStates = JobState.values().asSequence().filter { it.isFinal() }.toSet()
         private val validStateTransitions: Map<JobState, Set<JobState>> = mapOf(
-            JobState.VALIDATED to (setOf(JobState.PREPARED) + finalStates),
-            JobState.PREPARED to (setOf(JobState.SCHEDULED, JobState.RUNNING, JobState.TRANSFER_SUCCESS) + finalStates),
+            JobState.VALIDATED to (setOf(JobState.PREPARED, JobState.CANCELING) + finalStates),
+
+            JobState.PREPARED to (setOf(
+                JobState.SCHEDULED,
+                JobState.RUNNING,
+                JobState.TRANSFER_SUCCESS,
+                JobState.CANCELING
+            ) + finalStates),
+
             // We allow scheduled to skip running in case of quick jobs
-            JobState.SCHEDULED to (setOf(JobState.RUNNING, JobState.TRANSFER_SUCCESS) + finalStates),
-            JobState.RUNNING to (setOf(JobState.TRANSFER_SUCCESS, JobState.SUCCESS, JobState.FAILURE)),
-            JobState.TRANSFER_SUCCESS to (setOf(JobState.SUCCESS, JobState.FAILURE)),
+            JobState.SCHEDULED to (setOf(
+                JobState.RUNNING,
+                JobState.TRANSFER_SUCCESS,
+                JobState.CANCELING
+            ) + finalStates),
+
+            JobState.RUNNING to (setOf(
+                JobState.TRANSFER_SUCCESS,
+                JobState.SUCCESS,
+                JobState.FAILURE,
+                JobState.CANCELING
+            )),
+
+            JobState.TRANSFER_SUCCESS to (setOf(JobState.SUCCESS, JobState.FAILURE, JobState.CANCELING)),
+
+            JobState.CANCELING to (setOf(JobState.SUCCESS, JobState.FAILURE)),
+
             // In case of really bad failures we allow for a "failure -> failure" transition
             JobState.FAILURE to setOf(JobState.FAILURE),
             JobState.SUCCESS to emptySet()
@@ -345,8 +398,12 @@ class JobOrchestrator<DBSession>(
     }
 }
 
-fun <DBSession> JobDao<DBSession>.find(session: DBSession, id: String): VerifiedJobWithAccessToken {
-    return findOrNull(session, id) ?: throw JobException.NotFound("Job: $id")
+fun <DBSession> JobDao<DBSession>.find(
+    session: DBSession,
+    id: String,
+    jobOwner: String? = null
+): VerifiedJobWithAccessToken {
+    return findOrNull(session, id, jobOwner) ?: throw JobException.NotFound("Job: $id")
 }
 
 fun resolveBackend(backend: String?, defaultBackend: String): String = backend ?: defaultBackend

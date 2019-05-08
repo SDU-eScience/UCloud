@@ -1,10 +1,8 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
-import io.ktor.http.HttpStatusCode
 import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Parameter
@@ -64,7 +62,16 @@ data class JobInformationEntity(
     )
     var files: List<ValidatedFileForUpload>,
 
-    var maxTimeHours: Int,
+    @Type(
+        type = JSONB_LIST_TYPE,
+        parameters = [
+            Parameter(
+                name = JSONB_LIST_PARAM_TYPE,
+                value = "dk.sdu.cloud.app.api.ValidatedFileForUpload"
+            )
+        ]
+    )
+    var mounts: List<ValidatedFileForUpload>,
 
     var maxTimeMinutes: Int,
 
@@ -81,9 +88,13 @@ data class JobInformationEntity(
     @Column(length = 1024)
     var workspace: String?,
 
-    override var createdAt: Date,
+    var maxTimeHours: Int,
 
-    override var modifiedAt: Date
+    var startedAt: Date?,
+
+    override var modifiedAt: Date,
+
+    override var createdAt: Date
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -107,13 +118,15 @@ class JobHibernateDao(
             job.tasksPerNode,
             job.jobInput.asMap(),
             job.files,
-            job.maxTime.hours,
+            job.mounts,
             job.maxTime.minutes,
             job.maxTime.seconds,
             job.backend,
             token,
             job.archiveInCollection,
             job.workspace,
+            job.maxTime.hours,
+            null,
             Date(System.currentTimeMillis()),
             Date(System.currentTimeMillis())
         )
@@ -139,6 +152,10 @@ class JobHibernateDao(
                 criteria.set(entity[JobInformationEntity::state], state)
                 if (status != null) {
                     criteria.set(entity[JobInformationEntity::status], status)
+                }
+
+                if (state == JobState.RUNNING) {
+                    criteria.set(entity[JobInformationEntity::startedAt], Date(System.currentTimeMillis()))
                 }
             }
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
@@ -230,7 +247,9 @@ class JobHibernateDao(
                     ?: Long.MAX_VALUE, // TODO This is a safe value to map to, but we shouldn't just map it to long max
                 workspace,
                 createdAt = createdAt.time,
-                modifiedAt = modifiedAt.time
+                modifiedAt = modifiedAt.time,
+                _mounts = mounts,
+                startedAt = startedAt?.time
             ),
             accessToken
         )

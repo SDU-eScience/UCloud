@@ -12,7 +12,7 @@ import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOpe
 import { File, SortBy, SortOrder } from "Files";
 import { allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
-import { hpcJobQuery, } from "Utilities/ApplicationUtilities";
+import { hpcJobQuery, cancelJobQuery } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
@@ -278,7 +278,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     &nbsp;
                     <Dropdown>
                         <Icon name="info" color="white" color2="black" />
-                        <DropdownContent visible colorOnHover={false} color="white" backgroundColor="black">
+                        <DropdownContent width="200px" visible colorOnHover={false} color="white" backgroundColor="black">
                             <TextSpan fontSize={1}>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</TextSpan>
                         </DropdownContent>
                     </Dropdown>
@@ -347,6 +347,22 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         return <ExternalLink href={this.state.webLink}><Button color="green">Go to web interface</Button></ExternalLink>
     }
 
+    private async cancelJob() {
+        try {
+            this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, { jobId: this.jobId}));
+        } catch (e) {
+            this.props.addSnack({
+                type: SnackType.Failure,
+                message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
+            });
+        }
+    }
+
+    private renderCancelButton() {
+        if (!inCancelableState(this.state.appState)) return null;
+        return <Button ml="8px" color="red" onClick={() => this.cancelJob()}>Cancel job</Button>
+    }
+
     private fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
         this.state.promises.makeCancelable(Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(r => {
             this.setState(() => ({ fsPage: r.response, fsPath: resolvePath(path), fsIsFavorite: false }))
@@ -361,6 +377,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     {this.renderInfoPanel()}
                     {this.renderFilePanel()}
                     {this.renderWebLink()}
+                    {this.renderCancelButton()}
                     {this.renderStreamPanel()}
                 </ContainerForText>
             } />
@@ -418,6 +435,10 @@ const StepTrackerItem: React.StatelessComponent<{ stateToDisplay: AppState, curr
         </Step>
     );
 };
+
+function inCancelableState(state: AppState) {
+    return state === AppState.VALIDATED || state === AppState.PREPARED || state === AppState.SCHEDULED || state === AppState.RUNNING;
+}
 
 const Stream = styled.pre`
     height: 500px;

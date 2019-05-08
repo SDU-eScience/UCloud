@@ -26,11 +26,11 @@ class FileScanner<FSCtx : CommandRunner>(
                 val rootStat = fs.stat(ctx, path, STORAGE_EVENT_MODE)
                 if (rootStat.fileType == FileType.DIRECTORY) {
                     fs.tree(ctx, path, STORAGE_EVENT_MODE).forEach { file ->
-                        events.add(file.toCreatedEvent())
+                        events.add(file.toCreatedEvent(copyCausedBy = true))
                     }
                 } else {
                     // tree call will include root (always)
-                    events.add(rootStat.toCreatedEvent())
+                    events.add(rootStat.toCreatedEvent(copyCausedBy = true))
                 }
             }
 

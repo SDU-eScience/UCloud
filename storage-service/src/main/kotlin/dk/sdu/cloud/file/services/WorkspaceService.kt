@@ -1,6 +1,8 @@
 package dk.sdu.cloud.file.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.WorkspaceMount
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
@@ -16,9 +18,16 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
 import java.util.*
-import kotlin.streams.toList
+import kotlin.streams.asSequence
 
 data class CreatedWorkspace(val workspaceId: String, val failures: List<WorkspaceMount>)
+
+private data class WorkspaceManifest(
+    val username: String,
+    val mounts: List<WorkspaceMount>,
+    val createSymbolicLinkAt: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
 
 class WorkspaceService(
     fsRoot: File,
@@ -59,6 +68,8 @@ class WorkspaceService(
                 val outputWorkspace = workspace.resolve("output").also { Files.createDirectories(it) }
                 val symLinkPath = createSymbolicLinkAt.let { File(it).absoluteFile.toPath() }
 
+                writeManifest(workspace, WorkspaceManifest(user, mounts, createSymbolicLinkAt))
+
                 fun transferFile(
                     file: Path,
                     rootPath: Path,
@@ -81,7 +92,7 @@ class WorkspaceService(
                         else outputRoot.resolve(relativePath)
 
                     if (Files.isDirectory(file)) {
-                        if (!readOnly) Files.createDirectories(inputDestinationPath)
+                        if (readOnly) Files.createDirectories(inputDestinationPath)
                         Files.createDirectories(outputDestinationPath)
 
                         Files.list(file).forEach {
@@ -126,7 +137,6 @@ class WorkspaceService(
     }
 
     suspend fun transfer(
-        user: String,
         workspaceId: String,
         fileGlobs: List<String>,
         destination: String,
@@ -136,10 +146,12 @@ class WorkspaceService(
         val outputWorkspace = workspace.resolve("output")
         if (!Files.exists(workspace)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-        val uid = userDao.findStorageUser(user) ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        val manifest = readManifest(workspace)
+        val uid =
+            userDao.findStorageUser(manifest.username) ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
         val matchers = fileGlobs.map { FileSystems.getDefault().getPathMatcher("glob:$it") }
-        val destinationDir = File(translateAndCheckFile(fsRoot, destination)).toPath()
+        val defaultDestinationDir = File(translateAndCheckFile(fsRoot, destination)).toPath()
         val transferred = ArrayList<String>()
 
         val copyOptions = run {
@@ -148,8 +160,8 @@ class WorkspaceService(
             opts.toTypedArray()
         }
 
-        fun transferFile(sourceFile: Path): Path {
-            val resolvedDestination = destinationDir.resolve(outputWorkspace.relativize(sourceFile))
+        fun transferFile(sourceFile: Path, destinationDir: Path, relativeTo: Path = outputWorkspace): Path {
+            val resolvedDestination = destinationDir.resolve(relativeTo.relativize(sourceFile))
             if (!resolvedDestination.startsWith(destinationDir)) {
                 throw IllegalArgumentException("Resolved destination isn't within allowed target")
             }
@@ -158,7 +170,7 @@ class WorkspaceService(
                 val targetIsDir = Files.isDirectory(resolvedDestination)
                 if (targetIsDir) {
                     Files.list(sourceFile).forEach { child ->
-                        transferFile(child)
+                        transferFile(child, destinationDir, relativeTo)
                     }
                 } else {
                     Files.move(sourceFile, resolvedDestination, *copyOptions)
@@ -170,18 +182,35 @@ class WorkspaceService(
         }
 
         Files.list(outputWorkspace)
-            .filter { path ->
-                val result = matchers.any { it.matches(path.fileName) }
-                log.debug("Checking if we match $path. Do we? $result")
-                result
+            .asSequence()
+            .mapNotNull { path ->
+                if (Files.isSymbolicLink(path)) return@mapNotNull null
+
+                val existingMount = run {
+                    val fileName = path.toFile().name
+                    manifest.mounts.find { fileName == File(it.destination).name }
+                }
+
+                if (existingMount != null && !existingMount.allowMergeDuringTransfer) return@mapNotNull null
+
+                val matchesGlob = matchers.any { it.matches(path.fileName) }
+
+                if (existingMount != null || matchesGlob) {
+                    if (Files.isDirectory(path)) {
+                        Pair(path, existingMount)
+                    } else {
+                        Pair(path, null)
+                    }
+                } else {
+                    null
+                }
             }
-            .filter { path ->
-                !Files.isSymbolicLink(path)
-            }
-            .toList()
-            .forEach { currentFile ->
+            .forEach { (currentFile, mount) ->
                 log.debug("Transferring file: $currentFile")
+
                 try {
+                    // We start the transfer by removing all symbolic links (backed by hard-linked read-only files)
+                    // and fixing permissions of files we need to transfer.
 
                     Files.walk(currentFile).forEach { child ->
                         if (Files.isSymbolicLink(child)) {
@@ -201,9 +230,23 @@ class WorkspaceService(
                         }
                     }
 
-                    val resolvedDestination = transferFile(currentFile)
-                    val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
-                    transferred.add(path)
+                    // We will put the file in the mount (if one exists) otherwise it will go in the default destination
+                    if (mount == null) {
+                        // The file is then transferred to the new system and recorded for later use
+                        val resolvedDestination = transferFile(currentFile, defaultDestinationDir)
+                        val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
+                        transferred.add(path)
+                    } else {
+                        val destinationDir = File(translateAndCheckFile(fsRoot, mount.source)).toPath()
+                        Files.createDirectories(destinationDir) // Ensure that directory exists
+
+                        Files.list(currentFile).forEach { child ->
+                            val resolvedDestination = transferFile(child, destinationDir, relativeTo = currentFile)
+
+                            val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
+                            transferred.add(path)
+                        }
+                    }
                 } catch (ex: Throwable) {
                     log.info("Failed to transfer $currentFile. ${ex.message}")
                     log.debug(ex.stackTraceToString())
@@ -228,9 +271,21 @@ class WorkspaceService(
         workspace.toFile().deleteRecursively()
     }
 
+    private fun writeManifest(workspace: Path, manifest: WorkspaceManifest) {
+        val file = workspace.resolve(WORKSPACE_MANIFEST_NAME)
+        defaultMapper.writeValue(file.toFile(), manifest)
+    }
+
+    private fun readManifest(workspace: Path): WorkspaceManifest {
+        val file = workspace.resolve(WORKSPACE_MANIFEST_NAME)
+        if (!Files.exists(file)) throw RPCException("Invalid workspace", HttpStatusCode.BadRequest)
+        return defaultMapper.readValue(file.toFile())
+    }
+
     companion object : Loggable {
         override val log = logger()
 
         const val WORKSPACE_PATH = "workspace"
+        const val WORKSPACE_MANIFEST_NAME = "workspace.json"
     }
 }

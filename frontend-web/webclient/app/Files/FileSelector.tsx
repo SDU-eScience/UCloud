@@ -43,6 +43,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 
     private fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
         this.setState(() => ({ loading: true }));
+        /* FIXME Async */
         this.state.promises.makeCancelable(Cloud.get(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(({ response }) =>
             this.setState(() => ({
                 page: response,
@@ -90,7 +91,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     onChange={() => undefined}
                     onClick={() => this.setState(() => ({ modalShown: true }))}
                 />
-                {this.props.unitName ? <InputLabel rightLabel>{this.props.unitName}</InputLabel> : null}
+                {this.props.unitName ? <InputLabel width={this.props.unitWidth || "auto"} rightLabel>{this.props.unitName}</InputLabel> : null}
                 {uploadButton}
                 {removeButton}
                 <FileSelectorModal

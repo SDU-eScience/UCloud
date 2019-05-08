@@ -100,7 +100,7 @@ class FileFavoriteControllerTest {
                     request = FavoriteStatusRequest(
                         listOf(
                             storageFile,
-                            storageFile.copy(path = "/home/user/5", fileId = "fileId2")
+                            storageFile.copy(pathOrNull = "/home/user/5", fileIdOrNull = "fileId2")
                         )
                     )
                 )

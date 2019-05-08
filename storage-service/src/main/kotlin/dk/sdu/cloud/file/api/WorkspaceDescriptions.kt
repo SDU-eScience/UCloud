@@ -6,7 +6,16 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 
-data class WorkspaceMount(val source: String, val destination: String, val readOnly: Boolean = true)
+data class WorkspaceMount(
+    val source: String,
+    val destination: String,
+    val readOnly: Boolean = true,
+
+    /**
+     * Flag which controls if new files within this mount should be merged with the source directory during transfer.
+     */
+    val allowMergeDuringTransfer: Boolean = true
+)
 
 typealias WorkspaceDescriptions = Workspaces
 object Workspaces : CallDescriptionContainer("files.workspace") {
@@ -37,7 +46,6 @@ object Workspaces : CallDescriptionContainer("files.workspace") {
 
     object Transfer {
         data class Request(
-            val username: String,
             val workspaceId: String,
             val transferGlobs: List<String>,
             val destination: String,

@@ -52,7 +52,6 @@ import java.io.PipedOutputStream
 import java.nio.file.Files
 import java.time.ZonedDateTime
 import java.util.concurrent.CountDownLatch
-import kotlin.random.Random
 
 private const val JOB_PREFIX = "job-"
 private const val ROLE_LABEL = "role"
@@ -112,13 +111,12 @@ class PodService(
 
     private val jobManager = JobManager()
 
-    private fun podName(requestId: String): String = "$JOB_PREFIX$requestId"
+    private fun jobName(requestId: String): String = "$JOB_PREFIX$requestId"
     private fun reverseLookupJobName(podName: String): String? =
         if (podName.startsWith(JOB_PREFIX)) podName.removePrefix(JOB_PREFIX) else null
 
     private fun findPod(jobName: String?): Pod? =
         k8sClient.pods().inNamespace(namespace).withLabel("job-name", jobName).list().items.firstOrNull()
-
 
     fun initializeListeners() {
         fun handlePodEvent(job: Job) {
@@ -143,7 +141,7 @@ class PodService(
                         ComputationCallbackDescriptions.completed.call(
                             JobCompletedRequest(
                                 jobId,
-                                SimpleDuration(0, 0, 0),
+                                null,
                                 false
                             ),
                             serviceClient
@@ -167,28 +165,11 @@ class PodService(
                             val finishedAt =
                                 ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
 
-                            run {
-                                // We add 5 seconds for just running the application.
-                                // It seems unfair that a job completing instantly is accounted for nothing.
-                                val durationMs = (finishedAt - startAt) + 5_000
-                                val hours = durationMs / (1000 * 60 * 60)
-                                val minutes = (durationMs % (1000 * 60 * 60)) / (1000 * 60)
-                                val seconds = ((durationMs % (1000 * 60 * 60)) % (1000 * 60)) / 1000
-
-
-                                SimpleDuration(hours.toInt(), minutes.toInt(), seconds.toInt())
-                            }
+                            // We add 5 seconds for just running the application.
+                            // It seems unfair that a job completing instantly is accounted for nothing.
+                            SimpleDuration.fromMillis((finishedAt - startAt) + 5_000)
                         }
                         log.info("App finished in $duration")
-
-                        log.debug("Downloading log")
-                        val logFile = Files.createTempFile("log", ".txt").toFile()
-                        k8sClient.pods().inNamespace(namespace).withName(resource.metadata.name)
-                            .logReader.use { ins ->
-                            logFile.writer().use { out ->
-                                ins.copyTo(out)
-                            }
-                        }
 
                         ComputationCallbackDescriptions.requestStateChange.call(
                             StateChangeRequest(
@@ -199,15 +180,7 @@ class PodService(
                             serviceClient
                         ).orThrow()
 
-                        ComputationCallbackDescriptions.submitFile.call(
-                            SubmitComputationResult(
-                                jobId,
-                                "stdout.txt",
-                                false,
-                                BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
-                            ),
-                            serviceClient
-                        ).orThrow()
+                        transferLog(jobId, resource.metadata.name)
 
                         log.info("Calling completed")
                         ComputationCallbackDescriptions.completed.call(
@@ -240,8 +213,42 @@ class PodService(
         })
     }
 
+    private suspend fun transferLog(jobId: String, podName: String) {
+        log.debug("Downloading log")
+        val logFile = Files.createTempFile("log", ".txt").toFile()
+        k8sClient.pods().inNamespace(namespace).withName(podName)
+            .logReader.use { ins ->
+            logFile.writer().use { out ->
+                ins.copyTo(out)
+            }
+        }
+
+        ComputationCallbackDescriptions.submitFile.call(
+            SubmitComputationResult(
+                jobId,
+                "stdout.txt",
+                false,
+                BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
+            ),
+            serviceClient
+        ).orThrow()
+    }
+
+    suspend fun cancel(verifiedJob: VerifiedJob) {
+        val jobName = jobName(verifiedJob.id)
+        val pod = findPod(jobName) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        jobManager.get(verifiedJob.id).markAsFinished {
+            transferLog(verifiedJob.id, pod.metadata.name)
+            k8sClient.batch().jobs().inNamespace(namespace).withName(jobName).delete()
+            ComputationCallbackDescriptions.completed.call(
+                JobCompletedRequest(verifiedJob.id, null, true),
+                serviceClient
+            ).orThrow()
+        }
+    }
+
     fun create(verifiedJob: VerifiedJob) {
-        val podName = podName(verifiedJob.id)
+        val podName = jobName(verifiedJob.id)
 
         log.info("Creating new job with name: $podName")
 
@@ -393,7 +400,7 @@ class PodService(
 
 
     fun cleanup(requestId: String) {
-        val pod = podName(requestId)
+        val pod = jobName(requestId)
         try {
             k8sClient.batch().jobs().inNamespace(namespace).withName(pod).delete()
         } catch (ex: KubernetesClientException) {
@@ -407,7 +414,7 @@ class PodService(
     fun retrieveLogs(requestId: String, startLine: Int, maxLines: Int): Pair<String, Int> {
         return try {
             // This is a stupid implementation that works with the current API. We should be using websockets.
-            val jobName = podName(requestId)
+            val jobName = jobName(requestId)
             val pod = findPod(jobName) ?: return Pair("", 0)
             val completeLog = k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).log.lines()
             val lines = completeLog.drop(startLine).take(maxLines)
@@ -423,7 +430,7 @@ class PodService(
 
     fun createTunnel(jobId: String, localPort: Int, remotePort: Int): Tunnel {
         val k8sTunnel = run {
-            val pod = findPod(podName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val pod = findPod(jobName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).portForward(remotePort)
 
             // Using kubectl port-forward appears to be a lot more reliable than using the built-in.
@@ -436,7 +443,7 @@ class PodService(
                     pod.metadata.name,
                     "$localPort:$remotePort"
                 )
-                log.info("Running command: $cmd")
+                log.debug("Running command: $cmd")
                 command(cmd)
             }.start()
         }
