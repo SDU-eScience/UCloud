@@ -284,10 +284,10 @@ class ShareService<DBSession>(
             }
         } catch (ex: Exception) {
             runBlocking {
+                log.debug("Attempting cleanup")
                 //Attempt revoke of permissions
                 val refreshedExistingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
                 val ownerCloud = userCloudFactory(existingShare.ownerToken)
-                println(FileDescriptions.stat.call(FindByPath("/home/user/to_share"),userCloud))
                 val response = FileDescriptions.updateAcl.call(
                     UpdateAclRequest(
                         refreshedExistingShare.path,
@@ -303,16 +303,13 @@ class ShareService<DBSession>(
                     ),
                     ownerCloud
                 )
-                println(response)
-                println(FileDescriptions.stat.call(FindByPath("/home/user/to_share"),userCloud))
-
-                val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
-                val pathToLink = findShareLink(existingShare)
+                log.debug("result of attempt: $response")
+                val pathToLink = findShareLink(refreshedExistingShare)
                 //Attempt to remove link if exists
                 if (pathToLink != null) {
                     FileDescriptions.deleteFile.call(DeleteFileRequest(pathToLink), userCloud)
                 }
-
+                log.debug("Cleanup complete")
             }
             throw ex
         }

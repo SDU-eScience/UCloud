@@ -5,6 +5,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.OptionalAuthenticationTokens
+import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.calls.RPCException
@@ -35,10 +36,13 @@ import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.share.api.CreateShareRequest
 import dk.sdu.cloud.share.api.ShareId
 import dk.sdu.cloud.share.api.ShareState
+import dk.sdu.cloud.share.services.InternalShare
 import dk.sdu.cloud.share.services.ShareException
 import dk.sdu.cloud.share.services.ShareHibernateDAO
 import dk.sdu.cloud.share.services.ShareService
 import io.ktor.http.HttpStatusCode
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -404,6 +408,73 @@ class ShareServiceTest {
                     it.sharedWith == recipient.username && it.rights == rights && it.state == ShareState.REQUEST_SENT
                 }
             }
+        }
+    }
+
+    @Test (expected = RPCException::class)
+    fun `Cleanup on failed accept test`() {
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+
+        val shareDao = mockk<ShareHibernateDAO>()
+        val shareService = ShareService(
+            ClientMock.authenticatedClient,
+            micro.hibernateDatabase,
+            shareDao,
+            { ClientMock.authenticatedClient }
+        )
+
+        every { shareDao.findById(any(), any(), any()) } answers {
+            InternalShare(
+                22,
+                TestUsers.user.username,
+                TestUsers.user2.username,
+                ShareState.REQUEST_SENT,
+                "path",
+                setOf(AccessRight.READ, AccessRight.WRITE),
+                "fileId",
+                "ownerToken",
+                "recipientToken",
+                "linkId")
+        }
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.updateAcl,
+            Unit
+        )
+
+        ClientMock.mockCallSuccess(
+            LookupDescriptions.reverseLookup,
+            ReverseLookupResponse(listOf("path/to/link"))
+        )
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.deleteFile,
+            LongRunningResponse.Result(Unit)
+        )
+
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.tokenExtension,
+            TokenExtensionResponse("accessToken", "csrfToken", "refreshtoken")
+        )
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.findHomeFolder,
+            FindHomeFolderResponse("/home/user")
+        )
+
+        ClientMock.mockCallError(
+            FileDescriptions.createLink,
+            null,
+            HttpStatusCode.BadRequest
+        )
+        runBlocking {
+            shareService.acceptShare(
+                TestUsers.user.username,
+                22L,
+                "userToken",
+                ClientMock.authenticatedClient
+            )
         }
     }
 }

@@ -45,7 +45,7 @@ volumes: [
             }
             for (String item : serviceList) {
                 needToBuild.add(item + "/Jenkinsfile")
-            }          
+            } 
 
             String currentResult1
             String currentResult2
@@ -90,7 +90,7 @@ volumes: [
                     resultList[i] = currentResult
                 }
             }
-            
+            println(resultList)
             if (resultList.contains("FAILURE") || resultList.contains("UNSTABLE")) {
                 String message = "Following services are marked UNSTABLE due to failing tests:\n"
                 for (int k = 0; k < resultList.size(); k++) {
@@ -107,6 +107,9 @@ volumes: [
                 sendAlert(message)
                 error('Job failed - message have been sent. JobInfo: $resultList \n Message: $message')
             }
+
+            currentBuild.rawBuild.@result = hudson.model.Result.SUCCESS            
+
             junit '**/build/test-results/**/*.xml'      
             jacoco(
                 execPattern: '**/**.exec',
