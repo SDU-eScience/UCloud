@@ -3,6 +3,7 @@ import ClickableDropdown from "../../app/ui-components/ClickableDropdown"
 import { create } from "react-test-renderer";
 import { ThemeProvider } from "styled-components";
 import { theme } from "../../app/ui-components";
+import "jest-styled-components";
 
 describe("ClickableDropdown", () => {
     it("Closed clickable dropdown", () => {

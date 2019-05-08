@@ -108,7 +108,8 @@ export enum AppState {
     RUNNING = "RUNNING",
     TRANSFER_SUCCESS = "TRANSFER_SUCCESS",
     SUCCESS = "SUCCESS",
-    FAILURE = "FAILURE"
+    FAILURE = "FAILURE",
+    CANCELLING = "CANCELLING"
 }
 
 export interface DetailedResultState {
