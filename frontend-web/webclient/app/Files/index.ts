@@ -6,7 +6,7 @@ import { Activity } from "Activity";
 import { ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
-import {AddSnackOperation} from "Snackbar/Snackbars";
+import { AddSnackOperation } from "Snackbar/Snackbars";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -110,7 +110,8 @@ export interface FileSelectorProps {
     isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
-    unitName?: string
+    unitName?: string | React.ReactNode
+    unitWidth?: string | number | undefined
     remove?: () => void
 }
 
