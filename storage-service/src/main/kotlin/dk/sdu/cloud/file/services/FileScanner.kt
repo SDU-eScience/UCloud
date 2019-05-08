@@ -34,6 +34,9 @@ class FileScanner<FSCtx : CommandRunner>(
                 }
             }
 
+            log.debug("Producing the following storage events (external scan):")
+            log.debug(events.toString())
+
             eventProducer.produce(events)
         } catch (ex: FSException) {
             log.debug("Caught exception while scanning external created files: $path")
