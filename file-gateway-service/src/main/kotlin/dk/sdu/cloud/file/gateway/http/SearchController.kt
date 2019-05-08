@@ -40,7 +40,6 @@ class SearchController(
                 userCloud
             ).orThrow()
 
-
             ok(
                 pageOfFiles.withNewItems(
                     fileAnnotationService.annotate(request.resourcesToLoad, pageOfFiles.items, userCloud)

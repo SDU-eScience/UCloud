@@ -5,8 +5,10 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.StorageFileAttribute
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
@@ -32,7 +34,11 @@ class FileFavoriteService<DBSession>(
         db.withTransaction { session ->
             files.forEachIndexed { index, path ->
                 try {
-                    val fileId = FileDescriptions.stat.call(FindByPath(path), userCloud).orThrow().fileId
+                    val fileId =
+                        FileDescriptions.stat.call(
+                            StatRequest(path, attributes = "${StorageFileAttribute.fileId}"),
+                            userCloud
+                        ).orThrow().fileId
                     val favorite = dao.isFavorite(session, user, fileId)
 
                     val fileAudit = audit?.files?.get(index)
