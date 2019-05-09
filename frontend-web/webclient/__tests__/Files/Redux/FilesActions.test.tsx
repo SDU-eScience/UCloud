@@ -1,10 +1,10 @@
-import * as FileActions from "Files/Redux/FilesActions";
+import * as FileActions from "../../../app/Files/Redux/FilesActions";
 import { mockFiles_SensitivityConfidential } from "../../mock/Files";
-import { emptyPage } from "DefaultObjects";
-import { SortBy } from "Files";
-import { configureStore } from "Utilities/ReduxUtilities";
-import { initFiles } from "DefaultObjects";
-import files from "Files/Redux/FilesReducer";
+import { emptyPage } from "../../../app/DefaultObjects";
+import { SortBy } from "../../../app/Files";
+import { configureStore } from "../../../app/Utilities/ReduxUtilities";
+import { initFiles } from "../../../app/DefaultObjects";
+import files from "../../../app/Files/Redux/FilesReducer";
 
 const emptyPageStore = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
 
@@ -152,8 +152,8 @@ describe("Sorting columns", () => {
 
     test("Set sorting column 1", () => {
         const index = 1;
-        emptyPageStore.dispatch(FileActions.setSortingColumn(SortBy.SENSITIVITY, index));
-        expect(emptyPageStore.getState().files.sortingColumns[index]).toBe(SortBy.SENSITIVITY);
+        emptyPageStore.dispatch(FileActions.setSortingColumn(SortBy.SENSITIVITY_LEVEL, index));
+        expect(emptyPageStore.getState().files.sortingColumns[index]).toBe(SortBy.SENSITIVITY_LEVEL);
     });
 });
 

@@ -274,7 +274,7 @@ describe("sortingColumnToValue", () => {
     const favoritedFile = mockFiles_SensitivityConfidential.items[1];
 
     test("TYPE", () => {
-        expect(UF.sortingColumnToValue(SortBy.TYPE, file)).toBe(UF.capitalized(file.fileType))
+        expect(UF.sortingColumnToValue(SortBy.FILE_TYPE, file)).toBe(UF.capitalized(file.fileType))
     })
     test("PATH", () => {
         expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path))
@@ -292,7 +292,7 @@ describe("sortingColumnToValue", () => {
         expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getOwnerFromAcls(file.acl as Acl[]))
     })
     test("SENSITIVITY", () => {
-        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY, file)).toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
+        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file)).toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
     })
 });
 

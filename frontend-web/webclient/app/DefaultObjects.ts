@@ -72,7 +72,6 @@ export enum SensitivityLevelMap {
 
 function getFilesSortingColumnOrDefault(columnIndex: 0 | 1): SortBy {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
-    console.log(Object.values(SortBy).some(it => it === sortingColumn));
     if (sortingColumn && Object.values(SortBy).includes(sortingColumn)) return sortingColumn as SortBy;
     switch (columnIndex) {
         case 0: 
