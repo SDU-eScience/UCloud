@@ -2,10 +2,19 @@ package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.SerializerProvider
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer
+import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -18,6 +27,7 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
 
 data class CreateLinkRequest(
@@ -69,6 +79,8 @@ data class ExtractRequest(
     val removeOriginalArchive: Boolean?
 )
 
+@JsonDeserialize(using = FileSortByDeserializer::class)
+@JsonSerialize(using = FileSortBySerializer::class)
 enum class FileSortBy {
     TYPE,
     PATH,
@@ -77,6 +89,37 @@ enum class FileSortBy {
     SIZE,
     ACL,
     SENSITIVITY
+}
+
+class FileSortByDeserializer : StdDeserializer<FileSortBy>(FileSortBy::class.java) {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): FileSortBy {
+        return when (p.valueAsString) {
+            "TYPE", "fileType" -> FileSortBy.TYPE
+            "PATH", "path" -> FileSortBy.PATH
+            "CREATED_AT", "createdAt" -> FileSortBy.CREATED_AT
+            "MODIFIED_AT", "modifiedAt" -> FileSortBy.MODIFIED_AT
+            "SIZE", "size" -> FileSortBy.SIZE
+            "ACL", "acl" -> FileSortBy.ACL
+            "SENSITIVITY", "sensitivityLevel" -> FileSortBy.SENSITIVITY
+            else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        }
+    }
+}
+
+class FileSortBySerializer : StdSerializer<FileSortBy>(FileSortBy::class.java) {
+    override fun serialize(value: FileSortBy, gen: JsonGenerator, provider: SerializerProvider) {
+        val textValue = when (value) {
+            FileSortBy.TYPE -> "fileType"
+            FileSortBy.PATH -> "path"
+            FileSortBy.CREATED_AT -> "createdAt"
+            FileSortBy.MODIFIED_AT -> "modifiedAt"
+            FileSortBy.SIZE -> "size"
+            FileSortBy.ACL -> "acl"
+            FileSortBy.SENSITIVITY -> "sensitivityLevel"
+        }
+
+        gen.writeString(textValue)
+    }
 }
 
 enum class SortOrder {
