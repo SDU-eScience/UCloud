@@ -90,6 +90,7 @@ export interface FilesStateProps {
     fileSelectorError?: string
     favFilesCount: number
     renamingCount: number
+    sensitivityCount: number
     aclCount: number
     fileCount: number
     leftSortingColumn: SortBy
