@@ -33,8 +33,8 @@ import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.DataConversionException
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.io.IOException
-import java.lang.reflect.Type
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.KType
 import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.jvm.javaType
 import kotlin.reflect.jvm.jvmErasure
@@ -98,14 +98,18 @@ class IngoingHttpInterceptor(
         }
     }
 
-    private fun defaultStringConverter(ctx: HttpCall, name: String, value: String, returnType: Type): Any? {
-        return try {
-            ctx.call.application.conversionService.fromValues(listOf(value), returnType)
-        } catch (ex: DataConversionException) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
-        } catch (ex: NoSuchElementException) {
-            // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+    private fun defaultStringConverter(ctx: HttpCall, name: String, value: String, returnType: KType): Any? {
+        try {
+            return defaultMapper.readValue("\"$value\"", returnType.javaType as Class<Any?>)
+        } catch (ignored: Throwable) {
+            try {
+                return ctx.call.application.conversionService.fromValues(listOf(value), returnType.javaType)
+            } catch (ex: DataConversionException) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+            } catch (ex: NoSuchElementException) {
+                // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+            }
         }
     }
 
@@ -208,7 +212,7 @@ class IngoingHttpInterceptor(
                     companionInstance is HttpServerConverter.IngoingHeader<*> -> {
                         companionInstance.serverIngoingHeader(call, ctx, header, value)
                     }
-                    else -> defaultStringConverter(ctx, property.name, value, returnType.javaType)
+                    else -> defaultStringConverter(ctx, property.name, value, returnType)
                 }
 
                 Pair(property.name, converted)
@@ -242,7 +246,7 @@ class IngoingHttpInterceptor(
                     companionInstance is HttpServerConverter.IngoingQuery<*> -> {
                         companionInstance.serverIngoingQuery(call, ctx, name, value)
                     }
-                    else -> defaultStringConverter(ctx, name, value, returnType.javaType)
+                    else -> defaultStringConverter(ctx, name, value, returnType)
                 }
 
                 if (converted == null && !returnType.isMarkedNullable) {
@@ -270,7 +274,7 @@ class IngoingHttpInterceptor(
                     ingoingConverter != null -> ingoingConverter.invoke(value)
                     companionInstance is HttpServerConverter.IngoingPath<*> ->
                         companionInstance.serverIngoingPath(call, ctx, value)
-                    else -> defaultStringConverter(ctx, name, value, returnType.javaType)
+                    else -> defaultStringConverter(ctx, name, value, returnType)
                 }
 
                 if (converted == null && !returnType.isMarkedNullable) {
