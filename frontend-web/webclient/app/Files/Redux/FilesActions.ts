@@ -179,7 +179,7 @@ export const setInvalidPath = (error?: string): InvalidPathAction => ({
  */
 export const fetchFileselectorFiles = async (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> => {
     try {
-        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, SortOrder.ASCENDING, SortBy.FILE_TYPE));
+        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, SortOrder.ASCENDING, SortBy.FILE_TYPE, [FileResource.PATH, FileResource.SENSITIVITY_LEVEL, FileResource.FILE_TYPE]));
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, resolvePath(path), false);
     } catch (e) {
