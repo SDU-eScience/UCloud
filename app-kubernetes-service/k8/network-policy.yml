@@ -29,3 +29,20 @@ spec:
       - ipBlock:
           cidr: 10.135.0.200/32 # allow dev.cloud.sdu.dk
             
+
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: app-allow-proxy
+  namespace: app-kubernetes
+spec:
+  podSelector:
+    matchLabels:
+      role: sducloud-app
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: app-kubernetes
+          namespaceSelector: {}

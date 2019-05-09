@@ -14,7 +14,7 @@ suspend fun DefaultWebSocketServerSession.runWSProxy(
     val clientConn = this
     webSocketClient.ws(
         method = HttpMethod.Get,
-        host = "127.0.0.1",
+        host = tunnel.ipAddress,
         port = tunnel.localPort,
         path = path,
         request = {
@@ -30,7 +30,7 @@ suspend fun DefaultWebSocketServerSession.runWSProxy(
             }
 
             // Must add an origin for the remote server to trust us
-            header("Origin", "http://127.0.0.1:${tunnel.localPort}")
+            header("Origin", "http://${tunnel.ipAddress}:${tunnel.localPort}")
         }) {
         val serverConn = this
         val clientToServer = launch {

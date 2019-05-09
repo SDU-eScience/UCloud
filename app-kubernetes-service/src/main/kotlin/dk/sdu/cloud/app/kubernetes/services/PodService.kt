@@ -14,28 +14,15 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Loggable
-import io.fabric8.kubernetes.api.model.Container
-import io.fabric8.kubernetes.api.model.ContainerBuilder
-import io.fabric8.kubernetes.api.model.DoneablePod
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodSecurityContext
-import io.fabric8.kubernetes.api.model.PodSpecBuilder
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
-import io.fabric8.kubernetes.api.model.Volume
-import io.fabric8.kubernetes.api.model.VolumeBuilder
 import io.fabric8.kubernetes.api.model.VolumeMount
-import io.fabric8.kubernetes.api.model.batch.DoneableJob
 import io.fabric8.kubernetes.api.model.batch.Job
-import io.fabric8.kubernetes.api.model.batch.JobSpecBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.Watcher
-import io.fabric8.kubernetes.client.dsl.ExecListener
-import io.fabric8.kubernetes.client.dsl.ExecWatch
-import io.fabric8.kubernetes.client.dsl.PodResource
-import io.fabric8.kubernetes.client.dsl.internal.PodOperationsImpl
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.Dispatchers
@@ -43,20 +30,18 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import okhttp3.Response
 import java.io.Closeable
-import java.io.InputStream
-import java.io.OutputStream
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
+import java.io.File
 import java.nio.file.Files
 import java.time.ZonedDateTime
-import java.util.concurrent.CountDownLatch
 
 private const val JOB_PREFIX = "job-"
 private const val ROLE_LABEL = "role"
+private const val INPUT_DIRECTORY = "/input"
+private const val WORKING_DIRECTORY = "/work"
+private const val DATA_STORAGE = "workspace-storage"
 
-class K8JobState(val id: String) {
+private class K8JobState(val id: String) {
     private val mutex: Mutex = Mutex()
     var finished: Boolean = false
         private set
@@ -83,7 +68,7 @@ class K8JobState(val id: String) {
 // slightly after we delete a job since we will be notified about it during deletion.
 //
 // Be careful when this leak is being fixed. For now we just leave it in, it is unlikely to leak a lot of memory.
-class JobManager {
+private class JobManager {
     private val mutex = Mutex()
     private val states = HashMap<String, K8JobState>()
 
@@ -105,15 +90,18 @@ class PodService(
     private val namespace: String = "app-kubernetes",
     private val appRole: String = "sducloud-app"
 ) {
-    private val inputDirectory = "/input"
-    private val workingDirectory = "/work"
-    private val dataStorage = "workspace-storage"
-
     private val jobManager = JobManager()
 
+    private val isRunningInsideKubernetes: Boolean by lazy {
+        runCatching {
+            File("/var/run/secrets/kubernetes.io").exists()
+        }.getOrNull() == true
+    }
+
     private fun jobName(requestId: String): String = "$JOB_PREFIX$requestId"
-    private fun reverseLookupJobName(podName: String): String? =
-        if (podName.startsWith(JOB_PREFIX)) podName.removePrefix(JOB_PREFIX) else null
+
+    private fun reverseLookupJobName(jobName: String): String? =
+        if (jobName.startsWith(JOB_PREFIX)) jobName.removePrefix(JOB_PREFIX) else null
 
     private fun findPod(jobName: String?): Pod? =
         k8sClient.pods().inNamespace(namespace).withLabel("job-name", jobName).list().items.firstOrNull()
@@ -137,7 +125,6 @@ class PodService(
                             serviceClient
                         ).orThrow()
 
-                        // TODO FIXME We should still do accounting for the time we spent running code
                         ComputationCallbackDescriptions.completed.call(
                             JobCompletedRequest(
                                 jobId,
@@ -307,9 +294,10 @@ class PodService(
                                     withImage(tool.container)
                                     withRestartPolicy("Never")
                                     withCommand(command)
+                                    withAutomountServiceAccountToken(false)
 
                                     if (containerConfig.changeWorkingDirectory) {
-                                        withWorkingDir(workingDirectory)
+                                        withWorkingDir(WORKING_DIRECTORY)
                                     }
 
                                     if (containerConfig.runAsRoot) {
@@ -328,9 +316,9 @@ class PodService(
 
                                     withVolumeMounts(
                                         VolumeMount(
-                                            workingDirectory,
+                                            WORKING_DIRECTORY,
                                             null,
-                                            dataStorage,
+                                            DATA_STORAGE,
                                             false,
                                             verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/output" }
                                                 ?: throw RPCException(
@@ -340,9 +328,9 @@ class PodService(
                                         ),
 
                                         VolumeMount(
-                                            inputDirectory,
+                                            INPUT_DIRECTORY,
                                             null,
-                                            dataStorage,
+                                            DATA_STORAGE,
                                             true,
                                             verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/input" }
                                                 ?: throw RPCException(
@@ -356,7 +344,7 @@ class PodService(
 
                             withVolumes(
                                 volume {
-                                    withName(dataStorage)
+                                    withName(DATA_STORAGE)
                                     withPersistentVolumeClaim(PersistentVolumeClaimVolumeSource("cephfs", false))
                                 }
                             )
@@ -398,7 +386,6 @@ class PodService(
         }
     }
 
-
     fun cleanup(requestId: String) {
         val pod = jobName(requestId)
         try {
@@ -428,49 +415,64 @@ class PodService(
         }
     }
 
-    fun createTunnel(jobId: String, localPort: Int, remotePort: Int): Tunnel {
-        val k8sTunnel = run {
-            val pod = findPod(jobName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).portForward(remotePort)
+    fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int): Tunnel {
+        val pod = findPod(jobName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        fun findPodResource() = k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name)
+        val podResource = findPodResource()
 
-            // Using kubectl port-forward appears to be a lot more reliable than using the built-in.
-            ProcessBuilder().apply {
-                val cmd = listOf(
-                    "kubectl",
-                    "port-forward",
-                    "-n",
-                    namespace,
-                    pod.metadata.name,
-                    "$localPort:$remotePort"
-                )
-                log.debug("Running command: $cmd")
-                command(cmd)
-            }.start()
-        }
-
-        // Consume first line (wait for process to be ready)
-        val bufferedReader = k8sTunnel.inputStream.bufferedReader()
-        bufferedReader.readLine()
-
-        val job = GlobalScope.launch(Dispatchers.IO) {
-            // Read remaining lines to avoid buffer filling up
-            bufferedReader.lineSequence().forEach {
-                // Discard line
+        if (!isRunningInsideKubernetes) {
+            val k8sTunnel = run {
+                podResource.portForward(remotePort)
+                // Using kubectl port-forward appears to be a lot more reliable than using the built-in.
+                ProcessBuilder().apply {
+                    val cmd = listOf(
+                        "kubectl",
+                        "port-forward",
+                        "-n",
+                        namespace,
+                        pod.metadata.name,
+                        "$localPortSuggestion:$remotePort"
+                    )
+                    log.debug("Running command: $cmd")
+                    command(cmd)
+                }.start()
             }
-        }
 
-        log.info("Port forwarding $jobId to $localPort")
-        return Tunnel(
-            jobId = jobId,
-            localPort = localPort,
-            _isAlive = {
-                k8sTunnel.isAlive
-            },
-            _close = {
-                k8sTunnel.destroyForcibly()
-                job.cancel()
+            // Consume first line (wait for process to be ready)
+            val bufferedReader = k8sTunnel.inputStream.bufferedReader()
+            bufferedReader.readLine()
+
+            val job = GlobalScope.launch(Dispatchers.IO) {
+                // Read remaining lines to avoid buffer filling up
+                bufferedReader.lineSequence().forEach {
+                    // Discard line
+                }
             }
-        )
+
+            log.info("Port forwarding $jobId to $localPortSuggestion")
+            return Tunnel(
+                jobId = jobId,
+                ipAddress = "127.0.0.1",
+                localPort = localPortSuggestion,
+                _isAlive = {
+                    k8sTunnel.isAlive
+                },
+                _close = {
+                    k8sTunnel.destroyForcibly()
+                    job.cancel()
+                }
+            )
+        } else {
+            val ipAddress = podResource.get().status.podIP
+            log.debug("Running inside of kubernetes going directly to pod at $ipAddress")
+            return Tunnel(
+                jobId = jobId,
+                ipAddress = ipAddress,
+                localPort = remotePort,
+                _isAlive = { runCatching { findPodResource()?.get() }.getOrNull() != null },
+                _close = {  }
+            )
+        }
     }
 
     companion object : Loggable {
@@ -480,6 +482,7 @@ class PodService(
 
 class Tunnel(
     val jobId: String,
+    val ipAddress: String,
     val localPort: Int,
     private val _isAlive: () -> Boolean,
     private val _close: () -> Unit
@@ -488,188 +491,6 @@ class Tunnel(
     override fun close() = _close()
 }
 
-data class RemoteProcess(
-    val stdout: InputStream?,
-    val stderr: InputStream?,
-    val stdin: OutputStream?
-)
-
-class OutputStreamWithCustomClose(
-    private val delegate: OutputStream,
-    private val onClose: () -> Unit
-) : OutputStream() {
-    override fun write(b: Int) {
-        delegate.write(b)
-    }
-
-    override fun write(b: ByteArray?) {
-        delegate.write(b)
-    }
-
-    override fun write(b: ByteArray?, off: Int, len: Int) {
-        delegate.write(b, off, len)
-    }
-
-    override fun flush() {
-        delegate.flush()
-    }
-
-    override fun close() {
-        delegate.close()
-        onClose()
-    }
-}
-
-fun PodResource<Pod, DoneablePod>.execWithDefaultListener(
-    command: List<String>,
-    attachStdout: Boolean = true,
-    attachStderr: Boolean = false,
-    attachStdin: Boolean = false
-): RemoteProcess {
-    // I don't have a clue on how you are supposed to call this API.
-    lateinit var watch: ExecWatch
-
-    val latch = CountDownLatch(1)
-
-    var pipeErrIn: InputStream? = null
-    var pipeErrOut: OutputStream? = null
-
-    var pipeOutIn: InputStream? = null
-    var pipeOutOut: OutputStream? = null
-
-    var pipeInOut: OutputStream? = null
-
-    var execable: PodResource<Pod, DoneablePod> = this
-    if (attachStdout) {
-        pipeOutOut = PipedOutputStream()
-        pipeOutIn = PipedInputStream(pipeOutOut)
-        execable = execable.writingOutput(pipeOutOut) as PodOperationsImpl
-    }
-
-    if (attachStderr) {
-        pipeErrOut = PipedOutputStream()
-        pipeErrIn = PipedInputStream(pipeErrOut)
-        execable = execable.writingError(pipeErrOut) as PodOperationsImpl
-    }
-
-    if (attachStdin) {
-        pipeInOut = PipedOutputStream()
-        val pipeInIn = PipedInputStream(pipeInOut)
-        execable = execable.readingInput(pipeInIn) as PodOperationsImpl
-    }
-
-    execable
-        .usingListener(object : ExecListener {
-            override fun onOpen(response: Response?) {
-                println("Open!")
-                latch.countDown()
-            }
-
-            override fun onFailure(t: Throwable?, response: Response?) {
-            }
-
-            override fun onClose(code: Int, reason: String?) {
-                println("Closing!")
-                pipeErrOut?.close()
-                pipeOutOut?.close()
-                pipeInOut?.close()
-                watch.close()
-            }
-        })
-        .exec(*command.toTypedArray()).also { watch = it }
-
-    latch.await()
-    return RemoteProcess(
-        pipeOutIn,
-        pipeErrIn,
-        pipeInOut?.let {
-            OutputStreamWithCustomClose(it) {
-                // We need to wait for the data to reach the other end. Without this sleep we will close before
-                // the data is even sent to the pod.
-                Thread.sleep(250)
-
-                // We need to signal the other end that we are done. We do this by closing the watch.
-                watch.close()
-            }
-        }
-    )
-}
-
-
-fun PodTemplateSpecBuilder.metadata(builder: ObjectMetaBuilder.() -> Unit): PodTemplateSpecBuilder {
-    val objectMetaBuilder = ObjectMetaBuilder()
-    objectMetaBuilder.builder()
-    withMetadata(objectMetaBuilder.build())
-    return this
-}
-
-fun DoneableJob.metadata(builder: ObjectMetaBuilder.() -> Unit): DoneableJob {
-    val objectMetaBuilder = ObjectMetaBuilder()
-    objectMetaBuilder.builder()
-    withMetadata(objectMetaBuilder.build())
-    return this
-}
-
-
-fun DoneablePod.metadata(builder: ObjectMetaBuilder.() -> Unit): DoneablePod {
-    val objectMetaBuilder = ObjectMetaBuilder()
-    objectMetaBuilder.builder()
-    withMetadata(objectMetaBuilder.build())
-    return this
-}
-
-fun DoneableJob.spec(builder: JobSpecBuilder.() -> Unit): DoneableJob {
-    val podBuilder = JobSpecBuilder()
-    podBuilder.builder()
-    withSpec(podBuilder.build())
-    return this
-}
-
-fun PodTemplateSpecBuilder.spec(builder: PodSpecBuilder.() -> Unit): PodTemplateSpecBuilder {
-    val podBuilder = PodSpecBuilder()
-    podBuilder.builder()
-    withSpec(podBuilder.build())
-    return this
-}
-
-fun DoneablePod.spec(builder: PodSpecBuilder.() -> Unit): DoneablePod {
-    val podBuilder = PodSpecBuilder()
-    podBuilder.builder()
-    withSpec(podBuilder.build())
-    return this
-}
-
-fun PodSpecBuilder.container(builder: ContainerBuilder.() -> Unit): Container {
-    val containerBuilder = ContainerBuilder()
-    containerBuilder.builder()
-    return containerBuilder.build()
-}
-
-fun PodSpecBuilder.volume(builder: VolumeBuilder.() -> Unit): Volume {
-    val volumeBuilder = VolumeBuilder()
-    volumeBuilder.builder()
-    return volumeBuilder.build()
-}
-
-fun await(retries: Int = 50, delay: Long = 100, condition: () -> Boolean) {
-    for (attempt in 0 until retries) {
-        if (condition()) return
-        Thread.sleep(delay)
-    }
-
-    throw IllegalStateException("Condition failed!")
-}
-
-fun awaitCatching(retries: Int = 50, delay: Long = 100, condition: () -> Boolean) {
-    for (attempt in 0 until retries) {
-        if (runCatching(condition).getOrNull() == true) return
-        Thread.sleep(delay)
-    }
-
-    throw IllegalStateException("Condition failed!")
-}
-
 private fun SimpleDuration.toSeconds(): Long {
     return (hours * 3600L) + (minutes * 60) + seconds
 }
-

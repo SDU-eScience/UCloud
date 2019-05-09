@@ -184,9 +184,9 @@ class WebService(
             remove(HttpHeaders.Host.toLowerCase())
             remove(HttpHeaders.Origin.toLowerCase())
 
-            put(HttpHeaders.Host, listOf("127.0.0.1:${tunnel.localPort}"))
-            put(HttpHeaders.Referrer, listOf("http://127.0.0.1:${tunnel.localPort}/"))
-            put(HttpHeaders.Origin, listOf("http://127.0.0.1:${tunnel.localPort}"))
+            put(HttpHeaders.Host, listOf("${tunnel.ipAddress}:${tunnel.localPort}"))
+            put(HttpHeaders.Referrer, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}/"))
+            put(HttpHeaders.Origin, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}"))
         }
 
         val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
@@ -213,7 +213,7 @@ class WebService(
             this.method = method
             this.url {
                 protocol = URLProtocol.HTTP
-                host = "127.0.0.1"
+                host = tunnel.ipAddress
                 port = tunnel.localPort
                 encodedPath = requestPath
                 parameters.appendAll(requestQueryParameters)
