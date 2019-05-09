@@ -63,7 +63,6 @@ export interface ApplicationsOperations extends AddSnackOperation {
     fetchDefault: (itemsPerPage: number, page: number) => void
     fetchByTag: (tag: string, itemsPerPage: number, page: number) => void
     receiveApplications: (page: Page<WithAppMetadata>) => void
-    setActivePage: () => void
     setRefresh: (refresh?: () => void) => void
 }
 
@@ -73,9 +72,8 @@ class Applications extends React.Component<ApplicationsProps> {
     public componentDidMount() {
         const { props } = this;
         props.onInit();
-
+        
         this.fetch(props);
-        props.setActivePage();
         props.setRefresh(() => this.fetch(props));
     }
 
@@ -183,8 +181,9 @@ class Applications extends React.Component<ApplicationsProps> {
 
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | AddSnack>): ApplicationsOperations => ({
     onInit: () => {
-        dispatch(updatePageTitle("Applications"))
-        dispatch(setPrioritizedSearch("applications"))
+        dispatch(updatePageTitle("Applications"));
+        dispatch(setPrioritizedSearch("applications"));
+        dispatch(setActivePage(SidebarPages.AppStore));
     },
 
     fetchByTag: async (tag: string, itemsPerPage: number, page: number) => {
@@ -198,7 +197,6 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     },
 
     receiveApplications: page => dispatch(Actions.receivePage(page)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.AppStore)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     addSnack: snack => dispatch(addSnack(snack))
 });

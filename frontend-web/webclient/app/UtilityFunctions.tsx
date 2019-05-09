@@ -99,7 +99,7 @@ export const inputSwal = (inputName: string) => ({
 
 export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     switch (sortBy) {
-        case SortBy.TYPE:
+        case SortBy.FILE_TYPE:
             return capitalized(file.fileType);
         case SortBy.PATH:
             return getFilenameFromPath(file.path);
@@ -114,7 +114,7 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
                 return getOwnerFromAcls(file.acl)
             else
                 return "";
-        case SortBy.SENSITIVITY:
+        case SortBy.SENSITIVITY_LEVEL:
             return SensitivityLevel[file.sensitivityLevel!];
     }
 }
@@ -149,13 +149,15 @@ export const extensionType = (ext: string): ExtensionType => {
         case "tex":
         case "r":
         case "c":
+        case "h":
         case "cc":
+        case "hh":
         case "c++":
         case "h++":
-        case "cpp":
-        case "h":
-        case "hh":
         case "hpp":
+        case "cpp":
+        case "cxx":
+        case "hxx":
         case "html":
         case "lhs":
         case "hs":
@@ -334,6 +336,18 @@ export function sortByToPrettierString(sortBy: SortBy): string {
     switch (sortBy) {
         case SortBy.ACL:
             return "Members";
+        case SortBy.FILE_TYPE:
+            return "File Type";
+        case SortBy.CREATED_AT:
+            return "Created at";
+        case SortBy.MODIFIED_AT:
+            return "Modified at";
+        case SortBy.PATH:
+            return "Path";
+        case SortBy.SIZE:
+            return "Size";
+        case SortBy.SENSITIVITY_LEVEL:
+            return "File sensitivity";
         default:
             return prettierString(sortBy);
     }

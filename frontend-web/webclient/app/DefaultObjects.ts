@@ -70,23 +70,23 @@ export enum SensitivityLevelMap {
     SENSITIVE = "SENSITIVE"
 };
 
-function getFilesSortingColumnOrDefault(columnIndex: number): SortBy {
-    const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`) as SortBy;
-    if (!sortingColumn || !(sortingColumn in Object.values(SortBy))) {
-        if (columnIndex === 0) {
+function getFilesSortingColumnOrDefault(columnIndex: 0 | 1): SortBy {
+    const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
+    console.log(Object.values(SortBy).some(it => it === sortingColumn));
+    if (sortingColumn && Object.values(SortBy).includes(sortingColumn)) return sortingColumn as SortBy;
+    switch (columnIndex) {
+        case 0: 
             window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);
             return SortBy.MODIFIED_AT;
-        } else if (columnIndex === 1) {
+        case 1:
             window.localStorage.setItem("filesSorting1", SortBy.SIZE);
-            return SortBy.ACL;
-        }
+            return SortBy.SIZE;
     }
-    return sortingColumn;
 };
 
 function getItemOrDefault<T, T2>(itemName: string, defaultValue: T, en: T2): T {
     const item = window.localStorage.getItem(itemName);
-    if (item && item in Object.values(en)) {
+    if (item && Object.values(en).includes(item)) {
         return item as unknown as T;
     }
     return defaultValue;

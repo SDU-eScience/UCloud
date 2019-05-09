@@ -420,6 +420,7 @@ export function addFileAcls(withoutAcls: Page<File>, withAcls: Page<File>): Page
             file.acl = otherFile.acl;
             file.favorited = otherFile.favorited;
             file.ownerName = otherFile.ownerName;
+            file.sensitivityLevel = otherFile.sensitivityLevel;
         }
     })
     return withoutAcls;

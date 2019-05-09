@@ -51,7 +51,7 @@ const FilesTable = ({
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
                         <TableCell>
-                            {file.sensitivityLevel ? <SensitivityIcon sensitivity={file.sensitivityLevel} /> : null}
+                            <SensitivityIcon sensitivity={file.sensitivityLevel} />
                         </TableCell>
                         {columns.filter(it => it != null).map((sC, i) => (
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
@@ -172,7 +172,7 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
             {UF.prettierString(SortOrder.DESCENDING)}
         </Box>
         <Divider ml="-16px" mr="-16px" />
-        {Object.keys(SortBy).map((sortByKey: SortBy, i) => (
+        {Object.values(SortBy).map((sortByKey: SortBy, i) => (
             <Box ml="-16px" mr="-16px" pl="15px" key={i}
                 onClick={() => onSelect(sortOrder, sortByKey)}
                 hidden={sortByKey === currentSelection || sortByKey === SortBy.PATH}
@@ -232,7 +232,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
 interface Groupicon { isProject: boolean }
 const GroupIcon = ({ isProject }: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
 
-const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
+const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => {
     type IconDef = { color: string, text: string, shortText: string };
     let def: IconDef;
 
@@ -247,7 +247,8 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
             def = { color: Theme.colors.lightGray, text: "Private", shortText: "P" }
             break;
         default:
-            return null;
+            def = { color: Theme.colors.white, text: "", shortText: "" }
+            break;
     }
 
     const badge = <SensitivityBadge data-tag={"sensitivityBadge"} bg={def.color}>{def.shortText}</SensitivityBadge>;

@@ -39,14 +39,15 @@ export interface Acl {
     group: boolean
 }
 
+// FIXME: SortBy is subset of 
 export enum SortBy {
-    TYPE = "TYPE",
-    PATH = "PATH",
-    CREATED_AT = "CREATED_AT",
-    MODIFIED_AT = "MODIFIED_AT",
-    SIZE = "SIZE",
-    ACL = "ACL",
-    SENSITIVITY = "SENSITIVITY"
+    FILE_TYPE = "fileType",
+    PATH = "path",
+    CREATED_AT = "createdAt",
+    MODIFIED_AT = "modifiedAt",
+    SIZE = "size",
+    ACL = "acl",
+    SENSITIVITY_LEVEL = "sensitivityLevel",
 }
 
 export enum FileResource {
@@ -62,7 +63,7 @@ export enum FileResource {
     OWN_SENSITIVITY_LEVEL = "ownSensitivityLevel",
     LINK = "link",
     FILE_ID = "fileId",
-    CREATOR = "creator",
+    CREATOR = "creator"
 }
 
 export type FilesProps = FilesStateProps & FilesOperations & RouterLocationProps;

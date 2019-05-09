@@ -77,7 +77,7 @@ class Files extends React.Component<FilesProps> {
         }
     };
 
-    shouldComponentUpdate(nextProps: FilesProps): boolean {
+    public shouldComponentUpdate(nextProps: FilesProps): boolean {
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
         const nextPath = this.urlPathFromProps(nextProps);
         if (nextProps.path !== nextPath && !loading) {
@@ -124,9 +124,16 @@ class Files extends React.Component<FilesProps> {
         })
     ];
 
-    private readonly baseFRs: FileResource[] = [FR.FILE_ID, FR.PATH, FR.LINK, FR.FILE_TYPE, FR.SIZE, FR.MODIFIED_AT /*this.props.leftSortingColumn, this.props.rightSortingColumn */]
+    private readonly baseFRs: FileResource[] = [
+        FR.FILE_ID,
+        FR.PATH,
+        FR.LINK,
+        FR.FILE_TYPE,
+        this.props.leftSortingColumn as unknown as FileResource,
+        this.props.rightSortingColumn as unknown as FileResource
+    ];
 
-    render() {
+    public render() {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
@@ -156,7 +163,7 @@ class Files extends React.Component<FilesProps> {
                         sortOrder={sortOrder}
                         sortingColumns={[leftSortingColumn, rightSortingColumn]}
                         refetchFiles={() => this.refetch()}
-                        onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, [], index)}
+                        onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs, index)}
                         masterCheckbox={
                             <MasterCheckbox
                                 checked={page.items.length === selectedFiles.length && page.items.length > 0}
@@ -190,11 +197,11 @@ class Files extends React.Component<FilesProps> {
         const additional = (
             <FileSelectorModal
                 isFavorites={props.fileSelectorIsFavorites}
+                fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
                 fetchFavorites={(pageNumber, itemsPerPage) => props.fetchFileSelectorFavorites(pageNumber, itemsPerPage)}
                 show={props.fileSelectorShown}
                 onHide={() => showFileSelector(false)}
                 path={props.fileSelectorPath}
-                fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
                 loading={props.fileSelectorLoading}
                 errorMessage={props.fileSelectorError}
                 onErrorDismiss={props.onFileSelectorErrorDismiss}
@@ -249,42 +256,38 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
             const promiseWithoutAcl = Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy, attrs)
                 .then(action => (dispatch(action), action));
 
-            const promiseWithAcl = Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy, [FR.ACL, FR.FILE_ID, FR.OWNER_NAME])
+            const promiseWithAcl = Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy, [FR.ACL, FR.FILE_ID, FR.OWNER_NAME, FR.FAVORITED, FR.SENSITIVITY_LEVEL])
 
-            // Can be rewritten with await
-            Promise.all([promiseWithAcl, promiseWithoutAcl]).then(([hasAcls, noAcls]) => {
-                if ("page" in noAcls.payload) {
-                    if ("page" in hasAcls.payload) {
-                        dispatch(Actions.receiveFiles(addFileAcls(noAcls.payload.page, hasAcls.payload.page), path, sortOrder, sortBy));
-                    } else {
-                        dispatch(noAcls); // Dispatch other error
-                    }
+            const [hasAcls, noAcls] = await Promise.all([promiseWithAcl, promiseWithoutAcl])
+            if ("page" in noAcls.payload) {
+                if ("page" in hasAcls.payload) {
+                    dispatch(Actions.receiveFiles(addFileAcls(noAcls.payload.page, hasAcls.payload.page), path, sortOrder, sortBy));
+                } else {
+                    dispatch(noAcls); // Dispatch other error
                 }
-            });
+            }
         };
         if (index != null) dispatch(Actions.setSortingColumn(sortBy, index));
         fetch();
         dispatch(setRefreshFunction(fetch));
     },
     fetchPageFromPath: (path, itemsPerPage, sortOrder, sortBy, attrs) => {
-        const fetch = () => {
+        const fetch = async () => {
             dispatch(Actions.setLoading(true));
             const promiseWithoutAcl = Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy, attrs)
                 .then(action => (dispatch(action), action));
 
-            const promiseWithAcl = Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy, [FR.ACL, FR.FILE_ID, FR.OWNER_NAME]);
+            const promiseWithAcl = Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy, [FR.ACL, FR.FILE_ID, FR.OWNER_NAME, FR.FAVORITED, FR.SENSITIVITY_LEVEL]);
 
-            // Can be rewritten with await
-            Promise.all([promiseWithAcl, promiseWithoutAcl]).then(([hasAcls, noAcls]) => {
-                if ("page" in noAcls.payload) {
-                    if ("page" in hasAcls.payload) {
-                        const joinedPage = markFileAsChecked(path, addFileAcls(noAcls.payload.page, hasAcls.payload.page));
-                        dispatch(Actions.receiveFiles(joinedPage, getParentPath(path), sortOrder, sortBy));
-                    } else {
-                        dispatch(noAcls);
-                    }
+            const [hasAcls, noAcls] = await Promise.all([promiseWithAcl, promiseWithoutAcl])
+            if ("page" in noAcls.payload) {
+                if ("page" in hasAcls.payload) {
+                    const joinedPage = markFileAsChecked(path, addFileAcls(noAcls.payload.page, hasAcls.payload.page));
+                    dispatch(Actions.receiveFiles(joinedPage, getParentPath(path), sortOrder, sortBy));
+                } else {
+                    dispatch(noAcls);
                 }
-            });
+            }
 
         };
         fetch();

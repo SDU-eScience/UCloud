@@ -42,8 +42,8 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 type FetchFiles = Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError | InvalidPathAction>
 export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy, attrs: FileResource[]): FetchFiles => {
     try {
-        const response = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy, attrs));
-        return receiveFiles(response.response, path, order, sortBy)
+        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy, attrs));
+        return receiveFiles(response, path, order, sortBy)
     } catch (e) {
         const error = errorMessageOrDefault(e, "An error occurred fetching contents of folder.");
         if (e.request.status === 404 || e.request.status === 403) return setInvalidPath(error);
@@ -179,7 +179,7 @@ export const setInvalidPath = (error?: string): InvalidPathAction => ({
  */
 export const fetchFileselectorFiles = async (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> => {
     try {
-        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, SortOrder.ASCENDING, SortBy.TYPE));
+        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, SortOrder.ASCENDING, SortBy.FILE_TYPE));
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, resolvePath(path), false);
     } catch (e) {
