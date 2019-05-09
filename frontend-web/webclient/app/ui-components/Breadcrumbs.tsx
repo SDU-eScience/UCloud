@@ -11,7 +11,7 @@ const BreadCrumbsBase = styled.ul<{ divider?: string }>`
 
     & li {
         display: inline;
-        font-size: 18px;
+        font-size: 25px;
     }
 
     & li + li:before {

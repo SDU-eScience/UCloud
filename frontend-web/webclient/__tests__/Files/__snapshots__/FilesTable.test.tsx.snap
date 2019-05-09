@@ -6,13 +6,13 @@ exports[`FilesTable Mount 1`] = `
   files={Array []}
   onCheckFile={[Function]}
   refetchFiles={[Function]}
-  sortBy="PATH"
+  sortBy="path"
   sortFiles={[Function]}
   sortOrder="ASCENDING"
   sortingColumns={
     Array [
-      "ACL",
-      "CREATED_AT",
+      "acl",
+      "createdAt",
     ]
   }
 />

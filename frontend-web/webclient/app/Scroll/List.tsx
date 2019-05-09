@@ -53,6 +53,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         return result;
     }
 
+    // FIXME, should be replaced;
     componentWillReceiveProps(nextProps: ListProps<Item, OffsetType>) {
         const scroll = this.scrollOrDefault;
         const nextScrollOrDefault = nextProps.scroll || { endOfScroll: false, nextOffset: null, items: [] };

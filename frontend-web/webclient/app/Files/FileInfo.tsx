@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { capitalized, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
-import { sizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile } from "Utilities/FileUtilities";
+import { sizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile, fileTablePage, expandHomeFolder } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { dateToString } from "Utilities/DateUtilities"
@@ -21,6 +21,8 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { SidebarPages } from "ui-components/Sidebar";
 import { AddSnackOperation } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { BreadCrumbs } from "ui-components/Breadcrumbs";
+import { History } from "history";
 
 interface FileInfoOperations extends AddSnackOperation {
     updatePageTitle: () => void
@@ -34,6 +36,7 @@ interface FileInfoOperations extends AddSnackOperation {
 
 interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
     location: { pathname: string, search: string }
+    history: History
 }
 
 class FileInfo extends React.Component<FileInfo> {
@@ -65,12 +68,15 @@ class FileInfo extends React.Component<FileInfo> {
         const { loading, file, activity, ...props } = this.props;
         if (loading) return (<LoadingIcon size={18} />);
         if (!file) return <MainContainer main={<Error error={this.props.error} clearError={() => this.props.setError()} />} />;
-        const fileName = replaceHomeFolder(isDirectory(file) ? addTrailingSlash(file.path) : file.path, Cloud.homeFolder);
         return (
             <MainContainer
                 header={
                     <>
-                        <Heading.h2>{fileName}</Heading.h2>
+                        <Heading.h2><BreadCrumbs 
+                            currentPath={file.path}
+                            navigate={path => this.props.history.push(fileTablePage(expandHomeFolder(path, Cloud.homeFolder)))}
+                            homeFolder={Cloud.homeFolder}    
+                        /></Heading.h2>
                         <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
                     </>}
                 main={
@@ -128,7 +134,7 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
                         color="blue"
                     />
                 </Attribute>
-                <Attribute name="Shared with" value={`${file.acl !== undefined ? file.acl!.length : 0} people`} />
+                <Attribute name="Shared with" value={`${file.acl !== null ? file.acl.length : 0} people`} />
             </AttributeBox>
             <AttributeBox>
                 <Attribute name="Sensitivity">

@@ -38,6 +38,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
         this.props.setRefresh(() => this.fetchJobs());
     }
 
+    // FIXME, should be replaced;
     componentWillReceiveProps(nextProps: AnalysesProps) {
         const { setRefresh } = nextProps;
         setRefresh(() => this.fetchJobs());

@@ -69,9 +69,6 @@ const Badge = styled.div<SpaceProps & { color?: ThemeColor, bg?: ThemeColor }>`
   text-transform: uppercase;
   letter-spacing: ${themeGet("letterSpacings.caps")};
   ${space} ${colorScheme} ${color};
-
-  animation: ${fadeIn} 1.5s ease 1.5s infinite alternate;
-  animation-direction: alternate;
 `
 
 Badge.displayName = "Badge";
@@ -86,6 +83,8 @@ const DevelopmentBadgeBase = styled(Badge)`
   background-color: ${({ theme }) => theme.colors.red};
   margin: 15px 25px 14px 5px;
   color: white;
+  animation: ${fadeIn} 1.5s ease 1.5s infinite alternate;
+  animation-direction: alternate;
 `;
 
 export default Badge;

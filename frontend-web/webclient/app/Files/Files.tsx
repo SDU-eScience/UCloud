@@ -10,11 +10,11 @@ import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
 import { MasterCheckbox } from "UtilityComponents";
-import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation } from ".";
+import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation, FileResource as FR, FileResource } from ".";
 import { setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import {
     startRenamingFiles, allFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
-    getParentPath, moveFile, createFolder, fileTablePage
+    getParentPath, moveFile, createFolder, fileTablePage, addFileAcls, markFileAsChecked
 } from "Utilities/FileUtilities";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
@@ -30,14 +30,14 @@ import { Spacer } from "ui-components/Spacer";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 class Files extends React.Component<FilesProps> {
-    componentDidMount() {
+    public componentDidMount() {
         const { page, sortOrder, sortBy, history, ...props } = this.props;
         props.onInit();
-        props.setUploaderCallback(path => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
-        props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
+        props.setUploaderCallback(path => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs));
+        props.fetchFiles(this.urlPath, page.itemsPerPage, 0, sortOrder, sortBy, this.baseFRs);
     }
 
-    componentWillUnmount = () => this.props.clearRefresh();
+    public componentWillUnmount = () => this.props.clearRefresh();
 
     private urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
 
@@ -46,7 +46,7 @@ class Files extends React.Component<FilesProps> {
     }
 
     private onRenameFile = (key: number, file: File, name: string) => {
-        const { path, fetchPageFromPath, updateFiles, page } = this.props;
+        const { path, fetchPageFromPath, updateFiles, page, addSnack } = this.props;
         if (key === KeyCode.ESC) {
             const item = page.items.find(f => f.path === file.path);
             if (item !== undefined) item.beingRenamed = false;
@@ -54,14 +54,14 @@ class Files extends React.Component<FilesProps> {
             updateFiles(page);
         } else if (key === KeyCode.ENTER) {
             const fileNames = page.items.map(file => getFilenameFromPath(file.path));
-            if (isInvalidPathName({ path: name, filePaths: fileNames, addSnack: this.props.addSnack })) return;
+            if (isInvalidPathName({ path: name, filePaths: fileNames, addSnack: addSnack })) return;
             const fullPath = `${UF.addTrailingSlash(path)}${name}`;
             const { sortOrder, sortBy } = this.props;
             if (file.isMockFolder) {
                 createFolder({
                     path: fullPath,
                     cloud: Cloud,
-                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy),
+                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy, this.baseFRs),
                     addSnack: this.props.addSnack
                 })
             } else {
@@ -70,18 +70,18 @@ class Files extends React.Component<FilesProps> {
                     newPath: fullPath,
                     cloud: Cloud,
                     setLoading: () => this.props.setLoading(true),
-                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy),
+                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy, this.baseFRs),
                     addSnack: this.props.addSnack
                 });
             }
         }
     };
 
-    shouldComponentUpdate(nextProps: FilesProps): boolean {
+    public shouldComponentUpdate(nextProps: FilesProps): boolean {
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
         const nextPath = this.urlPathFromProps(nextProps);
         if (nextProps.path !== nextPath && !loading) {
-            fetchFiles(nextPath, page.itemsPerPage, 0, sortOrder, sortBy);
+            fetchFiles(nextPath, page.itemsPerPage, 0, sortOrder, sortBy, this.baseFRs);
             return false;
         }
         return true;
@@ -92,15 +92,15 @@ class Files extends React.Component<FilesProps> {
         setFileSelectorCallback: this.props.setFileSelectorCallback,
         showFileSelector: this.props.showFileSelector,
         fetchPageFromPath: (path: string) =>
-            (this.props.fetchPageFromPath(path, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
+            (this.props.fetchPageFromPath(path, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy, this.baseFRs),
                 this.props.history.push(fileTablePage(getParentPath(path)))),
         fetchFilesPage: (path: string) =>
-            this.props.fetchFiles(path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy)
+            this.props.fetchFiles(path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy, this.baseFRs)
     };
 
     private readonly refetch = () => {
         const { path, page, sortOrder, sortBy } = this.props;
-        this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
+        this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs);
     };
 
     private readonly fileOperations: FileOperation[] = [
@@ -117,14 +117,23 @@ class Files extends React.Component<FilesProps> {
             onDeleted: this.refetch,
             onExtracted: this.refetch,
             onSensitivityChange: this.refetch,
-            onClearTrash: () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
+            onClearTrash: () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy, this.baseFRs),
             history: this.props.history,
             setLoading: () => this.props.setLoading(true),
             addSnack: this.props.addSnack
         })
     ];
 
-    render() {
+    private readonly baseFRs: FileResource[] = [
+        FR.FILE_ID,
+        FR.PATH,
+        FR.LINK,
+        FR.FILE_TYPE,
+        this.props.leftSortingColumn as unknown as FileResource,
+        this.props.rightSortingColumn as unknown as FileResource
+    ];
+
+    public render() {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
@@ -135,7 +144,7 @@ class Files extends React.Component<FilesProps> {
                 right={<Pagination.EntriesPerPageSelector
                     content="Files per page"
                     entriesPerPage={page.itemsPerPage}
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, 0, sortOrder, sortBy)}
+                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, 0, sortOrder, sortBy, this.baseFRs)}
                 />}
             />
         );
@@ -149,12 +158,12 @@ class Files extends React.Component<FilesProps> {
                     <FilesTable
                         onFavoriteFile={files => updateFiles(favoriteFileFromPage(page, files, Cloud))}
                         fileOperations={this.fileOperations}
-                        sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                        sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs)}
                         sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
                         sortOrder={sortOrder}
                         sortingColumns={[leftSortingColumn, rightSortingColumn]}
                         refetchFiles={() => this.refetch()}
-                        onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
+                        onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs, index)}
                         masterCheckbox={
                             <MasterCheckbox
                                 checked={page.items.length === selectedFiles.length && page.items.length > 0}
@@ -167,7 +176,7 @@ class Files extends React.Component<FilesProps> {
                     />
                 )}
                 page={page}
-                onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
+                onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy, this.baseFRs)}
             />
         );
 
@@ -188,11 +197,11 @@ class Files extends React.Component<FilesProps> {
         const additional = (
             <FileSelectorModal
                 isFavorites={props.fileSelectorIsFavorites}
+                fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
                 fetchFavorites={(pageNumber, itemsPerPage) => props.fetchFileSelectorFavorites(pageNumber, itemsPerPage)}
                 show={props.fileSelectorShown}
                 onHide={() => showFileSelector(false)}
                 path={props.fileSelectorPath}
-                fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
                 loading={props.fileSelectorLoading}
                 errorMessage={props.fileSelectorError}
                 onErrorDismiss={props.onFileSelectorErrorDismiss}
@@ -221,11 +230,12 @@ const mapStateToProps = ({ files, responsive }: ReduxObject): FilesStateProps =>
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
     const fileCount = page.items.length;
+    const aclCount = page.items.filter(it => it.acl !== null).flatMap(it => it.acl!).length;
     return {
         error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath, invalidPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
         renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], fileSelectorIsFavorites,
-        responsive
+        responsive, aclCount
     }
 };
 
@@ -238,21 +248,47 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError({})),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     createFolder: () => dispatch(Actions.createFolder()),
-    fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, index) => {
+    fetchFiles: (path, itemsPerPage, pageNumber, sortOrder, sortBy, attrs, index) => {
         dispatch(Actions.updatePath(path));
         /* FIXME: Must be a better way */
         const fetch = async (): Promise<void> => {
             dispatch(Actions.setLoading(true));
-            dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));
+            const promiseWithoutAcl = Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy, attrs)
+                .then(action => (dispatch(action), action));
+
+            const promiseWithAcl = Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy, [FR.ACL, FR.FILE_ID, FR.OWNER_NAME, FR.FAVORITED, FR.SENSITIVITY_LEVEL])
+
+            const [hasAcls, noAcls] = await Promise.all([promiseWithAcl, promiseWithoutAcl])
+            if ("page" in noAcls.payload) {
+                if ("page" in hasAcls.payload) {
+                    dispatch(Actions.receiveFiles(addFileAcls(noAcls.payload.page, hasAcls.payload.page), path, sortOrder, sortBy));
+                } else {
+                    dispatch(noAcls); // Dispatch other error
+                }
+            }
         };
         if (index != null) dispatch(Actions.setSortingColumn(sortBy, index));
         fetch();
         dispatch(setRefreshFunction(fetch));
     },
-    fetchPageFromPath: (path, itemsPerPage, sortOrder, sortBy) => {
-        const fetch = async (): Promise<void> => {
+    fetchPageFromPath: (path, itemsPerPage, sortOrder, sortBy, attrs) => {
+        const fetch = async () => {
             dispatch(Actions.setLoading(true));
-            dispatch(await Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
+            const promiseWithoutAcl = Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy, attrs)
+                .then(action => (dispatch(action), action));
+
+            const promiseWithAcl = Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy, [FR.ACL, FR.FILE_ID, FR.OWNER_NAME, FR.FAVORITED, FR.SENSITIVITY_LEVEL]);
+
+            const [hasAcls, noAcls] = await Promise.all([promiseWithAcl, promiseWithoutAcl])
+            if ("page" in noAcls.payload) {
+                if ("page" in hasAcls.payload) {
+                    const joinedPage = markFileAsChecked(path, addFileAcls(noAcls.payload.page, hasAcls.payload.page));
+                    dispatch(Actions.receiveFiles(joinedPage, getParentPath(path), sortOrder, sortBy));
+                } else {
+                    dispatch(noAcls);
+                }
+            }
+
         };
         fetch();
         dispatch(setRefreshFunction(fetch));

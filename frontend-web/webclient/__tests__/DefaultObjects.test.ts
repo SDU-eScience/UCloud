@@ -29,7 +29,7 @@ describe("Initialize Redux Objects", () => {
             path: "",
             invalidPath: false,
             filesInfoPath: "",
-            sortingColumns: [SortBy.MODIFIED_AT, SortBy.ACL],
+            sortingColumns: [SortBy.MODIFIED_AT, SortBy.SIZE],
             fileSelectorLoading: false,
             fileSelectorShown: false,
             fileSelectorPage: Defaults.emptyPage,

@@ -317,7 +317,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             refetchFiles={() => null}
                             sortFiles={() => null}
                             onCheckFile={() => null}
-                            sortingColumns={[SortBy.TYPE, SortBy.SIZE]}
+                            sortingColumns={[SortBy.FILE_TYPE, SortBy.SIZE]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}

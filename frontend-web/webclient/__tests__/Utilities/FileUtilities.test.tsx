@@ -13,10 +13,8 @@ import {
     MoveFileToTrashOperation,
     HistoryFilesOperations,
     fileTablePage
-} from "Utilities/FileUtilities";
+} from "../../app/Utilities/FileUtilities";
 import { mockFiles_SensitivityConfidential } from "../mock/Files";
-import Cloud from "Authentication/lib";
-import { createMemoryHistory } from "history";
 
 test("silencer", () => { });
 
@@ -107,15 +105,7 @@ describe("Replace homefolder", () => {
 describe("Filepath query", () => {
     test("Defaults", () =>
         expect(filepathQuery("path", 0, 25)).toBe(
-            "files?path=path&itemsPerPage=25&page=0&order=ASCENDING&sortBy=PATH"
-        )
-    )
-});
-
-describe("Filelookup query", () => {
-    test("Defaults", () =>
-        expect(fileLookupQuery("path")).toBe(
-            "files/lookup?path=path&itemsPerPage=25&order=DESCENDING&sortBy=PATH"
+            "files?path=path&itemsPerPage=25&page=0&order=ASCENDING&sortBy=path"
         )
     )
 });

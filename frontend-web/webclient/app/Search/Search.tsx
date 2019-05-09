@@ -45,6 +45,7 @@ class Search extends React.Component<SearchProps> {
         this.props.setRefresh(() => this.fetchAll(query));
     }
 
+    // FIXME, should be replaced;
     componentWillReceiveProps() {
         this.props.setRefresh(() => this.fetchAll(this.query));
     }
@@ -166,7 +167,7 @@ class Search extends React.Component<SearchProps> {
                         <FilesTable
                             files={page.items}
                             sortOrder={SortOrder.ASCENDING}
-                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY]}
+                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY_LEVEL]}
                             sortFiles={() => undefined}
                             onCheckFile={() => undefined}
                             refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}

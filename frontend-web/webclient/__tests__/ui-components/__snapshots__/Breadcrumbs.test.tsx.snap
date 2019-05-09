@@ -10,7 +10,7 @@ exports[`Breadcrumbs Build breadcrumbs 1`] = `
 
 .c0 li {
   display: inline;
-  font-size: 18px;
+  font-size: 25px;
 }
 
 .c0 li + li:before {

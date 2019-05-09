@@ -5,7 +5,7 @@ import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath, favoritesQuery } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { emptyPage } from "DefaultObjects";
-import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
+import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation, FileResource } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
 import { Input, Icon, Button, Flex, Box } from "ui-components";
 import * as ReactModal from "react-modal";
@@ -41,18 +41,30 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.props.onFileSelect(fileCopy);
     };
 
-    private fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
+    private fetchFiles = async (path: string, pageNumber: number, itemsPerPage: number) => {
         this.setState(() => ({ loading: true }));
-        /* FIXME Async */
-        this.state.promises.makeCancelable(Cloud.get(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(({ response }) =>
+        const { onlyAllowFolders } = this.props;
+        try {
+            const { response } = await this.state.promises.makeCancelable(
+                Cloud.get(filepathQuery(
+                    path,
+                    pageNumber,
+                    itemsPerPage,
+                    SortOrder.DESCENDING,
+                    onlyAllowFolders ? SortBy.FILE_TYPE : SortBy.PATH,
+                    [FileResource.PATH, FileResource.FILE_TYPE, FileResource.SENSITIVITY_LEVEL]
+                ))).promise;
             this.setState(() => ({
                 page: response,
                 path: resolvePath(path),
                 error: undefined,
                 isFavorites: false
-            })))
-        .catch(() => this.setState(() => ({ error: "An error occurred fetching files" })))
-        .finally(() => this.setState(() => ({ loading: false })))
+            }));
+        } catch (e) {
+            this.setState(() => ({ error: errorMessageOrDefault(e, "An error occurred fetching files") }));
+        } finally { 
+            this.setState(() => ({ loading: false })) 
+        }
     };
 
     private async fetchFavorites(pageNumber: number, itemsPerPage: number) {

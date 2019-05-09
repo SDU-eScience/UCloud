@@ -39,15 +39,32 @@ export interface Acl {
     group: boolean
 }
 
+// FIXME: SortBy is subset of 
 export enum SortBy {
-    TYPE = "TYPE",
-    PATH = "PATH",
-    CREATED_AT = "CREATED_AT",
-    MODIFIED_AT = "MODIFIED_AT",
-    SIZE = "SIZE",
-    ACL = "ACL",
-    SENSITIVITY = "SENSITIVITY"
-};
+    FILE_TYPE = "fileType",
+    PATH = "path",
+    CREATED_AT = "createdAt",
+    MODIFIED_AT = "modifiedAt",
+    SIZE = "size",
+    ACL = "acl",
+    SENSITIVITY_LEVEL = "sensitivityLevel",
+}
+
+export enum FileResource {
+    FAVORITED = "favorited",
+    FILE_TYPE = "fileType",
+    PATH = "path",
+    CREATED_AT = "createdAt",
+    MODIFIED_AT = "modifiedAt",
+    OWNER_NAME = "ownerName",
+    SIZE = "size",
+    ACL = "acl",
+    SENSITIVITY_LEVEL = "sensitivityLevel",
+    OWN_SENSITIVITY_LEVEL = "ownSensitivityLevel",
+    LINK = "link",
+    FILE_ID = "fileId",
+    CREATOR = "creator"
+}
 
 export type FilesProps = FilesStateProps & FilesOperations & RouterLocationProps;
 
@@ -73,19 +90,20 @@ export interface FilesStateProps {
     fileSelectorError?: string
     favFilesCount: number
     renamingCount: number
+    aclCount: number
     fileCount: number
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
     invalidPath: boolean
-    responsive?: ResponsiveReduxObject 
+    responsive?: ResponsiveReduxObject
 }
 
 export interface FilesOperations extends ClearRefresh, AddSnackOperation {
     onInit: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
-    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
-    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
+    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, attrs: FileResource[], index?: number) => void
+    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy, attrs: FileResource[]) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     fetchFileSelectorFavorites: (pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
