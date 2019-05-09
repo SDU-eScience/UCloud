@@ -77,7 +77,7 @@
     "redux": "4.0.1",
     "redux-responsive": "^4.3.8",
     "styled-components": "^4.2.0",
-    "styled-system": "^4.2.1",
+    "styled-system": "^4.2.2",
     "svgi": "^1.1.0",
     "sweetalert2": "7.33.1"
   },
@@ -123,7 +123,7 @@
     "ts-loader": "6.0.0",
     "typescript": "3.4.5",
     "url-loader": "1.1.2",
-    "webpack": "4.30.0",
+    "webpack": "4.31.0",
     "webpack-cli": "^3.3.2",
     "webpack-dev-server": "3.3.1",
     "webpack-merge": "4.2.1"
