@@ -29,7 +29,7 @@ class TrashService(
         validateTrashDirectory(username, userCloud)
         GlobalScope.launch {
             runCatching {
-                while (true) {
+                for (attempt in 1..5) {
                     val filesResp = FileDescriptions.listAtPath.call(
                         ListDirectoryRequest(
                             trashDirectoryService.findTrashDirectory(username),
