@@ -55,11 +55,6 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         this.props.setRefresh(() => this.reload(true));
     }
 
-    // FIXME, should be replaced;
-    componentWillReceiveProps() {
-        this.props.setRefresh(() => this.reload(true));
-    }
-
     private reload(loading: boolean) {
         const { props } = this;
         props.setAllLoading(loading)

@@ -32,20 +32,15 @@ class Installed extends React.Component<InstalledProps & { header: any }> {
 
         props.onInit();
         props.fetchItems(0, 25);
-        const { content } = props.applications;
-        const pageNumber = !!content ? content.pageNumber : 0;
-        const itemsPerPage = !!content ? content.itemsPerPage : 25;
 
-        props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage))
-
+        props.setRefresh(() => this.refresh());
     }
 
-    // FIXME, should be replaced;
-    componentWillReceiveProps(nextProps: InstalledProps) {
-        const { content } = nextProps.applications;
+    private refresh() {
+        const { content } = this.props.applications;
         const pageNumber = !!content ? content.pageNumber : 0;
         const itemsPerPage = !!content ? content.itemsPerPage : 25;
-        nextProps.setRefresh(() => this.props.fetchItems(pageNumber, itemsPerPage));
+        this.props.setRefresh(() => this.props.fetchItems(pageNumber, itemsPerPage));
     }
 
     componentWillUnmount() {
@@ -56,7 +51,6 @@ class Installed extends React.Component<InstalledProps & { header: any }> {
         const { props } = this;
         const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
         const itemsPerPage = !!page ? page.itemsPerPage : 25;  
-        const pageNumber = !!page ? page.pageNumber : 0;
         const main = (
             <>
                 <Spacer left={null} right={props.applications.loading ? null : <Pagination.EntriesPerPageSelector
