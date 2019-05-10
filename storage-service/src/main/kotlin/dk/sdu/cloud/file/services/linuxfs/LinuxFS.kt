@@ -815,14 +815,14 @@ class LinuxFS(
             FileAttribute.PATH
         )
 
-        private val DEFAULT_FILE_MODE = setOf(
+        val DEFAULT_FILE_MODE = setOf(
             PosixFilePermission.OWNER_READ,
             PosixFilePermission.OWNER_WRITE,
             PosixFilePermission.GROUP_READ,
             PosixFilePermission.GROUP_WRITE
         )
 
-        private val DEFAULT_DIRECTORY_MODE = setOf(
+        val DEFAULT_DIRECTORY_MODE = setOf(
             PosixFilePermission.OWNER_READ,
             PosixFilePermission.OWNER_WRITE,
             PosixFilePermission.OWNER_EXECUTE,

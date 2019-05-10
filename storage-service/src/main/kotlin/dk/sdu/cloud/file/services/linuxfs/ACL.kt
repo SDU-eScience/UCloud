@@ -216,6 +216,19 @@ object ACL : Loggable {
         }
     }
 
+    fun copyList(from: String, to: String, addDefaultList: Boolean) {
+        val entries = getEntries(from)
+        log.debug("Copying ${entries.size} from $from to $to")
+        entries.forEach {
+            if (it.isUser) {
+                addEntry(to, it.id.toInt(), it.rights, defaultList = false)
+                if (addDefaultList) {
+                    addEntry(to, it.id.toInt(), it.rights, defaultList = true)
+                }
+            }
+        }
+    }
+
     private fun Int.orThrow() {
         if (this != 0) throw NativeException(Native.getLastError())
     }

@@ -4,19 +4,25 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.services.linuxfs.ACL
 import dk.sdu.cloud.file.services.linuxfs.Chown
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import java.io.File
+import java.nio.channels.Channels
 import java.nio.file.CopyOption
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.attribute.PosixFilePermissions
 import java.util.*
 import kotlin.streams.asSequence
 
@@ -107,7 +113,7 @@ class WorkspaceService(
                             Files.createLink(inputDestinationPath, resolvedFile)
                             Files.createSymbolicLink(outputDestinationPath, symlinkRoot.resolve(relativePath))
                         } else {
-                            Files.copy(resolvedFile, outputDestinationPath)
+                            Files.copy(resolvedFile, outputDestinationPath, StandardCopyOption.COPY_ATTRIBUTES)
                         }
                     }
                 }
@@ -173,10 +179,55 @@ class WorkspaceService(
                         transferFile(child, destinationDir, relativeTo)
                     }
                 } else {
+                    transferred.add(resolvedDestination.toCloudPath())
                     Files.move(sourceFile, resolvedDestination, *copyOptions)
+
+                    Files.walk(resolvedDestination).forEach {
+                        val addDefaultList = Files.isDirectory(it)
+                        ACL.copyList(it.parent.toFile().absolutePath, it.toFile().absolutePath, addDefaultList)
+                    }
                 }
             } else {
-                Files.move(sourceFile, resolvedDestination, *copyOptions)
+                if (Files.exists(resolvedDestination)) {
+                    val lastModifiedTime = runCatching { Files.getLastModifiedTime(resolvedDestination) }.getOrNull()
+                    if (Files.getLastModifiedTime(sourceFile) != lastModifiedTime) {
+                        // Truncate to preserve inode
+                        val options = HashSet<OpenOption>()
+                        options.add(StandardOpenOption.TRUNCATE_EXISTING)
+                        options.add(StandardOpenOption.WRITE)
+                        options.add(StandardOpenOption.CREATE)
+
+                        val os = Channels.newOutputStream(
+                            Files.newByteChannel(
+                                resolvedDestination,
+                                options,
+                                PosixFilePermissions.asFileAttribute(LinuxFS.DEFAULT_FILE_MODE)
+                            )
+                        )
+
+                        val ins = Channels.newInputStream(
+                            Files.newByteChannel(
+                                sourceFile,
+                                StandardOpenOption.READ
+                            )
+                        )
+
+                        // No need to copy list since the original file is simply updated.
+                        ins.use { os.use { ins.copyTo(os) } }
+                        transferred.add(resolvedDestination.toCloudPath())
+                    } else {
+                        log.debug("Don't need to copy file. It has not been modified.")
+                    }
+                } else {
+                    transferred.add(resolvedDestination.toCloudPath())
+                    Files.move(sourceFile, resolvedDestination, *copyOptions)
+
+                    ACL.copyList(
+                        resolvedDestination.parent.toFile().absolutePath,
+                        resolvedDestination.toFile().absolutePath,
+                        addDefaultList = false
+                    )
+                }
             }
             return resolvedDestination
         }
@@ -233,18 +284,15 @@ class WorkspaceService(
                     // We will put the file in the mount (if one exists) otherwise it will go in the default destination
                     if (mount == null) {
                         // The file is then transferred to the new system and recorded for later use
-                        val resolvedDestination = transferFile(currentFile, defaultDestinationDir)
-                        val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
-                        transferred.add(path)
+                        transferFile(currentFile, defaultDestinationDir)
                     } else {
                         val destinationDir = File(translateAndCheckFile(fsRoot, mount.source)).toPath()
-                        Files.createDirectories(destinationDir) // Ensure that directory exists
+                        runCatching {
+                            Files.createDirectories(destinationDir) // Ensure that directory exists
+                        }
 
                         Files.list(currentFile).forEach { child ->
-                            val resolvedDestination = transferFile(child, destinationDir, relativeTo = currentFile)
-
-                            val path = "/" + fsRoot.toPath().relativize(resolvedDestination).toFile().path
-                            transferred.add(path)
+                            transferFile(child, destinationDir, relativeTo = currentFile)
                         }
                     }
                 } catch (ex: Throwable) {
@@ -264,6 +312,8 @@ class WorkspaceService(
 
         return transferred
     }
+
+    private fun Path.toCloudPath(): String = "/" + fsRoot.toPath().relativize(this).toFile().path
 
     fun delete(workspaceId: String) {
         val workspace = workspace(workspaceId)
