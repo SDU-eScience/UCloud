@@ -113,8 +113,14 @@ class WebService(
                         return@webSocket
                     }
 
+                    val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
+                        // Remove authentication tokens
+                        remove(APP_REFRESH_TOKEN)
+                        remove(SDU_CLOUD_REFRESH_TOKEN)
+                    }
+
                     val tunnel = createTunnel(id)
-                    runWSProxy(tunnel, path = path)
+                    runWSProxy(tunnel, path = path, cookies = requestCookies)
                 }
 
                 handle {

@@ -3,7 +3,7 @@ application: v1
 
 title: RStudio
 name: rstudio
-version: 3.6.0
+version: 3.6.0-V1
 
 applicationType: WEB
 
@@ -19,7 +19,7 @@ description: RStudio
 invocation:
 - "bash"
 - "-c"
-- "export DISABLE_AUTH=true; /init"
+- "export DISABLE_AUTH=true; export ROOT=true; /init"
 
 web:
   port: 8787
