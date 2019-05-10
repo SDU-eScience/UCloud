@@ -3,21 +3,20 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { errorMessageOrDefault, addTrailingSlash, removeTrailingSlash } from "UtilityFunctions";
+import { errorMessageOrDefault, removeTrailingSlash } from "UtilityFunctions";
 import { updatePageTitle, setLoading } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations } from ".";
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations, RefReadPair } from ".";
 import { Dispatch } from "redux";
 import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button, Icon } from "ui-components";
-import Input, { HiddenInputField, InputLabel } from "ui-components/Input";
+import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter, OptionalParameters, InputDirectoryParameter } from "./ParameterWidgets";
 import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
-import { checkIfFileExists, expandHomeFolder, resolvePath, replaceHomeFolder } from "Utilities/FileUtilities";
+import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
 import { SnackType } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
-import FileSelector from "Files/FileSelector";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { removeEntry } from "Utilities/CollectionUtilities";
 
@@ -360,7 +359,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         application: this.state.application,
                         schedulingOptions: this.state.schedulingOptions,
                         parameterValues: this.state.parameterValues,
-                        siteVersion: this.siteVersion
+                        siteVersion: this.siteVersion,
+                        mountedFolders: this.state.mountedFolders
                     })}>
                     Export parameters
                 </OutlineButton>
@@ -408,8 +408,7 @@ interface ParameterProps {
     values: ParameterValues
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
-    /* FIXME: Shouldn't  */
-    additionalDirectories: { ref: React.RefObject<HTMLInputElement>, readOnly: boolean }[]
+    additionalDirectories: RefReadPair[]
     app: WithAppMetadata & WithAppInvocation
     onSubmit: (e: React.FormEvent) => void
     onJobSchedulingParamsChange: (field: string, value: number | string, subField: number | string) => void
@@ -562,10 +561,11 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
     return extractedJobInfo;
 }
 
-function exportParameters({ application, schedulingOptions, parameterValues, siteVersion }: {
+function exportParameters({ application, schedulingOptions, parameterValues, mountedFolders, siteVersion }: {
     application?: WithAppFavorite & WithAppInvocation & WithAppMetadata, // FIXME Should be something like FullApp
     schedulingOptions: JobSchedulingOptionsForInput,
     parameterValues: ParameterValues,
+    mountedFolders: RefReadPair[]
     siteVersion: number
 }) {
     if (!application) return;
@@ -580,6 +580,8 @@ function exportParameters({ application, schedulingOptions, parameterValues, sit
         if (ref && ref.current) values[key] = ref.current.value;
     }
 
+
+
     element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
         siteVersion: siteVersion,
         application: {
@@ -587,6 +589,7 @@ function exportParameters({ application, schedulingOptions, parameterValues, sit
             version: appInfo.version
         },
         parameters: values,
+        mountedFolders: mountedFolders.map(it => ({ ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
         numberOfNodes: jobInfo.numberOfNodes,
         tasksPerNode: jobInfo.tasksPerNode,
         maxTime: jobInfo.maxTime,
