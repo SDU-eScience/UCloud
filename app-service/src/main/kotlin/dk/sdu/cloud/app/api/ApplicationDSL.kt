@@ -36,9 +36,11 @@ sealed class ApplicationDescription(val application: String) {
         applicationType: String? = null,
         val vnc: VncDescription? = null,
         val web: WebDescription? = null,
-        val container: ContainerDescription? = null
+        val container: ContainerDescription? = null,
+        environment: Map<String, Any>? = null
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
+        val environment: Map<String, InvocationParameter>?
 
         val outputFileGlobs: List<String>
         val applicationType: ApplicationType
@@ -93,70 +95,7 @@ sealed class ApplicationDescription(val application: String) {
 
             this.invocation = invocation.mapIndexed { index, it ->
                 val parameterName = "invocation[$index]"
-                when (it) {
-                    is String -> {
-                        WordInvocationParameter(it)
-                    }
-
-                    is Int, is Long, is Boolean, is Double, is Float, is Short -> {
-                        WordInvocationParameter(it.toString())
-                    }
-
-                    is Map<*, *> -> {
-                        @Suppress("UNCHECKED_CAST")
-                        val map = it as Map<String, Any?>
-
-                        val type = map["type"] ?: throw ApplicationVerificationException.BadValue(
-                            parameterName,
-                            "Missing 'type' tag"
-                        )
-
-                        when (type) {
-                            "var" -> {
-                                val vars = (map["vars"] ?: throw ApplicationVerificationException.BadValue(
-                                    parameterName,
-                                    "missing variableNames"
-                                ))
-
-                                val variableNames =
-                                    (vars as? List<*>)?.map { it.toString() } ?: listOf(vars.toString())
-                                val prefixGlobal = map["prefixGlobal"]?.toString() ?: ""
-                                val suffixGlobal = map["suffixGlobal"]?.toString() ?: ""
-                                val prefixVariable = map["prefixVariable"]?.toString() ?: ""
-                                val isPrefixVariablePartOfArg = map["isPrefixVariablePartOfArg"] as? Boolean ?: false
-                                val isSuffixVariablePartOfArg = map["isSuffixVariablePartOfArg"] as? Boolean ?: false
-
-                                VariableInvocationParameter(
-                                    variableNames,
-                                    prefixGlobal,
-                                    suffixGlobal,
-                                    prefixVariable,
-                                    suffixGlobal,
-                                    isPrefixVariablePartOfArg,
-                                    isSuffixVariablePartOfArg
-                                )
-                            }
-
-                            "flag" -> {
-                                val variable = map["var"] ?: throw ApplicationVerificationException.BadValue(
-                                    parameterName,
-                                    "missing 'variable'"
-                                )
-
-                                val flag = map["flag"] ?: throw ApplicationVerificationException.BadValue(
-                                    parameterName,
-                                    "Missing 'flag'"
-                                )
-
-                                BooleanFlagParameter(variable.toString(), flag.toString())
-                            }
-
-                            else -> throw ApplicationVerificationException.BadValue(parameterName, "Unknown type")
-                        }
-                    }
-
-                    else -> throw ApplicationVerificationException.BadValue(parameterName, "Bad value")
-                }
+                parseApplicationParameter(it, parameterName)
             }
 
             this.invocation.forEachIndexed { index, it ->
@@ -178,6 +117,89 @@ sealed class ApplicationDescription(val application: String) {
                 if (missingVariable != null) {
                     throw ApplicationVerificationException.BadVariableReference(parameterName, missingVariable)
                 }
+            }
+
+            this.environment = environment?.map { (name, param) ->
+                name to parseApplicationParameter(param, name)
+            }?.toMap()
+        }
+
+        private fun parseApplicationParameter(
+            param: Any,
+            parameterName: String
+        ): InvocationParameter {
+            return when (param) {
+                is String -> {
+                    WordInvocationParameter(param)
+                }
+
+                is Int, is Long, is Boolean, is Double, is Float, is Short -> {
+                    WordInvocationParameter(param.toString())
+                }
+
+                is Map<*, *> -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val map = param as Map<String, Any?>
+
+                    val type = map["type"] ?: throw ApplicationVerificationException.BadValue(
+                        parameterName,
+                        "Missing 'type' tag"
+                    )
+
+                    when (type) {
+                        "var" -> {
+                            val vars = (map["vars"] ?: throw ApplicationVerificationException.BadValue(
+                                parameterName,
+                                "missing 'vars'"
+                            ))
+
+                            val variableNames =
+                                (vars as? List<*>)?.map { it.toString() } ?: listOf(vars.toString())
+                            val prefixGlobal = map["prefixGlobal"]?.toString() ?: ""
+                            val suffixGlobal = map["suffixGlobal"]?.toString() ?: ""
+                            val prefixVariable = map["prefixVariable"]?.toString() ?: ""
+                            val isPrefixVariablePartOfArg = map["isPrefixVariablePartOfArg"] as? Boolean ?: false
+                            val isSuffixVariablePartOfArg = map["isSuffixVariablePartOfArg"] as? Boolean ?: false
+
+                            VariableInvocationParameter(
+                                variableNames,
+                                prefixGlobal,
+                                suffixGlobal,
+                                prefixVariable,
+                                suffixGlobal,
+                                isPrefixVariablePartOfArg,
+                                isSuffixVariablePartOfArg
+                            )
+                        }
+
+                        "flag" -> {
+                            val variable = map["var"] ?: throw ApplicationVerificationException.BadValue(
+                                parameterName,
+                                "missing 'var'"
+                            )
+
+                            val flag = map["flag"] ?: throw ApplicationVerificationException.BadValue(
+                                parameterName,
+                                "Missing 'flag'"
+                            )
+
+                            BooleanFlagParameter(variable.toString(), flag.toString())
+                        }
+
+                        "env" -> {
+                            val variable = map["var"] ?: throw ApplicationVerificationException.BadValue(
+                                parameterName,
+                                "missing 'var'"
+                            )
+
+                            EnvironmentVariableParameter(variable.toString())
+                        }
+
+                        else -> throw ApplicationVerificationException.BadValue(parameterName, "Unknown type")
+                    }
+                }
+
+                else -> throw ApplicationVerificationException.BadValue(parameterName, "Bad value")
             }
         }
 
@@ -225,7 +247,8 @@ sealed class ApplicationDescription(val application: String) {
                 applicationType,
                 vnc = vnc,
                 web = web,
-                container = container
+                container = container,
+                environment = environment
             )
 
             return Application(metadata, invocation)

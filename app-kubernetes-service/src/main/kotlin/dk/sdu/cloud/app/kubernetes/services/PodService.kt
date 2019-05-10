@@ -8,12 +8,14 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.StateChangeRequest
 import dk.sdu.cloud.app.api.SubmitComputationResult
 import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.api.buildEnvironmentValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Loggable
+import io.fabric8.kubernetes.api.model.EnvVar
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodSecurityContext
@@ -274,6 +276,7 @@ class PodService(
                         spec {
                             withContainers(
                                 container {
+                                    val uid = verifiedJob.ownerUid + 1000
                                     val app = verifiedJob.application.invocation
                                     val tool = verifiedJob.application.invocation.tool.tool!!.description
                                     val givenParameters =
@@ -296,6 +299,29 @@ class PodService(
                                     withCommand(command)
                                     withAutomountServiceAccountToken(false)
 
+                                    run {
+                                        val envVars = ArrayList<EnvVar>()
+
+                                        val builtInVars = mapOf(
+                                            "CLOUD_UID" to uid.toString()
+                                        )
+
+                                        builtInVars.forEach { (t, u) ->
+                                            envVars.add(EnvVar(t, u, null))
+                                        }
+
+                                        verifiedJob.application.invocation.environment?.forEach { (name, value) ->
+                                            if (name !in builtInVars) {
+                                                val resolvedValue = value.buildEnvironmentValue(givenParameters)
+                                                if (resolvedValue != null) {
+                                                    envVars.add(EnvVar(name, resolvedValue, null))
+                                                }
+                                            }
+                                        }
+
+                                        withEnv(envVars)
+                                    }
+
                                     if (containerConfig.changeWorkingDirectory) {
                                         withWorkingDir(WORKING_DIRECTORY)
                                     }
@@ -307,6 +333,18 @@ class PodService(
                                                 0,
                                                 false,
                                                 0,
+                                                null,
+                                                emptyList(),
+                                                emptyList()
+                                            )
+                                        )
+                                    } else if (containerConfig.runAsRealUser) {
+                                        withSecurityContext(
+                                            PodSecurityContext(
+                                                uid,
+                                                uid,
+                                                false,
+                                                uid,
                                                 null,
                                                 emptyList(),
                                                 emptyList()
@@ -470,7 +508,7 @@ class PodService(
                 ipAddress = ipAddress,
                 localPort = remotePort,
                 _isAlive = { runCatching { findPodResource()?.get() }.getOrNull() != null },
-                _close = {  }
+                _close = { }
             )
         }
     }

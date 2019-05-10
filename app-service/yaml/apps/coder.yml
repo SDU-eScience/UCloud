@@ -1,0 +1,32 @@
+---
+application: v1
+
+title: Coder
+name: coder
+version: 1.939
+
+applicationType: WEB
+
+tool:
+  name: coder
+  version: 1.939
+
+authors:
+  - coder.com
+
+description: coder.com
+
+container:
+  runAsRoot: true
+
+invocation:
+  - dumb-init
+  - code-server
+  - --allow-http
+  - --no-auth
+
+web:
+  port: 8443
+
+outputFileGlobs:
+  - "*"

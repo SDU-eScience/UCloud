@@ -23,8 +23,18 @@ data class WebDescription(
 
 data class ContainerDescription(
     val changeWorkingDirectory: Boolean = true,
-    val runAsRoot: Boolean = false
-)
+    val runAsRoot: Boolean = false,
+    val runAsRealUser: Boolean = false
+) {
+    init {
+        if (runAsRoot && runAsRealUser) {
+            throw ApplicationVerificationException.BadValue(
+                "container.runAsRoot/container.runAsRealUser",
+                "Cannot runAsRoot and runAsRealUser. These are mutually exclusive."
+            )
+        }
+    }
+}
 
 data class ApplicationInvocationDescription(
     val tool: ToolReference,
@@ -35,7 +45,8 @@ data class ApplicationInvocationDescription(
     val resources: ResourceRequirements = ResourceRequirements(),
     val vnc: VncDescription? = null,
     val web: WebDescription? = null,
-    val container: ContainerDescription? = null
+    val container: ContainerDescription? = null,
+    val environment: Map<String, InvocationParameter>? = null
 )
 
 interface WithAppMetadata {

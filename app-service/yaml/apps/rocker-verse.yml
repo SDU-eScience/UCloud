@@ -3,7 +3,7 @@ application: v1
 
 title: RStudio
 name: rstudio
-version: 3.6.0-V1
+version: 3.6.0-V2
 
 applicationType: WEB
 
@@ -12,23 +12,22 @@ tool:
   version: 3.6.0
 
 authors:
-- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+  - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
 
 description: RStudio
 
+environment:
+  DISABLE_AUTH: true
+  ROOT: true
+  USERID:
+    type: env
+    var: CLOUD_UID
+
 invocation:
-- "bash"
-- "-c"
-- "export DISABLE_AUTH=true; export ROOT=true; /init"
+  - "/init"
 
 web:
   port: 8787
-
-parameters:
-  directory:
-    title: Mount
-    type: input_directory
-    optional: true
 
 outputFileGlobs:
   - "*"

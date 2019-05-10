@@ -1,0 +1,21 @@
+---
+tool: v1
+
+title: Coder
+
+name: coder
+version: 1.939
+
+container: codercom/code-server:1.939
+
+authors:
+- coder.com
+
+description: coder.com
+
+defaultMaxTime:
+  hours: 1
+  minutes: 0
+  seconds: 0
+
+backend: UDOCKER

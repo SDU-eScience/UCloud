@@ -16,19 +16,46 @@ private val log = LoggerFactory.getLogger(InvocationParameter::class.java)
 @JsonSubTypes(
     JsonSubTypes.Type(value = WordInvocationParameter::class, name = "word"),
     JsonSubTypes.Type(value = BooleanFlagParameter::class, name = "bool_flag"),
-    JsonSubTypes.Type(value = VariableInvocationParameter::class, name = "var")
+    JsonSubTypes.Type(value = VariableInvocationParameter::class, name = "var"),
+    JsonSubTypes.Type(value = EnvironmentVariableParameter::class, name = "env")
 )
 sealed class InvocationParameter {
-    abstract fun buildInvocationList(parameters: AppParametersWithValues): List<String>
+    abstract fun buildInvocationList(
+        parameters: AppParametersWithValues,
+        context: InvocationParameterContext = InvocationParameterContext.COMMAND
+    ): List<String>
+}
+
+enum class InvocationParameterContext {
+    COMMAND,
+    ENVIRONMENT
 }
 
 fun InvocationParameter.buildInvocationSnippet(parameters: AppParametersWithValues): String? {
-    return buildInvocationList(parameters)
+    return buildInvocationList(parameters, InvocationParameterContext.COMMAND)
         .takeIf { it.isNotEmpty() }?.joinToString(" ") { BashEscaper.safeBashArgument(it) }
 }
 
+fun InvocationParameter.buildEnvironmentValue(parameters: AppParametersWithValues): String? {
+    return buildInvocationList(parameters, InvocationParameterContext.ENVIRONMENT).takeIf { it.isNotEmpty() }
+        ?.joinToString(" ")
+}
+
+data class EnvironmentVariableParameter(val variable: String) : InvocationParameter() {
+    override fun buildInvocationList(
+        parameters: AppParametersWithValues,
+        context: InvocationParameterContext
+    ): List<String> {
+        if (context != InvocationParameterContext.ENVIRONMENT) return emptyList()
+        return listOf("$($variable)")
+    }
+}
+
 data class WordInvocationParameter(val word: String) : InvocationParameter() {
-    override fun buildInvocationList(parameters: AppParametersWithValues): List<String> {
+    override fun buildInvocationList(
+        parameters: AppParametersWithValues,
+        context: InvocationParameterContext
+    ): List<String> {
         return listOf(word)
     }
 }
@@ -44,7 +71,10 @@ data class VariableInvocationParameter(
     val isPrefixVariablePartOfArg: Boolean = false,
     val isSuffixVariablePartOfArg: Boolean = false
 ) : InvocationParameter() {
-    override fun buildInvocationList(parameters: AppParametersWithValues): List<String> {
+    override fun buildInvocationList(
+        parameters: AppParametersWithValues,
+        context: InvocationParameterContext
+    ): List<String> {
         val prefixGlobal = this.prefixGlobal.trim()
         val suffixGlobal = this.suffixGlobal.trim()
         val prefixVariable = this.prefixVariable.trim()
@@ -113,7 +143,10 @@ data class BooleanFlagParameter(
     val variableName: String,
     val flag: String
 ) : InvocationParameter() {
-    override fun buildInvocationList(parameters: AppParametersWithValues): List<String> {
+    override fun buildInvocationList(
+        parameters: AppParametersWithValues,
+        context: InvocationParameterContext
+    ): List<String> {
         val parameter = parameters.filterKeys { it.name == variableName }.keys.singleOrNull()
             ?: return emptyList()
 
