@@ -45,11 +45,6 @@ class Search extends React.Component<SearchProps> {
         this.props.setRefresh(() => this.fetchAll(query));
     }
 
-    // FIXME, should be replaced;
-    componentWillReceiveProps() {
-        this.props.setRefresh(() => this.fetchAll(this.query));
-    }
-
     queryFromProps = (props: SearchProps): string => {
         return getQueryParamOrElse(props, "query", "");
     }
