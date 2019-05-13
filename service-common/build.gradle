@@ -84,6 +84,9 @@ dependencies {
     // Kafka
     compile group: "org.apache.kafka", name: "kafka-clients", version: "2.1.0"
 
+    // Redis
+    compile 'io.lettuce:lettuce-core:5.1.6.RELEASE'
+
     // Serialization
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}"
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonVersion}"
