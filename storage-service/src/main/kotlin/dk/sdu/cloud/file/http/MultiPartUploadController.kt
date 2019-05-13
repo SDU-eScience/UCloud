@@ -101,6 +101,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
         implement(MultiPartUploadDescriptions.simpleBulkUpload) {
             val user = ctx.securityPrincipal.username
+            audit(BulkUploadAudit(request.location, WriteConflictPolicy.OVERWRITE, user))
 
             val uploader =
                 BulkUploader.fromFormat(request.format, commandRunnerFactory.type)
@@ -109,7 +110,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             val archiveName = request.name ?: "upload"
             val policy = request.policy ?: WriteConflictPolicy.RENAME
 
-            audit(BulkUploadAudit(request.location, policy, request.format))
+            audit(BulkUploadAudit(request.location, policy, user))
 
             val temporaryFile = Files.createTempFile("upload", ".bin").toFile()
             temporaryFile.outputStream().use { outs ->

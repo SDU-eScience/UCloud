@@ -2,13 +2,7 @@ package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileSortBy
-import dk.sdu.cloud.file.api.FindHomeFolderResponse
-import dk.sdu.cloud.file.api.SingleFileAudit
-import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.StorageFileAttribute
-import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
@@ -51,7 +45,9 @@ class LookupController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
-                val attributes = attributesOrDefault(request.attributes)
+                val attributes =
+                    (attributesOrDefault(request.attributes) + listOf(StorageFileAttribute.path))
+
                 val result = fileLookupService.lookupFileInDirectory(
                     ctx,
                     request.path,
