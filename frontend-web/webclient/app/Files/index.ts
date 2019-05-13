@@ -126,6 +126,7 @@ export interface FileSelectorProps {
     showError?: boolean
     onFileSelect: (file: { path: string }) => void
     path: string
+    defaultValue?: string
     isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean

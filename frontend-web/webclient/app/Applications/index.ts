@@ -161,6 +161,7 @@ export interface JobSchedulingOptionsForInput {
 export interface RefReadPair {
     readOnly: boolean
     ref: React.RefObject<HTMLInputElement>
+    defaultValue?: string
 }
 
 export interface RunAppState {

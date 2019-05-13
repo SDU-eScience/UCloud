@@ -11,7 +11,7 @@ import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButto
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter, OptionalParameters, InputDirectoryParameter } from "./ParameterWidgets";
-import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues } from "Utilities/ApplicationUtilities";
+import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues, isFileOrDirectoryParam } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
 import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
@@ -228,7 +228,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.onload = async () => {
             const result = fileReader.result as string;
             try {
-                const { application, parameters, numberOfNodes, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
+                const { application, parameters, numberOfNodes, mountedFolders, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
                 if (application.name !== thisApp.metadata.name) {
                     this.props.addSnack({
                         message: "Application name does not match",
@@ -250,7 +250,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     siteVersion
                 });
 
-                const fileParams = thisApp.invocation.parameters.filter(({ type }) => type === "input_file" || type === "input_directory");
+                const fileParams = thisApp.invocation.parameters.filter(p => isFileOrDirectoryParam(p));
 
                 const invalidFiles: string[] = [];
 
@@ -263,6 +263,26 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         }
                 }
 
+                const invalidMountIndices = [] as number[];
+                const validMountFolders = [] as RefReadPair[];
+
+                for (let i = 0; i < mountedFolders.length; i++) {
+                    if (!await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Cloud.homeFolder), Cloud)) {
+                        invalidMountIndices.push(i);
+                    } else {
+                        const ref = React.createRef<HTMLInputElement>();
+                        validMountFolders.push({ ref, readOnly: mountedFolders[i].readOnly });
+                    }
+                }
+                
+                // FIXME: Could be done using defaultValue
+                // Add mountedFolders and fill out ref values
+                this.setState(() => ({ mountedFolders: this.state.mountedFolders.concat(validMountFolders)}));
+                const emptyMountedFolders = this.state.mountedFolders.slice(this.state.mountedFolders.length - mountedFolders.length);
+                emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
+
+
+
                 if (invalidFiles.length) {
                     this.props.addSnack({
                         message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
@@ -274,9 +294,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 const extractedParameterKeys = Object.keys(extractedParameters);
 
                 // Show hidden fields.
-                extractedParameterKeys.forEach(key => {
-                    thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
-                });
+                extractedParameterKeys.forEach(key =>
+                    thisApp.invocation.parameters.find(it => it.name === key)!.visible = true
+                );
                 this.setState(() => ({ application: thisApp }));
 
                 extractedParameterKeys.forEach(key => {
@@ -302,7 +322,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     render() {
         const { application, error, jobSubmitted, schedulingOptions, parameterValues } = this.state;
-
         if (!application) return (
             <MainContainer
                 main={<>
@@ -457,7 +476,8 @@ const Parameters = (props: ParameterProps) => {
             {props.additionalDirectories.some(it => !it.readOnly) ? "Note: Giving folders read/write access will make the startup and shutdown of the application longer." : ""}
             {props.additionalDirectories.map((entry, i) => (
                 <Box key={i} mb="7px">
-                    <InputDirectoryParameter 
+                    <InputDirectoryParameter
+                        defaultValue={entry.defaultValue}
                         initialSubmit={false}
                         parameterRef={entry.ref}
                         onRemove={() => props.removeDirectory(i)}
