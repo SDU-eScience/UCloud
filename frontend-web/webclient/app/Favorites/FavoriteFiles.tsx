@@ -17,11 +17,13 @@ import { Page } from "Types";
 import { History } from "history";
 import { AddSnackOperation } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { EntriesPerPageSelector } from "Pagination";
+import { Spacer } from "ui-components/Spacer";
 
 type FavoriteFilesProps = FavoritesOperations & ReduxType & { header: any, history: History }
 
 class FavoriteFiles extends React.Component<FavoriteFilesProps> {
-    
+
     componentDidMount() {
         const { page } = this.props;
         this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage);
@@ -36,6 +38,9 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
     }
 
     public render() {
+        const { page, fetchFileFavorites } = this.props;
+        const { pageNumber, itemsPerPage } = page;
+
         const fileoperations = allFileOperations({
             stateless: true,
             history: this.props.history,
@@ -43,37 +48,44 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
             setLoading: () => this.props.setLoading(true),
             addSnack: snack => this.props.addSnack(snack)
         });
-        
-        const { page, fetchFileFavorites } = this.props;
-        const { pageNumber, itemsPerPage } = page;
+
+        const itemsPerPageSelector = (<EntriesPerPageSelector
+            entriesPerPage={itemsPerPage}
+            onChange={itemsPerPage => this.props.fetchFileFavorites(pageNumber, itemsPerPage)}
+            content="Files per page"
+        />);
+
         const selectedFiles = page.items.filter(it => it.isChecked);
         return (<MainContainer
             header={this.props.header}
-            main={<List
-                page={this.props.page}
-                loading={this.props.loading}
-                customEmptyPage={<Heading.h2>You have no favorites</Heading.h2>}
-                onPageChanged={pageNumber => this.props.fetchFileFavorites(pageNumber, itemsPerPage)}
-                pageRenderer={page =>
-                    <FilesTable
-                        onFavoriteFile={async files => (await favoriteFileAsync(files[0], Cloud), fetchFileFavorites(pageNumber, itemsPerPage))}
-                        fileOperations={fileoperations}
-                        files={page.items}
-                        sortBy={SortBy.PATH}
-                        sortOrder={SortOrder.DESCENDING}
-                        /* Can't currently be done, as the backend ignores attributes, and doesn't take  */
-                        sortFiles={() => undefined}
-                        refetchFiles={() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage)}
-                        sortingColumns={[SortBy.MODIFIED_AT, SortBy.SIZE]}
-                        onCheckFile={(checked, file) => this.props.checkFile(file.path, checked)}
-                        masterCheckbox={
-                            <MasterCheckbox
-                                onClick={check => this.props.checkAllFiles(check)}
-                                checked={page.items.length === selectedFiles.length && page.items.length > 0}
-                            />}
-                    />}
+            main={<><Spacer
+                left={null}
+                right={itemsPerPageSelector}
+            /><List
+                    page={this.props.page}
+                    loading={this.props.loading}
+                    customEmptyPage={<Heading.h2>You have no favorites</Heading.h2>}
+                    onPageChanged={pageNumber => this.props.fetchFileFavorites(pageNumber, itemsPerPage)}
+                    pageRenderer={page =>
+                        <FilesTable
+                            onFavoriteFile={async files => (await favoriteFileAsync(files[0], Cloud), fetchFileFavorites(pageNumber, itemsPerPage))}
+                            fileOperations={fileoperations}
+                            files={page.items}
+                            sortBy={SortBy.PATH}
+                            sortOrder={SortOrder.DESCENDING}
+                            /* Can't currently be done, as the backend ignores attributes, and doesn't take  */
+                            sortFiles={() => undefined}
+                            refetchFiles={() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage)}
+                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.SIZE]}
+                            onCheckFile={(checked, file) => this.props.checkFile(file.path, checked)}
+                            masterCheckbox={
+                                <MasterCheckbox
+                                    onClick={check => this.props.checkAllFiles(check)}
+                                    checked={page.items.length === selectedFiles.length && page.items.length > 0}
+                                />}
+                        />}
 
-            />}
+                /></>}
             sidebar={
                 <FileOptions files={this.props.page.items.filter(it => it.isChecked)} fileOperations={fileoperations} />
             }

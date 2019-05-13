@@ -41,7 +41,7 @@ class EndToEndTest {
                 renameFiles()
                 favoriteFiles()
             } finally {
-//                close()
+                close()
             }
         }
     }
@@ -307,12 +307,17 @@ class FileRow(private val element: WebElement) {
     val renameField: WebElement?
         get() = element.findElementOrNull(byTag("renameField"))
 
-    fun openDropdown() {
-        if (dropdown != null) return
+    val isDropdownOpen: Boolean
+        get() = dropdown?.findElement(By.tagName("div"))?.isDisplayed ?: false
+
+    private fun openDropdown() {
+        if (isDropdownOpen) return
 
         if (dropdown == null) {
             checkBox!!.click()
         }
+
+
 
         retrySection {
             dropdown!!.click()
@@ -323,11 +328,9 @@ class FileRow(private val element: WebElement) {
         openDropdown()
         val dropdownOptions = dropdown!!.findElement(By.tagName("div"))!!.findElements(By.tagName("div"))
         val find = dropdownOptions.find { el ->
-            println(el.text)
             el.findElement(By.tagName("span"))?.text == option.option
-        }!!
-        println(find.text)
-        find.click()
+        }
+        find?.click()
     }
 }
 

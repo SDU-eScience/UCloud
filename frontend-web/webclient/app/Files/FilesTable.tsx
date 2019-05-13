@@ -41,7 +41,7 @@ const FilesTable = ({
             </FilesTableHeader>
             <TableBody>
                 {files.map(file => (
-                    <TableRow highlighted={file.isChecked} key={file.path} data-tag={"fileRow"}>
+                    <TableRow highlighted={file.isChecked} key={file.fileId!} data-tag={"fileRow"}>
                         <FilenameAndIcons
                             onNavigationClick={onNavigationClick}
                             file={file}
