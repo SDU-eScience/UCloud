@@ -54,6 +54,7 @@ name=`echo $pod | json name`
 namespace=`echo $pod | json namespace`
 
 # Read user input
+host=$1; shift;
 service_name=$1
 db_user_input=$2
 schema_input=$3
@@ -72,7 +73,7 @@ echo "Password is: $password"
 
 confirm;
 
-tokens=`sducloud POST https://dev.cloud.sdu.dk/auth/users/register username=_$service_name password=dummy role=SERVICE | json .[0]`
+tokens=`sducloud POST https://$host/auth/users/register username=_$service_name password=dummy role=SERVICE | json .[0]`
 refreshToken=`echo $tokens | json refreshToken`
 
 echo "PSQL SU Password:"

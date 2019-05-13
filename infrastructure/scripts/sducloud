@@ -18,7 +18,7 @@ sducloud = os.path.expanduser("~/.sducloud")
 if not os.path.exists(sducloud):
     os.makedirs(sducloud)
 
-host = "https://dev.cloud.sdu.dk"
+host = "https://cloud.sdu.dk"
 config_file = os.path.expanduser("~/.sducloud/config.json")
 refresh_token = None
 try:

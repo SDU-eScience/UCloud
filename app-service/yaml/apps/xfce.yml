@@ -24,11 +24,5 @@ vnc:
   password: vncpassword
   port: 6901
 
-parameters:
-  directory:
-    title: Mount
-    type: input_directory
-    optional: true
-
 outputFileGlobs:
   - "*"

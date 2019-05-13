@@ -12,9 +12,10 @@ tool:
   version: 1.0.0
 
 authors:
-- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+- jupyter.org
 
-description: RStudio
+description: |
+  Run [Jupyter Lab](https://jupyter.org) on SDUCloud.
 
 invocation:
 - "bash"
@@ -31,11 +32,10 @@ container:
   changeWorkingDirectory: true
   runAsRoot: true
 
-parameters:
-  directory:
-    title: Mount
-    type: input_directory
-    optional: true
+tags:
+  - Development
+  - Editor
+  - R
 
 outputFileGlobs:
   - "*"

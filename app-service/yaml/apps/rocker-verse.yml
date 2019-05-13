@@ -14,7 +14,8 @@ tool:
 authors:
   - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
 
-description: RStudio
+description: |
+  Run [RStudio](https://rstudio.org) on SDUCloud.
 
 environment:
   DISABLE_AUTH: true

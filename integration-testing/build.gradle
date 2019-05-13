@@ -4,10 +4,10 @@ version '0.1.0-SNAPSHOT'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.integration.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.8/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = '1.2.0'
+    ext.serviceCommonVersion = '1.3.10-RC.0'
 }
 
 repositories {
@@ -21,11 +21,11 @@ dependencies {
 //    compile 'dk.sdu.cloud:project-api:0.1.0'
 //    compile 'dk.sdu.cloud:project-auth-api:0.1.0-SNAPSHOT'
     compile 'dk.sdu.cloud:file-api:1.3.0'
-    compile 'dk.sdu.cloud:app-api:1.2.0'
+    compile 'dk.sdu.cloud:app-api:1.9.0'
     compile 'dk.sdu.cloud:share-api:1.1.2'
     compile 'dk.sdu.cloud:file-favorite-api:1.1.1'
-    compile 'dk.sdu.cloud:accounting-compute-api:1.0.3'
-    compile "dk.sdu.cloud:accounting-storage-api:1.0.3"
+    compile 'dk.sdu.cloud:accounting-compute-api:1.1.0'
+    compile "dk.sdu.cloud:accounting-storage-api:1.1.2"
     compile "dk.sdu.cloud:filesearch-api:1.0.6"
     compile "dk.sdu.cloud:activity-api:1.2.0"
     compile "dk.sdu.cloud:notification-api:1.1.4"

@@ -21,7 +21,7 @@ val micro = Micro().apply {
         IntegrationTestingServiceDescription, arrayOf(
             "--dev",
             "--config-dir",
-            "${System.getProperty("user.home")}/sducloud"
+            "${System.getProperty("user.home")}/sducloudprod"
         )
     )
 }

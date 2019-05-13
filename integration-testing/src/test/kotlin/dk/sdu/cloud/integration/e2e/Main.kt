@@ -13,7 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-const val HOST = "https://dev.cloud.sdu.dk"
+const val HOST = "https://cloud.sdu.dk"
 lateinit var driver: WebDriver
 
 class EndToEndTest {
@@ -23,7 +23,7 @@ class EndToEndTest {
         driver = FirefoxDriver()
         with(driver) {
             try {
-                get(HOST)
+                get("$HOST/app/dashboard")
                 await { driver.currentUrl.contains("login") }
 
                 login(username, password)
@@ -262,7 +262,7 @@ object UploadDialog {
     }
 
     fun close() {
-        driver.findElement(By.tagName("body")).sendKeys(Keys.ESCAPE)
+        driver.get(driver.currentUrl)
         await { !isOpen }
     }
 }
