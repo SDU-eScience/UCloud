@@ -231,11 +231,12 @@ const mapStateToProps = ({ files, responsive }: ReduxObject): FilesStateProps =>
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
     const fileCount = page.items.length;
     const aclCount = page.items.filter(it => it.acl !== null).flatMap(it => it.acl!).length;
+    const sensitivityCount = page.items.filter(it => it.sensitivityLevel != null).length;
     return {
         error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath, invalidPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
         renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], fileSelectorIsFavorites,
-        responsive, aclCount
+        responsive, aclCount, sensitivityCount
     }
 };
 

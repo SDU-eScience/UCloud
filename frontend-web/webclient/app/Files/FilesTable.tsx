@@ -247,7 +247,7 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => 
             def = { color: Theme.colors.lightGray, text: "Private", shortText: "P" }
             break;
         default:
-            def = { color: Theme.colors.white, text: "", shortText: "" }
+            def = { color: Theme.colors.lightGray, text: "", shortText: "" }
             break;
     }
 

@@ -73,19 +73,14 @@ class Applications extends React.Component<ApplicationsProps> {
         const { props } = this;
         props.onInit();
         
-        this.fetch(props);
-        props.setRefresh(() => this.fetch(props));
+        this.fetch();
+        props.setRefresh(() => this.fetch());
     }
 
     public componentDidUpdate(prevProps: ApplicationsProps) {
         if (prevProps.location !== this.props.location) {
-            this.fetch(this.props);
+            this.fetch();
         }
-    }
-
-    // FIXME, should be replaced;
-    componentWillReceiveProps(nextProps: ApplicationsProps) {
-        this.props.setRefresh(() => this.fetch(nextProps));
     }
 
     public componentWillUnmount() {
@@ -122,15 +117,15 @@ class Applications extends React.Component<ApplicationsProps> {
         }
     }
 
-    private fetch(props: ApplicationsProps) {
-        const itemsPerPage = this.itemsPerPage(props);
-        const pageNumber = this.pageNumber(props);
-        const tag = this.tag(props);
+    private fetch() {
+        const itemsPerPage = this.itemsPerPage(this.props);
+        const pageNumber = this.pageNumber(this.props);
+        const tag = this.tag(this.props);
 
         if (tag === null) {
-            props.fetchDefault(itemsPerPage, pageNumber);
+            this.props.fetchDefault(itemsPerPage, pageNumber);
         } else {
-            props.fetchByTag(tag, itemsPerPage, pageNumber);
+            this.props.fetchByTag(tag, itemsPerPage, pageNumber);
         }
     }
 

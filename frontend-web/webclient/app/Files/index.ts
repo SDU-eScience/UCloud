@@ -90,6 +90,7 @@ export interface FilesStateProps {
     fileSelectorError?: string
     favFilesCount: number
     renamingCount: number
+    sensitivityCount: number
     aclCount: number
     fileCount: number
     leftSortingColumn: SortBy
@@ -125,6 +126,7 @@ export interface FileSelectorProps {
     showError?: boolean
     onFileSelect: (file: { path: string }) => void
     path: string
+    defaultValue?: string
     isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean

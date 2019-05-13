@@ -199,24 +199,22 @@ function Content(props: MainContentProps & { previousVersions?: Page<WithAppMeta
     );
 }
 
-const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<WithAppMetadata> }> = props => {
-    return (
-        <>
-            {!props.previousVersions ? null :
-                (!props.previousVersions.items.length ? null :
-                    <div>
-                        <Heading.h4>Others Versions</Heading.h4>
-                        <ApplicationCardContainer>
-                            {props.previousVersions.items.map((it, idx) => (
-                                <SlimApplicationCard app={it} key={idx} />
-                            ))}
-                        </ApplicationCardContainer>
-                    </div>
-                )
-            }
-        </>
-    )
-};
+const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<WithAppMetadata> }> = props => (
+    <>
+        {!props.previousVersions ? null :
+            (!props.previousVersions.items.length ? null :
+                <div>
+                    <Heading.h4>Others Versions</Heading.h4>
+                    <ApplicationCardContainer>
+                        {props.previousVersions.items.map((it, idx) => (
+                            <SlimApplicationCard app={it} key={idx} />
+                        ))}
+                    </ApplicationCardContainer>
+                </div>
+            )
+        }
+    </>
+);
 
 const TagStyle = styled(Link)`
     text-decoration: none;

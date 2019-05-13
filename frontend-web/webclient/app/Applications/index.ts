@@ -158,6 +158,12 @@ export interface JobSchedulingOptionsForInput {
     tasksPerNode: number
 }
 
+export interface RefReadPair {
+    readOnly: boolean
+    ref: React.RefObject<HTMLInputElement>
+    defaultValue?: string
+}
+
 export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
@@ -168,7 +174,7 @@ export interface RunAppState {
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
     favoriteLoading: boolean
-    mountedFolders: { ref: React.RefObject<HTMLInputElement>, readOnly: boolean }[]
+    mountedFolders: RefReadPair[]
 }
 
 export interface RunOperations extends AddSnackOperation, SetStatusLoading {

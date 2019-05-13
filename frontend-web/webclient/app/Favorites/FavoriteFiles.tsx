@@ -25,15 +25,14 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
     componentDidMount() {
         const { page } = this.props;
         this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage);
-        this.props.setRefresh(() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage));
+        this.props.setRefresh(() => this.refresh());
     }
 
     public componentWillUnmount = () => this.props.setRefresh();
 
-    // FIXME, should be replaced;
-    public componentWillReceiveProps(nextProps: FavoriteFilesProps) {
-        const { setRefresh, page, fetchFileFavorites } = nextProps;
-        setRefresh(() => fetchFileFavorites(page.pageNumber, page.itemsPerPage));
+    private refresh() {
+        const { page } = this.props;
+        this.props.setRefresh(() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage));
     }
 
     public render() {

@@ -38,17 +38,15 @@ class ZenodoHome extends React.Component<Props, ZenodoHomeState> {
 
     componentDidMount() {
         const { fetchPublications } = this.props;
-        this.props.setRefresh(() => fetchPublications(this.props.page.pageNumber, this.props.page.itemsPerPage));
+        this.props.setRefresh(() => this.refresh());
     }
 
     componentWillUnmount() {
         this.props.setRefresh();
     }
 
-    // FIXME, should be replaced;
-    componentWillReceiveProps(nextProps: Props) {
-        const { fetchPublications } = this.props;
-        this.props.setRefresh(() => fetchPublications(nextProps.page.pageNumber, nextProps.page.itemsPerPage));
+    private refresh() {
+        this.props.fetchPublications(this.props.page.pageNumber, this.props.page.itemsPerPage);
     }
 
     render() {

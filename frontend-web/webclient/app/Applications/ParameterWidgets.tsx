@@ -45,6 +45,7 @@ export const Parameter = (props: ParameterProps) => {
 
 interface InputFileParameterProps extends ParameterProps {
     onRemove?: () => void
+    defaultValue?: string
 }
 
 const InputFileParameter = (props: InputFileParameterProps) => (
@@ -64,6 +65,7 @@ const InputFileParameter = (props: InputFileParameterProps) => (
 export const InputDirectoryParameter = (props: InputFileParameterProps) => (
     <GenericParameter parameter={props.parameter}>
         <FileSelector
+            defaultValue={props.defaultValue}
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}
             path={props.parameterRef.current && props.parameterRef.current.value || ""}

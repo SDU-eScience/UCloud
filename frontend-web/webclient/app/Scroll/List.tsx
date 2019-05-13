@@ -48,13 +48,13 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         this.state = {};
     }
 
-    shouldComponentUpdate(nextProps, nextState) {
+     public shouldComponentUpdate(nextProps, nextState) {
         const result = this.state !== nextState || this.props !== nextProps;
         return result;
     }
 
     // FIXME, should be replaced;
-    componentWillReceiveProps(nextProps: ListProps<Item, OffsetType>) {
+    UNSAFE_componentWillReceiveProps(nextProps: ListProps<Item, OffsetType>) {
         const scroll = this.scrollOrDefault;
         const nextScrollOrDefault = nextProps.scroll || { endOfScroll: false, nextOffset: null, items: [] };
 
@@ -92,7 +92,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         }
     }
 
-    componentWillMount() {
+    public UNSAFE_componentWillMount() {
         this.eventListener = e => {
             if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 200) {
                 this.requestMore(false);

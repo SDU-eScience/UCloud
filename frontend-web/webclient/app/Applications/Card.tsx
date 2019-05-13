@@ -83,7 +83,33 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
             <EllipsedText>
                 <Markdown
                     source={metadata.description}
-                    allowedTypes={["text", "root", "paragraph"]} />
+                    disallowedTypes={[
+                        "break",
+                        "paragraph",
+                        "emphasis",
+                        "strong",
+                        "thematicBreak",
+                        "blockquote",
+                        "delete",
+                        "link",
+                        "image",
+                        "linkReference",
+                        "imageReference",
+                        "table",
+                        "tableHead",
+                        "tableBody",
+                        "tableRow",
+                        "tableCell",
+                        "list",
+                        "listItem",
+                        "definition",
+                        "heading",
+                        "inlineCode",
+                        "code",
+                        "html",
+                        "virtualHtml"]}
+                    unwrapDisallowed
+                />
             </EllipsedText>
             <AppCardActionsBase><Icon name="chevronDown" rotation={-90} /></AppCardActionsBase>
         </AppCardBase>

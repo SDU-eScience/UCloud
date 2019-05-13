@@ -94,6 +94,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         return (
             <Flex>
                 <FileSelectorInput
+                    defaultValue={this.props.defaultValue}
                     showError={this.props.showError && this.props.isRequired}
                     ref={this.props.inputRef} 
                     required={this.props.isRequired}

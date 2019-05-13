@@ -3,21 +3,20 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { errorMessageOrDefault, addTrailingSlash, removeTrailingSlash } from "UtilityFunctions";
+import { errorMessageOrDefault, removeTrailingSlash } from "UtilityFunctions";
 import { updatePageTitle, setLoading } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations } from ".";
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations, RefReadPair } from ".";
 import { Dispatch } from "redux";
 import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button, Icon } from "ui-components";
-import Input, { HiddenInputField, InputLabel } from "ui-components/Input";
+import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter, OptionalParameters, InputDirectoryParameter } from "./ParameterWidgets";
-import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues } from "Utilities/ApplicationUtilities";
+import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues, isFileOrDirectoryParam } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
-import { checkIfFileExists, expandHomeFolder, resolvePath, replaceHomeFolder } from "Utilities/FileUtilities";
+import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
 import { SnackType } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
-import FileSelector from "Files/FileSelector";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { removeEntry } from "Utilities/CollectionUtilities";
 
@@ -229,7 +228,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.onload = async () => {
             const result = fileReader.result as string;
             try {
-                const { application, parameters, numberOfNodes, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
+                const { application, parameters, numberOfNodes, mountedFolders, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
                 if (application.name !== thisApp.metadata.name) {
                     this.props.addSnack({
                         message: "Application name does not match",
@@ -251,7 +250,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     siteVersion
                 });
 
-                const fileParams = thisApp.invocation.parameters.filter(({ type }) => type === "input_file" || type === "input_directory");
+                const fileParams = thisApp.invocation.parameters.filter(p => isFileOrDirectoryParam(p));
 
                 const invalidFiles: string[] = [];
 
@@ -264,6 +263,26 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         }
                 }
 
+                const invalidMountIndices = [] as number[];
+                const validMountFolders = [] as RefReadPair[];
+
+                for (let i = 0; i < mountedFolders.length; i++) {
+                    if (!await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Cloud.homeFolder), Cloud)) {
+                        invalidMountIndices.push(i);
+                    } else {
+                        const ref = React.createRef<HTMLInputElement>();
+                        validMountFolders.push({ ref, readOnly: mountedFolders[i].readOnly });
+                    }
+                }
+                
+                // FIXME: Could be done using defaultValue
+                // Add mountedFolders and fill out ref values
+                this.setState(() => ({ mountedFolders: this.state.mountedFolders.concat(validMountFolders)}));
+                const emptyMountedFolders = this.state.mountedFolders.slice(this.state.mountedFolders.length - mountedFolders.length);
+                emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
+
+
+
                 if (invalidFiles.length) {
                     this.props.addSnack({
                         message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
@@ -275,9 +294,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 const extractedParameterKeys = Object.keys(extractedParameters);
 
                 // Show hidden fields.
-                extractedParameterKeys.forEach(key => {
-                    thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
-                });
+                extractedParameterKeys.forEach(key =>
+                    thisApp.invocation.parameters.find(it => it.name === key)!.visible = true
+                );
                 this.setState(() => ({ application: thisApp }));
 
                 extractedParameterKeys.forEach(key => {
@@ -303,7 +322,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     render() {
         const { application, error, jobSubmitted, schedulingOptions, parameterValues } = this.state;
-
         if (!application) return (
             <MainContainer
                 main={<>
@@ -360,7 +378,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         application: this.state.application,
                         schedulingOptions: this.state.schedulingOptions,
                         parameterValues: this.state.parameterValues,
-                        siteVersion: this.siteVersion
+                        siteVersion: this.siteVersion,
+                        mountedFolders: this.state.mountedFolders
                     })}>
                     Export parameters
                 </OutlineButton>
@@ -408,8 +427,7 @@ interface ParameterProps {
     values: ParameterValues
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
-    /* FIXME: Shouldn't  */
-    additionalDirectories: { ref: React.RefObject<HTMLInputElement>, readOnly: boolean }[]
+    additionalDirectories: RefReadPair[]
     app: WithAppMetadata & WithAppInvocation
     onSubmit: (e: React.FormEvent) => void
     onJobSchedulingParamsChange: (field: string, value: number | string, subField: number | string) => void
@@ -458,7 +476,8 @@ const Parameters = (props: ParameterProps) => {
             {props.additionalDirectories.some(it => !it.readOnly) ? "Note: Giving folders read/write access will make the startup and shutdown of the application longer." : ""}
             {props.additionalDirectories.map((entry, i) => (
                 <Box key={i} mb="7px">
-                    <InputDirectoryParameter 
+                    <InputDirectoryParameter
+                        defaultValue={entry.defaultValue}
                         initialSubmit={false}
                         parameterRef={entry.ref}
                         onRemove={() => props.removeDirectory(i)}
@@ -562,10 +581,11 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
     return extractedJobInfo;
 }
 
-function exportParameters({ application, schedulingOptions, parameterValues, siteVersion }: {
+function exportParameters({ application, schedulingOptions, parameterValues, mountedFolders, siteVersion }: {
     application?: WithAppFavorite & WithAppInvocation & WithAppMetadata, // FIXME Should be something like FullApp
     schedulingOptions: JobSchedulingOptionsForInput,
     parameterValues: ParameterValues,
+    mountedFolders: RefReadPair[]
     siteVersion: number
 }) {
     if (!application) return;
@@ -580,6 +600,8 @@ function exportParameters({ application, schedulingOptions, parameterValues, sit
         if (ref && ref.current) values[key] = ref.current.value;
     }
 
+
+
     element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
         siteVersion: siteVersion,
         application: {
@@ -587,6 +609,7 @@ function exportParameters({ application, schedulingOptions, parameterValues, sit
             version: appInfo.version
         },
         parameters: values,
+        mountedFolders: mountedFolders.map(it => ({ ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
         numberOfNodes: jobInfo.numberOfNodes,
         tasksPerNode: jobInfo.tasksPerNode,
         maxTime: jobInfo.maxTime,

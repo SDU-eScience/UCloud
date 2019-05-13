@@ -53,7 +53,7 @@ export const favoriteApplicationFromPage = async ({ name, version, page, cloud, 
     return page;
 }
 
-type StringMap = { [k: string]: string } 
+type StringMap = { [k: string]: string }
 interface AllowedParameterKey { name: string, type: ParameterTypes }
 interface ExtractParameters {
     parameters: StringMap
@@ -74,6 +74,8 @@ export const extractParameters = ({ parameters, allowedParameterKeys, siteVersio
     }
     return extractedParameters;
 }
+
+export const isFileOrDirectoryParam = ({ type }: { type: string }) => type === "input_file" || type === "input_directory";
 
 
 const compareType = (type: ParameterTypes, parameter: string): boolean => {
