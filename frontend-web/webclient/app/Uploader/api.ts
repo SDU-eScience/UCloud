@@ -64,7 +64,7 @@ export const bulkUpload = async ({
     addSnack
 }: UploadArgs): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
-    const format = formatFromType(file.type);
+    const format = formatFromFileName(file.name);
 
     let request = new XMLHttpRequest();
     request.open("POST", "/api/files/upload/archive");
@@ -119,15 +119,12 @@ function statusToError(status: number) {
     }
 }
 
-function formatFromType(type: string): string {
-    switch (type) {
-        case "application/zip":
-            return "zip";
-        case "application/x-gzip":
-            return "tgz";
-        default:
-            return "";
-    }
+function formatFromFileName(type: string): string {
+    if (type.endsWith(".zip"))
+        return "zip";
+    else if (type.endsWith(".tar.gz"))
+        return "tgz";
+    return "";
 }
 
 export enum UploadPolicy {
