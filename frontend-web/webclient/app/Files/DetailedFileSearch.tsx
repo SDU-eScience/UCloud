@@ -1,7 +1,7 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import {
-    DetailedFileSearchStateProps, DetailedFileSearchReduxState, SensitivityLevel, PossibleTime, FileType,
+    DetailedFileSearchStateProps, DetailedFileSearchReduxState, PossibleTime, FileType,
     AdvancedSearchRequest, DetailedFileSearchOperations
 } from ".";
 import { DatePicker } from "ui-components/DatePicker";
@@ -259,8 +259,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 disabled={this.props.loading} 
                                 mt="1em" 
                                 mb={"1.5em"} 
-                                color={"blue"} 
-                                onClick={() => this.onSearch()} 
+                                color={"blue"}
                             >Search</Button>
                         </form>
                     </Box>
