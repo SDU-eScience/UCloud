@@ -6,7 +6,7 @@ import java.util.*
 data class Foobar(val number: Int)
 
 object FooStreams : EventStreamContainer() {
-    val f = stream<Foobar>("my-stream", keySelector = { it.number.toString() })
+    val f = stream<Foobar>("foo-stream", keySelector = { it.number.toString() })
 }
 
 fun main() {
