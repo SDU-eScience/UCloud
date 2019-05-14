@@ -353,6 +353,13 @@ export function sortByToPrettierString(sortBy: SortBy): string {
     }
 }
 
+export function requestFullScreen(el: Element, onFailure: () => void) {
+    //@ts-ignore
+    if (el.webkitRequestFullScreen) el.webkitRequestFullscreen();
+    else if (el.requestFullscreen) el.requestFullscreen();
+    else onFailure();
+}
+
 export function timestampUnixMs(): number {
     return window.performance &&
         window.performance.now &&
