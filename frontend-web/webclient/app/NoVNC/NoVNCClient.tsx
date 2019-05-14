@@ -6,7 +6,7 @@ import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
 import { connect } from "react-redux";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { Dispatch } from "redux";
-import { errorMessageOrDefault } from "UtilityFunctions";
+import { errorMessageOrDefault, requestFullScreen } from "UtilityFunctions";
 import { getQueryParam, RouterLocationProps } from "Utilities/URIUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 
@@ -108,9 +108,11 @@ function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
         setConnected(false);
     }
 
-    function requestFullScreen() {
-        const el = document.getElementsByClassName("noVNC")[0]!;
-        el.requestFullscreen();
+    function toFullScreen() {
+        requestFullScreen(document.getElementsByClassName("noVNC")[0]!, () => props.addSnack({
+            type: SnackType.Failure,
+            message: `Fullscreen is not supported for this browser.`
+        }));
     }
 
     const mountNode = <div className="noVNC" />
@@ -121,7 +123,7 @@ function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
         </OutlineButton> : <Button ml="15px" onClick={() => connect()}>
                 Connect
         </Button>}
-            {isConnected ? <OutlineButton onClick={() => requestFullScreen()}>Fullscreen</OutlineButton> : null}
+            {isConnected ? <OutlineButton onClick={() => toFullScreen()}>Fullscreen</OutlineButton> : null}
         </Heading>
         {mountNode}
     </>;
