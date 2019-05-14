@@ -7,91 +7,128 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.StreamMessage
 import io.lettuce.core.XReadArgs
 import io.lettuce.core.api.async.RedisAsyncCommands
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+private object RedisScope : CoroutineScope {
+    private lateinit var dispatcher: CoroutineDispatcher
+    private lateinit var executor: ExecutorService
+    private lateinit var job: Job
+
+    private val isRunning: Boolean
+        get() = this::job.isInitialized
+
+    override val coroutineContext: CoroutineContext
+        get() = dispatcher + job
+
+    fun start() {
+        synchronized(this) {
+            if (isRunning) return
+
+            executor = Executors.newCachedThreadPool()
+            dispatcher = executor.asCoroutineDispatcher()
+            job = Job()
+        }
+    }
+
+    fun stop() {
+        job.cancel()
+        executor.shutdown()
+    }
+}
+
 class RedisStreamService(
     private val connManager: RedisConnectionManager,
     private val group: String,
-    private val consumerId: String
+    private val consumerId: String,
+    private val parallelism: Int
 ) : EventStreamService {
     override fun <V : Any> subscribe(stream: EventStream<V>, consumer: EventConsumer<V>) {
+        RedisScope.start() // Start if we haven't already
+
         val minimumIdleTime = 60_000 * 5L
+        repeat(parallelism) {
+            RedisScope.launch {
+                run {
+                    val redis = connManager.getConnection()
+                    if (redis.xlenA(stream.name) == 0L) {
+                        // We need to send an empty message (which is ignored during parsing) to initialize the stream.
+                        // The stream must exist before we create the group with xgroup.
 
-        // TODO Change this
-        GlobalScope.launch(Dispatchers.IO) {
-            run {
-                val redis = connManager.getConnection()
-                if (redis.xlenA(stream.name) == 0L) {
-                    // We need to send an empty message (which is ignored during parsing) to initialize the stream.
-                    // The stream must exist before we create the group with xgroup.
-                    redis.xaddA(stream.name, STREAM_INIT_MSG)
+                        // We don't need to do any locking for this. It is okay to send multiple init messages.
+                        redis.xaddA(stream.name, STREAM_INIT_MSG)
+                    }
+
+                    // Create the group or fail if it already exists. We just ignore the exception assuming it means
+                    // that it already exists. If it failed entirely we will fail once we start consumption.
+                    runCatching { redis.xgroupA(stream.name, group) }
                 }
 
-                // Create the group or fail if it already exists. We just ignore the exception assuming it means
-                // that it already exists. If it failed entirely we will fail once we start consumption.
-                runCatching { redis.xgroupA(stream.name, group) }
-            }
+                val messagesNotYetAcknowledged = HashSet<String>()
+                suspend fun RedisAsyncCommands<String, String>.dispatchToInternalConsumer(
+                    messages: List<StreamMessage<String, String>>
+                ) {
+                    val events = messages.mapNotNull { message ->
+                        val textValue = message.body.values.first()
+                        if (textValue == STREAM_INIT_MSG) return@mapNotNull null
 
-            val messagesNotYetAcknowledged = HashSet<String>()
-            suspend fun RedisAsyncCommands<String, String>.dispatchToInternalConsumer(
-                messages: List<StreamMessage<String, String>>
-            ) {
-                val events = messages.mapNotNull { message ->
-                    val textValue = message.body.values.first()
-                    if (textValue == STREAM_INIT_MSG) return@mapNotNull null
+                        runCatching { stream.deserialize(textValue) }.getOrNull()
+                    }
 
-                    runCatching { stream.deserialize(textValue) }.getOrNull()
+                    messagesNotYetAcknowledged.addAll(messages.map { it.id })
+
+                    if (consumer.accept(events)) {
+                        xackA(stream.name, group, messagesNotYetAcknowledged)
+                        messagesNotYetAcknowledged.clear()
+                    }
                 }
 
-                messagesNotYetAcknowledged.addAll(messages.map { it.id })
+                var nextClaim = 0L
+                fun setNextClaimTimer() = run { nextClaim = System.currentTimeMillis() + 30_000 }
+                setNextClaimTimer()
 
-                if (consumer.accept(events)) {
-                    xackA(stream.name, group, messagesNotYetAcknowledged)
-                    messagesNotYetAcknowledged.clear()
-                }
-            }
+                while (true) {
+                    val redis = connManager.getConnection()
+                    if (System.currentTimeMillis() >= nextClaim) {
+                        // We reschedule messages that weren't acknowledged if they have been idle fore more than
+                        // minimumIdleTime. It goes through the normal consumption mechanism.
+                        val pending = redis.xpendingA(stream.name, group)
+                        val ids = pending.filter { it.msSinceLastAttempt >= minimumIdleTime }.map { it.id }
 
-            var nextClaim = 0L
-            fun setNextClaimTimer() = run { nextClaim = System.currentTimeMillis() + 30_000 }
-            setNextClaimTimer()
+                        if (ids.isNotEmpty()) {
+                            redis.dispatchToInternalConsumer(
+                                redis.xclaimA(
+                                    stream.name,
+                                    group,
+                                    consumerId,
+                                    minimumIdleTime,
+                                    ids
+                                )
+                            )
+                        }
 
-            while (true) {
-                val redis = connManager.getConnection()
-                if (System.currentTimeMillis() >= nextClaim) {
-                    // We reschedule messages that weren't acknowledged if they have been idle fore more than
-                    // minimumIdleTime. It goes through the normal consumption mechanism.
-                    val pending = redis.xpendingA(stream.name, group)
-                    val ids = pending.filter { it.msSinceLastAttempt >= minimumIdleTime }.map { it.id }
-
-                    if (ids.isNotEmpty()) {
+                        setNextClaimTimer()
+                    } else {
                         redis.dispatchToInternalConsumer(
-                            redis.xclaimA(
-                                stream.name,
-                                group,
-                                consumerId,
-                                minimumIdleTime,
-                                ids
+                            redis.xreadgroupA(
+                                group, consumerId,
+                                XReadArgs.StreamOffset.lastConsumed(stream.name),
+                                offset = XReadArgs.Builder.block(2000).count(50)
                             )
                         )
                     }
-
-                    setNextClaimTimer()
-                } else {
-                    redis.dispatchToInternalConsumer(
-                        redis.xreadgroupA(
-                            group, consumerId,
-                            XReadArgs.StreamOffset.lastConsumed(stream.name),
-                            offset = XReadArgs.Builder.block(2000).count(50)
-                        )
-                    )
                 }
             }
         }
@@ -111,11 +148,11 @@ class RedisStreamService(
     }
 
     override fun start() {
-
+        // No need to start RedisScope here (started with first subscription)
     }
 
     override fun stop() {
-
+        RedisScope.stop()
     }
 
     companion object {
