@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
@@ -55,6 +56,16 @@ class RedisStreamService(
     private val consumerId: String,
     private val parallelism: Int
 ) : EventStreamService {
+    private suspend fun initializeStream(redis: RedisAsyncCommands<String, String>, stream: EventStream<*>) {
+        if (redis.xlenA(stream.name) == 0L) {
+            // We need to send an empty message (which is ignored during parsing) to initialize the stream.
+            // The stream must exist before we create the group with xgroup.
+
+            // We don't need to do any locking for this. It is okay to send multiple init messages.
+            redis.xaddA(stream.name, STREAM_INIT_MSG)
+        }
+    }
+
     override fun <V : Any> subscribe(stream: EventStream<V>, consumer: EventConsumer<V>) {
         RedisScope.start() // Start if we haven't already
 
@@ -63,13 +74,7 @@ class RedisStreamService(
             RedisScope.launch {
                 run {
                     val redis = connManager.getConnection()
-                    if (redis.xlenA(stream.name) == 0L) {
-                        // We need to send an empty message (which is ignored during parsing) to initialize the stream.
-                        // The stream must exist before we create the group with xgroup.
-
-                        // We don't need to do any locking for this. It is okay to send multiple init messages.
-                        redis.xaddA(stream.name, STREAM_INIT_MSG)
-                    }
+                    initializeStream(redis, stream)
 
                     // Create the group or fail if it already exists. We just ignore the exception assuming it means
                     // that it already exists. If it failed entirely we will fail once we start consumption.
@@ -136,6 +141,10 @@ class RedisStreamService(
 
 
     override fun <V : Any> createProducer(stream: EventStream<V>): EventProducer<V> {
+        runBlocking {
+            initializeStream(connManager.getConnection(), stream)
+        }
+        
         return RedisEventProducer(connManager, stream)
     }
 
