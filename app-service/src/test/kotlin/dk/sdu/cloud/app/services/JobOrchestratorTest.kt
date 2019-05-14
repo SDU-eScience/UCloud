@@ -293,5 +293,34 @@ class JobOrchestratorTest {
             )
         }
     }
+
+    @Test
+    fun `Handle cancel of successful job test`() {
+        val orchestrator = setup()
+        val returnedID = runBlocking {
+            orchestrator.startJob(startJobRequest, decodedJWT, client)
+        }
+
+        runBlocking {
+            assertEquals(JobState.VALIDATED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+
+            orchestrator.handleProposedStateChange(
+                JobStateChange(returnedID, JobState.SUCCESS),
+                null,
+                TestUsers.user
+            )
+        }
+        runBlocking {
+            assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+
+            orchestrator.handleProposedStateChange(
+                JobStateChange(returnedID, JobState.CANCELING),
+                null,
+                TestUsers.user
+            )
+        }
+
+        assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+    }
 }
 
