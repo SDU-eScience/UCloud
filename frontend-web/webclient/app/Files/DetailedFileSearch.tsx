@@ -136,7 +136,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 mt="-2px"
                                 width="100%"
                                 placeholder="Filename must include..."
-                                defaultValue={this.props.fileName}
+                                value={this.props.fileName}
                                 onChange={({ target }) => this.props.setFilename(target.value)}
                             />
                             <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>

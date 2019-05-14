@@ -282,7 +282,7 @@ export interface DetailedFileSearchOperations {
     addTags: (tags: string[]) => void
     removeTags: (tags: string[]) => void
     setFilename: (filename: string) => void
-    fetchPage: (request: AdvancedSearchRequest, callback?: Function) => void
+    fetchPage: (request: AdvancedSearchRequest, callback?: () => void) => void
     setLoading: (loading: boolean) => void
     setTimes: (times: Times) => void
     setError: (error?: string) => void
