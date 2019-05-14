@@ -1,5 +1,4 @@
 export { default as Absolute } from './Absolute'
-export { default as BackgroundImage } from './BackgroundImage'
 export { default as Badge } from './Badge'
 export { default as Banner } from './Banner'
 export { default as Box } from './Box'
@@ -43,8 +42,6 @@ export { default as TextArea } from "./TextArea";
 
 export { default as Sidebar } from './Sidebar'
 export { default as Support } from './SupportBox'
-
-/* export { default as LoadingButton } from "./LoadingButton"; */
 
 export { default as theme } from './theme'
 export { default as UIGlobalStyle } from './GlobalStyle'
