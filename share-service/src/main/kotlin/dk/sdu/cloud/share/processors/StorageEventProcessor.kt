@@ -20,12 +20,13 @@ class StorageEventProcessor(
                 // We will have to look at all file events in the entire system in order to check if the shared
                 // files have been changed. This seems very problematic at scale.
 
-                val invalidatedAndDeletes = ArrayList<StorageEvent>()
+                val deletes = ArrayList<StorageEvent.Deleted>()
                 val moved = ArrayList<StorageEvent.Moved>()
 
                 for (event in batch) {
-                    if (event is StorageEvent.Invalidated || event is StorageEvent.Deleted) {
-                        invalidatedAndDeletes.add(event)
+                    // TODO Handle invalidated
+                    if (event is StorageEvent.Deleted) {
+                        deletes.add(event)
                     } else if (event is StorageEvent.Moved) {
                         moved.add(event)
                     }
@@ -33,7 +34,7 @@ class StorageEventProcessor(
 
                 coroutineScope {
                     val movedJob = launch { shareService.handleFilesMoved(moved) }
-                    val deletedJob = launch { shareService.handleFilesDeletedOrInvalidated(invalidatedAndDeletes) }
+                    val deletedJob = launch { shareService.handleFilesDeletedOrInvalidated(deletes) }
                     movedJob.join()
                     deletedJob.join()
                 }

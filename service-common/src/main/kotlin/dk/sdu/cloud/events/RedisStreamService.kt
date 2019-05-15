@@ -1,5 +1,6 @@
 package dk.sdu.cloud.events
 
+import dk.sdu.cloud.service.Loggable
 import io.lettuce.core.Consumer
 import io.lettuce.core.Limit
 import io.lettuce.core.Range
@@ -7,6 +8,7 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.StreamMessage
 import io.lettuce.core.XReadArgs
 import io.lettuce.core.api.async.RedisAsyncCommands
+import io.lettuce.core.api.sync.RedisCommands
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -66,10 +68,13 @@ class RedisStreamService(
         }
     }
 
-    override fun <V : Any> subscribe(stream: EventStream<V>, consumer: EventConsumer<V>) {
+    override fun <V : Any> subscribe(
+        stream: EventStream<V>,
+        consumer: EventConsumer<V>,
+        rescheduleIdleJobsAfterMs: Long
+    ) {
         RedisScope.start() // Start if we haven't already
 
-        val minimumIdleTime = 60_000 * 5L
         repeat(parallelism) {
             RedisScope.launch {
                 run {
@@ -106,11 +111,12 @@ class RedisStreamService(
 
                 while (true) {
                     val redis = connManager.getConnection()
+                    val sync = connManager.getSync()
                     if (System.currentTimeMillis() >= nextClaim) {
                         // We reschedule messages that weren't acknowledged if they have been idle fore more than
                         // minimumIdleTime. It goes through the normal consumption mechanism.
                         val pending = redis.xpendingA(stream.name, group)
-                        val ids = pending.filter { it.msSinceLastAttempt >= minimumIdleTime }.map { it.id }
+                        val ids = pending.filter { it.msSinceLastAttempt >= rescheduleIdleJobsAfterMs }.map { it.id }
 
                         if (ids.isNotEmpty()) {
                             redis.dispatchToInternalConsumer(
@@ -118,7 +124,7 @@ class RedisStreamService(
                                     stream.name,
                                     group,
                                     consumerId,
-                                    minimumIdleTime,
+                                    rescheduleIdleJobsAfterMs,
                                     ids
                                 )
                             )
@@ -130,7 +136,7 @@ class RedisStreamService(
                             redis.xreadgroupA(
                                 group, consumerId,
                                 XReadArgs.StreamOffset.lastConsumed(stream.name),
-                                offset = XReadArgs.Builder.block(2000).count(50)
+                                offset = XReadArgs.Builder.block(50).count(50)
                             )
                         )
                     }
@@ -144,7 +150,7 @@ class RedisStreamService(
         runBlocking {
             initializeStream(connManager.getConnection(), stream)
         }
-        
+
         return RedisEventProducer(connManager, stream)
     }
 
@@ -164,7 +170,8 @@ class RedisStreamService(
         RedisScope.stop()
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log = logger()
         const val STREAM_INIT_MSG = "stream-init"
     }
 }
@@ -172,6 +179,7 @@ class RedisStreamService(
 class RedisConnectionManager(private val client: RedisClient) {
     private val mutex = Mutex()
     private var openConnection: RedisAsyncCommands<String, String>? = null
+    private var syncConnection: RedisCommands<String, String>? = null
 
     suspend fun getConnection(): RedisAsyncCommands<String, String> {
         run {
@@ -188,6 +196,22 @@ class RedisConnectionManager(private val client: RedisClient) {
             return newConnection
         }
     }
+
+    suspend fun getSync(): RedisCommands<String, String> {
+        run {
+            val conn = syncConnection
+            if (conn != null && conn.isOpen) return conn
+        }
+
+        mutex.withLock {
+            val conn = syncConnection
+            if (conn != null && conn.isOpen) return conn
+
+            val newConnection = client.connect().sync()
+            syncConnection = newConnection
+            return newConnection
+        }
+    }
 }
 
 class RedisEventProducer<V : Any>(
@@ -196,8 +220,13 @@ class RedisEventProducer<V : Any>(
 ) : EventProducer<V> {
 
     override suspend fun produce(events: List<V>) {
-        val conn = connManager.getConnection()
-        events.forEach { event -> conn.xaddA(stream.name, stream.serialize(event)) }
+        // In some cases the async API for this have been taking upwards of 40 seconds to return. We have no
+        // such problems when using the sync API. We launch the job in the RedisScope which will use a cached
+        // thread pool (suitable for blocking tasks).
+        RedisScope.launch {
+            val conn = connManager.getSync()
+            events.forEach { event -> conn.xadd(stream.name, mapOf("msg" to stream.serialize(event))) }
+        }.join()
     }
 }
 

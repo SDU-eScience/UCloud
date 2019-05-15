@@ -2,10 +2,10 @@ package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.service.TYPE_PROPERTY
+import java.util.*
 
 /**
  * Represents an event which has occurred inside of the storage system
@@ -35,41 +35,11 @@ import dk.sdu.cloud.service.TYPE_PROPERTY
 @JsonSubTypes(
     JsonSubTypes.Type(value = StorageEvent.CreatedOrRefreshed::class, name = "created"),
     JsonSubTypes.Type(value = StorageEvent.Deleted::class, name = "deleted"),
-    JsonSubTypes.Type(value = StorageEvent.AnnotationsUpdated::class, name = "annotations"),
     JsonSubTypes.Type(value = StorageEvent.SensitivityUpdated::class, name = "sensitivity"),
     JsonSubTypes.Type(value = StorageEvent.Moved::class, name = "moved"),
     JsonSubTypes.Type(value = StorageEvent.Invalidated::class, name = "invalidated")
 )
 sealed class StorageEvent {
-    /**
-     * The unique ID of the file
-     *
-     * The ID is guaranteed to be unique for an entire file system. Across (potential) federation it is not guaranteed
-     * to be unique.
-     *
-     * The ID is an opaque identifier, and its contents is entirely implementation dependant. For the CephFS
-     * implementation this identifier corresponds to the inode of the file.
-     */
-    abstract val id: String
-
-    /**
-     * The canonical path of the file
-     *
-     * Because SDUCloud doesn't support hard links we are guaranteed that each file has exactly one canonical path.
-     */
-    abstract val path: String
-
-    /**
-     * The SDUCloud username of the creator of this file
-     */
-    abstract val owner: String
-
-    /**
-     * The SDUCloud username of the creator of this file
-     */
-    open val creator: String
-        get() = owner
-
     /**
      * Internal timestamp for when the event occurred
      *
@@ -84,6 +54,8 @@ sealed class StorageEvent {
 
     abstract val eventCausedBy: String?
 
+    abstract val file: StorageFile?
+
     /**
      * Emitted when a file has been created or a full-refresh of the file is deemed necessary.
      *
@@ -93,27 +65,8 @@ sealed class StorageEvent {
      * detected.
      */
     data class CreatedOrRefreshed(
-        override val id: String,
-        override val path: String,
-        override val owner: String,
+        override val file: StorageFile,
         override val timestamp: Long,
-        val fileType: FileType,
-
-        val fileTimestamps: Timestamps,
-        val size: Long,
-        @Deprecated("No longer in use")
-        val checksum: FileChecksum,
-
-        val isLink: Boolean,
-        val linkTarget: String?,
-        val linkTargetId: String?,
-
-        @Deprecated("No longer in use")
-        val annotations: Set<String>,
-
-        val sensitivityLevel: SensitivityLevel?,
-
-        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -121,32 +74,8 @@ sealed class StorageEvent {
      * Emitted when the sensitivity level of a file has changed
      */
     data class SensitivityUpdated(
-        override val id: String,
-        override val path: String,
-        override val owner: String,
+        override val file: StorageFile,
         override val timestamp: Long,
-
-        val sensitivityLevel: SensitivityLevel?,
-
-        override val creator: String = owner,
-        override val eventCausedBy: String? = null
-    ) : StorageEvent()
-
-    /**
-     * Emitted when the annotations of a file has changed.
-     *
-     * A complete refresh of all annotations are sent, not just new/deleted ones.
-     */
-    @Deprecated("No longer in use")
-    data class AnnotationsUpdated(
-        override val id: String,
-        override val path: String,
-        override val owner: String,
-        override val timestamp: Long,
-
-        val annotations: Set<String>,
-
-        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -154,12 +83,8 @@ sealed class StorageEvent {
      * Emitted when a file has been deleted
      */
     data class Deleted(
-        override val id: String,
-        override val path: String,
-        override val owner: String,
+        override val file: StorageFile,
         override val timestamp: Long,
-
-        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -169,13 +94,9 @@ sealed class StorageEvent {
      * __Note:__ The path in this case refers to the _new_ path.
      */
     data class Moved(
-        override val id: String,
-        override val path: String,
-        override val owner: String,
-        override val timestamp: Long,
         val oldPath: String,
-
-        override val creator: String = owner,
+        override val file: StorageFile,
+        override val timestamp: Long,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -189,18 +110,15 @@ sealed class StorageEvent {
      * __Note:__ The [id] should _never_ be relied upon for this event time.
      */
     data class Invalidated(
-        override val id: String,
-        override val path: String,
-        override val owner: String,
+        val path: String,
         override val timestamp: Long,
-
-        override val creator: String = owner,
         override val eventCausedBy: String? = null
-    ) : StorageEvent()
+    ) : StorageEvent() {
+        override val file: StorageFile? = null
+    }
 }
 
 data class Timestamps(val accessed: Long, val created: Long, val modified: Long)
-data class FileChecksum(val algorithm: String, val checksum: String)
 
 typealias StorageEventStream = EventStream<StorageEvent>
 
@@ -208,5 +126,5 @@ object StorageEvents : EventStreamContainer() {
     /**
      * A list of storage events. Keyed by the file ID
      */
-    val events = stream<StorageEvent>("storage-events", { it.id })
+    val events = stream<StorageEvent>("storage-events", { it.file?.fileIdOrNull ?: UUID.randomUUID().toString() })
 }

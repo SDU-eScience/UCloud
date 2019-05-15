@@ -3,8 +3,8 @@ package dk.sdu.cloud.file.http.files
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
 import org.junit.Ignore

@@ -1,14 +1,12 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.StorageFile
 import io.mockk.every
 import io.mockk.mockk
 import org.elasticsearch.ElasticsearchStatusException
-import org.elasticsearch.action.DocWriteRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse
 import org.elasticsearch.action.bulk.BulkItemResponse
 import org.elasticsearch.action.bulk.BulkResponse
@@ -19,58 +17,45 @@ import org.elasticsearch.rest.RestStatus
 import org.junit.Test
 
 class ElasticIndexingTest {
-
-    private val eventCreatedOrRefreshed = StorageEvent.CreatedOrRefreshed(
-        "id",
-        "path/to/",
-        "owner",
-        123456789,
+    private val file = StorageFile(
         FileType.FILE,
-        Timestamps(1234567890, 123456789, 223456789),
+        "path/to/",
+        123456789,
+        223456789,
+        "owner",
         88888,
-        FileChecksum("sha1", "0987654efghjkllv6mnhydsjfjdashkl"),
+        emptyList(),
+        SensitivityLevel.PRIVATE,
         false,
-        null,
-        null,
-        setOf("A"),
+        emptySet(),
+        "id",
+        "owner",
         SensitivityLevel.PRIVATE
     )
 
+    private val eventCreatedOrRefreshed = StorageEvent.CreatedOrRefreshed(
+        file,
+        10000L
+    )
+
     private val eventDeleted = StorageEvent.Deleted(
-        "id",
-        "path/to/",
-        "owner",
-        123456789
+        file,
+        10000L
     )
 
     private val eventMoved = StorageEvent.Moved(
-        "id",
-        "path/to/",
-        "owner",
-        123456789,
-        "Old/path/to"
+        "Old/path/to",
+        file,
+        10000L
     )
 
     private val eventSensitivity = StorageEvent.SensitivityUpdated(
-        "id",
-        "path/to/",
-        "owner",
-        123456789,
-        SensitivityLevel.CONFIDENTIAL
-    )
-
-    private val eventAnnotation = StorageEvent.AnnotationsUpdated(
-        "id",
-        "path/to/",
-        "owner",
-        123456789,
-        setOf("K")
+        file.copy(ownSensitivityLevelOrNull = SensitivityLevel.CONFIDENTIAL),
+        10000L
     )
 
     private val eventInvalid = StorageEvent.Invalidated(
-        "id",
         "path/to/",
-        "owner",
         123456789
     )
 
@@ -163,19 +148,6 @@ class ElasticIndexingTest {
     }
 
     @Test
-    fun `Annotation update test`() {
-        val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
-
-        every { rest.update(any()) } answers {
-            val response = UpdateResponse()
-            response
-        }
-
-        elastic.handleEvent(eventAnnotation)
-    }
-
-    @Test
     fun `Invalidated test`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
@@ -204,7 +176,7 @@ class ElasticIndexingTest {
 
     @Test
     fun `Bulk test - error`() {
-        val events = listOf(eventCreatedOrRefreshed, eventAnnotation, eventDeleted)
+        val events = listOf(eventCreatedOrRefreshed, eventDeleted)
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
@@ -213,7 +185,7 @@ class ElasticIndexingTest {
             every { response.items } answers {
                 val a = Array(1) { i ->
                     BulkItemResponse(
-                        i, mockk<DocWriteRequest.OpType>(),
+                        i, mockk(),
                         BulkItemResponse.Failure("index", "doc", "2", IllegalArgumentException())
                     )
                 }

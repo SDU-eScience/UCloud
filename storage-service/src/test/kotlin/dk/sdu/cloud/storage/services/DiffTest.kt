@@ -7,6 +7,9 @@ import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileImpl
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.ownSensitivityLevel
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
@@ -126,14 +129,14 @@ class DiffTest {
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.CreatedOrRefreshed &&
-                                it.path == "/home/a" &&
-                                it.id == fsRoot.resolvePath("/home/a").inode()
+                                it.file.path == "/home/a" &&
+                                it.file.fileId == fsRoot.resolvePath("/home/a").inode()
                     }
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.CreatedOrRefreshed &&
-                                it.path == "/home/b" &&
-                                it.id == fsRoot.resolvePath("/home/b").inode()
+                                it.file.path == "/home/b" &&
+                                it.file.fileId == fsRoot.resolvePath("/home/b").inode()
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 2)
@@ -192,11 +195,11 @@ class DiffTest {
                     )
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.Invalidated && it.id == "1" && it.path == "/home/foo"
+                        it is StorageEvent.Invalidated && it.path == "/home/foo"
                     }
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.Invalidated && it.id == "2" && it.path == "/home/bar"
+                        it is StorageEvent.Invalidated && it.path == "/home/bar"
                     }
 
                     assertThatPropertyEquals(diff, { diff.diff.size }, 2)
@@ -247,12 +250,11 @@ class DiffTest {
                     )
 
                     assertCollectionHasItem(diff.diff, "Invalidated item") {
-                        it is StorageEvent.Invalidated && it.id == "invalid id" && it.path == filePath &&
-                                it.owner == FILE_OWNER
+                        it is StorageEvent.Invalidated && it.path == filePath
                     }
 
                     assertCollectionHasItem(diff.diff, "CreatedOrRefreshed item") {
-                        it is StorageEvent.CreatedOrRefreshed && it.id == realFile.inode() && it.path == filePath
+                        it is StorageEvent.CreatedOrRefreshed && it.file.fileId == realFile.inode() && it.file.path == filePath
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 2)
@@ -299,9 +301,9 @@ class DiffTest {
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.Moved &&
-                                it.path == "/home/b" &&
+                                it.file.path == "/home/b" &&
                                 it.oldPath == "/home/a" &&
-                                it.id == realFile.inode()
+                                it.file.fileId == realFile.inode()
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 1)
@@ -335,9 +337,9 @@ class DiffTest {
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.Moved &&
-                                it.path == "/home/b" &&
+                                it.file.path == "/home/b" &&
                                 it.oldPath == "/home/a" &&
-                                it.id == realFile.inode()
+                                it.file.fileId == realFile.inode()
                     }
 
                     assertCollectionHasItem(diff.diff) {
@@ -346,20 +348,20 @@ class DiffTest {
                     }
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/b"
+                        it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/b"
                     }
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/b/1"
+                        it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/b/1"
                     }
 
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/b/2"
+                        it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/b/2"
                     }
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/b/3"
+                        it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/b/3"
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 6)
@@ -389,9 +391,9 @@ class DiffTest {
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.CreatedOrRefreshed &&
-                                it.path == "/home/a" &&
-                                it.sensitivityLevel == null &&
-                                it.id == realFile.inode()
+                                it.file.path == "/home/a" &&
+                                it.file.ownSensitivityLevel == null &&
+                                it.file.fileId == realFile.inode()
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 1)
@@ -423,10 +425,10 @@ class DiffTest {
                         it, "/home", listOf(aFile.asMaterialized())
                     )
 
-                    assertCollectionHasItem(diff.diff) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir" }
-                    assertCollectionHasItem(diff.diff) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1" }
+                    assertCollectionHasItem(diff.diff) { it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/dir" }
+                    assertCollectionHasItem(diff.diff) { it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/dir/1" }
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1/file"
+                        it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/dir/1/file"
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 3)
@@ -482,10 +484,10 @@ class DiffTest {
 
             consumer = {
                 fun assertCorrectEvents(collection: List<Any>) {
-                    assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir" }
-                    assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1" }
+                    assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/dir" }
+                    assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/dir/1" }
                     assertCollectionHasItem(collection) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1/file"
+                        it is StorageEvent.CreatedOrRefreshed && it.file.path == "/home/dir/1/file"
                     }
 
                     assertThatPropertyEquals(collection, { it.size }, 3)

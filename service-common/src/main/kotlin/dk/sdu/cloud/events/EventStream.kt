@@ -39,7 +39,12 @@ data class EventStreamState(
 )
 
 interface EventStreamService {
-    fun <V : Any> subscribe(stream: EventStream<V>, consumer: EventConsumer<V>)
+    fun <V : Any> subscribe(
+        stream: EventStream<V>,
+        consumer: EventConsumer<V>,
+        rescheduleIdleJobsAfterMs: Long = 1000 * 60 * 5L
+    )
+
     fun <V : Any> createProducer(stream: EventStream<V>): EventProducer<V>
     fun createStreams(streams: List<EventStream<*>>)
     fun describeStreams(names: List<String>): Map<String, EventStreamState?>

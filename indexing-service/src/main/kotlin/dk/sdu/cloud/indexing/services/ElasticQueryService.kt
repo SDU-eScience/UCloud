@@ -7,7 +7,9 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.parents
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
 import dk.sdu.cloud.indexing.api.ComparisonOperator
@@ -182,7 +184,6 @@ class ElasticQueryService(
                     createdAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_CREATED_FIELD)
                     modifiedAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
                     sensitivity.addClausesIfExists(list, ElasticIndexedFile.SENSITIVITY_FIELD)
-                    annotations.addClausesIfExists(list, ElasticIndexedFile.ANNOTATIONS_FIELD)
                     size.addClausesIfExists(list, ElasticIndexedFile.SIZE_FIELD)
 
                     if (fileIsLink != null) {

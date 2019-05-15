@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = '1.3.9-RC.1'
+    ext.serviceCommonVersion = '1.4.0-REDIS.1'
 }
 
 dependencies {

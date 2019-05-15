@@ -22,6 +22,11 @@ interface StorageFile {
     @get:JsonProperty("fileType")
     val fileTypeOrNull: FileType?
 
+    /**
+     * The canonical path of the file
+     *
+     * Because SDUCloud doesn't support hard links we are guaranteed that each file has exactly one canonical path.
+     */
     @get:JsonProperty("path")
     val pathOrNull: String?
 
@@ -31,6 +36,9 @@ interface StorageFile {
     @get:JsonProperty("modifiedAt")
     val modifiedAtOrNull: Long?
 
+    /**
+     * The SDUCloud username of the creator of this file
+     */
     @get:JsonProperty("ownerName")
     val ownerNameOrNull: String?
 
@@ -53,9 +61,21 @@ interface StorageFile {
     @Deprecated("no longer in use")
     val annotationsOrNull: Set<String>?
 
+    /**
+     * The unique ID of the file
+     *
+     * The ID is guaranteed to be unique for an entire file system. Across (potential) federation it is not guaranteed
+     * to be unique.
+     *
+     * The ID is an opaque identifier, and its contents is entirely implementation dependant. For the CephFS
+     * implementation this identifier corresponds to the inode of the file.
+     */
     @get:JsonProperty("fileId")
     val fileIdOrNull: String?
 
+    /**
+     * The SDUCloud username of the creator of this file
+     */
     @get:JsonProperty("creator")
     val creatorOrNull: String?
 }

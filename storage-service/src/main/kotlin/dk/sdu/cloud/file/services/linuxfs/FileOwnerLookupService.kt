@@ -37,7 +37,8 @@ class FileOwnerLookupService<Ctx : CommandRunner>(
             log.debug("Result not in cache. Looking up creator of root dir...")
             return commandRunner
                 .withContext(SERVICE_USER) { ctx ->
-                    unixFs.stat(ctx, joinPath(components[0], components[1]), setOf(FileAttribute.CREATOR)).unwrap().creator
+                    unixFs.stat(ctx, joinPath(components[0], components[1]), setOf(FileAttribute.CREATOR)).unwrap()
+                        .creator
                 }.also {
                     log.debug("Directory is owned by $it")
                     cache[rootDir] = it

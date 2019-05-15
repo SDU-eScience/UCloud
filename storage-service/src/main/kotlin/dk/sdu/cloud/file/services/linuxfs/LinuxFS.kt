@@ -1,10 +1,28 @@
 package dk.sdu.cloud.file.services.linuxfs
 
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.api.AccessEntry
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.services.FSACLEntity
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FSResult
+import dk.sdu.cloud.file.services.FileAttribute
+import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.XATTR_BIRTH
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
+import dk.sdu.cloud.file.util.toCreatedEvent
+import dk.sdu.cloud.file.util.toDeletedEvent
+import dk.sdu.cloud.file.util.toMovedEvent
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -12,7 +30,15 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.file.*
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.Files
+import java.nio.file.InvalidPathException
+import java.nio.file.LinkOption
+import java.nio.file.NoSuchFileException
+import java.nio.file.OpenOption
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
@@ -44,10 +70,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, systemTo, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                    ctx.user
-                )
+                stat(ctx, systemTo, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
             )
         )
     }
@@ -82,7 +105,7 @@ class LinuxFS(
         Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
 
         // We compare this information with after the move to get the correct old path.
-        val toStat = stat(ctx, systemTo, MOVED_ATTRIBUTES, HashMap())
+        val toStat = stat(ctx, systemTo, STORAGE_EVENT_MODE, HashMap())
         val basePath = toStat.path.removePrefix(toStat.path).removePrefix("/")
         val oldPath = if (fromStat.fileType == FileType.DIRECTORY) {
             joinPath(fromStat.path, basePath)
@@ -90,25 +113,15 @@ class LinuxFS(
             fromStat.path
         }
 
-        fun movedFromRow(row: FileRow): StorageEvent.Moved {
-            return StorageEvent.Moved(
-                id = row.inode,
-                path = row.path,
-                owner = row.owner,
-                creator = row.creator,
-                timestamp = System.currentTimeMillis(),
-                oldPath = oldPath
-            )
-        }
-
         val rows = if (fromStat.fileType == FileType.DIRECTORY) {
             // We need to emit events for every single file below this root.
+            // TODO copyCausedBy
             val cache = HashMap<String, String>()
             Files.walk(systemTo.toPath()).map {
-                movedFromRow(stat(ctx, it.toFile(), MOVED_ATTRIBUTES, cache))
+                stat(ctx, it.toFile(), STORAGE_EVENT_MODE, cache).toMovedEvent(oldPath, copyCausedBy = true)
             }.toList()
         } else {
-            listOf(movedFromRow(toStat))
+            listOf(toStat.toMovedEvent(oldPath, copyCausedBy = true))
         }
 
         FSResult(0, rows)
@@ -356,18 +369,9 @@ class LinuxFS(
 
         fun delete(path: Path) {
             try {
-                val stat = stat(ctx, path.toFile(), DELETED_ATTRIBUTES, cache)
+                val stat = stat(ctx, path.toFile(), STORAGE_EVENT_MODE, cache)
                 Files.delete(path)
-                deletedRows.add(
-                    StorageEvent.Deleted(
-                        stat.inode,
-                        stat.path,
-                        stat.creator,
-                        System.currentTimeMillis(),
-                        stat.owner,
-                        ctx.user
-                    )
-                )
+                stat.toDeletedEvent(true)
             } catch (ex: NoSuchFileException) {
                 log.debug("File at $path does not exists any more. Ignoring this error.")
             }
@@ -425,10 +429,7 @@ class LinuxFS(
             FSResult(
                 0,
                 listOf(
-                    createdOrModifiedFromRow(
-                        stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                        ctx.user
-                    )
+                    stat(ctx, systemFile, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
                 )
             )
         } else {
@@ -463,10 +464,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, file, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                    ctx.user
-                )
+                stat(ctx, file, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
             )
         )
     }
@@ -502,10 +500,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                    ctx.user
-                )
+                stat(ctx, systemFile, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
             )
         )
     }
@@ -650,10 +645,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, systemLink, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap(), followLink = false),
-                    ctx.user
-                )
+                stat(ctx, systemLink, STORAGE_EVENT_MODE, HashMap(), followLink = false).toCreatedEvent(true)
             )
         )
     }
@@ -734,10 +726,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                    ctx.user
-                )
+                stat(ctx, systemFile, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
             )
         )
     }
@@ -747,32 +736,6 @@ class LinuxFS(
         return ("/" + substringAfter(fsRoot.absolutePath).removePrefix("/")).normalize()
     }
 
-    private fun createdOrModifiedFromRow(it: FileRow, eventCausedBy: String?): StorageEvent.CreatedOrRefreshed {
-        return StorageEvent.CreatedOrRefreshed(
-            id = it.inode,
-            path = it.path,
-            owner = it.owner,
-            creator = it.creator,
-            timestamp = it.timestamps.modified,
-
-            fileType = it.fileType,
-
-            fileTimestamps = it.timestamps,
-            size = it.size,
-
-            isLink = it.isLink,
-            linkTarget = if (it.isLink) it.linkTarget else null,
-            linkTargetId = if (it.isLink) it.linkInode else null,
-
-            sensitivityLevel = it.sensitivityLevel,
-
-            eventCausedBy = eventCausedBy,
-
-            annotations = emptySet(),
-            checksum = FileChecksum("", "")
-        )
-    }
-
     private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
         return translateAndCheckFile(fsRoot, internalPath, isDirectory)
     }
@@ -780,40 +743,6 @@ class LinuxFS(
     companion object : Loggable {
         override val log = logger()
         const val PATH_MAX = 1024
-
-        @Suppress("ObjectPropertyNaming")
-        private val CREATED_OR_MODIFIED_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.INODE,
-            FileAttribute.PATH,
-            FileAttribute.TIMESTAMPS,
-            FileAttribute.CREATOR,
-            FileAttribute.OWNER,
-            FileAttribute.SIZE,
-            FileAttribute.IS_LINK,
-            FileAttribute.LINK_TARGET,
-            FileAttribute.LINK_INODE,
-            FileAttribute.SENSITIVITY
-        )
-
-        @Suppress("ObjectPropertyNaming")
-        private val MOVED_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.INODE,
-            FileAttribute.PATH,
-            FileAttribute.CREATOR,
-            FileAttribute.OWNER
-        )
-
-        @Suppress("ObjectPropertyNaming")
-        private val DELETED_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.INODE,
-            FileAttribute.CREATOR,
-            FileAttribute.OWNER,
-            FileAttribute.GROUP,
-            FileAttribute.PATH
-        )
 
         val DEFAULT_FILE_MODE = setOf(
             PosixFilePermission.OWNER_READ,

@@ -104,12 +104,12 @@ fun Micro.installDefaultFeatures() {
     install(ScriptFeature)
     install(ConfigurationFeature)
     install(ServiceDiscoveryOverrides)
+    install(ServiceInstanceFeature)
     install(DevelopmentOverrides)
     install(KtorServerProviderFeature)
     install(RedisFeature)
     install(ClientFeature)
     install(TokenValidationFeature)
-    install(ServiceInstanceFeature)
     install(ServerFeature)
 }
 

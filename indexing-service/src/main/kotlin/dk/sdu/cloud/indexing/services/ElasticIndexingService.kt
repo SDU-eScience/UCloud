@@ -2,6 +2,17 @@ package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.createdAt
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.modifiedAt
+import dk.sdu.cloud.file.api.ownSensitivityLevel
+import dk.sdu.cloud.file.api.ownerName
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.indexing.util.depth
 import dk.sdu.cloud.indexing.util.fileName
 import dk.sdu.cloud.indexing.util.scrollThroughSearch
@@ -67,7 +78,6 @@ class ElasticIndexingService(
             is StorageEvent.Deleted -> elasticClient.delete(handleDeleted(event))
             is StorageEvent.Moved -> elasticClient.update(handleMoved(event))
             is StorageEvent.SensitivityUpdated -> elasticClient.update(handleSensitivityUpdated(event))
-            is StorageEvent.AnnotationsUpdated -> elasticClient.update(handleAnnotationsUpdated(event))
             is StorageEvent.Invalidated -> elasticClient.bulk(
                 handleInvalidated(event).takeIf { it.requests().isNotEmpty() } ?: return
             )
@@ -84,7 +94,6 @@ class ElasticIndexingService(
                 is StorageEvent.Deleted -> requests.add(handleDeleted(event))
                 is StorageEvent.Moved -> requests.add(handleMoved(event))
                 is StorageEvent.SensitivityUpdated -> requests.add(handleSensitivityUpdated(event))
-                is StorageEvent.AnnotationsUpdated -> requests.add(handleAnnotationsUpdated(event))
                 is StorageEvent.Invalidated -> requests.addAll(handleInvalidated(event).requests())
             }
         }
@@ -112,26 +121,32 @@ class ElasticIndexingService(
         return BulkIndexingResponse(failures)
     }
 
-    private fun handleCreatedOrModified(event: StorageEvent.CreatedOrRefreshed): UpdateRequest {
+    private fun handleCreatedOrModified(event: StorageEvent.CreatedOrRefreshed): UpdateRequest =
+        updateDocWithNewFile(event.file)
+
+    private fun handleDeleted(event: StorageEvent.Deleted): DeleteRequest {
+        return DeleteRequest(FILES_INDEX, DOC_TYPE, event.file.fileId)
+    }
+
+    // TODO We should only update if event timestamp is lower than current. This protects somewhat against
+    //  out of order delivery.
+    private fun updateDocWithNewFile(file: StorageFile): UpdateRequest {
         val indexedFile = ElasticIndexedFile(
-            id = event.id,
-            owner = event.owner,
+            id = file.fileId,
+            owner = file.ownerName,
 
-            path = event.path,
-            fileName = event.path.fileName(),
-            fileDepth = event.path.depth(),
+            path = file.path,
+            fileName = file.path.fileName(),
+            fileDepth = file.path.depth(),
 
-            fileType = event.fileType,
+            fileType = file.fileType,
 
-            size = event.size,
-            fileTimestamps = event.fileTimestamps,
-            checksum = event.checksum,
+            size = file.size,
+            fileTimestamps = Timestamps(file.modifiedAt, file.createdAt, file.modifiedAt),
 
-            fileIsLink = event.isLink,
+            fileIsLink = file.link,
 
-            sensitivity = event.sensitivityLevel,
-
-            annotations = event.annotations
+            sensitivity = file.ownSensitivityLevel
         )
 
         return UpdateRequest(FILES_INDEX, DOC_TYPE, indexedFile.id).apply {
@@ -141,27 +156,10 @@ class ElasticIndexingService(
         }
     }
 
-    private fun handleDeleted(event: StorageEvent.Deleted): DeleteRequest {
-        return DeleteRequest(FILES_INDEX, DOC_TYPE, event.id)
-    }
+    private fun handleMoved(event: StorageEvent.Moved): UpdateRequest = updateDocWithNewFile(event.file)
 
-    private fun handleMoved(event: StorageEvent.Moved): UpdateRequest = updateDoc(
-        event.id, mapOf(
-            ElasticIndexedFile.PATH_FIELD to event.path,
-            ElasticIndexedFile.FILE_NAME_FIELD to event.path.fileName(),
-            ElasticIndexedFile.FILE_DEPTH_FIELD to event.path.depth()
-        )
-    )
-
-    private fun handleSensitivityUpdated(event: StorageEvent.SensitivityUpdated): UpdateRequest = updateDoc(
-        event.id, mapOf(
-            ElasticIndexedFile.SENSITIVITY_FIELD to event.sensitivityLevel
-        )
-    )
-
-    private fun handleAnnotationsUpdated(event: StorageEvent.AnnotationsUpdated): UpdateRequest = updateDoc(
-        event.id, mapOf(ElasticIndexedFile.ANNOTATIONS_FIELD to event.annotations)
-    )
+    private fun handleSensitivityUpdated(event: StorageEvent.SensitivityUpdated): UpdateRequest =
+        updateDocWithNewFile(event.file)
 
     private fun handleInvalidated(event: StorageEvent.Invalidated): BulkRequest {
         // Note: It appears that the high level rest client for elastic doesn't support delete by query yet.
@@ -183,16 +181,6 @@ class ElasticIndexingService(
 
         return request
     }
-
-    private fun updateDoc(id: String, updatedFields: Map<String, Any?>): UpdateRequest =
-        UpdateRequest(
-            FILES_INDEX,
-            DOC_TYPE,
-            id
-        ).apply {
-            doc(updatedFields)
-        }
-
 
     companion object : Loggable {
         override val log: Logger = logger()
