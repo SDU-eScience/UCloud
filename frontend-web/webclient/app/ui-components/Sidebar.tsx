@@ -169,7 +169,7 @@ export const sideBarMenuElements: { guest: SidebarMenuElements, general: Sidebar
             { icon: "results", label: "My Results", to: "/applications/results/" }
         ], predicate: () => Cloud.isLoggedIn
     },
-    dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => process.env.NODE_ENV === "development" && Cloud.isLoggedIn },
+    dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => inDevEnvironment() && Cloud.isLoggedIn },
     auditing: { items: [{ icon: "activity", label: "Activity", to: "/activity/" }], predicate: () => Cloud.isLoggedIn },
     admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
 };

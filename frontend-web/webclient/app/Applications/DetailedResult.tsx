@@ -12,7 +12,7 @@ import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOpe
 import { File, SortBy, SortOrder } from "Files";
 import { allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
-import { hpcJobQuery, cancelJobQuery } from "Utilities/ApplicationUtilities";
+import { hpcJobQuery, cancelJobQuery, cancelJobSwal } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
@@ -139,7 +139,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 this.props.setLoading(false);
                 this.props.history.push(`/novnc?jobId=${this.jobId}`);
                 return;
-                
+
             } else if (this.state.appType === "WEB" && !this.state.webLink) {
                 this.props.setLoading(false);
                 /* FIXME: Wrap in PromiseKeeper */
@@ -348,8 +348,10 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private async cancelJob() {
+        const result = await cancelJobSwal({ jobId: this.jobId });
+        if (result.dismiss) return;
         try {
-            this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, { jobId: this.jobId}));
+            this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, { jobId: this.jobId }));
         } catch (e) {
             this.props.addSnack({
                 type: SnackType.Failure,
@@ -363,25 +365,30 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         return <Button ml="8px" color="red" onClick={() => this.cancelJob()}>Cancel job</Button>
     }
 
-    private fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
-        this.state.promises.makeCancelable(Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(r => {
+    private async fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): Promise<void> {
+        try {
+            const r = await this.state.promises.makeCancelable(Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))).promise;
             this.setState(() => ({ fsPage: r.response, fsPath: resolvePath(path), fsIsFavorite: false }))
-        }).catch(it => this.setState(() => ({ fsError: errorMessageOrDefault(it, "An error occurred fetching files") })));
+        } catch (e) {
+            this.setState(() => ({ fsError: errorMessageOrDefault(e, "An error occurred fetching files") }));
+        }
     }
 
-    public render = () => (
-        <MainContainer
-            main={
-                <ContainerForText>
-                    {this.renderProgressPanel()}
-                    {this.renderInfoPanel()}
-                    {this.renderFilePanel()}
-                    {this.renderWebLink()}
-                    {this.renderCancelButton()}
-                    {this.renderStreamPanel()}
-                </ContainerForText>
-            } />
-    )
+    public render() {
+        return (
+            <MainContainer
+                main={
+                    <ContainerForText>
+                        {this.renderProgressPanel()}
+                        {this.renderInfoPanel()}
+                        {this.renderFilePanel()}
+                        {this.renderWebLink()}
+                        {this.renderCancelButton()}
+                        {this.renderStreamPanel()}
+                    </ContainerForText>
+                } />
+        )
+    }
 }
 
 const stateToOrder = (state: AppState): 0 | 1 | 2 | 3 | 4 | 5 => {
