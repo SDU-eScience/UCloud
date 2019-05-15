@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.stats.api.RecentFilesResponse
 import dk.sdu.cloud.file.stats.api.UsageResponse
 import dk.sdu.cloud.file.stats.services.RecentFilesService

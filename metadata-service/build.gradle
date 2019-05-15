@@ -10,14 +10,14 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = '1.3.9-RC.1'
+    ext.serviceCommonVersion = "1.4.0-REDIS.2"
 }
 
 dependencies {
     compile "dk.sdu.cloud:project-api:1.0.2"
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile "dk.sdu.cloud:auth-api:1.19.1"
-    compile "dk.sdu.cloud:file-api:1.2.8"
+    compile "dk.sdu.cloud:file-api:1.8.0-REDIS.0"
 
     compile 'mbuhot:eskotlin:0.4.0'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'

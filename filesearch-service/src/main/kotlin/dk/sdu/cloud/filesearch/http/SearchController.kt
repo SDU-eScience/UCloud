@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
 import dk.sdu.cloud.filesearch.api.SearchResult
 import dk.sdu.cloud.filesearch.api.TimestampQuery

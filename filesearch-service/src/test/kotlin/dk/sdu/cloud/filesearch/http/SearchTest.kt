@@ -3,7 +3,6 @@ package dk.sdu.cloud.filesearch.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
@@ -11,6 +10,7 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
 import dk.sdu.cloud.filesearch.api.SearchResult
 import dk.sdu.cloud.filesearch.api.TimestampQuery
@@ -40,23 +40,23 @@ class SearchTest {
     }
 
     private val file: StorageFileImpl = StorageFileImpl(
-        fileId = "1",
-        path = "path",
-        ownerName = "owner",
-        creator = "owner",
-        fileType = FileType.FILE,
-        createdAt = 12342431, modifiedAt = 12345,
-        size = 1234,
-        link = false,
-        ownSensitivityLevel = SensitivityLevel.PRIVATE,
-        sensitivityLevel = SensitivityLevel.PRIVATE
+        fileIdOrNull = "1",
+        pathOrNull = "path",
+        ownerNameOrNull = "owner",
+        creatorOrNull = "owner",
+        fileTypeOrNull = FileType.FILE,
+        createdAtOrNull = 12342431, modifiedAtOrNull = 12345,
+        sizeOrNull = 1234,
+        linkOrNull = false,
+        ownSensitivityLevelOrNull = SensitivityLevel.PRIVATE,
+        sensitivityLevelOrNull = SensitivityLevel.PRIVATE
     )
 
     private val queryResponse = QueryResponse(
         2,
         10,
         0,
-        listOf(file, file.copy(fileId = "2"))
+        listOf(file, file.copy(fileIdOrNull = "2"))
     )
 
     @Test

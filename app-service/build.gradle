@@ -5,7 +5,7 @@ apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
 
 buildscript {
-    ext.serviceCommonVersion = '1.4.0-REDIS.2'
+    ext.serviceCommonVersion = "1.4.0-REDIS.2"
     ext.fileApiVersion = '1.8.0-REDIS.0'
 }
 
