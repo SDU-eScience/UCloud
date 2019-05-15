@@ -28,6 +28,6 @@ class DirectorySizeService(
             serviceCloud
         ).orThrow()
 
-        return result.size?.sum?.toLong() ?: 0 // FIXME: Not zero as default. Throw error instead
+        return result.size?.sum?.toLong() ?: 0
     }
 }
