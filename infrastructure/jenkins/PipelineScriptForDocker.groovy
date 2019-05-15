@@ -8,22 +8,26 @@ volumes: [
 ]) {
     node (label) {
         stage('Checkout') {
-            checkout(
-                [
-                    $class                           : 'GitSCM',
-                    branches                         : [
-                        [name: 'master']
-                    ],
-                    doGenerateSubmoduleConfigurations: false,
-                    extensions                       : [],
-                    submoduleCfg                     : [],
-                    userRemoteConfigs                : [
-                        [
-                            url          : 'https://c2ea639ad865d22f6969cd0ecb4354080455b9b9@github.com/SDU-eScience/SDUCloud'
+            withCredentials(
+                [string(credentialsId: "GitToken", variable: "GitToken")]
+            ) {
+                checkout(
+                    [
+                        $class                           : 'GitSCM',
+                        branches                         : [
+                            [name: 'master']
+                        ],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions                       : [],
+                        submoduleCfg                     : [],
+                        userRemoteConfigs                : [
+                            [
+                                url          : "https://${GitToken}@github.com/SDU-eScience/SDUCloud"
+                            ]
                         ]
                     ]
-                ]
-            )
+                )
+            }
         }
 
         def needToBuild = []
