@@ -11,6 +11,8 @@ volumes: [
             withCredentials(
                 [string(credentialsId: "GitToken", variable: "GitToken")]
             ) {
+                String urlForGit = "https://${GitToken}@github.com/SDU-eScience/SDUCloud"
+                println(urlForGit)
                 checkout(
                     [
                         $class                           : 'GitSCM',
@@ -22,7 +24,7 @@ volumes: [
                         submoduleCfg                     : [],
                         userRemoteConfigs                : [
                             [
-                                url          : "https://${GitToken}@github.com/SDU-eScience/SDUCloud"
+                                url          : urlForGit
                             ]
                         ]
                     ]
@@ -45,9 +47,7 @@ volumes: [
         } 
         println(serviceList)
         println(needToBuild)
-        for (String item : needToBuild) {
-            runBuild(item)
-        }
+
         String currentResult1
         String currentResult2
         String currentResult3
