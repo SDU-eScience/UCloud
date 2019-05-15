@@ -10,8 +10,8 @@ def initialize() {
                     ),
                     string(credentialsId: "Repository", variable: "Repository")
                 ]) {
-                    String versionString = sh(script: '''grep "version '.*'" metadata-service/build.gradle''', returnStdout: true)
-                    String name = sh(script: '''grep "rootProject" metadata-service/settings.gradle | cut -c 21- | rev | cut -f 2 -d "'" | rev''', returnStdout: true).trim()
+                    String versionString = sh(script: '''grep "version '.*'" project-service/build.gradle''', returnStdout: true)
+                    String name = sh(script: '''grep "rootProject" project-service/settings.gradle | cut -c 21- | rev | cut -f 2 -d "'" | rev''', returnStdout: true).trim()
                     println("Version: $versionString Name: $name")
                     dash = versionString.indexOf("-")
                     if (dash == -1) {
@@ -19,7 +19,7 @@ def initialize() {
                     }
                     String version = versionString.substring(versionString.indexOf("'")+1, dash)
                     sh """
-                        cd metadata-service 
+                        cd project-service 
                         docker build \
                         --target production \
                         --build-arg GRADLE_PROPS="eScienceCloudRepository=${Repository}\n eScienceCloudUser=${ESCIENCE_MVN_USER}\n eScienceCloudPassword=${ESCIENCE_MVN_PASSWORD}" \
