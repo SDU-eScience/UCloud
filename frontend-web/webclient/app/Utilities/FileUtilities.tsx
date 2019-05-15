@@ -136,7 +136,7 @@ interface RewritePolicy {
 function rewritePolicy({ path, homeFolder, filesRemaining }: RewritePolicy): Promise<SweetAlertResult> {
     return swal({
         title: "File exists",
-        text: ``,
+        text: "",
         html: `<div>${replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it ?</div> <br/>
                     <select id="policy" defaultValue="RENAME">
                         <option value="RENAME">Rename</option>

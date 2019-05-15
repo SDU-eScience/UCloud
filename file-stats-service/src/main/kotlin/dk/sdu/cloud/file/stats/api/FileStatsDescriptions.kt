@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.stats.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
@@ -16,6 +17,14 @@ typealias RecentFilesRequest = Unit
 
 data class RecentFilesResponse(
     val recentFiles: List<SearchResult>
+)
+
+data class DirectorySizesRequest(
+    val fileIds: List<String>
+)
+
+data class DirectorySizesResponse(
+    val size: Long
 )
 
 typealias SearchResult = StorageFile
@@ -54,6 +63,23 @@ object FileStatsDescriptions : CallDescriptionContainer("files.stats") {
                 using(baseContext)
                 +"recent"
             }
+        }
+    }
+
+    val directorySize = call<DirectorySizesRequest, DirectorySizesResponse, CommonErrorMessage>("directorySize") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"directory-sizes"
+            }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 }

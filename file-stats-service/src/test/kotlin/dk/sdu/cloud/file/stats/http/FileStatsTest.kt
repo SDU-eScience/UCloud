@@ -6,6 +6,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.stats.api.RecentFilesResponse
 import dk.sdu.cloud.file.stats.api.UsageResponse
+import dk.sdu.cloud.file.stats.services.DirectorySizeService
 import dk.sdu.cloud.file.stats.services.RecentFilesService
 import dk.sdu.cloud.file.stats.services.UsageService
 import dk.sdu.cloud.file.stats.storageFile
@@ -30,12 +31,13 @@ class FileStatsTest {
         val micro = initializeMicro()
         val usageService = mockk<UsageService>()
         val recentFilesService = mockk<RecentFilesService>()
+        val directorySizeService = mockk<DirectorySizeService>()
         coEvery { usageService.calculateUsage(any(), any(), any()) } returns 200
         coEvery { recentFilesService.queryRecentFiles(any(), any()) } answers {
             listOf(storageFile, storageFile2)
         }
 
-        listOf(FileStatsController(recentFilesService, usageService, ClientMock.authenticatedClient))
+        listOf(FileStatsController(recentFilesService, usageService, directorySizeService, ClientMock.authenticatedClient))
     }
 
     @Test
