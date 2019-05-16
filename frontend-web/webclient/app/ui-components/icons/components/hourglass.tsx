@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgHourglass = props => (
+const SvgHourglass = (props: any) => (
   <svg
     viewBox="0 0 16 24"
     fillRule="evenodd"

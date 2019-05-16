@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgEllipsis = props => (
+const SvgEllipsis = (props: any) => (
   <svg
     viewBox="0 0 24 6"
     fillRule="evenodd"

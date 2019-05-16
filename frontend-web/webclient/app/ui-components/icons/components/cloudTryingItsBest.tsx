@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgCloudTryingItsBest = props => (
+const SvgCloudTryingItsBest = (props: any) => (
   <svg viewBox="0 0 400 200" fill="currentcolor" {...props}>
     <path
       fill="currentcolor"

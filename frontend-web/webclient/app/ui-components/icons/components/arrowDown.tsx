@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgArrowDown = props => (
+const SvgArrowDown = (props: any) => (
   <svg
     viewBox="0 0 18 24"
     fillRule="evenodd"

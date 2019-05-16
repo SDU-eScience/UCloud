@@ -8,7 +8,7 @@ module.exports = {
         const typeScriptTpl = template.smart({ plugins: ['typescript'] })
         return typeScriptTpl.ast`
     import * as React from 'react';
-    const ${componentName} = (props) => ${jsx};
+    const ${componentName} = (props: any) => ${jsx};
     export default ${componentName};
   `
     },

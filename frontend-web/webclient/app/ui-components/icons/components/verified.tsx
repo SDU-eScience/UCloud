@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgVerified = props => (
+const SvgVerified = (props: any) => (
   <svg
     viewBox="0 0 20 24"
     fillRule="evenodd"
