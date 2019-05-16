@@ -40,7 +40,7 @@ class AutoSettingsService(
     private fun createLoggingTemplates() {
         //create template for development_default and http_logs
         val developmentTemplateRequest = PutIndexTemplateRequest("development-template")
-        developmentTemplateRequest.patterns(listOf("development-default*"))
+        developmentTemplateRequest.patterns(listOf("development_default*"))
 
         developmentTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 1)
@@ -51,7 +51,7 @@ class AutoSettingsService(
 
 
         val httpTemplateRequest = PutIndexTemplateRequest("httplogs-template")
-        httpTemplateRequest.patterns(listOf("http_logs_*", "development-default*"))
+        httpTemplateRequest.patterns(listOf("http_logs_*"))
 
         httpTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 2)
