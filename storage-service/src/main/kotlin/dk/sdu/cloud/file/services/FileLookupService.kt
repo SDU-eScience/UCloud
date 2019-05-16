@@ -200,7 +200,7 @@ class FileLookupService<Ctx : FSUserContext>(
             sizeOrNull = row._size,
             aclOrNull = row._shares,
             sensitivityLevelOrNull = run {
-                if (StorageFileAttribute.sensitivityLevel in attributes) {
+                if (StorageFileAttribute.sensitivityLevel in attributes || StorageFileAttribute.ownSensitivityLevel in attributes) {
                     if (row.isLink) lookupInheritedSensitivity(ctx, row.path, cache)
                     else row.sensitivityLevel ?: lookupInheritedSensitivity(ctx, row.path.parent(), cache)
                 } else {
