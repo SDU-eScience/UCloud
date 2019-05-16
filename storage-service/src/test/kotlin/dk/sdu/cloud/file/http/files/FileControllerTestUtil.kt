@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
+import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.http.ActionController
@@ -233,12 +234,28 @@ fun TestApplicationEngine.deleteFavorite(
 fun TestApplicationEngine.listDir(
     path: String,
     user: String = "user1",
-    role: Role = Role.USER
+    role: Role = Role.USER,
+    attributes: Set<StorageFileAttribute>? = null,
+    sortBy: FileSortBy? = null
 ): TestApplicationResponse {
     return call(
         HttpMethod.Get,
         "/api/files",
-        params = mapOf("path" to path),
+        params = run {
+            val attribMap = if (attributes != null) {
+                mapOf("attributes" to attributes.joinToString(",") { it.name })
+            } else {
+                emptyMap()
+            }
+
+            val sortByMap = if (sortBy != null) {
+                mapOf("sortBy" to sortBy.name)
+            } else {
+                emptyMap()
+            }
+
+            mapOf("path" to path) + attribMap + sortByMap
+        },
         user = user,
         role = role
     )

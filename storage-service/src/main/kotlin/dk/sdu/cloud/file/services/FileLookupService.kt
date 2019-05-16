@@ -64,7 +64,7 @@ class FileLookupService<Ctx : FSUserContext>(
             ctx, path,
             nativeAttributes
         ).mapNotNull {
-            readStorageFile(ctx, it, cache, attributes)
+            readStorageFile(ctx, it, cache, nativeAttributes.toList())
         }
 
         return allResults.let { results ->
@@ -134,7 +134,7 @@ class FileLookupService<Ctx : FSUserContext>(
                 FileSortBy.MODIFIED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.SIZE -> listOf(FileAttribute.SIZE)
                 FileSortBy.ACL -> listOf(FileAttribute.SHARES)
-                FileSortBy.SENSITIVITY -> listOf(FileAttribute.SENSITIVITY)
+                FileSortBy.SENSITIVITY -> listOf(FileAttribute.SENSITIVITY, FileAttribute.PATH)
                 null -> emptyList()
             }
         )
@@ -183,13 +183,13 @@ class FileLookupService<Ctx : FSUserContext>(
         ctx: Ctx,
         row: FileRow,
         cache: MutableMap<String, SensitivityLevel>,
-        attributes: List<StorageFileAttribute>
+        attributes: List<FileAttribute>
     ): StorageFile? {
         val owner = row._owner?.takeIf { it.isNotBlank() } ?: row._creator
         val creator = row._creator
 
-        if (StorageFileAttribute.ownerName in attributes && owner == null) return null
-        if (StorageFileAttribute.creator in attributes && creator == null) return null
+        if (FileAttribute.OWNER in attributes && owner == null) return null
+        if (FileAttribute.CREATOR in attributes && creator == null) return null
 
         return StorageFileImpl(
             fileTypeOrNull = row._fileType,
@@ -200,7 +200,7 @@ class FileLookupService<Ctx : FSUserContext>(
             sizeOrNull = row._size,
             aclOrNull = row._shares,
             sensitivityLevelOrNull = run {
-                if (StorageFileAttribute.sensitivityLevel in attributes || StorageFileAttribute.ownSensitivityLevel in attributes) {
+                if (FileAttribute.SENSITIVITY in attributes) {
                     if (row.isLink) lookupInheritedSensitivity(ctx, row.path, cache)
                     else row.sensitivityLevel ?: lookupInheritedSensitivity(ctx, row.path.parent(), cache)
                 } else {
@@ -237,11 +237,12 @@ class FileLookupService<Ctx : FSUserContext>(
         path: String,
         attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList()
     ): StorageFile {
+        val mode = translateToNativeAttributes(attributes)
         return readStorageFile(
             ctx,
-            coreFs.stat(ctx, path, translateToNativeAttributes(attributes)),
+            coreFs.stat(ctx, path, mode),
             HashMap(),
-            attributes
+            mode.toList()
         ) ?: throw FSException.NotFound()
     }
 
