@@ -123,13 +123,13 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
                         <form onSubmit={e => e.preventDefault()}>
                             <Login enabled2fa={!!challengeId} usernameRef={usernameInput} passwordRef={passwordInput} />
                             <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                            <Button fullWidth onClick={() => challengeId ? submit2FA() : attemptLogin()}>
+                            <Button fullWidth disabled={loading} onClick={() => challengeId ? submit2FA() : attemptLogin()}>
                                 {challengeId ? "Submit" : "Login"}
                             </Button>
                         </form>
                         <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
                         {enabledWayf && !challengeId ? <a href={`/auth/saml/login?service=${wayfService}`}>
-                            <Button fullWidth color="wayfGreen">Login with WAYF</Button>
+                            <Button disabled={loading} fullWidth color="wayfGreen">Login with WAYF</Button>
                         </a> : null}
                     </Card>
                     <Card borderRadius="0.5em" mt="0.3em" height="auto" p="1em 1em 1em 1em" bg="white">
