@@ -39,5 +39,8 @@
         <Logger name="io.mockk.impl" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="io.lettuce" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

@@ -147,6 +147,8 @@ class RedisStreamService(
 
 
     override fun <V : Any> createProducer(stream: EventStream<V>): EventProducer<V> {
+        RedisScope.start() // Start if we haven't already
+
         runBlocking {
             initializeStream(connManager.getConnection(), stream)
         }

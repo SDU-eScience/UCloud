@@ -371,7 +371,7 @@ class LinuxFS(
             try {
                 val stat = stat(ctx, path.toFile(), STORAGE_EVENT_MODE, cache)
                 Files.delete(path)
-                stat.toDeletedEvent(true)
+                deletedRows.add(stat.toDeletedEvent(true))
             } catch (ex: NoSuchFileException) {
                 log.debug("File at $path does not exists any more. Ignoring this error.")
             }

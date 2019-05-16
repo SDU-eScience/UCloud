@@ -36,5 +36,8 @@
         <Logger name="dk.sdu.cloud.calls.client.OutgoingHttpRequestInterceptor" level="debug" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="io.lettuce" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>
