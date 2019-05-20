@@ -1,6 +1,6 @@
 package dk.sdu.cloud.zenodo.api
 
-import dk.sdu.cloud.kafka.KafkaDescriptions
+import dk.sdu.cloud.events.EventStreamContainer
 
 data class ZenodoPublishCommand(
     val jwt: String,
@@ -9,6 +9,6 @@ data class ZenodoPublishCommand(
     val request: ZenodoPublishRequest
 )
 
-object ZenodoCommandStreams : KafkaDescriptions() {
-    val publishCommands = stream<String, ZenodoPublishCommand>("zenodoPublish") { it.uuid }
+object ZenodoCommandStreams : EventStreamContainer() {
+    val publishCommands = stream<ZenodoPublishCommand>("zenodoPublish", { it.uuid })
 }
