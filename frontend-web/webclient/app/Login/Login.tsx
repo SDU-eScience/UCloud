@@ -145,11 +145,11 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
     
 }
 
-const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
+const TwoFactor = ({ enabled2fa, inputRef }: { enabled2fa: string, inputRef: React.RefObject<HTMLInputElement> }) => enabled2fa ? (
     <Input ref={inputRef} autoComplete="off" autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
 ) : null;
 
-const Login = ({ enabled2fa, usernameRef, passwordRef }) => !enabled2fa ? (
+const Login = ({ enabled2fa, usernameRef, passwordRef }: { enabled2fa: boolean, usernameRef: React.RefObject<HTMLInputElement>, passwordRef: React.RefObject<HTMLInputElement> }) => !enabled2fa ? (
     <>
         <Input type="hidden" value="web-csrf" name="service" />
         <Input ref={usernameRef} autoFocus mb="0.5em" type="text" name="username" id="username" placeholder="Username" />

@@ -99,11 +99,12 @@ const defaultProps = {
   zIndex: 9999
 }
 
-const Tooltip = ({ children, ...props }) => {
+/* FIXME: Typesafety */
+const Tooltip = ({ children, zIndex, ...props }: any) => {
   return (
     <VisibleOnHover>
       <Flex>{props.trigger}</Flex>
-      <Relative zIndex={props.zIndex}>
+      <Relative zIndex={zIndex}>
         <TooltipContent p={2} mb={3} mt={2} {...props}>
           {children}
         </TooltipContent>

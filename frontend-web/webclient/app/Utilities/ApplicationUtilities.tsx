@@ -23,7 +23,7 @@ export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 interface HPCApplicationsSearchQuery { query: string, page: number, itemsPerPage: number }
-export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }): string =>
+export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
     `/hpc/apps/search?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>

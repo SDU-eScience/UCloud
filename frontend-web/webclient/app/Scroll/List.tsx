@@ -43,12 +43,12 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         return this.props.scrollSize || 50;
     }
 
-    constructor(props) {
+    constructor(props: ListProps<Item, OffsetType>) {
         super(props);
         this.state = {};
     }
 
-     public shouldComponentUpdate(nextProps, nextState) {
+     public shouldComponentUpdate(nextProps: ListProps<Item, OffsetType>, nextState: ListState) {
         const result = this.state !== nextState || this.props !== nextProps;
         return result;
     }

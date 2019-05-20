@@ -6,6 +6,7 @@ import Icon, { IconName } from "./Icon"
 import * as Heading from "./Heading"
 import { TextAlign } from "./Types";
 import { BoxProps } from "./Box";
+import { ThemeColor } from "./theme";
 
 const bannerColors = {
   green: {
