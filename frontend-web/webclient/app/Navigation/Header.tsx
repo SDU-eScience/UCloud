@@ -124,7 +124,7 @@ const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems={"center"} ml="18px">
             {/* <AppLogoRaw color1Offset={2} color2Offset={2} appC={8} rot={0} size={"32px"} /> */}
-            <Icon name={"logoCloud"} size={"42px"} />
+            <Icon name={"logoCloud"} size={"48px"} />
             <Text color="headerText" fontSize={3} ml={"8px"}>SDUCloud</Text>
         </Flex>
     </Link>
