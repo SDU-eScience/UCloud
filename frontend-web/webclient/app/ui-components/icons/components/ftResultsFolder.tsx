@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgFtResultsFolder = props => (
+const SvgFtResultsFolder = (props: any) => (
   <svg
     viewBox="0 0 24 22"
     fillRule="evenodd"

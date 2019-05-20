@@ -25,12 +25,8 @@ export const TableCell = styled.td<TextAlignProps>`
 
 const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.tableRowHighlight } : null;
 
-const contentAlign = props => props.aligned ? { verticalAlign: props.aligned } : null;
-
-
 export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string, cursor?: Cursor }>`
     ${highlighted};
-    ${contentAlign};
     cursor: ${props => props.cursor};
 
     & > ${TableCell} {
