@@ -24,10 +24,15 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.UpdateAclRequest
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupRequest
 import dk.sdu.cloud.notification.api.CreateNotification
@@ -71,7 +76,7 @@ class ShareService<DBSession>(
             log.debug("Verifying file exists")
             val statJob = async {
                 FileDescriptions.stat
-                    .call(FindByPath(share.path), userCloud)
+                    .call(StatRequest(share.path), userCloud)
                     .orNull()
             }
 
@@ -368,7 +373,7 @@ class ShareService<DBSession>(
                     val recipientCloud = existingShare.recipientToken?.let { userCloudFactory(it) }
                         ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
 
-                    val stat = FileDescriptions.stat.call(FindByPath(linkPath), recipientCloud).throwIfInternal()
+                    val stat = FileDescriptions.stat.call(StatRequest(linkPath), recipientCloud).throwIfInternal()
                     if (stat.orNull()?.link == true) {
                         log.debug("Found link!")
                         val deleteLinkCall =
@@ -422,14 +427,14 @@ class ShareService<DBSession>(
         log.debug("Share deleted $existingShare")
     }
 
-    suspend fun handleFilesDeletedOrInvalidated(events: List<StorageEvent>) {
+    suspend fun handleFilesDeletedOrInvalidated(events: List<StorageEvent.Deleted>) {
         if (events.isEmpty()) return
         log.debug("Handling deleted or invalidated events $events")
 
         lateinit var deletedShares: List<InternalShare>
         db.withTransaction { session ->
             deletedShares =
-                shareDao.findAllByFileIds(session, events.map { it.id }, includeShares = true, includeLinks = false)
+                shareDao.findAllByFileIds(session, events.map { it.file.fileId }, includeShares = true, includeLinks = false)
         }
 
         coroutineScope {
@@ -466,7 +471,7 @@ class ShareService<DBSession>(
                     if (path != null) {
                         log.debug("Share path is $path")
                         val stat = FileDescriptions.stat.call(
-                            FindByPath(path),
+                            StatRequest(path),
                             recipientCloud
                         ).throwIfInternal()
 

@@ -2,7 +2,9 @@ package dk.sdu.cloud.share.services
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.asEnumSet
 import dk.sdu.cloud.service.asInt
@@ -260,13 +262,13 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
     }
 
     override fun onFilesMoved(session: HibernateSession, events: List<StorageEvent.Moved>): List<InternalShare> {
-        val shares = internalFindAllByFileId(session, events.map { it.id })
+        val shares = internalFindAllByFileId(session, events.map { it.file.fileId })
         if (shares.isNotEmpty()) {
-            val eventsByFileId = events.associateBy { it.id }
+            val eventsByFileId = events.associateBy { it.file.fileId }
             shares.forEach { share ->
                 val event = eventsByFileId[share.fileId] ?: return@forEach
-                share.path = event.path
-                share.filename = event.path.fileName()
+                share.path = event.file.path
+                share.filename = event.file.path.fileName()
                 session.save(share)
             }
         }

@@ -8,18 +8,18 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileImpl
 
 internal val storageFile: StorageFileImpl = StorageFileImpl(
-    fileType = FileType.FILE,
-    path = "path",
-    createdAt = 10000,
-    modifiedAt = 20000,
-    ownerName = "Owner",
-    size = 1234,
-    acl = listOf(AccessEntry("entity", true, setOf(AccessRight.EXECUTE))),
-    sensitivityLevel = SensitivityLevel.PRIVATE,
-    link = false,
-    annotations = setOf("P"),
-    fileId = "ID",
-    creator = "Owner",
-    ownSensitivityLevel = SensitivityLevel.PRIVATE
+    fileTypeOrNull = FileType.FILE,
+    pathOrNull = "path",
+    createdAtOrNull = 10000,
+    modifiedAtOrNull = 20000,
+    ownerNameOrNull = "Owner",
+    sizeOrNull = 1234,
+    aclOrNull = listOf(AccessEntry("entity", true, setOf(AccessRight.EXECUTE))),
+    sensitivityLevelOrNull = SensitivityLevel.PRIVATE,
+    linkOrNull = false,
+    annotationsOrNull = setOf("P"),
+    fileIdOrNull = "ID",
+    creatorOrNull = "Owner",
+    ownSensitivityLevelOrNull = SensitivityLevel.PRIVATE
 )
 

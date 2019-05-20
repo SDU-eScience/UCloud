@@ -14,12 +14,11 @@ import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent
+import dk.sdu.cloud.file.util.toMovedEvent
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.util.UUID
-import kotlin.collections.ArrayList
 import kotlin.collections.component1
 import kotlin.collections.component2
 
@@ -126,10 +125,7 @@ class IndexingService<Ctx : FSUserContext>(
             fs.listDirectory(ctx, directoryPath, STORAGE_EVENT_MODE)
         } catch (ex: FSException.NotFound) {
             val invalidatedEvent = StorageEvent.Invalidated(
-                id = "invalid-id-" + UUID.randomUUID().toString(),
                 path = directoryPath,
-                owner = SERVICE_USER,
-                creator = SERVICE_USER,
                 timestamp = System.currentTimeMillis()
             )
 
@@ -153,10 +149,7 @@ class IndexingService<Ctx : FSUserContext>(
         log.debug("The following files were deleted: ${deletedFiles.values.map { it.path }}")
         eventCollector.addAll(deletedFiles.map {
             StorageEvent.Invalidated(
-                id = it.value.fileId,
                 path = it.value.path,
-                creator = it.value.ownerName,
-                owner = it.value.ownerName,
                 timestamp = System.currentTimeMillis()
             )
         })
@@ -193,14 +186,7 @@ class IndexingService<Ctx : FSUserContext>(
                 if (referenceFile.path != realFile.path) {
                     log.debug("Path difference for ${realFile.path}")
                     events.add(
-                        StorageEvent.Moved(
-                            id = realFile.inode,
-                            path = realFile.path,
-                            owner = realFile.owner,
-                            creator = realFile.creator,
-                            timestamp = realFile.timestamps.modified,
-                            oldPath = referenceFile.path
-                        )
+                        realFile.toMovedEvent(referenceFile.path)
                     )
 
                     if (realFile.fileType == FileType.DIRECTORY) {
@@ -211,10 +197,7 @@ class IndexingService<Ctx : FSUserContext>(
                         // out of sync.
                         events.add(
                             StorageEvent.Invalidated(
-                                id = realFile.inode,
                                 path = referenceFile.path,
-                                owner = realFile.owner,
-                                creator = realFile.creator,
                                 timestamp = realFile.timestamps.modified
                             )
                         )

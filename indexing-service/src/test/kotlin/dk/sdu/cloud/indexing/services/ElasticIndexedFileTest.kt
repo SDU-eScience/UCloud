@@ -1,16 +1,21 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.ownSensitivityLevel
+import dk.sdu.cloud.file.api.ownerName
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.size
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ElasticIndexedFileTest {
-
     @Test
     fun `Simple create ElasticIndexedFile test`() {
         val elasticfile = ElasticIndexedFile(
@@ -22,10 +27,8 @@ class ElasticIndexedFileTest {
             FileType.FILE,
             123456,
             Timestamps(123456789, 12345, 1234567),
-            FileChecksum("sha", "checksum"),
             false,
-            SensitivityLevel.CONFIDENTIAL,
-            setOf("P")
+            SensitivityLevel.CONFIDENTIAL
         )
 
         val materializedElasticFile = elasticfile.toMaterializedFile()
@@ -36,7 +39,6 @@ class ElasticIndexedFileTest {
         assertEquals(FileType.FILE, materializedElasticFile.fileType)
         assertEquals(123456, materializedElasticFile.size)
         assertFalse(materializedElasticFile.link)
-        assertEquals("P", materializedElasticFile.annotations.first())
         assertEquals(SensitivityLevel.CONFIDENTIAL, materializedElasticFile.ownSensitivityLevel)
 
         assertEquals("id", ElasticIndexedFile.ID_FIELD)
@@ -52,16 +54,11 @@ class ElasticIndexedFileTest {
         assertEquals("fileTimestamps.created", ElasticIndexedFile.TIMESTAMP_CREATED_FIELD)
         assertEquals("fileTimestamps.modified", ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
         assertEquals("fileTimestamps.accessed", ElasticIndexedFile.TIMESTAMP_ACCESSED_FIELD)
-        assertEquals("checksum", ElasticIndexedFile.CHECKSUM_FIELD)
         assertEquals("fileIsLink", ElasticIndexedFile.FILE_IS_LINK_FIELD)
         assertEquals("sensitivity", ElasticIndexedFile.SENSITIVITY_FIELD)
-        assertEquals("annotations", ElasticIndexedFile.ANNOTATIONS_FIELD)
 
         elasticfile.hashCode()
         elasticfile.toString()
         assertTrue(elasticfile.equals(elasticfile))
-        assertFalse(elasticfile.equals(elasticfile.copy(annotations = setOf("anno"))))
-
     }
-
 }

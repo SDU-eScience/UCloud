@@ -1,7 +1,6 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.parents
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.unwrap
 
@@ -15,8 +14,10 @@ class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterfac
     ) {
         // Add to both the default and the actual list. This needs to be recursively applied
         // We need to apply this process to both the creator and the entity.
-        fs.createACLEntry(ctx, path, FSACLEntity.User(ctx.user), rights, defaultList = true, recursive = recursive).setfaclUnwrap()
-        fs.createACLEntry(ctx, path, FSACLEntity.User(ctx.user), rights, defaultList = false, recursive = recursive).setfaclUnwrap()
+        fs.createACLEntry(ctx, path, FSACLEntity.User(ctx.user), rights, defaultList = true, recursive = recursive)
+            .setfaclUnwrap()
+        fs.createACLEntry(ctx, path, FSACLEntity.User(ctx.user), rights, defaultList = false, recursive = recursive)
+            .setfaclUnwrap()
 
         fs.createACLEntry(ctx, path, entity, rights, defaultList = true, recursive = recursive).setfaclUnwrap()
         fs.createACLEntry(ctx, path, entity, rights, defaultList = false, recursive = recursive).setfaclUnwrap()

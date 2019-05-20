@@ -11,6 +11,9 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.indexing.util.depth
 import dk.sdu.cloud.indexing.util.lazyAssert
 import dk.sdu.cloud.indexing.util.parent

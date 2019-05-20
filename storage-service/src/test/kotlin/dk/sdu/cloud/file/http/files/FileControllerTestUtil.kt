@@ -7,13 +7,22 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
+import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.FileSecurityController
 import dk.sdu.cloud.file.http.LookupController
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.StorageEventProducer
+import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
@@ -30,7 +39,11 @@ import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.simpleStorageUserDao
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.server.testing.*
+import io.ktor.server.testing.TestApplicationEngine
+import io.ktor.server.testing.TestApplicationRequest
+import io.ktor.server.testing.TestApplicationResponse
+import io.ktor.server.testing.handleRequest
+import io.ktor.server.testing.setBody
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.io.File
@@ -221,12 +234,28 @@ fun TestApplicationEngine.deleteFavorite(
 fun TestApplicationEngine.listDir(
     path: String,
     user: String = "user1",
-    role: Role = Role.USER
+    role: Role = Role.USER,
+    attributes: Set<StorageFileAttribute>? = null,
+    sortBy: FileSortBy? = null
 ): TestApplicationResponse {
     return call(
         HttpMethod.Get,
         "/api/files",
-        params = mapOf("path" to path),
+        params = run {
+            val attribMap = if (attributes != null) {
+                mapOf("attributes" to attributes.joinToString(",") { it.name })
+            } else {
+                emptyMap()
+            }
+
+            val sortByMap = if (sortBy != null) {
+                mapOf("sortBy" to sortBy.name)
+            } else {
+                emptyMap()
+            }
+
+            mapOf("path" to path) + attribMap + sortByMap
+        },
         user = user,
         role = role
     )

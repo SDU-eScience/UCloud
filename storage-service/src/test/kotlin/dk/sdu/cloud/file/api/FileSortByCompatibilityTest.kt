@@ -2,7 +2,8 @@ package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class FileSortByCompatibilityTest {
     private val oldValues = mapOf(
@@ -27,16 +28,16 @@ class FileSortByCompatibilityTest {
 
     @Test
     fun `test that old values of FileSortBy are accepted`() {
-         oldValues.forEach { (text, expectedValue) ->
-             assertEquals(expectedValue, defaultMapper.readValue("\"$text\""))
-         }
+        oldValues.forEach { (text, expectedValue) ->
+            assertEquals(expectedValue, defaultMapper.readValue("\"$text\""))
+        }
     }
 
     @Test
     fun `test that new values of FileSortBy are accepted`() {
-         newValues.forEach { (text, expectedValue) ->
-             assertEquals(expectedValue, defaultMapper.readValue("\"$text\""))
-         }
+        newValues.forEach { (text, expectedValue) ->
+            assertEquals(expectedValue, defaultMapper.readValue("\"$text\""))
+        }
     }
 
     @Test

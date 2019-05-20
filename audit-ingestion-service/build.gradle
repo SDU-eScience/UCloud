@@ -1,0 +1,25 @@
+group 'dk.sdu.cloud'
+version '0.1.2'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.audit.ingestion.MainKt"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
+
+buildscript {
+    ext.serviceCommonVersion = "1.4.0"
+    ext.authApiVersion = "1.21.0"
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:auth-api:$authApiVersion"
+    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
+    compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
+}
+
+sduCloud.createTasksForApiJar("audit.ingestion", [])
