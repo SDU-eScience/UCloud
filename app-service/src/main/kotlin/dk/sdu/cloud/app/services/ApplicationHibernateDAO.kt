@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.api.ApplicationMetadata
 import dk.sdu.cloud.app.api.ApplicationSummary
 import dk.sdu.cloud.app.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.api.ApplicationWithFavorite
+import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -27,6 +28,7 @@ import java.util.*
 class ApplicationHibernateDAO(
     private val toolDAO: ToolHibernateDAO
 ) : ApplicationDAO<HibernateSession> {
+    private val byNameAndVersionCache = Collections.synchronizedMap(HashMap<NameAndVersion, Pair<Application, Long>>())
 
     override fun toggleFavorite(
         session: HibernateSession,
@@ -247,8 +249,15 @@ class ApplicationHibernateDAO(
         name: String,
         version: String
     ): Application {
-        return internalByNameAndVersion(session, name, version)
+        val cacheKey = NameAndVersion(name, version)
+        val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
+        if (cached != null && expiry > System.currentTimeMillis()) return cached
+
+        val result = internalByNameAndVersion(session, name, version)
             ?.toModelWithInvocation() ?: throw ApplicationException.NotFound()
+
+        byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
+        return result
     }
 
     override fun findByNameAndVersionForUser(
@@ -356,6 +365,9 @@ class ApplicationHibernateDAO(
 
         if (newDescription != null) existing.description = newDescription
         if (newAuthors != null) existing.authors = newAuthors
+
+        // We allow for this to be cached for some time. But this instance might as well clear the cache now.
+        byNameAndVersionCache.remove(NameAndVersion(name, version))
 
         session.update(existing)
     }

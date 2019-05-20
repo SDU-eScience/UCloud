@@ -1,15 +1,47 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.ParsedApplicationParameter
+import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.ToolReference
+import dk.sdu.cloud.app.api.ValidatedFileForUpload
+import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.api.VerifiedJobInput
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.JSONB_LIST_PARAM_TYPE
+import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.WithTimestamps
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.updateCriteria
+import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.validateAndDecodeOrNull
 import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
 import org.slf4j.Logger
 import java.util.*
-import javax.persistence.*
+import javax.persistence.AttributeOverride
+import javax.persistence.AttributeOverrides
+import javax.persistence.Column
+import javax.persistence.Embedded
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.Id
+import javax.persistence.Table
 
 @Entity
 @Table(name = "job_information")
@@ -175,23 +207,9 @@ class JobHibernateDao(
         systemId: String,
         owner: String?
     ): VerifiedJobWithAccessToken? {
-        val result = JobInformationEntity[session, systemId]
+        return JobInformationEntity[session, systemId]
             ?.takeIf { owner == null || it.owner == owner }
-            ?.toModel(session) ?: return null
-
-        val toolReference = result.job.application.invocation.tool
-        val tool =
-            toolDao.findByNameAndVersion(session, owner, toolReference.name, toolReference.version)
-
-        return result.copy(
-            job = result.job.copy(
-                application = result.job.application.copy(
-                    invocation = result.job.application.invocation.copy(
-                        tool = ToolReference(toolReference.name, toolReference.version, tool)
-                    )
-                )
-            )
-        )
+            ?.toModel(session, resolveTool = true)
     }
 
     override suspend fun findJobsCreatedBefore(
@@ -209,7 +227,7 @@ class JobHibernateDao(
 
             while (scroller.next()) {
                 val next = scroller.get(0) as JobInformationEntity
-                yield(next.toModel(session))
+                yield(next.toModel(session, resolveTool = true))
             }
         }
     }
@@ -228,8 +246,11 @@ class JobHibernateDao(
         ).mapItems { it.toModel(session) } // TODO This will do a query for every single result!
     }
 
-    private fun JobInformationEntity.toModel(session: HibernateSession): VerifiedJobWithAccessToken =
-        VerifiedJobWithAccessToken(
+    private fun JobInformationEntity.toModel(
+        session: HibernateSession,
+        resolveTool: Boolean = false
+    ): VerifiedJobWithAccessToken {
+        val withoutTool = VerifiedJobWithAccessToken(
             VerifiedJob(
                 appDao.findByNameAndVersion(session, owner, application.name, application.version),
                 files,
@@ -253,6 +274,23 @@ class JobHibernateDao(
             ),
             accessToken
         )
+
+        if (!resolveTool) return withoutTool
+
+        val toolReference = withoutTool.job.application.invocation.tool
+        val tool =
+            toolDao.findByNameAndVersion(session, owner, toolReference.name, toolReference.version)
+
+        return withoutTool.copy(
+            job = withoutTool.job.copy(
+                application = withoutTool.job.application.copy(
+                    invocation = withoutTool.job.application.invocation.copy(
+                        tool = ToolReference(toolReference.name, toolReference.version, tool)
+                    )
+                )
+            )
+        )
+    }
 
     private fun NameAndVersion.toEmbedded(): EmbeddedNameAndVersion = EmbeddedNameAndVersion(name, version)
 
