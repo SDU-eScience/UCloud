@@ -11,6 +11,7 @@ import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent

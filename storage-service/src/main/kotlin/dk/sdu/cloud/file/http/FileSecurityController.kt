@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.http
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
@@ -12,7 +13,6 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
@@ -20,7 +20,6 @@ import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 
 class FileSecurityController<Ctx : FSUserContext>(
@@ -51,39 +50,12 @@ class FileSecurityController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.updateAcl) {
-            val fileIdsUpdated = ArrayList<String>()
-            audit(BulkFileAudit(fileIdsUpdated, request))
+            // We cannot supply a list of file IDs since this call is async
+            audit(BulkFileAudit(emptyList(), request))
             requirePermissionToChangeFilePermissions()
+            val (_, owner) = checkPermissionsAndReturnOwners(request.path)
 
-            runCodeAsUnixOwner(request.path) { ctx ->
-                request.changes.forEach { change ->
-                    val entity =
-                        if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
-
-                    if (change.revoke) {
-                        log.debug("revoking")
-                        aclService.revokeRights(ctx, request.path, entity, request.recurse)
-                    } else {
-                        log.debug("granting")
-                        aclService.grantRights(ctx, request.path, entity, change.rights, request.recurse)
-                    }
-                }
-
-                try {
-                    if (request.recurse) {
-                        coreFs.tree(ctx, request.path, setOf(FileAttribute.INODE)).forEach {
-                            fileIdsUpdated.add(it.inode)
-                        }
-                    } else {
-                        val fileId = coreFs.stat(ctx, request.path, setOf(FileAttribute.INODE)).inode
-                        fileIdsUpdated.add(fileId)
-                    }
-                } catch (ex: Exception) {
-                    log.info(ex.stackTraceToString())
-                }
-
-                ok(Unit)
-            }
+            ok(FindByStringId(aclService.updateAcl(request, owner)))
         }
 
         implement(FileDescriptions.reclassify) {
@@ -116,7 +88,9 @@ class FileSecurityController<Ctx : FSUserContext>(
         }
     }
 
-    private suspend fun CallHandler<*, *, *>.runCodeAsUnixOwner(path: String, handler: suspend (Ctx) -> Unit) {
+    private data class CreatorAndOwner(val creator: String, val owner: String)
+
+    private suspend fun CallHandler<*, *, *>.checkPermissionsAndReturnOwners(path: String): CreatorAndOwner {
         log.debug("We need to run request at '$path' as real creator")
         lateinit var stat: FileRow
         commandRunnerFactory.withCtx(this, SERVICE_USER) { ctx ->
@@ -131,6 +105,11 @@ class FileSecurityController<Ctx : FSUserContext>(
 
         if (realOwner != user) throw FSException.PermissionException()
 
+        return CreatorAndOwner(creator, realOwner)
+    }
+
+    private suspend fun CallHandler<*, *, *>.runCodeAsUnixOwner(path: String, handler: suspend (Ctx) -> Unit) {
+        val (creator, _) = checkPermissionsAndReturnOwners(path)
         commandRunnerFactory.withCtx(this, creator) { ctx -> handler(ctx) }
     }
 

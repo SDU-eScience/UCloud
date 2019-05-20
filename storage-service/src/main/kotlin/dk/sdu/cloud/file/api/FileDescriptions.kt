@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.RPCException
@@ -38,7 +39,8 @@ data class CreateLinkRequest(
 data class UpdateAclRequest(
     val path: String,
     val recurse: Boolean,
-    val changes: List<ACLEntryRequest>
+    val changes: List<ACLEntryRequest>,
+    val automaticRollback: Boolean? = null
 ) {
     init {
         if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
@@ -572,7 +574,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
+    val updateAcl = call<UpdateAclRequest, FindByStringId, CommonErrorMessage>("updateAcl") {
         audit<BulkFileAudit<UpdateAclRequest>>()
 
         auth {

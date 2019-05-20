@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import kotlinx.coroutines.launch
 
 class StorageEventProducer(

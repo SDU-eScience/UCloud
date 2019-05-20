@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.install
@@ -18,6 +19,7 @@ fun main(args: Array<String>) {
     val micro = Micro().apply {
         init(StorageServiceDescription, args)
         installDefaultFeatures()
+        install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
     }
 

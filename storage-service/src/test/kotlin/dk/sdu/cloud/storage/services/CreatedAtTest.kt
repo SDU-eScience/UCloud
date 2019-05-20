@@ -4,7 +4,7 @@ import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.modifiedAt
-import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface

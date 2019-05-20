@@ -3,7 +3,7 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface

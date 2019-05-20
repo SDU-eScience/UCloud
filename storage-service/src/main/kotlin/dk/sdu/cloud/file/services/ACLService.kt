@@ -1,29 +1,50 @@
 package dk.sdu.cloud.file.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.UpdateAclRequest
+import dk.sdu.cloud.file.services.background.BackgroundExecutor
+import dk.sdu.cloud.file.services.background.BackgroundResponse
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.unwrap
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.http.HttpStatusCode
 
-class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterface<Ctx>) {
-    suspend fun grantRights(
+private data class UpdateRequestWithRealOwner(val request: UpdateAclRequest, val realOwner: String)
+
+class ACLService<Ctx : FSUserContext>(
+    private val fsCommandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: LowLevelFileSystemInterface<Ctx>,
+    private val backgroundExecutor: BackgroundExecutor<*>
+) {
+    private suspend fun grantRights(
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,
         rights: Set<AccessRight>,
-        recursive: Boolean = true
+        recursive: Boolean = true,
+        realOwner: String
     ) {
+        // TODO Verify that the change here was correct (we no longer add creator but rather real owner)
+
         // Add to both the default and the actual list. This needs to be recursively applied
         // We need to apply this process to both the creator and the entity.
-        fs.createACLEntry(ctx, path, FSACLEntity.User(ctx.user), rights, defaultList = true, recursive = recursive)
+        fs.createACLEntry(ctx, path, FSACLEntity.User(realOwner), rights, defaultList = true, recursive = recursive)
             .setfaclUnwrap()
-        fs.createACLEntry(ctx, path, FSACLEntity.User(ctx.user), rights, defaultList = false, recursive = recursive)
+        fs.createACLEntry(ctx, path, FSACLEntity.User(realOwner), rights, defaultList = false, recursive = recursive)
             .setfaclUnwrap()
 
         fs.createACLEntry(ctx, path, entity, rights, defaultList = true, recursive = recursive).setfaclUnwrap()
         fs.createACLEntry(ctx, path, entity, rights, defaultList = false, recursive = recursive).setfaclUnwrap()
     }
 
-    suspend fun revokeRights(
+    private suspend fun revokeRights(
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,
@@ -39,5 +60,86 @@ class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterfac
         }
 
         return unwrap()
+    }
+
+    fun registerWorkers() {
+        backgroundExecutor.addWorker(REQUEST_TYPE) { _, message ->
+            fsCommandRunnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
+                val initiatedChanges = ArrayList<ACLEntryRequest>()
+                var parsedRequest: UpdateRequestWithRealOwner? = null
+
+                try {
+                    val parsed = defaultMapper.readValue<UpdateRequestWithRealOwner>(message)
+                    parsedRequest = parsed
+                    val (request, realOwner) = parsed
+
+                    request.changes.forEach { change ->
+                        // We roll all changes back which have been initiated.
+                        // It is safe to perform reverts for the actions that may not have been performed yet.
+                        initiatedChanges.add(change)
+
+                        val entity =
+                            if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
+
+                        if (change.revoke) {
+                            revokeRights(ctx, request.path, entity, request.recurse)
+                        } else {
+                            grantRights(ctx, request.path, entity, change.rights, request.recurse, realOwner)
+                        }
+                    }
+
+                    BackgroundResponse(HttpStatusCode.OK, Unit)
+                } catch (ex: Exception) {
+                    log.info("Caught exception while updating ACL!")
+                    log.info(ex.stackTraceToString())
+
+                    // Rollback changes that were applied
+                    if (parsedRequest != null && parsedRequest.request.automaticRollback != false) {
+                        val negatedChanges = initiatedChanges.map { change ->
+                            change.copy(revoke = !change.revoke)
+                        }
+
+                        if (negatedChanges.isNotEmpty()) {
+                            log.debug("Rolling changes back!")
+                            updateAcl(
+                                UpdateAclRequest(
+                                    parsedRequest.request.path,
+                                    parsedRequest.request.recurse,
+                                    negatedChanges,
+                                    automaticRollback = false
+                                ),
+                                parsedRequest.realOwner
+                            )
+                        }
+                    }
+
+                    if (parsedRequest != null && parsedRequest.request.automaticRollback == false) {
+                        log.warn("Unable to rollback changes for $parsedRequest")
+                        log.warn("The FS ACL will be out of sync!")
+                    }
+
+                    if (ex is RPCException) {
+                        BackgroundResponse(ex.httpStatusCode, CommonErrorMessage(ex.why))
+                    } else {
+                        BackgroundResponse(HttpStatusCode.InternalServerError, CommonErrorMessage("Internal error"))
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun updateAcl(request: UpdateAclRequest, realOwner: String): String {
+        return backgroundExecutor.addJobToQueue(REQUEST_TYPE, UpdateRequestWithRealOwner(request, realOwner))
+    }
+
+    fun queryStatus(id: String): HttpStatusCode? {
+        val job = backgroundExecutor.queryStatus(id)
+        if (job.request.requestType != REQUEST_TYPE) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        return job.response?.responseCode?.let { HttpStatusCode.fromValue(it) }
+    }
+
+    companion object : Loggable {
+        const val REQUEST_TYPE = "updateAcl"
+        override val log = logger()
     }
 }

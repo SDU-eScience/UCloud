@@ -15,7 +15,7 @@ import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.FileSecurityController
 import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.services.ACLService
-import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
@@ -23,6 +23,7 @@ import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.WSFileSessionService
+import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
@@ -76,7 +77,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(fs, eventProducer)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
-    val aclService = ACLService(fs)
+    val aclService = ACLService(runner, fs, mockk(relaxed = true))
     val homeFolderService = mockk<HomeFolderService>()
     val callRunner = CommandRunnerFactoryForCalls(runner, WSFileSessionService(runner))
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }

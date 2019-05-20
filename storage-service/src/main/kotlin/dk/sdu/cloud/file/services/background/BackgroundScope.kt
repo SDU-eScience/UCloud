@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.services
+package dk.sdu.cloud.file.services.background
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -17,9 +17,13 @@ object BackgroundScope : CoroutineScope {
         get() = dispatcher + job
 
     fun init() {
-        executor = Executors.newCachedThreadPool()
-        dispatcher = executor.asCoroutineDispatcher()
-        job = Job()
+        synchronized(this) {
+            if (!this::job.isInitialized) {
+                executor = Executors.newCachedThreadPool()
+                dispatcher = executor.asCoroutineDispatcher()
+                job = Job()
+            }
+        }
     }
 
     fun stop() {
