@@ -1,11 +1,11 @@
 import { ReactNode } from "react";
 
-interface AlertOperations {
+interface DialogOperations {
     setVisible: (visible: boolean) => void
     setNode: (node: ReactNode) => void
 }
 
-interface AlertState {
+interface DialogState {
     node?: ReactNode
     visible: boolean
 }

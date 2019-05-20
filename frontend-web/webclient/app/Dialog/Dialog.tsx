@@ -1,21 +1,21 @@
 import * as React from "react";
 import { Dispatch } from "redux";
 import { connect } from "react-redux";
-import { AlertOperations, AlertState } from "Alerts";
-import { setVisible, setNode } from "./Redux/AlertsActions";
+import { DialogOperations, DialogState } from "Dialog";
+import { setVisible, setNode } from "./Redux/DialogActions";
 import * as ReactModal from "react-modal";
 import { ReduxObject } from "DefaultObjects";
 
-function Alert(props: AlertOperations & AlertState) {
+function Dialog(props: DialogOperations & DialogState) {
     if (!props.visible) return null;
     return <ReactModal isOpen={props.visible}>{props.node}</ReactModal>;
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): AlertOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): DialogOperations => ({
     setVisible: visible => dispatch(setVisible(visible)),
     setNode: node => dispatch(setNode(node))
 });
 
-const mapStateToProps = ({ }: ReduxObject): AlertState => ({ visible: false, node: undefined });
+const mapStateToProps = ({ }: ReduxObject): DialogState => ({ visible: false, node: undefined });
 
-export default connect(mapStateToProps, mapDispatchToProps)(Alert);
+export default connect(mapStateToProps, mapDispatchToProps)(Dialog);

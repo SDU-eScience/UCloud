@@ -1,8 +1,8 @@
-import { AlertsAction } from "./AlertsActions";
+import { DialogActions } from "./DialogActions";
 import { Reducer as ReduxReducer } from "redux";
 
-export const SET_ALERT_VISIBLE = "SET_ALERT_VISIBLE";
-export const SET_ALERT_NODE = "SET_ALERT_NODE";
+export const SET_DIALOG_VISIBLE = "SET_ALERT_VISIBLE";
+export const SET_DIALOG_NODE = "SET_ALERT_NODE";
 
 /* export interface Reducer {
     applicationView: ReduxReducer<Type>
