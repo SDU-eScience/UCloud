@@ -263,7 +263,7 @@ const SensitivityBadge = styled.div<{ bg: string }>`
     align-items: center;
     justify-content: center;
     border: 0.2em solid ${props => props.bg};
-    border-radius: 0.2em;
+    border-radius: 100%;
 `;
 
 const FileLink = ({ file, children }: { file: File, children: any }) => {
