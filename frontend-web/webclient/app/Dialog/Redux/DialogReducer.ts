@@ -1,19 +1,20 @@
 import { DialogActions } from "./DialogActions";
+import { Type, init } from "./DialogObject";
 import { Reducer as ReduxReducer } from "redux";
 
-export const SET_DIALOG_VISIBLE = "SET_ALERT_VISIBLE";
-export const SET_DIALOG_NODE = "SET_ALERT_NODE";
+export const SET_DIALOG_NODE = "SET_DIALOG_NODE";
 
-/* export interface Reducer {
-    applicationView: ReduxReducer<Type>
+export interface Reducer {
+    dialog: ReduxReducer<Type>
 }
 
-const alerts: ReduxReducer<Type> = (state, action: AlertsAction) => {
+const dialog: ReduxReducer<Type> = (state: Type = init().dialog, action: DialogActions): Type => {
     switch (action.type) {
-        case SET_ALERT_VISIBLE:
-        case SET_ALERT_NODE:
+        case SET_DIALOG_NODE:
             return { ...state, ...action.payload };
         default:
             return state;
     }
-} */
+}
+
+export default dialog;

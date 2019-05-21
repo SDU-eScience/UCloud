@@ -37,11 +37,14 @@ import { dispatchUserAction, onLogin } from "App";
 import { USER_LOGIN } from "Navigation/Redux/HeaderReducer";
 import { MainContainer } from "MainContainer/MainContainer";
 import { ErrorBoundary } from "ErrorBoundary/ErrorBoundary";
+import Dialog from "Dialog/Dialog";
+import { History } from "history";
 
 const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
 const Core = () => (
     <>
+        <Dialog />
         <Snackbars />
         <Header />
         <Uploader />
@@ -98,7 +101,7 @@ const requireAuth = Delegate => props => {
     return <Delegate {...props} />;
 }
 
-const LoginSuccess = props => {
+const LoginSuccess = (props: { history: History }) => {
     dispatchUserAction(USER_LOGIN);
     onLogin();
     props.history.push("/");

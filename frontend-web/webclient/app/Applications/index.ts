@@ -7,6 +7,7 @@ import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects
 import { ParameterValues } from "Utilities/ApplicationUtilities";
 import { AddSnackOperation } from "Snackbar/Snackbars";
 import { SetStatusLoading } from "Navigation/Redux/StatusActions";
+import { DialogOperations } from "Dialog";
 
 export interface Analysis {
     status: string
@@ -40,7 +41,7 @@ export interface AnalysesOperations {
 export interface AnalysesState {
 }
 
-export interface DetailedResultOperations extends AddSnackOperation {
+export interface DetailedResultOperations extends AddSnackOperation, DialogOperations {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void

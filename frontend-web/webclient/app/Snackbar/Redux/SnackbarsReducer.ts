@@ -5,7 +5,7 @@ import { Snack } from "Snackbar/Snackbars";
 export const ADD_SNACK = "ADD_SNACK";
 export const REMOVE_SNACK = "REMOVE_SNACK";
 
-const snackbars = (state = init().snackbar, action: SnackbarAction): Object => {
+function snackbars(state = init().snackbar, action: SnackbarAction): Object {
     switch (action.type) {
         case ADD_SNACK:
             const snack: Snack = { 

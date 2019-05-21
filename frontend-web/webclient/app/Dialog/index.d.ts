@@ -1,11 +1,7 @@
-import { ReactNode } from "react";
-
-interface DialogOperations {
-    setVisible: (visible: boolean) => void
-    setNode: (node: ReactNode) => void
+export interface DialogOperations {
+    setNode: (node?: JSX.Element) => void
 }
 
-interface DialogState {
-    node?: ReactNode
-    visible: boolean
+export interface DialogState {
+    node?: JSX.Element
 }

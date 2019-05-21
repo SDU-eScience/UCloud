@@ -1,8 +1,34 @@
 import * as React from "react";
-import { Icon, FtIcon, Absolute, Flex, Text, Label, Checkbox, Input } from "ui-components";
+import { Icon, FtIcon, Absolute, Flex, Text, Label, Checkbox, Box, Divider, Button, Grid } from "ui-components";
+import * as Heading from "ui-components/Heading";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { FtIconProps } from "UtilityFunctions";
 import styled from "styled-components";
+
+interface StandardDialog { 
+    title?: string
+    message: string
+    onCancel: () => void,
+    onConfirm: () => void
+    cancelText?: string
+    confirmText?: string
+}
+
+export function standardDialog({ title, message, onConfirm, onCancel, cancelText = "Cancel", confirmText = "Confirm" }: StandardDialog) {
+    return <Box>
+        <Box>
+            <Heading.h3>{title}</Heading.h3>
+            {!!title ? <Divider/> : null}
+            <Box>{message}</Box>
+        </Box>
+        <Box mb="auto" mt="auto" />
+        <Box>
+            <Button onClick={() => onCancel()} color="red" mr="5px">{cancelText}</Button>
+            <Button onClick={() => onConfirm()} color="green">{confirmText}</Button>
+        </Box>
+    </Box>
+}
+
 
 
 interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, size?: string | number  }
@@ -10,10 +36,10 @@ export const FileIcon = ({ shared = false, link = false, fileIcon }: FileIconPro
     link || shared ?
     <RelativeFlex>
         <FtIcon size={30} fileIcon={fileIcon}/>
-        <Absolute bottom={"-6px"} right={"-2px"}>
+        <Absolute bottom="-6px" right="-2px">
             <Dropdown>
                 <Icon size="15px" name="link" color2="white"/>
-                <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
+                <DropdownContent width="160px" color="text" colorOnHover={false} backgroundColor={"lightGray"}>
                     <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
                 </DropdownContent>
             </Dropdown>
@@ -37,9 +63,9 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
         duration: 500
     }
 
-    updateDuration = (duration: number) => this.setState(() => ({ duration }));
+    private updateDuration = (duration: number) => this.setState(() => ({ duration }));
 
-    render() {
+    public render() {
         if (!this.props.visible) return null;
         // From https://codepen.io/nathangath/pen/RgvzVY/
         return (

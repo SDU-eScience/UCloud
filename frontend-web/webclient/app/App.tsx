@@ -29,8 +29,9 @@ import filePreview from "Files/Redux/FilePreviewReducer";
 import shares from "Shares/Redux/SharesReducer";
 import * as AppRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
-import * as SnackbarRedux from "Snackbar/Redux";
+import snackbar from "Snackbar/Redux/SnackbarsReducer";
 import * as FavoritesRedux from "Favorites/Redux";
+import dialog from "Dialog/Redux/DialogReducer";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-responsive';
 import { responsiveBP } from "ui-components/theme";
@@ -61,7 +62,8 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     ...AppRedux.reducers,
     ...AccountingRedux.reducers,
     ...FavoritesRedux.reducers,
-    ...SnackbarRedux.reducers,
+    snackbar,
+    dialog,
     avatar,
     shares,
     responsive: createResponsiveStateReducer(
