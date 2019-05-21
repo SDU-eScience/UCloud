@@ -104,13 +104,8 @@ object ACL : Loggable {
         }
     }
 
-    var calls = 0
     fun addEntry(path: String, uid: Int, permissions: Set<AccessRight>, defaultList: Boolean = false) {
         if (!Platform.isLinux()) {
-            calls++
-            if (calls == 10) throw IllegalArgumentException("FAKE ERROR")
-
-            Thread.sleep(100)
             log.info("addEntry($path, $uid, $permissions, defaultList = $defaultList)")
             return
         }
