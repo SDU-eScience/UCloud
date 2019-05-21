@@ -22,14 +22,12 @@ export function standardDialog({ title, message, onConfirm, onCancel, cancelText
             <Box>{message}</Box>
         </Box>
         <Box mb="auto" mt="auto" />
-        <Box>
+        <Box textAlign="right" mt="20px">
             <Button onClick={() => onCancel()} color="red" mr="5px">{cancelText}</Button>
             <Button onClick={() => onConfirm()} color="green">{confirmText}</Button>
         </Box>
     </Box>
 }
-
-
 
 interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, size?: string | number  }
 export const FileIcon = ({ shared = false, link = false, fileIcon }: FileIconProps) => 

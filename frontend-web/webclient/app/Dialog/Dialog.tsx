@@ -16,14 +16,12 @@ function Dialog(props: DialogOperations & DialogState) {
         onAfterOpen={() => undefined}
         style={{
             content: {
-                top: "80px",
-                width: "auto",
-                minWidth: "200px",
-                left: "25%",
-                right: "25%"
-            },
-            overlay: {
-                width: "auto"
+                top: '50%',
+                left: '50%',
+                right: 'auto',
+                bottom: 'auto',
+                marginRight: '-50%',
+                transform: 'translate(-50%, -50%)'
             }
         }}
     >{props.node}</ReactModal>;

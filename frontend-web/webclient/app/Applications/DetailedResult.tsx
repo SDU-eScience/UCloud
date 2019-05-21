@@ -363,7 +363,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     this.props.setNode();
                 }
             },
-            onCancel: () => this.props
+            onCancel: () => this.props.setNode()
         }));
     }
 
