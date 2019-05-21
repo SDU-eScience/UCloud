@@ -10,6 +10,7 @@ import dk.sdu.cloud.service.db.get
 import io.ktor.http.HttpStatusCode
 import org.hibernate.annotations.NaturalId
 import java.util.*
+import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.Id
 import javax.persistence.Table
@@ -22,11 +23,14 @@ internal class BackgroundJobEntity(
     var jobId: String,
 
     var requestType: String,
+
+    @get:Column(length = 1024 * 64)
     var requestMessage: String,
 
     var owner: String,
 
     var responseCode: Int = -1,
+    @get:Column(length = 1024 * 64)
     var response: String? = null,
 
     override var createdAt: Date = Date(),

@@ -174,13 +174,17 @@ class ShareService<DBSession>(
     }
 
     private suspend fun handleReadyToAccept(share: InternalShare, job: ShareJob.ReadyToAccept) {
-        workQueue.produce(
-            ShareJob.Accepting(
-                updateFSPermissions(share),
-                share.id,
-                job.createLink
+        try {
+            workQueue.produce(
+                ShareJob.Accepting(
+                    updateFSPermissions(share),
+                    share.id,
+                    job.createLink
+                )
             )
-        )
+        } catch (ex: Throwable) {
+            workQueue.produce(ShareJob.Failing(share.id))
+        }
     }
 
     private suspend fun handleAccepting(share: InternalShare, job: ShareJob.Accepting) {
@@ -191,24 +195,28 @@ class ShareService<DBSession>(
             onSuccess = {
                 val userCloud = userClientFactory(share.recipientToken!!)
 
-                val createdLink = if (job.createLink) {
-                    FileDescriptions.createLink.call(
-                        CreateLinkRequest(
-                            linkPath = defaultLinkToShare(share, serviceClient),
-                            linkTargetPath = share.path
-                        ),
-                        userCloud
-                    ).orThrow()
-                } else null
+                try {
+                    val createdLink = if (job.createLink) {
+                        FileDescriptions.createLink.call(
+                            CreateLinkRequest(
+                                linkPath = defaultLinkToShare(share, serviceClient),
+                                linkTargetPath = share.path
+                            ),
+                            userCloud
+                        ).orThrow()
+                    } else null
 
-                db.withTransaction { session ->
-                    shareDao.updateShare(
-                        session,
-                        AuthRequirements(),
-                        job.shareId,
-                        state = ShareState.ACCEPTED,
-                        linkId = createdLink?.fileId
-                    )
+                    db.withTransaction { session ->
+                        shareDao.updateShare(
+                            session,
+                            AuthRequirements(),
+                            job.shareId,
+                            state = ShareState.ACCEPTED,
+                            linkId = createdLink?.fileId
+                        )
+                    }
+                } catch (ex: Exception) {
+                    workQueue.produce(ShareJob.Failing(share.id))
                 }
             },
 
@@ -244,16 +252,20 @@ class ShareService<DBSession>(
                     )
                 }
 
-                workQueue.produce(
-                    ShareJob.Updating(
-                        updateFSPermissions(
-                            existingShare,
-                            newRights = newRights
-                        ),
-                        shareId,
-                        newRights
+                try {
+                    workQueue.produce(
+                        ShareJob.Updating(
+                            updateFSPermissions(
+                                existingShare,
+                                newRights = newRights
+                            ),
+                            shareId,
+                            newRights
+                        )
                     )
-                )
+                } catch (ex: Throwable) {
+                    workQueue.produce(ShareJob.Failing(shareId))
+                }
             }
 
             ShareState.FAILURE, ShareState.UPDATING -> {
@@ -334,26 +346,31 @@ class ShareService<DBSession>(
     }
 
     private suspend fun handleFailing(share: InternalShare, job: ShareJob.Failing) {
-        val jobId = updateFSPermissions(share, revoke = true)
+        try {
+            delay(job.failureCount * 1000L)
+            val jobId = updateFSPermissions(share, revoke = true)
+            if (job.failureCount > 100) log.warn("Failure count > 100 $job")
 
-        awaitUpdateACL(
-            share,
-            jobId,
+            awaitUpdateACL(
+                share,
+                jobId,
 
-            onSuccess = { markShareAsFailed(share) },
-            onFailure = { workQueue.produce(ShareJob.Failing(job.shareId)) }
-        )
+                onSuccess = { markShareAsFailed(share) },
+                onFailure = { workQueue.produce(ShareJob.Failing(job.shareId, job.failureCount + 1)) }
+            )
+        } catch (ex: Throwable) {
+            workQueue.produce(ShareJob.Failing(job.shareId, failureCount = job.failureCount + 1))
+        }
     }
 
     // Utility Code
     private suspend fun invalidateShare(share: InternalShare) {
-        if (share.recipientToken.isNullOrEmpty()) {
+        if (!share.recipientToken.isNullOrEmpty()) {
             val linkPath = findShareLink(share, serviceClient)
 
             if (linkPath != null) {
                 log.debug("linkPath found $linkPath")
-                val recipientCloud = share.recipientToken?.let { userClientFactory(it) }
-                    ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
+                val recipientCloud = userClientFactory(share.recipientToken)
 
                 val stat =
                     FileDescriptions.stat.call(StatRequest(linkPath), recipientCloud).throwIfInternal()
@@ -515,6 +532,7 @@ private sealed class ShareJob {
     ) : ShareJob(), UpdateACLJob
 
     data class Failing(
-        override val shareId: ShareId
+        override val shareId: ShareId,
+        val failureCount: Int = 0
     ) : ShareJob()
 }
