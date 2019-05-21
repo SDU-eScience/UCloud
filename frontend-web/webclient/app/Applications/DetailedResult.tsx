@@ -29,7 +29,7 @@ import { JobStateIcon } from "./JobStateIcon";
 import { MainContainer } from "MainContainer/MainContainer";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { SnackType } from "Snackbar/Snackbars";
-import { setNode } from "Dialog/Redux/DialogActions";
+import DialogStore from "Dialog/DialogStore";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -349,7 +349,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private async cancelJob() {
-        this.props.setNode(cancelJobDialog({
+        DialogStore.addDialog(cancelJobDialog({
             jobId: this.jobId,
             onConfirm: () => {
                 try {
@@ -360,10 +360,10 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
                     });
                 } finally {
-                    this.props.setNode();
+                    DialogStore.popDialog()
                 }
             },
-            onCancel: () => this.props.setNode()
+            onCancel: () => DialogStore.popDialog()
         }));
     }
 
@@ -475,7 +475,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     addSnack: snack => dispatch(addSnack(snack)),
-    setNode: node => dispatch(setNode(node))
 });
 
 export default connect<DetailedResultReduxObject, DetailedResultOperations>(mapStateToProps, mapDispatchToProps)(DetailedResult);

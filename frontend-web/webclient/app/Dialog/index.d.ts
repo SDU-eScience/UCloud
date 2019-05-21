@@ -1,7 +1,5 @@
-export interface DialogOperations {
-    setNode: (node?: JSX.Element) => void
-}
+import DialogStore from "./DialogStore";
 
 export interface DialogState {
-    node?: JSX.Element
+    dialogStore: typeof DialogStore
 }

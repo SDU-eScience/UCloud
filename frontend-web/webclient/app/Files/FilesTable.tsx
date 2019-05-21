@@ -206,7 +206,7 @@ export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHo
                 <Button color="blue" onClick={showUploader} data-tag="uploadButton">Upload Files</Button>
                 <OutlineButton color="blue" onClick={createFolder} data-tag="newFolder">New folder</OutlineButton>
             </SidebarContent> :
-            <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
+            <Button color="red" onClick={() => clearTrash({cloud: Cloud, callback: () => toHome()})}>
                 Empty trash
             </Button>}
     </VerticalButtonGroup>

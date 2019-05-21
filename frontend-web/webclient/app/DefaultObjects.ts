@@ -14,7 +14,6 @@ import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
 import * as SnackbarRedux from "Snackbar/Redux";
 import * as FavoritesRedux from "Favorites/Redux";
-import * as DialogRedux from "Dialog/Redux/DialogObject";
 import { defaultAvatar } from "UserSettings/Avataaar";
 import { DetailedProjectSearchReduxState } from "Project";
 import { SidebarPages } from "ui-components/Sidebar";
@@ -253,7 +252,7 @@ interface LegacyReduxObject {
 
 export type ReduxObject = 
     LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects & FavoritesRedux.Objects &
-    SnackbarRedux.Wrapper & DialogRedux.Wrapper;
+    SnackbarRedux.Wrapper;
 
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -313,7 +312,6 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     ...AccountingRedux.init(),
     ...FavoritesRedux.init(),
     ...SnackbarRedux.init(),
-    ...DialogRedux.init(),
     responsive: undefined,
 });
 

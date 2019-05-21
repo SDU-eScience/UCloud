@@ -9,6 +9,8 @@ import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
+import { standardDialog } from "UtilityComponents";
+import DialogStore from "Dialog/DialogStore";
 
 function initialSetup(operations: MoveCopyOperations) {
     resetFileSelector(operations);
@@ -326,7 +328,7 @@ export const MoveFileToTrashOperation = ({ onMoved, setLoading, addSnack }: Move
 
 export const ClearTrashOperations = (toHome: () => void): Operation[] => [{
     text: "Clear Trash",
-    onClick: (files, cloud) => clearTrash(cloud, toHome),
+    onClick: (files, cloud) => clearTrash({ cloud, callback: toHome }),
     disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
     icon: "trash",
     color: "red"
@@ -642,13 +644,14 @@ export const extractArchive = ({ files, cloud, onFinished, addSnack }: ExtractAr
 
 
 
-export const clearTrash = (cloud: SDUCloud, callback: () => void) =>
-    clearTrashSwal().then(result => {
-        if (result.dismiss) {
-            return;
-        } else {
-            cloud.post("/files/trash/clear", {}).then(() => callback());
-        }
+export const clearTrash = ({ cloud, callback }: { cloud: SDUCloud, callback: () => void }) =>
+    clearTrashDialog({
+        onConfirm: async () => {
+            await cloud.post("/files/trash/clear", {});
+            callback();
+            DialogStore.popDialog();
+        },
+        onCancel: () => DialogStore.popDialog()
     });
 
 export const getParentPath = (path: string): string => {
@@ -766,15 +769,16 @@ const moveToTrashSwal = (filePaths: string[]) => {
     });
 };
 
-export const clearTrashSwal = () => {
-    return swal({
+export function clearTrashDialog({ onConfirm, onCancel }: { onConfirm: () => void, onCancel: () => void }) {
+    return standardDialog({
         title: "Empty trash?",
-        confirmButtonText: "Confirm",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
-    });
-};
+        message: "",
+        confirmText: "Confirm",
+        cancelText: "Cancel",
+        onCancel,
+        onConfirm
+    })
+}
 
 interface ResultToNotification extends AddSnackOperation {
     failures: string[]

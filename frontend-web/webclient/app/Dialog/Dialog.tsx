@@ -1,36 +1,34 @@
 import * as React from "react";
-import { Dispatch } from "redux";
-import { connect } from "react-redux";
-import { DialogOperations, DialogState } from "Dialog";
-import { setNode } from "./Redux/DialogActions";
+import { DialogState } from "Dialog";
 import * as ReactModal from "react-modal";
-import { ReduxObject } from "DefaultObjects";
+import DialogStore from "./DialogStore";
+import { connect } from "react-redux";
 
-function Dialog(props: DialogOperations & DialogState) {
-    if (!props.node) return null;
+function Dialog(props: DialogState) {
+    const current = props.dialogStore.current;
+    if (!current) return null;
     return <ReactModal
-        isOpen={!!props.node}
+        isOpen={!!current}
         shouldCloseOnEsc
         ariaHideApp={false}
-        onRequestClose={() => props.setNode()}
+        onRequestClose={() => props.dialogStore.popDialog()}
         onAfterOpen={() => undefined}
         style={{
             content: {
-                top: '50%',
-                left: '50%',
-                right: 'auto',
-                bottom: 'auto',
-                marginRight: '-50%',
-                transform: 'translate(-50%, -50%)'
+                top: "50%",
+                left: "50%",
+                right: "auto",
+                bottom: "auto",
+                marginRight: "-50%",
+                transform: "translate(-50%, -50%)"
             }
         }}
-    >{props.node}</ReactModal>;
+    >{current}</ReactModal>;
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): DialogOperations => ({
-    setNode: node => dispatch(setNode(node))
-});
+/* FIXME: Rerender hack */
+const mapDispatchToProps = () => ({
+    count: DialogStore.dialogs.length
+})
 
-const mapStateToProps = ({ dialog }: ReduxObject): DialogState => dialog;
-
-export default connect(mapStateToProps, mapDispatchToProps)(Dialog);
+export default connect(mapDispatchToProps)(Dialog);
