@@ -59,7 +59,8 @@ interface ShareDAO<Session> {
         state: ShareState? = null,
         rights: Set<AccessRight>? = null,
         path: String? = null,
-        linkId: String? = null
+        linkId: String? = null,
+        ownerToken: String? = null
     ): InternalShare
 
     fun deleteShare(

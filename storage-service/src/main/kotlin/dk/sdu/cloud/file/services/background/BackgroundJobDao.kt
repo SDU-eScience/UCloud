@@ -6,7 +6,8 @@ import io.ktor.http.HttpStatusCode
 data class BackgroundRequest(
     val jobId: String,
     val requestType: String,
-    val requestMessage: String
+    val requestMessage: String,
+    val owner: String
 )
 
 data class BackgroundResponse(
@@ -26,7 +27,7 @@ data class BackgroundJob(
 )
 
 interface BackgroundJobDao<Session> {
-    fun findOrNull(session: Session, jobId: String): BackgroundJob?
+    fun findOrNull(session: Session, jobId: String, user: String): BackgroundJob?
     fun create(session: Session, request: BackgroundRequest)
     fun setResponse(session: Session, jobId: String, response: BackgroundResponse)
 }

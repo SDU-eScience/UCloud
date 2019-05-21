@@ -55,7 +55,7 @@ class FileSecurityController<Ctx : FSUserContext>(
             requirePermissionToChangeFilePermissions()
             val (_, owner) = checkPermissionsAndReturnOwners(request.path)
 
-            ok(FindByStringId(aclService.updateAcl(request, owner)))
+            ok(FindByStringId(aclService.updateAcl(request, owner, ctx.securityPrincipal.username)))
         }
 
         implement(FileDescriptions.reclassify) {

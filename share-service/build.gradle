@@ -11,13 +11,13 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.4.0-REDIS.3"
+    ext.serviceCommonVersion = "1.4.1"
 }
 
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
-    compile 'dk.sdu.cloud:file-api:1.8.0-REDIS.0'
+    compile 'dk.sdu.cloud:file-api:2.0.0'
     compile 'dk.sdu.cloud:auth-api:1.21.0'
     compile 'dk.sdu.cloud:notification-api:1.1.4'
     compile 'dk.sdu.cloud:indexing-api:1.13.0'

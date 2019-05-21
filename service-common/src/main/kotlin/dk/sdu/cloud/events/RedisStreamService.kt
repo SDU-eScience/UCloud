@@ -97,11 +97,19 @@ class RedisStreamService(
                         runCatching { stream.deserialize(textValue) }.getOrNull()
                     }
 
-                    messagesNotYetAcknowledged.addAll(messages.map { it.id })
-
-                    if (consumer.accept(events)) {
-                        xackA(stream.name, group, messagesNotYetAcknowledged)
-                        messagesNotYetAcknowledged.clear()
+                    if (consumer is EventConsumer.Immediate) {
+                        val ids = messages.map { it.id }
+                        launch {
+                            if (consumer.accept(events)) {
+                                xackA(stream.name, group, ids.toSet())
+                            }
+                        }
+                    } else {
+                        messagesNotYetAcknowledged.addAll(messages.map { it.id })
+                        if (consumer.accept(events)) {
+                            xackA(stream.name, group, messagesNotYetAcknowledged)
+                            messagesNotYetAcknowledged.clear()
+                        }
                     }
                 }
 

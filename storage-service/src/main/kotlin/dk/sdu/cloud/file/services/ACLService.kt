@@ -108,7 +108,8 @@ class ACLService<Ctx : FSUserContext>(
                                     negatedChanges,
                                     automaticRollback = false
                                 ),
-                                parsedRequest.realOwner
+                                parsedRequest.realOwner,
+                                SERVICE_USER
                             )
                         }
                     }
@@ -128,14 +129,8 @@ class ACLService<Ctx : FSUserContext>(
         }
     }
 
-    suspend fun updateAcl(request: UpdateAclRequest, realOwner: String): String {
-        return backgroundExecutor.addJobToQueue(REQUEST_TYPE, UpdateRequestWithRealOwner(request, realOwner))
-    }
-
-    fun queryStatus(id: String): HttpStatusCode? {
-        val job = backgroundExecutor.queryStatus(id)
-        if (job.request.requestType != REQUEST_TYPE) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        return job.response?.responseCode?.let { HttpStatusCode.fromValue(it) }
+    suspend fun updateAcl(request: UpdateAclRequest, realOwner: String, user: String): String {
+        return backgroundExecutor.addJobToQueue(REQUEST_TYPE, UpdateRequestWithRealOwner(request, realOwner), user)
     }
 
     companion object : Loggable {

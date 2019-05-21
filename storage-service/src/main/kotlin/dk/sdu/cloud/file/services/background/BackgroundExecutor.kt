@@ -44,20 +44,20 @@ class BackgroundExecutor<Session>(
         synchronized(this) { handlers[requestType] = worker }
     }
 
-    suspend fun addJobToQueue(requestType: String, message: Any): String =
-        addJobToQueue(requestType, defaultMapper.writeValueAsString(message))
+    suspend fun addJobToQueue(requestType: String, message: Any, user: String): String =
+        addJobToQueue(requestType, defaultMapper.writeValueAsString(message), user)
 
-    suspend fun addJobToQueue(requestType: String, requestMessage: String): String {
+    suspend fun addJobToQueue(requestType: String, requestMessage: String, user: String): String {
         val jobId = UUID.randomUUID().toString()
-        val request = BackgroundRequest(jobId, requestType, requestMessage)
+        val request = BackgroundRequest(jobId, requestType, requestMessage, user)
         db.withTransaction { session -> dao.create(session, request) }
         producer.produce(request)
         return jobId
     }
 
-    fun queryStatus(jobId: String): BackgroundJob {
+    fun queryStatus(jobId: String, user: String): BackgroundJob {
         return db.withTransaction { session ->
-            dao.findOrNull(session, jobId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            dao.findOrNull(session, jobId, user) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     }
 }

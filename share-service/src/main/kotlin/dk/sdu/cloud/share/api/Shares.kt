@@ -5,7 +5,9 @@ import dk.sdu.cloud.file.api.AccessRight
 
 enum class ShareState {
     REQUEST_SENT,
-    ACCEPTED
+    ACCEPTED,
+    UPDATING,
+    FAILURE
 }
 
 typealias ShareId = Long

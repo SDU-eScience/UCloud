@@ -6,6 +6,7 @@ import com.sun.jna.ptr.PointerByReference
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.Loggable
 import org.slf4j.Logger
+import java.lang.IllegalArgumentException
 
 data class Entry(
     val isUser: Boolean,
@@ -103,8 +104,13 @@ object ACL : Loggable {
         }
     }
 
+    var calls = 0
     fun addEntry(path: String, uid: Int, permissions: Set<AccessRight>, defaultList: Boolean = false) {
         if (!Platform.isLinux()) {
+            calls++
+            if (calls == 10) throw IllegalArgumentException("FAKE ERROR")
+
+            Thread.sleep(100)
             log.info("addEntry($path, $uid, $permissions, defaultList = $defaultList)")
             return
         }

@@ -24,6 +24,8 @@ internal class BackgroundJobEntity(
     var requestType: String,
     var requestMessage: String,
 
+    var owner: String,
+
     var responseCode: Int = -1,
     var response: String? = null,
 
@@ -34,15 +36,18 @@ internal class BackgroundJobEntity(
 }
 
 internal class BackgroundJobHibernateDao : BackgroundJobDao<HibernateSession> {
-    override fun findOrNull(session: HibernateSession, jobId: String): BackgroundJob? {
+    override fun findOrNull(session: HibernateSession, jobId: String, user: String): BackgroundJob? {
         val entity = session.criteria<BackgroundJobEntity> {
             entity[BackgroundJobEntity::jobId] equal jobId
         }.uniqueResult() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
+        if (entity.owner != user) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
         val request = BackgroundRequest(
             jobId = entity.jobId,
             requestType = entity.requestType,
-            requestMessage = entity.requestMessage
+            requestMessage = entity.requestMessage,
+            owner = entity.owner
         )
 
         val response = run {
@@ -61,7 +66,7 @@ internal class BackgroundJobHibernateDao : BackgroundJobDao<HibernateSession> {
 
     override fun create(session: HibernateSession, request: BackgroundRequest) {
         val entity = with (request) {
-            BackgroundJobEntity(jobId, requestType, requestMessage)
+            BackgroundJobEntity(jobId, requestType, requestMessage, owner)
         }
 
         session.save(entity)

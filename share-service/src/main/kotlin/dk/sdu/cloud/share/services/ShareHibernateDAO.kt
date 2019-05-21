@@ -231,7 +231,8 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         state: ShareState?,
         rights: Set<AccessRight>?,
         path: String?,
-        linkId: String?
+        linkId: String?,
+        ownerToken: String?
     ): InternalShare {
         if (path == null && recipientToken == null && state == null && rights == null && linkId == null) {
             throw ShareException.InternalError("Nothing to update")
@@ -243,6 +244,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             share.filename = path.fileName()
         }
         if (recipientToken != null) share.recipientToken = recipientToken
+        if (ownerToken != null) share.ownerToken = ownerToken
         if (state != null) share.state = state
         if (rights != null) share.rights = rights.asInt()
         if (linkId != null) share.linkId = linkId

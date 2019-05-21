@@ -59,10 +59,10 @@ class ShareServiceTest {
         micro.install(HibernateFeature)
 
         service = ShareService(
-            serviceCloud = ClientMock.authenticatedClient,
+            serviceClient = ClientMock.authenticatedClient,
             db = micro.hibernateDatabase,
             shareDao = ShareHibernateDAO(),
-            userCloudFactory = { ClientMock.authenticatedClient }
+            userClientFactory = { ClientMock.authenticatedClient }
         )
         this.micro = micro
     }
@@ -181,8 +181,7 @@ class ShareServiceTest {
         service.acceptShare(
             recipient.username,
             shareId,
-            bearerToken,
-            ClientMock.authenticatedClient.withoutAuthentication().bearerAuth(bearerToken)
+            bearerToken
         )
     }
 
@@ -472,8 +471,7 @@ class ShareServiceTest {
             shareService.acceptShare(
                 TestUsers.user.username,
                 22L,
-                "userToken",
-                ClientMock.authenticatedClient
+                "userToken"
             )
         }
     }

@@ -11,11 +11,13 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.share.api.FindByShareId
 import dk.sdu.cloud.share.api.ShareDescriptions
+import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
 import io.ktor.application.call
 
 class ShareController(
     private val shareService: ShareService<*>,
+    private val shareQueryService: ShareQueryService<*>,
     private val serviceClient: AuthenticatedClient
 ) : Controller {
     private val clientAndBackend = serviceClient.withoutAuthentication()
@@ -39,7 +41,6 @@ class ShareController(
                 ctx.securityPrincipal.username,
                 request.id,
                 bearer,
-                clientAndBackend.bearerAuth(bearer),
                 request.createLink ?: true
             )
 
@@ -67,7 +68,7 @@ class ShareController(
 
         implement(ShareDescriptions.list) {
             ok(
-                shareService.list(
+                shareQueryService.list(
                     ctx.securityPrincipal.username,
                     request.state,
                     request.normalize()
@@ -77,7 +78,7 @@ class ShareController(
 
         implement(ShareDescriptions.findByPath) {
             ok(
-                shareService.findSharesForPath(
+                shareQueryService.findSharesForPath(
                     ctx.securityPrincipal.username,
                     request.path
                 )
