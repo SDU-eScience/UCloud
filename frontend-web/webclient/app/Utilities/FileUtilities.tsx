@@ -584,15 +584,6 @@ export const expandHomeFolder = (path: string, homeFolder: string): string => {
     return path;
 }
 
-export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callback: () => void) =>
-    moveToTrashSwal([filePath]).then((result: any) => {
-        if (result.dismiss) {
-            return;
-        } else {
-            cloud.delete("/files", { path: filePath }).then(() => !!callback ? callback() : null);
-        }
-    });
-
 
 const extractFilesQuery = "/files/extract";
 interface ExtractArchive extends AddSnackOperation {
@@ -729,16 +720,16 @@ export const shareFiles = ({ files, cloud, addSnack }: ShareFiles) =>
         });
     });
 
-const moveToTrashSwal = (filePaths: string[]) => {
-    const moveText = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
+const moveToTrashDialog = ({ filePaths, onCancel, onConfirm }: { onConfirm: () => void, onCancel: () => void, filePaths: string[] }) => {
+    const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
-    return swal({
+
+    return standardDialog({
         title: "Move files to trash",
-        text: moveText,
-        confirmButtonText: "Move files",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
+        message,
+        onConfirm,
+        onCancel,
+        confirmText: "Move files"
     });
 };
 
@@ -778,15 +769,22 @@ interface MoveToTrash extends AddSnackOperation {
 }
 export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: MoveToTrash) => {
     const paths = files.map(f => f.path);
-    moveToTrashSwal(paths).then((result: any) => {
-        if (result.dismiss) return;
-        setLoading();
-        cloud.post<Failures>("/files/trash/", { files: paths })
-            .then(({ response }) => (resultToNotification({
-                failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack
-            }), callback()))
-            .catch(({ response }) => (addSnack({ message: response.why, type: SnackType.Failure }), callback()));
-    });
+    dialogStore.addDialog(moveToTrashDialog({
+        filePaths: paths, onConfirm: async () => {
+            try {
+                setLoading();
+                const { response } = await cloud.post<Failures>("/files/trash/", { files: paths })
+                resultToNotification({ failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack });
+                callback();
+            } catch (e) {
+                addSnack({ message: e.why, type: SnackType.Failure });
+                callback();
+            } finally {
+                dialogStore.popDialog()
+            }
+        },
+        onCancel: () => dialogStore.popDialog()
+    }));
 };
 
 interface BatchDeleteFiles extends AddSnackOperation {
