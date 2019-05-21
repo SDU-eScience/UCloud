@@ -29,7 +29,7 @@ import { JobStateIcon } from "./JobStateIcon";
 import { MainContainer } from "MainContainer/MainContainer";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { SnackType } from "Snackbar/Snackbars";
-import DialogStore from "Dialog/DialogStore";
+import { dialogStore } from "Dialog/DialogStore";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -349,7 +349,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private async cancelJob() {
-        DialogStore.addDialog(cancelJobDialog({
+        dialogStore.addDialog(cancelJobDialog({
             jobId: this.jobId,
             onConfirm: () => {
                 try {
@@ -360,10 +360,10 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
                     });
                 } finally {
-                    DialogStore.popDialog()
+                    dialogStore.popDialog()
                 }
             },
-            onCancel: () => DialogStore.popDialog()
+            onCancel: () => dialogStore.popDialog()
         }));
     }
 

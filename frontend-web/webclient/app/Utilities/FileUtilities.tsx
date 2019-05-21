@@ -3,22 +3,18 @@ import SDUCloud from "Authentication/lib";
 import { File, MoveCopyOperations, Operation, SortOrder, SortBy, FileType, FileOperation, FileResource } from "Files";
 import { Page } from "Types";
 import { History } from "history";
-import swal, { SweetAlertResult } from "sweetalert2";
+import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
-import { standardDialog } from "UtilityComponents";
-import DialogStore from "Dialog/DialogStore";
+import { standardDialog, rewritePolicyDialog } from "UtilityComponents";
+import { dialogStore } from "Dialog/DialogStore";
 
 function initialSetup(operations: MoveCopyOperations) {
     resetFileSelector(operations);
     return { failurePaths: [] as string[], applyToAll: false, policy: UploadPolicy.REJECT as UploadPolicy };
-}
-
-async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
-    return !!(await rewritePolicy({ path: newPath, homeFolder, filesRemaining })).value;
 }
 
 function getNewPath(newParentPath: string, currentPath: string): string {
@@ -49,9 +45,13 @@ export function copyOrMoveFiles({ operation, files, copyMoveOps, cloud, setLoadi
             let f = files[i];
             let { exists, allowRewrite, newPathForFile } = await moveCopySetup({ targetPath: targetPathFolder.path, path: f.path, cloud });
             if (exists && !applyToAll) {
-                allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
-                policy = UF.selectValue("policy") as UploadPolicy;
-                if (files.length - i > 1) applyToAll = UF.elementValue("applyToAll");
+                const result = await rewritePolicyDialog({ path: newPathForFile, homeFolder: cloud.homeFolder, filesRemaining: files.length - i });
+                if (result != false) {
+                    allowRewrite = true;
+                    allowRewrite = !!result.policy;
+                    policy = result.policy as UploadPolicy;
+                    if (files.length - i > 1) applyToAll = result.applyToAll;
+                }
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
@@ -127,33 +127,6 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
         // FIXME: in the event of other than 404
         return !(e.request.status === 404);
     }
-}
-
-interface RewritePolicy {
-    path: string
-    homeFolder: string
-    filesRemaining: number
-}
-
-function rewritePolicy({ path, homeFolder, filesRemaining }: RewritePolicy): Promise<SweetAlertResult> {
-    return swal({
-        title: "File exists",
-        text: "",
-        html: `<div>${replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it ?</div> <br/>
-                    <select id="policy" defaultValue="RENAME">
-                        <option value="RENAME">Rename</option>
-                        <option value="OVERWRITE">Overwrite</option>
-                    </select>
-                ${filesRemaining > 1 ? `<br/>
-                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""}`,
-        allowEscapeKey: true,
-        allowOutsideClick: true,
-        allowEnterKey: false,
-        showConfirmButton: true,
-        showCancelButton: true,
-        cancelButtonText: "No",
-        confirmButtonText: "Yes",
-    });
 }
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
@@ -649,9 +622,9 @@ export const clearTrash = ({ cloud, callback }: { cloud: SDUCloud, callback: () 
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
             callback();
-            DialogStore.popDialog();
+            dialogStore.popDialog();
         },
-        onCancel: () => DialogStore.popDialog()
+        onCancel: () => dialogStore.popDialog()
     });
 
 export const getParentPath = (path: string): string => {

@@ -1,5 +1,5 @@
-import DialogStore from "./DialogStore";
+import { dialogStore } from "./DialogStore";
 
 export interface DialogState {
-    dialogStore: typeof DialogStore
+    dialogStore: typeof dialogStore
 }

@@ -2,7 +2,7 @@ import styled, { css } from 'styled-components'
 import {
   space, themeGet, BorderProps, SpaceProps,
   BorderRadiusProps, borderRadius,
-  fontSize, FontSizeProps
+  fontSize, FontSizeProps, width, WidthProps
 } from 'styled-system'
 import defaultTheme from './theme'
 import Text from './Text';
@@ -22,7 +22,7 @@ export const borders = ({ color, theme, noBorder }: { color?: string, theme?: an
   }
 };
 
-export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, FontSizeProps {
+export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, FontSizeProps, WidthProps {
   leftLabel?: boolean
   rightLabel?: boolean
   id?: string
@@ -37,7 +37,6 @@ const right = ({ rightLabel }: { rightLabel?: boolean }) => rightLabel ? `border
 
 const Input = styled.input<InputProps>`
   display: block;
-  width: 100%;
   font-family: inherit;
   color: ${props => props.error ? "red" : "inherit"};
   ${fontSize}
@@ -70,7 +69,7 @@ const Input = styled.input<InputProps>`
   }
 
   ${borders} ${space} ${borderRadius}
-  ${left}
+  ${left} ${width}
   ${right}
 `;
 
@@ -79,6 +78,7 @@ Input.displayName = "Input";
 Input.defaultProps = {
   id: "default",
   theme: defaultTheme,
+  width: "100%",
   noBorder: false,
   borderRadius: "5px",
 };
