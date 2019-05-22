@@ -28,19 +28,6 @@ export const getOwnerFromAcls = (acls?: Acl[]): string => {
     }
 };
 
-export function overwriteSwal() {
-    return swal({
-        allowEscapeKey: true,
-        allowOutsideClick: true,
-        showCancelButton: true,
-        title: "Warning",
-        type: "warning",
-        text: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
-        cancelButtonText: "Continue",
-        confirmButtonText: "Cancel Upload"
-    });
-}
-
 export function shareSwal() {
     return swal({
         title: "Share",
@@ -265,7 +252,7 @@ interface RedirectToProject extends AddSnackOperation {
 
 const redirectToProject = ({ path, cloud, navigate, remainingTries, addSnack }: RedirectToProject) => {
     cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(() => navigate(path)).catch(_ => {
-        if (remainingTries > 0) 
+        if (remainingTries > 0)
             setTimeout(() => redirectToProject({ path, cloud, navigate, remainingTries: remainingTries - 1, addSnack }), 400);
         else
             addSnack({ message: `Project ${path} is being created.`, type: SnackType.Success });

@@ -3,7 +3,7 @@ import * as Modal from "react-modal";
 import { Text, Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import Dropzone from "react-dropzone";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, prettierString, timestampUnixMs, overwriteSwal, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, prettierString, timestampUnixMs, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
 import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -17,7 +17,7 @@ import { Toggle } from "ui-components/Toggle";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 import { Dispatch } from "redux";
-import { FileIcon } from "UtilityComponents";
+import { FileIcon, overwriteSwal } from "UtilityComponents";
 import { Spacer } from "ui-components/Spacer";
 import { File as SDUCloudFile } from "Files";
 import { Refresh } from "Navigation/Header";
@@ -193,7 +193,7 @@ class Uploader extends React.Component<UploaderProps> {
         if (!!upload.uploadXHR && upload.uploadXHR.readyState != XMLHttpRequest.DONE) {
             if (upload.resolution === UploadPolicy.OVERWRITE) {
                 const result = await overwriteSwal();
-                if (!!result.dismiss) return;
+                if (result.cancelled) return;
             }
             upload.uploadXHR.abort();
             this.removeUpload(index);

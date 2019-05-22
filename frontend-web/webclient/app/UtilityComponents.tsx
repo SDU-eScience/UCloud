@@ -30,6 +30,17 @@ export function standardDialog({ title, message, onConfirm, onCancel, cancelText
     </Box>
 }
 
+export function overwriteSwal(): Promise<{ cancelled?: boolean }> {
+    return new Promise(resolve => dialogStore.addDialog(standardDialog({
+        title: "Warning",
+        message: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
+        cancelText: "Continue",
+        confirmText: "Cancel Upload",
+        onConfirm: () => (dialogStore.popDialog(), resolve({})),
+        onCancel: () => (dialogStore.popDialog(), resolve({ cancelled: true }))
+    })));
+}
+
 interface RewritePolicy {
     path: string
     homeFolder: string
