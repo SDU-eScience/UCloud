@@ -3,7 +3,6 @@ import SDUCloud from "Authentication/lib";
 import { File, MoveCopyOperations, Operation, SortOrder, SortBy, FileType, FileOperation, FileResource } from "Files";
 import { Page } from "Types";
 import { History } from "history";
-import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
@@ -609,14 +608,14 @@ export const extractArchive = ({ files, cloud, onFinished, addSnack }: ExtractAr
 
 
 export const clearTrash = ({ cloud, callback }: { cloud: SDUCloud, callback: () => void }) =>
-    clearTrashDialog({
+    dialogStore.addDialog(clearTrashDialog({
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
             callback();
             dialogStore.popDialog();
         },
         onCancel: () => dialogStore.popDialog()
-    });
+    }));
 
 export const getParentPath = (path: string): string => {
     if (path.length === 0) return path;
@@ -796,34 +795,30 @@ interface BatchDeleteFiles extends AddSnackOperation {
 
 export const batchDeleteFiles = ({ files, cloud, setLoading, callback, addSnack }: BatchDeleteFiles) => {
     const paths = files.map(f => f.path);
-    deletionSwal(paths).then((result: any) => {
-        if (result.dismiss) return;
-        setLoading();
-        let i = 0;
-        // FIXME: Rewrite using Promise.all
-        paths.forEach(path => {
-            cloud.delete("/files", { path }).then(() => {
-                if (++i === paths.length) {
-                    addSnack({ message: "Trash emptied", type: SnackType.Success });
-                    callback();
-                }
-            }).catch(() => i++);
-        });
-    });
-};
-
-
-const deletionSwal = (filePaths: string[]) => {
-    const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :
-        `Delete file ${getFilenameFromPath(filePaths[0])}`;
-    return swal({
+    const message = paths.length > 1 ? `Delete ${paths.length} files?` :
+        `Delete file ${getFilenameFromPath(paths[0])}`;
+    dialogStore.addDialog(standardDialog({
         title: "Delete files",
-        text: deletionText,
-        confirmButtonText: "Delete files",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
-    });
+        message,
+        confirmText: "Delete files",
+        onConfirm: async () => {
+            setLoading();
+            const promises: { status?: number, response?: string }[] = 
+                await Promise.all(paths.map(path => cloud.delete("/files", { path }))).then(it => it).catch(it => it);
+            const failures = promises.filter(it => it.status).length;
+            if (failures > 0) {
+                addSnack({
+                    message: promises.filter(it => it.response).map(it => it).join(", "),
+                    type: SnackType.Failure
+                });
+            } else {
+                addSnack({ message: "Files deleted", type: SnackType.Success });
+            }
+            callback();
+            dialogStore.popDialog();
+        },
+        onCancel: () => dialogStore.popDialog()
+    }));
 };
 
 interface MoveFile extends AddSnackOperation {
