@@ -160,7 +160,7 @@ class FormField extends React.Component<{
             pr: AfterIcon && 40,
             style: getFieldStyles(showLabel),
             width: 1,
-            innerRef: elem => {
+            innerRef: (elem: Element) => {
               this.fieldRef = elem
             },
             // for backwards compatibility

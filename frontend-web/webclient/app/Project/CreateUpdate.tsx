@@ -137,26 +137,26 @@ class CreateUpdate extends React.Component<CreateUpdateProps & CreateUpdateOpera
         if (blankOrUndefined(this.state.title)) errors.title = true;
         if (blankOrUndefined(this.state.description)) errors.description = true;
 
-        let errCollaborators = {};
+        let errCollaborators = new Map<number, boolean>();
         this.state.contributors.forEach((element, index) => {
             if (contributorHasValue(element)) {
-                if (blankOrUndefined(element.name)) errCollaborators[index] = true;
+                if (blankOrUndefined(element.name)) errCollaborators.set(index, true);
             }
         });
         errors.contributors = errCollaborators;
 
-        let errSubjects = {};
+        let errSubjects = new Map<number, boolean>();;
         this.state.subjects.forEach((element, index) => {
             if (subjectHasValue(element)) {
-                if (blankOrUndefined(element.term)) errSubjects[index] = true;
+                if (blankOrUndefined(element.term)) errSubjects.set(index, true);
             }
         });
         errors.subjects = errSubjects;
 
-        let errIdentifiers = {};
+        let errIdentifiers = new Map<number, boolean>();
         this.state.relatedIdentifiers.forEach((element, index) => {
             if (identifierHasValue(element)) {
-                if (blankOrUndefined(element.identifier)) errIdentifiers[index] = true;
+                if (blankOrUndefined(element.identifier)) errIdentifiers.set(index, true);
             }
         });
         errors.relatedIdentifiers = errIdentifiers;
@@ -443,7 +443,7 @@ const Subjects = ({ subjects, errors, onChange }: SubjectsProps) => {
 
 interface RelatedIdentifiersProps {
     relatedIdentifiers: RelatedIdentifier[]
-    onChange: (value, index: number, key: string) => void
+    onChange: (value: any, index: number, key: string) => void
     errors: any
 }
 
@@ -472,7 +472,7 @@ const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIde
 
 interface CollaboratorsProps {
     contributors: Contributor[]
-    onChange: (value, index: number, key: string) => void
+    onChange: (value: any, index: number, key: string) => void
     errors: any
 }
 
@@ -512,7 +512,7 @@ const InputInList = (p: {
         </label>
     );
 
-const FormFieldList = ({ items, name, onChange }) =>
+const FormFieldList = ({ items, name, onChange }: any) =>
     <>
         {
             items.map((c, i) =>

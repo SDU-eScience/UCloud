@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgUploadFolder = props => (
+const SvgUploadFolder = (props: any) => (
   <svg
     viewBox="0 0 24 21"
     fillRule="evenodd"

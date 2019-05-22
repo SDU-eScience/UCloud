@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgFiles = props => (
+const SvgFiles = (props: any) => (
   <svg
     viewBox="0 0 24 22"
     fillRule="evenodd"

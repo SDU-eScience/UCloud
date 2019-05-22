@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgUser = props => (
+const SvgUser = (props: any) => (
   <svg
     viewBox="0 0 25 25"
     fillRule="evenodd"

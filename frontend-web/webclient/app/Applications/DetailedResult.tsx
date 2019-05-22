@@ -12,7 +12,7 @@ import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOpe
 import { File, SortBy, SortOrder } from "Files";
 import { allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
-import { hpcJobQuery, cancelJobQuery, cancelJobSwal } from "Utilities/ApplicationUtilities";
+import { hpcJobQuery, cancelJobQuery, cancelJobDialog } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
@@ -29,6 +29,7 @@ import { JobStateIcon } from "./JobStateIcon";
 import { MainContainer } from "MainContainer/MainContainer";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { SnackType } from "Snackbar/Snackbars";
+import { dialogStore } from "Dialog/DialogStore";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -348,16 +349,22 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private async cancelJob() {
-        const result = await cancelJobSwal({ jobId: this.jobId });
-        if (result.dismiss) return;
-        try {
-            this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, { jobId: this.jobId }));
-        } catch (e) {
-            this.props.addSnack({
-                type: SnackType.Failure,
-                message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
-            });
-        }
+        dialogStore.addDialog(cancelJobDialog({
+            jobId: this.jobId,
+            onConfirm: () => {
+                try {
+                    this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, { jobId: this.jobId }));
+                } catch (e) {
+                    this.props.addSnack({
+                        type: SnackType.Failure,
+                        message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
+                    });
+                } finally {
+                    dialogStore.popDialog()
+                }
+            },
+            onCancel: () => dialogStore.popDialog()
+        }));
     }
 
     private renderCancelButton() {
@@ -456,6 +463,7 @@ const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxOb
     ...detailedResult,
     favoriteCount: detailedResult.page.items.filter(it => it.favorited).length
 });
+
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     detailedResultError: error => dispatch(detailedResultError(error)),
     setLoading: loading => dispatch(setLoading(loading)),
@@ -466,7 +474,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
         dispatch(await fetchPage(folder, pageNumber, itemsPerPage));
     },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => dispatch(addSnack(snack)),
 });
 
 export default connect<DetailedResultReduxObject, DetailedResultOperations>(mapStateToProps, mapDispatchToProps)(DetailedResult);

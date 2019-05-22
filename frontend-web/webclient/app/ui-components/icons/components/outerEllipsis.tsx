@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgOuterEllipsis = props => (
+const SvgOuterEllipsis = (props: any) => (
   <svg
     id="outer_ellipsis_svg__Layer_1"
     x={0}

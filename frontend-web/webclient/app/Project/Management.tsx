@@ -47,13 +47,13 @@ class Management extends React.Component<ManagementOperations, ManagementState> 
 
     private projectId = (props: RouterLocationProps): string => getQueryParamOrElse(props, "projectId", "");
 
-    render() {
+    public render() {
         const { ...state } = this.state;
         const header = (<>
             <Heading.h3>Project Management: <b>{state.projectName}</b></Heading.h3>
             <Spacer
                 left={<Box>{state.memberCount} Members</Box>}
-                right={<Button onClick={() => this.props.addSnack({ 
+                right={<Button onClick={() => this.props.addSnack({
                     message: "Wouldn't it be great if this button worked?",
                     type: SnackType.Custom,
                     icon: "ellipsis"
