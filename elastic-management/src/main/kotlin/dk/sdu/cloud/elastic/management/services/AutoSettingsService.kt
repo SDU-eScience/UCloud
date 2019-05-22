@@ -49,6 +49,15 @@ class AutoSettingsService(
 
         elastic.indices().putTemplate(developmentTemplateRequest, RequestOptions.DEFAULT)
 
+        val productionTemplateRequest = PutIndexTemplateRequest("production-template")
+        productionTemplateRequest.patterns(listOf("kubernetes-default*"))
+
+        productionTemplateRequest.settings(Settings.builder()
+            .put("index.number_of_shards", 1)
+            .put("index.number_of_replicas", 1)
+        )
+
+        elastic.indices().putTemplate(productionTemplateRequest, RequestOptions.DEFAULT)
 
         val httpTemplateRequest = PutIndexTemplateRequest("httplogs-template")
         httpTemplateRequest.patterns(listOf("http_logs_*"))
