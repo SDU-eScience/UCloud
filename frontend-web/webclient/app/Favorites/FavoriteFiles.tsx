@@ -41,7 +41,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
         const { page, fetchFileFavorites } = this.props;
         const { pageNumber, itemsPerPage } = page;
 
-        const fileoperations = allFileOperations({
+        const fileOperations = allFileOperations({
             stateless: true,
             history: this.props.history,
             onDeleted: () => undefined,
@@ -69,7 +69,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
                     pageRenderer={page =>
                         <FilesTable
                             onFavoriteFile={async files => (await favoriteFileAsync(files[0], Cloud), fetchFileFavorites(pageNumber, itemsPerPage))}
-                            fileOperations={fileoperations}
+                            fileOperations={fileOperations}
                             files={page.items}
                             sortBy={SortBy.PATH}
                             sortOrder={SortOrder.DESCENDING}
@@ -87,7 +87,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
 
                 /></>}
             sidebar={
-                <FileOptions files={this.props.page.items.filter(it => it.isChecked)} fileOperations={fileoperations} />
+                <FileOptions files={this.props.page.items.filter(it => it.isChecked)} fileOperations={fileOperations} />
             }
         />)
     }
@@ -106,7 +106,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     fetchFileFavorites: async (pageNumber, itemsPerPage) => {
         dispatch(setLoading(true));
-        dispatch(await fetchFavorites(pageNumber, itemsPerPage))
+        dispatch(await fetchFavorites(pageNumber, itemsPerPage));
         dispatch(setLoading(false));
     },
     receiveFavorites: page => dispatch(receiveFavorites(page)),
@@ -116,6 +116,9 @@ const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
     checkAllFiles: checked => dispatch(checkAllFiles(checked))
 });
 
-const mapStateToProps = ({ favorites }: ReduxObject): ReduxType & { checkedCount: number } => ({ ...favorites, checkedCount: favorites.page.items.filter(it => it.isChecked).length });
+const mapStateToProps = ({ favorites }: ReduxObject): ReduxType & { checkedCount: number } => ({
+    ...favorites,
+    checkedCount: favorites.page.items.filter(it => it.isChecked).length
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(FavoriteFiles);

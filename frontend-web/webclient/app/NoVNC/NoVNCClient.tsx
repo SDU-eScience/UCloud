@@ -69,7 +69,7 @@ interface RFB {
 function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
     const [isConnected, setConnected] = React.useState(false);
     const [rfb, setRFB] = React.useState<RFB | undefined>(undefined);
-    const [password, setPassword] = React.useState("")
+    const [password, setPassword] = React.useState("");
     const [path, setPath] = React.useState("");
 
     React.useEffect(() => {
@@ -115,7 +115,7 @@ function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
         }));
     }
 
-    const mountNode = <div className="noVNC" />
+    const mountNode = <div className="noVNC" />;
     const main = <>
         <Heading mb="5px">noVNC
         {isConnected ? <OutlineButton ml="15px" mr="10px" onClick={() => disconnect()}>

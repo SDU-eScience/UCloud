@@ -33,14 +33,15 @@ const Favorites = (props: FavoritesStateProps & FavoritesOperations & { history:
     </SearchOptions>);
     if (shown === FavoriteType.FILES) {
         return (<FavoriteFiles header={header} history={props.history} />);
-    } else {
+    } else if (shown === FavoriteType.APPLICATIONS) {
         return (<Installed header={header} />)
     }
-}
+    return null;
+};
 
 interface FavoritesStateProps { shown: FavoriteType }
 
-const mapStateToProps = (state: ReduxObject): FavoritesStateProps => ({ shown: state.favorites.shown })
+const mapStateToProps = ({ favorites }: ReduxObject): FavoritesStateProps => ({ shown: favorites.shown });
 
 interface FavoritesOperations {
     setPageTitle: () => void

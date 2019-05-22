@@ -484,6 +484,7 @@ interface IsInvalidPathname extends AddSnackOperation {
  * Checks if a pathname is legal/already in use
  * @param {string} path The path being tested
  * @param {string[]} filePaths the other file paths path is being compared against
+ * @param {() => void} addSnack used to add a message to SnackBar
  * @returns whether or not the path is invalid
  */
 export const isInvalidPathName = ({ path, filePaths, addSnack }: IsInvalidPathname): boolean => {
@@ -531,7 +532,7 @@ export const favoriteFile = (file: File, cloud: SDUCloud): File => {
     }
     file.favorited = !file.favorited;
     return file;
-}
+};
 
 /**
  * Used to favorite/defavorite a file based on its current state.
@@ -546,7 +547,7 @@ export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<Fi
     }
     file.favorited = !file.favorited;
     return file;
-}
+};
 
 const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
@@ -564,7 +565,7 @@ export const reclassifyFile = async ({ file, sensitivity, cloud, addSnack }: Rec
         return file;
     }
     return { ...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity };
-}
+};
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>
     files.length === 1 && files.every(f => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
@@ -581,8 +582,7 @@ export const expandHomeFolder = (path: string, homeFolder: string): string => {
     if (path.startsWith("Home/"))
         return path.replace("Home/", homeFolder);
     return path;
-}
-
+};
 
 const extractFilesQuery = "/files/extract";
 interface ExtractArchive extends AddSnackOperation {
@@ -603,7 +603,7 @@ export const extractArchive = ({ files, cloud, onFinished, addSnack }: ExtractAr
         }
     });
     onFinished();
-}
+};
 
 
 
@@ -640,10 +640,10 @@ const toFileName = (path: string): string => {
 };
 
 export function getFilenameFromPath(path: string): string {
-    const replacedHome = replaceHomeFolder(path, Cloud.homeFolder)
+    const replacedHome = replaceHomeFolder(path, Cloud.homeFolder);
     const fileName = toFileName(replacedHome);
-    if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`
-    if (fileName === ".") return `. (Current folder)`
+    if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`;
+    if (fileName === ".") return `. (Current folder)`;
     return fileName;
 }
 
