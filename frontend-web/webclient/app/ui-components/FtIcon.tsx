@@ -32,12 +32,12 @@ const ftColor = (fType: string): string => {
 }
 
 // Label for file type icons
-const SvgFtLabel = ({hasExt, ext, type}) => {
+const SvgFtLabel = ({ hasExt, ext, type }: { hasExt: boolean, ext: string, type: string }) => {
   if (!hasExt) {
     return null;
   }
 
-//  const color3="red";
+  //  const color3="red";
   const color3 = ftColor(type);
 
   return (
@@ -48,11 +48,12 @@ const SvgFtLabel = ({hasExt, ext, type}) => {
       // fillRule="nonzero"
       />
       <text textAnchor="middle" x="21.5" y="53" fill="#fff"
-        style={{ fontSize: "15px", 
-                 textTransform: "uppercase",
-                 fontWeight: "bold",
-                 letterSpacing: "1px"
-              }}
+        style={{
+          fontSize: "15px",
+          textTransform: "uppercase",
+          fontWeight: "bold",
+          letterSpacing: "1px"
+        }}
       >
         {ext}
       </text>
@@ -61,13 +62,13 @@ const SvgFtLabel = ({hasExt, ext, type}) => {
 }
 
 // Decoration for file type icons
-const SvgFtType = ({type}) => {
-  switch(type) {
+const SvgFtType = ({ type }: { type: string}) => {
+  switch (type) {
     case "image":
       return (
         <>
           {/* Sun */}
-          <circle cx={639} cy={571} r={6} transform="translate(-629 -561)"  fill="#ffd900" />
+          <circle cx={639} cy={571} r={6} transform="translate(-629 -561)" fill="#ffd900" />
           {/* Cloud */}
           <ellipse
             cx={646.5} cy={569} rx={3.5} ry={3}
@@ -92,7 +93,7 @@ const SvgFtType = ({type}) => {
           {/* Mountain green #009908 */}
           <path d="M0 39l12-18 7.999 10.857L32 16l11 14v9H0z" fill="#3d4d65" />
         </>
-      );   
+      );
     case "text":
       return (
         <>
@@ -140,7 +141,7 @@ const SvgFtType = ({type}) => {
     case "code":
       return (
         <>
-          <text textAnchor="middle" x="21.5" y="27" style={{ fontSize:"24px" }} fill="#3d4d65" >{'{ }'}</text>
+          <text textAnchor="middle" x="21.5" y="27" style={{ fontSize: "24px" }} fill="#3d4d65" >{'{ }'}</text>
         </>
       );
     case "pdf":
@@ -167,7 +168,7 @@ const SvgFtType = ({type}) => {
 }
 
 // File type icon component
-const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
+const SvgFt = ({ color, color2, hasExt, ext, type, ...props }) => (
   <svg
     viewBox="0 0 43 56"
     fillRule="evenodd"
@@ -178,7 +179,7 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
     <path
       d="M29 0H1.463C.655 0 0 .655 0 1.926v52.611C.009 55.246.655 56 1.463 56h40.074c.808 0 1.453-.709 1.463-1.463V10L29 0z"
       fill={color}
-      // fillRule="nonzero"
+    // fillRule="nonzero"
     />
     <SvgFtType type={type} />
     {/* Paper corner */}
@@ -192,7 +193,7 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
 );
 
 //Folder type icon component
-const SvgFtFolder = ({color, color2, ...props}) => (
+const SvgFtFolder = ({ color, color2, ...props }) => (
   <svg
     viewBox="0 0 24 22"
     fillRule="evenodd"
@@ -201,14 +202,14 @@ const SvgFtFolder = ({color, color2, ...props}) => (
   >
     <path
       d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-      fill= { color ? color : "currentcolor" }
+      fill={color ? color : "currentcolor"}
       fillRule="nonzero"
     />
   </svg>
 );
 
 type FtLabelProps = WidthProps;
-const FtLabel = styled(Text)<FtLabelProps>`
+const FtLabel = styled(Text) <FtLabelProps>`
     position: absolute;
     bottom: 1px;
     text-align:center;
@@ -230,7 +231,7 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
       return (<Icon name={"ftResultsFolder"} size={size} color={"FtIconColor2"} color2={"lightGray"} />);
     case "DIRECTORY":
       //return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
-      return (<SvgFtFolder width={size} height={size} color={theme.colors["FtIconColor2"]} color2={theme.colors["lightGray"]} {...props}/>);
+      return (<SvgFtFolder width={size} height={size} color={theme.colors["FtIconColor2"]} color2={theme.colors["lightGray"]} {...props} />);
   }
   /* fileIcon.type should be "FILE" at this point */
   return (

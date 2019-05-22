@@ -65,17 +65,16 @@ exports[`UserCreation Mount 1`] = `
   -ms-letter-spacing: 0.2px;
   letter-spacing: 0.2px;
   display: block;
-  width: 100%;
   margin: 0;
   margin-bottom: 1em;
   font-size: 14px;
   color: #000;
   font-weight: 700;
+  width: 100%;
 }
 
 .c6 {
   display: block;
-  width: 100%;
   font-family: inherit;
   color: inherit;
   background-color: transparent;
@@ -90,6 +89,7 @@ exports[`UserCreation Mount 1`] = `
   border-color: #8393A7;
   box-shadow: 0 0 0 1px #8393A7;
   border-radius: 5px;
+  width: 100%;
 }
 
 .c6::-webkit-input-placeholder {
@@ -192,6 +192,7 @@ exports[`UserCreation Mount 1`] = `
         color="black"
         fontSize={1}
         fontWeight="bold"
+        width="100%"
       >
         Username
         <input
@@ -201,6 +202,7 @@ exports[`UserCreation Mount 1`] = `
           onChange={[Function]}
           placeholder="Username..."
           value=""
+          width="100%"
         />
       </label>
       <label
@@ -208,6 +210,7 @@ exports[`UserCreation Mount 1`] = `
         color="black"
         fontSize={1}
         fontWeight="bold"
+        width="100%"
       >
         Password
         <input
@@ -218,6 +221,7 @@ exports[`UserCreation Mount 1`] = `
           placeholder="Password..."
           type="password"
           value=""
+          width="100%"
         />
       </label>
       <label
@@ -225,6 +229,7 @@ exports[`UserCreation Mount 1`] = `
         color="black"
         fontSize={1}
         fontWeight="bold"
+        width="100%"
       >
         Repeat password
         <input
@@ -235,6 +240,7 @@ exports[`UserCreation Mount 1`] = `
           placeholder="Repeat password..."
           type="password"
           value=""
+          width="100%"
         />
       </label>
       <button

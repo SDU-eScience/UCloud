@@ -123,13 +123,13 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
                         <form onSubmit={e => e.preventDefault()}>
                             <Login enabled2fa={!!challengeId} usernameRef={usernameInput} passwordRef={passwordInput} />
                             <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                            <Button fullWidth onClick={() => challengeId ? submit2FA() : attemptLogin()}>
+                            <Button fullWidth disabled={loading} onClick={() => challengeId ? submit2FA() : attemptLogin()}>
                                 {challengeId ? "Submit" : "Login"}
                             </Button>
                         </form>
                         <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
                         {enabledWayf && !challengeId ? <a href={`/auth/saml/login?service=${wayfService}`}>
-                            <Button fullWidth color="wayfGreen">Login with WAYF</Button>
+                            <Button disabled={loading} fullWidth color="wayfGreen">Login with WAYF</Button>
                         </a> : null}
                     </Card>
                     <Card borderRadius="0.5em" mt="0.3em" height="auto" p="1em 1em 1em 1em" bg="white">
@@ -145,11 +145,11 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
     
 }
 
-const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
+const TwoFactor = ({ enabled2fa, inputRef }: { enabled2fa: string, inputRef: React.RefObject<HTMLInputElement> }) => enabled2fa ? (
     <Input ref={inputRef} autoComplete="off" autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
 ) : null;
 
-const Login = ({ enabled2fa, usernameRef, passwordRef }) => !enabled2fa ? (
+const Login = ({ enabled2fa, usernameRef, passwordRef }: { enabled2fa: boolean, usernameRef: React.RefObject<HTMLInputElement>, passwordRef: React.RefObject<HTMLInputElement> }) => !enabled2fa ? (
     <>
         <Input type="hidden" value="web-csrf" name="service" />
         <Input ref={usernameRef} autoFocus mb="0.5em" type="text" name="username" id="username" placeholder="Username" />

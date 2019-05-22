@@ -66,7 +66,7 @@ export enum FileResource {
     CREATOR = "creator"
 }
 
-export type FilesProps = FilesStateProps & FilesOperations & RouterLocationProps;
+export type FilesProps = FilesStateProps & FilesOperations & RouterLocationProps; 
 
 export interface MockedTableProps {
     onCreateFolder: (a: number, c: number) => void

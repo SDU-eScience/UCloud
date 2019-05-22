@@ -52,7 +52,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     itemsPerPage,
                     SortOrder.DESCENDING,
                     onlyAllowFolders ? SortBy.FILE_TYPE : SortBy.PATH,
-                    [FileResource.PATH, FileResource.FILE_TYPE, FileResource.SENSITIVITY_LEVEL]
+                    [FileResource.PATH, FileResource.FILE_ID, FileResource.FILE_TYPE, FileResource.SENSITIVITY_LEVEL]
                 ))).promise;
             this.setState(() => ({
                 page: response,

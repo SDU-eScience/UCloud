@@ -133,10 +133,9 @@ export const AppHeader: React.StatelessComponent<MainContentProps & { slim?: boo
             </Box>
             <AppHeaderDetails>
                 {isSlim ?
-                    <>
-                        <Heading.h3>{props.application.metadata.title} <small>({props.application.metadata.version})</small></Heading.h3>
-                    </>
-                    :
+                    <Heading.h3>
+                        {props.application.metadata.title} <small>({props.application.metadata.version})</small>
+                    </Heading.h3> :
                     <>
                         <Heading.h2>{props.application.metadata.title}</Heading.h2>
                         <Heading.h3>v{props.application.metadata.version}</Heading.h3>
@@ -255,7 +254,7 @@ function InfoAttribute(props: {
     </Box>;
 }
 
-const pad = (value, length) =>
+const pad = (value: string | number, length: number) =>
     (value.toString().length < length) ? pad("0" + value, length) : value;
 
 const InfoAttributes = styled.div`

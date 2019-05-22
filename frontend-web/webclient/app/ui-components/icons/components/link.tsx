@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgLink = props => (
+const SvgLink = (props: any) => (
   <svg
     viewBox="0 0 34 28"
     fillRule="evenodd"
