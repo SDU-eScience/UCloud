@@ -1,19 +1,76 @@
 import * as React from "react";
-import { Icon, FtIcon, Absolute, Flex, Text, Label, Checkbox, Input } from "ui-components";
+import { Icon, FtIcon, Absolute, Flex, Text, Label, Checkbox, Box, Divider, Button, Select, Input } from "ui-components";
+import * as Heading from "ui-components/Heading";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { FtIconProps } from "UtilityFunctions";
 import styled from "styled-components";
+import { replaceHomeFolder } from "Utilities/FileUtilities";
+import { dialogStore } from "Dialog/DialogStore";
 
+interface StandardDialog { 
+    title?: string
+    message: string
+    onCancel: () => void,
+    onConfirm: () => void
+    cancelText?: string
+    confirmText?: string
+}
+
+export function standardDialog({ title, message, onConfirm, onCancel, cancelText = "Cancel", confirmText = "Confirm" }: StandardDialog) {
+    return <Box>
+        <Box>
+            <Heading.h3>{title}</Heading.h3>
+            {!!title ? <Divider/> : null}
+            <Box>{message}</Box>
+        </Box>
+        <Box textAlign="right" mt="20px">
+            <Button onClick={() => onCancel()} color="red" mr="5px">{cancelText}</Button>
+            <Button onClick={() => onConfirm()} color="green">{confirmText}</Button>
+        </Box>
+    </Box>
+}
+
+interface RewritePolicy {
+    path: string
+    homeFolder: string
+    filesRemaining: number
+}
+
+export function rewritePolicyDialog({ path, homeFolder, filesRemaining }: RewritePolicy): Promise<{ policy: string, applyToAll: boolean } | false> {
+    let policy = "RENAME";
+    let applyToAll = false;
+    return new Promise((resolve, reject) => dialogStore.addDialog(<Box>
+        <Box>
+            <Heading.h3>File exists</Heading.h3>
+            <Divider />
+            {replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it?
+            <Box mt="10px">
+                <Select onChange={e => policy = e.target.value} defaultValue="RENAME">
+                    <option value="RENAME">Rename</option>
+                    <option value="OVERWRITE">Overwrite</option>
+                </Select>
+                {filesRemaining > 1 ? 
+                    <Flex mt="20px">
+                        <Input mr="5px" width="20px" id="applyToAll" type="checkbox" onChange={e => applyToAll = e.target.checked} /><Label htmlFor="applyToAll">Apply to all?</Label>
+                    </Flex> : null}
+            </Box>
+        </Box>
+        <Box textAlign="right" mt="20px">
+            <Button onClick={() => (dialogStore.popDialog(), resolve(false))} color="red" mr="5px">No</Button>
+            <Button onClick={() => (dialogStore.popDialog(), resolve({ policy, applyToAll }))} color="green">Yes</Button>
+        </Box> 
+    </Box>));
+}
 
 interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, size?: string | number  }
 export const FileIcon = ({ shared = false, link = false, fileIcon }: FileIconProps) => 
     link || shared ?
     <RelativeFlex>
         <FtIcon size={30} fileIcon={fileIcon}/>
-        <Absolute bottom={"-6px"} right={"-2px"}>
+        <Absolute bottom="-6px" right="-2px">
             <Dropdown>
                 <Icon size="15px" name="link" color2="white"/>
-                <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
+                <DropdownContent width="160px" color="text" colorOnHover={false} backgroundColor={"lightGray"}>
                     <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
                 </DropdownContent>
             </Dropdown>
@@ -37,9 +94,9 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
         duration: 500
     }
 
-    updateDuration = (duration: number) => this.setState(() => ({ duration }));
+    private updateDuration = (duration: number) => this.setState(() => ({ duration }));
 
-    render() {
+    public render() {
         if (!this.props.visible) return null;
         // From https://codepen.io/nathangath/pen/RgvzVY/
         return (

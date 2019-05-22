@@ -309,10 +309,7 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
 }
 
 export class OptionalParameter extends React.Component<{ parameter: Types.ApplicationParameter, onUse: () => void }, { open: boolean }> {
-    constructor(props) {
-        super(props);
-        this.state = { open: false };
-    }
+    state = { open: false };
 
     private static Base = styled(Flex)`
         align-items: center;

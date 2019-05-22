@@ -3,20 +3,18 @@ import SDUCloud from "Authentication/lib";
 import { File, MoveCopyOperations, Operation, SortOrder, SortBy, FileType, FileOperation, FileResource } from "Files";
 import { Page } from "Types";
 import { History } from "history";
-import swal, { SweetAlertResult } from "sweetalert2";
+import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
+import { standardDialog, rewritePolicyDialog } from "UtilityComponents";
+import { dialogStore } from "Dialog/DialogStore";
 
 function initialSetup(operations: MoveCopyOperations) {
     resetFileSelector(operations);
     return { failurePaths: [] as string[], applyToAll: false, policy: UploadPolicy.REJECT as UploadPolicy };
-}
-
-async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
-    return !!(await rewritePolicy({ path: newPath, homeFolder, filesRemaining })).value;
 }
 
 function getNewPath(newParentPath: string, currentPath: string): string {
@@ -47,9 +45,13 @@ export function copyOrMoveFiles({ operation, files, copyMoveOps, cloud, setLoadi
             let f = files[i];
             let { exists, allowRewrite, newPathForFile } = await moveCopySetup({ targetPath: targetPathFolder.path, path: f.path, cloud });
             if (exists && !applyToAll) {
-                allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
-                policy = UF.selectValue("policy") as UploadPolicy;
-                if (files.length - i > 1) applyToAll = UF.elementValue("applyToAll");
+                const result = await rewritePolicyDialog({ path: newPathForFile, homeFolder: cloud.homeFolder, filesRemaining: files.length - i });
+                if (result != false) {
+                    allowRewrite = true;
+                    allowRewrite = !!result.policy;
+                    policy = result.policy as UploadPolicy;
+                    if (files.length - i > 1) applyToAll = result.applyToAll;
+                }
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
@@ -125,33 +127,6 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
         // FIXME: in the event of other than 404
         return !(e.request.status === 404);
     }
-}
-
-interface RewritePolicy {
-    path: string
-    homeFolder: string
-    filesRemaining: number
-}
-
-function rewritePolicy({ path, homeFolder, filesRemaining }: RewritePolicy): Promise<SweetAlertResult> {
-    return swal({
-        title: "File exists",
-        text: "",
-        html: `<div>${replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it ?</div> <br/>
-                    <select id="policy" defaultValue="RENAME">
-                        <option value="RENAME">Rename</option>
-                        <option value="OVERWRITE">Overwrite</option>
-                    </select>
-                ${filesRemaining > 1 ? `<br/>
-                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""}`,
-        allowEscapeKey: true,
-        allowOutsideClick: true,
-        allowEnterKey: false,
-        showConfirmButton: true,
-        showCancelButton: true,
-        cancelButtonText: "No",
-        confirmButtonText: "Yes",
-    });
 }
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
@@ -326,7 +301,7 @@ export const MoveFileToTrashOperation = ({ onMoved, setLoading, addSnack }: Move
 
 export const ClearTrashOperations = (toHome: () => void): Operation[] => [{
     text: "Clear Trash",
-    onClick: (files, cloud) => clearTrash(cloud, toHome),
+    onClick: (files, cloud) => clearTrash({ cloud, callback: toHome }),
     disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
     icon: "trash",
     color: "red"
@@ -609,15 +584,6 @@ export const expandHomeFolder = (path: string, homeFolder: string): string => {
     return path;
 }
 
-export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callback: () => void) =>
-    moveToTrashSwal([filePath]).then((result: any) => {
-        if (result.dismiss) {
-            return;
-        } else {
-            cloud.delete("/files", { path: filePath }).then(() => !!callback ? callback() : null);
-        }
-    });
-
 
 const extractFilesQuery = "/files/extract";
 interface ExtractArchive extends AddSnackOperation {
@@ -642,13 +608,14 @@ export const extractArchive = ({ files, cloud, onFinished, addSnack }: ExtractAr
 
 
 
-export const clearTrash = (cloud: SDUCloud, callback: () => void) =>
-    clearTrashSwal().then(result => {
-        if (result.dismiss) {
-            return;
-        } else {
-            cloud.post("/files/trash/clear", {}).then(() => callback());
-        }
+export const clearTrash = ({ cloud, callback }: { cloud: SDUCloud, callback: () => void }) =>
+    clearTrashDialog({
+        onConfirm: async () => {
+            await cloud.post("/files/trash/clear", {});
+            callback();
+            dialogStore.popDialog();
+        },
+        onCancel: () => dialogStore.popDialog()
     });
 
 export const getParentPath = (path: string): string => {
@@ -753,28 +720,29 @@ export const shareFiles = ({ files, cloud, addSnack }: ShareFiles) =>
         });
     });
 
-const moveToTrashSwal = (filePaths: string[]) => {
-    const moveText = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
+const moveToTrashDialog = ({ filePaths, onCancel, onConfirm }: { onConfirm: () => void, onCancel: () => void, filePaths: string[] }) => {
+    const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
-    return swal({
+
+    return standardDialog({
         title: "Move files to trash",
-        text: moveText,
-        confirmButtonText: "Move files",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
+        message,
+        onConfirm,
+        onCancel,
+        confirmText: "Move files"
     });
 };
 
-export const clearTrashSwal = () => {
-    return swal({
+export function clearTrashDialog({ onConfirm, onCancel }: { onConfirm: () => void, onCancel: () => void }) {
+    return standardDialog({
         title: "Empty trash?",
-        confirmButtonText: "Confirm",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
-    });
-};
+        message: "",
+        confirmText: "Confirm",
+        cancelText: "Cancel",
+        onCancel,
+        onConfirm
+    })
+}
 
 interface ResultToNotification extends AddSnackOperation {
     failures: string[]
@@ -801,15 +769,22 @@ interface MoveToTrash extends AddSnackOperation {
 }
 export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: MoveToTrash) => {
     const paths = files.map(f => f.path);
-    moveToTrashSwal(paths).then((result: any) => {
-        if (result.dismiss) return;
-        setLoading();
-        cloud.post<Failures>("/files/trash/", { files: paths })
-            .then(({ response }) => (resultToNotification({
-                failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack
-            }), callback()))
-            .catch(({ response }) => (addSnack({ message: response.why, type: SnackType.Failure }), callback()));
-    });
+    dialogStore.addDialog(moveToTrashDialog({
+        filePaths: paths, onConfirm: async () => {
+            try {
+                setLoading();
+                const { response } = await cloud.post<Failures>("/files/trash/", { files: paths })
+                resultToNotification({ failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack });
+                callback();
+            } catch (e) {
+                addSnack({ message: e.why, type: SnackType.Failure });
+                callback();
+            } finally {
+                dialogStore.popDialog()
+            }
+        },
+        onCancel: () => dialogStore.popDialog()
+    }));
 };
 
 interface BatchDeleteFiles extends AddSnackOperation {

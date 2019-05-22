@@ -4,7 +4,7 @@ import Cloud from "Authentication/lib";
 import { Page } from "Types";
 import { expandHomeFolder } from "./FileUtilities";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
-import swal, { SweetAlertResult } from "sweetalert2";
+import { standardDialog } from "UtilityComponents";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -23,7 +23,7 @@ export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 interface HPCApplicationsSearchQuery { query: string, page: number, itemsPerPage: number }
-export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }): string =>
+export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
     `/hpc/apps/search?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
@@ -32,19 +32,15 @@ export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPC
 export const cancelJobQuery = `hpc/jobs`;
 
 
-export function cancelJobSwal({ jobId }: { jobId: string }): Promise<SweetAlertResult> {
-    return swal({
+export const cancelJobDialog = ({ jobId, onCancel, onConfirm }: { jobId: string, onCancel: () => void, onConfirm: () => void }): JSX.Element =>
+    standardDialog({
         title: "Cancel job?",
-        text: `Cancel job: ${jobId}?`,
-        allowEscapeKey: true,
-        allowOutsideClick: true,
-        allowEnterKey: false,
-        showConfirmButton: true,
-        showCancelButton: true,
-        cancelButtonText: "No",
-        confirmButtonText: "Cancel job",
+        message: `Cancel job: ${jobId}?`,
+        cancelText: "No",
+        confirmText: "Cancel job",
+        onCancel,
+        onConfirm
     })
-}
 
 interface FavoriteApplicationFromPage extends AddSnackOperation {
     name: string

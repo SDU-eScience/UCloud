@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgCheckDouble = props => (
+const SvgCheckDouble = (props: any) => (
   <svg
     viewBox="0 0 25 19"
     fillRule="evenodd"

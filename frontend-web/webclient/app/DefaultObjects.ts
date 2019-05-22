@@ -250,7 +250,9 @@ interface LegacyReduxObject {
     responsive?: ResponsiveReduxObject
 }
 
-export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects & FavoritesRedux.Objects & SnackbarRedux.Wrapper;
+export type ReduxObject = 
+    LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects & FavoritesRedux.Objects &
+    SnackbarRedux.Wrapper;
 
 
 export const initActivity = (): ActivityReduxObject => ({
