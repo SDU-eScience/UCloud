@@ -8,7 +8,7 @@ import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
-import { standardDialog, rewritePolicyDialog } from "UtilityComponents";
+import {standardDialog, rewritePolicyDialog, shareDialog, sensitivityDialog} from "UtilityComponents";
 import { dialogStore } from "Dialog/DialogStore";
 
 function initialSetup(operations: MoveCopyOperations) {
@@ -659,17 +659,17 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
         }));
 }
 
-interface UpdateSensitivty extends AddSnackOperation {
+interface UpdateSensitivity extends AddSnackOperation {
     files: File[]
     cloud: SDUCloud
     onSensitivityChange?: () => void
 }
 
-function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivty) {
-    UF.sensitivitySwal().then(input => {
-        if (!!input.dismiss) return;
+function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivity) {
+    sensitivityDialog().then(input => {
+        if ("cancelled" in input) return;
         Promise.all(
-            files.map(file => reclassifyFile({ file, sensitivity: input.value as SensitivityLevelMap, cloud, addSnack }))
+            files.map(file => reclassifyFile({ file, sensitivity: input.option, cloud, addSnack }))
         ).catch(e =>
             UF.errorMessageOrDefault(e, "Could not reclassify file")
         ).then(() => !!onSensitivityChange ? onSensitivityChange() : null);
@@ -679,7 +679,7 @@ function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: Upda
 export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
     const token = await cloud.createOneTimeTokenWithPermission("files.download:read");
     return fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
-}
+};
 
 export const sizeToString = (bytes: number | null): string => {
     if (bytes === null || bytes < 0) return "Invalid size";
@@ -702,15 +702,16 @@ export const sizeToString = (bytes: number | null): string => {
 
 interface ShareFiles extends AddSnackOperation { files: File[], cloud: SDUCloud }
 export const shareFiles = ({ files, cloud, addSnack }: ShareFiles) =>
-    UF.shareSwal().then(input => {
-        if (input.dismiss) return;
+    shareDialog().then(input => {
+        if ("cancelled" in input) return;
         const rights: string[] = [];
-        if (UF.elementValue("read")) rights.push("READ")
-        if (UF.elementValue("read_edit")) { rights.push("READ"); rights.push("WRITE"); }
+        if (input.readOrEdit.includes("read")) rights.push("READ")
+        if (input.readOrEdit.includes("read_edit")) rights.push("WRITE");
         let iteration = 0;
+        // Replace with Promise.all
         files.map(f => f.path).forEach((path, i, paths) => {
             const body = {
-                sharedWith: input.value,
+                sharedWith: input.username,
                 path,
                 rights
             };
@@ -847,10 +848,10 @@ interface CreateFolder extends AddSnackOperation {
 
 export async function createFolder({ path, cloud, onSuccess, addSnack }: CreateFolder): Promise<void> {
     try {
-        await cloud.post("/files/directory", { path })
+        await cloud.post("/files/directory", { path });
         onSuccess();
     } catch {
-        addSnack({ message: "An error ocurred trying to creating the file.", type: SnackType.Failure });
+        addSnack({ message: "An error occurred trying to creating the file.", type: SnackType.Failure });
     }
 }
 

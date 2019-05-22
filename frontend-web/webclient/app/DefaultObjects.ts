@@ -45,21 +45,21 @@ export enum AnalysesStatusMap {
     "PENDING",
     "IN PROGRESS",
     "COMPLETED"
-};
+}
 
 export enum RightsNameMap {
     "NONE" = "None",
     "READ" = "Read",
     "READ_WRITE" = "Read/Write",
     "EXECUTE" = "Execute"
-};
+}
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
     "PRIVATE" = "Private",
     "CONFIDENTIAL" = "Confidential",
     "SENSITIVE" = "Sensitive"
-};
+}
 
 export type Sensitivity = keyof typeof SensitivityLevel;
 
@@ -68,7 +68,7 @@ export enum SensitivityLevelMap {
     PRIVATE = "PRIVATE",
     CONFIDENTIAL = "CONFIDENTIAL",
     SENSITIVE = "SENSITIVE"
-};
+}
 
 function getFilesSortingColumnOrDefault(columnIndex: 0 | 1): SortBy {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
@@ -81,7 +81,7 @@ function getFilesSortingColumnOrDefault(columnIndex: 0 | 1): SortBy {
             window.localStorage.setItem("filesSorting1", SortBy.SIZE);
             return SortBy.SIZE;
     }
-};
+}
 
 function getItemOrDefault<T, T2>(itemName: string, defaultValue: T, en: T2): T {
     const item = window.localStorage.getItem(itemName);
