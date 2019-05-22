@@ -15,7 +15,9 @@ export interface Share {
 
 export enum ShareState {
     REQUEST_SENT = "REQUEST_SENT",
-    ACCEPTED = "ACCEPTED"
+    ACCEPTED = "ACCEPTED",
+    FAILURE = "FAILURE",
+    UPDATING = "UPDATING"
 }
 
 export type ShareId = string

@@ -29,6 +29,8 @@ import { AppLogoRaw } from "Applications/Card";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { DevelopmentBadgeBase } from "ui-components/Badge";
+import { FlexProps, SpaceProps } from "styled-system";
+import { FlexCProps } from "ui-components/Flex";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
@@ -75,7 +77,9 @@ class Header extends React.Component<HeaderProps> {
                 </Flex>
                 <Support />
                 <Notification />
-                <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={this.props.avatar} /> : null}</Flex>}>
+                <ClickableDropdown width="200px" left="-180%" trigger={
+                    <Flex>{Cloud.isLoggedIn ? <UserAvatar mx={"8px"} avatar={this.props.avatar} /> : null}</Flex>
+                }>
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to="/users/settings">
                             <Flex color="black">
@@ -234,9 +238,12 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-interface UserAvatar { avatar: AvatarType }
-export const UserAvatar = ({ avatar }: UserAvatar) => (
-    <ClippedBox mx="8px" width="60px">
+interface UserAvatarProps extends SpaceProps { 
+    avatar: AvatarType 
+}
+
+export const UserAvatar = ({ avatar, ...props }: UserAvatarProps) => (
+    <ClippedBox width="60px" {...props}>
         <Avatar
             avatarStyle="Circle"
             topType={avatar.top}
