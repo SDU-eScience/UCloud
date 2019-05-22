@@ -319,12 +319,27 @@ class ShareService<DBSession>(
                 shareDao.deleteShare(dbSession, AuthRequirements(null), existingShare.id)
             }
         } else {
-            workQueue.produce(
-                ShareJob.Deleting(
-                    updateFSPermissions(existingShare, revoke = true),
-                    existingShare.id
+            try {
+                db.withTransaction {
+                    shareDao.updateShare(it, AuthRequirements(), existingShare.id, state = ShareState.UPDATING)
+                }
+
+                workQueue.produce(
+                    ShareJob.Deleting(
+                        updateFSPermissions(existingShare, revoke = true),
+                        existingShare.id
+                    )
                 )
-            )
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    invalidateShare(existingShare)
+                    db.withTransaction { dbSession ->
+                        shareDao.deleteShare(dbSession, AuthRequirements(null), existingShare.id)
+                    }
+                } else {
+                    throw ex
+                }
+            }
         }
     }
 
@@ -348,16 +363,24 @@ class ShareService<DBSession>(
     private suspend fun handleFailing(share: InternalShare, job: ShareJob.Failing) {
         try {
             delay(job.failureCount * 1000L)
-            val jobId = updateFSPermissions(share, revoke = true)
-            if (job.failureCount > 100) log.warn("Failure count > 100 $job")
+            try {
+                val jobId = updateFSPermissions(share, revoke = true)
+                if (job.failureCount > 100) log.warn("Failure count > 100 $job")
 
-            awaitUpdateACL(
-                share,
-                jobId,
+                awaitUpdateACL(
+                    share,
+                    jobId,
 
-                onSuccess = { markShareAsFailed(share) },
-                onFailure = { workQueue.produce(ShareJob.Failing(job.shareId, job.failureCount + 1)) }
-            )
+                    onSuccess = { markShareAsFailed(share) },
+                    onFailure = { workQueue.produce(ShareJob.Failing(job.shareId, job.failureCount + 1)) }
+                )
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    markShareAsFailed(share)
+                } else {
+                    throw ex
+                }
+            }
         } catch (ex: Throwable) {
             workQueue.produce(ShareJob.Failing(job.shareId, failureCount = job.failureCount + 1))
         }

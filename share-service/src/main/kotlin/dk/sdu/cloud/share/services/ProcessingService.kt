@@ -16,10 +16,12 @@ import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
@@ -55,7 +57,7 @@ class ProcessingService<Session>(
                             recipientCloud
                         ).throwIfInternal()
 
-                        val isLink = stat.orNull()?.fileType == FileType.LINK
+                        val isLink = stat.orNull()?.link ?: false
                         log.debug("Found link? $isLink")
                         if (isLink) {
                             FileDescriptions.deleteFile.call(
@@ -102,7 +104,19 @@ class ProcessingService<Session>(
         coroutineScope {
             // TODO Performance, we could bundle these by file ID and bulk updateAcl
             // TODO Confirm file was deleted, in this case we can skip the updateAcl call
-            val deletedShareJobs = deletedShares.map { launch { shareService.deleteShare(it) } }
+            val deletedShareJobs = deletedShares.map {
+                launch {
+                    var attempts = 0
+                    while (attempts++ < 10) {
+                        try {
+                            shareService.deleteShare(it)
+                            break
+                        } catch (ex: Exception) {
+                            delay(6_000)
+                        }
+                    }
+                }
+            }
 
             // TODO Performance. This is not even slightly optimized for bulk.
             // The DB transfers are not in a single transaction (because we can't).

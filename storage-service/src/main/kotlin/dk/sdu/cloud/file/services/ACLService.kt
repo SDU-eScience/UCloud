@@ -31,27 +31,47 @@ class ACLService<Ctx : FSUserContext>(
         recursive: Boolean = true,
         realOwner: String
     ) {
-        // TODO Verify that the change here was correct (we no longer add creator but rather real owner)
+        suspend fun grant(entity: FSACLEntity, defaultList: Boolean) {
+            fs.createACLEntry(
+                ctx,
+                path,
+                entity,
+                rights,
+                defaultList = defaultList,
+                recursive = recursive,
+                transferOwnershipTo = null
+            ).setfaclUnwrap()
+        }
 
         // Add to both the default and the actual list. This needs to be recursively applied
         // We need to apply this process to both the creator and the entity.
-        fs.createACLEntry(ctx, path, FSACLEntity.User(realOwner), rights, defaultList = true, recursive = recursive)
-            .setfaclUnwrap()
-        fs.createACLEntry(ctx, path, FSACLEntity.User(realOwner), rights, defaultList = false, recursive = recursive)
-            .setfaclUnwrap()
+        grant(FSACLEntity.User(realOwner), false)
+        grant(FSACLEntity.User(realOwner), true)
 
-        fs.createACLEntry(ctx, path, entity, rights, defaultList = true, recursive = recursive).setfaclUnwrap()
-        fs.createACLEntry(ctx, path, entity, rights, defaultList = false, recursive = recursive).setfaclUnwrap()
+        grant(entity, false)
+        grant(entity, true)
     }
 
     private suspend fun revokeRights(
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,
-        recursive: Boolean = true
+        recursive: Boolean = true,
+        realOwner: String
     ) {
-        fs.removeACLEntry(ctx, path, entity, defaultList = true, recursive = recursive).setfaclUnwrap()
-        fs.removeACLEntry(ctx, path, entity, defaultList = false, recursive = recursive).setfaclUnwrap()
+        suspend fun revoke(defaultList: Boolean) {
+            fs.removeACLEntry(
+                ctx,
+                path,
+                entity,
+                defaultList = defaultList,
+                recursive = recursive,
+                transferOwnershipTo = realOwner
+            ).setfaclUnwrap()
+        }
+
+        revoke(false)
+        revoke(true)
     }
 
     private fun <T> FSResult<T>.setfaclUnwrap(): T {
@@ -72,6 +92,7 @@ class ACLService<Ctx : FSUserContext>(
                     val parsed = defaultMapper.readValue<UpdateRequestWithRealOwner>(message)
                     parsedRequest = parsed
                     val (request, realOwner) = parsed
+                    log.debug("Executing ACL update request: $request")
 
                     request.changes.forEach { change ->
                         // We roll all changes back which have been initiated.
@@ -82,7 +103,7 @@ class ACLService<Ctx : FSUserContext>(
                             if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
 
                         if (change.revoke) {
-                            revokeRights(ctx, request.path, entity, request.recurse)
+                            revokeRights(ctx, request.path, entity, request.recurse, realOwner)
                         } else {
                             grantRights(ctx, request.path, entity, change.rights, request.recurse, realOwner)
                         }
