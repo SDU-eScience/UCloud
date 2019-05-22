@@ -223,7 +223,7 @@ export const initDetailedResult = (): DetailedResultReduxObject => ({
 });
 
 export interface SharesReduxObject extends ComponentWithPage<SharesByPath> {
-    byState: ShareState
+    sharedByMe: boolean
 }
 
 /* FIXME */
@@ -318,7 +318,7 @@ export const initObject = (homeFolder: string): ReduxObject => ({
 export const initShares = (): SharesReduxObject => ({
     page: emptyPage,
     loading: false,
-    byState: ShareState.REQUEST_SENT,
+    sharedByMe: false,
     error: undefined
 });
 

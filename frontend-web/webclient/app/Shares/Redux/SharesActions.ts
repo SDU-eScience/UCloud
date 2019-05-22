@@ -26,7 +26,7 @@ export const fetchSharesByPath = async (path: string): Promise<ReceiveShares | S
     } catch ({ request }) {
         return setErrorMessage(request.message)
     }
-}
+};
 
 export const retrieveShares = async (page: Number, itemsPerPage: Number, byState?: ShareState): Promise<ReceiveShares | SetErrorMessage> => {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
@@ -37,12 +37,12 @@ export const retrieveShares = async (page: Number, itemsPerPage: Number, byState
     } catch ({ request }) {
         return setErrorMessage(request.message);
     }
-}
+};
 
-type SetShareState = PayloadAction<typeof SET_SHARE_STATE, { byState?: ShareState }>
-export const setShareState = (byState?: ShareState): SetShareState => ({
+type SetShareState = PayloadAction<typeof SET_SHARE_STATE, { sharedByMe: boolean }>
+export const setShareState = (sharedByMe: boolean): SetShareState => ({
     type: SET_SHARE_STATE,
-    payload: { byState }
+    payload: { sharedByMe }
 });
 
 type SetErrorMessage = Error<typeof SET_SHARES_ERROR>
