@@ -349,7 +349,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     private async cancelJob() {
         try {
-            this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, { jobId: this.jobId}));
+            await this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, { jobId: this.jobId})).promise;
         } catch (e) {
             this.props.addSnack({
                 type: SnackType.Failure,
