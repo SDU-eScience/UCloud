@@ -25,36 +25,38 @@ import {SensitivityLevelMap} from "DefaultObjects";
 interface StandardDialog {
     title?: string
     message: string | JSX.Element
-    onCancel: () => void,
     onConfirm: () => void
+    onCancel?: () => void
     cancelText?: string
     confirmText?: string
+    validator?: () => boolean
 }
 
-export function standardDialog({
+export function addStandardDialog({
    title,
    message,
    onConfirm,
-   onCancel,
+   onCancel = () => undefined,
+   validator = () => true,
    cancelText = "Cancel",
    confirmText = "Confirm"
 }: StandardDialog) {
-    return <Box>
+    dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>{title}</Heading.h3>
             {!!title ? <Divider/> : null}
             <Box>{message}</Box>
         </Box>
         <Box textAlign="right" mt="20px">
-            <Button onClick={() => onCancel()} color="red" mr="5px">{cancelText}</Button>
-            <Button onClick={() => onConfirm()} color="green">{confirmText}</Button>
+            <Button onClick={() => { onCancel(); dialogStore.popDialog() }} color="red" mr="5px">{cancelText}</Button>
+            <Button onClick={() => { if (validator()) onConfirm(); dialogStore.popDialog() }} color="green">{confirmText}</Button>
         </Box>
-    </Box>
+    </Box>)
 }
 
 export function sensitivityDialog(): Promise<{ cancelled: true } | { option: SensitivityLevelMap }> {
     let option = "INHERIT" as SensitivityLevelMap;
-    return new Promise(resolve => dialogStore.addDialog(standardDialog({
+    return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
         message: (<Box>
                 <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
@@ -64,16 +66,10 @@ export function sensitivityDialog(): Promise<{ cancelled: true } | { option: Sen
                     <option value="SENSITIVE">Sensitive</option>
                 </Select>
         </Box>),
-        onConfirm: () => {
-            dialogStore.popDialog();
-            resolve({ option })
-        },
-        onCancel: () => {
-            dialogStore.popDialog();
-            resolve({ cancelled: true })
-        },
+        onConfirm: () => resolve({ option }),
+        onCancel: () => resolve({ cancelled: true }),
         confirmText: "Change"
-    })))
+    }));
 }
 
 export function shareDialog(): Promise<{ cancelled: true } | { username: string, readOrEdit: "read" | "read_edit" }> {
@@ -116,21 +112,14 @@ export function shareDialog(): Promise<{ cancelled: true } | { username: string,
 }
 
 export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
-    return new Promise(resolve => dialogStore.addDialog(standardDialog({
+    return new Promise(resolve => addStandardDialog({
         title: "Warning",
         message: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
         cancelText: "Continue Upload",
         confirmText: "Cancel Upload",
-        onConfirm: () => {
-            // FIXME: This should not be done this way. Should be done automatically when "onConfirm" terminates correctly
-            dialogStore.popDialog();
-            resolve({});
-        },
-        onCancel: () => {
-            dialogStore.popDialog();
-            resolve({cancelled: true});
-        }
-    })));
+        onConfirm: () =>  resolve({}),
+        onCancel: () => resolve({cancelled: true})
+    }));
 }
 
 interface RewritePolicy {

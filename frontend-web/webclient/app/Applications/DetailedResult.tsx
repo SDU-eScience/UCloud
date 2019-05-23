@@ -349,7 +349,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private async cancelJob() {
-        dialogStore.addDialog(cancelJobDialog({
+        cancelJobDialog({
             jobId: this.jobId,
             onConfirm: () => {
                 try {
@@ -359,12 +359,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         type: SnackType.Failure,
                         message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
                     });
-                } finally {
-                    dialogStore.popDialog()
                 }
-            },
-            onCancel: () => dialogStore.popDialog()
-        }));
+            }
+        });
     }
 
     private renderCancelButton() {

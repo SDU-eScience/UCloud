@@ -4,7 +4,7 @@ import Cloud from "Authentication/lib";
 import { Page } from "Types";
 import { expandHomeFolder } from "./FileUtilities";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
-import { standardDialog } from "UtilityComponents";
+import { addStandardDialog } from "UtilityComponents";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -32,13 +32,12 @@ export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPC
 export const cancelJobQuery = `hpc/jobs`;
 
 
-export const cancelJobDialog = ({ jobId, onCancel, onConfirm }: { jobId: string, onCancel: () => void, onConfirm: () => void }): JSX.Element =>
-    standardDialog({
+export const cancelJobDialog = ({ jobId, onConfirm }: { jobId: string, onConfirm: () => void }): void =>
+    addStandardDialog({
         title: "Cancel job?",
         message: `Cancel job: ${jobId}?`,
         cancelText: "No",
         confirmText: "Cancel job",
-        onCancel,
         onConfirm
     })
 
