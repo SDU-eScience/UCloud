@@ -183,7 +183,39 @@ class ApplicationHibernateDAO(
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
+        if (query.isBlank()) {
+            return Page(0, paging.itemsPerPage, 0, emptyList())
+        }
         val normalizedQuery = normalizeQuery(query)
+        val trimmedNormalizedQuery = normalizedQuery.trim()
+        val keywords = trimmedNormalizedQuery.split(" ")
+        if (keywords.size == 1) {
+            return doSearch(session, user, trimmedNormalizedQuery, paging)
+        }
+        return doMultiKeywordSearch(session, user, keywords, paging)
+    }
+
+    private fun doMultiKeywordSearch(
+        session: HibernateSession,
+        user: String,
+        keywords: List<String>,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite> {
+        return preparePageForUser(
+            session,
+            user,
+            session.paginatedCriteria<ApplicationEntity>(paging) {
+                (entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] isInCollection keywords)
+            }.mapItems { it.toModelWithInvocation() }
+        ).mapItems { it.withoutInvocation() }
+    }
+
+    private fun doSearch(
+        session: HibernateSession,
+        user: String,
+        normalizedQuery: String,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite>{
         val count = session.typedQuery<Long>(
             """
                 select count (A.id.name)
