@@ -2,7 +2,6 @@ import { Page, ClearRefresh } from "Types";
 import Cloud from "Authentication/lib";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
-import { Activity } from "Activity";
 import { ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
@@ -66,12 +65,7 @@ export enum FileResource {
     CREATOR = "creator"
 }
 
-export type FilesProps = FilesStateProps & FilesOperations & RouterLocationProps; 
-
-export interface MockedTableProps {
-    onCreateFolder: (a: number, c: number) => void
-    creatingFolder: boolean
-}
+export type FilesProps = FilesStateProps & FilesOperations & RouterLocationProps;
 
 export interface FilesStateProps {
     path: string
@@ -165,11 +159,6 @@ export interface FilesTableProps {
     notStickyHeader?: boolean
 }
 
-export interface CreateFolderProps {
-    creatingNewFolder: boolean
-    onCreateFolder: (key: number, name: string) => void
-}
-
 export interface FilesTableHeaderProps {
     toSortingIcon?: (s: SortBy) => "arrowUp" | "arrowDown" | undefined
     sortFiles?: (sortOrder: SortOrder, sortBy: SortBy) => void
@@ -226,13 +215,6 @@ export interface FileSelectorBodyProps {
     omitRelativeFolders: boolean
 }
 
-export interface FileListProps {
-    files: File[]
-    setSelectedFile: Function
-    fetchFiles: Function
-    canSelectFolders: boolean
-}
-
 export interface MoveCopyOperations {
     showFileSelector: (show: boolean) => void
     setDisallowedPaths: (paths: string[]) => void
@@ -252,11 +234,6 @@ export interface SortByDropdownProps {
     onSelect: (sortorder: SortOrder, s: SortBy) => void
     asDropdown: boolean
     isSortedBy: boolean
-}
-
-export interface MobileButtonsProps {
-    file: File
-    fileOperations: FileOperation[]
 }
 
 export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
@@ -323,10 +300,6 @@ export interface ResponsiveTableColumnProps extends SortByDropdownProps {
     iconName?: "arrowUp" | "arrowDown"
     minWidth?: number
     notSticky?: boolean
-}
-
-export interface FileInfoState {
-    activity: Page<Activity>
 }
 
 export type AdvancedSearchRequest = {
