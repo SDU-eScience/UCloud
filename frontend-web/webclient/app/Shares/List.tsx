@@ -1,17 +1,17 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {AccessRight, AccessRights, Page, singletonToPage} from "Types";
+import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
 import {getFilenameFromPath} from "Utilities/FileUtilities";
-import {ListProps, ListSharesParams, Share, SharesByPath, ShareState} from ".";
+import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 import {Box, Card, Flex, Icon, Text, Error} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {FileIcon} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
 import {SearchOptions, SelectableText} from "Search/Search";
-import {defaultAvatar} from "UserSettings/Avataaar";
+import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {UserAvatar} from "Navigation/Header";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {TextSpan} from "ui-components/Text";
@@ -34,12 +34,19 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {listShares, findShare, createShare, acceptShare, revokeShare, updateShare} from "./index";
 import {loadingAction} from "App";
 import * as Pagination from "Pagination";
+import {Avatar} from "avataaars";
+import {Simulate} from "react-dom/test-utils";
+import load = Simulate.load;
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const [sharedByMe, setSharedByMe] = useState(false);
 
     const initialFetchParams = props.byPath === undefined ?
         listShares({sharedByMe, itemsPerPage: 25, page: 0}) : findShare(sharedByMe, props.byPath);
+
+    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<Dictionary<AvatarType>>(
+        loadAvatars({usernames: new Set([])}), {}
+    );
 
     // Start of real data
     const [response, setFetchParams, params] = props.byPath === undefined ?
@@ -49,7 +56,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     let page = props.byPath === undefined ?
         response as APICallState<Page<SharesByPath>> :
         mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
-     // End of real data
+    // End of real data
 
     /*
     // Need dummy data? Remove the comments!
@@ -75,6 +82,23 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
             }
         }
     });
+
+    useEffect(() => {
+        const usernames = new Set(page.data.items.flatMap(group =>
+            group.shares.flatMap(share => share.sharedWith)
+        ));
+
+        if (JSON.stringify(Array.from(avatarParams.parameters!.usernames)) !== JSON.stringify(Array.from(usernames))) {
+            setAvatarParams(loadAvatars({usernames}));
+        }
+    }, [page]);
+
+    const AvatarComponent = (props: { username: string }) => {
+        let avatar = defaultAvatar;
+        let loadedAvatar = avatars.data.avatars[props.username];
+        if (!!loadedAvatar) avatar = loadedAvatar;
+        return <UserAvatar avatar={avatar}/>
+    };
 
     const header = (
         <SearchOptions>
@@ -104,6 +128,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         } else {
             return <>{
                 shares.map(it => <GroupedShareCard
+                    avatarComponent={AvatarComponent}
                     groupedShare={it}
                     key={it.path}/>
                 )
@@ -152,6 +177,7 @@ const NoShares = ({sharedByMe}: { sharedByMe: boolean }) =>
 interface ListEntryProperties {
     groupedShare: SharesByPath
     onError?: (message: string) => void
+    avatarComponent: (props: { username: string }) => JSX.Element
 }
 
 const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => {
@@ -162,7 +188,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const newShareUsername = useRef<HTMLInputElement>(null);
 
     const shareComponents: JSX.Element[] = groupedShare.shares.map((e) => (
-        <ShareRow key={e.id} share={e} sharedByMe={groupedShare.sharedByMe}/>
+        <ShareRow avatarComponent={props.avatarComponent} key={e.id} share={e} sharedByMe={groupedShare.sharedByMe}/>
     ));
 
     const doCreateShare = async (event) => {
@@ -231,7 +257,11 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     </Card>
 };
 
-const ShareRow: React.FunctionComponent<{ share: Share, sharedByMe: boolean }> = ({share, sharedByMe}) => {
+const ShareRow: React.FunctionComponent<{
+    share: Share,
+    sharedByMe: boolean,
+    avatarComponent: (props: { username: string }) => JSX.Element
+}> = ({share, sharedByMe, avatarComponent}) => {
     const [isLoading, sendCommand] = useAsyncCommand();
 
     const doAccept = () => sendCommand(acceptShare(share.id));
@@ -276,7 +306,7 @@ const ShareRow: React.FunctionComponent<{ share: Share, sharedByMe: boolean }> =
     }
 
     return <Flex alignItems={"center"} mb={"16px"}>
-        <UserAvatar avatar={defaultAvatar} mr={10}/>
+        {avatarComponent({username: share.sharedWith})}
 
         <Box>
             <Text bold>{share.sharedWith}</Text>

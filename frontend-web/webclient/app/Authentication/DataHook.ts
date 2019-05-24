@@ -89,8 +89,6 @@ export function useCloudAPI<T, Parameters = any>(
         data: dataInitial
     });
 
-    console.log("State is", state);
-
     useEffect(() => {
         let didCancel = false;
 

@@ -11,7 +11,7 @@ export interface ListProps {
 
 export interface Share {
     id: ShareId,
-    sharedWith: String,
+    sharedWith: string,
     rights: AccessRight[],
     state: ShareState
 }
@@ -76,3 +76,13 @@ export const updateShare = (id: ShareId, rights: AccessRight[]): APICallParamete
     payload: {id, rights}
 });
 
+export interface LoadAvatarsParams {
+    usernames: Set<string>
+}
+
+export const loadAvatars = ({usernames}: LoadAvatarsParams): APICallParameters<LoadAvatarsParams> => ({
+    method: "POST",
+    path: "/avatar/bulk",
+    payload: {usernames: Array.from(usernames)},
+    parameters: {usernames}
+});
