@@ -9,7 +9,7 @@ import { Dispatch } from "redux";
 import { errorMessageOrDefault, requestFullScreen } from "UtilityFunctions";
 import { getQueryParam, RouterLocationProps } from "Utilities/URIUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { hpcJobQuery, cancelJobQuery } from "Utilities/ApplicationUtilities";
+import { hpcJobQuery, cancelJobQuery, cancelJobDialog } from "Utilities/ApplicationUtilities";
 
 interface RFB {
     constructor(): RFB
@@ -116,22 +116,26 @@ function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
             message: `Fullscreen is not supported for this browser.`
         }));
     }
-
     
-    async function cancelJob() {
-        try {
-            await Cloud.delete(cancelJobQuery, { jobId });
-            props.addSnack({
-                type: SnackType.Success,
-                message: "Job has been terminated"
-            });
-            setCancelled(true);
-        } catch (e) {
-            props.addSnack({
-                type: SnackType.Failure,
-                message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
-            });
-        }
+    function cancelJob() {
+        if (!jobId) return;
+        cancelJobDialog({
+            jobId,
+            onConfirm: async () => {
+                try {
+                await Cloud.delete(cancelJobQuery, { jobId });
+                props.addSnack({
+                    type: SnackType.Success,
+                    message: "Job has been terminated"
+                });
+                setCancelled(true);
+            } catch (e) {
+                props.addSnack({
+                    type: SnackType.Failure,
+                    message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
+                });
+            }
+        }})
     }
 
     const mountNode = <div className="noVNC" />
