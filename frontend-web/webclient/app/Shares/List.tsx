@@ -39,10 +39,10 @@ import {Simulate} from "react-dom/test-utils";
 import load = Simulate.load;
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
-    const [sharedByMe, setSharedByMe] = useState(false);
+    const [sharedByMeState, setSharedByMe] = useState(false);
 
     const initialFetchParams = props.byPath === undefined ?
-        listShares({sharedByMe, itemsPerPage: 25, page: 0}) : findShare(sharedByMe, props.byPath);
+        listShares({sharedByMe: sharedByMeState, itemsPerPage: 25, page: 0}) : findShare(props.byPath);
 
     const [avatars, setAvatarParams, avatarParams] = useCloudAPI<Dictionary<AvatarType>>(
         loadAvatars({usernames: new Set([])}), {}
@@ -57,6 +57,11 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         response as APICallState<Page<SharesByPath>> :
         mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
     // End of real data
+
+    let sharedByMe = sharedByMeState;
+    if (props.byPath !== undefined && page.data.items.length > 0) {
+        sharedByMe = page.data.items[0].sharedByMe;
+    }
 
     /*
     // Need dummy data? Remove the comments!
@@ -97,12 +102,12 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
 
     const AvatarComponent = (props: { username: string }) => {
         let avatar = defaultAvatar;
-        let loadedAvatar = avatars.data.avatars[props.username];
+        let loadedAvatar = !!avatars.data ? avatars.data.avatars[props.username] : undefined;
         if (!!loadedAvatar) avatar = loadedAvatar;
         return <UserAvatar avatar={avatar}/>
     };
 
-    const header = (
+    const header = props.byPath !== undefined ? null : (
         <SearchOptions>
             <SelectableText
                 mr="1em"
@@ -124,12 +129,12 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         </SearchOptions>
     );
 
-    const shares = page.data.items.filter(it => it.sharedByMe == sharedByMe);
+    const shares = page.data.items.filter(it => it.sharedByMe == sharedByMe || props.byPath !== undefined);
     const main = <Pagination.List
         loading={page.loading}
         page={page.data}
         customEmptyPage={<NoShares sharedByMe={sharedByMe}/>}
-        errorMessage={page.error ? page.error.why : undefined}
+        errorMessage={page.error && page.error.statusCode != 404 ? page.error.why : undefined}
         onPageChanged={(pageNumber, page) => setFetchParams(listShares({
             sharedByMe,
             page: pageNumber,

@@ -32,7 +32,7 @@ export interface SharesByPath {
     shares: Share[]
 }
 
-export const findShare = (sharedByMe: boolean, path: string): APICallParameters => ({
+export const findShare = (path: string): APICallParameters => ({
     method: "GET",
     path: buildQueryString("/shares/byPath", {path: path}),
     reloadId: Math.random()
