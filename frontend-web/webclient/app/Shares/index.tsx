@@ -1,4 +1,4 @@
-import {APICallParameters} from "Shares/DataHook";
+import {APICallParameters} from "Authentication/DataHook";
 
 export {default as List} from "./List";
 import {AccessRight} from "Types";

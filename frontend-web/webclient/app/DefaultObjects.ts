@@ -220,10 +220,14 @@ interface LegacyReduxObject {
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
     responsive?: ResponsiveReduxObject
+    loading?: boolean
 }
 
 export type ReduxObject = 
-    LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects & FavoritesRedux.Objects &
+    LegacyReduxObject &
+    ApplicationRedux.Objects &
+    AccountingRedux.Objects &
+    FavoritesRedux.Objects &
     SnackbarRedux.Wrapper;
 
 

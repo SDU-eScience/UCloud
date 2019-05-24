@@ -20,22 +20,19 @@ import {colors} from "ui-components/theme";
 import Input, {InputLabel} from "ui-components/Input";
 import OutlineButton from "ui-components/OutlineButton";
 import {
-    APICallParameters,
     APICallState,
     callAPI,
-    callAPIWithErrorHandler,
     mapCallState, useAsyncCommand,
     useCloudAPI
-} from "Shares/DataHook";
+} from "Authentication/DataHook";
 import Button from "ui-components/Button";
-import {Snack} from "Snackbar/Snackbars";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {addSnack} from "Snackbar/Redux/SnackbarsActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {listShares, findShare, createShare, acceptShare, revokeShare, updateShare} from "./index";
+import {loadingAction} from "App";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const [sharedByMe, setSharedByMe] = useState(false);
@@ -50,6 +47,8 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     let page = props.byPath === undefined ?
         response as APICallState<Page<SharesByPath>> :
         mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
+
+    props.setGlobalLoading(page.loading);
 
     /*
     // Need dummy data? Remove the comments!
@@ -101,7 +100,6 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         } else {
             return <>{
                 shares.map(it => <GroupedShareCard
-                    addSnack={props.addSnack}
                     groupedShare={it}
                     key={it.path}/>
                 )
@@ -144,7 +142,6 @@ const NoShares = ({sharedByMe}: { sharedByMe: boolean }) =>
 interface ListEntryProperties {
     groupedShare: SharesByPath
     onError?: (message: string) => void
-    addSnack: (snack: Snack) => void
 }
 
 const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => {
@@ -155,7 +152,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const newShareUsername = useRef<HTMLInputElement>(null);
 
     const shareComponents: JSX.Element[] = groupedShare.shares.map((e) => (
-        <ShareRow addSnack={props.addSnack} key={e.id} share={e} sharedByMe={groupedShare.sharedByMe}/>
+        <ShareRow key={e.id} share={e} sharedByMe={groupedShare.sharedByMe}/>
     ));
 
     const doCreateShare = async (event) => {
@@ -169,7 +166,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 await callAPI(createShare(groupedShare.path, username, newShareRights));
                 newShareUsername.current!.value = "";
             } catch (e) {
-                defaultErrorHandler(e, props.addSnack);
+                defaultErrorHandler(e);
             } finally {
                 setIsCreatingShare(false);
             }
@@ -224,8 +221,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     </Card>
 };
 
-const ShareRow: React.FunctionComponent<{ share: Share, sharedByMe: boolean, addSnack: (snack: Snack) => void }> = ({share, sharedByMe, addSnack}) => {
-    const [isLoading, sendCommand] = useAsyncCommand(addSnack);
+const ShareRow: React.FunctionComponent<{ share: Share, sharedByMe: boolean }> = ({share, sharedByMe}) => {
+    const [isLoading, sendCommand] = useAsyncCommand();
 
     const doAccept = () => sendCommand(acceptShare(share.id));
     const doRevoke = () => sendCommand(revokeShare(share.id));
@@ -366,15 +363,15 @@ const receiveDummyShares = (itemsPerPage: number, page: number) => {
 interface ListOperations {
     updatePageTitle: () => void,
     setRefresh: (f?: () => void) => void
-    addSnack: (snack: Snack) => void
     setActivePage: () => void
+    setGlobalLoading: (boolean) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ListOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Shares")),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Shares)),
-    addSnack: snack => dispatch(addSnack(snack))
+    setGlobalLoading: loading => dispatch(loadingAction(loading)),
 });
 
 export default connect(null, mapDispatchToProps)(List);

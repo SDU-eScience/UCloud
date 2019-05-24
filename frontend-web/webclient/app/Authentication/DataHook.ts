@@ -2,6 +2,7 @@ import {useEffect, useReducer, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {Snack} from "Snackbar/Snackbars";
 import {defaultErrorHandler} from "UtilityFunctions";
+import {GLOBAL_addSnack} from "App";
 
 function dataFetchReducer(state, action) {
     switch (action.type) {
@@ -65,11 +66,11 @@ export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
 
 export async function callAPIWithErrorHandler<T>(
     parameters: APICallParameters,
-    addSnack: (snack: Snack) => void
+    addSnack: (snack: Snack) => void = GLOBAL_addSnack
 ): Promise<T | null> {
     try {
         return await callAPI(parameters);
-    } catch(e) {
+    } catch (e) {
         defaultErrorHandler(e, addSnack);
         return null;
     }
@@ -128,7 +129,7 @@ export function useCloudAPI<T>(callParametersInitial: APICallParameters, dataIni
     return [returnedState, doFetch];
 }
 
-export function useAsyncCommand(addSnack: (snack: Snack) => void): [boolean, (call: APICallParameters) => void] {
+export function useAsyncCommand(addSnack: (snack: Snack) => void = GLOBAL_addSnack): [boolean, (call: APICallParameters) => void] {
     const [isLoading, setIsLoading] = useState(false);
     const sendCommand = async (call: APICallParameters) => {
         setIsLoading(true);
