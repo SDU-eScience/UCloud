@@ -1,22 +1,16 @@
 import * as React from "react";
+import {useEffect, useRef, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {AccessRight, Page} from "Types";
-import {iconFromFilePath} from "UtilityFunctions";
+import {AccessRight, AccessRights, Page, singletonToPage} from "Types";
+import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
 import {getFilenameFromPath} from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {ListProps, Share, ShareId, SharesByPath, ShareState} from ".";
-import PromiseKeeper from "PromiseKeeper";
-import {Box, Card, Error, Flex, Icon, Text} from "ui-components";
+import {Box, Card, Flex, Icon, Text, Error} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
 import {MainContainer} from "MainContainer/MainContainer";
 import {FileIcon} from "UtilityComponents";
-import {SidebarPages} from "ui-components/Sidebar";
-import {emptyPage, ReduxObject, SharesReduxObject} from "DefaultObjects";
-import {fetchSharesByPath, receiveShares, setErrorMessage, setLoading, setShareState} from "./Redux/SharesActions";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {emptyPage} from "DefaultObjects";
 import {SearchOptions, SelectableText} from "Search/Search";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {UserAvatar} from "Navigation/Header";
@@ -25,227 +19,228 @@ import {TextSpan} from "ui-components/Text";
 import {colors} from "ui-components/theme";
 import Input, {InputLabel} from "ui-components/Input";
 import OutlineButton from "ui-components/OutlineButton";
-import {useCloudAPI} from "Shares/DataHook";
+import {
+    APICallParameters,
+    APICallState,
+    callAPI,
+    callAPIWithErrorHandler,
+    mapCallState,
+    useCloudAPI
+} from "Shares/DataHook";
+import Button from "ui-components/Button";
+import {Snack} from "Snackbar/Snackbars";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {setActivePage, updatePageTitle, UpdatePageTitleAction} from "Navigation/Redux/StatusActions";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {addSnack} from "Snackbar/Redux/SnackbarsActions";
+import {SidebarPages} from "ui-components/Sidebar";
+import {buildQueryString} from "Utilities/URIUtilities";
 
-function maybeInvoke<T>(payload: T, f?: (t: T) => void) {
-    if (f) f(payload)
-}
+export const findShare = (sharedByMe: boolean, path: string): APICallParameters => ({
+    method: "GET",
+    path: buildQueryString("/shares/byPath", {path: path}),
+    reloadId: Math.random()
+});
 
-const NewList: React.FunctionComponent = props => {
-    const [page, setPageFetch] = useCloudAPI<Page<SharesByPath>>({ method: "GET", path: "/shares" }, emptyPage);
+export const listShares = (
+    sharedByMe: boolean,
+    itemsPerPage: number,
+    page: number
+): APICallParameters => ({
+    method: "GET",
+    path: buildQueryString("/shares", {itemsPerPage, page}),
+    reloadId: Math.random()
+});
 
-    return <></>;
+export const createShare = (path: string, sharedWith: string, rights: AccessRight[]): APICallParameters => ({
+    method: "PUT",
+    path: "/shares",
+    payload: {path, sharedWith, rights},
+    reloadId: Math.random()
+});
+
+export const revokeShare = (id: ShareId): APICallParameters => ({
+    method: "POST",
+    path: `/shares/revoke/${id}`,
+    reloadId: Math.random()
+});
+
+export const acceptShare = (id: ShareId): APICallParameters => ({
+    method: "POST",
+    path: `/shares/accept/${id}`,
+    reloadId: Math.random()
+});
+
+export const updateShare = (id: ShareId, rights: AccessRight[]): APICallParameters => ({
+    method: "POST",
+    path: "/shares",
+    payload: {id, rights}
+});
+
+const List: React.FunctionComponent<ListProps & ListOperations> = props => {
+    const [sharedByMe, setSharedByMe] = useState(false);
+
+    const fetchParams = props.byPath === undefined ?
+        listShares(sharedByMe, 100, 0) : findShare(sharedByMe, props.byPath);
+
+    const [response, setFetchParams] = props.byPath === undefined ?
+        useCloudAPI<Page<SharesByPath>>(fetchParams, emptyPage) :
+        useCloudAPI<SharesByPath | null>(fetchParams, null);
+
+    let page = props.byPath === undefined ?
+        response as APICallState<Page<SharesByPath>> :
+        mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
+
+    /*
+    // Need dummy data? Remove the comments!
+    const items = receiveDummyShares(25, 0);
+    const page = {loading: false, data: items, error: undefined};
+    const setFetchParams = (f: any) => 42;
+    */
+
+    useEffect(() => {
+        if (!props.innerComponent) {
+            props.setActivePage();
+            props.updatePageTitle();
+            props.setRefresh(() => setFetchParams(fetchParams));
+        }
+
+        return () => {
+            if (!props.innerComponent) {
+                // Revert reload action
+                props.setRefresh(undefined);
+            }
+        }
+    });
+
+    const header = (
+        <SearchOptions>
+            <SelectableText
+                mr="1em"
+                cursor="pointer"
+                selected={!sharedByMe}
+                onClick={() => setSharedByMe(false)}
+            >
+                Shared with Me
+            </SelectableText>
+
+            <SelectableText
+                mr="1em"
+                cursor="pointer"
+                selected={sharedByMe}
+                onClick={() => setSharedByMe(true)}
+            >
+                Shared by Me
+            </SelectableText>
+        </SearchOptions>
+    );
+
+    const ShareList = ({shares}: { shares: SharesByPath[] }) => {
+        if (shares.length === 0) {
+            return <NoShares sharedByMe={sharedByMe}/>;
+        } else {
+            return <>{
+                shares.map(it => <GroupedShareCard
+                    addSnack={props.addSnack}
+                    groupedShare={it}
+                    key={it.path}/>
+                )
+            }</>;
+        }
+    };
+
+    const main = (
+        <>
+            {props.innerComponent ? header : null}
+
+            <Error clearError={() => 42} error={page.error ? page.error.why : undefined}/>
+            {page.data === emptyPage && page.loading ? <LoadingIcon size={18}/> : null}
+
+            <ShareList shares={page.data.items.filter(it => it.sharedByMe === sharedByMe)}/>
+        </>
+    );
+
+    return (
+        <MainContainer
+            headerSize={55}
+            header={props.innerComponent ? null : header}
+            main={main}
+            sidebar={null}
+        />
+    );
 };
 
-class List extends React.Component<ListProps & SharesReduxObject & SharesOperations> {
-    public componentDidMount = () => {
-        if (!this.props.innerComponent) {
-            this.props.updatePageTitle();
-            this.props.setError();
-            this.props.setActivePage();
+const NoShares = ({sharedByMe}: { sharedByMe: boolean }) =>
+    <Heading.h3 textAlign="center">
+        No shares
+        <br/>
+        {sharedByMe ?
+            <small>You can create a new share by clicking 'Share' on one of your files.</small> :
+            <small>Files shared will appear here.</small>
         }
-        this.reload();
-        if (!this.props.innerComponent) {
-            this.props.setRefresh(() => {
-                this.reload();
-                this.props.setError();
-            })
-        }
-    };
+    </Heading.h3>;
 
-    public componentWillUnmount = () => {
-        if (!this.props.innerComponent) {
-            this.props.setRefresh();
-        }
-    };
-
-    private reload(state?: boolean) {
-        const {page} = this.props;
-        if (!!this.props.byPath) {
-            this.props.fetchSharesByPath(this.props.byPath)
-        } else {
-            const stateToUse = state === undefined ? this.props.sharedByMe : state;
-            this.props.retrieveShares(page.pageNumber, page.itemsPerPage, stateToUse);
-        }
-    }
-
-    private updateShareState(sharedByme: boolean): void {
-        this.props.setSharedByMe(sharedByme);
-        this.reload(sharedByme);
-    }
-
-    public render() {
-        let {page, error, sharedByMe} = this.props;
-        const header = (
-            <SearchOptions>
-                <SelectableText
-                    mr="1em"
-                    cursor="pointer"
-                    selected={!sharedByMe}
-                    onClick={() => this.updateShareState(false)}
-                >
-                    Shared with Me
-                </SelectableText>
-
-                <SelectableText
-                    mr="1em"
-                    cursor="pointer"
-                    selected={sharedByMe}
-                    onClick={() => this.updateShareState(true)}
-                >
-                    Shared by Me
-                </SelectableText>
-            </SearchOptions>
-        );
-
-        const ShareList = ({shares}: { shares: SharesByPath[] }) => {
-            if (shares.length === 0) {
-                return <NoShares/>;
-            } else {
-                return <>{
-                    shares.map(it =>
-                        <ListEntry
-                            groupedShare={it}
-                            key={it.path}
-                            onAction={it => this.reload()}
-                            onError={it => this.props.setError(it)}/>
-                    )
-                }</>;
-            }
-        };
-
-        const main = (
-            <>
-                {this.props.innerComponent ? header : null}
-
-                <Error clearError={() => this.props.setError()} error={error}/>
-                {this.props.page === emptyPage && this.props.loading ? <LoadingIcon size={18}/> : null}
-
-                <ShareList shares={page.items.filter(it => it.sharedByMe === sharedByMe)}/>
-            </>
-        );
-
-        return (
-            <MainContainer
-                headerSize={55}
-                header={this.props.innerComponent ? null : header}
-                main={main}
-                sidebar={null}
-            />
-        );
-    }
-}
-
-const NoShares = () => <Heading.h3 textAlign="center">
-    <small>No shares</small>
-</Heading.h3>;
-
-enum ShareAction {
-    ACCEPT,
-    REVOKE,
-    RIGHTS,
-    NEW_SHARE
-}
 
 interface ListEntryProperties {
     groupedShare: SharesByPath
     onError?: (message: string) => void
-    onAction?: (action: ShareAction) => void
+    addSnack: (snack: Snack) => void
 }
 
-interface ListEntryState {
-    isLoading: boolean
-    promises: PromiseKeeper
-}
+const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => {
+    const {groupedShare} = props;
 
-interface ShareActions {
-    onAccept: (share: Share) => Promise<void>
-    onRevoke: (share: Share) => Promise<void>
-    onCreateShare: (path: string, username: string, rights: AccessRight[]) => Promise<void>
-    onPermissionsUpdated: (share: Share, rights: Set<AccessRight>) => Promise<void>
-}
+    const [isCreatingShare, setIsCreatingShare] = useState(false);
+    const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
+    const newShareUsername = useRef<HTMLInputElement>(null);
 
-class ListEntry extends React.Component<ListEntryProperties, ListEntryState> implements ShareActions {
-    constructor(props: ListEntryProperties) {
-        super(props);
-        this.state = {
-            promises: new PromiseKeeper(),
-            isLoading: false
-        };
-    }
+    const shareComponents: JSX.Element[] = groupedShare.shares.map((e) => (
+        <ShareRow addSnack={props.addSnack} key={e.id} share={e} sharedByMe={groupedShare.sharedByMe}/>
+    ));
 
-    public render() {
-        const {groupedShare} = this.props;
-        const shareComponents: JSX.Element[] = groupedShare.shares.map((e) => (
-            <ShareRow actions={this} key={e.id} share={e} sharedByMe={groupedShare.sharedByMe}/>
-        ));
+    const doCreateShare = async (event) => {
+        if (!isCreatingShare) {
+            event.preventDefault();
 
-        return (<ShareCard actions={this} share={groupedShare}>{shareComponents}</ShareCard>);
-    }
+            setIsCreatingShare(true);
+            const username = newShareUsername.current!.value;
 
-    async onPermissionsUpdated(share: Share, accessRights: Set<AccessRight>) {
-        this.handleActionButton(ShareAction.RIGHTS, async () => {
-            await updateShare(share.id, [...accessRights]);
-        });
-    }
-
-    async onCreateShare(path: string, username: string, rights: AccessRight[]) {
-        this.handleActionButton(ShareAction.NEW_SHARE, async () => {
-            await createShare(username, path, rights);
-        });
-    }
-
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
-
-    private async handleActionButton(
-        action: ShareAction,
-        block: () => Promise<void>
-    ) {
-        this.setState(() => ({isLoading: true}));
-        try {
-            await block();
-            maybeInvoke(action, this.props.onAction);
-        } catch (e) {
-            maybeInvoke(e.why ? e.why : "An error has occurred", this.props.onError);
-        } finally {
-            this.setState(() => ({isLoading: false}))
+            try {
+                await callAPI(createShare(groupedShare.path, username, newShareRights));
+                newShareUsername.current!.value = "";
+            } catch (e) {
+                defaultErrorHandler(e, props.addSnack);
+            } finally {
+                setIsCreatingShare(false);
+            }
         }
-    }
+    };
 
-    async onRevoke(share: Share) {
-        this.handleActionButton(ShareAction.REVOKE, async () => {
-            await this.state.promises.makeCancelable(revokeShare(share.id)).promise;
-        });
-    }
-
-    async onAccept(share: Share) {
-        this.handleActionButton(ShareAction.ACCEPT, async () => {
-            await this.state.promises.makeCancelable(acceptShare(share.id)).promise;
-        });
-    }
-}
-
-const ShareCard: React.FunctionComponent<{ share: SharesByPath, actions: ShareActions }> = ({share, actions, ...props}) => (
-    <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" height="auto">
+    return <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" height="auto">
         <Heading.h4 mb={"10px"}>
             <Flex alignItems={"center"}>
                 <Box ml="3px" mr="10px">
-                    <FileIcon fileIcon={iconFromFilePath(share.path, fileTypeGuess(share), Cloud.homeFolder)}/>
+                    <FileIcon
+                        fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)}/>
                 </Box>
-                {getFilenameFromPath(share.path)}
+                {getFilenameFromPath(groupedShare.path)}
                 <Box ml="auto"/>
-                {share.shares.length} {share.shares.length > 1 ? "collaborators" : "collaborator"}
+                {groupedShare.shares.length} {groupedShare.shares.length > 1 ? "collaborators" : "collaborator"}
             </Flex>
         </Heading.h4>
 
-        {!share.sharedByMe ? null :
+        {!groupedShare.sharedByMe ? null :
             <Flex mb={"16px"} alignItems={"center"}>
                 <Box flexGrow={1}>
                     <Flex>
                         <InputLabel leftLabel>To:</InputLabel>
-                        <Box flexGrow={1}><Input leftLabel placeholder={"Username"}/></Box>
+                        <Box flexGrow={1}>
+                            <form onSubmit={e => doCreateShare(e)}>
+                                <Input disabled={isCreatingShare} leftLabel placeholder={"Username"}
+                                       ref={newShareUsername}/>
+                            </form>
+                        </Box>
                     </Flex>
                 </Box>
 
@@ -253,20 +248,91 @@ const ShareCard: React.FunctionComponent<{ share: SharesByPath, actions: ShareAc
                     <ClickableDropdown
                         trigger={
                             <OutlineButton>
-                                Can View <Icon name="chevronDown" size=".7em" ml=".7em"/>
+                                {sharePermissionsToText(newShareRights)}
+                                <Icon name="chevronDown" size=".7em" ml=".7em"/>
                             </OutlineButton>
                         }
                     >
-                        <OptionItem onClick={() => 42} text={CAN_VIEW_TEXT} />
-                        <OptionItem onClick={() => 42} text={CAN_EDIT_TEXT} />
+                        <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT}/>
+                        <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
+                                    text={CAN_EDIT_TEXT}/>
                     </ClickableDropdown>
                 </Box>
             </Flex>
         }
 
-        {props.children}
+        {shareComponents}
     </Card>
-);
+};
+
+function useAsyncCommand(addSnack: (snack: Snack) => void): [boolean, (call: APICallParameters) => void] {
+    const [isLoading, setIsLoading] = useState(false);
+    const sendCommand = async (call: APICallParameters) => {
+        setIsLoading(true);
+        await callAPIWithErrorHandler(call, addSnack);
+        setIsLoading(false);
+    };
+
+    return [isLoading, sendCommand];
+}
+
+const ShareRow: React.FunctionComponent<{ share: Share, sharedByMe: boolean, addSnack: (snack: Snack) => void }> = ({share, sharedByMe, addSnack}) => {
+    const [isLoading, sendCommand] = useAsyncCommand(addSnack);
+
+    const doAccept = () => sendCommand(acceptShare(share.id));
+    const doRevoke = () => sendCommand(revokeShare(share.id));
+    const doUpdate = (newRights: AccessRight[]) => sendCommand(updateShare(share.id, newRights));
+
+    let permissionsBlock: JSX.Element | string | null = null;
+
+    if (share.state == ShareState.FAILURE) {
+        permissionsBlock = <Button color={"red"} disabled={isLoading} onClick={() => doRevoke()}>Remove</Button>;
+    } else if (share.state == ShareState.UPDATING || isLoading) {
+        permissionsBlock = sharePermissionsToText(share.rights);
+    } else if (!sharedByMe && share.state == ShareState.REQUEST_SENT) {
+        permissionsBlock = <Box flexShrink={1}>
+            <Button color={"red"} mx={"8px"} onClick={() => doRevoke()}>Reject</Button>
+            <Button color={"green"} onClick={() => doAccept()}>Accept</Button>
+        </Box>;
+    } else {
+        permissionsBlock = <ClickableDropdown
+            left={"-66%"}
+            trigger={sharePermissionsToText(share.rights)}
+            chevron
+        >
+            {!sharedByMe ? null :
+                <>
+                    <OptionItem
+                        onClick={() => doUpdate(AccessRights.READ_RIGHTS)}
+                        text={CAN_VIEW_TEXT}/>
+
+                    <OptionItem
+                        onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)}
+                        text={CAN_EDIT_TEXT}/>
+                </>
+            }
+
+            <OptionItem
+                onClick={() => doRevoke()}
+                color={colors.red}
+                text={"Remove Access"}
+            />
+        </ClickableDropdown>;
+    }
+
+    return <Flex alignItems={"center"} mb={"16px"}>
+        <UserAvatar avatar={defaultAvatar} mr={10}/>
+
+        <Box>
+            <Text bold>{share.sharedWith}</Text>
+            <ShareStateRow state={share.state}/>
+        </Box>
+
+        <Box flexGrow={1}/>
+
+        {permissionsBlock}
+    </Flex>
+};
 
 const OptionItem: React.FunctionComponent<{ onClick: () => void, text: string, color?: string }> = (props) => (
     <Box cursor="pointer" width="auto" ml="-17px" pl="15px" mr="-17px" onClick={() => props.onClick()}>
@@ -305,47 +371,6 @@ function sharePermissionsToText(rights: AccessRight[]): string {
     else return "No permissions";
 }
 
-const ShareRow: React.FunctionComponent<{ share: Share, sharedByMe: boolean, actions: ShareActions }> =
-    ({share, sharedByMe, actions, ...props}) => (
-        <Flex alignItems={"center"} mb={"16px"}>
-            <UserAvatar avatar={defaultAvatar} mr={10}/>
-
-            <Box>
-                <Text bold>{share.sharedWith}</Text>
-                <ShareStateRow state={share.state}/>
-            </Box>
-
-            <Box ml={"auto"}/>
-
-            {share.state == ShareState.UPDATING ? sharePermissionsToText(share.rights) :
-                <ClickableDropdown
-                    left={"-66%"}
-                    trigger={sharePermissionsToText(share.rights)}
-                    chevron
-                >
-                    {!sharedByMe || share.state === ShareState.FAILURE ? null :
-                        <>
-                            <OptionItem
-                                onClick={() => actions.onPermissionsUpdated(share, new Set([AccessRight.READ]))}
-                                text={CAN_VIEW_TEXT} />
-
-                            <OptionItem
-                                onClick={() => actions.onPermissionsUpdated(share,
-                                    new Set([AccessRight.READ, AccessRight.WRITE]))}
-                                text={CAN_EDIT_TEXT} />
-                        </>
-                    }
-
-                    <OptionItem
-                        onClick={() => actions.onRevoke(share)}
-                        color={colors.red}
-                        text={"Remove Access"}
-                    />
-                </ClickableDropdown>
-            }
-        </Flex>
-    );
-
 interface FileTypeGuess {
     path: string
 }
@@ -353,29 +378,6 @@ interface FileTypeGuess {
 function fileTypeGuess({path}: FileTypeGuess) {
     const hasExtension = path.split("/").pop()!.includes(".");
     return hasExtension ? "FILE" : "DIRECTORY";
-}
-
-const acceptShare = async (shareId: ShareId): Promise<any> =>
-    (await Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`)).response;
-
-const revokeShare = async (shareId: ShareId): Promise<any> =>
-    (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response;
-
-const createShare = async (user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> =>
-    (await Cloud.put(`/shares/`, {sharedWith: user, path, rights})).response;
-
-const updateShare = async (id: ShareId, rights: AccessRight[]): Promise<any> =>
-    (await Cloud.post(`/shares/`, {id, rights})).response;
-
-interface SharesOperations {
-    updatePageTitle: () => void
-    setActivePage: () => void
-    setError: (error?: string) => void
-    retrieveShares: (page: number, itemsPerPage: number, sharedByMe: boolean) => void
-    receiveShares: (page: Page<SharesByPath>) => void
-    setSharedByMe: (sharedByMe: boolean) => void
-    fetchSharesByPath: (path: string) => void
-    setRefresh: (refresh?: () => void) => void
 }
 
 const receiveDummyShares = (itemsPerPage: number, page: number) => {
@@ -390,7 +392,7 @@ const receiveDummyShares = (itemsPerPage: number, page: number) => {
             const state = ShareState[states[(Math.floor(Math.random() * states.length))]];
             return {
                 state,
-                rights: [AccessRight.READ, AccessRight.WRITE],
+                rights: AccessRights.WRITE_RIGHTS,
                 id: (Math.random() * 100000000).toString(),
                 sharedWith: "user"
             }
@@ -404,7 +406,7 @@ const receiveDummyShares = (itemsPerPage: number, page: number) => {
         }
     });
 
-    return receiveShares({
+    return ({
         itemsInTotal: 500,
         itemsPerPage: itemsPerPage,
         pageNumber: page,
@@ -413,24 +415,18 @@ const receiveDummyShares = (itemsPerPage: number, page: number) => {
     });
 };
 
-const mapDispatchToProps = (dispatch: Dispatch): SharesOperations => ({
+interface ListOperations {
+    updatePageTitle: () => void,
+    setRefresh: (f?: () => void) => void
+    addSnack: (snack: Snack) => void
+    setActivePage: () => void
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): ListOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Shares")),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Shares)),
-    setError: error => dispatch(setErrorMessage(error)),
-    retrieveShares: async (page, itemsPerPage, byState) => {
-        dispatch(setLoading(true));
-        // dispatch(await retrieveShares(page, itemsPerPage, byState));
-        dispatch(receiveDummyShares(itemsPerPage, page));
-        dispatch(setLoading(false));
-    },
-    receiveShares: page => dispatch(receiveShares(page)),
-    fetchSharesByPath: async path => {
-        dispatch(await fetchSharesByPath(path))
-    },
-    setSharedByMe: sharedByMe => dispatch(setShareState(sharedByMe)),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    addSnack: snack => dispatch(addSnack(snack))
 });
 
-const mapStateToProps = ({shares}: ReduxObject): SharesReduxObject => shares;
-
-export default connect(mapStateToProps, mapDispatchToProps)(List);
+export default connect(null, mapDispatchToProps)(List);

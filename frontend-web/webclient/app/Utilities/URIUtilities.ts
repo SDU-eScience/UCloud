@@ -38,6 +38,8 @@ export const buildQueryString = (path: string, params: any): string => {
     const builtParams = Object.entries(params).map(
         pair => {
             let [key, val] = pair;
+            if (val === undefined) return "";
+
             // normalize val to always an array
             const arr = (val instanceof Array) ? val : [val];
             // encode key only once
@@ -47,7 +49,7 @@ export const buildQueryString = (path: string, params: any): string => {
                 member => `${encodedKey}=${encodeURIComponent(member)}`
             ).join('&');
         }
-    ).join('&');
+    ).filter(it => it !== "").join('&');
 
     return path + '?' + builtParams;
 };
