@@ -68,11 +68,13 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
 
     props.setGlobalLoading(page.loading);
 
+    const refresh = () => setFetchParams({...params, reloadId: Math.random()});
+
     useEffect(() => {
         if (!props.innerComponent) {
             props.setActivePage();
             props.updatePageTitle();
-            props.setRefresh(() => setFetchParams({...params, reloadId: Math.random()}));
+            props.setRefresh(refresh);
         }
 
         return () => {
@@ -122,20 +124,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         </SearchOptions>
     );
 
-    const ShareList = ({shares}: { shares: SharesByPath[] }) => {
-        if (shares.length === 0) {
-            return <NoShares sharedByMe={sharedByMe}/>;
-        } else {
-            return <>{
-                shares.map(it => <GroupedShareCard
-                    avatarComponent={AvatarComponent}
-                    groupedShare={it}
-                    key={it.path}/>
-                )
-            }</>;
-        }
-    };
-
+    const shares = page.data.items.filter(it => it.sharedByMe == sharedByMe);
     const main = <Pagination.List
         loading={page.loading}
         page={page.data}
@@ -148,7 +137,19 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         }))}
         pageRenderer={() => <>
             {props.innerComponent ? header : null}
-            <ShareList shares={page.data.items.filter(it => it.sharedByMe === sharedByMe)}/>
+            {
+                shares.length === 0 ?
+                    <NoShares sharedByMe={sharedByMe}/> :
+                    shares.map(it =>
+                        <GroupedShareCard onUpdate={refresh} groupedShare={it} key={it.path}>
+                            {it.shares.map(share =>
+                                <ShareRow key={share.id} onUpdate={refresh} share={share} sharedByMe={sharedByMe}>
+                                    <AvatarComponent username={share.sharedWith}/>
+                                </ShareRow>
+                            )}
+                        </GroupedShareCard>
+                    )
+            }
         </>
         }
     />;
@@ -176,8 +177,7 @@ const NoShares = ({sharedByMe}: { sharedByMe: boolean }) =>
 
 interface ListEntryProperties {
     groupedShare: SharesByPath
-    onError?: (message: string) => void
-    avatarComponent: (props: { username: string }) => JSX.Element
+    onUpdate: () => void
 }
 
 const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => {
@@ -186,10 +186,6 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [isCreatingShare, setIsCreatingShare] = useState(false);
     const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
     const newShareUsername = useRef<HTMLInputElement>(null);
-
-    const shareComponents: JSX.Element[] = groupedShare.shares.map((e) => (
-        <ShareRow avatarComponent={props.avatarComponent} key={e.id} share={e} sharedByMe={groupedShare.sharedByMe}/>
-    ));
 
     const doCreateShare = async (event) => {
         if (!isCreatingShare) {
@@ -201,6 +197,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             try {
                 await callAPI(createShare(groupedShare.path, username, newShareRights));
                 newShareUsername.current!.value = "";
+                props.onUpdate();
             } catch (e) {
                 defaultErrorHandler(e);
             } finally {
@@ -253,20 +250,25 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             </Flex>
         }
 
-        {shareComponents}
+        {props.children}
     </Card>
 };
 
 const ShareRow: React.FunctionComponent<{
     share: Share,
     sharedByMe: boolean,
-    avatarComponent: (props: { username: string }) => JSX.Element
-}> = ({share, sharedByMe, avatarComponent}) => {
+    onUpdate: () => void
+}> = ({share, sharedByMe, onUpdate, ...props}) => {
     const [isLoading, sendCommand] = useAsyncCommand();
 
-    const doAccept = () => sendCommand(acceptShare(share.id));
-    const doRevoke = () => sendCommand(revokeShare(share.id));
-    const doUpdate = (newRights: AccessRight[]) => sendCommand(updateShare(share.id, newRights));
+    const sendCommandAndUpdate = async (call: APICallParameters) => {
+        await sendCommand(call);
+        onUpdate()
+    };
+
+    const doAccept = () => sendCommandAndUpdate(acceptShare(share.id));
+    const doRevoke = () => sendCommandAndUpdate(revokeShare(share.id));
+    const doUpdate = (newRights: AccessRight[]) => sendCommandAndUpdate(updateShare(share.id, newRights));
 
     let permissionsBlock: JSX.Element | string | null = null;
 
@@ -306,7 +308,7 @@ const ShareRow: React.FunctionComponent<{
     }
 
     return <Flex alignItems={"center"} mb={"16px"}>
-        {avatarComponent({username: share.sharedWith})}
+        {props.children}
 
         <Box>
             <Text bold>{share.sharedWith}</Text>
