@@ -104,7 +104,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         let avatar = defaultAvatar;
         let loadedAvatar = !!avatars.data ? avatars.data.avatars[props.username] : undefined;
         if (!!loadedAvatar) avatar = loadedAvatar;
-        return <UserAvatar avatar={avatar}/>
+        return <UserAvatar avatar={avatar} mr={"10px"}/>;
     };
 
     const header = props.byPath !== undefined ? null : (
