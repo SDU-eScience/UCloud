@@ -30,12 +30,13 @@ function dataFetchReducer(state, action) {
     }
 }
 
-export interface APICallParameters {
+export interface APICallParameters<Parameters = any> {
     method?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH" | "OPTIONS" | "HEAD"
     path?: string
     payload?: any
     context?: string
     maxRetries?: number
+    parameters?: Parameters
     reloadId?: number // Can be used to force an ID by setting this to a random value
 }
 
@@ -76,7 +77,10 @@ export async function callAPIWithErrorHandler<T>(
     }
 }
 
-export function useCloudAPI<T>(callParametersInitial: APICallParameters, dataInitial: T): [APICallState<T>, (params: APICallParameters) => void] {
+export function useCloudAPI<T, Parameters = any>(
+    callParametersInitial: APICallParameters<Parameters>,
+    dataInitial: T
+): [APICallState<T>, (params: APICallParameters) => void, APICallParameters<Parameters>] {
     const [params, setParams] = useState(callParametersInitial);
 
     const [state, dispatch] = useReducer(dataFetchReducer, {
@@ -126,7 +130,7 @@ export function useCloudAPI<T>(callParametersInitial: APICallParameters, dataIni
     }
 
     const returnedState: APICallState<T> = {...state};
-    return [returnedState, doFetch];
+    return [returnedState, doFetch, params];
 }
 
 export function useAsyncCommand(addSnack: (snack: Snack) => void = GLOBAL_addSnack): [boolean, (call: APICallParameters) => void] {

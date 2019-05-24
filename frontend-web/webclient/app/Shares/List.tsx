@@ -4,8 +4,7 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import {AccessRight, AccessRights, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
 import {getFilenameFromPath} from "Utilities/FileUtilities";
-import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {ListProps, Share, SharesByPath, ShareState} from ".";
+import {ListProps, ListSharesParams, Share, SharesByPath, ShareState} from ".";
 import {Box, Card, Flex, Icon, Text, Error} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -20,6 +19,7 @@ import {colors} from "ui-components/theme";
 import Input, {InputLabel} from "ui-components/Input";
 import OutlineButton from "ui-components/OutlineButton";
 import {
+    APICallParameters,
     APICallState,
     callAPI,
     mapCallState, useAsyncCommand,
@@ -33,35 +33,39 @@ import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {listShares, findShare, createShare, acceptShare, revokeShare, updateShare} from "./index";
 import {loadingAction} from "App";
+import * as Pagination from "Pagination";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const [sharedByMe, setSharedByMe] = useState(false);
 
-    const fetchParams = props.byPath === undefined ?
-        listShares(sharedByMe, 100, 0) : findShare(sharedByMe, props.byPath);
+    const initialFetchParams = props.byPath === undefined ?
+        listShares({sharedByMe, itemsPerPage: 25, page: 0}) : findShare(sharedByMe, props.byPath);
 
-    const [response, setFetchParams] = props.byPath === undefined ?
-        useCloudAPI<Page<SharesByPath>>(fetchParams, emptyPage) :
-        useCloudAPI<SharesByPath | null>(fetchParams, null);
+    // Start of real data
+    const [response, setFetchParams, params] = props.byPath === undefined ?
+        useCloudAPI<Page<SharesByPath>>(initialFetchParams, emptyPage) :
+        useCloudAPI<SharesByPath | null>(initialFetchParams, null);
 
     let page = props.byPath === undefined ?
         response as APICallState<Page<SharesByPath>> :
         mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
-
-    props.setGlobalLoading(page.loading);
+     // End of real data
 
     /*
     // Need dummy data? Remove the comments!
-    const items = receiveDummyShares(25, 0);
-    const page = {loading: false, data: items, error: undefined};
-    const setFetchParams = (f: any) => 42;
-    */
+    const [params, setFetchParams] = useState(listShares({sharedByMe, itemsPerPage: 100, page: 0}));
+    const items = receiveDummyShares(params.parameters!.itemsPerPage, params.parameters!.page);
+    const page: APICallState<Page<SharesByPath>> = {loading: false, data: items, error: undefined};
+    // End of dummy data
+     */
+
+    props.setGlobalLoading(page.loading);
 
     useEffect(() => {
         if (!props.innerComponent) {
             props.setActivePage();
             props.updatePageTitle();
-            props.setRefresh(() => setFetchParams(fetchParams));
+            props.setRefresh(() => setFetchParams({...params, reloadId: Math.random()}));
         }
 
         return () => {
@@ -107,16 +111,22 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         }
     };
 
-    const main = (
-        <>
+    const main = <Pagination.List
+        loading={page.loading}
+        page={page.data}
+        customEmptyPage={<NoShares sharedByMe={sharedByMe}/>}
+        errorMessage={page.error ? page.error.why : undefined}
+        onPageChanged={(pageNumber, page) => setFetchParams(listShares({
+            sharedByMe,
+            page: pageNumber,
+            itemsPerPage: page.itemsPerPage
+        }))}
+        pageRenderer={() => <>
             {props.innerComponent ? header : null}
-
-            <Error clearError={() => 42} error={page.error ? page.error.why : undefined}/>
-            {page.data === emptyPage && page.loading ? <LoadingIcon size={18}/> : null}
-
             <ShareList shares={page.data.items.filter(it => it.sharedByMe === sharedByMe)}/>
         </>
-    );
+        }
+    />;
 
     return (
         <MainContainer

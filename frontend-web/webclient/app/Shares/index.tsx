@@ -38,13 +38,16 @@ export const findShare = (sharedByMe: boolean, path: string): APICallParameters 
     reloadId: Math.random()
 });
 
-export const listShares = (
-    sharedByMe: boolean,
-    itemsPerPage: number,
+export interface ListSharesParams {
+    sharedByMe: boolean
+    itemsPerPage: number
     page: number
-): APICallParameters => ({
+}
+
+export const listShares = ({sharedByMe, itemsPerPage, page}: ListSharesParams): APICallParameters<ListSharesParams> => ({
     method: "GET",
     path: buildQueryString("/shares", {itemsPerPage, page}),
+    parameters: {sharedByMe, itemsPerPage, page},
     reloadId: Math.random()
 });
 
