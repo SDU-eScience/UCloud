@@ -312,7 +312,7 @@ const anyLoading = (rO: ReduxObject): boolean =>
         || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
         || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
         || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
-        || rO.shares.loading || rO.accounting.resources["compute/timeUsed"].events.loading
-        || rO.accounting.resources["storage/bytesUsed"].events.loading
+        || rO.accounting.resources["compute/timeUsed"].events.loading
+        || rO.accounting.resources["storage/bytesUsed"].events.loading;
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));

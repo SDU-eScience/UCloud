@@ -5,7 +5,7 @@ import {AccessRight, AccessRights, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
 import {getFilenameFromPath} from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {ListProps, Share, ShareId, SharesByPath, ShareState} from ".";
+import {ListProps, Share, SharesByPath, ShareState} from ".";
 import {Box, Card, Flex, Icon, Text, Error} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -24,59 +24,18 @@ import {
     APICallState,
     callAPI,
     callAPIWithErrorHandler,
-    mapCallState,
+    mapCallState, useAsyncCommand,
     useCloudAPI
 } from "Shares/DataHook";
 import Button from "ui-components/Button";
 import {Snack} from "Snackbar/Snackbars";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {setActivePage, updatePageTitle, UpdatePageTitleAction} from "Navigation/Redux/StatusActions";
+import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {addSnack} from "Snackbar/Redux/SnackbarsActions";
 import {SidebarPages} from "ui-components/Sidebar";
-import {buildQueryString} from "Utilities/URIUtilities";
-
-export const findShare = (sharedByMe: boolean, path: string): APICallParameters => ({
-    method: "GET",
-    path: buildQueryString("/shares/byPath", {path: path}),
-    reloadId: Math.random()
-});
-
-export const listShares = (
-    sharedByMe: boolean,
-    itemsPerPage: number,
-    page: number
-): APICallParameters => ({
-    method: "GET",
-    path: buildQueryString("/shares", {itemsPerPage, page}),
-    reloadId: Math.random()
-});
-
-export const createShare = (path: string, sharedWith: string, rights: AccessRight[]): APICallParameters => ({
-    method: "PUT",
-    path: "/shares",
-    payload: {path, sharedWith, rights},
-    reloadId: Math.random()
-});
-
-export const revokeShare = (id: ShareId): APICallParameters => ({
-    method: "POST",
-    path: `/shares/revoke/${id}`,
-    reloadId: Math.random()
-});
-
-export const acceptShare = (id: ShareId): APICallParameters => ({
-    method: "POST",
-    path: `/shares/accept/${id}`,
-    reloadId: Math.random()
-});
-
-export const updateShare = (id: ShareId, rights: AccessRight[]): APICallParameters => ({
-    method: "POST",
-    path: "/shares",
-    payload: {id, rights}
-});
+import {listShares, findShare, createShare, acceptShare, revokeShare, updateShare} from "./index";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const [sharedByMe, setSharedByMe] = useState(false);
@@ -264,17 +223,6 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         {shareComponents}
     </Card>
 };
-
-function useAsyncCommand(addSnack: (snack: Snack) => void): [boolean, (call: APICallParameters) => void] {
-    const [isLoading, setIsLoading] = useState(false);
-    const sendCommand = async (call: APICallParameters) => {
-        setIsLoading(true);
-        await callAPIWithErrorHandler(call, addSnack);
-        setIsLoading(false);
-    };
-
-    return [isLoading, sendCommand];
-}
 
 const ShareRow: React.FunctionComponent<{ share: Share, sharedByMe: boolean, addSnack: (snack: Snack) => void }> = ({share, sharedByMe, addSnack}) => {
     const [isLoading, sendCommand] = useAsyncCommand(addSnack);

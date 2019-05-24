@@ -1,6 +1,5 @@
 import {useEffect, useReducer, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
-import PromiseKeeper from "PromiseKeeper";
 import {Snack} from "Snackbar/Snackbars";
 import {defaultErrorHandler} from "UtilityFunctions";
 
@@ -128,3 +127,15 @@ export function useCloudAPI<T>(callParametersInitial: APICallParameters, dataIni
     const returnedState: APICallState<T> = {...state};
     return [returnedState, doFetch];
 }
+
+export function useAsyncCommand(addSnack: (snack: Snack) => void): [boolean, (call: APICallParameters) => void] {
+    const [isLoading, setIsLoading] = useState(false);
+    const sendCommand = async (call: APICallParameters) => {
+        setIsLoading(true);
+        await callAPIWithErrorHandler(call, addSnack);
+        setIsLoading(false);
+    };
+
+    return [isLoading, sendCommand];
+}
+

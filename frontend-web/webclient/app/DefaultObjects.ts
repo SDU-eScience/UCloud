@@ -17,7 +17,6 @@ import * as FavoritesRedux from "Favorites/Redux";
 import { defaultAvatar } from "UserSettings/Avataaar";
 import { DetailedProjectSearchReduxState } from "Project";
 import { SidebarPages } from "ui-components/Sidebar";
-import { SharesByPath, ShareState } from "Shares";
 import { ScrollResult } from "Scroll/Types";
 
 export const DefaultStatus: Status = {
@@ -28,38 +27,16 @@ export const DefaultStatus: Status = {
 
 export enum KeyCode {
     ENTER = 13,
-    ESC = 27,
-    UP = 38,
-    DOWN = 40,
-    LEFT = 37,
-    RIGHT = 39,
-    A = 65,
-    B = 66
-};
-
-export const KCValues = [38, 76, 116, 156, 193, 232, 269, 308, 374, 439];
-
+    ESC = 27
+}
 export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0 };
-
-export enum AnalysesStatusMap {
-    "PENDING",
-    "IN PROGRESS",
-    "COMPLETED"
-};
-
-export enum RightsNameMap {
-    "NONE" = "None",
-    "READ" = "Read",
-    "READ_WRITE" = "Read/Write",
-    "EXECUTE" = "Execute"
-};
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
     "PRIVATE" = "Private",
     "CONFIDENTIAL" = "Confidential",
     "SENSITIVE" = "Sensitive"
-};
+}
 
 export type Sensitivity = keyof typeof SensitivityLevel;
 
@@ -68,7 +45,7 @@ export enum SensitivityLevelMap {
     PRIVATE = "PRIVATE",
     CONFIDENTIAL = "CONFIDENTIAL",
     SENSITIVE = "SENSITIVE"
-};
+}
 
 function getFilesSortingColumnOrDefault(columnIndex: 0 | 1): SortBy {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
@@ -81,7 +58,7 @@ function getFilesSortingColumnOrDefault(columnIndex: 0 | 1): SortBy {
             window.localStorage.setItem("filesSorting1", SortBy.SIZE);
             return SortBy.SIZE;
     }
-};
+}
 
 function getItemOrDefault<T, T2>(itemName: string, defaultValue: T, en: T2): T {
     const item = window.localStorage.getItem(itemName);
@@ -222,10 +199,6 @@ export const initDetailedResult = (): DetailedResultReduxObject => ({
     error: undefined
 });
 
-export interface SharesReduxObject extends ComponentWithPage<SharesByPath> {
-    sharedByMe: boolean
-}
-
 /* FIXME */
 interface LegacyReduxObject {
     dashboard: DashboardStateProps
@@ -246,7 +219,6 @@ interface LegacyReduxObject {
     fileInfo: FileInfoReduxObject
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
-    shares: SharesReduxObject
     responsive?: ResponsiveReduxObject
 }
 
@@ -307,19 +279,11 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     fileInfo: initFileInfo(),
     avatar: initAvatar(),
     filePreview: initFilePreview(),
-    shares: initShares(),
     ...ApplicationRedux.init(),
     ...AccountingRedux.init(),
     ...FavoritesRedux.init(),
     ...SnackbarRedux.init(),
     responsive: undefined,
-});
-
-export const initShares = (): SharesReduxObject => ({
-    page: emptyPage,
-    loading: false,
-    sharedByMe: false,
-    error: undefined
 });
 
 export const initFilePreview = () => ({
@@ -341,7 +305,7 @@ export const initSimpleSearch = (): SimpleSearchStateProps => ({
     search: "",
     applicationSearch: initApplicationsAdvancedSearch(),
     fileSearch: initFilesDetailedSearch()
-})
+});
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,
@@ -354,7 +318,7 @@ export const initZenodo = (): ZenodoReduxObject => ({
     loading: false,
     page: emptyPage,
     error: undefined
-})
+});
 
 export const initSidebar = (): SidebarReduxObject => ({
     pp: false,
@@ -427,4 +391,4 @@ export const initProjectsAdvancedSearch = (): DetailedProjectSearchReduxState =>
     loading: false,
     hidden: true,
     projectName: ""
-}) 
+});
