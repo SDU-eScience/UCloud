@@ -4,7 +4,7 @@ import Cloud from "Authentication/lib";
 import { Page } from "Types";
 import { expandHomeFolder } from "./FileUtilities";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
-import swal, { SweetAlertResult } from "sweetalert2";
+import { addStandardDialog } from "UtilityComponents";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -32,19 +32,14 @@ export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPC
 export const cancelJobQuery = `hpc/jobs`;
 
 
-export function cancelJobSwal({ jobId }: { jobId: string }): Promise<SweetAlertResult> {
-    return swal({
+export const cancelJobDialog = ({ jobId, onConfirm }: { jobId: string, onConfirm: () => void }): void =>
+    addStandardDialog({
         title: "Cancel job?",
-        text: `Cancel job: ${jobId}?`,
-        allowEscapeKey: true,
-        allowOutsideClick: true,
-        allowEnterKey: false,
-        showConfirmButton: true,
-        showCancelButton: true,
-        cancelButtonText: "No",
-        confirmButtonText: "Cancel job",
+        message: `Cancel job: ${jobId}?`,
+        cancelText: "No",
+        confirmText: "Cancel job",
+        onConfirm
     })
-}
 
 interface FavoriteApplicationFromPage extends AddSnackOperation {
     name: string

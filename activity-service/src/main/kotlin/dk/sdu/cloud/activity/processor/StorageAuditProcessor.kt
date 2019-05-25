@@ -12,10 +12,12 @@ import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.BulkDownloadRequest
 import dk.sdu.cloud.file.api.BulkFileAudit
+import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.SingleFileAudit
+import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
 import dk.sdu.cloud.service.Loggable
@@ -113,7 +115,7 @@ class StorageAuditProcessor<DBSession>(
     }
 
     private fun transformStat(parsedEvent: JsonNode): List<ActivityEvent>? {
-        FileDescriptions.stat.parseAuditMessageOrNull<SingleFileAudit<FindByPath>>(parsedEvent)?.let {
+        FileDescriptions.stat.parseAuditMessageOrNull<SingleFileAudit<StatRequest>>(parsedEvent)?.let {
             val username = it.username ?: return null
             val fileId = it.request.fileId ?: return null
             return listOf(

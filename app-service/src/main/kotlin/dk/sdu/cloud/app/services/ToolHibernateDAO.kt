@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NameAndVersionImpl
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.Tool
 import dk.sdu.cloud.calls.RPCException
@@ -16,6 +18,8 @@ import io.ktor.http.HttpStatusCode
 import java.util.*
 
 class ToolHibernateDAO : ToolDAO<HibernateSession> {
+    private val byNameAndVersionCache = Collections.synchronizedMap(HashMap<NameAndVersion, Pair<Tool, Long>>())
+
     override fun findAllByName(
         session: HibernateSession,
         user: String?,
@@ -33,7 +37,13 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         name: String,
         version: String
     ): Tool {
-        return internalByNameAndVersion(session, name, version)?.toModel() ?: throw ToolException.NotFound()
+        val cacheKey = NameAndVersion(name, version)
+        val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
+        if (cached != null && expiry > System.currentTimeMillis()) return cached
+
+        val result = (internalByNameAndVersion(session, name, version)?.toModel() ?: throw ToolException.NotFound())
+        byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
+        return result
     }
 
     override fun listLatestVersion(
@@ -119,6 +129,10 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         }
 
         existing.tool = newTool
+
+        // We allow for this to be cached for some time. But this instance might as well clear the cache now.
+        byNameAndVersionCache.remove(NameAndVersion(name, version))
+
         session.update(existing)
     }
 

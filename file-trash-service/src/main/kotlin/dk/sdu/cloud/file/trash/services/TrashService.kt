@@ -10,9 +10,13 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.MoveRequest
+import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.path
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.GlobalScope
@@ -90,7 +94,7 @@ class TrashService(
             ).orThrow()
         }
 
-        val statCall = FileDescriptions.stat.call(FindByPath(trashDirectoryPath), userCloud)
+        val statCall = FileDescriptions.stat.call(StatRequest(trashDirectoryPath), userCloud)
         if (statCall.statusCode == HttpStatusCode.NotFound) {
             createTrashDirectory()
         } else {

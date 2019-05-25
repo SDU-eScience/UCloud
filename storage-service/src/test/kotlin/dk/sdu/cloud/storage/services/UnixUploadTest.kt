@@ -2,6 +2,8 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
@@ -27,8 +29,8 @@ class UnixUploadTest {
                 assertEquals(0, result.statusCode)
                 assertEquals(1, result.value.size)
                 val createdEvent = result.value.single()
-                assertEquals(FileType.FILE, createdEvent.fileType)
-                assertEquals(0, createdEvent.size)
+                assertEquals(FileType.FILE, createdEvent.file.fileType)
+                assertEquals(0, createdEvent.file.size)
             }
 
             run {
@@ -36,8 +38,8 @@ class UnixUploadTest {
                 assertEquals(0, result.statusCode)
                 assertEquals(1, result.value.size)
                 val createdEvent = result.value.single()
-                assertEquals(FileType.FILE, createdEvent.fileType)
-                assertEquals(10, createdEvent.size)
+                assertEquals(FileType.FILE, createdEvent.file.fileType)
+                assertEquals(10, createdEvent.file.size)
             }
         }
     }

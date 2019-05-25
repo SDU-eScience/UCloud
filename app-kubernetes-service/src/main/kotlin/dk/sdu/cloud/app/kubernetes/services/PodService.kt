@@ -141,7 +141,7 @@ class PodService(
                 return
             }
 
-            val resource = findPod(jobName)!!
+            val resource = findPod(jobName) ?: return
             val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
             val containerState = userContainer.state.terminated
 
@@ -395,7 +395,7 @@ class PodService(
         GlobalScope.launch {
             log.info("Awaiting container start!")
             try {
-                awaitCatching(retries = 1200, delay = 100) {
+                awaitCatching(retries = 36_000, delay = 100) {
                     val pod = findPod(podName)!!
                     val state = pod.status.containerStatuses.first().state
                     state.running != null || state.terminated != null

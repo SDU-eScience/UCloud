@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.storage.util.mkdir
@@ -17,7 +18,6 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import dk.sdu.cloud.file.api.*
 
 class LookupTests {
     private val mapper = jacksonObjectMapper()

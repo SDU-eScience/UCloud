@@ -18,8 +18,8 @@ export interface MainContainerProps extends MainContainerStateProps {
 }
 
 export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize = 240, headerSize = 96, responsiveState }: MainContainerProps) => {
-    const leftSidebarsize = responsiveState!.greaterThan.xl ? 190 : 68; //main webside sidebar H size
-    const topMenuSize = 48; //main website top manu V size
+    const leftSidebarSize = responsiveState!.greaterThan.xl ? 190 : 68; //main website sidebar H size
+    const topMenuSize = 48; //main website top menu V size
     const pad = 14; //padding unit
 
     const mainYpad = header ? headerSize : pad;
@@ -28,11 +28,11 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
 
     return (
         <React.StrictMode>
-            <Box ml={leftSidebarsize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
+            <Box ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
                 {header &&
                     <HeaderContainer
                         top={topMenuSize} left="0"
-                        py={pad} pl={leftSidebarsize + pad} pr={pad}
+                        py={pad} pl={leftSidebarSize + pad} pr={pad}
                         width={1} height={headerSize}
                         bg="white">
                         {header}
@@ -60,7 +60,7 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
             </Box>
         </React.StrictMode>
     );
-}
+};
 
 const mapStateToProps = ({ responsive }: ReduxObject): MainContainerStateProps => ({
     responsiveState: responsive

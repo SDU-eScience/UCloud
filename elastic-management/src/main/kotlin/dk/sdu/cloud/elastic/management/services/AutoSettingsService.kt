@@ -40,7 +40,7 @@ class AutoSettingsService(
     private fun createLoggingTemplates() {
         //create template for development_default and http_logs
         val developmentTemplateRequest = PutIndexTemplateRequest("development-template")
-        developmentTemplateRequest.patterns(listOf("development-default*"))
+        developmentTemplateRequest.patterns(listOf("development_default*"))
 
         developmentTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 1)
@@ -49,9 +49,18 @@ class AutoSettingsService(
 
         elastic.indices().putTemplate(developmentTemplateRequest, RequestOptions.DEFAULT)
 
+        val productionTemplateRequest = PutIndexTemplateRequest("production-template")
+        productionTemplateRequest.patterns(listOf("kubernetes-default*"))
+
+        productionTemplateRequest.settings(Settings.builder()
+            .put("index.number_of_shards", 1)
+            .put("index.number_of_replicas", 1)
+        )
+
+        elastic.indices().putTemplate(productionTemplateRequest, RequestOptions.DEFAULT)
 
         val httpTemplateRequest = PutIndexTemplateRequest("httplogs-template")
-        httpTemplateRequest.patterns(listOf("http_logs_*", "development-default*"))
+        httpTemplateRequest.patterns(listOf("http_logs_*"))
 
         httpTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 2)

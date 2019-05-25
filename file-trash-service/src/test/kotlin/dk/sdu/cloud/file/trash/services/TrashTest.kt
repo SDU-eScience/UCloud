@@ -27,7 +27,7 @@ class TrashTest {
         ClientMock.mockCallSuccess(
             FileDescriptions.stat,
             if (returnDirectory) {
-                storageFile.copy(fileType = FileType.DIRECTORY)
+                storageFile.copy(fileTypeOrNull = FileType.DIRECTORY)
             } else {
                 storageFile
             }

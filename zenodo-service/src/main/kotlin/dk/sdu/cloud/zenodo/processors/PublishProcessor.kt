@@ -10,9 +10,10 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.server.requiredAuthScope
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.kafka.stream
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -25,8 +26,6 @@ import dk.sdu.cloud.zenodo.services.PublicationService
 import dk.sdu.cloud.zenodo.services.ZenodoRPCException
 import dk.sdu.cloud.zenodo.services.ZenodoRPCService
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
-import kotlinx.coroutines.runBlocking
-import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
@@ -40,85 +39,83 @@ class PublishProcessor<DBSession>(
     private val serviceClient: AuthenticatedClient,
     private val tokenValidation: TokenValidation<Any>
 ) {
-    fun init(kBuilder: StreamsBuilder) {
-        kBuilder.stream(ZenodoCommandStreams.publishCommands).foreach { _, command ->
-            runBlocking {
-                log.info("Handling publishing command $command")
-                // TODO When we change the design of commands are handled we still likely need two streams.
-                // The first in which we need to authenticate the request, and the second in which we handle it.
-                // This will, however, require more support for services acting on behalf of pre-authenticated users.
-                // Because we don't have support for this yet, we will simply handle the request immediately.
+    fun init(kBuilder: EventStreamService) {
+        kBuilder.subscribe(ZenodoCommandStreams.publishCommands, EventConsumer.Immediate { command ->
+            log.info("Handling publishing command $command")
+            // TODO When we change the design of commands are handled we still likely need two streams.
+            // The first in which we need to authenticate the request, and the second in which we handle it.
+            // This will, however, require more support for services acting on behalf of pre-authenticated users.
+            // Because we don't have support for this yet, we will simply handle the request immediately.
 
-                log.debug("Validating principal...")
-                val validatedPrincipal =
-                    tokenValidation.validateOrNull(command.jwt)?.let { tokenValidation.decodeToken(it) }
-                        ?: return@runBlocking run {
-                            log.info("Token for command is not valid or is missing the correct scope!")
-                            log.debug("Bad command was: $command")
-                        }
+            log.debug("Validating principal...")
+            val validatedPrincipal =
+                tokenValidation.validateOrNull(command.jwt)?.let { tokenValidation.decodeToken(it) }
+                    ?: return@Immediate run {
+                        log.info("Token for command is not valid or is missing the correct scope!")
+                        log.debug("Bad command was: $command")
+                    }
 
-                val cloud = serviceClient.withoutAuthentication().bearerAuth(command.jwt)//.withCausedBy(command.uuid)
+            val cloud = serviceClient.withoutAuthentication().bearerAuth(command.jwt)//.withCausedBy(command.uuid)
 
-                log.debug("Updating status of command: ${command.publicationId} to UPLOADING")
+            log.debug("Updating status of command: ${command.publicationId} to UPLOADING")
+            db.withTransaction {
+                publicationService.updateStatusOf(it, command.publicationId, ZenodoPublicationStatus.UPLOADING)
+            }
+
+            val files = transferCloudFilesToTemporaryStorage(command, cloud)
+            try {
+                transferTemporaryFilesToZenodo(command, validatedPrincipal.principal, files)
+
+                log.debug("Updating status of command: ${command.publicationId} to COMPLETE")
                 db.withTransaction {
-                    publicationService.updateStatusOf(it, command.publicationId, ZenodoPublicationStatus.UPLOADING)
+                    publicationService.updateStatusOf(
+                        it,
+                        command.publicationId,
+                        ZenodoPublicationStatus.COMPLETE
+                    )
+                }
+            } catch (ex: Exception) {
+                log.debug("Updating status of command: ${command.publicationId} to FAILURE")
+                db.withTransaction {
+                    publicationService.updateStatusOf(
+                        it,
+                        command.publicationId,
+                        ZenodoPublicationStatus.FAILURE
+                    )
                 }
 
-                val files = transferCloudFilesToTemporaryStorage(command, cloud)
-                try {
-                    transferTemporaryFilesToZenodo(command, validatedPrincipal.principal, files)
-
-                    log.debug("Updating status of command: ${command.publicationId} to COMPLETE")
-                    db.withTransaction {
-                        publicationService.updateStatusOf(
-                            it,
-                            command.publicationId,
-                            ZenodoPublicationStatus.COMPLETE
-                        )
-                    }
-                } catch (ex: Exception) {
-                    log.debug("Updating status of command: ${command.publicationId} to FAILURE")
-                    db.withTransaction {
-                        publicationService.updateStatusOf(
-                            it,
-                            command.publicationId,
-                            ZenodoPublicationStatus.FAILURE
-                        )
+                when (ex) {
+                    is PublishingException -> {
+                        log.debug("Caught known exception while transferring files to Zenodo")
+                        log.debug(ex.stackTraceToString())
+                        // TODO We can use ex.message for output to user
                     }
 
-                    when (ex) {
-                        is PublishingException -> {
-                            log.debug("Caught known exception while transferring files to Zenodo")
-                            log.debug(ex.stackTraceToString())
-                            // TODO We can use ex.message for output to user
-                        }
+                    is PublicationException -> {
+                        @Suppress("UNUSED_VARIABLE")
+                        val unused = when (ex) {
+                            is PublicationException.NotFound -> {
+                                log.info("Unable to find publication. Why is this in stream?")
+                                log.info("Publication was not found for: ${command.publicationId}")
+                            }
 
-                        is PublicationException -> {
-                            @Suppress("UNUSED_VARIABLE")
-                            val unused = when (ex) {
-                                is PublicationException.NotFound -> {
-                                    log.info("Unable to find publication. Why is this in stream?")
-                                    log.info("Publication was not found for: ${command.publicationId}")
-                                }
-
-                                is PublicationException.NotConnected -> {
-                                    log.info("User was not connected to Zenodo")
-                                    log.info("This happened for: ${command.publicationId}")
-                                }
+                            is PublicationException.NotConnected -> {
+                                log.info("User was not connected to Zenodo")
+                                log.info("This happened for: ${command.publicationId}")
                             }
                         }
-
-                        else -> {
-                            log.warn("Caught unexpected exception while transferring files to Zenodo")
-                            log.warn(ex.stackTraceToString())
-                            throw ex
-                        }
                     }
-                } finally {
-                    files.forEach { it.delete() }
+
+                    else -> {
+                        log.warn("Caught unexpected exception while transferring files to Zenodo")
+                        log.warn(ex.stackTraceToString())
+                        throw ex
+                    }
                 }
+            } finally {
+                files.forEach { it.delete() }
             }
-        }
+        })
     }
 
     private suspend fun transferCloudFilesToTemporaryStorage(

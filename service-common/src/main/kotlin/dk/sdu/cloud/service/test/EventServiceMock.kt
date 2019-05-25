@@ -40,7 +40,11 @@ object EventServiceMock : EventStreamService, Loggable {
         log.info("Stopping EventServiceMock")
     }
 
-    override fun <V : Any> subscribe(stream: EventStream<V>, consumer: EventConsumer<V>) {
+    override fun <V : Any> subscribe(
+        stream: EventStream<V>,
+        consumer: EventConsumer<V>,
+        rescheduleIdleJobsAfterMs: Long
+    ) {
         subscribers[stream] = consumer
     }
 

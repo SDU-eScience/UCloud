@@ -159,11 +159,6 @@ data class FileQuery(
     val sensitivity: PredicateCollection<SensitivityLevel>? = null,
 
     /**
-     * Predicate for annotations. Only exact matches are considered.
-     */
-    val annotations: PredicateCollection<String>? = null,
-
-    /**
      * Predicate for [StorageFile.link]. Only exact matches are considered.
      */
     val fileIsLink: Boolean? = null,

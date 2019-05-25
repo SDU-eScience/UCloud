@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
 
 private const val ONE_MINUTE = 1000L * 60 * 1
@@ -37,6 +38,6 @@ class FileLookupService(
         ).orThrow()
 
         val userCloud = cloud.withoutAuthentication().bearerAuth(userCloudExtension.accessToken)
-        return FileDescriptions.stat.call(FindByPath(path), userCloud).orThrow()
+        return FileDescriptions.stat.call(StatRequest(path), userCloud).orThrow()
     }
 }

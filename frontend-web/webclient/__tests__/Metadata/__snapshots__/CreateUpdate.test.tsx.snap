@@ -262,16 +262,15 @@ exports[`CreateUpdate Component Mount 1`] = `
   -ms-letter-spacing: 0.2px;
   letter-spacing: 0.2px;
   display: block;
-  width: 100%;
   margin: 0;
   font-size: 14px;
   color: #000;
   font-weight: 700;
+  width: 100%;
 }
 
 .c8 {
   display: block;
-  width: 100%;
   font-family: inherit;
   color: inherit;
   background-color: transparent;
@@ -286,6 +285,7 @@ exports[`CreateUpdate Component Mount 1`] = `
   border-color: #c9d3df;
   box-shadow: 0 0 0 1px #c9d3df;
   border-radius: 5px;
+  width: 100%;
 }
 
 .c8::-webkit-input-placeholder {
@@ -320,7 +320,6 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c15 {
   display: block;
-  width: 100%;
   font-family: inherit;
   color: inherit;
   background-color: transparent;
@@ -337,6 +336,7 @@ exports[`CreateUpdate Component Mount 1`] = `
   padding-left: 8px;
   padding-right: 40px;
   border-radius: 5px;
+  width: 100%;
 }
 
 .c15::-webkit-input-placeholder {
@@ -371,7 +371,6 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c20 {
   display: block;
-  width: 100%;
   font-family: inherit;
   color: inherit;
   background-color: transparent;
@@ -388,6 +387,7 @@ exports[`CreateUpdate Component Mount 1`] = `
   margin-top: 0.4em;
   margin-bottom: 0.4em;
   border-radius: 5px;
+  width: 100%;
 }
 
 .c20::-webkit-input-placeholder {
@@ -426,26 +426,6 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c13 .c0 {
   pointer-events: none;
-}
-
-.c9 {
-  width: 100%;
-  border-color: #c9d3df;
-  box-shadow: 0 0 0 1px #c9d3df;
-  border-radius: 5px;
-  border: 1px #c9d3df;
-  padding: 5px;
-  resize: none;
-}
-
-.c9:focus {
-  outline: 0;
-  border-color: #0055d5;
-  box-shadow: 0 0 0 2px #0055d5;
-}
-
-.c9:focus {
-  outline: none;
 }
 
 .c11 {
@@ -490,6 +470,26 @@ exports[`CreateUpdate Component Mount 1`] = `
   margin-right: 1em;
 }
 
+.c9 {
+  width: 100%;
+  border-color: #c9d3df;
+  box-shadow: 0 0 0 1px #c9d3df;
+  border-radius: 5px;
+  border: 1px #c9d3df;
+  padding: 5px;
+  resize: none;
+}
+
+.c9:focus {
+  outline: 0;
+  border-color: #0055d5;
+  box-shadow: 0 0 0 2px #0055d5;
+}
+
+.c9:focus {
+  outline: none;
+}
+
 @media screen and (min-width:768px) and (max-width:1023px) {
   .c3 {
     display: none;
@@ -531,6 +531,7 @@ exports[`CreateUpdate Component Mount 1`] = `
           color="black"
           fontSize={1}
           fontWeight="bold"
+          width="100%"
         >
           <span
             className="c6"
@@ -553,6 +554,7 @@ exports[`CreateUpdate Component Mount 1`] = `
             required={true}
             type="text"
             value=""
+            width="100%"
           />
         </label>
       </div>
@@ -565,6 +567,7 @@ exports[`CreateUpdate Component Mount 1`] = `
           color="black"
           fontSize={1}
           fontWeight="bold"
+          width="100%"
         >
           <span
             className="c6"
@@ -756,6 +759,7 @@ exports[`CreateUpdate Component Mount 1`] = `
               onChange={[Function]}
               placeholder="Enter keyword"
               value=""
+              width="100%"
             />
           </label>
         </div>
@@ -835,6 +839,7 @@ exports[`CreateUpdate Component Mount 1`] = `
                     onChange={[Function]}
                     placeholder="Name..."
                     value=""
+                    width="100%"
                   />
                 </label>
               </div>
@@ -856,6 +861,7 @@ exports[`CreateUpdate Component Mount 1`] = `
                     onChange={[Function]}
                     placeholder="Affiliation..."
                     value=""
+                    width="100%"
                   />
                 </label>
               </div>
@@ -877,6 +883,7 @@ exports[`CreateUpdate Component Mount 1`] = `
                     onChange={[Function]}
                     placeholder="ORCID..."
                     value=""
+                    width="100%"
                   />
                 </label>
               </div>
@@ -898,6 +905,7 @@ exports[`CreateUpdate Component Mount 1`] = `
                     onChange={[Function]}
                     placeholder="GND..."
                     value=""
+                    width="100%"
                   />
                 </label>
               </div>
@@ -934,6 +942,7 @@ exports[`CreateUpdate Component Mount 1`] = `
               onChange={[Function]}
               placeholder="Enter reference"
               value=""
+              width="100%"
             />
           </label>
         </div>
@@ -967,6 +976,7 @@ exports[`CreateUpdate Component Mount 1`] = `
               onChange={[Function]}
               placeholder="Enter grant"
               value=""
+              width="100%"
             />
           </label>
         </div>
@@ -1012,6 +1022,7 @@ exports[`CreateUpdate Component Mount 1`] = `
                   onChange={[Function]}
                   placeholder="Term..."
                   value=""
+                  width="100%"
                 />
               </label>
             </div>
@@ -1033,6 +1044,7 @@ exports[`CreateUpdate Component Mount 1`] = `
                   onChange={[Function]}
                   placeholder="Identifier..."
                   value=""
+                  width="100%"
                 />
               </label>
             </div>
@@ -1080,6 +1092,7 @@ exports[`CreateUpdate Component Mount 1`] = `
                   onChange={[Function]}
                   placeholder="Identifier..."
                   value=""
+                  width="100%"
                 />
               </label>
             </div>

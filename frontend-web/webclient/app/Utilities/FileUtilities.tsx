@@ -3,20 +3,17 @@ import SDUCloud from "Authentication/lib";
 import { File, MoveCopyOperations, Operation, SortOrder, SortBy, FileType, FileOperation, FileResource } from "Files";
 import { Page } from "Types";
 import { History } from "history";
-import swal, { SweetAlertResult } from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
+import {addStandardDialog, rewritePolicyDialog, shareDialog, sensitivityDialog} from "UtilityComponents";
+import { dialogStore } from "Dialog/DialogStore";
 
 function initialSetup(operations: MoveCopyOperations) {
     resetFileSelector(operations);
     return { failurePaths: [] as string[], applyToAll: false, policy: UploadPolicy.REJECT as UploadPolicy };
-}
-
-async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
-    return !!(await rewritePolicy({ path: newPath, homeFolder, filesRemaining })).value;
 }
 
 function getNewPath(newParentPath: string, currentPath: string): string {
@@ -47,9 +44,13 @@ export function copyOrMoveFiles({ operation, files, copyMoveOps, cloud, setLoadi
             let f = files[i];
             let { exists, allowRewrite, newPathForFile } = await moveCopySetup({ targetPath: targetPathFolder.path, path: f.path, cloud });
             if (exists && !applyToAll) {
-                allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
-                policy = UF.selectValue("policy") as UploadPolicy;
-                if (files.length - i > 1) applyToAll = UF.elementValue("applyToAll");
+                const result = await rewritePolicyDialog({ path: newPathForFile, homeFolder: cloud.homeFolder, filesRemaining: files.length - i });
+                if (result != false) {
+                    allowRewrite = true;
+                    allowRewrite = !!result.policy;
+                    policy = result.policy as UploadPolicy;
+                    if (files.length - i > 1) applyToAll = result.applyToAll;
+                }
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
@@ -125,33 +126,6 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
         // FIXME: in the event of other than 404
         return !(e.request.status === 404);
     }
-}
-
-interface RewritePolicy {
-    path: string
-    homeFolder: string
-    filesRemaining: number
-}
-
-function rewritePolicy({ path, homeFolder, filesRemaining }: RewritePolicy): Promise<SweetAlertResult> {
-    return swal({
-        title: "File exists",
-        text: "",
-        html: `<div>${replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it ?</div> <br/>
-                    <select id="policy" defaultValue="RENAME">
-                        <option value="RENAME">Rename</option>
-                        <option value="OVERWRITE">Overwrite</option>
-                    </select>
-                ${filesRemaining > 1 ? `<br/>
-                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""}`,
-        allowEscapeKey: true,
-        allowOutsideClick: true,
-        allowEnterKey: false,
-        showConfirmButton: true,
-        showCancelButton: true,
-        cancelButtonText: "No",
-        confirmButtonText: "Yes",
-    });
 }
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
@@ -326,7 +300,7 @@ export const MoveFileToTrashOperation = ({ onMoved, setLoading, addSnack }: Move
 
 export const ClearTrashOperations = (toHome: () => void): Operation[] => [{
     text: "Clear Trash",
-    onClick: (files, cloud) => clearTrash(cloud, toHome),
+    onClick: (files, cloud) => clearTrash({ cloud, callback: toHome }),
     disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
     icon: "trash",
     color: "red"
@@ -510,6 +484,7 @@ interface IsInvalidPathname extends AddSnackOperation {
  * Checks if a pathname is legal/already in use
  * @param {string} path The path being tested
  * @param {string[]} filePaths the other file paths path is being compared against
+ * @param {() => void} addSnack used to add a message to SnackBar
  * @returns whether or not the path is invalid
  */
 export const isInvalidPathName = ({ path, filePaths, addSnack }: IsInvalidPathname): boolean => {
@@ -557,7 +532,7 @@ export const favoriteFile = (file: File, cloud: SDUCloud): File => {
     }
     file.favorited = !file.favorited;
     return file;
-}
+};
 
 /**
  * Used to favorite/defavorite a file based on its current state.
@@ -572,7 +547,7 @@ export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<Fi
     }
     file.favorited = !file.favorited;
     return file;
-}
+};
 
 const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
@@ -590,7 +565,7 @@ export const reclassifyFile = async ({ file, sensitivity, cloud, addSnack }: Rec
         return file;
     }
     return { ...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity };
-}
+};
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>
     files.length === 1 && files.every(f => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
@@ -607,17 +582,7 @@ export const expandHomeFolder = (path: string, homeFolder: string): string => {
     if (path.startsWith("Home/"))
         return path.replace("Home/", homeFolder);
     return path;
-}
-
-export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callback: () => void) =>
-    moveToTrashSwal([filePath]).then((result: any) => {
-        if (result.dismiss) {
-            return;
-        } else {
-            cloud.delete("/files", { path: filePath }).then(() => !!callback ? callback() : null);
-        }
-    });
-
+};
 
 const extractFilesQuery = "/files/extract";
 interface ExtractArchive extends AddSnackOperation {
@@ -638,17 +603,18 @@ export const extractArchive = ({ files, cloud, onFinished, addSnack }: ExtractAr
         }
     });
     onFinished();
-}
+};
 
 
 
-export const clearTrash = (cloud: SDUCloud, callback: () => void) =>
-    clearTrashSwal().then(result => {
-        if (result.dismiss) {
-            return;
-        } else {
-            cloud.post("/files/trash/clear", {}).then(() => callback());
-        }
+export const clearTrash = ({ cloud, callback }: { cloud: SDUCloud, callback: () => void }) =>
+    clearTrashDialog({
+        onConfirm: async () => {
+            await cloud.post("/files/trash/clear", {});
+            callback();
+            dialogStore.popDialog();
+        },
+        onCancel: () => dialogStore.popDialog()
     });
 
 export const getParentPath = (path: string): string => {
@@ -674,10 +640,10 @@ const toFileName = (path: string): string => {
 };
 
 export function getFilenameFromPath(path: string): string {
-    const replacedHome = replaceHomeFolder(path, Cloud.homeFolder)
+    const replacedHome = replaceHomeFolder(path, Cloud.homeFolder);
     const fileName = toFileName(replacedHome);
-    if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`
-    if (fileName === ".") return `. (Current folder)`
+    if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`;
+    if (fileName === ".") return `. (Current folder)`;
     return fileName;
 }
 
@@ -693,17 +659,17 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
         }));
 }
 
-interface UpdateSensitivty extends AddSnackOperation {
+interface UpdateSensitivity extends AddSnackOperation {
     files: File[]
     cloud: SDUCloud
     onSensitivityChange?: () => void
 }
 
-function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivty) {
-    UF.sensitivitySwal().then(input => {
-        if (!!input.dismiss) return;
+function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivity) {
+    sensitivityDialog().then(input => {
+        if ("cancelled" in input) return;
         Promise.all(
-            files.map(file => reclassifyFile({ file, sensitivity: input.value as SensitivityLevelMap, cloud, addSnack }))
+            files.map(file => reclassifyFile({ file, sensitivity: input.option, cloud, addSnack }))
         ).catch(e =>
             UF.errorMessageOrDefault(e, "Could not reclassify file")
         ).then(() => !!onSensitivityChange ? onSensitivityChange() : null);
@@ -713,7 +679,7 @@ function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: Upda
 export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
     const token = await cloud.createOneTimeTokenWithPermission("files.download:read");
     return fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
-}
+};
 
 export const sizeToString = (bytes: number | null): string => {
     if (bytes === null || bytes < 0) return "Invalid size";
@@ -735,46 +701,46 @@ export const sizeToString = (bytes: number | null): string => {
 };
 
 interface ShareFiles extends AddSnackOperation { files: File[], cloud: SDUCloud }
-export const shareFiles = ({ files, cloud, addSnack }: ShareFiles) =>
-    UF.shareSwal().then(input => {
-        if (input.dismiss) return;
-        const rights: string[] = [];
-        if (UF.elementValue("read")) rights.push("READ")
-        if (UF.elementValue("read_edit")) { rights.push("READ"); rights.push("WRITE"); }
-        let iteration = 0;
-        files.map(f => f.path).forEach((path, i, paths) => {
-            const body = {
-                sharedWith: input.value,
-                path,
-                rights
-            };
-            cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) addSnack({ message: "Files shared successfully", type: SnackType.Success }) })
-                .catch(({ response }) => addSnack({ message: `${response.why}`, type: SnackType.Failure }));
-        });
+export const shareFiles = async ({ files, cloud, addSnack }: ShareFiles) => {
+    const input = await shareDialog();
+    if ("cancelled" in input) return;
+    const rights: string[] = [];
+    if (input.readOrEdit.includes("read")) rights.push("READ")
+    if (input.readOrEdit.includes("read_edit")) rights.push("WRITE");
+    let iteration = 0;
+    // Replace with Promise.all
+    files.map(f => f.path).forEach((path, _, paths) => {
+        const body = {
+            sharedWith: input.username,
+            path,
+            rights
+        };
+        cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) addSnack({ message: "Files shared successfully", type: SnackType.Success }) })
+            .catch(({ response }) => addSnack({ message: `${response.why}`, type: SnackType.Failure }));
     });
+}
 
-const moveToTrashSwal = (filePaths: string[]) => {
-    const moveText = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
+const moveToTrashDialog = ({ filePaths, onCancel, onConfirm }: { onConfirm: () => void, onCancel: () => void, filePaths: string[] }): void => {
+    const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
-    return swal({
+
+    addStandardDialog({
         title: "Move files to trash",
-        text: moveText,
-        confirmButtonText: "Move files",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
+        message,
+        onConfirm,
+        confirmText: "Move files"
     });
 };
 
-export const clearTrashSwal = () => {
-    return swal({
+export function clearTrashDialog({ onConfirm, onCancel }: { onConfirm: () => void, onCancel: () => void }): void {
+    addStandardDialog({
         title: "Empty trash?",
-        confirmButtonText: "Confirm",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
-    });
-};
+        message: "",
+        confirmText: "Confirm",
+        cancelText: "Cancel",
+        onConfirm
+    })
+}
 
 interface ResultToNotification extends AddSnackOperation {
     failures: string[]
@@ -801,14 +767,19 @@ interface MoveToTrash extends AddSnackOperation {
 }
 export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: MoveToTrash) => {
     const paths = files.map(f => f.path);
-    moveToTrashSwal(paths).then((result: any) => {
-        if (result.dismiss) return;
-        setLoading();
-        cloud.post<Failures>("/files/trash/", { files: paths })
-            .then(({ response }) => (resultToNotification({
-                failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack
-            }), callback()))
-            .catch(({ response }) => (addSnack({ message: response.why, type: SnackType.Failure }), callback()));
+    moveToTrashDialog({
+        filePaths: paths, onConfirm: async () => {
+            try {
+                setLoading();
+                const { response } = await cloud.post<Failures>("/files/trash/", { files: paths })
+                resultToNotification({ failures: response.failures, paths, homeFolder: cloud.homeFolder, addSnack });
+                callback();
+            } catch (e) {
+                addSnack({ message: e.why, type: SnackType.Failure });
+                callback();
+            }
+        },
+        onCancel: () => undefined
     });
 };
 
@@ -821,33 +792,27 @@ interface BatchDeleteFiles extends AddSnackOperation {
 
 export const batchDeleteFiles = ({ files, cloud, setLoading, callback, addSnack }: BatchDeleteFiles) => {
     const paths = files.map(f => f.path);
-    deletionSwal(paths).then((result: any) => {
-        if (result.dismiss) return;
-        setLoading();
-        let i = 0;
-        // FIXME: Rewrite using Promise.all
-        paths.forEach(path => {
-            cloud.delete("/files", { path }).then(() => {
-                if (++i === paths.length) {
-                    addSnack({ message: "Trash emptied", type: SnackType.Success });
-                    callback();
-                }
-            }).catch(() => i++);
-        });
-    });
-};
-
-
-const deletionSwal = (filePaths: string[]) => {
-    const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :
-        `Delete file ${getFilenameFromPath(filePaths[0])}`;
-    return swal({
+    const message = paths.length > 1 ? `Delete ${paths.length} files?` :
+        `Delete file ${getFilenameFromPath(paths[0])}`;
+    addStandardDialog({
         title: "Delete files",
-        text: deletionText,
-        confirmButtonText: "Delete files",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
+        message,
+        confirmText: "Delete files",
+        onConfirm: async () => {
+            setLoading();
+            const promises: { status?: number, response?: string }[] = 
+                await Promise.all(paths.map(path => cloud.delete("/files", { path }))).then(it => it).catch(it => it);
+            const failures = promises.filter(it => it.status).length;
+            if (failures > 0) {
+                addSnack({
+                    message: promises.filter(it => it.response).map(it => it).join(", "),
+                    type: SnackType.Failure
+                });
+            } else {
+                addSnack({ message: "Files deleted", type: SnackType.Success });
+            }
+            callback();
+        }
     });
 };
 
@@ -877,10 +842,10 @@ interface CreateFolder extends AddSnackOperation {
 
 export async function createFolder({ path, cloud, onSuccess, addSnack }: CreateFolder): Promise<void> {
     try {
-        await cloud.post("/files/directory", { path })
+        await cloud.post("/files/directory", { path });
         onSuccess();
     } catch {
-        addSnack({ message: "An error ocurred trying to creating the file.", type: SnackType.Failure });
+        addSnack({ message: "An error occurred trying to creating the file.", type: SnackType.Failure });
     }
 }
 

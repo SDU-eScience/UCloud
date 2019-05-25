@@ -3,7 +3,11 @@ package dk.sdu.cloud.file.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class WorkspaceMount(
@@ -18,6 +22,7 @@ data class WorkspaceMount(
 )
 
 typealias WorkspaceDescriptions = Workspaces
+
 object Workspaces : CallDescriptionContainer("files.workspace") {
     const val baseContext = "/api/files/workspaces"
 
@@ -28,6 +33,7 @@ object Workspaces : CallDescriptionContainer("files.workspace") {
             val allowFailures: Boolean,
             val createSymbolicLinkAt: String
         )
+
         data class Response(val workspaceId: String, val failures: List<WorkspaceMount>)
     }
 

@@ -100,7 +100,7 @@ volumes: [
                 }
                 message = message + "\nFollowing services have FAILED during builds:\n"
                 for (int k = 0; k < resultList.size(); k++) {
-                    if (resultList[k] == "FAILED") {
+                    if (resultList[k] == "FAILURE") {
                         message = message + "${serviceList[k]}\n"
                     }
                 }

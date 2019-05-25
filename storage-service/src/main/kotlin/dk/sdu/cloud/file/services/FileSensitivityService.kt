@@ -1,8 +1,8 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
+import dk.sdu.cloud.file.util.toSensitivityEvent
 import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.Loggable
 import org.slf4j.Logger
@@ -17,15 +17,7 @@ class FileSensitivityService<Ctx : FSUserContext>(
         val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()
 
         storageEventProducer.produceInBackground(
-            StorageEvent.SensitivityUpdated(
-                id = stat.inode,
-                path = stat.path,
-                owner = stat.owner,
-                creator = stat.creator,
-                timestamp = System.currentTimeMillis(),
-                sensitivityLevel = level,
-                eventCausedBy = eventCausedBy
-            )
+            stat.toSensitivityEvent(eventCausedBy)
         )
     }
 
@@ -34,15 +26,7 @@ class FileSensitivityService<Ctx : FSUserContext>(
 
         val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()
         storageEventProducer.produceInBackground(
-            StorageEvent.SensitivityUpdated(
-                id = stat.inode,
-                path = stat.path,
-                owner = stat.owner,
-                creator = stat.creator,
-                timestamp = System.currentTimeMillis(),
-                sensitivityLevel = null,
-                eventCausedBy = eventCausedBy
-            )
+            stat.toSensitivityEvent(eventCausedBy)
         )
     }
 

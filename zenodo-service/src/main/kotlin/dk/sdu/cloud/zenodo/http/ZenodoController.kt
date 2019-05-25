@@ -12,8 +12,8 @@ import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.jobId
 import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.kafka.MappedEventProducer
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -35,7 +35,7 @@ class ZenodoController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val publicationService: PublicationService<DBSession>,
     private val zenodo: ZenodoRPCService,
-    private val publishCommandStream: MappedEventProducer<String, ZenodoPublishCommand>,
+    private val publishCommandStream: EventProducer<ZenodoPublishCommand>,
     private val serviceClient: AuthenticatedClient
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -72,7 +72,7 @@ class ZenodoController<DBSession>(
                         )
                     }
 
-                publishCommandStream.emit(ZenodoPublishCommand(extendedJWT, ctx.jobId, uploadId, request))
+                publishCommandStream.produce(ZenodoPublishCommand(extendedJWT, ctx.jobId, uploadId, request))
 
                 ok(ZenodoPublishResponse(uploadId))
             }

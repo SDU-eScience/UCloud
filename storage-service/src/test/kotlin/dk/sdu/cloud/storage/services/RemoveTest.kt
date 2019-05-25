@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.StorageEventProducer
@@ -49,10 +50,10 @@ class RemoveTest {
 
             val events = EventServiceMock.messagesForTopic(StorageEvents.events)
 
-            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" }
-            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" }
-            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" }
-            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder" }
+            events.any { it is StorageEvent.Deleted && it.file.path == "/home/user1/folder/a" }
+            events.any { it is StorageEvent.Deleted && it.file.path == "/home/user1/folder/b" }
+            events.any { it is StorageEvent.Deleted && it.file.path == "/home/user1/folder/c" }
+            events.any { it is StorageEvent.Deleted && it.file.path == "/home/user1/folder" }
         } finally {
             BackgroundScope.stop()
         }

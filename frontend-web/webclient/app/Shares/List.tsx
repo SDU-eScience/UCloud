@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { AccessRight, Page } from "Types";
-import { shareSwal, prettierString, iconFromFilePath } from "UtilityFunctions";
+import { prettierString, iconFromFilePath } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
@@ -13,7 +13,7 @@ import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { TextSpan } from "ui-components/Text";
 import { MainContainer } from "MainContainer/MainContainer";
-import { FileIcon } from "UtilityComponents";
+import { FileIcon, shareDialog } from "UtilityComponents";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
 import { ReduxObject, SharesReduxObject, emptyPage } from "DefaultObjects";
@@ -282,13 +282,14 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
     private async onCreateShare(path: string) {
         this.setState(() => ({ isLoading: true }));
-        const { dismiss, value } = await shareSwal();
-        if (dismiss) { this.setState(() => ({ isLoading: false })); return; }
+        const shareResult = await shareDialog();
+        
+        if ("cancelled" in shareResult) { this.setState(() => ({ isLoading: false })); return; }
         const rights: AccessRight[] = [];
-        (document.getElementById("read") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
-        (document.getElementById("read_edit") as HTMLInputElement).checked ? rights.push(AccessRight.READ, AccessRight.WRITE) : null;
+        if (shareResult.readOrEdit.includes("read")) rights.push(AccessRight.READ);
+        if (shareResult.readOrEdit.includes("read_edit")) rights.push(AccessRight.WRITE);
         try {
-            const it = await createShare(value, path, rights)
+            const it = await createShare(shareResult.username, path, rights)
             this.maybeInvoke(it.id, this.props.onShared)
         } catch (e) {
             if (!e.isCanceled) {

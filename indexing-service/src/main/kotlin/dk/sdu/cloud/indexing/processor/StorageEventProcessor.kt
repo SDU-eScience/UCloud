@@ -26,7 +26,7 @@ class StorageEventProcessor(
             ) { batch ->
                 log.debug(
                     "Handling another batch of ${batch.size} files. Head of batch: " +
-                            "${batch.asSequence().take(DEBUG_ELEMENTS_IN_LOG).map { it.path }.toList()}..."
+                            "${batch.asSequence().take(DEBUG_ELEMENTS_IN_LOG).map { it }.toList()}..."
                 )
 
                 indexingService.bulkHandleEvent(batch)

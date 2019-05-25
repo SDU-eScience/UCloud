@@ -1,5 +1,6 @@
 package dk.sdu.cloud.events
 
+import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.lang.Exception

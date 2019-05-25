@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
