@@ -83,6 +83,8 @@ export function useCloudAPI<T, Parameters = any>(
 ): [APICallState<T>, (params: APICallParameters) => void, APICallParameters<Parameters>] {
     const [params, setParams] = useState(callParametersInitial);
 
+    console.log("Parameters are", params);
+
     const [state, dispatch] = useReducer(dataFetchReducer, {
         loading: false,
         error: undefined,

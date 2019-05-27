@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.3.7'
+version '1.3.10'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.share.MainKt"
@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.4.2"
+    ext.serviceCommonVersion = "1.4.4"
 }
 
 dependencies {

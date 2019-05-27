@@ -8,14 +8,9 @@ import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -127,8 +122,7 @@ class ProcessingService<Session>(
     }
 
 
-
-   companion object : Loggable {
+    companion object : Loggable {
         override val log = logger()
     }
 }

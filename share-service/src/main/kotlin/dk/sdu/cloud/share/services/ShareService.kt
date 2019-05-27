@@ -31,9 +31,9 @@ import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.share.api.CreateShareRequest
 import dk.sdu.cloud.share.api.ShareId
 import dk.sdu.cloud.share.api.ShareState
+import dk.sdu.cloud.share.api.Shares
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -55,7 +55,13 @@ class ShareService<DBSession>(
     // Work queue. Add handlers here and place function near the correct workflow. It makes it easier to read the code.
     fun initializeJobQueue() {
         eventStreamService.subscribe(ShareACLJobStream.stream, EventConsumer.Immediate { job ->
-            val share = db.withTransaction { shareDao.findById(it, AuthRequirements(), job.shareId) }
+            val share = try {
+                db.withTransaction { shareDao.findById(it, AuthRequirements(), job.shareId) }
+            } catch (ex: ShareException.NotFound) {
+                log.info("Could not find share in $job")
+                return@Immediate
+            }
+
             when (job) {
                 is ShareJob.ReadyToAccept -> handleReadyToAccept(share, job)
                 is ShareJob.Accepting -> handleAccepting(share, job)
@@ -69,7 +75,7 @@ class ShareService<DBSession>(
     // Share creation
     suspend fun create(
         user: String,
-        share: CreateShareRequest,
+        share: Shares.Create.Request,
         userToken: String,
         userCloud: AuthenticatedClient
     ): ShareId {
@@ -320,10 +326,6 @@ class ShareService<DBSession>(
             }
         } else {
             try {
-                db.withTransaction {
-                    shareDao.updateShare(it, AuthRequirements(), existingShare.id, state = ShareState.UPDATING)
-                }
-
                 workQueue.produce(
                     ShareJob.Deleting(
                         updateFSPermissions(existingShare, revoke = true),
@@ -336,9 +338,18 @@ class ShareService<DBSession>(
                     db.withTransaction { dbSession ->
                         shareDao.deleteShare(dbSession, AuthRequirements(null), existingShare.id)
                     }
+                    return
                 } else {
                     throw ex
                 }
+            }
+
+            try {
+                db.withTransaction {
+                    shareDao.updateShare(it, AuthRequirements(), existingShare.id, state = ShareState.UPDATING)
+                }
+            } catch (ignored: ShareException.NotFound) {
+                // Ignored
             }
         }
     }

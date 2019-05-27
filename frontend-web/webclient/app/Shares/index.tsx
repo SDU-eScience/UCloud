@@ -46,7 +46,7 @@ export interface ListSharesParams {
 
 export const listShares = ({sharedByMe, itemsPerPage, page}: ListSharesParams): APICallParameters<ListSharesParams> => ({
     method: "GET",
-    path: buildQueryString("/shares", {itemsPerPage, page}),
+    path: buildQueryString("/shares", {itemsPerPage, page, sharedByMe}),
     parameters: {sharedByMe, itemsPerPage, page},
     reloadId: Math.random()
 });

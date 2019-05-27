@@ -5,7 +5,6 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.share.api.MinimalShare
-import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.SharesByPath
 
 class ShareQueryService<Session>(
@@ -14,14 +13,14 @@ class ShareQueryService<Session>(
 ) {
     fun list(
         user: String,
-        state: ShareState? = null,
+        sharedByMe: Boolean,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath> {
         val page = db.withTransaction {
             dao.list(
                 it,
                 AuthRequirements(user, ShareRole.PARTICIPANT),
-                state = state,
+                ShareRelationQuery(user, sharedByMe),
                 paging = paging
             )
         }

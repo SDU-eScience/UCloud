@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import {getFilenameFromPath} from "Utilities/FileUtilities";
+import {fileTablePage, getFilenameFromPath} from "Utilities/FileUtilities";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 import {Box, Card, Flex, Icon, Text, Error} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -34,15 +34,12 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {listShares, findShare, createShare, acceptShare, revokeShare, updateShare} from "./index";
 import {loadingAction} from "App";
 import * as Pagination from "Pagination";
-import {Avatar} from "avataaars";
 import {Simulate} from "react-dom/test-utils";
-import load = Simulate.load;
+import Link from "ui-components/Link";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
-    const [sharedByMeState, setSharedByMe] = useState(false);
-
     const initialFetchParams = props.byPath === undefined ?
-        listShares({sharedByMe: sharedByMeState, itemsPerPage: 25, page: 0}) : findShare(props.byPath);
+        listShares({sharedByMe: false, itemsPerPage: 25, page: 0}) : findShare(props.byPath);
 
     const [avatars, setAvatarParams, avatarParams] = useCloudAPI<Dictionary<AvatarType>>(
         loadAvatars({usernames: new Set([])}), {}
@@ -58,9 +55,14 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
     // End of real data
 
-    let sharedByMe = sharedByMeState;
+    let sharedByMe = false;
     if (props.byPath !== undefined && page.data.items.length > 0) {
         sharedByMe = page.data.items[0].sharedByMe;
+    } else {
+        let listParams = params as APICallParameters<ListSharesParams>;
+        if (listParams.parameters !== undefined) {
+            sharedByMe = listParams.parameters.sharedByMe;
+        }
     }
 
     /*
@@ -102,7 +104,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
 
     const AvatarComponent = (props: { username: string }) => {
         let avatar = defaultAvatar;
-        let loadedAvatar = !!avatars.data ? avatars.data.avatars[props.username] : undefined;
+        let loadedAvatar = !!avatars.data && !!avatars.data.avatars ? avatars.data.avatars[props.username] : undefined;
         if (!!loadedAvatar) avatar = loadedAvatar;
         return <UserAvatar avatar={avatar} mr={"10px"}/>;
     };
@@ -113,7 +115,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 mr="1em"
                 cursor="pointer"
                 selected={!sharedByMe}
-                onClick={() => setSharedByMe(false)}
+                onClick={() => setFetchParams(listShares({sharedByMe: false, itemsPerPage: 25, page: 0}))}
             >
                 Shared with Me
             </SelectableText>
@@ -122,7 +124,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 mr="1em"
                 cursor="pointer"
                 selected={sharedByMe}
-                onClick={() => setSharedByMe(true)}
+                onClick={() => setFetchParams(listShares({sharedByMe: true, itemsPerPage: 25, page: 0}))}
             >
                 Shared by Me
             </SelectableText>
@@ -218,7 +220,9 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                     <FileIcon
                         fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)}/>
                 </Box>
-                {getFilenameFromPath(groupedShare.path)}
+                <Link to={fileTablePage(groupedShare.path)}>
+                    {getFilenameFromPath(groupedShare.path)}
+                </Link>
                 <Box ml="auto"/>
                 {groupedShare.shares.length} {groupedShare.shares.length > 1 ? "collaborators" : "collaborator"}
             </Flex>

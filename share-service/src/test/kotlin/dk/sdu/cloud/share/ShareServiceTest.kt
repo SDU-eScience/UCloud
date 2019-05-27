@@ -37,7 +37,7 @@ import dk.sdu.cloud.service.test.retrySection
 import dk.sdu.cloud.share.ShareServiceTest.Companion.owner
 import dk.sdu.cloud.share.ShareServiceTest.Companion.recipient
 import dk.sdu.cloud.share.ShareServiceTest.Companion.sharedFile
-import dk.sdu.cloud.share.api.CreateShareRequest
+import dk.sdu.cloud.share.api.Shares
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.services.ShareHibernateDAO
 import dk.sdu.cloud.share.services.ShareQueryService
@@ -211,15 +211,15 @@ class ShareServiceTest {
     }
 
     private suspend fun createShare(): Int {
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
 
         val path = "/home/$owner/$sharedFile"
         var statusCode = 0
         try {
             shareService.create(
                 owner,
-                CreateShareRequest(recipient, path, setOf(AccessRight.READ)),
+                Shares.Create.Request(recipient, path, setOf(AccessRight.READ)),
                 "token",
                 ClientMock.authenticatedClient
             )
@@ -235,8 +235,8 @@ class ShareServiceTest {
 
         createShare()
 
-        assertEquals(1, shareQueryService.list(owner).items.size)
-        assertEquals(1, shareQueryService.list(recipient).items.size)
+        assertEquals(1, shareQueryService.list(owner, true).items.size)
+        assertEquals(1, shareQueryService.list(recipient, false).items.size)
 
         return@runBlocking
     }
@@ -248,8 +248,8 @@ class ShareServiceTest {
         val statusCode = createShare()
         assertEquals(HttpStatusCode.BadRequest.value, statusCode)
 
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
 
         return@runBlocking
     }
@@ -262,8 +262,8 @@ class ShareServiceTest {
 
         assertEquals(HttpStatusCode.NotFound.value, statusCode)
 
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
 
         return@runBlocking
     }
@@ -276,8 +276,8 @@ class ShareServiceTest {
 
         assertEquals(HttpStatusCode.Forbidden.value, statusCode)
 
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
 
         return@runBlocking
     }
@@ -290,8 +290,8 @@ class ShareServiceTest {
 
         assertEquals(HttpStatusCode.InternalServerError.value, statusCode)
 
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
 
         return@runBlocking
     }
@@ -303,12 +303,12 @@ class ShareServiceTest {
             "token"
         )
 
-        assertEquals(1, shareQueryService.list(owner).items.size)
-        assertEquals(1, shareQueryService.list(recipient).items.size)
+        assertEquals(1, shareQueryService.list(owner, true).items.size)
+        assertEquals(1, shareQueryService.list(recipient, false).items.size)
 
         retrySection {
-            assertEquals(expectedState, shareQueryService.list(owner).items.single().shares.single().state)
-            assertEquals(expectedState, shareQueryService.list(recipient).items.single().shares.single().state)
+            assertEquals(expectedState, shareQueryService.list(owner, true).items.single().shares.single().state)
+            assertEquals(expectedState, shareQueryService.list(recipient, false).items.single().shares.single().state)
         }
     }
 
@@ -385,8 +385,8 @@ class ShareServiceTest {
         shareService.updateRights(owner, 1L, setOf(AccessRight.READ, AccessRight.WRITE))
 
         retrySection {
-            assertEquals(expectedState, shareQueryService.list(owner).items.single().shares.single().state)
-            assertEquals(expectedState, shareQueryService.list(recipient).items.single().shares.single().state)
+            assertEquals(expectedState, shareQueryService.list(owner, true).items.single().shares.single().state)
+            assertEquals(expectedState, shareQueryService.list(recipient, false).items.single().shares.single().state)
         }
     }
 
@@ -445,8 +445,8 @@ class ShareServiceTest {
         initializeMocks(MockConfiguration())
         assertEquals(0, createShare())
         shareService.deleteShare(owner, 1L)
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
     }
 
@@ -455,8 +455,8 @@ class ShareServiceTest {
         initializeMocks(MockConfiguration())
         assertEquals(0, createShare())
         shareService.deleteShare(recipient, 1L)
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
     }
 
@@ -466,8 +466,8 @@ class ShareServiceTest {
         assertEquals(0, createShare())
         acceptShare()
         assertStatusCode(HttpStatusCode.NotFound) { shareService.deleteShare("notme", 1L) }
-        assertEquals(1, shareQueryService.list(owner).items.size)
-        assertEquals(1, shareQueryService.list(recipient).items.size)
+        assertEquals(1, shareQueryService.list(owner, true).items.size)
+        assertEquals(1, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
     }
 
@@ -477,8 +477,8 @@ class ShareServiceTest {
         assertEquals(0, createShare())
         acceptShare()
         shareService.deleteShare(owner, 1L)
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
     }
 
@@ -488,8 +488,8 @@ class ShareServiceTest {
         assertEquals(0, createShare())
         acceptShare()
         shareService.deleteShare(recipient, 1L)
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
     }
 
@@ -498,8 +498,8 @@ class ShareServiceTest {
         initializeMocks(MockConfiguration())
         assertEquals(0, createShare())
         assertStatusCode(HttpStatusCode.NotFound) { shareService.deleteShare("notme", 1L) }
-        assertEquals(1, shareQueryService.list(owner).items.size)
-        assertEquals(1, shareQueryService.list(recipient).items.size)
+        assertEquals(1, shareQueryService.list(owner, true).items.size)
+        assertEquals(1, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
     }
 
@@ -510,8 +510,8 @@ class ShareServiceTest {
         initializeMocks(MockConfiguration(allowLink = false))
         acceptShare(ShareState.FAILURE)
         shareService.deleteShare(owner, 1L)
-        assertEquals(0, shareQueryService.list(owner).items.size)
-        assertEquals(0, shareQueryService.list(recipient).items.size)
+        assertEquals(0, shareQueryService.list(owner, true).items.size)
+        assertEquals(0, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
     }
 

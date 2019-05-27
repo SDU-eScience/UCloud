@@ -168,11 +168,11 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
     override fun list(
         session: HibernateSession,
         auth: AuthRequirements,
-        state: ShareState?,
+        shareRelation: ShareRelationQuery,
         paging: NormalizedPaginationRequest
     ): ListSharesResponse {
-        val itemsInTotal = countShareGroups(session, auth, state)
-        val items = findShareGroups(session, auth, paging, state)
+        val itemsInTotal = countShareGroups(session, auth, shareRelation)
+        val items = findShareGroups(session, auth, paging, shareRelation)
 
         return ListSharesResponse(
             items,
@@ -183,12 +183,12 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
     private fun countShareGroups(
         session: HibernateSession,
         auth: AuthRequirements,
-        state: ShareState?
+        shareRelation: ShareRelationQuery
     ): Long {
         return session.countWithPredicate<ShareEntity>(
             distinct = true,
             selection = { entity[ShareEntity::path] },
-            predicate = { findSharesBy(auth, state) }
+            predicate = { findSharesBy(auth, shareRelation) }
         )
     }
 
@@ -196,14 +196,14 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         session: HibernateSession,
         auth: AuthRequirements,
         paging: NormalizedPaginationRequest,
-        state: ShareState?
+        shareRelation: ShareRelationQuery
     ): List<InternalShare> {
         // We first find the share groups (by path)
         val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
             with(criteria) {
                 select(entity[ShareEntity::path])
                 distinct(true)
-                where(findSharesBy(auth, state))
+                where(findSharesBy(auth, shareRelation))
                 orderBy(ascending(entity[ShareEntity::path]))
             }
         }.createQuery(session).paginatedList(paging)
@@ -211,11 +211,17 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         // We then retrieve all shares for each group
         return session
             .criteria<ShareEntity>(
-                orderBy = { listOf(ascending(entity[ShareEntity::owner]), ascending(entity[ShareEntity::sharedWith]), ascending(entity[ShareEntity::filename])) },
+                orderBy = {
+                    listOf(
+                        ascending(entity[ShareEntity::owner]),
+                        ascending(entity[ShareEntity::sharedWith]),
+                        ascending(entity[ShareEntity::filename])
+                    )
+                },
                 predicate = {
                     allOf(
                         entity[ShareEntity::path] isInCollection distinctPaths,
-                        findSharesBy(auth, state)
+                        findSharesBy(auth, shareRelation)
                     )
                 }
             )
@@ -333,11 +339,13 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
 
     private fun CriteriaBuilderContext<*, ShareEntity>.findSharesBy(
         auth: AuthRequirements,
-        state: ShareState?
+        shareRelation: ShareRelationQuery
     ): Predicate {
         val predicates = arrayListOf(isAuthorized(auth))
-        if (state != null) {
-            predicates.add(entity[ShareEntity::state] equal state)
+        if (shareRelation.sharedByMe) {
+            predicates.add(entity[ShareEntity::owner] equal shareRelation.username)
+        } else {
+            predicates.add(entity[ShareEntity::sharedWith] equal shareRelation.username)
         }
         return allOf(*predicates.toTypedArray())
     }
