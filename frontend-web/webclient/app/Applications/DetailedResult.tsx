@@ -30,6 +30,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { SnackType } from "Snackbar/Snackbars";
 import { dialogStore } from "Dialog/DialogStore";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -471,7 +472,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
         dispatch(await fetchPage(folder, pageNumber, itemsPerPage));
     },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    addSnack: snack => dispatch(addSnack(snack)),
+    addSnack: snack => addNotificationEntry(dispatch, snack),
 });
 
 export default connect<DetailedResultReduxObject, DetailedResultOperations>(mapStateToProps, mapDispatchToProps)(DetailedResult);

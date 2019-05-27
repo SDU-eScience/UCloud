@@ -180,10 +180,13 @@ interface CreateProject extends AddSnackOperation {
     navigate: (path: string) => void
 }
 // FIXME Remove navigation when backend support comes.
-export const createProject = ({ filePath, cloud, navigate, addSnack }: CreateProject) => {
-    cloud.put("/projects", { fsRoot: filePath }).then(() => {
+export const createProject = async ({ filePath, cloud, navigate, addSnack }: CreateProject): Promise<void> => {
+    try {
+        await cloud.put("/projects", { fsRoot: filePath });
         redirectToProject({ path: filePath, cloud, navigate, remainingTries: 5, addSnack });
-    }).catch(() => addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure }));
+    } catch {
+        addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure })
+    };
 };
 
 interface RedirectToProject extends AddSnackOperation {

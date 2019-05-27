@@ -32,6 +32,7 @@ import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 class Search extends React.Component<SearchProps> {
 
@@ -285,7 +286,7 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden()),
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 const mapStateToProps = ({ simpleSearch, detailedFileSearch, detailedApplicationSearch }: ReduxObject): SimpleSearchStateProps & { favFilesCount: number } => ({

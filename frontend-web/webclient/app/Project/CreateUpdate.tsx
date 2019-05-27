@@ -15,6 +15,7 @@ import { Dispatch } from "redux";
 import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { ReduxObject } from "DefaultObjects";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -536,7 +537,7 @@ interface CreateUpdateOperations extends AddSnackOperation {
 
 const mapDispatchToProps = (dispatch: Dispatch): CreateUpdateOperations => ({
     updateTitle: () => dispatch(updatePageTitle("Edit Project")),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 const mapStateToProps = ({ responsive }: ReduxObject) => responsive;

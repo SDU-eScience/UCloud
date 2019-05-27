@@ -37,9 +37,6 @@ export interface AnalysesOperations {
     setRefresh: (refresh?: () => void) => void
 }
 
-export interface AnalysesState {
-}
-
 export interface DetailedResultOperations extends AddSnackOperation {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void

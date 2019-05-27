@@ -11,7 +11,7 @@ import { setActivePage, SetStatusLoading, setLoading } from "Navigation/Redux/St
 import { SidebarPages } from "ui-components/Sidebar";
 import { MainContainer } from "MainContainer/MainContainer";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 class UserCreation extends React.Component<UserCreationOperations, UserCreationState> {
     constructor(props: Readonly<UserCreationOperations>) {
@@ -133,7 +133,7 @@ interface UserCreationOperations extends AddSnackOperation, SetStatusLoading {
 
 const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
-    addSnack: snack => dispatch(addSnack(snack)),
+    addSnack: snack => addNotificationEntry(dispatch, snack),
     setLoading: loading => dispatch(setLoading(loading))
 });
 

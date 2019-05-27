@@ -14,6 +14,7 @@ import { SidebarPages } from "ui-components/Sidebar";
 import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { ReduxObject } from "DefaultObjects";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 class UserSettings extends React.Component<UserSettingsOperations & { headerLoading: boolean }, UserSettingsState> {
 
@@ -154,7 +155,7 @@ interface UserSettingsOperations extends AddSnackOperation, SetStatusLoading {
 
 const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
-    addSnack: snack => dispatch(addSnack(snack)),
+    addSnack: snack => addNotificationEntry(dispatch, snack),
     setLoading: loading => dispatch(setLoading(loading))
 });
 

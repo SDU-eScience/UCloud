@@ -19,6 +19,7 @@ import { SidebarPages } from "ui-components/Sidebar";
 import { ReduxObject } from "DefaultObjects";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 interface ZenodoPublishState {
     files: string[]
@@ -172,7 +173,7 @@ const mapDispatchToProps = (dispatch: Dispatch): ZenodoPublishOperations => ({
     setErrorMessage: (error?: string) => dispatch(setErrorMessage(SET_ZENODO_ERROR, error)),
     setLoading: (loading: boolean) => dispatch(setZenodoLoading(loading)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Publish)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(ZenodoPublish);

@@ -25,6 +25,7 @@ import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Error from "ui-components/Error";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { SnackType } from "Snackbar/Snackbars";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -493,7 +494,7 @@ const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploaderError: err => dispatch(setUploaderError(err)),
     setUploaderVisible: visible => dispatch(setUploaderVisible(visible)),
     setLoading: loading => dispatch(setLoading(loading)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 export default connect<UploaderStateProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);

@@ -18,7 +18,7 @@ import { FlexCProps } from "./Flex";
 import { inDevEnvironment, copyToClipboard } from "UtilityFunctions";
 import { AddSnackOperation } from "Snackbar/Snackbars";
 import { Dispatch } from "redux";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
     justify-content: left;
@@ -225,7 +225,7 @@ const mapStateToProps = ({ status }: ReduxObject): SidebarStateProps => ({
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): AddSnackOperation => ({
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 export const enum SidebarPages {

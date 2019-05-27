@@ -19,7 +19,7 @@ import {
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import { Dispatch } from "redux";
-import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
+import { getQueryParamOrElse } from "Utilities/URIUtilities";
 import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
 import FilesTable, { ContextBar } from "./FilesTable";
@@ -27,14 +27,14 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { setFileSelectorLoading } from "./Redux/FilesActions";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 const Files = (props: FilesProps) => {
 
     const urlPath = () => urlPathFromProps();
 
     React.useEffect(() => {
-        const { page, sortOrder, sortBy, history } = props;
+        const { page, sortOrder, sortBy } = props;
         props.onInit();
         props.setUploaderCallback(path => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, baseFRs));
         return () => props.clearRefresh();
@@ -304,7 +304,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     showUploader: () => dispatch(setUploaderVisible(true)),
     setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
     clearRefresh: () => dispatch(setRefreshFunction()),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 export default connect<FilesStateProps, FilesOperations>(mapStateToProps, mapDispatchToProps)(Files);

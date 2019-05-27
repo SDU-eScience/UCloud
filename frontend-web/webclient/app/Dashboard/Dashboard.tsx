@@ -43,20 +43,16 @@ const DashboardCard = ({ title, isLoading, children }: { title: string, isLoadin
     </Card>
 );
 
-class Dashboard extends React.Component<DashboardProps & { history: History }> {
-    constructor(props: Readonly<DashboardProps & { history: History }>) {
-        super(props);
-        props.updatePageTitle();
-        props.setActivePage();
-    }
+function Dashboard(props: DashboardProps & { history: History }) {
 
-    componentDidMount() {
-        this.reload(true);
-        this.props.setRefresh(() => this.reload(true));
-    }
+    React.useEffect(() => {
+        props.onInit();
+        reload(true);
+        props.setRefresh(() => reload(true));
+        return () => props.setRefresh();
+    }, []);
 
-    private reload(loading: boolean) {
-        const { props } = this;
+    function reload(loading: boolean) {
         props.setAllLoading(loading)
         props.fetchFavorites();
         props.fetchRecentFiles();
@@ -64,70 +60,64 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         props.fetchUsage();
     }
 
-    private onNotificationAction = (notification: Notification) => {
+    const onNotificationAction = (notification: Notification) => {
         // FIXME: Not DRY, reused
         switch (notification.type) {
             case "APP_COMPLETE":
-                this.props.history.push(`/applications/results/${notification.meta.jobId}`);
+                props.history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
             case "SHARE_REQUEST":
-                this.props.history.push("/shares");
+                props.history.push("/shares");
                 break;
         }
     };
 
-    public componentWillUnmount() {
-        this.props.setRefresh();
-    }
-
-    private favoriteOrUnfavorite = (file: File) => {
+    const favoriteOrUnfavorite = (file: File) => {
         favoriteFile(file, Cloud);
-        this.props.receiveFavorites(this.props.favoriteFiles.filter(f => f.favorited));
+        props.receiveFavorites(props.favoriteFiles.filter(f => f.favorited));
     };
 
-    render() {
-        const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
-            analysesLoading, errors, ...props } = this.props;
-        favoriteFiles.forEach(f => f.favorited = true);
-        const main = (
-            <>
-                <Error error={errors.join(" ")} clearError={props.errorDismiss} />
-                <GridCardGroup minmax={290}>
-                    <DashboardFavoriteFiles
-                        files={favoriteFiles}
-                        isLoading={favoriteLoading}
-                        favorite={file => this.favoriteOrUnfavorite(file)}
-                    />
+    const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
+        analysesLoading, errors } = props;
+    favoriteFiles.forEach(f => f.favorited = true);
+    const main = (
+        <>
+            <Error error={errors.join(" ")} clearError={props.errorDismiss} />
+            <GridCardGroup minmax={290}>
+                <DashboardFavoriteFiles
+                    files={favoriteFiles}
+                    isLoading={favoriteLoading}
+                    favorite={file => favoriteOrUnfavorite(file)}
+                />
 
-                    <DashboardRecentFiles
-                        files={recentFiles}
-                        isLoading={recentLoading}
-                    />
+                <DashboardRecentFiles
+                    files={recentFiles}
+                    isLoading={recentLoading}
+                />
 
-                    <DashboardAnalyses
-                        analyses={recentAnalyses}
-                        isLoading={analysesLoading}
-                    />
+                <DashboardAnalyses
+                    analyses={recentAnalyses}
+                    isLoading={analysesLoading}
+                />
 
-                    <DashboardNotifications
-                        onNotificationAction={this.onNotificationAction}
-                        notifications={notifications}
-                        readAll={() => props.readAll()}
-                    />
+                <DashboardNotifications
+                    onNotificationAction={onNotificationAction}
+                    notifications={notifications}
+                    readAll={() => props.readAll()}
+                />
 
-                    <DashboardCard title={"Storage Used"} isLoading={false}>
-                        <Accounting.Usage resource={"storage"} subResource={"bytesUsed"} />
-                    </DashboardCard>
+                <DashboardCard title={"Storage Used"} isLoading={false}>
+                    <Accounting.Usage resource={"storage"} subResource={"bytesUsed"} />
+                </DashboardCard>
 
-                    <DashboardCard title={"Compute Time Used"} isLoading={false}>
-                        <Accounting.Usage resource={"compute"} subResource={"timeUsed"} />
-                    </DashboardCard>
-                </GridCardGroup>
-            </>
-        );
+                <DashboardCard title={"Compute Time Used"} isLoading={false}>
+                    <Accounting.Usage resource={"compute"} subResource={"timeUsed"} />
+                </DashboardCard>
+            </GridCardGroup>
+        </>
+    );
 
-        return (<MainContainer main={main} />);
-    }
+    return (<MainContainer main={main} />);
 }
 
 
@@ -239,7 +229,10 @@ const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" 
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     errorDismiss: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
-    updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
+    onInit: () => {
+        dispatch(updatePageTitle("Dashboard"));
+        dispatch(setActivePage(SidebarPages.None));
+    },
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
@@ -250,7 +243,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
     // FIXME: Make action instead (favoriteFile)
     receiveFavorites: files => dispatch(receiveFavorites(files)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))

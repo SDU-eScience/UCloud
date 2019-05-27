@@ -10,6 +10,7 @@ import { errorMessageOrDefault, requestFullScreen } from "UtilityFunctions";
 import { getQueryParam, RouterLocationProps } from "Utilities/URIUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { hpcJobQuery, cancelJobQuery, cancelJobDialog } from "Utilities/ApplicationUtilities";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 interface RFB {
     constructor(): RFB
@@ -163,7 +164,7 @@ function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): AddSnackOperation => ({
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 export default connect(null, mapDispatchToProps)(NoVNCClient);
