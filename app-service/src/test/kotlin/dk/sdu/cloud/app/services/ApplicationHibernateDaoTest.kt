@@ -141,7 +141,6 @@ class ApplicationHibernateDaoTest {
                 appDAO.create(it, user, applicationB)
 
                 run {
-                    println("1")
                     val searchResult = appDAO.search(it, user, "A", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
@@ -149,7 +148,6 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    println("2")
                     val searchResult = appDAO.search(it, user, "AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
@@ -157,7 +155,6 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    println("3")
                     val searchResult = appDAO.search(it, user, "AAA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
@@ -165,50 +162,50 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    println("4")
                     val searchResult = appDAO.search(it, user, "notPossible", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
                 //Spacing searches
                 run {
-                    println("5")
                     val searchResult = appDAO.search(it, user, "AA   ", NormalizedPaginationRequest(10,0))
 
+                    assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
                 run {
-                    println("6")
                     val searchResult = appDAO.search(it, user, "   AA", NormalizedPaginationRequest(10,0))
 
+                    assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
                 run {
-                    println("7")
-                    val searchResult = appDAO.search(it, user, "multiple keywords", NormalizedPaginationRequest(10,0))
+                    val searchResult = appDAO.search(it, user, "multiple one found AA", NormalizedPaginationRequest(10,0))
 
-                    println(searchResult)
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
 
                 run {
-                    println("8")
-                    val searchResult = appDAO.search(it, user, "   extra  whitespace    ", NormalizedPaginationRequest(10,0))
+                    val searchResult = appDAO.search(it, user, "   AA  A Extra    spacing   ", NormalizedPaginationRequest(10,0))
 
-                    println(searchResult)
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
 
                 run {
-                    println("9")
                     val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10,0))
 
-                    println(searchResult)
+                    assertEquals(2, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
+                    assertEquals(applicationB.metadata.name, searchResult.items.last().metadata.name)
+
                 }
 
                 run {
-                    println("10")
                     val searchResult = appDAO.search(it, user, "  ", NormalizedPaginationRequest(10,0))
 
-                    println(searchResult)
+                    assertEquals(0, searchResult.itemsInTotal)
                 }
             }
         }

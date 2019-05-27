@@ -23,6 +23,10 @@ import io.ktor.http.HttpStatusCode
 import org.hibernate.jpa.TypedParameterValue
 import java.math.BigInteger
 import java.util.*
+import okhttp3.Cache.key
+import javax.persistence.criteria.CriteriaBuilder
+import javax.persistence.criteria.Predicate
+
 
 @Suppress("TooManyFunctions") // Does not make sense to split
 class ApplicationHibernateDAO(
@@ -186,13 +190,14 @@ class ApplicationHibernateDAO(
         if (query.isBlank()) {
             return Page(0, paging.itemsPerPage, 0, emptyList())
         }
-        val normalizedQuery = normalizeQuery(query)
-        val trimmedNormalizedQuery = normalizedQuery.trim()
+        val trimmedNormalizedQuery = normalizeQuery(query).trim()
         val keywords = trimmedNormalizedQuery.split(" ")
         if (keywords.size == 1) {
             return doSearch(session, user, trimmedNormalizedQuery, paging)
         }
-        return doMultiKeywordSearch(session, user, keywords, paging)
+        val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
+
+        return doMultiKeywordSearch(session, user, firstTenKeywords, paging)
     }
 
     private fun doMultiKeywordSearch(
@@ -201,12 +206,22 @@ class ApplicationHibernateDAO(
         keywords: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
+
+        val page = session.paginatedCriteria<ApplicationEntity>(paging) {
+            var query = (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) like "%"+keywords[0]+"%")
+            for ((i, keyword) in keywords.withIndex()) {
+                if (i == 0) {
+                    continue
+                }
+                query = query or (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) like "%$keyword%")
+            }
+            query
+        }.mapItems { it.toModelWithInvocation() }
+
         return preparePageForUser(
             session,
             user,
-            session.paginatedCriteria<ApplicationEntity>(paging) {
-                (entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] isInCollection keywords)
-            }.mapItems { it.toModelWithInvocation() }
+            page
         ).mapItems { it.withoutInvocation() }
     }
 
