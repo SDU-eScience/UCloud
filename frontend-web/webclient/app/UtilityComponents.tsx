@@ -171,10 +171,10 @@ interface FileIconProps {
     size?: string | number
 }
 
-export const FileIcon = ({shared = false, link = false, fileIcon}: FileIconProps) =>
+export const FileIcon = ({shared = false, link = false, fileIcon, size = 30}: FileIconProps) =>
     link || shared ?
     <RelativeFlex>
-        <FtIcon size={38} fileIcon={fileIcon}/>
+        <FtIcon size={size} fileIcon={fileIcon}/>
         <Absolute bottom={"-6px"} right={"-2px"}>
             <Dropdown>
                 <Icon size="15px" name="link" color2="white"/>
@@ -183,7 +183,7 @@ export const FileIcon = ({shared = false, link = false, fileIcon}: FileIconProps
                 </DropdownContent>
             </Dropdown>
         </Absolute>
-    </RelativeFlex> : <FtIcon size={38} fileIcon={fileIcon}/>
+    </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>
 
 const RelativeFlex = styled(Flex)`
     position: relative;

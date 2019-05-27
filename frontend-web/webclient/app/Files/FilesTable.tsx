@@ -276,7 +276,7 @@ const FileLink = ({ file, children }: { file: File, children: any }) => {
     }
 }
 
-function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
+function FilenameAndIcons({ file, size = 38, onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={!!file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);

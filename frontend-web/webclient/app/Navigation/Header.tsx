@@ -119,15 +119,13 @@ const HeaderContainer = styled(Flex)`
     top: 0;
     width: 100%;
     z-index: 100;
-    //background: rgb(0,55,156);
-    //background: linear-gradient(54deg, rgba(0,55,156,1) 0%, rgba(46,107,237,1) 100%);
+    background: linear-gradient(to right, hsla(215, 100%, 50%, 1), hsla(220, 80%, 50%, 1));
 `;
 
 const Logo = () => (
     <Link to={"/"}>
-        <Flex alignItems={"center"} ml="18px">
-            {/* <AppLogoRaw color1Offset={2} color2Offset={2} appC={8} rot={0} size={"32px"} /> */}
-            <Icon name={"logoCloud"} size={"48px"} />
+        <Flex alignItems={"center"} ml="15px">
+            <Icon name={"logoEsc"} size={"38px"} />
             <Text color="headerText" fontSize={3} ml={"8px"}>SDUCloud</Text>
         </Flex>
     </Link>
