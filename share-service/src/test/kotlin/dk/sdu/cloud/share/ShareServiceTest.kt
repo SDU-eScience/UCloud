@@ -32,13 +32,14 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.retrySection
 import dk.sdu.cloud.share.ShareServiceTest.Companion.owner
 import dk.sdu.cloud.share.ShareServiceTest.Companion.recipient
 import dk.sdu.cloud.share.ShareServiceTest.Companion.sharedFile
-import dk.sdu.cloud.share.api.Shares
 import dk.sdu.cloud.share.api.ShareState
+import dk.sdu.cloud.share.api.Shares
 import dk.sdu.cloud.share.services.ShareHibernateDAO
 import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
@@ -210,10 +211,10 @@ class ShareServiceTest {
         }
     }
 
-    private suspend fun createShare(): Int {
-        assertEquals(0, shareQueryService.list(owner, true).items.size)
-        assertEquals(0, shareQueryService.list(recipient, false).items.size)
-
+    private suspend fun createShare(
+        owner: String = ShareServiceTest.owner,
+        recipient: String = ShareServiceTest.recipient
+    ): Int {
         val path = "/home/$owner/$sharedFile"
         var statusCode = 0
         try {
@@ -513,6 +514,36 @@ class ShareServiceTest {
         assertEquals(0, shareQueryService.list(owner, true).items.size)
         assertEquals(0, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
+    }
+
+    @Test
+    fun `test sharing with multiple`() = runBlocking {
+        initializeMocks(MockConfiguration())
+        val user2 = "user2"
+        assertEquals(0, createShare())
+        assertEquals(0, createShare(recipient = user2))
+
+        assertThatPropertyEquals(
+            shareQueryService.findSharesForPath(recipient, "/home/$owner/$sharedFile"),
+            { it.shares.size },
+            1
+        )
+
+        assertThatPropertyEquals(
+            shareQueryService.findSharesForPath(user2, "/home/$owner/$sharedFile"),
+            { it.shares.size },
+            1
+        )
+
+        assertThatPropertyEquals(
+            shareQueryService.findSharesForPath(owner, "/home/$owner/$sharedFile"),
+            { it.shares.size },
+            2
+        )
+
+        assertStatusCode(HttpStatusCode.NotFound) {
+            shareQueryService.findSharesForPath("unrelated", "/home/$owner/$sharedFile")
+        }
     }
 
     private inline fun <reified E : Throwable> assertException(block: () -> Unit) {

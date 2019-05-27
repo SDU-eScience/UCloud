@@ -37,7 +37,7 @@ class ShareQueryService<Session>(
         user: String,
         path: String
     ): SharesByPath {
-        return db.withTransaction { dao.findAllByPath(it, AuthRequirements(user), path) }
+        return db.withTransaction { dao.findAllByPath(it, AuthRequirements(user, ShareRole.PARTICIPANT), path) }
             .groupByPath(user)
             .single()
     }
