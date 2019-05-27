@@ -1,5 +1,4 @@
-import swal from "sweetalert2";
-import {SensitivityLevel} from "DefaultObjects";
+import { SensitivityLevel } from "DefaultObjects";
 import Cloud from "Authentication/lib";
 import {SortBy, SortOrder, File, Acl, FileType} from "Files";
 import {dateToString} from "Utilities/DateUtilities";
@@ -9,7 +8,7 @@ import {SnackType, AddSnackOperation, Snack} from "Snackbar/Snackbars";
 import {GLOBAL_addSnack} from "App";
 
 /**
- * Lowercases the string and capitalizes the first letter of the string
+ * Capitalizes the input string
  * @param str string to be lowercased and capitalized
  * @return {string}
  */
@@ -29,75 +28,6 @@ export const getOwnerFromAcls = (acls?: Acl[]): string => {
     }
 };
 
-export function overwriteSwal() {
-    return swal({
-        allowEscapeKey: true,
-        allowOutsideClick: true,
-        showCancelButton: true,
-        title: "Warning",
-        type: "warning",
-        text: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
-        cancelButtonText: "Continue",
-        confirmButtonText: "Cancel Upload"
-    });
-}
-
-export function shareSwal() {
-    return swal({
-        title: "Share",
-        input: "text",
-        html: `<div>
-                <input name="access" type="radio" value="read" id="read"/>
-                <label for="read">Can View</label>
-                <span style="margin-left:20px" />
-                <input name="access" type="radio" value="read_edit" id="read_edit"/>
-                <label for="read_edit">Can View and Edit</label>
-            </div>`,
-        showCloseButton: true,
-        showCancelButton: true,
-        inputPlaceholder: "Enter username...",
-        focusConfirm: false,
-        inputValidator: (value: string) => {
-            if (!value) return "Username missing";
-            if (!(elementValue("read") || elementValue("read_edit"))) return "Select at least one access right";
-            return null;
-        }
-
-    });
-}
-
-export function sensitivitySwal() {
-    return swal({
-        title: "Change Sensitivity",
-        input: "select",
-        inputOptions: {
-            "INHERIT": "Inherit",
-            "PRIVATE": "Private",
-            "CONFIDENTIAL": "Confidential",
-            "SENSITIVE": "Sensitive"
-        },
-        showCloseButton: true,
-        showCancelButton: true,
-        focusConfirm: false,
-        inputValidator: (value: string) => {
-            return null;
-        }
-    });
-}
-
-export const elementValue = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
-export const selectValue = (id: string): string => (document.getElementById(id) as HTMLSelectElement).value;
-
-export const inputSwal = (inputName: string) => ({
-    title: "Share",
-    input: "text",
-    showCloseButton: true,
-    showCancelButton: true,
-    inputPlaceholder: `Enter ${inputName}...`,
-    focusConfirm: false,
-    inputValidator: (value: string) => (!value && `${capitalized(inputName)} missing`)
-});
-
 export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     switch (sortBy) {
         case SortBy.FILE_TYPE:
@@ -112,7 +42,7 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
             return sizeToString(file.size!);
         case SortBy.ACL:
             if (file.acl !== null)
-                return getOwnerFromAcls(file.acl)
+                return getOwnerFromAcls(file.acl);
             else
                 return "";
         case SortBy.SENSITIVITY_LEVEL:
@@ -124,7 +54,6 @@ export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortB
     if (sortBy === name) {
         return sortOrder === SortOrder.DESCENDING ? "arrowDown" : "arrowUp";
     }
-    ;
     return undefined;
 };
 
@@ -209,7 +138,7 @@ export const extensionType = (ext: string): ExtensionType => {
         default:
             return null;
     }
-}
+};
 
 export interface FtIconProps {
     type: FileType;
@@ -253,11 +182,11 @@ interface CreateProject extends AddSnackOperation {
 }
 
 // FIXME Remove navigation when backend support comes.
-export const createProject = ({filePath, cloud, navigate, addSnack}: CreateProject) => {
-    cloud.put("/projects", {fsRoot: filePath}).then(() => {
-        redirectToProject({path: filePath, cloud, navigate, remainingTries: 5, addSnack});
-    }).catch(() => addSnack({message: `An error occurred creating project ${filePath}`, type: SnackType.Failure}));
-}
+export const createProject = ({ filePath, cloud, navigate, addSnack }: CreateProject) => {
+    cloud.put("/projects", { fsRoot: filePath }).then(() => {
+        redirectToProject({ path: filePath, cloud, navigate, remainingTries: 5, addSnack });
+    }).catch(() => addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure }));
+};
 
 interface RedirectToProject extends AddSnackOperation {
     path: string
@@ -269,13 +198,7 @@ interface RedirectToProject extends AddSnackOperation {
 const redirectToProject = ({path, cloud, navigate, remainingTries, addSnack}: RedirectToProject) => {
     cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(() => navigate(path)).catch(_ => {
         if (remainingTries > 0)
-            setTimeout(() => redirectToProject({
-                path,
-                cloud,
-                navigate,
-                remainingTries: remainingTries - 1,
-                addSnack
-            }), 400);
+            setTimeout(() => redirectToProject({ path, cloud, navigate, remainingTries: remainingTries - 1, addSnack }), 400);
         else
             addSnack({message: `Project ${path} is being created.`, type: SnackType.Success});
     });
@@ -292,7 +215,8 @@ export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.s
 export const addTrailingSlash = (path: string) => {
     if (!path) return path;
     else return path.endsWith("/") ? path : `${path}/`;
-}
+};
+
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
 export const is5xxStatusCode = (status: number) => inRange({status, min: 500, max: 599});
 export const blankOrUndefined = (value?: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
@@ -303,13 +227,13 @@ export const ifPresent = (f: any, handler: (f: any) => void) => {
 
 // FIXME The frontend can't handle downloading multiple files currently. When fixed, remove === 1 check.
 export const downloadAllowed = (files: File[]) =>
-    files.length === 1 && files.every(f => f.sensitivityLevel !== "SENSITIVE")
+    files.length === 1 && files.every(f => f.sensitivityLevel !== "SENSITIVE");
 
 /**
  * Capizalises the input string and replaces _ (underscores) with whitespace.
  * @param str
  */
-export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ")
+export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
     error: { request: XMLHttpRequest, response: any },

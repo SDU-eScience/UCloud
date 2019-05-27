@@ -31,6 +31,19 @@ export enum KeyCode {
 }
 export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0 };
 
+export enum AnalysesStatusMap {
+    "PENDING",
+    "IN PROGRESS",
+    "COMPLETED"
+}
+
+export enum RightsNameMap {
+    "NONE" = "None",
+    "READ" = "Read",
+    "READ_WRITE" = "Read/Write",
+    "EXECUTE" = "Execute"
+}
+
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
     "PRIVATE" = "Private",

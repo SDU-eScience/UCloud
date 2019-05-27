@@ -29,6 +29,16 @@ import {AppLogoRaw} from "Applications/Card";
 import {AddSnackOperation, SnackType} from "Snackbar/Snackbars";
 import {addSnack} from "Snackbar/Redux/SnackbarsActions";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
+import {prettierString, inDevEnvironment} from "UtilityFunctions";
+import {AvatarType} from "UserSettings/Avataaar";
+import {findAvatar} from "UserSettings/Redux/AvataaarActions";
+import {setPrioritizedSearch} from "./Redux/HeaderActions";
+import {SearchOptions, SelectableText} from "Search/Search";
+import {EllipsedText, TextSpan} from "ui-components/Text";
+import {AppLogoRaw} from "Applications/Card";
+import {AddSnackOperation, SnackType} from "Snackbar/Snackbars";
+import {addSnack} from "Snackbar/Redux/SnackbarsActions";
+import {DevelopmentBadgeBase} from "ui-components/Badge";
 import {FlexProps, SpaceProps} from "styled-system";
 import {FlexCProps} from "ui-components/Flex";
 
@@ -78,9 +88,8 @@ class Header extends React.Component<HeaderProps> {
                 </Flex>
                 <Support/>
                 <Notification/>
-                <ClickableDropdown width="200px" left="-180%" trigger={
-                    <Flex>{Cloud.isLoggedIn ? <UserAvatar mx={"8px"} avatar={this.props.avatar}/> : null}</Flex>
-                }>
+                <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ?
+                    <UserAvatar avatar={this.props.avatar} mx={"8px"}/> : null}</Flex>}>
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to="/users/settings">
                             <Flex color="black">
@@ -178,14 +187,14 @@ const SearchInput = styled(Flex)`
 `;
 
 
-interface Search {
+interface SearchProps {
     searchRef: React.RefObject<HTMLInputElement>
     searchType: HeaderSearchType
     navigate: () => void
     setSearchType: (st: HeaderSearchType) => void
 }
 
-const Search = ({searchRef, navigate, searchType, setSearchType}: Search) => {
+const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) => {
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     if (inDevEnvironment()) allowedSearchTypes.push("projects");
     return (<Relative>
@@ -247,12 +256,12 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-interface UserAvatarProps extends SpaceProps {
+interface UserAvatar {
     avatar: AvatarType
 }
 
-export const UserAvatar = ({avatar, ...props}: UserAvatarProps) => (
-    <ClippedBox width="60px" {...props}>
+export const UserAvatar = ({avatar}: UserAvatar) => (
+    <ClippedBox mx="8px" width="60px">
         <Avatar
             avatarStyle="Circle"
             topType={avatar.top}
@@ -294,7 +303,7 @@ const ContextSwitcher = ({addSnack}: AddSnackOperation) => {
             ))}
         </ClickableDropdown>
     </Box>);
-}
+};
 
 interface HeaderOperations extends AddSnackOperation {
     fetchLoginStatus: () => void
@@ -317,11 +326,11 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 });
 
 const anyLoading = (rO: ReduxObject): boolean =>
-    rO.loading === true || rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
+    r0.loading === true || rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
     || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
-    || rO.accounting.resources["compute/timeUsed"].events.loading
+    || rO.shares.loading || rO.accounting.resources["compute/timeUsed"].events.loading
     || rO.accounting.resources["storage/bytesUsed"].events.loading;
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));

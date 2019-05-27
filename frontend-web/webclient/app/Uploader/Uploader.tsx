@@ -3,7 +3,7 @@ import * as Modal from "react-modal";
 import { Text, Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import Dropzone from "react-dropzone";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, prettierString, timestampUnixMs, overwriteSwal, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, prettierString, timestampUnixMs, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
 import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -17,7 +17,7 @@ import { Toggle } from "ui-components/Toggle";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 import { Dispatch } from "redux";
-import { FileIcon } from "UtilityComponents";
+import { FileIcon, overwriteDialog } from "UtilityComponents";
 import { Spacer } from "ui-components/Spacer";
 import { File as SDUCloudFile } from "Files";
 import { Refresh } from "Navigation/Header";
@@ -192,8 +192,8 @@ class Uploader extends React.Component<UploaderProps> {
         const upload = this.props.uploads[index];
         if (!!upload.uploadXHR && upload.uploadXHR.readyState != XMLHttpRequest.DONE) {
             if (upload.resolution === UploadPolicy.OVERWRITE) {
-                const result = await overwriteSwal();
-                if (!!result.dismiss) return;
+                const result = await overwriteDialog();
+                if (result.cancelled) return;
             }
             upload.uploadXHR.abort();
             this.removeUpload(index);
@@ -451,7 +451,7 @@ const UploaderRow = (p: {
             <Flex width={0.96}>{body}</Flex>
         </Flex>
     );
-}
+};
 
 const ProgressBar = ({ upload }: { upload: Upload }) => (
     <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
@@ -462,7 +462,7 @@ const ProgressBar = ({ upload }: { upload: Upload }) => (
             percent={upload.progressPercentage}
         />
     </Box>
-)
+);
 
 interface PolicySelect { setRewritePolicy: (policy: UploadPolicy) => void }
 const PolicySelect = ({ setRewritePolicy }: PolicySelect) =>
@@ -471,7 +471,7 @@ const PolicySelect = ({ setRewritePolicy }: PolicySelect) =>
             <option>Rename</option>
             <option>Overwrite</option>
         </Select>
-    </Flex>
+    </Flex>;
 
 interface ConflictFile { file?: SDUCloudFile }
 const ConflictFile = ({ file }: ConflictFile) => !!file ?

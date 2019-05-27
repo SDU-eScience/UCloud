@@ -166,6 +166,47 @@ class ApplicationHibernateDaoTest {
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
+                //Spacing searches
+                run {
+                    val searchResult = appDAO.search(it, user, "AA   ", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
+                }
+                run {
+                    val searchResult = appDAO.search(it, user, "   AA", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
+                }
+                run {
+                    val searchResult = appDAO.search(it, user, "multiple one found AA", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
+                }
+
+                run {
+                    val searchResult = appDAO.search(it, user, "   AA  A Extra    spacing   ", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
+                }
+
+                run {
+                    val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(2, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
+                    assertEquals(applicationB.metadata.name, searchResult.items.last().metadata.name)
+
+                }
+
+                run {
+                    val searchResult = appDAO.search(it, user, "  ", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(0, searchResult.itemsInTotal)
+                }
             }
         }
     }
