@@ -8,7 +8,7 @@ import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
-import {standardDialog, rewritePolicyDialog, shareDialog, sensitivityDialog} from "UtilityComponents";
+import {addStandardDialog, rewritePolicyDialog, shareDialog, sensitivityDialog} from "UtilityComponents";
 import { dialogStore } from "Dialog/DialogStore";
 
 function initialSetup(operations: MoveCopyOperations) {
@@ -484,6 +484,7 @@ interface IsInvalidPathname extends AddSnackOperation {
  * Checks if a pathname is legal/already in use
  * @param {string} path The path being tested
  * @param {string[]} filePaths the other file paths path is being compared against
+ * @param {() => void} addSnack used to add a message to SnackBar
  * @returns whether or not the path is invalid
  */
 export const isInvalidPathName = ({ path, filePaths, addSnack }: IsInvalidPathname): boolean => {
@@ -531,7 +532,7 @@ export const favoriteFile = (file: File, cloud: SDUCloud): File => {
     }
     file.favorited = !file.favorited;
     return file;
-}
+};
 
 /**
  * Used to favorite/defavorite a file based on its current state.
@@ -546,7 +547,7 @@ export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<Fi
     }
     file.favorited = !file.favorited;
     return file;
-}
+};
 
 const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
@@ -564,7 +565,7 @@ export const reclassifyFile = async ({ file, sensitivity, cloud, addSnack }: Rec
         return file;
     }
     return { ...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity };
-}
+};
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>
     files.length === 1 && files.every(f => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
@@ -581,8 +582,7 @@ export const expandHomeFolder = (path: string, homeFolder: string): string => {
     if (path.startsWith("Home/"))
         return path.replace("Home/", homeFolder);
     return path;
-}
-
+};
 
 const extractFilesQuery = "/files/extract";
 interface ExtractArchive extends AddSnackOperation {
@@ -603,19 +603,19 @@ export const extractArchive = ({ files, cloud, onFinished, addSnack }: ExtractAr
         }
     });
     onFinished();
-}
+};
 
 
 
 export const clearTrash = ({ cloud, callback }: { cloud: SDUCloud, callback: () => void }) =>
-    dialogStore.addDialog(clearTrashDialog({
+    clearTrashDialog({
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
             callback();
             dialogStore.popDialog();
         },
         onCancel: () => dialogStore.popDialog()
-    }));
+    });
 
 export const getParentPath = (path: string): string => {
     if (path.length === 0) return path;
@@ -640,10 +640,10 @@ const toFileName = (path: string): string => {
 };
 
 export function getFilenameFromPath(path: string): string {
-    const replacedHome = replaceHomeFolder(path, Cloud.homeFolder)
+    const replacedHome = replaceHomeFolder(path, Cloud.homeFolder);
     const fileName = toFileName(replacedHome);
-    if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`
-    if (fileName === ".") return `. (Current folder)`
+    if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`;
+    if (fileName === ".") return `. (Current folder)`;
     return fileName;
 }
 
@@ -701,45 +701,43 @@ export const sizeToString = (bytes: number | null): string => {
 };
 
 interface ShareFiles extends AddSnackOperation { files: File[], cloud: SDUCloud }
-export const shareFiles = ({ files, cloud, addSnack }: ShareFiles) =>
-    shareDialog().then(input => {
-        if ("cancelled" in input) return;
-        const rights: string[] = [];
-        if (input.readOrEdit.includes("read")) rights.push("READ")
-        if (input.readOrEdit.includes("read_edit")) rights.push("WRITE");
-        let iteration = 0;
-        // Replace with Promise.all
-        files.map(f => f.path).forEach((path, i, paths) => {
-            const body = {
-                sharedWith: input.username,
-                path,
-                rights
-            };
-            cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) addSnack({ message: "Files shared successfully", type: SnackType.Success }) })
-                .catch(({ response }) => addSnack({ message: `${response.why}`, type: SnackType.Failure }));
-        });
+export const shareFiles = async ({ files, cloud, addSnack }: ShareFiles) => {
+    const input = await shareDialog();
+    if ("cancelled" in input) return;
+    const rights: string[] = [];
+    if (input.readOrEdit.includes("read")) rights.push("READ")
+    if (input.readOrEdit.includes("read_edit")) rights.push("WRITE");
+    let iteration = 0;
+    // Replace with Promise.all
+    files.map(f => f.path).forEach((path, _, paths) => {
+        const body = {
+            sharedWith: input.username,
+            path,
+            rights
+        };
+        cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) addSnack({ message: "Files shared successfully", type: SnackType.Success }) })
+            .catch(({ response }) => addSnack({ message: `${response.why}`, type: SnackType.Failure }));
     });
+}
 
-const moveToTrashDialog = ({ filePaths, onCancel, onConfirm }: { onConfirm: () => void, onCancel: () => void, filePaths: string[] }) => {
+const moveToTrashDialog = ({ filePaths, onCancel, onConfirm }: { onConfirm: () => void, onCancel: () => void, filePaths: string[] }): void => {
     const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
 
-    return standardDialog({
+    addStandardDialog({
         title: "Move files to trash",
         message,
         onConfirm,
-        onCancel,
         confirmText: "Move files"
     });
 };
 
-export function clearTrashDialog({ onConfirm, onCancel }: { onConfirm: () => void, onCancel: () => void }) {
-    return standardDialog({
+export function clearTrashDialog({ onConfirm, onCancel }: { onConfirm: () => void, onCancel: () => void }): void {
+    addStandardDialog({
         title: "Empty trash?",
         message: "",
         confirmText: "Confirm",
         cancelText: "Cancel",
-        onCancel,
         onConfirm
     })
 }
@@ -769,7 +767,7 @@ interface MoveToTrash extends AddSnackOperation {
 }
 export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: MoveToTrash) => {
     const paths = files.map(f => f.path);
-    dialogStore.addDialog(moveToTrashDialog({
+    moveToTrashDialog({
         filePaths: paths, onConfirm: async () => {
             try {
                 setLoading();
@@ -779,12 +777,10 @@ export const moveToTrash = ({ files, cloud, setLoading, callback, addSnack }: Mo
             } catch (e) {
                 addSnack({ message: e.why, type: SnackType.Failure });
                 callback();
-            } finally {
-                dialogStore.popDialog()
             }
         },
-        onCancel: () => dialogStore.popDialog()
-    }));
+        onCancel: () => undefined
+    });
 };
 
 interface BatchDeleteFiles extends AddSnackOperation {
@@ -798,7 +794,7 @@ export const batchDeleteFiles = ({ files, cloud, setLoading, callback, addSnack 
     const paths = files.map(f => f.path);
     const message = paths.length > 1 ? `Delete ${paths.length} files?` :
         `Delete file ${getFilenameFromPath(paths[0])}`;
-    dialogStore.addDialog(standardDialog({
+    addStandardDialog({
         title: "Delete files",
         message,
         confirmText: "Delete files",
@@ -816,10 +812,8 @@ export const batchDeleteFiles = ({ files, cloud, setLoading, callback, addSnack 
                 addSnack({ message: "Files deleted", type: SnackType.Success });
             }
             callback();
-            dialogStore.popDialog();
-        },
-        onCancel: () => dialogStore.popDialog()
-    }));
+        }
+    });
 };
 
 interface MoveFile extends AddSnackOperation {

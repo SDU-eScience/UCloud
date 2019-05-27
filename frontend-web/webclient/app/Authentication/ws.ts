@@ -94,7 +94,7 @@ export class WebSocketConnection {
             const message: WebsocketResponse = JSON.parse(ev.data);
 
             if (!!message.type && !!message.streamId) {
-                const handler = this.handlers.get(message.streamId)
+                const handler = this.handlers.get(message.streamId);
                 if (!!handler) {
                     handler(message);
                 }

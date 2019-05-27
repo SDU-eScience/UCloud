@@ -9,6 +9,7 @@ import { Dispatch } from "redux";
 import { errorMessageOrDefault, requestFullScreen } from "UtilityFunctions";
 import { getQueryParam, RouterLocationProps } from "Utilities/URIUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { hpcJobQuery, cancelJobQuery, cancelJobDialog } from "Utilities/ApplicationUtilities";
 
 interface RFB {
     constructor(): RFB
@@ -68,12 +69,13 @@ interface RFB {
 
 function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
     const [isConnected, setConnected] = React.useState(false);
+    const [isCancelled, setCancelled] = React.useState(false);
     const [rfb, setRFB] = React.useState<RFB | undefined>(undefined);
-    const [password, setPassword] = React.useState("")
+    const [password, setPassword] = React.useState("");
     const [path, setPath] = React.useState("");
+    const jobId = getQueryParam(props, "jobId"); 
 
     React.useEffect(() => {
-        const jobId = getQueryParam(props, "jobId"); 
         /* FIXME: Wrap in promise keeper */
         Cloud.get(`/hpc/jobs/query-vnc/${jobId}`).then(it => {
             setPassword(it.response.password);
@@ -114,15 +116,42 @@ function NoVNCClient(props: AddSnackOperation & RouterLocationProps) {
             message: `Fullscreen is not supported for this browser.`
         }));
     }
+    
+    function cancelJob() {
+        if (!jobId) return;
+        cancelJobDialog({
+            jobId,
+            onConfirm: async () => {
+                try {
+                await Cloud.delete(cancelJobQuery, { jobId });
+                props.addSnack({
+                    type: SnackType.Success,
+                    message: "Job has been terminated"
+                });
+                setCancelled(true);
+            } catch (e) {
+                props.addSnack({
+                    type: SnackType.Failure,
+                    message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
+                });
+            }
+        }})
+    }
 
     const mountNode = <div className="noVNC" />
     const main = <>
         <Heading mb="5px">noVNC
         {isConnected ? <OutlineButton ml="15px" mr="10px" onClick={() => disconnect()}>
                 Disconnect
-        </OutlineButton> : <Button ml="15px" onClick={() => connect()}>
+        </OutlineButton> : 
+        <div><Button ml="15px" onClick={() => connect()}>
                 Connect
-        </Button>}
+        </Button>
+        {!isCancelled ? <Button ml="8px" color="red" onClick={() => cancelJob()}>
+                Cancel Job
+        </Button> : null}
+        </div>
+        }
             {isConnected ? <OutlineButton onClick={() => toFullScreen()}>Fullscreen</OutlineButton> : null}
         </Heading>
         {mountNode}

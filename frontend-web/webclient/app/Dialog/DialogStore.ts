@@ -20,10 +20,6 @@ class DialogStore {
         return this.dialogs[0];
     }
 
-    public get dialogCount() {
-        return this.dialogs.length;
-    }
-
     public addDialog(dialog: JSX.Element): void {
         this.dialogs.push(dialog);
         this.modal.forceUpdate();

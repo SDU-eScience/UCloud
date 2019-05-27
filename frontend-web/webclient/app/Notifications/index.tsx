@@ -1,21 +1,26 @@
 import * as React from "react";
-import { Redirect } from "react-router";
+import {Redirect, withRouter} from "react-router";
 import * as moment from "moment";
-import { connect } from "react-redux";
-import { withRouter } from "react-router";
-import { fetchNotifications, notificationRead, readAllNotifications, receiveSingleNotification, setNotificationError } from "./Redux/NotificationsActions";
-import { History } from "history";
-import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
-import { Dispatch } from "redux";
-import { Relative, Flex, Icon, Badge, Absolute, Box, theme, Button, Divider, Error } from "ui-components";
+import {connect} from "react-redux";
+import {
+    fetchNotifications,
+    notificationRead,
+    readAllNotifications,
+    receiveSingleNotification,
+    setNotificationError
+} from "./Redux/NotificationsActions";
+import {History} from "history";
+import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
+import {Dispatch} from "redux";
+import {Absolute, Badge, Box, Button, Divider, Error, Flex, Icon, Relative, theme} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { TextSpan } from "ui-components/Text";
+import {TextSpan} from "ui-components/Text";
 import styled from "styled-components";
-import { IconName } from "ui-components/Icon";
-import { ReduxObject } from "DefaultObjects";
-import { WebSocketConnection } from "Authentication/ws";
-import { WSFactory, Cloud } from "Authentication/SDUCloudObject";
-import { replaceHomeFolder } from "Utilities/FileUtilities";
+import {IconName} from "ui-components/Icon";
+import {ReduxObject} from "DefaultObjects";
+import {WebSocketConnection} from "Authentication/ws";
+import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
+import {replaceHomeFolder} from "Utilities/FileUtilities";
 
 interface NotificationProps {
     items: Notification[]
@@ -89,7 +94,6 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                 <Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
                 <Divider />
             </>) : null;
-        const badgeCount = unreadLength;
         return (
             <ClickableDropdown colorOnHover={false} top="37px" width={"380px"} left={"-270px"} trigger={
                 <Flex>
@@ -97,7 +101,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                         <Flex justifyContent="center" width="48px">
                             <Icon cursor="pointer" name="notification" color="headerIconColor" color2="headerIconColor2" />
                         </Flex>
-                        {badgeCount > 0 ? <Absolute top="-12px" left="28px">
+                        {unreadLength > 0 ? <Absolute top="-12px" left="28px">
                             <Badge bg="red">{unreadLength}</Badge>
                         </Absolute> : null}
                     </Relative>
@@ -135,13 +139,13 @@ interface NotificationEntryProps {
     onAction?: (notification: Notification) => void
 }
 
-export class NotificationEntry extends React.Component<NotificationEntryProps, any> {
+export class NotificationEntry extends React.Component<NotificationEntryProps> {
 
     public render() {
         const { notification } = this.props;
         return (
             <NotificationWrapper alignItems="center" read={notification.read} flexDirection="row" onClick={() => this.handleAction()}>
-                <Box mr="0.4em" width="10%"><Icon name={this.resolveEventIcon(notification.type)} /></Box>
+                <Box mr="0.4em" width="10%"><Icon name={NotificationEntry.resolveEventIcon(notification.type)} /></Box>
                 <Flex width="90%" flexDirection="column">
                     <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
                     <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Cloud.homeFolder)}</TextSpan>
@@ -159,7 +163,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
         if (this.props.onAction) this.props.onAction(this.props.notification);
     }
 
-    private resolveEventIcon(eventType: string): IconName {
+    private static resolveEventIcon(eventType: string): IconName {
         switch (eventType) {
             case "APP_COMPLETE": return "info";
             case "SHARE_REQUEST": return "share";
