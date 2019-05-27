@@ -44,61 +44,55 @@ interface OwnProps {
 
 type ViewProps = OperationProps & StateProps & OwnProps;
 
-class View extends React.Component<ViewProps> {
-    constructor(props: Readonly<ViewProps>) {
-        super(props);
-    }
-
-    componentDidMount() {
-        this.fetchApp();
-    }
-
-    componentDidUpdate() {
-        if (this.props.application.loading) return;
-        if (this.props.application.content) {
-            const { name, version } = this.props.application.content.metadata;
-            const { appName, appVersion } = this.props.match.params;
+function View(props: ViewProps) {
+    
+    React.useEffect(() => {
+        fetchApp();
+    }, []);
+    
+    const { appName, appVersion } = props.match.params;
+    
+    React.useEffect(() => {
+        if (!props.application.loading && props.application.content) {
+            const { name, version } = props.application.content.metadata;
             if (appName !== name || appVersion !== version)
-                this.fetchApp();
+                fetchApp();
         }
+    })
+
+    function fetchApp() {
+        const { appName, appVersion } = props.match.params;
+        props.fetchApp(appName, appVersion);
     }
 
-    private fetchApp() {
-        const { appName, appVersion } = this.props.match.params;
-        this.props.fetchApp(appName, appVersion);
-    }
-
-    render() {
-        const { appName, appVersion } = this.props.match.params;
-        const { previous } = this.props;
-        const application = this.props.application.content;
-        if (previous.content) {
-            previous.content.items = previous.content.items.filter(
-                ({ metadata }) => metadata.version !== appVersion
-            );
-        }
-        return (
-            <LoadingMainContainer
-                loadable={this.props.application}
-                main={
-                    <ContainerForText>
-                        <Box m={16} />
-                        <AppHeader application={application!} />
-                        <Content
-                            application={application!}
-                            previousVersions={this.props.previous.content} />
-                    </ContainerForText>
-                }
-
-                sidebar={
-                    <Sidebar
-                        application={application!}
-                        onFavorite={() => this.props.onFavorite(appName, appVersion)}
-                        favorite={this.props.favorite} />
-                }
-            />
+    const { previous } = props;
+    const application = props.application.content;
+    if (previous.content) {
+        previous.content.items = previous.content.items.filter(
+            ({ metadata }) => metadata.version !== appVersion
         );
     }
+    return (
+        <LoadingMainContainer
+            loadable={props.application}
+            main={
+                <ContainerForText>
+                    <Box m={16} />
+                    <AppHeader application={application!} />
+                    <Content
+                        application={application!}
+                        previousVersions={props.previous.content} />
+                </ContainerForText>
+            }
+
+            sidebar={
+                <Sidebar
+                    application={application!}
+                    onFavorite={() => props.onFavorite(appName, appVersion)}
+                    favorite={props.favorite} />
+            }
+        />
+    );
 }
 
 const AppHeaderBase = styled.div`
