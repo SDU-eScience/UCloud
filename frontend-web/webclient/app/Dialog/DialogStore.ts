@@ -6,7 +6,6 @@ class DialogStore {
         this.dialogs = [];
     }
 
-
     public attach(modal: React.PureComponent) {
         this.modal = modal;
     }

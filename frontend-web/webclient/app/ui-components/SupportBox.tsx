@@ -16,6 +16,7 @@ import { Dispatch } from "redux";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 import { errorMessageOrDefault } from "UtilityFunctions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
@@ -101,7 +102,7 @@ function Support(props: AddSnackOperation) {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): AddSnackOperation => ({
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 export default connect(null, mapDispatchToProps)(Support);

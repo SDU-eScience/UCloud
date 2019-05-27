@@ -19,6 +19,7 @@ import { SnackType } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { removeEntry } from "Utilities/CollectionUtilities";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -624,7 +625,7 @@ function exportParameters({ application, schedulingOptions, parameterValues, mou
 
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
-    addSnack: snack => dispatch(addSnack(snack)),
+    addSnack: snack => addNotificationEntry(dispatch, snack),
     setLoading: loading => dispatch(setLoading(loading))
 });
 

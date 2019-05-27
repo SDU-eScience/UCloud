@@ -23,6 +23,7 @@ import { AddSnackOperation } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import { History } from "history";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 interface FileInfoOperations extends AddSnackOperation {
     updatePageTitle: () => void
@@ -172,7 +173,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     fetchFileActivity: async path => dispatch(await fetchFileActivity(path)),
     receiveFileStat: file => dispatch(receiveFileStat(file)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Files)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 export default connect<FileInfoReduxObject, FileInfoOperations>(mapStateToProps, mapDispatchToProps)(FileInfo);

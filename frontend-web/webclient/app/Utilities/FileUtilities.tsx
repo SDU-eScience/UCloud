@@ -844,8 +844,9 @@ export async function createFolder({ path, cloud, onSuccess, addSnack }: CreateF
     try {
         await cloud.post("/files/directory", { path });
         onSuccess();
-    } catch {
-        addSnack({ message: "An error occurred trying to creating the file.", type: SnackType.Failure });
+        addSnack({ message: "Folder created", type: SnackType.Success });
+    } catch (e) {
+        addSnack({ message: UF.errorMessageOrDefault(e, "An error occurred trying to creating the file."), type: SnackType.Failure });
     }
 }
 

@@ -24,6 +24,7 @@ import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
 import { AddSnackOperation } from "Snackbar/Snackbars";
 import { addSnack, AddSnack } from "Snackbar/Redux/SnackbarsActions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -193,7 +194,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
 
     receiveApplications: page => dispatch(Actions.receivePage(page)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch as Dispatch, snack)
 });
 
 const mapStateToProps = ({ applicationsBrowse }: ReduxObject): ReduxType & { favCount } => ({

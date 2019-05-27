@@ -27,7 +27,7 @@ import {SearchOptions, SelectableText} from "Search/Search";
 import {EllipsedText, TextSpan} from "ui-components/Text";
 import {AppLogoRaw} from "Applications/Card";
 import {AddSnackOperation, SnackType} from "Snackbar/Snackbars";
-import {addSnack} from "Snackbar/Redux/SnackbarsActions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
@@ -303,7 +303,7 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
     fetchAvatar: async () => dispatch(await findAvatar()),
     setSearchType: st => dispatch(setPrioritizedSearch(st)),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToProps => ({

@@ -16,11 +16,14 @@ import { MasterCheckbox } from "UtilityComponents";
 import { Page } from "Types";
 import { History } from "history";
 import { AddSnackOperation } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { EntriesPerPageSelector } from "Pagination";
 import { Spacer } from "ui-components/Spacer";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
-type FavoriteFilesProps = FavoritesOperations & ReduxType & { header: any, history: History }
+interface FavoriteFilesProps extends FavoritesOperations, ReduxType {
+    header: JSX.Element
+    history: History
+}
 
 class FavoriteFiles extends React.Component<FavoriteFilesProps> {
 
@@ -111,7 +114,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
     },
     receiveFavorites: page => dispatch(receiveFavorites(page)),
     setLoading: loading => dispatch(setLoading(loading)),
-    addSnack: snack => dispatch(addSnack(snack)),
+    addSnack: snack => addNotificationEntry(dispatch, snack),
     checkFile: (path, checked) => dispatch(checkFile(path, checked)),
     checkAllFiles: checked => dispatch(checkAllFiles(checked))
 });

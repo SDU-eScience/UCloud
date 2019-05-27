@@ -14,6 +14,7 @@ import { TextSpan } from "ui-components/Text";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
 export enum ProjectRole {
     PI = "PI",
@@ -175,7 +176,7 @@ interface ManagementOperations extends AddSnackOperation {
 const mapDispatchToProps = (dispatch: Dispatch): ManagementOperations => ({
     fetchProjectMembers: async id => dispatch(await fetchProjectMembers(id)),
     clearError: () => dispatch(setError()),
-    addSnack: snack => dispatch(addSnack(snack))
+    addSnack: snack => addNotificationEntry(dispatch, snack)
 });
 
 export default connect<void, ManagementOperations>(null, mapDispatchToProps)(Management);
