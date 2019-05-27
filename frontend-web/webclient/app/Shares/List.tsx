@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import {fileTablePage, getFilenameFromPath} from "Utilities/FileUtilities";
+import {fileInfoPage, fileTablePage, getFilenameFromPath} from "Utilities/FileUtilities";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 import {Box, Card, Flex, Icon, Text, Error} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -220,9 +220,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                     <FileIcon
                         fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)}/>
                 </Box>
-                <Link to={fileTablePage(groupedShare.path)}>
-                    {getFilenameFromPath(groupedShare.path)}
-                </Link>
+                <Link to={fileInfoPage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link>
                 <Box ml="auto"/>
                 {groupedShare.shares.length} {groupedShare.shares.length > 1 ? "collaborators" : "collaborator"}
             </Flex>
