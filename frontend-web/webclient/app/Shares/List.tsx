@@ -3,9 +3,9 @@ import {useEffect, useRef, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import {fileInfoPage, fileTablePage, getFilenameFromPath} from "Utilities/FileUtilities";
+import {fileInfoPage, getFilenameFromPath} from "Utilities/FileUtilities";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
-import {Box, Card, Flex, Icon, Text, Error} from "ui-components";
+import {Box, Card, Flex, Icon, Text} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {FileIcon} from "UtilityComponents";
@@ -34,7 +34,6 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {listShares, findShare, createShare, acceptShare, revokeShare, updateShare} from "./index";
 import {loadingAction} from "App";
 import * as Pagination from "Pagination";
-import {Simulate} from "react-dom/test-utils";
 import Link from "ui-components/Link";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
