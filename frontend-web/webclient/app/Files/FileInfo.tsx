@@ -20,7 +20,6 @@ import { FileInfoReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
 import { SidebarPages } from "ui-components/Sidebar";
 import { AddSnackOperation } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import { History } from "history";
 import { addNotificationEntry } from "Utilities/ReduxUtilities";
@@ -40,67 +39,65 @@ interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
     history: History
 }
 
-class FileInfo extends React.Component<FileInfo> {
-    constructor(props: Readonly<FileInfo>) {
-        super(props);
+function FileInfo(props: Readonly<FileInfo>) {
+
+    React.useEffect(() => {
         props.setActivePage();
+        props.updatePageTitle();
+        const { file } = props;
+        const filePath = path();
+        if (!file || getParentPath(filePath) !== file.path) {
+            console.log("inside");
+            props.setLoading(true);
+            props.fetchFileStat(filePath);
+            props.fetchFileActivity(filePath);
+        }
+    }, []);
+
+    function queryParams(): URLSearchParams {
+        return new URLSearchParams(props.location.search);
     }
 
-    get queryParams(): URLSearchParams {
-        return new URLSearchParams(this.props.location.search);
-    }
-
-    get path(): string {
-        const param = this.queryParams.get("path");
+    function path(): string {
+        const param = queryParams().get("path");
         return param ? removeTrailingSlash(param) : "";
     }
 
-    componentDidMount() {
-        const { loading, file, ...props } = this.props;
-        props.updatePageTitle();
-        if (!file || getParentPath(this.path) !== file.path) {
-            props.setLoading(true);
-            props.fetchFileStat(this.path);
-            props.fetchFileActivity(this.path);
-        }
-    }
-
-    render() {
-        const { loading, file, activity, ...props } = this.props;
-        if (loading) return (<LoadingIcon size={18} />);
-        if (!file) return <MainContainer main={<Error error={this.props.error} clearError={() => this.props.setError()} />} />;
-        return (
-            <MainContainer
-                header={
-                    <>
-                        <Heading.h2><BreadCrumbs 
-                            currentPath={file.path}
-                            navigate={path => this.props.history.push(fileTablePage(expandHomeFolder(path, Cloud.homeFolder)))}
-                            homeFolder={Cloud.homeFolder}    
-                        /></Heading.h2>
-                        <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
-                    </>}
-                main={
-                    <>
-                        <FileView
-                            file={file}
-                            onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
-                            onReclassify={async sensitivity => {
-                                props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud, addSnack: this.props.addSnack }))
-                                props.fetchFileStat(this.path)
-                            }} />
-                        {activity.items.length ? (
-                            <Flex flexDirection="row" justifyContent="center">
-                                <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
-                                    <ActivityFeed activity={activity.items} />
-                                </Card>
-                            </Flex>) : null}
-                        <Box width={0.88}><ShareList innerComponent byPath={file.path} /></Box>
-                        {loading ? <LoadingIcon size={18} /> : null}
-                    </>}
-            />
-        );
-    };
+    
+    const { loading, file, activity } = props;
+    if (loading) return (<LoadingIcon size={18} />);
+    if (!file) return <MainContainer main={<Error error={props.error} clearError={() => props.setError()} />} />;
+    return (
+        <MainContainer
+            header={
+                <>
+                    <Heading.h2><BreadCrumbs
+                        currentPath={file.path}
+                        navigate={path => props.history.push(fileTablePage(expandHomeFolder(path, Cloud.homeFolder)))}
+                        homeFolder={Cloud.homeFolder}
+                    /></Heading.h2>
+                    <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
+                </>}
+            main={
+                <>
+                    <FileView
+                        file={file}
+                        onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
+                        onReclassify={async sensitivity => {
+                            props.receiveFileStat(await reclassifyFile({ file, sensitivity, cloud: Cloud, addSnack: props.addSnack }))
+                            props.fetchFileStat(path())
+                        }} />
+                    {activity.items.length ? (
+                        <Flex flexDirection="row" justifyContent="center">
+                            <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
+                                <ActivityFeed activity={activity.items} />
+                            </Card>
+                        </Flex>) : null}
+                    <Box width={0.88}><ShareList innerComponent byPath={file.path} /></Box>
+                    {loading ? <LoadingIcon size={18} /> : null}
+                </>}
+        />
+    );
 }
 
 const Attribute: React.FunctionComponent<{ name: string, value?: string }> = props => (
@@ -141,7 +138,7 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
                 <Attribute name="Sensitivity">
                     <ClickableDropdown
                         chevron
-                        trigger={SensitivityLevel[!!file.ownSensitivityLevel ? 
+                        trigger={SensitivityLevel[!!file.ownSensitivityLevel ?
                             file.ownSensitivityLevel : SensitivityLevelMap.INHERIT]}
                         onChange={e => onReclassify(e as SensitivityLevelMap)}
                         options={
