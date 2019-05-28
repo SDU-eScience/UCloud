@@ -5,11 +5,12 @@ import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemAudit
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemResponse
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.IndexingService
-import dk.sdu.cloud.file.util.tryWithFS
+import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 
@@ -22,18 +23,17 @@ class IndexingController<Ctx : FSUserContext>(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileDescriptions.verifyFileKnowledge) {
-            tryWithFS(commandRunnerFactory, request.user) {
-                ok(VerifyFileKnowledgeResponse(indexingService.verifyKnowledge(it, request.files)))
+            commandRunnerFactory.withContext(request.user) { ctx ->
+                val mode = request.mode ?: KnowledgeMode.List()
+                ok(VerifyFileKnowledgeResponse(indexingService.verifyKnowledge(ctx, request.files, mode)))
             }
         }
 
         implement(FileDescriptions.deliverMaterializedFileSystem) {
             audit(DeliverMaterializedFileSystemAudit(request.rootsToMaterialized.keys.toList()))
 
-            tryWithFS {
-                val result = indexingService.runDiffOnRoots(request.rootsToMaterialized)
-                ok(DeliverMaterializedFileSystemResponse(result.first))
-            }
+            val result = indexingService.runDiffOnRoots(request.rootsToMaterialized)
+            ok(DeliverMaterializedFileSystemResponse(result.first))
         }
     }
 

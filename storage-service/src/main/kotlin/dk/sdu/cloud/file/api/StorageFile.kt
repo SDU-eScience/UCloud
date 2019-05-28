@@ -78,6 +78,9 @@ interface StorageFile {
      */
     @get:JsonProperty("creator")
     val creatorOrNull: String?
+
+    @get:JsonProperty("canonicalPath")
+    val canonicalPathOrNull: String?
 }
 
 val StorageFile.fileType: FileType
@@ -120,6 +123,9 @@ val StorageFile.fileId: String
 val StorageFile.creator: String
     get() = creatorOrNull!!
 
+val StorageFile.canonicalPath: String
+    get() = canonicalPathOrNull!!
+
 data class StorageFileImpl(
     override val fileTypeOrNull: FileType?,
     override val pathOrNull: String?,
@@ -133,7 +139,8 @@ data class StorageFileImpl(
     override val annotationsOrNull: Set<String>? = emptySet(),
     override val fileIdOrNull: String?,
     override val creatorOrNull: String?,
-    override val ownSensitivityLevelOrNull: SensitivityLevel?
+    override val ownSensitivityLevelOrNull: SensitivityLevel?,
+    override val canonicalPathOrNull: String? = pathOrNull
 ) : StorageFile
 
 fun StorageFile(
@@ -149,22 +156,24 @@ fun StorageFile(
     annotations: Set<String> = emptySet(),
     fileId: String = "",
     creator: String = ownerName,
-    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE
+    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE,
+    canonicalPath: String? = path
 ): StorageFileImpl {
     return StorageFileImpl(
-        fileType,
-        path,
-        createdAt,
-        modifiedAt,
-        ownerName,
-        size,
-        acl,
-        sensitivityLevel,
-        link,
-        annotations,
-        fileId,
-        creator,
-        ownSensitivityLevel
+        fileTypeOrNull = fileType,
+        pathOrNull = path,
+        createdAtOrNull = createdAt,
+        modifiedAtOrNull = modifiedAt,
+        ownerNameOrNull = ownerName,
+        sizeOrNull = size,
+        aclOrNull = acl,
+        sensitivityLevelOrNull = sensitivityLevel,
+        linkOrNull = link,
+        annotationsOrNull = annotations,
+        fileIdOrNull = fileId,
+        creatorOrNull = creator,
+        ownSensitivityLevelOrNull = ownSensitivityLevel,
+        canonicalPathOrNull = canonicalPath
     )
 }
 

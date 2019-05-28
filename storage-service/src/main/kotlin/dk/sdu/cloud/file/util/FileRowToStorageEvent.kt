@@ -47,7 +47,8 @@ private fun FileRow.toStorageFileForEvent(): StorageFile = StorageFile(
     sensitivityLevel = sensitivityLevel ?: SensitivityLevel.PRIVATE,
     link = isLink,
     fileId = inode,
-    ownSensitivityLevel = sensitivityLevel
+    ownSensitivityLevel = sensitivityLevel,
+    canonicalPath = path
 )
 
 /**

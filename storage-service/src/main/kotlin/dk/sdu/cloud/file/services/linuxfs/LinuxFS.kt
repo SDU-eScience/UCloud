@@ -773,6 +773,20 @@ class LinuxFS(
         }
     }
 
+    override suspend fun checkPermissions(ctx: LinuxFSRunner, path: String, requireWrite: Boolean): FSResult<Boolean> =
+        ctx.submit {
+            ctx.requireContext()
+
+            val internalFile = File(translateAndCheckFile(path))
+            val internalPath = internalFile.toPath()
+
+            FSResult(
+                0,
+                (requireWrite && Files.isWritable(internalPath)) ||
+                        (!requireWrite && Files.isReadable(internalPath))
+            )
+        }
+
     private fun internalChown(
         ctx: LinuxFSRunner,
         owner: String,
