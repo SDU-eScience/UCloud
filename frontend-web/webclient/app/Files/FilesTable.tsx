@@ -263,7 +263,7 @@ const SensitivityBadge = styled.div<{ bg: string }>`
     align-items: center;
     justify-content: center;
     border: 0.2em solid ${props => props.bg};
-    border-radius: 0.2em;
+    border-radius: 100%;
 `;
 
 const FileLink = ({ file, children }: { file: File, children: any }) => {
@@ -276,7 +276,7 @@ const FileLink = ({ file, children }: { file: File, children: any }) => {
     }
 }
 
-function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
+function FilenameAndIcons({ file, size = 38, onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={!!file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);

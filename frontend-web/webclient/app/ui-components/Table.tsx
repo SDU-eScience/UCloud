@@ -32,8 +32,8 @@ export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string
     & > ${TableCell} {
         border-spacing: 0;
         border-top: 1px solid rgba(34,36,38,.1);
-        padding-top: 11px;
-        padding-bottom: 11px;
+        padding-top: 8px;
+        padding-bottom: 8px;
     }
 `;
 
