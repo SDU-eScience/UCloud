@@ -12,8 +12,8 @@ import { Dispatch } from "redux";
 import { fetchProjectMembers, setError } from "./Redux/ManagementActions";
 import { TextSpan } from "ui-components/Text";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
-import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { SnackType } from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 export enum ProjectRole {
     PI = "PI",
@@ -53,7 +53,7 @@ class Management extends React.Component<ManagementOperations, ManagementState> 
             <Heading.h3>Project Management: <b>{state.projectName}</b></Heading.h3>
             <Spacer
                 left={<Box>{state.memberCount} Members</Box>}
-                right={<Button onClick={() => this.props.addSnack({
+                right={<Button onClick={() => snackbarStore.addSnack({
                     message: "Wouldn't it be great if this button worked?",
                     type: SnackType.Custom,
                     icon: "ellipsis"
@@ -167,15 +167,14 @@ const MemberSelect = styled(Select)`
 `;
 
 
-interface ManagementOperations extends AddSnackOperation {
+interface ManagementOperations {
     fetchProjectMembers: (id: string) => void
     clearError: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ManagementOperations => ({
     fetchProjectMembers: async id => dispatch(await fetchProjectMembers(id)),
-    clearError: () => dispatch(setError()),
-    addSnack: snack => dispatch(addSnack(snack))
+    clearError: () => dispatch(setError())
 });
 
 export default connect<void, ManagementOperations>(null, mapDispatchToProps)(Management);

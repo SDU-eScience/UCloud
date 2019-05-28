@@ -6,6 +6,7 @@ import com.sun.jna.ptr.PointerByReference
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.Loggable
 import org.slf4j.Logger
+import java.lang.IllegalArgumentException
 
 data class Entry(
     val isUser: Boolean,
@@ -104,7 +105,11 @@ object ACL : Loggable {
     }
 
     fun addEntry(path: String, uid: Int, permissions: Set<AccessRight>, defaultList: Boolean = false) {
-        if (!Platform.isLinux()) return
+        if (!Platform.isLinux()) {
+            log.info("addEntry($path, $uid, $permissions, defaultList = $defaultList)")
+            return
+        }
+
         with(ACLLibrary.INSTANCE) {
             val type = if (defaultList) DEFAULT else ACCESS
             val entry = LongArray(1)
@@ -178,7 +183,11 @@ object ACL : Loggable {
     }
 
     fun removeEntry(path: String, uid: Int, defaultList: Boolean = false) {
-        if (!Platform.isLinux()) return
+        if (!Platform.isLinux()) {
+            log.info("removeEntry($path, $uid, defaultList = $defaultList)")
+            return
+        }
+
         with(ACLLibrary.INSTANCE) {
             val type = if (defaultList) DEFAULT else ACCESS
             val entry = LongArray(1)

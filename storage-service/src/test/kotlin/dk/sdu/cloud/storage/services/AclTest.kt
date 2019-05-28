@@ -2,7 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory

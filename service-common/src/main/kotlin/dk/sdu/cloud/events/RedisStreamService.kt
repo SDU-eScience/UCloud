@@ -1,6 +1,7 @@
 package dk.sdu.cloud.events
 
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import io.lettuce.core.Consumer
 import io.lettuce.core.Limit
 import io.lettuce.core.Range
@@ -97,11 +98,29 @@ class RedisStreamService(
                         runCatching { stream.deserialize(textValue) }.getOrNull()
                     }
 
-                    messagesNotYetAcknowledged.addAll(messages.map { it.id })
-
-                    if (consumer.accept(events)) {
-                        xackA(stream.name, group, messagesNotYetAcknowledged)
-                        messagesNotYetAcknowledged.clear()
+                    if (consumer is EventConsumer.Immediate) {
+                        val ids = messages.map { it.id }
+                        launch {
+                            try {
+                                if (consumer.accept(events)) {
+                                    xackA(stream.name, group, ids.toSet())
+                                }
+                            } catch (ex: Throwable) {
+                                log.warn("Caught exception while consuming from $stream")
+                                log.warn(ex.stackTraceToString())
+                            }
+                        }
+                    } else {
+                        messagesNotYetAcknowledged.addAll(messages.map { it.id })
+                        try {
+                            if (consumer.accept(events)) {
+                                xackA(stream.name, group, messagesNotYetAcknowledged)
+                                messagesNotYetAcknowledged.clear()
+                            }
+                        } catch (ex: Throwable) {
+                            log.warn("Caught exception while consuming from $stream")
+                            log.warn(ex.stackTraceToString())
+                        }
                     }
                 }
 

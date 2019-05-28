@@ -16,17 +16,6 @@ import {
 } from "../../app/Utilities/FileUtilities";
 import { mockFiles_SensitivityConfidential } from "../mock/Files";
 
-test("silencer", () => { });
-
-describe("File Operations", () => {
-    test("No file operations", () =>
-        expect(allFileOperations({
-            setLoading: () => undefined,
-            addSnack: () => undefined
-        })).toEqual([])
-    );
-})
-
 describe("To file text", () => {
     test("Single file", () => {
         const firstFile = mockFiles_SensitivityConfidential.items[0];

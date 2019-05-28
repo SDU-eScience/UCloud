@@ -1,10 +1,12 @@
-import { SensitivityLevel } from "DefaultObjects";
+import {SensitivityLevel} from "DefaultObjects";
 import Cloud from "Authentication/lib";
-import { SortBy, SortOrder, File, Acl, FileType } from "Files";
-import { dateToString } from "Utilities/DateUtilities";
-import { getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
-import { HTTP_STATUS_CODES } from "Utilities/XHRUtils";
-import { SnackType, AddSnackOperation, Snack } from "Snackbar/Snackbars";
+import {Cloud as currentCloud} from "Authentication/SDUCloudObject";
+import {SortBy, SortOrder, File, Acl, FileType} from "Files";
+import {dateToString} from "Utilities/DateUtilities";
+import {getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory} from "Utilities/FileUtilities";
+import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
+import {SnackType, Snack} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 /**
  * Capitalizes the input string
@@ -20,7 +22,8 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  */
 export const getOwnerFromAcls = (acls?: Acl[]): string => {
     if (acls === undefined) return "N/A";
-    if (acls.length > 0) {
+    const filteredAcl = acls.filter(it => it.entity !== currentCloud.username);
+    if (filteredAcl.length > 0) {
         return `${acls.length} members`;
     } else {
         return "Only You";
@@ -145,8 +148,8 @@ export interface FtIconProps {
 }
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FtIconProps => {
-    let icon: FtIconProps = { type: "FILE" };
-    if (isDirectory({ fileType: type })) {
+    let icon: FtIconProps = {type: "FILE"};
+    if (isDirectory({fileType: type})) {
         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
         switch (homeFolderReplaced) {
             case "Home/Jobs":
@@ -174,31 +177,36 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
 };
 
 
-interface CreateProject extends AddSnackOperation {
+interface CreateProject {
     filePath: string
     cloud: Cloud
     navigate: (path: string) => void
 }
+
 // FIXME Remove navigation when backend support comes.
-export const createProject = ({ filePath, cloud, navigate, addSnack }: CreateProject) => {
-    cloud.put("/projects", { fsRoot: filePath }).then(() => {
-        redirectToProject({ path: filePath, cloud, navigate, remainingTries: 5, addSnack });
-    }).catch(() => addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure }));
+export const createProject = ({filePath, cloud, navigate}: CreateProject) => {
+    cloud.put("/projects", {fsRoot: filePath}).then(() => {
+        redirectToProject({path: filePath, cloud, navigate, remainingTries: 5});
+    }).catch(() => snackbarStore.addSnack({
+        message: `An error occurred creating project ${filePath}`,
+        type: SnackType.Failure
+    }));
 };
 
-interface RedirectToProject extends AddSnackOperation {
+interface RedirectToProject {
     path: string
     cloud: Cloud
     navigate: (path: string) => void
     remainingTries: number
 }
 
-const redirectToProject = ({ path, cloud, navigate, remainingTries, addSnack }: RedirectToProject) => {
+const redirectToProject = ({path, cloud, navigate, remainingTries}: RedirectToProject) => {
     cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(() => navigate(path)).catch(_ => {
-        if (remainingTries > 0)
-            setTimeout(() => redirectToProject({ path, cloud, navigate, remainingTries: remainingTries - 1, addSnack }), 400);
-        else
-            addSnack({ message: `Project ${path} is being created.`, type: SnackType.Success });
+        if (remainingTries > 0) {
+            setTimeout(() => redirectToProject({path, cloud, navigate, remainingTries: remainingTries - 1}), 400);
+        } else {
+            snackbarStore.addSnack({message: `Project ${path} is being created.`, type: SnackType.Success});
+        }
     });
 };
 
@@ -206,9 +214,9 @@ const redirectToProject = ({ path, cloud, navigate, remainingTries, addSnack }: 
  *
  * @param params: { status, min, max } (both inclusive)
  */
-export const inRange = ({ status, min, max }: { status: number, min: number, max: number }): boolean =>
+export const inRange = ({status, min, max}: { status: number, min: number, max: number }): boolean =>
     status >= min && status <= max;
-export const inSuccessRange = (status: number): boolean => inRange({ status, min: 200, max: 299 });
+export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 export const addTrailingSlash = (path: string) => {
     if (!path) return path;
@@ -216,7 +224,7 @@ export const addTrailingSlash = (path: string) => {
 };
 
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
-export const is5xxStatusCode = (status: number) => inRange({ status, min: 500, max: 599 });
+export const is5xxStatusCode = (status: number) => inRange({status, min: 500, max: 599});
 export const blankOrUndefined = (value?: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
 
 export const ifPresent = (f: any, handler: (f: any) => void) => {
@@ -233,7 +241,9 @@ export const downloadAllowed = (files: File[]) =>
  */
 export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ");
 
-export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }, addSnack: (snack: Snack) => void): number {
+export function defaultErrorHandler(
+    error: { request: XMLHttpRequest, response: any }
+): number {
     let request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
     let why: string | null = null;
@@ -257,7 +267,7 @@ export function defaultErrorHandler(error: { request: XMLHttpRequest, response: 
             }
         }
 
-        addSnack({ message: why, type: SnackType.Failure });
+        snackbarStore.addSnack({message: why, type: SnackType.Failure});
         return request.status;
     }
     return 500;
@@ -293,9 +303,9 @@ export function requestFullScreen(el: Element, onFailure: () => void) {
 
 export function timestampUnixMs(): number {
     return window.performance &&
-        window.performance.now &&
-        window.performance.timing &&
-        window.performance.timing.navigationStart ?
+    window.performance.now &&
+    window.performance.timing &&
+    window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
         Date.now();
 }
@@ -314,19 +324,19 @@ export function humanReadableNumber(
         .replace(regex, '$&' + sectionDelim);
 }
 
-interface CopyToClipboard extends AddSnackOperation {
+interface CopyToClipboard {
     value: string | undefined
     message: string
 }
 
-export function copyToClipboard({ value, message, addSnack }: CopyToClipboard) {
+export function copyToClipboard({value, message}: CopyToClipboard) {
     const input = document.createElement("input");
     input.value = value || "";
     document.body.appendChild(input);
     input.select();
     document.execCommand("copy");
     document.body.removeChild(input);
-    addSnack({ message, type: SnackType.Success });
+    snackbarStore.addSnack({message, type: SnackType.Success});
 }
 
 export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any } | { status: number, response: string }, defaultMessage: string): string {

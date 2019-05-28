@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.services.linuxfs
 
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
@@ -23,6 +24,7 @@ import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent
 import dk.sdu.cloud.file.util.toDeletedEvent
 import dk.sdu.cloud.file.util.toMovedEvent
+import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -656,7 +658,8 @@ class LinuxFS(
         entity: FSACLEntity,
         rights: Set<AccessRight>,
         defaultList: Boolean,
-        recursive: Boolean
+        recursive: Boolean,
+        transferOwnershipTo: String?
     ): FSResult<Unit> = ctx.submit {
         ctx.requireContext()
 
@@ -668,12 +671,23 @@ class LinuxFS(
         val rootFile = File(translateAndCheckFile(path))
         if (!rootFile.isDirectory && defaultList) return@submit FSResult(0, Unit) // Files don't have a default list
 
+        fun transferOwnership(path: Path) {
+            if (transferOwnershipTo != null) {
+                runBlocking {
+                    internalChown(ctx, transferOwnershipTo, path).unwrap()
+                }
+            }
+        }
+
         if (recursive) {
             Files.walk(rootFile.toPath()).forEach {
+                transferOwnership(it)
+
                 if (!Files.isDirectory(it) && defaultList) return@forEach // Files don't have a default list
                 ACL.addEntry(it.toFile().absolutePath, uid.toInt(), backwardsCompatibleRights, defaultList)
             }
         } else {
+            transferOwnership(rootFile.toPath())
             ACL.addEntry(rootFile.absolutePath, uid.toInt(), backwardsCompatibleRights, defaultList)
         }
 
@@ -685,15 +699,29 @@ class LinuxFS(
         path: String,
         entity: FSACLEntity,
         defaultList: Boolean,
-        recursive: Boolean
+        recursive: Boolean,
+        transferOwnershipTo: String?
     ): FSResult<Unit> = ctx.submit {
         ctx.requireContext()
 
         if (entity !is FSACLEntity.User) throw FSException.BadRequest()
         val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
 
+        fun transferOwnership(path: Path) {
+            if (transferOwnershipTo != null) {
+                runBlocking {
+                    internalChown(ctx, transferOwnershipTo, path).unwrap()
+                }
+            }
+        }
+
         Files.walk(File(translateAndCheckFile(path)).toPath()).forEach {
-            ACL.removeEntry(it.toFile().absolutePath, uid.toInt(), defaultList)
+            transferOwnership(it)
+
+            if (!Files.isDirectory(it) && defaultList) return@forEach // Files don't have a default list
+            val absPath = it.toFile().absolutePath
+            log.debug("removing acl entry from $absPath")
+            ACL.removeEntry(absPath, uid.toInt(), defaultList)
         }
         FSResult(0, Unit)
     }
@@ -731,6 +759,38 @@ class LinuxFS(
         )
     }
 
+    override suspend fun chown(
+        ctx: LinuxFSRunner,
+        path: String,
+        owner: String
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+        if (ctx.user != SERVICE_USER) throw FSException.PermissionException()
+
+        return ctx.submit {
+            ctx.requireContext()
+            val systemPath = File(translateAndCheckFile(path)).toPath()
+            internalChown(ctx, owner, systemPath)
+        }
+    }
+
+    private fun internalChown(
+        ctx: LinuxFSRunner,
+        owner: String,
+        systemPath: Path
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+        val uid = runBlocking {
+            userDao.findStorageUser(owner)
+        } ?: throw FSException.BadRequest()
+
+        Chown.setOwner(systemPath, uid.toInt(), uid.toInt())
+
+        return FSResult(
+            0,
+            listOf(
+                stat(ctx, systemPath.toFile(), STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
+            )
+        )
+    }
 
     private fun String.toCloudPath(): String {
         return ("/" + substringAfter(fsRoot.absolutePath).removePrefix("/")).normalize()

@@ -1,24 +1,23 @@
 import * as React from "react";
-import styled, { css } from "styled-components";
-import Text, { EllipsedText } from "./Text";
-import Icon, { IconName } from "./Icon";
+import styled, {css} from "styled-components";
+import Text, {EllipsedText} from "./Text";
+import Icon, {IconName} from "./Icon";
 import Flex from "./Flex";
 import Box from "./Box";
 import Link from "./Link";
 import Divider from "./Divider";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { fileTablePage } from "Utilities/FileUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {fileTablePage} from "Utilities/FileUtilities";
 import ExternalLink from "./ExternalLink";
 import RatingBadge from "./RatingBadge"
 import Tooltip from "./Tooltip";
 import RBox from "./RBox";
-import { ReduxObject } from "DefaultObjects"
-import { connect } from 'react-redux'
-import { FlexCProps } from "./Flex";
-import { inDevEnvironment, copyToClipboard } from "UtilityFunctions";
-import { AddSnackOperation } from "Snackbar/Snackbars";
-import { Dispatch } from "redux";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import {ReduxObject} from "DefaultObjects"
+import {connect} from 'react-redux'
+import {FlexCProps} from "./Flex";
+import {inDevEnvironment, copyToClipboard} from "UtilityFunctions";
+import {Dispatch} from "redux";
+import {addSnack} from "Snackbar/Redux/SnackbarsActions";
 
 const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
     justify-content: left;
@@ -32,38 +31,38 @@ const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolea
 
 //This is applied to SidebarContainer on small screens
 const HideText = css`
-${({ theme }) => theme.mediaQueryLT["xl"]} {
+${({theme}) => theme.mediaQueryLT["xl"]} {
     
     will-change: transform;
-    transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+    transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
     transform: translate(-122px,0); //122 = 190-68 (original - final width)
 
     & ${Icon},${RatingBadge} {
         will-change: transform;
-        transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
         transform: translate(122px,0); //inverse transformation; same transition function!
     }
 
     & ${SidebarElementContainer} > ${Text} {
-        // transition: opacity ${({ theme }) => theme.timingFunctions.easeOutQuit} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
-        transition: opacity ${({ theme }) => theme.timingFunctions.stepStart} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+        // transition: opacity ${({theme}) => theme.timingFunctions.easeOutQuit} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+        transition: opacity ${({theme}) => theme.timingFunctions.stepStart} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
         opacity: 0;
         will-change: opacity;
     }
 
 
     &:hover { 
-            transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+            transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
             transform: translate(0,0);
 
             & ${Icon},${RatingBadge} {
-                transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+                transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
                 transform: translate(0,0); //inverter transformation
             }
 
             ${SidebarElementContainer} > ${Text} {
-                // transition: opacity ${({ theme }) => theme.timingFunctions.easeInQuint} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
-                transition: opacity ${({ theme }) => theme.timingFunctions.stepEnd} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+                // transition: opacity ${({theme}) => theme.timingFunctions.easeInQuint} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+                transition: opacity ${({theme}) => theme.timingFunctions.stepEnd} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
                 opacity: 1;
             }
         
@@ -86,24 +85,31 @@ const SidebarContainer = styled(Flex) <FlexCProps>`
 `;
 
 interface TextLabelProps {
-    icon: IconName, children: any, height?: string,
-    color?: string, color2?: string,
-    iconSize?: string, textSize?: number,
-    space?: string, hover?: boolean
+    icon: IconName,
+    children: any,
+    height?: string,
+    color?: string,
+    color2?: string,
+    iconSize?: string,
+    textSize?: number,
+    space?: string,
+    hover?: boolean
     title?: string
 }
 
-const TextLabel = ({ icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-    iconSize = "24", space = "22px", textSize = 3, hover = true }: TextLabelProps) => (
-        <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
-            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
-            <Text fontSize={textSize}> {children} </Text>
-        </SidebarElementContainer>
-    );
+const TextLabel = ({
+                       icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
+                       iconSize = "24", space = "22px", textSize = 3, hover = true
+                   }: TextLabelProps) => (
+    <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}/>
+        <Text fontSize={textSize}> {children} </Text>
+    </SidebarElementContainer>
+);
 
 const SidebarLink = styled(Link) <{ active?: boolean }>`
     ${props => props.active ?
-        `&:not(:hover) > * > ${Text} { 
+    `&:not(:hover) > * > ${Text} { 
             color: ${props.theme.colors.blue};
         }
         &:not(:hover) > * > ${Icon} { 
@@ -119,8 +125,15 @@ const SidebarLink = styled(Link) <{ active?: boolean }>`
     }
 `;
 
-interface SidebarElement { icon: IconName, label: string, to: string, external?: boolean, activePage: SidebarPages }
-const SidebarElement = ({ icon, label, to, activePage }: SidebarElement) => (
+interface SidebarElement {
+    icon: IconName,
+    label: string,
+    to: string,
+    external?: boolean,
+    activePage: SidebarPages
+}
+
+const SidebarElement = ({icon, label, to, activePage}: SidebarElement) => (
     <SidebarLink to={to} active={enumToLabel(activePage) === label ? true : undefined}>
         <TextLabel icon={icon}>{label}</TextLabel>
     </SidebarLink>
@@ -128,19 +141,28 @@ const SidebarElement = ({ icon, label, to, activePage }: SidebarElement) => (
 
 function enumToLabel(value: SidebarPages): string {
     switch (value) {
-        case SidebarPages.Files: return "Files";
-        case SidebarPages.Shares: return "Shares";
-        case SidebarPages.Favorites: return "Favorites";
-        case SidebarPages.AppStore: return "App Store";
-        case SidebarPages.MyResults: return "My Results";
-        case SidebarPages.Publish: return "Publish";
-        case SidebarPages.Activity: return "Activity";
-        case SidebarPages.Admin: return "Admin";
-        default: return "";
+        case SidebarPages.Files:
+            return "Files";
+        case SidebarPages.Shares:
+            return "Shares";
+        case SidebarPages.Favorites:
+            return "Favorites";
+        case SidebarPages.AppStore:
+            return "App Store";
+        case SidebarPages.MyResults:
+            return "My Results";
+        case SidebarPages.Publish:
+            return "Publish";
+        case SidebarPages.Activity:
+            return "Activity";
+        case SidebarPages.Admin:
+            return "Admin";
+        default:
+            return "";
     }
 }
 
-const SidebarSpacer = () => (<Box mt="20px" />);
+const SidebarSpacer = () => (<Box mt="20px"/>);
 
 const SidebarPushToBottom = styled.div`
     flex-grow: 1;
@@ -155,34 +177,38 @@ type SidebarMenuElements = {
 export const sideBarMenuElements: { guest: SidebarMenuElements, general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
     guest: {
         items: [
-            { icon: "files", label: "Files", to: "/login" },
-            { icon: "projects", label: "Projects", to: "/login" },
-            { icon: "apps", label: "Apps", to: "/login" }
+            {icon: "files", label: "Files", to: "/login"},
+            {icon: "projects", label: "Projects", to: "/login"},
+            {icon: "apps", label: "Apps", to: "/login"}
         ], predicate: () => !Cloud.isLoggedIn
     },
     general: {
         items: [
-            { icon: "files", label: "Files", to: () => fileTablePage(Cloud.homeFolder) },
-            { icon: "share", label: "Shares", to: "/shares/" },
-            { icon: "starFilled", label: "Favorites", to: "/favorites" },
-            { icon: "appStore", label: "Apps", to: "/applications/" },
-            { icon: "results", label: "My Results", to: "/applications/results/" }
+            {icon: "files", label: "Files", to: () => fileTablePage(Cloud.homeFolder)},
+            {icon: "share", label: "Shares", to: "/shares/"},
+            {icon: "starFilled", label: "Favorites", to: "/favorites"},
+            {icon: "appStore", label: "Apps", to: "/applications/"},
+            {icon: "results", label: "My Results", to: "/applications/results/"}
         ], predicate: () => Cloud.isLoggedIn
     },
-    dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => inDevEnvironment() && Cloud.isLoggedIn },
-    auditing: { items: [{ icon: "activity", label: "Activity", to: "/activity/" }], predicate: () => Cloud.isLoggedIn },
-    admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
+    dev: {
+        items: [{icon: "publish", label: "Publish", to: "/zenodo/publish/"}],
+        predicate: () => inDevEnvironment() && Cloud.isLoggedIn
+    },
+    auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Cloud.isLoggedIn},
+    admin: {items: [{icon: "admin", label: "Admin", to: "/admin/userCreation/"}], predicate: () => Cloud.userIsAdmin}
 };
 
 interface SidebarStateProps {
     page: SidebarPages
     loggedIn: boolean
 }
-interface SidebarProps extends SidebarStateProps, AddSnackOperation {
+
+interface SidebarProps extends SidebarStateProps {
     sideBarEntries?: any
 }
 
-const Sidebar = ({ sideBarEntries = sideBarMenuElements, page, loggedIn, addSnack }: SidebarProps) => {
+const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps) => {
     if (!loggedIn) return null;
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
@@ -191,41 +217,52 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page, loggedIn, addSnac
         <SidebarContainer color="text" flexDirection="column" width={190}>
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>
-                    {category.items.map(({ icon, label, to }: MenuElement) => (
+                    {category.items.map(({icon, label, to}: MenuElement) => (
                         <React.Fragment key={label}>
-                            {categoryIdx === 0 ? <SidebarSpacer /> : null}
-                            <SidebarElement icon={icon} activePage={page} label={label} to={typeof to === "function" ? to() : to} />
+                            {categoryIdx === 0 ? <SidebarSpacer/> : null}
+                            <SidebarElement icon={icon} activePage={page} label={label}
+                                            to={typeof to === "function" ? to() : to}/>
                         </React.Fragment>))}
-                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
+                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px"/>) : null}
                 </React.Fragment>
             )}
-            <SidebarPushToBottom />
+            <SidebarPushToBottom/>
             {/* Screen size indicator */}
-            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            {Cloud.isLoggedIn ? <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
-                <Tooltip left="-50%" top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard({ value: Cloud.username, message: "Username copied to clipboard", addSnack })} width={"140px"}>{Cloud.username}</EllipsedText>}>
-                    {`Click to copy "${Cloud.username}" to clipboard`}
-                </Tooltip>
-            </TextLabel> : null}
+            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox/> </Flex> : null}
+            {Cloud.isLoggedIn ?
+                <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em"
+                           title={Cloud.username || ""}>
+                    <Tooltip
+                        left="-50%"
+                        top
+                        mb="35px"
+                        trigger={
+                            <EllipsedText
+                                cursor="pointer"
+                                onClick={() => copyToClipboard({
+                                    value: Cloud.username,
+                                    message: "Username copied to clipboard"
+                                })}
+                                width={"140px"}>{Cloud.username}</EllipsedText>
+                        }>
+                        {`Click to copy "${Cloud.username}" to clipboard`}
+                    </Tooltip>
+                </TextLabel> : null}
 
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
                 <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em">
                     SDU Data Protection
                 </TextLabel>
             </ExternalLink>
-            <Box mb="10px" />
+            <Box mb="10px"/>
         </SidebarContainer>
     );
 };
 
-const mapStateToProps = ({ status }: ReduxObject): SidebarStateProps => ({
+const mapStateToProps = ({status}: ReduxObject): SidebarStateProps => ({
     page: status.page,
     /* Used to ensure rerendering of Sidebar after user logs in. */
     loggedIn: Cloud.isLoggedIn
-});
-
-const mapDispatchToProps = (dispatch: Dispatch): AddSnackOperation => ({
-    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export const enum SidebarPages {
@@ -240,4 +277,4 @@ export const enum SidebarPages {
     None
 }
 
-export default connect<SidebarStateProps, AddSnackOperation>(mapStateToProps, mapDispatchToProps)(Sidebar);
+export default connect<SidebarStateProps>(mapStateToProps)(Sidebar);

@@ -2,6 +2,7 @@ package dk.sdu.cloud.share
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
@@ -16,7 +17,9 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.share.http.ShareController
 import dk.sdu.cloud.share.processors.StorageEventProcessor
+import dk.sdu.cloud.share.services.ProcessingService
 import dk.sdu.cloud.share.services.ShareHibernateDAO
+import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
 
 class Server(
@@ -26,28 +29,39 @@ class Server(
 
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+
+        // Core services
         val shareDao = ShareHibernateDAO()
+        val userClientFactory: (String) -> AuthenticatedClient = {
+            RefreshingJWTAuthenticator(
+                micro.client,
+                it,
+                micro.tokenValidation as TokenValidationJWT
+            ).authenticateClient(OutgoingHttpCall)
+        }
+
         val shareService = ShareService(
-            serviceCloud = client,
+            serviceClient = client,
             db = micro.hibernateDatabase,
             shareDao = shareDao,
-            userCloudFactory = {
-                RefreshingJWTAuthenticator(
-                    micro.client,
-                    it,
-                    micro.tokenValidation as TokenValidationJWT
-                ).authenticateClient(OutgoingHttpCall)
-            },
-            devMode = micro.developmentModeEnabled
+            userClientFactory = userClientFactory,
+            devMode = micro.developmentModeEnabled,
+            eventStreamService = micro.eventStreamService
         )
 
-        // Initialize consumers here:
-        StorageEventProcessor(shareService, micro.eventStreamService).init()
+        val processingService =
+            ProcessingService(micro.hibernateDatabase, shareDao, userClientFactory, client, shareService)
 
-        // Initialize server:
+        val shareQueryService = ShareQueryService(micro.hibernateDatabase, shareDao)
+
+        // Processors
+        StorageEventProcessor(processingService, micro.eventStreamService).init()
+        shareService.initializeJobQueue()
+
+        // Controllers
         with(micro.server) {
             configureControllers(
-                ShareController(shareService, client)
+                ShareController(shareService, shareQueryService, client)
             )
         }
 

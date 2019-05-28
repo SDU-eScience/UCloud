@@ -8,7 +8,6 @@ import { History } from "history";
 import { Dispatch } from "redux";
 import { HeaderSearchType } from "DefaultObjects";
 import { RouterLocationProps } from "Utilities/URIUtilities";
-import { AddSnackOperation } from "Snackbar/Snackbars";
 
 export interface SearchProps extends SimpleSearchOperations, SimpleSearchStateProps, RouterLocationProps {
     match: match<{ priority: string }>
@@ -28,7 +27,7 @@ export interface SimpleSearchStateProps {
     applicationSearch: DetailedApplicationSearchReduxState
 }
 
-export interface SimpleSearchOperations extends AddSnackOperation {
+export interface SimpleSearchOperations {
     clear: () => void
     setFilesLoading: (loading: boolean) => void
     setApplicationsLoading: (loading: boolean) => void

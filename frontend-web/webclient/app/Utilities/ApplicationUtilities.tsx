@@ -3,8 +3,9 @@ import { ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter 
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
 import { expandHomeFolder } from "./FileUtilities";
-import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
 import { addStandardDialog } from "UtilityComponents";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {SnackType} from "Snackbar/Snackbars";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -39,9 +40,9 @@ export const cancelJobDialog = ({ jobId, onConfirm }: { jobId: string, onConfirm
         cancelText: "No",
         confirmText: "Cancel job",
         onConfirm
-    })
+    });
 
-interface FavoriteApplicationFromPage extends AddSnackOperation {
+interface FavoriteApplicationFromPage {
     name: string
     version: string
     page: Page<WithAppMetadata & WithAppFavorite>
@@ -52,16 +53,16 @@ interface FavoriteApplicationFromPage extends AddSnackOperation {
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = async ({ name, version, page, cloud, addSnack }: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
+export const favoriteApplicationFromPage = async ({ name, version, page, cloud}: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     try {
         await cloud.post(hpcFavoriteApp(name, version));
         a.favorite = !a.favorite;
     } catch {
-        addSnack({ message: `An error ocurred favoriting ${name}`, type: SnackType.Failure });
+        snackbarStore.addSnack({ message: `An error ocurred favoriting ${name}`, type: SnackType.Failure });
     }
     return page;
-}
+};
 
 type StringMap = { [k: string]: string }
 interface AllowedParameterKey { name: string, type: ParameterTypes }
@@ -102,7 +103,7 @@ const compareType = (type: ParameterTypes, parameter: string): boolean => {
             return typeof parameter === "string";
 
     }
-}
+};
 
 interface ExtractedParameters {
     [key: string]: string | number | boolean | { source: string, destination: string }
@@ -126,7 +127,7 @@ export function extractParametersFromMap({ map, appParameters, cloud }: ExtractP
         switch (parameter.type) {
             case ParameterTypes.InputDirectory:
             case ParameterTypes.InputFile:
-                const expandedValue = expandHomeFolder(current.value, cloud.homeFolder)
+                const expandedValue = expandHomeFolder(current.value, cloud.homeFolder);
                 extracted[key] = {
                     source: expandedValue,
                     destination: removeTrailingSlash(expandedValue).split("/").pop()!
@@ -153,6 +154,6 @@ export function extractParametersFromMap({ map, appParameters, cloud }: ExtractP
                 extracted[key] = current.value;
                 return;
         }
-    })
+    });
     return extracted;
 }

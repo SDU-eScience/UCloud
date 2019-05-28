@@ -1,6 +1,9 @@
 package dk.sdu.cloud.events
 
 import dk.sdu.cloud.service.Loggable
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.lang.Exception
@@ -9,15 +12,22 @@ import java.lang.Exception
 // to convert for new backends.
 
 sealed class EventConsumer<V> {
+    // TODO RedisStreamService is depending on only Immediate and Batched to exist to perform processing in a
+    //  separate coroutine. Make sure it is updated before introducing new ones.
+
     abstract suspend fun accept(events: List<V>): Boolean
 
     class Immediate<V>(
         private val handler: suspend (V) -> Unit
     ) : EventConsumer<V>() {
         override suspend fun accept(events: List<V>): Boolean {
-            try {
-                events.forEach { handler(it) }
-                return events.isNotEmpty()
+            return try {
+                coroutineScope {
+                    val jobs = events.map { launch { handler(it) } }
+                    jobs.joinAll()
+
+                    events.isNotEmpty()
+                }
             } catch (ex: Exception) {
                 ex.printStackTrace()
                 throw ex

@@ -1,6 +1,5 @@
 import { Contributor, Subject, RelatedIdentifier } from "./api";
 import { RouterLocationProps } from "Utilities/URIUtilities";
-import { AddSnackOperation } from "Snackbar/Snackbars";
 export { default as CreateUpdate } from "./CreateUpdate";
 export { ManagedView, View } from "./View";
 export { default as Manage } from "./Management"
@@ -28,7 +27,7 @@ export interface CreateUpdateState {
     }
 }
 
-export type CreateUpdateProps = RouterLocationProps & AddSnackOperation;
+export type CreateUpdateProps = RouterLocationProps;
 
 export interface DetailedProjectSearchReduxState {
     error?: string

@@ -3,14 +3,14 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { TwoFactorSetupState } from ".";
 import * as Heading from "ui-components/Heading";
 import { Image, Flex, Divider, Input, Button, ExternalLink } from "ui-components";
-import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { SnackType } from "Snackbar/Snackbars";
 import { SetStatusLoading } from "Navigation/Redux/StatusActions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
 
-export class TwoFactorSetup extends React.Component<AddSnackOperation & SetStatusLoading & { loading: boolean }, TwoFactorSetupState> {
-
+export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading: boolean }, TwoFactorSetupState> {
     public state = this.initialState();
 
     public componentDidMount() {
@@ -24,7 +24,7 @@ export class TwoFactorSetup extends React.Component<AddSnackOperation & SetStatu
             this.setState(() => ({ isConnectedToAccount: res.response.connected }));
         } catch (res) {
             const why = res.response.why ? res.response.why as string : "";
-            this.props.addSnack({ message: `Could not fetch 2FA status. ${why}`, type: SnackType.Failure });
+            snackbarStore.addSnack({ message: `Could not fetch 2FA status. ${why}`, type: SnackType.Failure });
         } finally {
             this.props.setLoading(false);
         }
@@ -176,7 +176,7 @@ export class TwoFactorSetup extends React.Component<AddSnackOperation & SetStatu
             if (response !== undefined && response.why !== undefined) {
                 why = response.why;
             }
-            this.props.addSnack({ message: why, type: SnackType.Failure });
+            snackbarStore.addSnack({ message: why, type: SnackType.Failure });
         } finally {
             this.props.setLoading(false);
         }

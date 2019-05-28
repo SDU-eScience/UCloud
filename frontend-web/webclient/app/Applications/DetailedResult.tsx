@@ -27,9 +27,9 @@ import { Page } from "Types";
 import * as Heading from "ui-components/Heading";
 import { JobStateIcon } from "./JobStateIcon";
 import { MainContainer } from "MainContainer/MainContainer";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { SnackType } from "Snackbar/Snackbars";
 import { dialogStore } from "Dialog/DialogStore";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -108,7 +108,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         onDeleted: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
         onSensitivityChange: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
         setLoading: () => this.props.setLoading(true),
-        addSnack: snack => this.props.addSnack(snack)
     });
 
     private scrollIfNeeded() {
@@ -175,7 +174,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             }
         } catch (e) {
             if (!e.isCanceled)
-                this.props.addSnack({
+                snackbarStore.addSnack({
                     message: "An error occurred retrieving Information and Output from the job.",
                     type: SnackType.Failure
                 });
@@ -355,7 +354,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 try {
                     this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, { jobId: this.jobId }));
                 } catch (e) {
-                    this.props.addSnack({
+                    snackbarStore.addSnack({
                         type: SnackType.Failure,
                         message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
                     });
@@ -471,7 +470,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
         dispatch(await fetchPage(folder, pageNumber, itemsPerPage));
     },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    addSnack: snack => dispatch(addSnack(snack)),
 });
 
 export default connect<DetailedResultReduxObject, DetailedResultOperations>(mapStateToProps, mapDispatchToProps)(DetailedResult);

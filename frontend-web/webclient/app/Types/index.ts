@@ -1,4 +1,5 @@
 import { Action } from "redux";
+import {emptyPage} from "DefaultObjects";
 
 export interface SidebarOption {
     name: string
@@ -16,10 +17,39 @@ export interface Page<T> {
     items: T[]
 }
 
+export function singletonToPage<T>(item?: T | null, itemsPerPage: number = 50): Page<T> {
+    if (item === undefined || item === null) return emptyPage;
+    return {
+        itemsInTotal: 1,
+        itemsPerPage,
+        pagesInTotal: 1,
+        pageNumber: 0,
+        items: [item]
+    };
+}
+
+export function arrayToPage<T>(items: T[], itemsPerPage: number = 50, page: number = 0): Page<T> {
+    if (items.length > itemsPerPage) throw "Not yet implemented";
+    if (page !== 0) throw "Not yet implemented";
+
+    return {
+        itemsInTotal: items.length,
+        itemsPerPage: itemsPerPage,
+        pagesInTotal: 1,
+        pageNumber: page,
+        items: items
+    };
+}
+
 export enum AccessRight {
     READ = "READ",
     WRITE = "WRITE",
     EXECUTE = "EXECUTE"
+}
+
+export class AccessRights {
+    static READ_RIGHTS = [AccessRight.READ];
+    static WRITE_RIGHTS = [AccessRight.READ, AccessRight.WRITE]
 }
 
 export interface DropdownOption {

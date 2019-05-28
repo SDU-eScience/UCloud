@@ -2,7 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory

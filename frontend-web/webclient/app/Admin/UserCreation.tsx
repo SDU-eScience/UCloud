@@ -10,8 +10,8 @@ import { Dispatch } from "redux";
 import { setActivePage, SetStatusLoading, setLoading } from "Navigation/Redux/StatusActions";
 import { SidebarPages } from "ui-components/Sidebar";
 import { MainContainer } from "MainContainer/MainContainer";
-import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { SnackType } from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 class UserCreation extends React.Component<UserCreationOperations, UserCreationState> {
     constructor(props: Readonly<UserCreationOperations>) {
@@ -55,10 +55,10 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
             try {
                 this.props.setLoading(true);
                 await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/register", { username, password }, "")).promise;
-                this.props.addSnack({ message: `User '${username}' successfully created`, type: SnackType.Success });
+                snackbarStore.addSnack({ message: `User '${username}' successfully created`, type: SnackType.Success });
                 this.setState(() => this.initialState);
             } catch (e) {
-                const status = defaultErrorHandler(e, this.props.addSnack);
+                const status = defaultErrorHandler(e);
                 if (status == 400)  this.setState(() => ({ usernameError: true }));
             } finally {
                 this.props.setLoading(false);
@@ -127,13 +127,12 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
     }
 }
 
-interface UserCreationOperations extends AddSnackOperation, SetStatusLoading {
+interface UserCreationOperations extends SetStatusLoading {
     setActivePage: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
-    addSnack: snack => dispatch(addSnack(snack)),
     setLoading: loading => dispatch(setLoading(loading))
 });
 

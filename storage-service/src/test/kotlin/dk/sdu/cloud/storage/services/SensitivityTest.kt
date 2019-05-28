@@ -7,7 +7,7 @@ import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.api.sensitivityLevel
-import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext

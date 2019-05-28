@@ -1,30 +1,32 @@
+type DialogStoreSubscriber = (dialogs: JSX.Element[]) => void;
+
 class DialogStore {
-    private dialogs: JSX.Element[]
-    private modal: React.PureComponent;
+    private dialogs: JSX.Element[];
+    private subscribers: DialogStoreSubscriber[] = [];
 
     constructor() {
         this.dialogs = [];
     }
 
+    public subscribe(subscriber: DialogStoreSubscriber) {
+        this.subscribers.push(subscriber);
+    }
 
-    public attach(modal: React.PureComponent) {
-        this.modal = modal;
+    public unsubscribe(subscriber: DialogStoreSubscriber) {
+        this.subscribers = this.subscribers.filter(it => it !== subscriber);
     }
 
     public popDialog(): void {
-        this.dialogs.pop();
-        this.modal.forceUpdate();
-    }
-
-    public get current(): JSX.Element | undefined {
-        return this.dialogs[0];
+        let dialogs = this.dialogs.slice(1);
+        this.dialogs = dialogs;
+        this.subscribers.forEach(it => it(dialogs));
     }
 
     public addDialog(dialog: JSX.Element): void {
-        this.dialogs.push(dialog);
-        this.modal.forceUpdate();
+        let dialogs = [...this.dialogs, dialog];
+        this.dialogs = dialogs;
+        this.subscribers.forEach(it => it(dialogs));
     }
 }
-
 
 export const dialogStore = new DialogStore();

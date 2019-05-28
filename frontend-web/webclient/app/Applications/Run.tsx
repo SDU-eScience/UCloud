@@ -16,9 +16,9 @@ import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
 import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
 import { SnackType } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { removeEntry } from "Utilities/CollectionUtilities";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -98,7 +98,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         // Check missing values for required input fields.
         if (missingParameters.length > 0) {
-            this.props.addSnack({
+            snackbarStore.addSnack({
                 message: `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
                  ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,
                 type: SnackType.Failure,
@@ -115,10 +115,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         optionalParams.forEach(it => {
             const param = this.state.parameterValues.get(it.name)!;
             if (!param.current!.checkValidity()) optionalErrors.push(it.title);
-        })
+        });
 
         if (optionalErrors.length > 0) {
-            this.props.addSnack({
+            snackbarStore.addSnack({
                 message: `Invalid values for ${optionalErrors.slice(0, 3).join(", ")}
                     ${optionalErrors.length > 3 ? `and ${optionalErrors.length - 3} others` : ""}`,
                 type: SnackType.Failure,
@@ -131,7 +131,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
-            this.props.addSnack({
+            snackbarStore.addSnack({
                 message: "Scheduling times must be more than 0 seconds.",
                 type: SnackType.Failure,
                 lifetime: 5000
@@ -230,13 +230,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             try {
                 const { application, parameters, numberOfNodes, mountedFolders, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
                 if (application.name !== thisApp.metadata.name) {
-                    this.props.addSnack({
+                    snackbarStore.addSnack({
                         message: "Application name does not match",
                         type: SnackType.Failure
                     });
                     return;
                 } else if (application.version !== thisApp.metadata.version) {
-                    this.props.addSnack({
+                    snackbarStore.addSnack({
                         message: "Application version does not match. Some parameters may not be filled out correctly.",
                         type: SnackType.Information
                     });
@@ -284,7 +284,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
 
                 if (invalidFiles.length) {
-                    this.props.addSnack({
+                    snackbarStore.addSnack({
                         message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
                         type: SnackType.Failure
                     });
@@ -314,7 +314,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }));
             } catch (e) {
                 console.warn(e);
-                this.props.addSnack({ message: "An error ocurred", type: SnackType.Failure });
+                snackbarStore.addSnack({ message: "An error ocurred", type: SnackType.Failure });
             }
         };
         fileReader.readAsText(file);
@@ -624,7 +624,6 @@ function exportParameters({ application, schedulingOptions, parameterValues, mou
 
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
-    addSnack: snack => dispatch(addSnack(snack)),
     setLoading: loading => dispatch(setLoading(loading))
 });
 

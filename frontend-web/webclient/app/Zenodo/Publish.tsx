@@ -17,8 +17,8 @@ import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
 import { SidebarPages } from "ui-components/Sidebar";
 import { ReduxObject } from "DefaultObjects";
-import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { SnackType } from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 interface ZenodoPublishState {
     files: string[]
@@ -33,7 +33,7 @@ interface ZenodoPublishProps {
     error?: string
 }
 
-interface ZenodoPublishOperations extends AddSnackOperation {
+interface ZenodoPublishOperations {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     setErrorMessage: (error?: string) => void
@@ -62,18 +62,18 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
             this.setState(() => ({ requestSent: true }));
         }).catch(_ => this.props.setErrorMessage("An error occurred publishing. Please try again later."));
 
-    }
+    };
 
     private removeFile = (index: number) => {
         const { files } = this.state;
         const remainderFiles = removeEntry(files, index);
         this.setState(() => ({ files: remainderFiles }));
-    }
+    };
 
     private handleFileSelection = (file: File, index: number) => {
         const files = this.state.files.slice();
         if (files.some(f => getFilenameFromPath(f) === getFilenameFromPath(file.path))) {
-            this.props.addSnack({
+            snackbarStore.addSnack({
                 message: "Zenodo does not allow duplicate filenames. Please rename either file and try again.",
                 type: SnackType.Failure
             });
@@ -95,7 +95,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
         if (this.props.loading) {
             return (<MainContainer main={<LoadingIcon size={18} />} />);
         } else if (!this.props.connected) {
-            return (<MainContainer main={<NotConnectedToZenodo addSnack={this.props.addSnack} />} />);
+            return (<MainContainer main={<NotConnectedToZenodo />} />);
         }
 
         const header = (
@@ -171,8 +171,7 @@ const mapDispatchToProps = (dispatch: Dispatch): ZenodoPublishOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Publish")),
     setErrorMessage: (error?: string) => dispatch(setErrorMessage(SET_ZENODO_ERROR, error)),
     setLoading: (loading: boolean) => dispatch(setZenodoLoading(loading)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Publish)),
-    addSnack: snack => dispatch(addSnack(snack))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Publish))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(ZenodoPublish);

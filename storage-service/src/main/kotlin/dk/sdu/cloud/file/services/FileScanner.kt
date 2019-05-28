@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent

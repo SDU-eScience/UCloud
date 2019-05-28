@@ -4,12 +4,12 @@ import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.share.services.ShareService
+import dk.sdu.cloud.share.services.ProcessingService
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 class StorageEventProcessor(
-    private val shareService: ShareService<*>,
+    private val processingService: ProcessingService<*>,
     private val streamFactory: EventStreamService
 ) {
     fun init() {
@@ -33,12 +33,14 @@ class StorageEventProcessor(
                 }
 
                 coroutineScope {
-                    val movedJob = launch { shareService.handleFilesMoved(moved) }
-                    val deletedJob = launch { shareService.handleFilesDeletedOrInvalidated(deletes) }
+                    val movedJob = launch { processingService.handleFilesMoved(moved) }
+                    val deletedJob = launch { processingService.handleFilesDeletedOrInvalidated(deletes) }
                     movedJob.join()
                     deletedJob.join()
                 }
             }
         )
     }
+
+
 }

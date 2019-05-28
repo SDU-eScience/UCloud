@@ -1,24 +1,23 @@
-import { SidebarOption, Page } from "Types";
-import { Status } from "Navigation";
-import { Analysis, DetailedApplicationSearchReduxState } from "Applications";
-import { File, DetailedFileSearchReduxState } from "Files";
-import { SortOrder, SortBy } from "Files";
-import { DashboardStateProps } from "Dashboard";
-import { Publication } from "Zenodo";
-import { Notification } from "Notifications";
-import { Upload } from "Uploader";
-import { Activity, ActivityGroup, ActivityFilter } from "Activity";
-import { Reducer } from "redux";
-import { SimpleSearchStateProps } from "Search";
+import {SidebarOption, Page} from "Types";
+import {Status} from "Navigation";
+import {Analysis, DetailedApplicationSearchReduxState} from "Applications";
+import {File, DetailedFileSearchReduxState} from "Files";
+import {SortOrder, SortBy} from "Files";
+import {DashboardStateProps} from "Dashboard";
+import {Publication} from "Zenodo";
+import {Notification} from "Notifications";
+import {Upload} from "Uploader";
+import {Activity, ActivityGroup, ActivityFilter} from "Activity";
+import {Reducer} from "redux";
+import {SimpleSearchStateProps} from "Search";
 import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
 import * as SnackbarRedux from "Snackbar/Redux";
 import * as FavoritesRedux from "Favorites/Redux";
-import { defaultAvatar } from "UserSettings/Avataaar";
-import { DetailedProjectSearchReduxState } from "Project";
-import { SidebarPages } from "ui-components/Sidebar";
-import { SharesByPath, ShareState } from "Shares";
-import { ScrollResult } from "Scroll/Types";
+import {defaultAvatar} from "UserSettings/Avataaar";
+import {DetailedProjectSearchReduxState} from "Project";
+import {SidebarPages} from "ui-components/Sidebar";
+import {ScrollResult} from "Scroll/Types";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -28,18 +27,10 @@ export const DefaultStatus: Status = {
 
 export enum KeyCode {
     ENTER = 13,
-    ESC = 27,
-    UP = 38,
-    DOWN = 40,
-    LEFT = 37,
-    RIGHT = 39,
-    A = 65,
-    B = 66
-};
+    ESC = 27
+}
 
-export const KCValues = [38, 76, 116, 156, 193, 232, 269, 308, 374, 439];
-
-export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0 };
+export const emptyPage: Page<any> = {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
 
 export enum AnalysesStatusMap {
     "PENDING",
@@ -74,7 +65,7 @@ function getFilesSortingColumnOrDefault(columnIndex: 0 | 1): SortBy {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
     if (sortingColumn && Object.values(SortBy).includes(sortingColumn)) return sortingColumn as SortBy;
     switch (columnIndex) {
-        case 0: 
+        case 0:
             window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);
             return SortBy.MODIFIED_AT;
         case 1:
@@ -222,10 +213,6 @@ export const initDetailedResult = (): DetailedResultReduxObject => ({
     error: undefined
 });
 
-export interface SharesReduxObject extends ComponentWithPage<SharesByPath> {
-    byState: ShareState
-}
-
 /* FIXME */
 interface LegacyReduxObject {
     dashboard: DashboardStateProps
@@ -246,12 +233,15 @@ interface LegacyReduxObject {
     fileInfo: FileInfoReduxObject
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
-    shares: SharesReduxObject
     responsive?: ResponsiveReduxObject
+    loading?: boolean
 }
 
-export type ReduxObject = 
-    LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects & FavoritesRedux.Objects &
+export type ReduxObject =
+    LegacyReduxObject &
+    ApplicationRedux.Objects &
+    AccountingRedux.Objects &
+    FavoritesRedux.Objects &
     SnackbarRedux.Wrapper;
 
 
@@ -288,39 +278,34 @@ export const initDashboard = (): DashboardStateProps => ({
     errors: []
 });
 
-export const initObject = (homeFolder: string): ReduxObject => ({
-    dashboard: initDashboard(),
-    files: initFiles(homeFolder),
-    status: initStatus(),
-    header: initHeader(),
-    notifications: initNotifications(),
-    analyses: initAnalyses(),
-    zenodo: initZenodo(),
-    sidebar: initSidebar(),
-    uploader: initUploads(),
-    activity: initActivity(),
-    detailedResult: initDetailedResult(),
-    simpleSearch: initSimpleSearch(),
-    detailedApplicationSearch: initApplicationsAdvancedSearch(),
-    detailedFileSearch: initFilesDetailedSearch(),
-    detailedProjectSearch: initProjectsAdvancedSearch(),
-    fileInfo: initFileInfo(),
-    avatar: initAvatar(),
-    filePreview: initFilePreview(),
-    shares: initShares(),
-    ...ApplicationRedux.init(),
-    ...AccountingRedux.init(),
-    ...FavoritesRedux.init(),
-    ...SnackbarRedux.init(),
-    responsive: undefined,
-});
+export function initObject(homeFolder: string): ReduxObject {
+    return {
+        dashboard: initDashboard(),
+        files: initFiles(homeFolder),
+        status: initStatus(),
+        header: initHeader(),
+        notifications: initNotifications(),
+        analyses: initAnalyses(),
+        zenodo: initZenodo(),
+        sidebar: initSidebar(),
+        uploader: initUploads(),
+        activity: initActivity(),
+        detailedResult: initDetailedResult(),
+        simpleSearch: initSimpleSearch(),
+        detailedApplicationSearch: initApplicationsAdvancedSearch(),
+        detailedFileSearch: initFilesDetailedSearch(),
+        detailedProjectSearch: initProjectsAdvancedSearch(),
+        fileInfo: initFileInfo(),
+        avatar: initAvatar(),
+        filePreview: initFilePreview(),
+        ...ApplicationRedux.init(),
+        ...AccountingRedux.init(),
+        ...FavoritesRedux.init(),
+        ...SnackbarRedux.init(),
+        responsive: undefined,
+    }
+}
 
-export const initShares = (): SharesReduxObject => ({
-    page: emptyPage,
-    loading: false,
-    byState: ShareState.REQUEST_SENT,
-    error: undefined
-});
 
 export const initFilePreview = () => ({
     file: undefined,
@@ -328,7 +313,7 @@ export const initFilePreview = () => ({
 });
 
 export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
-export const initAvatar = (): AvatarReduxObject => ({ ...defaultAvatar, error: undefined });
+export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
     files: emptyPage,
@@ -341,7 +326,7 @@ export const initSimpleSearch = (): SimpleSearchStateProps => ({
     search: "",
     applicationSearch: initApplicationsAdvancedSearch(),
     fileSearch: initFilesDetailedSearch()
-})
+});
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,
@@ -354,7 +339,7 @@ export const initZenodo = (): ZenodoReduxObject => ({
     loading: false,
     page: emptyPage,
     error: undefined
-})
+});
 
 export const initSidebar = (): SidebarReduxObject => ({
     pp: false,
@@ -427,4 +412,4 @@ export const initProjectsAdvancedSearch = (): DetailedProjectSearchReduxState =>
     loading: false,
     hidden: true,
     projectName: ""
-}) 
+});

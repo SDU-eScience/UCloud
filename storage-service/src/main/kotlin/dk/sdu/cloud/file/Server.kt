@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.ActionController
+import dk.sdu.cloud.file.http.BackgroundJobController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
 import dk.sdu.cloud.file.http.FileSecurityController
@@ -18,7 +19,6 @@ import dk.sdu.cloud.file.http.WorkspaceController
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.AuthUIDLookupService
-import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
@@ -30,11 +30,16 @@ import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.WorkspaceService
+import dk.sdu.cloud.file.services.background.BackgroundExecutor
+import dk.sdu.cloud.file.services.background.BackgroundJobHibernateDao
+import dk.sdu.cloud.file.services.background.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundStreams
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
+import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
@@ -58,8 +63,9 @@ class Server(
 
         log.info("Creating core services")
 
-
-        BackgroundScope.init()
+        val bgDao = BackgroundJobHibernateDao()
+        val bgExecutor =
+            BackgroundExecutor(micro.hibernateDatabase, bgDao, BackgroundStreams("storage"), micro.eventStreamService)
 
         // Authentication
         val useFakeUsers = micro.developmentModeEnabled && !micro.commandLineArguments.contains("--real-users")
@@ -93,7 +99,7 @@ class Server(
         val workspaceService = WorkspaceService(fsRootFile, fileScanner, uidLookupService, processRunner)
 
         // Metadata services
-        val aclService = ACLService(fs)
+        val aclService = ACLService(processRunner, fs, bgExecutor).also { it.registerWorkers() }
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
         val homeFolderService = HomeFolderService(cloud)
 
@@ -101,8 +107,10 @@ class Server(
         val wsService = WSFileSessionService(processRunner)
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
 
-        log.info("Core services constructed!")
+        // Initialize the background executor (must be last)
+        bgExecutor.init()
 
+        log.info("Core services constructed!")
 
         UserProcessor(
             streams,
@@ -174,7 +182,9 @@ class Server(
                     sensitivityService
                 ),
 
-                WorkspaceController(workspaceService)
+                WorkspaceController(workspaceService),
+
+                BackgroundJobController(bgExecutor)
             )
         }
 

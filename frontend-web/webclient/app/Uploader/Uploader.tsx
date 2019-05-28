@@ -23,8 +23,8 @@ import { File as SDUCloudFile } from "Files";
 import { Refresh } from "Navigation/Header";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Error from "ui-components/Error";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { SnackType } from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -69,9 +69,8 @@ class Uploader extends React.Component<UploaderProps> {
     private readonly MAX_CONCURRENT_UPLOADS = 5;
 
     private onFilesAdded = async (files: File[]): Promise<void> => {
-        const { addSnack } = this.props;
-        if (files.some(it => it.size === 0)) addSnack({ message: "It is not possible to upload empty files.", type: SnackType.Information });
-        if (files.some(it => it.name.length > 1025)) addSnack({ message: "Filenames can't exceed a length of 1024 characters.", type: SnackType.Information });
+        if (files.some(it => it.size === 0)) snackbarStore.addSnack({ message: "It is not possible to upload empty files.", type: SnackType.Information });
+        if (files.some(it => it.name.length > 1025)) snackbarStore.addSnack({ message: "Filenames can't exceed a length of 1024 characters.", type: SnackType.Information });
         const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it, this.props.location));
         if (filteredFiles.length == 0) return;
 
@@ -91,18 +90,18 @@ class Uploader extends React.Component<UploaderProps> {
             this.props.setUploads([filteredFiles[0]])
         }
         this.props.setLoading(false);
-    }
+    };
 
     private beforeUnload = (e: { returnValue: string; }) => {
         e.returnValue = "foo";
         const finished = finishedUploads(this.props.uploads);
         const total = this.props.uploads.length;
-        this.props.addSnack({ 
+        snackbarStore.addSnack({
             message: `${finished} out of ${total} files uploaded`,
             type: SnackType.Information
         });
         return e;
-    }
+    };
 
     private startPending() {
         const remainingAllowedUploads = this.MAX_CONCURRENT_UPLOADS - this.props.activeUploads.length;
@@ -153,7 +152,6 @@ class Uploader extends React.Component<UploaderProps> {
                     this.props.setUploads(this.props.uploads);
                 },
                 onError: err => setError(err),
-                addSnack: snack => this.props.addSnack(snack)
             }).then(xhr => this.onUploadFinished(upload, xhr))
                 .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         } else {
@@ -167,7 +165,6 @@ class Uploader extends React.Component<UploaderProps> {
                     this.props.setUploads(this.props.uploads);
                 },
                 onError: err => setError(err),
-                addSnack: snack => this.props.addSnack(snack)
             }).then(xhr => this.onUploadFinished(upload, xhr))
                 .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         }
@@ -493,7 +490,6 @@ const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploaderError: err => dispatch(setUploaderError(err)),
     setUploaderVisible: visible => dispatch(setUploaderVisible(visible)),
     setLoading: loading => dispatch(setLoading(loading)),
-    addSnack: snack => dispatch(addSnack(snack))
 });
 
 export default connect<UploaderStateProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);

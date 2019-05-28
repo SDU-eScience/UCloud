@@ -15,8 +15,6 @@ import { fetchFavorites, setLoading, receiveFavorites, checkFile, checkAllFiles 
 import { MasterCheckbox } from "UtilityComponents";
 import { Page } from "Types";
 import { History } from "history";
-import { AddSnackOperation } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { EntriesPerPageSelector } from "Pagination";
 import { Spacer } from "ui-components/Spacer";
 
@@ -45,8 +43,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
             stateless: true,
             history: this.props.history,
             onDeleted: () => undefined,
-            setLoading: () => this.props.setLoading(true),
-            addSnack: snack => this.props.addSnack(snack)
+            setLoading: () => this.props.setLoading(true)
         });
 
         const itemsPerPageSelector = (<EntriesPerPageSelector
@@ -93,7 +90,7 @@ class FavoriteFiles extends React.Component<FavoriteFilesProps> {
     }
 }
 
-interface FavoritesOperations extends AddSnackOperation {
+interface FavoritesOperations {
     setRefresh: (refresh?: () => void) => void
     fetchFileFavorites: (pageNumber: number, itemsPerPage: number) => void
     receiveFavorites: (page: Page<File>) => void
@@ -111,7 +108,6 @@ const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
     },
     receiveFavorites: page => dispatch(receiveFavorites(page)),
     setLoading: loading => dispatch(setLoading(loading)),
-    addSnack: snack => dispatch(addSnack(snack)),
     checkFile: (path, checked) => dispatch(checkFile(path, checked)),
     checkAllFiles: checked => dispatch(checkAllFiles(checked))
 });

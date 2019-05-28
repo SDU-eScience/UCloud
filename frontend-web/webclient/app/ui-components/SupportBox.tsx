@@ -12,17 +12,16 @@ import { useEffect, useRef, useState } from "react";
 import Radio from "./Radio";
 import Label from "./Label";
 import { connect } from "react-redux";
-import { Dispatch } from "redux";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
-import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { SnackType } from "Snackbar/Snackbars";
 import { errorMessageOrDefault } from "UtilityFunctions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
     BUG = "BUG"
 }
 
-function Support(props: AddSnackOperation) {
+function Support() {
     const textArea = useRef<HTMLTextAreaElement>(null);
     const supportBox = useRef<HTMLTextAreaElement>(null);
     const [loading, setLoading] = useState(false);
@@ -48,10 +47,10 @@ function Support(props: AddSnackOperation) {
                 text.value = "";
                 setVisible(false);
                 setLoading(false);
-                props.addSnack({ message: "Support ticket submitted!", type: SnackType.Success });
+                snackbarStore.addSnack({ message: "Support ticket submitted!", type: SnackType.Success });
             } catch (e) {
-                props.addSnack({ message: errorMessageOrDefault(e, "An error occured"), type: SnackType.Failure });
-            };
+                snackbarStore.addSnack({ message: errorMessageOrDefault(e, "An error occured"), type: SnackType.Failure });
+            }
         }
     }
 
@@ -100,8 +99,4 @@ function Support(props: AddSnackOperation) {
         </ClickableDropdown>);
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): AddSnackOperation => ({
-    addSnack: snack => dispatch(addSnack(snack))
-});
-
-export default connect(null, mapDispatchToProps)(Support);
+export default connect(null, null)(Support);

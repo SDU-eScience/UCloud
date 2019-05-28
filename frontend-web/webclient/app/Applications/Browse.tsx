@@ -22,8 +22,6 @@ import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
-import { AddSnackOperation } from "Snackbar/Snackbars";
-import { addSnack, AddSnack } from "Snackbar/Redux/SnackbarsActions";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -58,7 +56,7 @@ const Sidebar: React.StatelessComponent<{ itemsPerPage: number }> = ({ itemsPerP
     </CategoryList>
 </>);
 
-export interface ApplicationsOperations extends AddSnackOperation {
+export interface ApplicationsOperations {
     onInit: () => void
     fetchDefault: (itemsPerPage: number, page: number) => void
     fetchByTag: (tag: string, itemsPerPage: number, page: number) => void
@@ -142,7 +140,6 @@ class Applications extends React.Component<ApplicationsProps> {
                                     this.props.receiveApplications(await favoriteApplicationFromPage({
                                         name: app.metadata.name,
                                         version: app.metadata.version, page, cloud: Cloud,
-                                        addSnack: this.props.addSnack
                                     }))
                                 }
                                 app={app}
@@ -174,7 +171,7 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 }
 
-const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | AddSnack>): ApplicationsOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>): ApplicationsOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Applications"));
         dispatch(setPrioritizedSearch("applications"));
@@ -193,7 +190,6 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
 
     receiveApplications: page => dispatch(Actions.receivePage(page)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    addSnack: snack => dispatch(addSnack(snack))
 });
 
 const mapStateToProps = ({ applicationsBrowse }: ReduxObject): ReduxType & { favCount } => ({
