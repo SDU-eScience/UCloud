@@ -1,5 +1,6 @@
 import {SensitivityLevel} from "DefaultObjects";
 import Cloud from "Authentication/lib";
+import {Cloud as currentCloud} from "Authentication/SDUCloudObject";
 import {SortBy, SortOrder, File, Acl, FileType} from "Files";
 import {dateToString} from "Utilities/DateUtilities";
 import {getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory} from "Utilities/FileUtilities";
@@ -21,7 +22,8 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  */
 export const getOwnerFromAcls = (acls?: Acl[]): string => {
     if (acls === undefined) return "N/A";
-    if (acls.length > 0) {
+    const filteredAcl = acls.filter(it => it.entity !== currentCloud.username);
+    if (filteredAcl.length > 0) {
         return `${acls.length} members`;
     } else {
         return "Only You";
