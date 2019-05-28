@@ -1,4 +1,4 @@
-import * as React from "react";
+import {useEffect} from "react";
 import {connect} from "react-redux";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {setUploaderVisible, setUploaderCallback} from "Uploader/Redux/UploaderActions";
@@ -19,7 +19,7 @@ import {
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import {Dispatch} from "redux";
-import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
+import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {allFilesHasAccessRight} from "Utilities/FileUtilities";
 import {AccessRight} from "Types";
 import FilesTable, {ContextBar} from "./FilesTable";
@@ -27,25 +27,25 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {setFileSelectorLoading} from "./Redux/FilesActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
+import * as React from "react";
 
-class Files extends React.Component<FilesProps> {
-    public componentDidMount() {
-        const {page, sortOrder, sortBy, history, ...props} = this.props;
+function Files(props: Readonly<FilesProps>) {
+
+    const urlPath = (): string => urlPathFromProps();
+
+    useEffect(() => {
+        const { page, sortOrder, sortBy } = props;
         props.onInit();
-        props.setUploaderCallback(path => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs));
-        props.fetchFiles(this.urlPath, page.itemsPerPage, 0, sortOrder, sortBy, this.baseFRs);
+        props.setUploaderCallback(() => props.fetchFiles(urlPath(), page.itemsPerPage, page.pageNumber, sortOrder, sortBy, baseFRs));
+        return () => props.clearRefresh()
+    }, []);
+
+    function urlPathFromProps(): string {
+        return getQueryParamOrElse(props, "path", Cloud.homeFolder);
     }
 
-    public componentWillUnmount = () => this.props.clearRefresh();
-
-    private urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
-
-    get urlPath(): string {
-        return this.urlPathFromProps(this.props);
-    }
-
-    private onRenameFile = (key: number, file: File, name: string) => {
-        const {path, fetchPageFromPath, updateFiles, page} = this.props;
+    const onRenameFile = (key: number, file: File, name: string) => {
+        const { path, fetchPageFromPath, updateFiles, page } = props;
         if (key === KeyCode.ESC) {
             const item = page.items.find(f => f.path === file.path);
             if (item !== undefined) item.beingRenamed = false;
@@ -53,174 +53,168 @@ class Files extends React.Component<FilesProps> {
             updateFiles(page);
         } else if (key === KeyCode.ENTER) {
             const fileNames = page.items.map(file => getFilenameFromPath(file.path));
-            if (isInvalidPathName({path: name, filePaths: fileNames})) return;
+            if (isInvalidPathName({ path: name, filePaths: fileNames })) return;
             const fullPath = `${UF.addTrailingSlash(path)}${name}`;
-            const {sortOrder, sortBy} = this.props;
+            const { sortOrder, sortBy } = props;
             if (file.isMockFolder) {
                 createFolder({
                     path: fullPath,
                     cloud: Cloud,
-                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy, this.baseFRs)
+                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy, baseFRs)
                 })
             } else {
                 moveFile({
                     oldPath: file.path,
                     newPath: fullPath,
                     cloud: Cloud,
-                    setLoading: () => this.props.setLoading(true),
-                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy, this.baseFRs)
+                    setLoading: () => props.setLoading(true),
+                    onSuccess: () => fetchPageFromPath(fullPath, page.itemsPerPage, sortOrder, sortBy, baseFRs)
                 });
             }
         }
     };
 
-    public shouldComponentUpdate(nextProps: FilesProps): boolean {
-        const {fetchFiles, page, loading, sortOrder, sortBy} = this.props;
-        const nextPath = this.urlPathFromProps(nextProps);
-        if (nextProps.path !== nextPath && !loading) {
-            fetchFiles(nextPath, page.itemsPerPage, 0, sortOrder, sortBy, this.baseFRs);
-            return false;
-        }
-        return true;
-    }
+    useEffect(() => {
+        const { page, sortOrder, sortBy } = props;
+        if (!props.loading) props.fetchFiles(urlPath(), page.itemsPerPage, 0, sortOrder, sortBy, baseFRs)
+    }, [urlPath()]);
 
-    private readonly fileSelectorOperations = {
-        setDisallowedPaths: this.props.setDisallowedPaths,
-        setFileSelectorCallback: this.props.setFileSelectorCallback,
-        showFileSelector: this.props.showFileSelector,
+    const fileSelectorOperations = {
+        setDisallowedPaths: props.setDisallowedPaths,
+        setFileSelectorCallback: props.setFileSelectorCallback,
+        showFileSelector: props.showFileSelector,
         fetchPageFromPath: (path: string) =>
-            (this.props.fetchPageFromPath(path, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy, this.baseFRs),
-                this.props.history.push(fileTablePage(getParentPath(path)))),
+            (props.fetchPageFromPath(path, page.itemsPerPage, props.sortOrder, props.sortBy, baseFRs),
+                props.history.push(fileTablePage(getParentPath(path)))),
         fetchFilesPage: (path: string) =>
-            this.props.fetchFiles(path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy, this.baseFRs)
+            props.fetchFiles(path, page.itemsPerPage, page.pageNumber, props.sortOrder, props.sortBy, baseFRs)
     };
 
-    private readonly refetch = () => {
-        const {path, page, sortOrder, sortBy} = this.props;
-        this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs);
+    const refetch = () => {
+        const { path, page, sortOrder, sortBy } = props;
+        props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, baseFRs);
     };
 
-    private readonly fileOperations: FileOperation[] = [
+    const fileOperations: FileOperation[] = [
         {
             text: "Rename",
-            onClick: files => this.props.updateFiles(startRenamingFiles(files, this.props.page)),
+            onClick: files => props.updateFiles(startRenamingFiles(files, page)),
             disabled: (files: File[]) => !allFilesHasAccessRight(AccessRight.WRITE, files),
             icon: "rename",
             color: undefined
         },
         ...allFileOperations({
             stateless: true,
-            fileSelectorOperations: this.fileSelectorOperations,
-            onDeleted: this.refetch,
-            onExtracted: this.refetch,
-            onSensitivityChange: this.refetch,
-            onClearTrash: () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy, this.baseFRs),
-            history: this.props.history,
-            setLoading: () => this.props.setLoading(true)
+            fileSelectorOperations: fileSelectorOperations,
+            onDeleted: refetch,
+            onExtracted: refetch,
+            onSensitivityChange: refetch,
+            onClearTrash: () => props.fetchFiles(props.path, props.page.itemsPerPage, props.page.pageNumber, props.sortOrder, props.sortBy, baseFRs),
+            history: props.history,
+            setLoading: () => props.setLoading(true)
         })
     ];
 
-    private readonly baseFRs: FileResource[] = [
+    const baseFRs: FileResource[] = [
         FR.FILE_ID,
         FR.PATH,
         FR.LINK,
         FR.FILE_TYPE,
-        this.props.leftSortingColumn as unknown as FileResource,
-        this.props.rightSortingColumn as unknown as FileResource
+        props.leftSortingColumn as unknown as FileResource,
+        props.rightSortingColumn as unknown as FileResource
     ];
 
-    public render() {
-        const {
-            page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
-            rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props
-        } = this.props;
-        const selectedFiles = page.items.filter(file => file.isChecked);
-        const navigate = (path: string) => history.push(fileTablePage(path));
-        const header = (
-            <Spacer
-                left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)}
-                                   homeFolder={Cloud.homeFolder}/>}
-                right={<Pagination.EntriesPerPageSelector
-                    content="Files per page"
-                    entriesPerPage={page.itemsPerPage}
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, 0, sortOrder, sortBy, this.baseFRs)}
-                />}
-            />
-        );
-        const main = (
-            <Pagination.List
-                loading={loading}
-                errorMessage={props.error}
-                onErrorDismiss={props.dismissError}
-                customEmptyPage={!this.props.error ? <Heading.h3>No files in current folder</Heading.h3> : <Box/>}
-                pageRenderer={page => (
-                    <FilesTable
-                        onFavoriteFile={files => updateFiles(favoriteFileFromPage(page, files, Cloud))}
-                        fileOperations={this.fileOperations}
-                        sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs)}
-                        sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
-                        sortOrder={sortOrder}
-                        sortingColumns={[leftSortingColumn, rightSortingColumn]}
-                        refetchFiles={() => this.refetch()}
-                        onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, this.baseFRs, index)}
-                        masterCheckbox={
-                            <MasterCheckbox
-                                checked={page.items.length === selectedFiles.length && page.items.length > 0}
-                                onClick={this.props.checkAllFiles}
-                            />}
-                        onRenameFile={this.onRenameFile}
-                        files={page.items}
-                        sortBy={sortBy}
-                        onCheckFile={(checked, file) => checkFile(checked, file.path)}
-                    />
-                )}
-                page={page}
-                onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy, this.baseFRs)}
-            />
-        );
 
-        const sidebar = (
-            !props.invalidPath ?
-                <Box pl="5px" pr="5px">
-                    <ContextBar
-                        invalidPath={props.invalidPath}
-                        showUploader={props.showUploader}
-                        fileOperations={this.fileOperations}
-                        files={selectedFiles}
-                        inTrashFolder={UF.addTrailingSlash(path) === Cloud.trashFolder}
-                        createFolder={() => props.createFolder()}
-                        toHome={() => navigate(Cloud.homeFolder)}
-                    />
-                </Box> : null
-        );
-        const additional = (
-            <FileSelectorModal
-                isFavorites={props.fileSelectorIsFavorites}
-                fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
-                fetchFavorites={(pageNumber, itemsPerPage) => props.fetchFileSelectorFavorites(pageNumber, itemsPerPage)}
-                show={props.fileSelectorShown}
-                onHide={() => showFileSelector(false)}
-                path={props.fileSelectorPath}
-                loading={props.fileSelectorLoading}
-                errorMessage={props.fileSelectorError}
-                onErrorDismiss={props.onFileSelectorErrorDismiss}
-                onlyAllowFolders
-                canSelectFolders
-                page={props.fileSelectorPage}
-                setSelectedFile={props.fileSelectorCallback}
-                disallowedPaths={props.disallowedPaths}
-            />
-        );
+    const {
+        page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
+        rightSortingColumn, showFileSelector
+    } = props;
+    const selectedFiles = page.items.filter(file => file.isChecked);
+    const navigate = (path: string) => history.push(fileTablePage(path));
+    const header = (
+        <Spacer
+            left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)}
+                homeFolder={Cloud.homeFolder} />}
+            right={<Pagination.EntriesPerPageSelector
+                content="Files per page"
+                entriesPerPage={page.itemsPerPage}
+                onChange={itemsPerPage => fetchFiles(path, itemsPerPage, 0, sortOrder, sortBy, baseFRs)}
+            />}
+        />
+    );
+    const main = (
+        <Pagination.List
+            loading={loading}
+            errorMessage={props.error}
+            onErrorDismiss={props.dismissError}
+            customEmptyPage={!props.error ? <Heading.h3>No files in current folder</Heading.h3> : <Box />}
+            pageRenderer={page => (
+                <FilesTable
+                    onFavoriteFile={files => updateFiles(favoriteFileFromPage(page, files, Cloud))}
+                    fileOperations={fileOperations}
+                    sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, baseFRs)}
+                    sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
+                    sortOrder={sortOrder}
+                    sortingColumns={[leftSortingColumn, rightSortingColumn]}
+                    refetchFiles={() => refetch()}
+                    onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, baseFRs, index)}
+                    masterCheckbox={
+                        <MasterCheckbox
+                            checked={page.items.length === selectedFiles.length && page.items.length > 0}
+                            onClick={props.checkAllFiles}
+                        />}
+                    onRenameFile={onRenameFile}
+                    files={page.items}
+                    sortBy={sortBy}
+                    onCheckFile={(checked, file) => checkFile(checked, file.path)}
+                />
+            )}
+            page={page}
+            onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy, baseFRs)}
+        />
+    );
 
-        return (
-            <MainContainer
-                header={header}
-                main={main}
-                sidebar={sidebar}
-                additional={additional}
-            />
-        );
-    }
+    const sidebar = (
+        !props.invalidPath ?
+            <Box pl="5px" pr="5px">
+                <ContextBar
+                    invalidPath={props.invalidPath}
+                    showUploader={props.showUploader}
+                    fileOperations={fileOperations}
+                    files={selectedFiles}
+                    inTrashFolder={UF.addTrailingSlash(path) === Cloud.trashFolder}
+                    createFolder={() => props.createFolder()}
+                    toHome={() => navigate(Cloud.homeFolder)}
+                />
+            </Box> : null
+    );
+    const additional = (
+        <FileSelectorModal
+            isFavorites={props.fileSelectorIsFavorites}
+            fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
+            fetchFavorites={(pageNumber, itemsPerPage) => props.fetchFileSelectorFavorites(pageNumber, itemsPerPage)}
+            show={props.fileSelectorShown}
+            onHide={() => showFileSelector(false)}
+            path={props.fileSelectorPath}
+            loading={props.fileSelectorLoading}
+            errorMessage={props.fileSelectorError}
+            onErrorDismiss={props.onFileSelectorErrorDismiss}
+            onlyAllowFolders
+            canSelectFolders
+            page={props.fileSelectorPage}
+            setSelectedFile={props.fileSelectorCallback}
+            disallowedPaths={props.disallowedPaths}
+        />
+    );
+
+    return (
+        <MainContainer
+            header={header}
+            main={main}
+            sidebar={sidebar}
+            additional={additional}
+        />
+    );
 }
 
 const mapStateToProps = ({files, responsive}: ReduxObject): FilesStateProps => {

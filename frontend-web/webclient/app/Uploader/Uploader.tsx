@@ -3,7 +3,7 @@ import * as Modal from "react-modal";
 import { Text, Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import Dropzone from "react-dropzone";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, prettierString, timestampUnixMs, is5xxStatusCode, errorMessageOrDefault } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, prettierString, timestampUnixMs, is5xxStatusCode, errorMessageOrDefault, addTrailingSlash } from "UtilityFunctions";
 import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -339,7 +339,7 @@ const UploaderRow = (p: {
     let fileInfo = p.location !== p.upload.parentPath ? (<Dropdown>
         <Icon style={{ pointer: "cursor" }} ml="10px" name="info" color="white" color2="black" />
         <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
-            Will be uploaded to: {replaceHomeFolder(p.location, Cloud.homeFolder)}{p.upload.file.name}
+            Will be uploaded to: {addTrailingSlash(replaceHomeFolder(p.location, Cloud.homeFolder))}{p.upload.file.name}
         </DropdownContent>
     </Dropdown>) : null;
 
