@@ -130,5 +130,3 @@ exports[`Shares List Shares component 1`] = `
   </div>
 </div>
 `;
-
-exports[`Shares List Shares component with shares 1`] = `"<i aria-hidden=\\"true\\" class=\\"circle notched big loading icon\\"></i><div class=\\"ui header\\">Shared with Me</div><div class=\\"ui center aligned header\\"><div class=\\"sub header\\">No shares</div></div><div class=\\"ui header\\">Shared by Me</div><div class=\\"ui center aligned header\\"><div class=\\"sub header\\">No shares</div></div>"`;
