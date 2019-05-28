@@ -48,7 +48,7 @@ class LookupTests {
             setup = { configureServerWithFileController(fsRootInitializer = { fsForLookup() }) },
 
             test = {
-                repeat(100) { engine.testLookupOfFile(it) }
+                repeat(1) { engine.testLookupOfFile(it) }
             }
         )
     }
@@ -76,7 +76,9 @@ class LookupTests {
             lookupFileInDirectory(path, itemsPerPage, FileSortBy.PATH, SortOrder.ASCENDING)
         assertEquals(HttpStatusCode.OK, response.status())
 
-        val page = mapper.readValue<Page<StorageFile>>(response.content!!)
+        val content = response.content!!
+        println(content)
+        val page = mapper.readValue<Page<StorageFile>>(content)
         assertTrue(page.items.any { it.path == path }, "Could not find file. Expected it at $path")
         assertEquals(expectedPage, page.pageNumber, "Expected item $item to be in page $expectedPage")
         assertEquals(itemsPerPage, page.itemsPerPage, "Expected itemsPerPage to match $itemsPerPage")

@@ -122,6 +122,7 @@ class FileLookupService<Ctx : FSUserContext>(
                     StorageFileAttribute.link -> listOf(FileAttribute.IS_LINK)
                     StorageFileAttribute.fileId -> listOf(FileAttribute.INODE)
                     StorageFileAttribute.creator -> listOf(FileAttribute.CREATOR)
+                    StorageFileAttribute.canonicalPath -> listOf(FileAttribute.PATH)
                 }
             )
         }
@@ -210,7 +211,8 @@ class FileLookupService<Ctx : FSUserContext>(
             ownSensitivityLevelOrNull = row._sensitivityLevel,
             linkOrNull = row._isLink,
             fileIdOrNull = row._inode,
-            creatorOrNull = creator
+            creatorOrNull = creator,
+            canonicalPathOrNull = row._path
         )
     }
 

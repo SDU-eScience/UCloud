@@ -133,6 +133,14 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         return fs.listDirectory(ctx, path, mode).unwrap()
     }
 
+    suspend fun checkPermissions(
+        ctx: Ctx,
+        path: String,
+        requireWrite: Boolean
+    ): Boolean {
+        return fs.checkPermissions(ctx, path, requireWrite).unwrap()
+    }
+
     suspend fun tree(
         ctx: Ctx,
         path: String,

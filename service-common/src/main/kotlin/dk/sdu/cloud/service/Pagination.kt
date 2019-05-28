@@ -4,20 +4,13 @@ import kotlin.math.ceil
 import kotlin.math.min
 
 data class Page<out T>(
-    override val itemsInTotal: Int,
-    override val itemsPerPage: Int,
+    val itemsInTotal: Int,
+    val itemsPerPage: Int,
 
-    override val pageNumber: Int,
-    override val items: List<T>
-) : WithPage<T>
-
-interface WithPage<out T> {
-    val itemsInTotal: Int
-    val itemsPerPage: Int
-
-    val pageNumber: Int
+    val pageNumber: Int,
     val items: List<T>
-    val pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
+) {
+    val pagesInTotal: Int = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 }
 
 interface WithPaginationRequest {

@@ -172,7 +172,8 @@ enum class StorageFileAttribute {
     ownSensitivityLevel,
     link,
     fileId,
-    creator
+    creator,
+    canonicalPath
 }
 
 data class ListDirectoryRequest(
@@ -250,7 +251,30 @@ sealed class LongRunningResponse<T> {
     ) : LongRunningResponse<T>()
 }
 
-data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>)
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = KnowledgeMode.List::class, name = "list"),
+    JsonSubTypes.Type(value = KnowledgeMode.Permission::class, name = "permission")
+)
+sealed class KnowledgeMode {
+    /**
+     * Ensures that the user can list the file. Concretely this means that we must be able to list the file in the
+     * parent directory.
+     */
+    class List : KnowledgeMode()
+
+    /**
+     * Ensures that the user has specific permissions on the file. If [requireWrite] is true read+write permissions
+     * are required otherwise only read permissions are required. No permissions on the parent directory is required.
+     */
+    class Permission(val requireWrite: Boolean) : KnowledgeMode()
+}
+
+data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>, val mode: KnowledgeMode? = null)
 data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
 data class DeliverMaterializedFileSystemAudit(val roots: List<String>)
