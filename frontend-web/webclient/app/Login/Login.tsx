@@ -157,11 +157,3 @@ const Login = ({ enabled2fa, usernameRef, passwordRef }: { enabled2fa: boolean, 
         <Input ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
     </>
 ) : null;
-
-const CenteredBox = styled(Box)`
-    margin: 0;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-`; 

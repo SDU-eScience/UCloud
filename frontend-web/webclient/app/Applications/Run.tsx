@@ -556,9 +556,9 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
             <Flex mb="1em">
                 <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" value={maxTime.hours} onChange={props.onChange} />
                 <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="minutes" text="Minutes" value={maxTime.minutes} onChange={props.onChange} />
+                <SchedulingField min={0} max={59} field="maxTime" subField="minutes" text="Minutes" value={maxTime.minutes} onChange={props.onChange} />
                 <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" value={maxTime.seconds} onChange={props.onChange} />
+                <SchedulingField min={0} max={59} field="maxTime" subField="seconds" text="Seconds" value={maxTime.seconds} onChange={props.onChange} />
             </Flex>
 
             {!props.app.invocation.resources.multiNodeSupport ? null :
