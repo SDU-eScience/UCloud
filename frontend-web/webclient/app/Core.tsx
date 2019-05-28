@@ -39,7 +39,6 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { ErrorBoundary } from "ErrorBoundary/ErrorBoundary";
 import Dialog from "Dialog/Dialog";
 import { History } from "history";
-import { dialogStore } from "Dialog/DialogStore";
 
 const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 

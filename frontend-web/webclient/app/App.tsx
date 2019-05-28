@@ -35,7 +35,6 @@ import {responsiveStoreEnhancer, createResponsiveStateReducer} from 'redux-respo
 import {responsiveBP} from "ui-components/theme";
 import {fetchLoginStatus} from "Zenodo/Redux/ZenodoActions";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
-import {Snack} from "Snackbar/Snackbars";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,

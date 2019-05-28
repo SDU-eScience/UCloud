@@ -55,10 +55,9 @@ type ReadAction = PayloadAction<typeof NOTIFICATION_READ, { id: number | string 
  * Sets a notification as read, based on the id
  * @param id the id of the notification that has been read
  */
-export const notificationRead = async (id: number | string): Promise<ReadAction | SetNotificationError> => {
+export const notificationRead = async (id: number): Promise<ReadAction | SetNotificationError> => {
     try {
-        /* FIXME: Likely not the most ideal way of handling local/non-local difference for notifications */
-        if (typeof id === "number") await Cloud.post(readNotificationQuery(id));
+        if (id >= 0) await Cloud.post(readNotificationQuery(id));
         return {
             type: NOTIFICATION_READ,
             payload: { id }

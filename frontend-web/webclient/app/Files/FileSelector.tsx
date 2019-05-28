@@ -233,13 +233,13 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
             text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
             disabled: (files: File[], cloud: SDUCloud) => false
         })
-    }
-    else {
+    } else {
         ops.push({
             text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
             disabled: (files: File[], cloud: SDUCloud) => isDirectory(files[0])
         })
     }
+
     return (
         <FilesTable
             notStickyHeader
