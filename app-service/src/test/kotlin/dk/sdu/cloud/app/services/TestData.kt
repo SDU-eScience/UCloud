@@ -48,6 +48,16 @@ fun Application.withNameAndVersion(name: String, version: String): Application {
     )
 }
 
+fun Application.withNameAndVersionAndTitle(name: String, version: String, title: String): Application {
+    return copy(
+        metadata = normAppDesc.metadata.copy(
+            name = name,
+            version = version,
+            title = title
+        )
+    )
+}
+
 fun Application.withTags(tags: List<String>): Application = copy(
     metadata = metadata.copy(
         tags = tags

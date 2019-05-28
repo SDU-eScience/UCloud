@@ -133,8 +133,8 @@ class ApplicationHibernateDaoTest {
                 val toolDAO = ToolHibernateDAO()
                 toolDAO.create(it, user, normToolDesc)
 
-                val applicationA = normAppDesc.withNameAndVersion("AAA", "1")
-                val applicationB = normAppDesc.withNameAndVersion("BBB", "1")
+                val applicationA = normAppDesc.withNameAndVersionAndTitle("name1", "1", "AAA")
+                val applicationB = normAppDesc.withNameAndVersionAndTitle("name2", "1", "BBB")
 
                 val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.create(it, user, applicationA)

@@ -208,12 +208,12 @@ class ApplicationHibernateDAO(
     ): Page<ApplicationSummaryWithFavorite> {
 
         val page = session.paginatedCriteria<ApplicationEntity>(paging) {
-            var query = (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) like "%"+keywords[0]+"%")
+            var query = (builder.lower(entity[ApplicationEntity::title]) like "%"+keywords[0]+"%")
             for ((i, keyword) in keywords.withIndex()) {
                 if (i == 0) {
                     continue
                 }
-                query = query or (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) like "%$keyword%")
+                query = query or (builder.lower(entity[ApplicationEntity::title]) like "%$keyword%")
             }
             query
         }.mapItems { it.toModelWithInvocation() }
@@ -231,47 +231,12 @@ class ApplicationHibernateDAO(
         normalizedQuery: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>{
-        val count = session.typedQuery<Long>(
-            """
-                select count (A.id.name)
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.id.name = B.id.name
-                    group by id.name
-                ) and lower(A.id.name) like '%' || :query || '%'
-            """.trimIndent()
-        ).setParameter("query", normalizedQuery)
-            .uniqueResult()
-            .toInt()
-
-        val items = session.typedQuery<ApplicationEntity>(
-            """
-                from
-                    ApplicationEntity as A
-                where
-                    (A.createdAt) in (
-                        select max(createdAt)
-                        from ApplicationEntity as B
-                        where A.id.name = B.id.name
-                        group by id.name
-                    ) and
-                    lower(A.id.name) like '%' || :query || '%'
-                order by A.id.name
-            """.trimIndent()
-        ).setParameter("query", normalizedQuery)
-            .paginatedList(paging)
-            .map { it.toModelWithInvocation() }
-
         return preparePageForUser(
             session,
             user,
-            Page(
-                count,
-                paging.itemsPerPage,
-                paging.page,
-                items
-            )
+            session.paginatedCriteria<ApplicationEntity>(paging) {
+                builder.lower(entity[ApplicationEntity::title]) like "%"+normalizedQuery+"%"
+            }.mapItems { it.toModelWithInvocation() }
         ).mapItems { it.withoutInvocation() }
     }
 
