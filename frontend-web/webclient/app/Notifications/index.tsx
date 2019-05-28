@@ -17,10 +17,11 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {TextSpan} from "ui-components/Text";
 import styled from "styled-components";
 import {IconName} from "ui-components/Icon";
-import {ReduxObject} from "DefaultObjects";
-import {WebSocketConnection} from "Authentication/ws";
+import {ReduxObject, NotificationsReduxObject} from "DefaultObjects";
 import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Snack} from "Snackbar/Snackbars";
 
 interface NotificationProps {
     items: Notification[]
@@ -32,89 +33,88 @@ interface NotificationProps {
     error?: string
 }
 
-class Notifications extends React.Component<NotificationProps & NotificationsDispatchToProps> {
-    private conn: WebSocketConnection;
-
-    constructor(props) {
-        super(props);
-    }
-
-    public componentDidMount() {
-        this.reload();
-        this.conn = WSFactory.open("/notifications", {
+function Notifications (props: NotificationProps & NotificationsOperations) {
+    React.useEffect(() => {
+        reload();
+        const conn = WSFactory.open("/notifications", {
             init: conn => {
                 conn.subscribe("notifications.subscription", {}, message => {
                     if (message.type === "message") {
-                        this.props.receiveNotification(message.payload);
+                        props.receiveNotification(message.payload);
                     }
                 });
             }
-        })
+        });
+        const subscriber = (snack: Snack) => props.receiveNotification({
+            id: -new Date().getTime(),
+            message: snack.message,
+            read: false,
+            type: "info",
+            ts: new Date().getTime(),
+            meta: ""
+        });
+        snackbarStore.subscribe(subscriber);
+        return () => conn.close();
+    }, []);
+
+    function reload() {
+        props.fetchNotifications();
     }
 
-    public componentWillUnmount() {
-        this.conn.close();
-    }
-
-    private reload() {
-        this.props.fetchNotifications();
-    }
-
-    private onNotificationAction(notification: Notification) {
+    function onNotificationAction(notification: Notification) {
         switch (notification.type) {
             case "APP_COMPLETE":
-                // TODO This is buggy! Does't update if already present on analyses page
+                // TODO This is buggy! Doesn't update if already present on analyses page
                 // TODO Should refactor these URLs somewhere else
-                this.props.history.push(`/applications/results/${notification.meta.jobId}`);
+                props.history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
             case "SHARE_REQUEST":
-                this.reload();
-                this.props.history.push("/shares");
+                reload();
+                props.history.push("/shares");
                 break;
         }
     }
 
-    public render() {
-        const entries: JSX.Element[] = this.props.items.map((notification, index) =>
-            <NotificationEntry
-                key={index}
-                notification={notification}
-                onMarkAsRead={it => this.props.notificationRead(it.id)}
-                onAction={it => this.onNotificationAction(it)}
-            />
-        );
+    const entries: JSX.Element[] = props.items.map((notification, index) =>
+        <NotificationEntry
+            key={index}
+            notification={notification}
+            onMarkAsRead={it => props.notificationRead(it.id)}
+            onAction={it => onNotificationAction(it)}
+        />
+    );
 
-        if (this.props.redirectTo) {
-            return <Redirect to={this.props.redirectTo}/>
-        }
-
-        const unreadLength = this.props.items.filter(e => !e.read).length;
-        const readAllButton = unreadLength ? (
-            <>
-                <Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
-                <Divider/>
-            </>) : null;
-        return (
-            <ClickableDropdown colorOnHover={false} top="37px" width={"380px"} left={"-270px"} trigger={
-                <Flex>
-                    <Relative top="0" left="0">
-                        <Flex justifyContent="center" width="48px">
-                            <Icon cursor="pointer" name="notification" color="headerIconColor"
-                                  color2="headerIconColor2"/>
-                        </Flex>
-                        {unreadLength > 0 ? <Absolute top="-12px" left="28px">
-                            <Badge bg="red">{unreadLength}</Badge>
-                        </Absolute> : null}
-                    </Relative>
-                </Flex>
-            }>
-                <ContentWrapper>
-                    <Error error={this.props.error} clearError={() => this.props.setError()}/>
-                    {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications/>}
-                </ContentWrapper>
-            </ClickableDropdown>
-        );
+    if (props.redirectTo) {
+        return <Redirect to={props.redirectTo} />
     }
+
+    const unreadLength = props.items.filter(e => !e.read).length;
+    const readAllButton = unreadLength ? (
+        <>
+            <Button onClick={() => props.readAll()} fullWidth>Mark all as read</Button>
+            <Divider/>
+        </>) : null;
+    return (
+        <ClickableDropdown colorOnHover={false} top="37px" width={"380px"} left={"-270px"} trigger={
+            <Flex>
+                <Relative top="0" left="0">
+                    <Flex justifyContent="center" width="48px">
+                        <Icon cursor="pointer" name="notification" color="headerIconColor"
+                            color2="headerIconColor2"/>
+                    </Flex>
+                    {unreadLength > 0 ? <Absolute top="-12px" left="28px">
+                        <Badge bg="red">{unreadLength}</Badge>
+                    </Absolute> : null}
+                </Relative>
+            </Flex>
+        }>
+            <ContentWrapper>
+                <Error error={props.error} clearError={() => props.setError()} />
+                {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
+            </ContentWrapper>
+        </ClickableDropdown>
+    );
+
 }
 
 const ContentWrapper = styled(Box)`
@@ -127,7 +127,7 @@ const NoNotifications = () => <TextSpan>No notifications</TextSpan>
 
 export interface Notification {
     type: string
-    id: number | string
+    id: number
     message: string
     ts: number
     read: boolean
@@ -146,7 +146,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps> {
         const {notification} = this.props;
         return (
             <NotificationWrapper alignItems="center" read={notification.read} flexDirection="row"
-                                 onClick={() => this.handleAction()}>
+                onClick={() => this.handleAction()}>
                 <Box mr="0.4em" width="10%"><Icon name={NotificationEntry.resolveEventIcon(notification.type)}/></Box>
                 <Flex width="90%" flexDirection="column">
                     <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
@@ -177,7 +177,11 @@ export class NotificationEntry extends React.Component<NotificationEntryProps> {
     }
 }
 
-const read = (p: { read: boolean }) => p.read ? {backgroundColor: theme.colors.white} : {backgroundColor: theme.colors.lightGray};
+const read = (p: { read: boolean }) => p.read ? {
+    backgroundColor: theme.colors.white
+} : {
+    backgroundColor: theme.colors.lightGray
+};
 
 const NotificationWrapper = styled(Flex)`
     ${read};
@@ -191,7 +195,7 @@ const NotificationWrapper = styled(Flex)`
     }
 `;
 
-interface NotificationsDispatchToProps {
+interface NotificationsOperations {
     receiveNotification: (notification: Notification) => void
     fetchNotifications: () => void
     notificationRead: (id: number) => void
@@ -200,7 +204,7 @@ interface NotificationsDispatchToProps {
     setError: (error?: string) => void
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
+const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
     receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
@@ -208,6 +212,7 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps =>
     readAll: async () => dispatch(await readAllNotifications()),
     setError: error => dispatch(setNotificationError(error))
 });
-const mapStateToProps = (state: ReduxObject) => state.notifications;
+const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
 
-export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Notifications));
+/* FIXME: Notifications as any is not great */
+export default connect<NotificationsReduxObject, NotificationsOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Notifications as any));
