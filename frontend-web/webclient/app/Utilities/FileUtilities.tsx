@@ -689,17 +689,17 @@ interface UpdateSensitivity {
     onSensitivityChange?: () => void
 }
 
-async function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivity) {
+async function updateSensitivity({files, cloud, onSensitivityChange}: UpdateSensitivity) {
     const input = await sensitivityDialog();
     if ("cancelled" in input) return;
     try {
-        await Promise.all(files.map(file => reclassifyFile({ file, sensitivity: input.option, cloud, addSnack })));
+        await Promise.all(files.map(file => reclassifyFile({file, sensitivity: input.option, cloud})));
     } catch (e) {
-        addSnack({
+        snackbarStore.addSnack({
             message: UF.errorMessageOrDefault(e, "Could not reclassify file"),
             type: SnackType.Failure
         })
-    } finally { 
+    } finally {
         if (!!onSensitivityChange) onSensitivityChange();
     }
 }
@@ -852,7 +852,7 @@ export const batchDeleteFiles = ({files, cloud, setLoading, callback}: BatchDele
         onConfirm: async () => {
             setLoading();
             const promises: { status?: number, response?: string }[] =
-                await Promise.all(paths.map(path => cloud.delete("/files", { path }))).then(it => it).catch(it => it);
+                await Promise.all(paths.map(path => cloud.delete("/files", {path}))).then(it => it).catch(it => it);
             const failures = promises.filter(it => it.status).length;
             if (failures > 0) {
                 snackbarStore.addSnack({
@@ -895,9 +895,12 @@ export async function createFolder({path, cloud, onSuccess}: CreateFolder): Prom
     try {
         await cloud.post("/files/directory", {path});
         onSuccess();
-        snackbarStore.addSnack({ message: "Folder created", type: SnackType.Success });
+        snackbarStore.addSnack({message: "Folder created", type: SnackType.Success});
     } catch (e) {
-        snackbarStore.addSnack({ message: UF.errorMessageOrDefault(e, "An error occurred trying to creating the file."), type: SnackType.Failure });
+        snackbarStore.addSnack({
+            message: UF.errorMessageOrDefault(e, "An error occurred trying to creating the file."),
+            type: SnackType.Failure
+        });
     }
 }
 
