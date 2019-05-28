@@ -80,7 +80,7 @@ const SidebarContainer = styled(Flex) <FlexCProps>`
     height: 100%;
     background-color: ${props => props.theme.colors.lightGray}; 
     border-right: 1px solid ${props => props.theme.colors.borderGray};
-
+    //background: linear-gradient(135deg, rgba(246,248,249,1) 0%,rgba(229,235,238,1) 69%,rgba(215,222,227,1) 71%,rgba(245,247,249,1) 100%);
     ${HideText}
 `;
 
@@ -162,7 +162,7 @@ function enumToLabel(value: SidebarPages): string {
     }
 }
 
-const SidebarSpacer = () => (<Box mt="20px"/>);
+const SidebarSpacer = () => (<Box mt="12px" />);
 
 const SidebarPushToBottom = styled.div`
     flex-grow: 1;
@@ -223,7 +223,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                             <SidebarElement icon={icon} activePage={page} label={label}
                                             to={typeof to === "function" ? to() : to}/>
                         </React.Fragment>))}
-                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px"/>) : null}
+                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="6px" mb="6px" />) : null}
                 </React.Fragment>
             )}
             <SidebarPushToBottom/>

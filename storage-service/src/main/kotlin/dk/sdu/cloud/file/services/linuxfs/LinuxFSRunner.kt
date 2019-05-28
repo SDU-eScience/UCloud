@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.OutputStream
@@ -21,6 +22,7 @@ import java.nio.file.NotLinkException
 import java.util.*
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -29,7 +31,7 @@ class LinuxFSRunner(
     private val userDao: StorageUserDao<Long>,
     override val user: String
 ) : CommandRunner {
-    private val queue = ArrayBlockingQueue<() -> Any?>(64)
+    private val queue = ArrayBlockingQueue<Pair<Continuation<*>, () -> Any?>>(64)
     private var thread: NativeThread? = null
     private var isRunning: Boolean = false
 
@@ -40,6 +42,8 @@ class LinuxFSRunner(
     internal var outputSystemFile: File? = null
 
     internal var uid: Long = Long.MAX_VALUE
+
+    var lastJobNotSafe: Any? = null
 
     private fun init() {
         synchronized(this) {
@@ -54,8 +58,12 @@ class LinuxFSRunner(
                     StandardCLib.setfsuid(cloudUser)
 
                     while (isRunning) {
-                        val nextJob = queue.poll(1, TimeUnit.SECONDS) ?: continue
+                        val (_, nextJob) = queue.poll(1, TimeUnit.SECONDS) ?: continue
                         nextJob()
+                    }
+
+                    queue.forEach { (cont, _) ->
+                        cont.resumeWithException(CancellationException())
                     }
                 }.also {
                     it.start()
@@ -66,6 +74,7 @@ class LinuxFSRunner(
 
     suspend fun <T> submit(job: () -> T): T = suspendCoroutine { cont ->
         init()
+        if (!isRunning) throw IllegalStateException("Runner has already been closed")
 
         val futureTask: () -> Unit = {
             runBlocking {
@@ -79,12 +88,12 @@ class LinuxFSRunner(
             }
         }
 
-        queue.put(futureTask)
+        lastJobNotSafe = job
+        queue.put(Pair(cont, futureTask))
     }
 
     fun requireContext() {
         if (!Thread.currentThread().name.startsWith("$THREAD_PREFIX$user-")) {
-            println(Thread.currentThread().name)
             throw IllegalStateException("Code is running in an invalid context!")
         }
     }

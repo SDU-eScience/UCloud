@@ -36,7 +36,7 @@ interface ReceiveNotificationAction {
 export const receiveNotifications = (page: Page<Notification>): ReceiveNotificationAction => ({
     type: RECEIVE_NOTIFICATIONS,
     payload: { items: page.items }
-})
+});
 
 /**
  * Fetches notifications for the user.
@@ -47,26 +47,31 @@ export async function fetchNotifications(): Promise<ReceiveNotificationAction | 
         return receiveNotifications(res.response);
     } catch (e) {
         return setNotificationError(errorMessageOrDefault(e, "Failed to retrieve notifications, please try again later"));
-    };
+    }
 }
 
-type ReadAction = PayloadAction<typeof NOTIFICATION_READ, { id: Number }>
+type ReadAction = PayloadAction<typeof NOTIFICATION_READ, { id: number | string }> 
 /**
  * Sets a notification as read, based on the id
  * @param id the id of the notification that has been read
  */
-export const notificationRead = async (id: number): Promise<ReadAction> => {
-    await Cloud.post(readNotificationQuery(id));
-    return {
-        type: NOTIFICATION_READ,
-        payload: { id }
-    };
-}
+export const notificationRead = async (id: number | string): Promise<ReadAction | SetNotificationError> => {
+    try {
+        /* FIXME: Likely not the most ideal way of handling local/non-local difference for notifications */
+        if (typeof id === "number") await Cloud.post(readNotificationQuery(id));
+        return {
+            type: NOTIFICATION_READ,
+            payload: { id }
+        };
+    } catch (e) {
+        return setNotificationError(errorMessageOrDefault(e, "Could not mark notification as read"));
+    }
+};
 
 export const setNotificationError = (error?: string): SetNotificationError => ({
     type: NOTIFICATIONS_ERROR,
     payload: { error }
-})
+});
 
 
 type ReadAllAction = Action<typeof READ_ALL>

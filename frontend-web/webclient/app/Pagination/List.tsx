@@ -57,7 +57,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
 
     private renderBody(): React.ReactNode {
         const { props } = this;
-        if (props.loading && props.page === emptyPage) {
+        if (props.loading && props.page.itemsInTotal === 0) {
             return (<Spinner size={24}/>)
         } else {
             if (props.page == null || props.page.items.length == 0) {

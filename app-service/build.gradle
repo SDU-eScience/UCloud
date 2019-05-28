@@ -5,8 +5,8 @@ apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
 
 buildscript {
-    ext.serviceCommonVersion = "1.4.0-REDIS.3"
-    ext.fileApiVersion = '1.8.0-REDIS.0'
+    ext.serviceCommonVersion = "1.4.5"
+    ext.fileApiVersion = '2.0.1'
 }
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"

@@ -18,10 +18,12 @@ import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertCollectionHasItem
@@ -83,6 +85,7 @@ class DiffTest {
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
+        BackgroundScope.reset()
 
         return TestingContext(
             root,
@@ -493,22 +496,25 @@ class DiffTest {
                     assertThatPropertyEquals(collection, { it.size }, 3)
                 }
 
-                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
-                    val aFile = fsRoot.resolvePath("/home/a")
-                    val reference = listOf(aFile.asMaterialized())
+                runBlocking {
+                    commandRunnerFactory.withContext(SERVICE_USER) {
+                        val aFile = fsRoot.resolvePath("/home/a")
+                        val reference = listOf(aFile.asMaterialized())
 
-                    val diff = indexingService.calculateDiff(
-                        it, "/home", reference
-                    )
+                        val diff = indexingService.calculateDiff(
+                            it, "/home", reference
+                        )
 
-                    assertCorrectEvents(diff.diff)
-                    assertTrue(diff.shouldContinue)
+                        assertCorrectEvents(diff.diff)
+                        assertTrue(diff.shouldContinue)
 
-                    val (shouldContinue, job) = indexingService.runDiffOnRoots(mapOf("/home" to reference))
-                    assertTrue(shouldContinue["/home"]!!)
-                    runBlocking { job.join() }
-                    assertCorrectEvents(EventServiceMock.recordedEvents.map { it.value })
+                        val (shouldContinue, job) = indexingService.runDiffOnRoots(mapOf("/home" to reference))
+                        assertTrue(shouldContinue["/home"]!!)
+                        job.join()
+                        assertCorrectEvents(EventServiceMock.recordedEvents.map { it.value })
+                    }
                 }
+
             }
         )
     }

@@ -17,10 +17,9 @@ export interface DashboardStateProps {
 }
 
 export interface DashboardOperations {
-    setActivePage: () => void
+    onInit: () => void
     errorDismiss: () => void
     receiveFavorites: (files: File[]) => void
-    updatePageTitle: () => void
     setAllLoading: (loading: boolean) => void
     fetchUsage: () => void
     fetchFavorites: () => void

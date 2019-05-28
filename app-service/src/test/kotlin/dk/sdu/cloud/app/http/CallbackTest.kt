@@ -28,6 +28,7 @@ import io.mockk.mockk
 import io.mockk.runs
 import org.hibernate.Session
 import org.junit.Test
+import java.util.*
 import kotlin.test.assertEquals
 
 private fun KtorApplicationTestSetupContext.configureCallbackServer(
@@ -102,9 +103,9 @@ class CallbackTest{
                     path = "/api/app/compute/submit",
                     user = TestUsers.service,
                     configure = {
-                        addHeader("JobSubmit-Id", "jobId")
-                        addHeader("JobSubmit-Path", "path/to/file")
-                        addHeader("JobSubmit-Extraction", "true")
+                        addHeader("JobSubmit-Id", Base64.getEncoder().encodeToString("jobId".toByteArray()))
+                        addHeader("JobSubmit-Path", Base64.getEncoder().encodeToString("path/to/file".toByteArray()))
+                        addHeader("JobSubmit-Extraction", Base64.getEncoder().encodeToString("true".toByteArray()))
                         addHeader("Content-Length", "4")
 
                         setBody(byteArrayOf(1, 2, 3, 4))
@@ -128,9 +129,9 @@ class CallbackTest{
                     path = "/api/app/compute/submit",
                     user = TestUsers.service,
                     configure = {
-                        addHeader("JobSubmit-Id", "jobId")
-                        addHeader("JobSubmit-Path", "path/to/file")
-                        addHeader("JobSubmit-Extraction", "true")
+                        addHeader("JobSubmit-Id", Base64.getEncoder().encodeToString("jobId".toByteArray()))
+                        addHeader("JobSubmit-Path", Base64.getEncoder().encodeToString("path/to/file".toByteArray()))
+                        addHeader("JobSubmit-Extraction", Base64.getEncoder().encodeToString("true".toByteArray()))
                         setBody(byteArrayOf(1, 2, 3, 4))
                     }
                 )

@@ -26,7 +26,7 @@ interface NotificationProps {
     items: Notification[]
     redirectTo: string
     fetchNotifications: Function,
-    notificationRead: Function,
+    notificationRead: (id: number | string) => void,
     history: History
     activeUploads: number
     error?: string
@@ -85,21 +85,22 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         );
 
         if (this.props.redirectTo) {
-            return <Redirect to={this.props.redirectTo} />
+            return <Redirect to={this.props.redirectTo}/>
         }
 
         const unreadLength = this.props.items.filter(e => !e.read).length;
         const readAllButton = unreadLength ? (
             <>
                 <Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
-                <Divider />
+                <Divider/>
             </>) : null;
         return (
             <ClickableDropdown colorOnHover={false} top="37px" width={"380px"} left={"-270px"} trigger={
                 <Flex>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="48px">
-                            <Icon cursor="pointer" name="notification" color="headerIconColor" color2="headerIconColor2" />
+                            <Icon cursor="pointer" name="notification" color="headerIconColor"
+                                  color2="headerIconColor2"/>
                         </Flex>
                         {unreadLength > 0 ? <Absolute top="-12px" left="28px">
                             <Badge bg="red">{unreadLength}</Badge>
@@ -108,8 +109,8 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                 </Flex>
             }>
                 <ContentWrapper>
-                    <Error error={this.props.error} clearError={() => this.props.setError()} />
-                    {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
+                    <Error error={this.props.error} clearError={() => this.props.setError()}/>
+                    {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications/>}
                 </ContentWrapper>
             </ClickableDropdown>
         );
@@ -126,7 +127,7 @@ const NoNotifications = () => <TextSpan>No notifications</TextSpan>
 
 export interface Notification {
     type: string
-    id: any
+    id: number | string
     message: string
     ts: number
     read: boolean
@@ -142,10 +143,11 @@ interface NotificationEntryProps {
 export class NotificationEntry extends React.Component<NotificationEntryProps> {
 
     public render() {
-        const { notification } = this.props;
+        const {notification} = this.props;
         return (
-            <NotificationWrapper alignItems="center" read={notification.read} flexDirection="row" onClick={() => this.handleAction()}>
-                <Box mr="0.4em" width="10%"><Icon name={NotificationEntry.resolveEventIcon(notification.type)} /></Box>
+            <NotificationWrapper alignItems="center" read={notification.read} flexDirection="row"
+                                 onClick={() => this.handleAction()}>
+                <Box mr="0.4em" width="10%"><Icon name={NotificationEntry.resolveEventIcon(notification.type)}/></Box>
                 <Flex width="90%" flexDirection="column">
                     <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
                     <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Cloud.homeFolder)}</TextSpan>
@@ -165,14 +167,17 @@ export class NotificationEntry extends React.Component<NotificationEntryProps> {
 
     private static resolveEventIcon(eventType: string): IconName {
         switch (eventType) {
-            case "APP_COMPLETE": return "info";
-            case "SHARE_REQUEST": return "share";
-            default: return "warning";
+            case "APP_COMPLETE":
+                return "info";
+            case "SHARE_REQUEST":
+                return "share";
+            default:
+                return "warning";
         }
     }
 }
 
-const read = (p: { read: boolean }) => p.read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.lightGray };
+const read = (p: { read: boolean }) => p.read ? {backgroundColor: theme.colors.white} : {backgroundColor: theme.colors.lightGray};
 
 const NotificationWrapper = styled(Flex)`
     ${read};
@@ -194,6 +199,7 @@ interface NotificationsDispatchToProps {
     readAll: () => void
     setError: (error?: string) => void
 }
+
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
     receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
