@@ -32,7 +32,7 @@ import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {listShares, findShare, createShare, acceptShare, revokeShare, updateShare} from "./index";
-import {loadingAction} from "App";
+import {loadingAction} from "Loading";
 import * as Pagination from "Pagination";
 import Link from "ui-components/Link";
 

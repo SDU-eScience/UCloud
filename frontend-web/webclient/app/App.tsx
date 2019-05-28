@@ -78,14 +78,6 @@ function loading(state = false, action): boolean {
     }
 }
 
-export function loadingAction(isLoading: boolean): any {
-    if (isLoading) {
-        return {type: "LOADING_START"};
-    } else {
-        return {type: "LOADING_END"};
-    }
-}
-
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
     store.dispatch({type})
 }
