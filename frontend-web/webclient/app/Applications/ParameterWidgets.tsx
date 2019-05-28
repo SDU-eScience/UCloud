@@ -161,8 +161,8 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
                 onChange={e => {
                     if (optSliderRef.current) optSliderRef.current.value = e.target.value
                 }}
-                max={!!parameter.max ? parameter.max : undefined}
-                min={!!parameter.min ? parameter.min : undefined}
+                max={parameter.max != null ? parameter.max : undefined}
+                min={parameter.min != null ? parameter.min : undefined}
                 rightLabel={hasUnitName}
             />
             {hasUnitName ? <InputLabel rightLabel>{props.parameter.unitName}</InputLabel> : null}

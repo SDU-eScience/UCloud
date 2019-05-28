@@ -17,8 +17,12 @@ import { Page } from "Types";
 import { History } from "history";
 import { EntriesPerPageSelector } from "Pagination";
 import { Spacer } from "ui-components/Spacer";
+import { addNotificationEntry } from "Utilities/ReduxUtilities";
 
-type FavoriteFilesProps = FavoritesOperations & ReduxType & { header: any, history: History }
+interface FavoriteFilesProps extends FavoritesOperations, ReduxType {
+    header: JSX.Element
+    history: History
+}
 
 class FavoriteFiles extends React.Component<FavoriteFilesProps> {
 

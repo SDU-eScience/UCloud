@@ -120,12 +120,13 @@ const HeaderContainer = styled(Flex)`
     top: 0;
     width: 100%;
     z-index: 100;
+    background: linear-gradient(to right, hsla(215, 100%, 50%, 1), hsla(220, 80%, 50%, 1));
 `;
 
 const Logo = () => (
     <Link to={"/"}>
-        <Flex alignItems={"center"} ml="18px">
-            <AppLogoRaw color1Offset={2} color2Offset={2} appC={10} rot={150} size={"32px"}/>
+        <Flex alignItems={"center"} ml="15px">
+            <Icon name={"logoEsc"} size={"38px"} />
             <Text color="headerText" fontSize={3} ml={"8px"}>SDUCloud</Text>
         </Flex>
     </Link>

@@ -5,7 +5,7 @@ import { ContainerForText } from "ui-components";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
-import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis } from ".";
+import { AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis } from ".";
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
@@ -26,77 +26,70 @@ interface FetchJobsOptions {
     pageNumber?: number
 }
 
-class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
-    constructor(props: Readonly<AnalysesProps & { history: History }>) {
-        super(props);
+function JobResults(props: AnalysesProps & { history: History }) {
+
+    React.useEffect(() => {
         moment.locale("en-gb");
         props.onInit();
-    }
+        fetchJobs();
+        props.setRefresh(() => fetchJobs());
+        return () => props.setRefresh();
+    }, [])
 
-    componentDidMount() {
-        this.fetchJobs();
-        this.props.setRefresh(() => this.fetchJobs());
-    }
-
-    componentWillUnmount() {
-        this.props.setRefresh(undefined);
-    }
-
-    fetchJobs(options?: FetchJobsOptions) {
+    function fetchJobs(options?: FetchJobsOptions) {
         const opts = options || {};
-        const { page, setLoading } = this.props;
+        const { page, setLoading } = props;
         const itemsPerPage = opts.itemsPerPage !== undefined ? opts.itemsPerPage : page.itemsPerPage;
         const pageNumber = opts.pageNumber !== undefined ? opts.pageNumber : page.pageNumber;
         setLoading(true);
-        this.props.fetchJobs(itemsPerPage, pageNumber);
+        props.fetchJobs(itemsPerPage, pageNumber);
     }
 
-    render() {
-        const { page, loading, error, onErrorDismiss, history, responsive } = this.props;
-        const hide = responsive.lessThan.lg;
-        const content = <List
-            customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
-            loading={loading}
-            onErrorDismiss={onErrorDismiss}
-            errorMessage={error}
-            pageRenderer={page =>
-                <ContainerForText>
-                    <Table>
-                        <Header hide={hide} />
-                        <TableBody>
-                            {page.items.map((a, i) =>
-                                <Row
-                                    hide={hide}
-                                    to={() => history.push(`/applications/results/${a.jobId}`)}
-                                    analysis={a}
-                                    key={i}
-                                />)
-                            }
-                        </TableBody>
-                    </Table>
-                </ContainerForText>
-            }
-            page={page}
-            onPageChanged={pageNumber => this.fetchJobs({ pageNumber })}
-        />;
+    
+    const { page, loading, error, onErrorDismiss, history, responsive } = props;
+    const hide = responsive.lessThan.lg;
+    const content = <List
+        customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
+        loading={loading}
+        onErrorDismiss={onErrorDismiss}
+        errorMessage={error}
+        pageRenderer={page =>
+            <ContainerForText>
+                <Table>
+                    <Header hide={hide} />
+                    <TableBody>
+                        {page.items.map((a, i) =>
+                            <Row
+                                hide={hide}
+                                to={() => history.push(`/applications/results/${a.jobId}`)}
+                                analysis={a}
+                                key={i}
+                            />)
+                        }
+                    </TableBody>
+                </Table>
+            </ContainerForText>
+        }
+        page={page}
+        onPageChanged={pageNumber => fetchJobs({ pageNumber })}
+    />;
 
-        return (<MainContainer
-            header={
-                <Spacer
-                    left={null}
-                    right={
-                        <EntriesPerPageSelector
-                            content="Jobs per page"
-                            entriesPerPage={page.itemsPerPage}
-                            onChange={itemsPerPage => this.fetchJobs({ itemsPerPage })}
-                        />
-                    }
-                />
-            }
-            headerSize={48}
-            main={content}
-        />);
-    }
+    return (<MainContainer
+        header={
+            <Spacer
+                left={null}
+                right={
+                    <EntriesPerPageSelector
+                        content="Jobs per page"
+                        entriesPerPage={page.itemsPerPage}
+                        onChange={itemsPerPage => fetchJobs({ itemsPerPage })}
+                    />
+                }
+            />
+        }
+        headerSize={48}
+        main={content}
+    />);
 }
 
 const Header = ({ hide }: { hide: boolean }) => (
