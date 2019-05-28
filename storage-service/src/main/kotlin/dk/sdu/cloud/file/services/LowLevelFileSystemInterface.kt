@@ -317,4 +317,6 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         path: String,
         owner: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
+
+    suspend fun checkPermissions(ctx: Ctx, path: String, requireWrite: Boolean): FSResult<Boolean>
 }

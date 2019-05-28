@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.creator
@@ -31,21 +32,20 @@ class IndexingService<Ctx : FSUserContext>(
     private val fs: CoreFileSystemService<Ctx>,
     private val storageEventProducer: StorageEventProducer
 ) {
-    suspend fun verifyKnowledge(ctx: Ctx, files: List<String>): List<Boolean> {
-        val parents = files.asSequence().map { it.parent() }.toSet()
-        val knowledgeByParent = parents.map { it to hasReadInDirectory(ctx, it) }.toMap()
-        return files.map { knowledgeByParent[it.parent()]!! }
-    }
+    suspend fun verifyKnowledge(
+        ctx: Ctx,
+        files: List<String>,
+        mode: KnowledgeMode = KnowledgeMode.List()
+    ): List<Boolean> {
+        return when (mode) {
+            is KnowledgeMode.List -> {
+                val parents = files.asSequence().map { it.parent() }.toSet()
+                val knowledgeByParent = parents.map { it to fs.checkPermissions(ctx, it, requireWrite = false) }.toMap()
+                files.map { knowledgeByParent[it.parent()]!! }
+            }
 
-    private suspend fun hasReadInDirectory(ctx: Ctx, directoryPath: String): Boolean {
-        return try {
-            // TODO We don't actually have to list anything in the directory. Would be faster without
-            fs.listDirectory(ctx, directoryPath, setOf(FileAttribute.INODE))
-            true
-        } catch (ex: FSException) {
-            when (ex) {
-                is FSException.PermissionException, is FSException.NotFound -> false
-                else -> throw ex
+            is KnowledgeMode.Permission -> {
+                files.map { fs.checkPermissions(ctx, it, mode.requireWrite) }
             }
         }
     }
