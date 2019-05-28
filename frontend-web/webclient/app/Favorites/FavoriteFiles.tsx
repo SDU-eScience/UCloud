@@ -23,74 +23,70 @@ interface FavoriteFilesProps extends FavoritesOperations, ReduxType {
     history: History
 }
 
-class FavoriteFiles extends React.Component<FavoriteFilesProps> {
+function FavoriteFiles(props: FavoriteFilesProps) {
+    const { page, fetchFileFavorites } = props;
+    const { pageNumber, itemsPerPage } = page;
 
-    componentDidMount() {
-        const { page } = this.props;
-        this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage);
-        this.props.setRefresh(() => this.refresh());
+    React.useEffect(() => {
+        props.fetchFileFavorites(pageNumber, itemsPerPage);
+        props.setRefresh(() => refresh());
+        return () => props.setRefresh()
+    }, []);
+
+    function refresh() {
+        props.setRefresh(() => props.fetchFileFavorites(pageNumber, itemsPerPage));
     }
 
-    public componentWillUnmount = () => this.props.setRefresh();
+    const fileOperations = allFileOperations({
+        stateless: true,
+        history: props.history,
+        onDeleted: () => undefined,
+        setLoading: () => props.setLoading(true)
+    });
 
-    private refresh() {
-        const { page } = this.props;
-        this.props.setRefresh(() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage));
-    }
+    const itemsPerPageSelector = (<EntriesPerPageSelector
+        entriesPerPage={itemsPerPage}
+        onChange={itemsPerPage => props.fetchFileFavorites(pageNumber, itemsPerPage)}
+        content="Files per page"
+    />);
 
-    public render() {
-        const { page, fetchFileFavorites } = this.props;
-        const { pageNumber, itemsPerPage } = page;
+    const selectedFiles = page.items.filter(it => it.isChecked);
+    return (<MainContainer
+        header={props.header}
+        main={<><Spacer
+            left={null}
+            right={itemsPerPageSelector}
+        /><List
+                page={props.page}
+                loading={props.loading}
+                customEmptyPage={<Heading.h2>You have no favorites</Heading.h2>}
+                onPageChanged={pageNumber => props.fetchFileFavorites(pageNumber, itemsPerPage)}
+                pageRenderer={page =>
+                    <FilesTable
+                        onFavoriteFile={async files => 
+                            (await favoriteFileAsync(files[0], Cloud), fetchFileFavorites(pageNumber, itemsPerPage))
+                        }
+                        fileOperations={fileOperations}
+                        files={page.items}
+                        sortBy={SortBy.PATH}
+                        sortOrder={SortOrder.DESCENDING}
+                        /* Can't currently be done, as the backend ignores attributes, and doesn't take  */
+                        sortFiles={() => undefined}
+                        refetchFiles={() => props.fetchFileFavorites(page.pageNumber, page.itemsPerPage)}
+                        sortingColumns={[SortBy.MODIFIED_AT, SortBy.SIZE]}
+                        onCheckFile={(checked, file) => props.checkFile(file.path, checked)}
+                        masterCheckbox={
+                            <MasterCheckbox
+                                onClick={check => props.checkAllFiles(check)}
+                                checked={page.items.length === selectedFiles.length && page.items.length > 0}
+                            />}
+                    />}
 
-        const fileOperations = allFileOperations({
-            stateless: true,
-            history: this.props.history,
-            onDeleted: () => undefined,
-            setLoading: () => this.props.setLoading(true)
-        });
-
-        const itemsPerPageSelector = (<EntriesPerPageSelector
-            entriesPerPage={itemsPerPage}
-            onChange={itemsPerPage => this.props.fetchFileFavorites(pageNumber, itemsPerPage)}
-            content="Files per page"
-        />);
-
-        const selectedFiles = page.items.filter(it => it.isChecked);
-        return (<MainContainer
-            header={this.props.header}
-            main={<><Spacer
-                left={null}
-                right={itemsPerPageSelector}
-            /><List
-                    page={this.props.page}
-                    loading={this.props.loading}
-                    customEmptyPage={<Heading.h2>You have no favorites</Heading.h2>}
-                    onPageChanged={pageNumber => this.props.fetchFileFavorites(pageNumber, itemsPerPage)}
-                    pageRenderer={page =>
-                        <FilesTable
-                            onFavoriteFile={async files => (await favoriteFileAsync(files[0], Cloud), fetchFileFavorites(pageNumber, itemsPerPage))}
-                            fileOperations={fileOperations}
-                            files={page.items}
-                            sortBy={SortBy.PATH}
-                            sortOrder={SortOrder.DESCENDING}
-                            /* Can't currently be done, as the backend ignores attributes, and doesn't take  */
-                            sortFiles={() => undefined}
-                            refetchFiles={() => this.props.fetchFileFavorites(page.pageNumber, page.itemsPerPage)}
-                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.SIZE]}
-                            onCheckFile={(checked, file) => this.props.checkFile(file.path, checked)}
-                            masterCheckbox={
-                                <MasterCheckbox
-                                    onClick={check => this.props.checkAllFiles(check)}
-                                    checked={page.items.length === selectedFiles.length && page.items.length > 0}
-                                />}
-                        />}
-
-                /></>}
-            sidebar={
-                <FileOptions files={this.props.page.items.filter(it => it.isChecked)} fileOperations={fileOperations} />
-            }
-        />)
-    }
+            /></>}
+        sidebar={
+            <FileOptions files={props.page.items.filter(it => it.isChecked)} fileOperations={fileOperations} />
+        }
+    />)
 }
 
 interface FavoritesOperations {
