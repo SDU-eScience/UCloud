@@ -15,6 +15,11 @@ import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
 import { Box } from "ui-components";
 import { Spacer } from "ui-components/Spacer";
+import { Cloud } from "Authentication/SDUCloudObject";
+import { hpcFavoriteApp } from "Utilities/ApplicationUtilities";
+import { snackbarStore } from "Snackbar/SnackbarStore";
+import { errorMessageOrDefault } from "UtilityFunctions";
+import { SnackType } from "Snackbar/Snackbars";
 
 interface InstalledOperations {
     onInit: () => void
@@ -26,61 +31,76 @@ type InstalledStateProps = ReduxType;
 
 type InstalledProps = InstalledOperations & InstalledStateProps;
 
-class Installed extends React.Component<InstalledProps & { header: any }> {
-    componentDidMount() {
-        const { props } = this;
+function Installed(props: InstalledProps & { header: any }) {
 
+    React.useEffect(() => {
         props.onInit();
         props.fetchItems(0, 25);
+        props.setRefresh(() => refresh());
+        return () => props.setRefresh();
+    }, []);
 
-        props.setRefresh(() => this.refresh());
-    }
-
-    private refresh() {
-        const { content } = this.props.applications;
+    function refresh() {
+        const { content } = props.applications;
         const pageNumber = !!content ? content.pageNumber : 0;
         const itemsPerPage = !!content ? content.itemsPerPage : 25;
-        this.props.setRefresh(() => this.props.fetchItems(pageNumber, itemsPerPage));
+        props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage));
     }
 
-    componentWillUnmount() {
-        this.props.setRefresh();
+
+    async function onFavorite(name: string, version: string) {
+        try {
+            await Cloud.post(hpcFavoriteApp(name, version))
+            const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
+            const pageNumber = page.pageNumber < (page.itemsInTotal - 1) / page.itemsPerPage ?
+                page.pageNumber : Math.max(page.pageNumber - 1, 0);
+            props.fetchItems(pageNumber, page.itemsPerPage)
+        } catch (e) {
+            snackbarStore.addSnack({
+                message: errorMessageOrDefault(e, "Could not favorite app"),
+                type: SnackType.Failure
+            })
+        }
     }
 
-    render() {
-        const { props } = this;
-        const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
-        const itemsPerPage = !!page ? page.itemsPerPage : 25;  
-        const main = (
-            <>
-                <Spacer left={null} right={props.applications.loading ? null : <Pagination.EntriesPerPageSelector
-                    content="Apps per page"
-                    entriesPerPage={itemsPerPage}
-                    onChange={itemsPerPage => props.fetchItems(0, itemsPerPage)}
-                />} />
-                <Pagination.List
-                    loading={props.applications.loading}
-                    page={page}
-                    onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
-                    pageRenderer={page => <Box mt="5px"><InstalledPage page={page} /></Box>}
-                />
-            </>
-        );
-        return (
-            <LoadingMainContainer
-                header={props.header}
-                loadable={this.props.applications}
-                main={main}
-                sidebar={null}
+    const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
+    const itemsPerPage = !!page ? page.itemsPerPage : 25;
+    const main = (
+        <>
+            <Spacer left={null} right={props.applications.loading ? null : <Pagination.EntriesPerPageSelector
+                content="Apps per page"
+                entriesPerPage={itemsPerPage}
+                onChange={itemsPerPage => props.fetchItems(0, itemsPerPage)}
+            />} />
+            <Pagination.List
+                loading={props.applications.loading}
+                page={page}
+                onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
+                pageRenderer={page => <Box mt="5px">
+                    <InstalledPage onFavorite={(name, version) => onFavorite(name, version)} page={page} />
+                </Box>}
             />
-        );
-    }
+        </>
+    );
+    return (
+        <LoadingMainContainer
+            header={props.header}
+            loadable={props.applications}
+            main={main}
+            sidebar={null}
+        />
+    );
 }
 
-const InstalledPage: React.StatelessComponent<{ page: Page<WithAppMetadata & WithAppFavorite> }> = props => (
+interface InstalledPageProps {
+    page: Page<WithAppMetadata & WithAppFavorite>
+    onFavorite: (name: string, version: string) => void
+}
+
+const InstalledPage: React.StatelessComponent<InstalledPageProps> = props => (
     <GridCardGroup>
         {props.page.items.map((it, idx) => (
-            <ApplicationCard app={it} key={idx} isFavorite={it.favorite} linkToRun />)
+            <ApplicationCard onFavorite={props.onFavorite} app={it} key={idx} isFavorite={it.favorite} linkToRun />)
         )}
     </GridCardGroup>
 );
