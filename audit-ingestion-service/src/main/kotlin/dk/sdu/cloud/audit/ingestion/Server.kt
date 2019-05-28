@@ -50,7 +50,7 @@ class Server(override val micro: Micro) : CommonServer {
                     elasticHostAndPort.port,
                     "http"
                 )
-            )
+            ).setMaxRetryTimeoutMillis(300000)
         )
 
         AuditProcessor(micro.eventStreamService, client).init()
