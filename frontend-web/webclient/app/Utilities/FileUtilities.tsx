@@ -8,7 +8,7 @@ import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 import { AddSnackOperation, SnackType, Snack } from "Snackbar/Snackbars";
-import {addStandardDialog, rewritePolicyDialog, shareDialog, sensitivityDialog} from "UtilityComponents";
+import { addStandardDialog, rewritePolicyDialog, shareDialog, sensitivityDialog } from "UtilityComponents";
 import { dialogStore } from "Dialog/DialogStore";
 
 function initialSetup(operations: MoveCopyOperations) {
@@ -665,15 +665,19 @@ interface UpdateSensitivity extends AddSnackOperation {
     onSensitivityChange?: () => void
 }
 
-function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivity) {
-    sensitivityDialog().then(input => {
-        if ("cancelled" in input) return;
-        Promise.all(
-            files.map(file => reclassifyFile({ file, sensitivity: input.option, cloud, addSnack }))
-        ).catch(e =>
-            UF.errorMessageOrDefault(e, "Could not reclassify file")
-        ).then(() => !!onSensitivityChange ? onSensitivityChange() : null);
-    });
+async function updateSensitivity({ files, cloud, onSensitivityChange, addSnack }: UpdateSensitivity) {
+    const input = await sensitivityDialog();
+    if ("cancelled" in input) return;
+    try {
+        await Promise.all(files.map(file => reclassifyFile({ file, sensitivity: input.option, cloud, addSnack })));
+    } catch (e) {
+        addSnack({
+            message: UF.errorMessageOrDefault(e, "Could not reclassify file"),
+            type: SnackType.Failure
+        })
+    } finally { 
+        if (!!onSensitivityChange) onSensitivityChange();
+    }
 }
 
 export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
@@ -682,7 +686,8 @@ export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<R
 };
 
 export const sizeToString = (bytes: number | null): string => {
-    if (bytes === null || bytes < 0) return "Invalid size";
+    if (bytes === null) return "";
+    if (bytes < 0) return "Invalid size";
     if (bytes < 1000) {
         return `${bytes} B`;
     } else if (bytes < 1000 ** 2) {
@@ -800,7 +805,7 @@ export const batchDeleteFiles = ({ files, cloud, setLoading, callback, addSnack 
         confirmText: "Delete files",
         onConfirm: async () => {
             setLoading();
-            const promises: { status?: number, response?: string }[] = 
+            const promises: { status?: number, response?: string }[] =
                 await Promise.all(paths.map(path => cloud.delete("/files", { path }))).then(it => it).catch(it => it);
             const failures = promises.filter(it => it.status).length;
             if (failures > 0) {
