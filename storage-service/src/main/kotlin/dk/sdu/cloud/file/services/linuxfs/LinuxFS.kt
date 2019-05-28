@@ -41,9 +41,14 @@ import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.HashSet
 import kotlin.streams.toList
 import kotlin.system.measureNanoTime
 
@@ -776,15 +781,45 @@ class LinuxFS(
     override suspend fun checkPermissions(ctx: LinuxFSRunner, path: String, requireWrite: Boolean): FSResult<Boolean> =
         ctx.submit {
             ctx.requireContext()
+            // Note: We cannot use Files.isReadable/Files.isWritable since it does not respect the current fsuid/fsgid
 
             val internalFile = File(translateAndCheckFile(path))
             val internalPath = internalFile.toPath()
 
-            FSResult(
-                0,
-                (requireWrite && Files.isWritable(internalPath)) ||
-                        (!requireWrite && Files.isReadable(internalPath))
-            )
+            try {
+                val attributes = Files.readAttributes(internalPath, BasicFileAttributes::class.java)
+                if (attributes.isDirectory) {
+                    if (requireWrite) {
+                        // TODO FIXME This appears to be really slow sometimes
+                        val resolve = internalPath.resolve("./.temporary_${UUID.randomUUID()}")
+                        val openOptions = hashSetOf<OpenOption>(
+                            StandardOpenOption.READ,
+                            StandardOpenOption.WRITE,
+                            StandardOpenOption.CREATE_NEW,
+                            StandardOpenOption.DELETE_ON_CLOSE
+                        )
+                        Files.newByteChannel(resolve, openOptions).close()
+                        Files.deleteIfExists(resolve)
+                    } else {
+                        Files.list(internalPath).count()
+                    }
+                } else if (attributes.isRegularFile) {
+                    val openOptions = hashSetOf<OpenOption>(StandardOpenOption.READ)
+                    if (requireWrite) openOptions += StandardOpenOption.WRITE
+
+                    Files.newByteChannel(internalPath, openOptions).close()
+                } else {
+                    throw FSException.CriticalException("Invalid file type")
+                }
+
+                FSResult(0, true)
+            } catch (ex: Throwable) {
+                if (ex is FSException.CriticalException) {
+                    throw ex
+                }
+
+                FSResult(0, false)
+            }
         }
 
     private fun internalChown(
