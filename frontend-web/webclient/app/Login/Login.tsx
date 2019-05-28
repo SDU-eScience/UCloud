@@ -111,6 +111,7 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
             Cloud.setTokens(result.accessToken, result.csrfToken);
             props.history.push("/loginSuccess");
         } catch (e) {
+            setLoading(false);
             setError(errorMessageOrDefault({ request: e, response: await e.json() }, "Could not submit verification code. Try again later"));
         }
     }
