@@ -74,7 +74,7 @@
     "redux": "4.0.1",
     "redux-responsive": "^4.3.8",
     "styled-components": "^4.2.0",
-    "styled-system": "^4.2.2",
+    "styled-system": "^4.2.3",
     "svgi": "^1.1.0"
   },
   "devDependencies": {
@@ -108,7 +108,7 @@
     "imports-loader": "0.8.0",
     "jest": "^24.8.0",
     "jest-styled-components": "^6.3.1",
-    "mini-css-extract-plugin": "^0.6.0",
+    "mini-css-extract-plugin": "^0.7.0",
     "react-test-renderer": "16.8.6",
     "redux-devtools-extension": "^2.13.8",
     "source-map-loader": "^0.2.4",
