@@ -4,8 +4,8 @@ import {
     is5xxStatusCode,
     inSuccessRange
 } from "UtilityFunctions";
-import { GLOBAL_addSnack } from "App";
 import { SnackType } from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 export interface Override {
     path: string,
@@ -453,8 +453,7 @@ export default class SDUCloud {
             }
             throw Error("The server was unreachable, please try again later.")
         } catch (err) {
-            // FIXME, not ideal way of showing error
-            GLOBAL_addSnack({ message: err.message, type: SnackType.Failure });
+            snackbarStore.addSnack({ message: err.message, type: SnackType.Failure });
         }
     }
 

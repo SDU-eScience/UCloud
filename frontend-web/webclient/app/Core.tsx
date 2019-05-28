@@ -45,7 +45,7 @@ const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>} />)
 
 const Core = () => (
     <>
-        <Dialog dialogStore={dialogStore} />
+        <Dialog />
         <Snackbars />
         <Header />
         <Uploader />

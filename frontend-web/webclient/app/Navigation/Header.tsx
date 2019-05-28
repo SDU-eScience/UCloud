@@ -19,28 +19,17 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import {Dropdown} from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch"
-import {prettierString, inDevEnvironment} from "UtilityFunctions";
-import {AvatarType} from "UserSettings/Avataaar";
-import {findAvatar} from "UserSettings/Redux/AvataaarActions";
-import {setPrioritizedSearch} from "./Redux/HeaderActions";
-import {SearchOptions, SelectableText} from "Search/Search";
-import {EllipsedText, TextSpan} from "ui-components/Text";
-import {AppLogoRaw} from "Applications/Card";
-import {AddSnackOperation, SnackType} from "Snackbar/Snackbars";
-import {addSnack} from "Snackbar/Redux/SnackbarsActions";
+import {inDevEnvironment, prettierString} from "UtilityFunctions";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
-import {prettierString, inDevEnvironment} from "UtilityFunctions";
-import {AvatarType} from "UserSettings/Avataaar";
-import {findAvatar} from "UserSettings/Redux/AvataaarActions";
-import {setPrioritizedSearch} from "./Redux/HeaderActions";
-import {SearchOptions, SelectableText} from "Search/Search";
 import {EllipsedText, TextSpan} from "ui-components/Text";
+import {SearchOptions, SelectableText} from "Search/Search";
+import {AvatarType} from "UserSettings/Avataaar";
+import {SnackType} from "Snackbar/Snackbars";
+import {findAvatar} from "UserSettings/Redux/AvataaarActions";
+import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
 import {AppLogoRaw} from "Applications/Card";
-import {AddSnackOperation, SnackType} from "Snackbar/Snackbars";
-import {addSnack} from "Snackbar/Redux/SnackbarsActions";
-import {DevelopmentBadgeBase} from "ui-components/Badge";
-import {FlexProps, SpaceProps} from "styled-system";
-import {FlexCProps} from "ui-components/Flex";
+import {SpaceProps} from "styled-system";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
@@ -256,7 +245,7 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-interface UserAvatar {
+interface UserAvatar extends SpaceProps {
     avatar: AvatarType
 }
 
@@ -284,7 +273,7 @@ const ContextSwitcherFlex = styled(Flex)`
     border: 1px solid white;
 `;
 
-const ContextSwitcher = ({addSnack}: AddSnackOperation) => {
+const ContextSwitcher = (props) => {
     if (!inDevEnvironment()) return null;
     const [userContext, setUserContext] = React.useState(Cloud.username);
     return (<Box ml="6px">
@@ -297,7 +286,7 @@ const ContextSwitcher = ({addSnack}: AddSnackOperation) => {
             {[Cloud.username, "Project 1", "Project 2"].filter(it => it !== userContext).map(it => (
                 <EllipsedText
                     key={it}
-                    onClick={() => (addSnack({message: "Not yet.", type: SnackType.Information}), setUserContext(it))}
+                    onClick={() => (snackbarStore.addSnack({message: "Not yet.", type: SnackType.Information}), setUserContext(it))}
                     width="150px"
                 >{it}</EllipsedText>
             ))}
@@ -305,7 +294,7 @@ const ContextSwitcher = ({addSnack}: AddSnackOperation) => {
     </Box>);
 };
 
-interface HeaderOperations extends AddSnackOperation {
+interface HeaderOperations {
     fetchLoginStatus: () => void
     fetchAvatar: () => void
     setSearchType: (st: HeaderSearchType) => void
@@ -315,7 +304,6 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
     fetchAvatar: async () => dispatch(await findAvatar()),
     setSearchType: st => dispatch(setPrioritizedSearch(st)),
-    addSnack: snack => dispatch(addSnack(snack))
 });
 
 const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToProps => ({
@@ -326,11 +314,11 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 });
 
 const anyLoading = (rO: ReduxObject): boolean =>
-    r0.loading === true || rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
+    rO.loading === true || rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
     || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
-    || rO.shares.loading || rO.accounting.resources["compute/timeUsed"].events.loading
+    || rO.accounting.resources["compute/timeUsed"].events.loading
     || rO.accounting.resources["storage/bytesUsed"].events.loading;
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));

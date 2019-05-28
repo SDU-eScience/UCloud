@@ -1,11 +1,11 @@
-import { SensitivityLevel } from "DefaultObjects";
+import {SensitivityLevel} from "DefaultObjects";
 import Cloud from "Authentication/lib";
 import {SortBy, SortOrder, File, Acl, FileType} from "Files";
 import {dateToString} from "Utilities/DateUtilities";
 import {getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
-import {SnackType, AddSnackOperation, Snack} from "Snackbar/Snackbars";
-import {GLOBAL_addSnack} from "App";
+import {SnackType, Snack} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 /**
  * Capitalizes the input string
@@ -175,32 +175,36 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
 };
 
 
-interface CreateProject extends AddSnackOperation {
+interface CreateProject {
     filePath: string
     cloud: Cloud
     navigate: (path: string) => void
 }
 
 // FIXME Remove navigation when backend support comes.
-export const createProject = ({ filePath, cloud, navigate, addSnack }: CreateProject) => {
-    cloud.put("/projects", { fsRoot: filePath }).then(() => {
-        redirectToProject({ path: filePath, cloud, navigate, remainingTries: 5, addSnack });
-    }).catch(() => addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure }));
+export const createProject = ({filePath, cloud, navigate}: CreateProject) => {
+    cloud.put("/projects", {fsRoot: filePath}).then(() => {
+        redirectToProject({path: filePath, cloud, navigate, remainingTries: 5});
+    }).catch(() => snackbarStore.addSnack({
+        message: `An error occurred creating project ${filePath}`,
+        type: SnackType.Failure
+    }));
 };
 
-interface RedirectToProject extends AddSnackOperation {
+interface RedirectToProject {
     path: string
     cloud: Cloud
     navigate: (path: string) => void
     remainingTries: number
 }
 
-const redirectToProject = ({path, cloud, navigate, remainingTries, addSnack}: RedirectToProject) => {
+const redirectToProject = ({path, cloud, navigate, remainingTries}: RedirectToProject) => {
     cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(() => navigate(path)).catch(_ => {
-        if (remainingTries > 0)
-            setTimeout(() => redirectToProject({ path, cloud, navigate, remainingTries: remainingTries - 1, addSnack }), 400);
-        else
-            addSnack({message: `Project ${path} is being created.`, type: SnackType.Success});
+        if (remainingTries > 0) {
+            setTimeout(() => redirectToProject({path, cloud, navigate, remainingTries: remainingTries - 1}), 400);
+        } else {
+            snackbarStore.addSnack({message: `Project ${path} is being created.`, type: SnackType.Success});
+        }
     });
 };
 
@@ -236,8 +240,7 @@ export const downloadAllowed = (files: File[]) =>
 export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
-    error: { request: XMLHttpRequest, response: any },
-    addSnack: (snack: Snack) => void = GLOBAL_addSnack
+    error: { request: XMLHttpRequest, response: any }
 ): number {
     let request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
@@ -262,7 +265,7 @@ export function defaultErrorHandler(
             }
         }
 
-        addSnack({message: why, type: SnackType.Failure});
+        snackbarStore.addSnack({message: why, type: SnackType.Failure});
         return request.status;
     }
     return 500;
@@ -319,19 +322,19 @@ export function humanReadableNumber(
         .replace(regex, '$&' + sectionDelim);
 }
 
-interface CopyToClipboard extends AddSnackOperation {
+interface CopyToClipboard {
     value: string | undefined
     message: string
 }
 
-export function copyToClipboard({value, message, addSnack}: CopyToClipboard) {
+export function copyToClipboard({value, message}: CopyToClipboard) {
     const input = document.createElement("input");
     input.value = value || "";
     document.body.appendChild(input);
     input.select();
     document.execCommand("copy");
     document.body.removeChild(input);
-    addSnack({message, type: SnackType.Success});
+    snackbarStore.addSnack({message, type: SnackType.Success});
 }
 
 export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any } | { status: number, response: string }, defaultMessage: string): string {

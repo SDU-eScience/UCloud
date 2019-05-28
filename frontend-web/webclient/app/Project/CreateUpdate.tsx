@@ -12,9 +12,9 @@ import { TextSpan } from "ui-components/Text";
 import { connect } from "react-redux";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Dispatch } from "redux";
-import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
+import { SnackType} from "Snackbar/Snackbars";
 import { ReduxObject } from "DefaultObjects";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -64,7 +64,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps & CreateUpdateOpera
 
     componentDidMount() {
         getByPath(this.state.path).then(it => this.setMetadata(it, this.state.path)).catch(it =>
-            this.props.addSnack({ message: "An error occurred fetching project data", type: SnackType.Failure }));
+            snackbarStore.addSnack({ message: "An error occurred fetching project data", type: SnackType.Failure }));
     }
 
     setMetadata(it: ProjectMetadataWithRights, path: string) {
@@ -96,7 +96,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps & CreateUpdateOpera
         const path = filePathFromProps(nextProps);
         if (!!path && path !== this.state.path) {
             getByPath(path).then(it => this.setMetadata(it, path)).catch(it =>
-                this.props.addSnack({ message: "An error occurred fetching project data", type: SnackType.Failure }));
+                snackbarStore.addSnack({ message: "An error occurred fetching project data", type: SnackType.Failure }));
         }
         return true;
     }
@@ -530,13 +530,12 @@ const FormFieldList = ({ items, name, onChange }: any) =>
 
 const Required = () => <TextSpan color="red">{" *"}</TextSpan>
 
-interface CreateUpdateOperations extends AddSnackOperation {
+interface CreateUpdateOperations {
     updateTitle: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): CreateUpdateOperations => ({
     updateTitle: () => dispatch(updatePageTitle("Edit Project")),
-    addSnack: snack => dispatch(addSnack(snack))
 });
 
 const mapStateToProps = ({ responsive }: ReduxObject) => responsive;

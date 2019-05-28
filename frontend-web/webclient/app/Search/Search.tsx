@@ -31,7 +31,6 @@ import { prettierString, inDevEnvironment } from "UtilityFunctions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
 
 class Search extends React.Component<SearchProps> {
 
@@ -131,7 +130,6 @@ class Search extends React.Component<SearchProps> {
             onExtracted: () => refreshFiles(),
             onSensitivityChange: () => refreshFiles(),
             setLoading: () => this.props.setFilesLoading(true),
-            addSnack: snack => this.props.addSnack(snack)
         });
 
         const Tab = ({ searchType }: { searchType: HeaderSearchType }): JSX.Element => (
@@ -285,7 +283,6 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden()),
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    addSnack: snack => dispatch(addSnack(snack))
 });
 
 const mapStateToProps = ({ simpleSearch, detailedFileSearch, detailedApplicationSearch }: ReduxObject): SimpleSearchStateProps & { favFilesCount: number } => ({
