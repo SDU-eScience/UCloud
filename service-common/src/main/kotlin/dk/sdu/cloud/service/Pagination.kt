@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import kotlin.math.ceil
 import kotlin.math.min
 
@@ -17,6 +18,8 @@ interface WithPage<out T> {
 
     val pageNumber: Int
     val items: List<T>
+
+    @get:JsonIgnore
     val pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 }
 
