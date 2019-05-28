@@ -33,6 +33,7 @@ import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.DataConversionException
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.io.IOException
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KType
 import kotlin.reflect.full.companionObjectInstance
@@ -193,7 +194,10 @@ class IngoingHttpInterceptor(
     ): Pair<String, Any?>? {
         return when (this) {
             is HttpHeaderParameter.Simple<R> -> {
-                val hasRequiredHeader = ctx.call.request.headers.contains(header, value)
+                val hasRequiredHeader = ctx.call.request.headers.contains(
+                    header,
+                    Base64.getEncoder().encodeToString(value.toByteArray(Charsets.UTF_8))
+                )
                 if (!hasRequiredHeader) {
                     log.debug("Missing header value: '$header' -> '$value'")
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
@@ -203,7 +207,11 @@ class IngoingHttpInterceptor(
 
             is HttpHeaderParameter.Property<R, *> -> {
                 val returnType = property.returnType
-                val value = ctx.call.request.header(header)
+                val encodedHeaderValue = ctx.call.request.header(header)
+                val value =
+                    if (encodedHeaderValue == null) null
+                    else String(Base64.getDecoder().decode(encodedHeaderValue), Charsets.UTF_8)
+
                 val companionInstance = returnType.jvmErasure.companionObjectInstance
 
                 val converted = when {

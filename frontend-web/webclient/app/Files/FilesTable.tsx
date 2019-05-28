@@ -97,7 +97,9 @@ const ResponsiveTableColumn = ({
 }: ResponsiveTableColumnProps) => (
         <FileTableHeaderCell notSticky={notSticky} width="10rem" >
             <Flex alignItems="center" cursor="pointer" justifyContent="left">
-                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
+                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ?
+                    SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}
+                >
                     <Arrow name={iconName} />
                 </Box>
                 <SortByDropdown

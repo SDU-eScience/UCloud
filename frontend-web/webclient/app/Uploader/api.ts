@@ -49,9 +49,9 @@ export const multipartUpload = async (
         }
     };
     request.responseType = "text";
-    request.setRequestHeader("Upload-Location", location);
-    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", sensitivity);
-    request.setRequestHeader("Upload-Policy", policy);
+    request.setRequestHeader("Upload-Location", btoa(location));
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", btoa(sensitivity));
+    request.setRequestHeader("Upload-Policy", btoa(policy));
     request.send(file);
     return request;
 };
@@ -88,11 +88,11 @@ export const bulkUpload = async (
         }
     };
     request.responseType = "text";
-    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", sensitivity);
-    request.setRequestHeader("Upload-Policy", policy);
-    request.setRequestHeader("Upload-Location", location);
-    request.setRequestHeader("Upload-Format", format);
-    request.setRequestHeader("Upload-Name", file.name);
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", btoa(sensitivity));
+    request.setRequestHeader("Upload-Policy", btoa(policy));
+    request.setRequestHeader("Upload-Location", btoa(location));
+    request.setRequestHeader("Upload-Format", btoa(format));
+    request.setRequestHeader("Upload-Name", btoa(file.name));
     request.send(file);
     return request;
 };
