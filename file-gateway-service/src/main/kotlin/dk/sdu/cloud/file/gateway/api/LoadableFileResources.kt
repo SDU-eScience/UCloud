@@ -21,7 +21,8 @@ enum class FileResource(val text: String, internal val backend: String) {
     OWN_SENSITIVITY_LEVEL("ownSensitivityLevel", STORAGE_BACKEND),
     LINK("link", STORAGE_BACKEND),
     FILE_ID("fileId", STORAGE_BACKEND),
-    CREATOR("creator", STORAGE_BACKEND)
+    CREATOR("creator", STORAGE_BACKEND),
+    CANONICAL_PATH("canonicalPath", STORAGE_BACKEND)
 }
 
 internal fun fileResourcesToString(load: Set<FileResource>) =

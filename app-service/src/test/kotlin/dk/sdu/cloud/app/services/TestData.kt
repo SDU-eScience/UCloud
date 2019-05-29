@@ -43,7 +43,8 @@ fun Application.withNameAndVersion(name: String, version: String): Application {
     return copy(
         metadata = normAppDesc.metadata.copy(
             name = name,
-            version = version
+            version = version,
+            title = name
         )
     )
 }
