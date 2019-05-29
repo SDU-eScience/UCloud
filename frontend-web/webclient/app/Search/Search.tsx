@@ -111,8 +111,7 @@ class Search extends React.Component<SearchProps> {
         const { props } = this;
         props.setError();
         props.searchFiles({ ...this.fileSearchBody, fileName: search, itemsPerPage: itemsPerPage || this.props.files.itemsPerPage });
-        props.searchApplications(search, this.props.applications.pageNumber, itemsPerPage || this.props.applications.itemsPerPage);
-        if (inDevEnvironment()) props.searchProjects(search, this.props.projects.pageNumber, itemsPerPage || this.props.projects.itemsPerPage);
+        props.searchApplications(search, 0, itemsPerPage || this.props.applications.itemsPerPage);
     }
 
     search() {
@@ -145,7 +144,6 @@ class Search extends React.Component<SearchProps> {
         );
 
         const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
-        if (inDevEnvironment()) allowedSearchTypes.push("projects");
 
         let main;
         const { priority } = this.props.match.params;
