@@ -33,8 +33,9 @@ user.
 
 Currently no password policy is implemented.
 
-Login attempts are logged through normal [auditing](Auditing). We do not
-currently limit number of incorrect login attempts.
+Login attempts are logged through normal
+[auditing](../service-common/wiki/auditing.md). We do not currently limit
+number of incorrect login attempts.
 
 Passwords are stored following recommendations by
 [OWASP](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Password_Storage_Cheat_Sheet.md).
@@ -182,8 +183,8 @@ one-time token to mitigate the dangers of doing this.
 
 These properties are related to the authorization mechanisms of SDUCloud.
 This is tightly related to how the RPC layer is defined. This is described
-further in [Auditing](Auditing) and [Writing Service
-Interface](Writing-Service-Interfaces).
+further in [Auditing](../service-common/wiki/auditing.md) and [Writing Service
+Interface](../service-common/wiki/writing_service_interfaces.md).
 
 | Property | Description                                             |
 | -------- | ------------------------------------------------------- |

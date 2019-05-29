@@ -1,3 +1,5 @@
+# Auditing
+
 Auditing is automatically performed for all HTTP calls implemented via the
 `implement` DSL. If you have written a `callDescription` then auditing is
 entirely automatic. There are, however, a few cases you need to be aware of.
@@ -19,7 +21,7 @@ storage. If breaking changes are made to the underlying audit messages then
 the Elasticsearch indexes may break. This can potentially cause messages to no
 longer reach Elasticsearch (and get stuck at the Logstash step). Because of
 this, it is important that breaking changes are not made without manual
-migration. This is also mention in the [deployment checklist](Deployment).
+migration. This is also mention in the [deployment checklist](./deployment.md).
 
 Additionally, there is an audit topic for each namespace. Services may consume
 from this topic to build services for advanced monitoring. The topics are named

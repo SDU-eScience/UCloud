@@ -93,7 +93,7 @@ our micro-service.
 ### `Main.kt`
 
 The `Main.kt` file bootstraps the micro-service. They use our own small
-[Micro](micro) framework, which is part of the `service-common` lib. The
+[Micro](./micro.md) framework, which is part of the `service-common` lib. The
 primary task of Micro is to read configuration and connect to external
 services (i.e. services we don't write ourselves).
 
@@ -109,7 +109,7 @@ interface.
 
 ### `api` (RPC Interfaces)
 
-See [Writing Service Interfaces](Writing-Service-Interfaces) for more
+See [Writing Service Interfaces](./writing_service_interfaces.md) for more
 information.
 
 The `api` package contains HTTP interfaces used by other services.
