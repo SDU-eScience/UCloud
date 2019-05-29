@@ -1,5 +1,0 @@
-[app-service](../../index.md) / [dk.sdu.cloud.app.services](../index.md) / [JobsDAO](index.md) / [updateJobWithSlurmInformation](./update-job-with-slurm-information.md)
-
-# updateJobWithSlurmInformation
-
-`fun updateJobWithSlurmInformation(systemId: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, sshUser: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, jobDirectory: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, workingDirectory: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, slurmId: `[`Long`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/index.html)`): `[`Unit`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html)
