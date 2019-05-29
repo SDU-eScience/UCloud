@@ -6,7 +6,7 @@ system. The events are emitted on a best-effort practice and are emitted
 _after_ the event has taken place in the file system. This is done
 asynchronously and there are no guarantees that any given event will be
 emitted. To improve on these guarantees the
-[indexing-service](../indexing-service) regularly compares its view of the
+[indexing-service](../../indexing-service) regularly compares its view of the
 system with the storage-service. If differences are found corrections are
 emitted on the same stream. This allows for most services to not care about
 these edge-cases.
