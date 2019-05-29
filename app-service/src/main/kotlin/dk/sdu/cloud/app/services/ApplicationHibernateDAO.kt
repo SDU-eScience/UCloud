@@ -193,11 +193,9 @@ class ApplicationHibernateDAO(
         val trimmedNormalizedQuery = normalizeQuery(query).trim()
         val keywords = trimmedNormalizedQuery.split(" ")
         if (keywords.size == 1) {
-            println("Doing dosearch")
             return doSearch(session, user, trimmedNormalizedQuery, paging)
         }
         val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
-        println("Doing multisearch")
         return doMultiKeywordSearch(session, user, firstTenKeywords, paging)
     }
 
@@ -208,14 +206,15 @@ class ApplicationHibernateDAO(
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
 
-        var keywordsQuery = ""
+        var keywordsQuery = "("
         for (i in 0 until keywords.size) {
             if (i == keywords.lastIndex) {
-                keywordsQuery += "lower(A.title) like '%' || :query${keywords.lastIndex} || '%'"
+                keywordsQuery += "lower(A.title) like '%' || :query$i || '%'"
                 continue
             }
-            keywordsQuery += "lower(A.title) like '%'|| :query${i} ||'%' or "
+            keywordsQuery += "lower(A.title) like '%'|| :query$i ||'%' or "
         }
+        keywordsQuery += ")"
         val count = session.typedQuery<Long>(
             """
             select count (A.title)
