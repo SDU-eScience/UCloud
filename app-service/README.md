@@ -1,93 +1,130 @@
-# Application Service `app-service`
+# Tool Format
 
-| Port 42200 | [Technical Documentation](docs/app-service/index.md) | 
-[API Documentation](docs/app-service/dk.sdu.cloud.app.api/index.md) |
+A tool describes a reference to a container. Multiple applications can share
+the same tool.
 
-This service is responsible for implementing the 'application' feature of SDUCloud.
+```yaml
+---
+tool: v1 # Denotes that this document is describing a tool. Tool spec is v1.
 
-## Overview
+title: tool # User friendly title for the tool (currently not displayed anywhere)
+name: tool-name # A unique name for the tool (used in references)
+version: "1.0.0" # A version number for the tool, must be a string
 
-The 'application' feature allows for end-users of SDUCloud to run containerized
-applications on cloud HPC (currently ABC2.0 is the only backend supported).
+container: myusername/foo # Name of the container to run. Any valid docker container string (including remote ones)
+backend: UDOCKER # Can also be SINGULARITY
 
+authors:
+- A
+- List
+- Of
+- Many
+- Authors
+- Dan Thrane
 
-```
-  +-------------+    +--------------+    +-------------+
-  | app_serv    |--->| ssh_client   |--->| ABC2.0      |
-  +-------------+    +--------------+    +-------------+
-                                               |
-                                               v
-                                         +-------------+
-                                         | slurm       |
-                                         +-------------+
-                                               |
-                                               v
-                                       +-----------------+
-                                       | containers      |
-                                       +-----------------+
-                                         |             |
-                                         v             v
-                                +----------+         +-------------+
-                                | udocker  |         | singularity |
-                                +----------+         +-------------+
+defaultMaxTime:
+    hours: 1
+    minutes: 0
+    seconds: 0
 
-```
-
-__Figure:__ Overall architecture of `app-service`
-
-## How to Run
-
-This service follows the SDUCloud standard and runs on port 42200. Distributions can be
-made with the gradle `application` plugin (already configured). Following this the service
-will correctly respond to HTTP requests.
-
-### Making a Request
-
-The following will make an example for the 
-[list recent jobs](docs/app-service/dk.sdu.cloud.app.api/-h-p-c-job-descriptions/list-recent.md) operation.
-
-```
-$ http :42200/api/hpc/jobs?page=0\&itemsPerPage=10 "Authorization: Bearer ${JWT_TOKEN}" "Job-Id: `uuidgen`"
-
-HTTP/1.1 200 OK
-Content-Length: 2285
-Content-Type: application/json; charset=UTF-8
-Date: Wed, 09 May 2018 13:14:38 GMT
-Server: ktor-server-core/0.9.1 ktor-server-core/0.9.1
-
-{
-    "items": [
-        {
-            "appName": "figlet-count",
-            "appVersion": "1.0.0",
-            "createdAt": 1525869327282,
-            "jobId": "fb4dad6a-eaf9-42b1-b88c-f6c7249cd1d1",
-            "modifiedAt": 1525869381246,
-            "owner": "jonas@hinchely.dk",
-            "state": "SUCCESS",
-            "status": "OK"
-        },
-        {
-            "appName": "figlet-count",
-            "appVersion": "1.0.0",
-            "createdAt": 1525869175857,
-            "jobId": "79c6615c-c311-40ff-abc9-de00bc7a8035",
-            "modifiedAt": 1525869209498,
-            "owner": "jonas@hinchely.dk",
-            "state": "SUCCESS",
-            "status": "OK"
-        }
-    ],
-    "itemsInTotal": 2,
-    "itemsPerPage": 10,
-    "pageNumber": 0,
-    "pagesInTotal": 1
-}
-
+description: It is a tool # (Optional) Description of tool
+defaultNumberOfNodes: 1 # Optional
+defaultTasksPerNode: 1 # Optional
 ```
 
-## Configuration
+# Application Format
 
-Click [here](docs/app-service/dk.sdu.cloud.app/-h-p-c-config/index.md) for more
-information.
+```yaml
+application: v1 # Denotes that this document is describing an application
 
+title: My Application # User friendly title
+name: app-name # A unique name for the tool (used in references)
+version: "1.0.0" # A version number for the tool, must be a string
+authors:
+- Dan
+
+tool:
+    name: tool-name # Must match tool's name
+    version: "1.0.0" # Must match tool's version
+
+description: This is a description (can contain markdown)
+
+tags: # A list of tags
+- Toy
+
+# The invocation describes the command to run inside of the container
+# Several type of invocation arguments can be given. We will list them all 
+# below:
+invocation:
+- application-name # We can pass a raw string. This is passed directly as an argument
+- one-more-argument
+
+# Insert a simple variable called my-variable (this must be present in 'parameters'!)
+- type: var
+  vars: my-variable
+
+# Insert a more advanced variable mapping
+# This example will expand to: "--file <my-variable>no-leading-space"
+- type: var
+  vars: my-variable
+  prefixGlobal: "--file "
+  suffixGlobal: "no-leading-space"
+
+# A single block can also have multiple variables
+# This example will expand to: "--files p/<var1>/s p/<var2>/s"
+- type: var
+  vars:
+  - var1
+  - var2
+  prefixGlobal: "--files "
+  prefixVariable: "p/"
+  suffixVariable: "/s"
+
+# A flag optionally adds an argument if the boolean variable (in this case 
+# 'verbose') is true.
+- type: flag
+  var: verbose
+  flag: -v
+
+parameters:
+  # The following variable shows all of shared properties
+  verbose: # Define the variable 'verbose'
+    type: bool # Denotes the type, in this case a boolean
+    title: Text displayed to user
+    description: Description displayed to user
+    defaultValue: true # Default value of this variable
+    optional: true # Variables are by default not optional
+    #
+    # Specific to bools
+    #
+    trueValue: "text-when-true" # Default: "true". Text this variable should expand to when true.
+    falseValue: "text-when-false" # Default: "false". Text this variable should expand to when false.
+
+  my_int:
+    type: integer
+    min: 0 # Default: null
+    max: 100 # Default: null
+    step: 1 # Default: null
+    unitName: Percentage # Default: null
+
+  my_float:
+    type: floating_point
+    min: 0 # Default: null
+    max: 1 # Default: null
+    step: 0.01 # Default: null
+    unitName: Percentage # Default: null
+
+  my_text:
+    type: text
+    
+  my_file:
+    type: input_file
+
+  my_directory:
+    type: input_directory
+
+outputFileGlobs:
+- "*.txt" # Capture all txt files
+- "myfile.tar.gz" # Capture just a single file
+- "output/file.dat" # Capture a file in a sub-folder
+```

@@ -1,4 +1,4 @@
-# accounting/compute
+# accounting/storage
 
-Performs accounting for compute time. See
+Performs accounting for storage. See
 [accounting-service](../accounting-service/README.md) for more details.

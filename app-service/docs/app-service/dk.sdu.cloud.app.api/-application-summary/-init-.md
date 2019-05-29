@@ -1,5 +1,0 @@
-[app-service](../../index.md) / [dk.sdu.cloud.app.api](../index.md) / [ApplicationSummary](index.md) / [&lt;init&gt;](./-init-.md)
-
-# &lt;init&gt;
-
-`ApplicationSummary(tool: `[`NameAndVersion`](../-name-and-version/index.md)`, info: `[`NameAndVersion`](../-name-and-version/index.md)`, prettyName: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, authors: `[`List`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/index.html)`<`[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`>, createdAt: `[`Long`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/index.html)`, modifiedAt: `[`Long`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/index.html)`, description: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`)`

@@ -1,1 +1,1 @@
-# SDU Cloud
+# SDUCloud
