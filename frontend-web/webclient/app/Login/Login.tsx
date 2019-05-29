@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Button, Input, Card, Flex, Text, Image, Error as ErrorMessage } from "ui-components";
+import { Box, Button, Input, Card, Flex, Text, Image, Error as ErrorMessage, Icon, Divider } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import { useState, useEffect, useRef } from "react";
@@ -7,22 +7,8 @@ import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { errorMessageOrDefault } from "UtilityFunctions";
 import { History } from "history";
-const sduPlainBlack = require("Assets/Images/sdu_plain_black.png");
-const bg1 = require("Assets/LoginImages/cloud1.jpg");
-const bg2 = require("Assets/LoginImages/cloud2.jpg");
-const bg3 = require("Assets/LoginImages/cloud3.jpg");
-
-function randImage() {
-    switch ((Math.random() * 3) | 0) {
-        case 0:
-            return bg1;
-        case 1:
-            return bg2;
-        case 2:
-        default:
-            return bg3;
-    }
-}
+const sduPlainBlack = require("Assets/Images/SDU_WHITE_RGB-png.png");
+const bg = require("Assets/Images/trianglify.svg");
 
 const BackgroundImage = styled.div<{ image: string}>`
     background: url(${({ image }) => image}) no-repeat center center fixed;
@@ -38,8 +24,7 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
         props.history.push("/");
         return <div />;
     }
-
-    const [bg] = useState(randImage());
+    
     const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
@@ -119,8 +104,12 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
         <BackgroundImage image={bg}>
             <Flex alignItems={"center"} justifyContent={"center"} width={"100vw"} height={"100vh"}>
                 <Box>
-                    <Flex><Box mr="auto" /><Heading.h2>SDUCloud</Heading.h2><Box ml="auto" /></Flex>
-                    <Card minWidth="300px" bg="white" borderRadius="0.5em" p="1em 1em 1em 1em">
+                    <Flex alignItems="center" justifyContent="center">
+                        <Icon name="logoEsc" size="38px"/>
+                        <Box mr="8px" />
+                        <Heading.h2 color="white">SDUCloud</Heading.h2>
+                    </Flex>
+                    <Card minWidth="350px" mt="16px" bg="white" borderRadius="0" p="1em 1em 1em 1em">
                         <form onSubmit={e => e.preventDefault()}>
                             <Login enabled2fa={!!challengeId} usernameRef={usernameInput} passwordRef={passwordInput} />
                             <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
@@ -129,6 +118,7 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
                             </Button>
                         </form>
                         <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
+                        <Divider/>
                         {enabledWayf && !challengeId ? <a href={`/auth/saml/login?service=${wayfService}`}>
                             <Button disabled={loading} fullWidth color="wayfGreen">Login with WAYF</Button>
                         </a> : null}
@@ -138,7 +128,7 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
                             <Box><Text fontSize={1} color="textColor">Under development.</Text></Box>
                         </Flex>
                     </Card>
-                    <Flex mt="0.3em"><Box ml="auto" /><Box width="80px" height="21.3667px"><Image width="80px" src={sduPlainBlack} /></Box></Flex>
+                    <Flex mt="0.3em"><Box ml="auto" /><Box width="80px" mt="16px" height="16px"><Image height="8px" width="80px" src={sduPlainBlack} /></Box></Flex>
                 </Box>
             </Flex>
         </BackgroundImage>
