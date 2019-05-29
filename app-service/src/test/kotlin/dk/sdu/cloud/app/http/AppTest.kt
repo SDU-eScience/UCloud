@@ -9,11 +9,13 @@ import dk.sdu.cloud.app.services.normAppDesc
 import dk.sdu.cloud.app.services.normAppDesc2
 import dk.sdu.cloud.app.services.normToolDesc
 import dk.sdu.cloud.app.services.withNameAndVersion
+import dk.sdu.cloud.app.services.withNameAndVersionAndTitle
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
@@ -230,17 +232,18 @@ class AppTest {
     fun `Search test`() {
         val name = "application"
         val version = "1"
-        val app = normAppDesc.withNameAndVersion(name, version)
+        val title = "Application"
+        val app = normAppDesc.withNameAndVersionAndTitle(name, version, title)
 
         withKtorTest(
             setup = {
-                val user = "user"
                 val toolDao = ToolHibernateDAO()
                 val appDao = ApplicationHibernateDAO(toolDao)
                 micro.install(HibernateFeature)
                 micro.hibernateDatabase.withTransaction {
-                    toolDao.create(it, user, normToolDesc)
-                    appDao.create(it, user, app)
+                    toolDao.create(it, TestUsers.user.username, normToolDesc)
+                    appDao.create(it, TestUsers.user.username, app)
+
                 }
                 configureAppServer(appDao)
             },

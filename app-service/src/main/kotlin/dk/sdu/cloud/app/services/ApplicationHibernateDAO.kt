@@ -193,10 +193,11 @@ class ApplicationHibernateDAO(
         val trimmedNormalizedQuery = normalizeQuery(query).trim()
         val keywords = trimmedNormalizedQuery.split(" ")
         if (keywords.size == 1) {
+            println("Doing dosearch")
             return doSearch(session, user, trimmedNormalizedQuery, paging)
         }
         val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
-
+        println("Doing multisearch")
         return doMultiKeywordSearch(session, user, firstTenKeywords, paging)
     }
 
@@ -207,21 +208,57 @@ class ApplicationHibernateDAO(
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
 
-        val page = session.paginatedCriteria<ApplicationEntity>(paging) {
-            var query = (builder.lower(entity[ApplicationEntity::title]) like "%"+keywords[0]+"%")
-            for ((i, keyword) in keywords.withIndex()) {
-                if (i == 0) {
-                    continue
-                }
-                query = query or (builder.lower(entity[ApplicationEntity::title]) like "%$keyword%")
+        var keywordsQuery = ""
+        for (i in 0 until keywords.size) {
+            if (i == keywords.lastIndex) {
+                keywordsQuery += "lower(A.title) like '%' || :query${keywords.lastIndex} || '%'"
+                continue
             }
-            query
-        }.mapItems { it.toModelWithInvocation() }
+            keywordsQuery += "lower(A.title) like '%'|| :query${i} ||'%' or "
+        }
+        val count = session.typedQuery<Long>(
+            """
+            select count (A.title)
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.title = B.title
+                group by title
+            ) and $keywordsQuery
+            """.trimIndent()
+        ).also {
+            for ((i,item) in keywords.withIndex() ) {
+                it.setParameter("query$i", item)
+            }
+        }.uniqueResult().toInt()
+
+        val items = session.typedQuery<ApplicationEntity>(
+            """
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.title = B.title
+                group by title
+            ) and $keywordsQuery
+            order by A.title
+        """.trimIndent()
+        ).also {
+            for ((i,item) in keywords.withIndex() ){
+                it.setParameter("query$i", item)
+            }
+        }.paginatedList(paging)
+            .map { it.toModelWithInvocation() }
+
 
         return preparePageForUser(
             session,
             user,
-            page
+            Page(
+                count,
+                paging.itemsPerPage,
+                paging.page,
+                items
+            )
         ).mapItems { it.withoutInvocation() }
     }
 
@@ -231,12 +268,43 @@ class ApplicationHibernateDAO(
         normalizedQuery: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>{
+        val count = session.typedQuery<Long>(
+            """
+            select count (A.title)
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.title = B.title
+                group by title
+            ) and lower(A.title) like '%' || :query || '%'
+            """.trimIndent()
+        ).setParameter("query", normalizedQuery)
+            .uniqueResult()
+            .toInt()
+
+        val items = session.typedQuery<ApplicationEntity>(
+            """
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.title = B.title
+                group by title
+            ) and lower(A.title) like '%' || :query || '%'
+            order by A.title
+        """.trimIndent()
+        ).setParameter("query", normalizedQuery).paginatedList(paging)
+            .map { it.toModelWithInvocation() }
+
+
         return preparePageForUser(
             session,
             user,
-            session.paginatedCriteria<ApplicationEntity>(paging) {
-                builder.lower(entity[ApplicationEntity::title]) like "%"+normalizedQuery+"%"
-            }.mapItems { it.toModelWithInvocation() }
+            Page(
+                count,
+                paging.itemsPerPage,
+                paging.page,
+                items
+            )
         ).mapItems { it.withoutInvocation() }
     }
 

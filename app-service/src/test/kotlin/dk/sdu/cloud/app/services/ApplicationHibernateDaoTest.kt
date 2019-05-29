@@ -207,6 +207,28 @@ class ApplicationHibernateDaoTest {
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
+
+                //multiversion search
+                val applicationANewVersion = normAppDesc.withNameAndVersionAndTitle("name1", "2", "AAA")
+                appDAO.create(it, user, applicationANewVersion)
+
+                run {
+                    val searchResult = appDAO.search(it, user, "AA", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
+                    assertEquals(applicationANewVersion.metadata.version, searchResult.items.first().metadata.version)
+                }
+
+                run {
+                    val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(2, searchResult.itemsInTotal)
+                    assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
+                    assertEquals(applicationANewVersion.metadata.version, searchResult.items.first().metadata.version)
+                    assertEquals(applicationB.metadata.title, searchResult.items.last().metadata.title)
+                    assertEquals(applicationB.metadata.version, searchResult.items.last().metadata.version)
+                }
             }
         }
     }
