@@ -27,34 +27,36 @@ import { SidebarPages } from "ui-components/Sidebar";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { Spacer } from "ui-components/Spacer";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { prettierString, inDevEnvironment } from "UtilityFunctions";
+import { prettierString } from "UtilityFunctions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch";
 
-class Search extends React.Component<SearchProps> {
+function Search(props: SearchProps) {
 
-    componentDidMount() {
-        this.props.toggleAdvancedSearch();
-        this.props.setActivePage();
-        const query = this.query;
-        this.props.setSearch(query);
-        this.props.setPrioritizedSearch(this.props.match.params.priority as HeaderSearchType);
-        this.fetchAll(query);
-        this.props.setRefresh(() => this.fetchAll(query));
-    }
+    React.useEffect(() => {
+        props.toggleAdvancedSearch();
+        props.setActivePage();
+        const q = query();
+        props.setSearch(q);
+        props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
+        props.setRefresh(() => fetchAll(q));
+        return () => {
+            props.toggleAdvancedSearch();
+            props.clear();
+            props.setRefresh();
+        }
+    }, []);
 
-    queryFromProps = (props: SearchProps): string => {
+    const query = (): string => queryFromProps(props);
+
+    const queryFromProps = (props: SearchProps): string => {
         return getQueryParamOrElse(props, "query", "");
     }
 
-    get query(): string {
-        return this.queryFromProps(this.props);
-    }
-
-    get fileSearchBody(): AdvancedSearchRequest {
+    const fileSearchBody = (): AdvancedSearchRequest => {
         // FIXME Duplicate code
-        const { ...fileSearch } = this.props.fileSearch;
+        const { ...fileSearch } = props.fileSearch;
         let fileTypes: [FileType?, FileType?] = [];
         if (fileSearch.allowFiles) fileTypes.push("FILE");
         if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
@@ -68,168 +70,142 @@ class Search extends React.Component<SearchProps> {
         };
 
         return {
-            fileName: !!fileSearch.fileName ? fileSearch.fileName : this.query,
+            fileName: !!fileSearch.fileName ? fileSearch.fileName : query(),
             extensions: [...fileSearch.extensions],
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
             modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
-            itemsPerPage: this.props.files.itemsPerPage || 25,
+            itemsPerPage: props.files.itemsPerPage || 25,
             page: 0
         }
     }
 
-    componentWillUnmount() {
-        this.props.toggleAdvancedSearch();
-        this.props.clear();
-        this.props.setRefresh();
+    React.useEffect(() => {
+        props.setSearch(query());
+        props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
+        fetchAll(query());
+    }, [query(), props.match.params.priority]);
+
+    const setPath = (text: string) => {
+        props.setPrioritizedSearch(text as HeaderSearchType);
+        props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
     }
 
-    shouldComponentUpdate(nextProps: SearchProps): boolean {
-        // TODO It seems like a bad idea to perform side-effects in this method!
-
-        const currentQuery = this.query;
-        const nextQuery = this.queryFromProps(nextProps);
-        if (nextQuery !== currentQuery) {
-            this.props.setSearch(nextQuery);
-            this.fetchAll(nextQuery);
-            return false;
-        }
-        if (nextProps.match.params.priority !== this.props.match.params.priority) {
-            this.props.setPrioritizedSearch(nextProps.match.params.priority as HeaderSearchType);
-            this.fetchAll(nextQuery);
-            return false;
-        }
-        return true;
-    }
-
-    setPath = (text: string) => {
-        this.props.setPrioritizedSearch(text as HeaderSearchType);
-        this.props.history.push(searchPage(text.toLocaleLowerCase(), this.props.search));
-    }
-
-    fetchAll(search: string, itemsPerPage?: number) {
-        const { props } = this;
+    function fetchAll(search: string, itemsPerPage?: number) {
         props.setError();
-        props.searchFiles({ ...this.fileSearchBody, fileName: search, itemsPerPage: itemsPerPage || this.props.files.itemsPerPage });
-        props.searchApplications(search, 0, itemsPerPage || this.props.applications.itemsPerPage);
+        props.searchFiles({ ...fileSearchBody(), fileName: search, itemsPerPage: itemsPerPage || props.files.itemsPerPage });
+        props.searchApplications(search, 0, itemsPerPage || props.applications.itemsPerPage);
     }
 
-    search() {
-        if (!this.props.search) return;
-        this.props.history.push(searchPage(this.props.match.params.priority, this.props.search));
-    }
+    const refreshFiles = () => props.searchFiles({ ...fileSearchBody() })
+    const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = props;
+    const fileOperations = allFileOperations({
+        stateless: true,
+        history: props.history,
+        onDeleted: () => refreshFiles(),
+        onExtracted: () => refreshFiles(),
+        onSensitivityChange: () => refreshFiles(),
+        setLoading: () => props.setFilesLoading(true),
+    });
 
-    render() {
-        const refreshFiles = () => this.props.searchFiles({ ...this.fileSearchBody })
-        const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
-        const fileOperations = allFileOperations({
-            stateless: true,
-            history: this.props.history,
-            onDeleted: () => refreshFiles(),
-            onExtracted: () => refreshFiles(),
-            onSensitivityChange: () => refreshFiles(),
-            setLoading: () => this.props.setFilesLoading(true),
-        });
+    const Tab = ({ searchType }: { searchType: HeaderSearchType }): JSX.Element => (
+        <SelectableText
+            cursor="pointer"
+            fontSize={2}
+            onClick={() => setPath(searchType)}
+            selected={priority === searchType}
+            mr="1em"
+        >
+            {prettierString(searchType)}
+        </SelectableText>
+    );
 
-        const Tab = ({ searchType }: { searchType: HeaderSearchType }): JSX.Element => (
-            <SelectableText
-                cursor="pointer"
-                fontSize={2}
-                onClick={() => this.setPath(searchType)}
-                selected={priority === searchType}
-                mr="1em"
-            >
-                {prettierString(searchType)}
-            </SelectableText>
-        );
+    const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
 
-        const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
-
-        let main;
-        const { priority } = this.props.match.params;
-        if (priority === "files") {
-            main = <>
-                <Hide xxl xl lg>
-                    <DetailedFileSearch cantHide  />
-                </Hide>
-                <Pagination.List
-                    loading={filesLoading}
-                    pageRenderer={page => (
-                        <FilesTable
-                            files={page.items}
-                            sortOrder={SortOrder.ASCENDING}
-                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY_LEVEL]}
-                            sortFiles={() => undefined}
-                            onCheckFile={() => undefined}
-                            refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
-                            sortBy={SortBy.PATH}
-                            onFavoriteFile={files => this.props.setFilesPage(favoriteFileFromPage(this.props.files, files, Cloud))}
-                            fileOperations={fileOperations}
-                        />
-                    )}
-                    page={files}
-                    onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
-                />
-            </>
-        } else if (priority === "applications") {
-            main = <>
-                <Hide xxl xl lg>
-                    <DetailedApplicationSearch />
-                </Hide>
-                <Pagination.List
-                    loading={applicationsLoading}
-                    pageRenderer={({ items }) =>
-                        <GridCardGroup>
-                            {items.map(app =>
-                                <ApplicationCard
-                                    key={`${app.metadata.name}${app.metadata.version}`}
-                                    app={app}
-                                    isFavorite={app.favorite}
-                                />)}
-                        </GridCardGroup>
-                    }
-                    page={applications}
-                    onPageChanged={pageNumber => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
-                />
-            </>
-        } else if (priority === "projects" && allowedSearchTypes.includes("projects")) {
-            main = <>
-                <Hide xxl xl lg>
-                    <DetailedProjectSearch />
-                </Hide>
-                <Pagination.List
-                    loading={projectsLoading}
-                    pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
-                    page={projects}
-                    onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
-                />
-            </>
-        }
-
-        return (
-            <MainContainer
-                header={
-                    <React.Fragment>
-                        <Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />
-                        <SearchOptions>
-                            {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
-                        </SearchOptions>
-                        <Spacer left={null} right={<Pagination.EntriesPerPageSelector
-                            onChange={itemsPerPage => this.fetchAll(this.props.search, itemsPerPage)}
-                            content={`${prettierString(priority)} per page`}
-                            entriesPerPage={
-                                priority === "files" ? this.props.files.itemsPerPage : (
-                                    priority === "applications" ? this.props.projects.itemsPerPage :
-                                        this.props.applications.itemsPerPage)
-                            }
-                        />} />
-                    </React.Fragment>
-                }
-                main={main}
+    let main;
+    const { priority } = props.match.params;
+    if (priority === "files") {
+        main = <>
+            <Hide xxl xl lg>
+                <DetailedFileSearch cantHide />
+            </Hide>
+            <Pagination.List
+                loading={filesLoading}
+                pageRenderer={page => (
+                    <FilesTable
+                        files={page.items}
+                        sortOrder={SortOrder.ASCENDING}
+                        sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY_LEVEL]}
+                        sortFiles={() => undefined}
+                        onCheckFile={() => undefined}
+                        refetchFiles={() => props.searchFiles(fileSearchBody())}
+                        sortBy={SortBy.PATH}
+                        onFavoriteFile={files => props.setFilesPage(favoriteFileFromPage(props.files, files, Cloud))}
+                        fileOperations={fileOperations}
+                    />
+                )}
+                page={files}
+                onPageChanged={pageNumber => props.searchFiles({ ...fileSearchBody(), page: pageNumber })}
             />
-        );
+        </>
+    } else if (priority === "applications") {
+        main = <>
+            <Hide xxl xl lg>
+                <DetailedApplicationSearch />
+            </Hide>
+            <Pagination.List
+                loading={applicationsLoading}
+                pageRenderer={({ items }) =>
+                    <GridCardGroup>
+                        {items.map(app =>
+                            <ApplicationCard
+                                key={`${app.metadata.name}${app.metadata.version}`}
+                                app={app}
+                                isFavorite={app.favorite}
+                            />)}
+                    </GridCardGroup>
+                }
+                page={applications}
+                onPageChanged={pageNumber => props.searchApplications(search, pageNumber, applications.itemsPerPage)}
+            />
+        </>
+    } else if (priority === "projects" && allowedSearchTypes.includes("projects")) {
+        main = <>
+            <Hide xxl xl lg>
+                <DetailedProjectSearch />
+            </Hide>
+            <Pagination.List
+                loading={projectsLoading}
+                pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
+                page={projects}
+                onPageChanged={pageNumber => props.searchProjects(search, pageNumber, projects.itemsPerPage)}
+            />
+        </>
     }
-};
+
+    return (
+        <MainContainer
+            header={
+                <React.Fragment>
+                    <Error error={errors.join("\n")} clearError={() => props.setError(undefined)} />
+                    <SearchOptions>
+                        {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
+                    </SearchOptions>
+                    <Spacer left={null} right={<Pagination.EntriesPerPageSelector
+                        onChange={itemsPerPage => fetchAll(props.search, itemsPerPage)}
+                        content={`${prettierString(priority)} per page`}
+                        entriesPerPage={
+                            priority === "files" ? props.files.itemsPerPage : (
+                                priority === "applications" ? props.projects.itemsPerPage :
+                                    props.applications.itemsPerPage)
+                        }
+                    />} />
+                </React.Fragment>
+            }
+            main={main}
+        />
+    )
+}
 
 // FIXME: Move to own file.
 export const SearchOptions = styled(Flex)`
