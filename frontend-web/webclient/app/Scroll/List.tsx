@@ -92,7 +92,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         }
     }
 
-    public UNSAFE_componentWillMount() {
+    public componentDidMount() {
         this.eventListener = e => {
             if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 200) {
                 this.requestMore(false);
