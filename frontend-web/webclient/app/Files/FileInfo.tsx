@@ -45,7 +45,6 @@ function FileInfo(props: Readonly<FileInfo>) {
         const { file } = props;
         const filePath = path();
         if (!file || getParentPath(filePath) !== file.path) {
-            console.log("inside");
             props.setLoading(true);
             props.fetchFileStat(filePath);
             props.fetchFileActivity(filePath);
