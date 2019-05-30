@@ -11,7 +11,7 @@ import { setActivePage, SetStatusLoading, setLoading } from "Navigation/Redux/St
 import { SidebarPages } from "ui-components/Sidebar";
 import { MainContainer } from "MainContainer/MainContainer";
 import { SnackType } from "Snackbar/Snackbars";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import { snackbarStore } from "Snackbar/SnackbarStore";
 
 const initialState: UserCreationState = {
     submitted: false,
@@ -22,7 +22,7 @@ const initialState: UserCreationState = {
     passwordError: false
 };
 
-function UserCreation (props: UserCreationOperations) {
+function UserCreation(props: UserCreationOperations) {
     // Use reducer instead, or break into smaller ones.
     const [state, setState] = React.useState(initialState);
     const [promiseKeeper] = React.useState(new PromiseKeeper());
@@ -30,12 +30,12 @@ function UserCreation (props: UserCreationOperations) {
     React.useEffect(() => {
         props.setActivePage();
         return () => promiseKeeper.cancelPromises();
-    },[])
+    }, []);
 
     function updateFields(field: UserCreationField, value: string) {
         if (field === "username") state.usernameError = false;
         else if (field === "password" || field === "repeatedPassword") state.passwordError = false;
-        setState({...state, [field]: value });
+        setState({ ...state, [field]: value });
     }
 
     async function submit(e: React.SyntheticEvent) {
@@ -55,15 +55,20 @@ function UserCreation (props: UserCreationOperations) {
                 setState(() => initialState);
             } catch (e) {
                 const status = defaultErrorHandler(e);
-                // Add snack
-                if (status == 400)  setState({ ...state, usernameError: true });
+                if (status == 400) {
+                    snackbarStore.addSnack({ 
+                        message: "User already exists",
+                        type: SnackType.Information
+                    });
+                    setState({ ...state, usernameError: true });
+                }
             } finally {
                 props.setLoading(false);
             }
         }
     }
 
-    
+
     if (!Cloud.userIsAdmin) return null;
 
     const {
