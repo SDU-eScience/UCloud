@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.1.0'
+version '1.1.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.accounting.MainKt"
@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.4.0-REDIS.2"
+    ext.serviceCommonVersion = "1.4.10"
 }
 
 dependencies {
