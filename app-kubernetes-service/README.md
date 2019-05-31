@@ -19,7 +19,7 @@ permissions.
 
 In this section we will briefly describe the overall mapping between the two.
 For all the details we refer directly to the source code available
-[here](./src/main/kotlin/dk/sdu/cloud/app/kubernetes/service/PodService.kt).
+[here](./src/main/kotlin/dk/sdu/cloud/app/kubernetes/services/PodService.kt).
 
 The microservice is configured to place all jobs in a specific namespace.
 This makes it easier to control the [security model](#security-model). The

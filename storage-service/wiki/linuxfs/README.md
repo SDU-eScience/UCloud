@@ -29,7 +29,7 @@ thread. To ensure that we do not have a mismatch we create native OS threads
 via JNI. This ensures that the threads used for file system operations have
 the correct UID and GID.
 
-The [JWT](../../auth-service) contains a `uid` field. These `uid`s are used for
+The [JWT](../../../auth-service) contains a `uid` field. These `uid`s are used for
 the file system (offset by +1000). The `uid` from the JWT is used both as UID
 and GID. There are no `passwd` entries associated with any user. There is
 also no lookup mechanism for this, we use raw UIDs and GID.
@@ -39,7 +39,7 @@ also no lookup mechanism for this, we use raw UIDs and GID.
 We delegate all file sharing and permissions to the operating system + file
 system. External services are allowed to change the raw file permissions
 (`chmod`) and manage the ACLs. You can read more about how sharing is
-implemented [here](../../share-service).
+implemented [here](../../../share-service).
 
 The default file permissions are `rwxrwx--x`. The execute permission bit for
 others is set to simplify ACLs when sharing files.
