@@ -29,6 +29,7 @@ class ActivityController<DBSession>(
                     request.normalize(),
                     request.path,
                     call.request.bearer!!,
+                    ctx.securityPrincipal.username,
                     ctx.jobId
                 )
 

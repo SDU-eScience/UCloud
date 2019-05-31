@@ -5,7 +5,13 @@ import dk.sdu.cloud.activity.api.ActivityEventGroup
 import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.activity.api.type
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.NormalizedScrollRequest
@@ -29,9 +35,10 @@ class ActivityService<DBSession>(
         pagination: NormalizedPaginationRequest,
         path: String,
         userAccessToken: String,
+        user: String,
         causedBy: String? = null
     ): Page<ActivityEvent> {
-        val fileStat = fileLookupService.lookupFile(path, userAccessToken, causedBy)
+        val fileStat = fileLookupService.lookupFile(path, userAccessToken, user, causedBy)
         return db.withTransaction { session ->
             activityDao.findByFileId(session, pagination, fileStat.fileId)
         }
