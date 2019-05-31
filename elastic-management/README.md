@@ -18,7 +18,9 @@ Elastic-management uses different arguments to handle different jobs:
    Meant to run as a daily cron job. Goes through all indices to find expired [auditing](../service-common/wiki/auditing.md) 
    information given by the `expiry` field in the entries. Also takes all audit entries from the day before and 
    [shrinks](https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-shrink-index.html)
-   the indices to only contain 1 shard and 1 replica. 
+   the indices to only contain 1 shard. We are lowering the number of shards to 1
+   since we will no longer write to this index and only rarely read from it. By doing this we reduce 
+   overhead and also the storage used by the index.
 - *"--reindex"*  
    Meant to run as a weekly cron job. Takes the audit entries from the week before and 
    [reindexed](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-reindex.html)
