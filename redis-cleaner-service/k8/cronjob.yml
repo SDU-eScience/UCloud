@@ -2,7 +2,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: weekly-reindex
+  name: redis-cleaner
 spec:
   schedule: "0 3 * * 0"
   jobTemplate:
@@ -12,7 +12,7 @@ spec:
           restartPolicy: Never
 
           containers:
-          - name: elastic-management
+          - name: redis-cleaner
             image: registry.cloud.sdu.dk/sdu-cloud/redis-cleaner-service:0.1.0
             command:
             - /opt/service/bin/service
@@ -29,7 +29,7 @@ spec:
               name: token-validation
             - mountPath: /etc/psql
               name: redis-cleaner-psql
-           env:
+            env:
             - name: POD_IP
               valueFrom:
                 fieldRef:
