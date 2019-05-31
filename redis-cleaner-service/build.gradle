@@ -1,8 +1,8 @@
 group 'dk.sdu.cloud'
-version '0.1.4'
+version '0.1.1'
 
 apply plugin: 'application'
-mainClassName = "dk.sdu.cloud.audit.ingestion.MainKt"
+mainClassName = "dk.sdu.cloud.redis.cleaner.MainKt"
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
 
@@ -18,8 +18,7 @@ repositories {
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
-    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
     compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
-sduCloud.createTasksForApiJar("audit.ingestion", [])
+sduCloud.createTasksForApiJar("redis.cleaner", [])
