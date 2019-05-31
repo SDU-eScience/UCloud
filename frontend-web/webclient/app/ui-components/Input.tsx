@@ -30,6 +30,7 @@ export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, 
   noBorder?: boolean
   error?: boolean
   showError?: boolean
+  autocomplete?: "on" | "off"
 }
 
 const left = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";

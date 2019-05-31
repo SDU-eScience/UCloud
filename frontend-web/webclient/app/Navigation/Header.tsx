@@ -27,7 +27,6 @@ import {AvatarType} from "UserSettings/Avataaar";
 import {SnackType} from "Snackbar/Snackbars";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
-import {AppLogoRaw} from "Applications/Card";
 import {SpaceProps} from "styled-system";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
