@@ -5,20 +5,38 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { errorMessageOrDefault, removeTrailingSlash } from "UtilityFunctions";
 import { updatePageTitle, setLoading } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, WithAppInvocation, WithAppMetadata, WithAppFavorite, RunOperations, RefReadPair } from ".";
+import {
+    RunAppProps,
+    RunAppState,
+    ApplicationParameter,
+    ParameterTypes,
+    JobSchedulingOptionsForInput,
+    WithAppInvocation,
+    WithAppMetadata,
+    RunOperations,
+    RefReadPair,
+    FullAppInfo
+} from ".";
 import { Dispatch } from "redux";
-import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button, Icon } from "ui-components";
+import { Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter, OptionalParameters, InputDirectoryParameter } from "./ParameterWidgets";
-import { extractParameters, hpcFavoriteApp, hpcJobQueryPost, extractParametersFromMap, ParameterValues, isFileOrDirectoryParam } from "Utilities/ApplicationUtilities";
+import {
+    extractParameters,
+    hpcFavoriteApp,
+    hpcJobQueryPost,
+    extractParametersFromMap,
+    ParameterValues,
+    isFileOrDirectoryParam
+} from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import * as Heading from "ui-components/Heading";
 import { checkIfFileExists, expandHomeFolder } from "Utilities/FileUtilities";
 import { SnackType } from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { removeEntry } from "Utilities/CollectionUtilities";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import { snackbarStore } from "Snackbar/SnackbarStore";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -146,12 +164,15 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!,
                 readOnly: it.readOnly
-            };    
+            };
         });
         // FIXME end
 
         const job = {
-            application: { name: this.state.application!.metadata.name, version: this.state.application!.metadata.version },
+            application: {
+                name: this.state.application!.metadata.name,
+                version: this.state.application!.metadata.version
+            },
             parameters,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
@@ -166,7 +187,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Cloud.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            this.setState(() => ({ error: errorMessageOrDefault(err, "An error ocurred submitting the job."), jobSubmitted: false }))
+            this.setState(() => ({
+                error: errorMessageOrDefault(err, "An error ocurred submitting the job."),
+                jobSubmitted: false
+            }));
         } finally {
             this.props.setLoading(false);
         }
@@ -190,7 +214,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         try {
             this.props.setLoading(true);
             const { response } = await this.state.promises.makeCancelable(
-                Cloud.get<WithAppMetadata & WithAppInvocation & WithAppFavorite>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
+                Cloud.get<FullAppInfo>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
             ).promise;
             const app = response;
             const toolDescription = app.invocation.tool.tool.description;
@@ -228,7 +252,15 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.onload = async () => {
             const result = fileReader.result as string;
             try {
-                const { application, parameters, numberOfNodes, mountedFolders, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
+                const {
+                    application,
+                    parameters,
+                    numberOfNodes,
+                    mountedFolders,
+                    tasksPerNode,
+                    maxTime,
+                    siteVersion
+                } = JSON.parse(result);
                 if (application.name !== thisApp.metadata.name) {
                     snackbarStore.addSnack({
                         message: "Application name does not match",
@@ -274,10 +306,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         validMountFolders.push({ ref, readOnly: mountedFolders[i].readOnly });
                     }
                 }
-                
+
                 // FIXME: Could be done using defaultValue
                 // Add mountedFolders and fill out ref values
-                this.setState(() => ({ mountedFolders: this.state.mountedFolders.concat(validMountFolders)}));
+                this.setState(() => ({ mountedFolders: this.state.mountedFolders.concat(validMountFolders) }));
                 const emptyMountedFolders = this.state.mountedFolders.slice(this.state.mountedFolders.length - mountedFolders.length);
                 emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
 
@@ -582,7 +614,7 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
 }
 
 function exportParameters({ application, schedulingOptions, parameterValues, mountedFolders, siteVersion }: {
-    application?: WithAppFavorite & WithAppInvocation & WithAppMetadata, // FIXME Should be something like FullApp
+    application?: FullAppInfo
     schedulingOptions: JobSchedulingOptionsForInput,
     parameterValues: ParameterValues,
     mountedFolders: RefReadPair[]
@@ -609,7 +641,7 @@ function exportParameters({ application, schedulingOptions, parameterValues, mou
             version: appInfo.version
         },
         parameters: values,
-        mountedFolders: mountedFolders.map(it => ({ ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
+        mountedFolders: mountedFolders.map(it => ({ ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly })).filter(it => it.ref),
         numberOfNodes: jobInfo.numberOfNodes,
         tasksPerNode: jobInfo.tasksPerNode,
         maxTime: jobInfo.maxTime,
