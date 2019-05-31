@@ -1,0 +1,26 @@
+def initialize() {
+  try {
+    stage('build redis-cleaner-service') {
+      sh '''cd redis-cleaner-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: '{{ serviceName }}-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: '{{ serviceName }}-service-detekt-Report', reportTitles: ''])
+  }
+  try {
+    stage('test redis-cleaner-service') {
+      sh '''cd redis-cleaner-service
+      ./gradlew test'''
+    }
+  } catch (e) {
+    echo "Test FAILED"
+    return currentBuild.result ?: 'UNSTABLE'
+  }
+  return currentBuild.result ?: 'SUCCESS'
+}
+
+return this
