@@ -124,8 +124,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
             extensions: [...this.props.extensions],
             sensitivity: [...this.props.sensitivities],
             fileTypes,
-            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
-            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ?
+                createdAt : undefined,
+            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? 
+                modifiedAt : undefined,
             itemsPerPage: 25,
             page: 0
         };

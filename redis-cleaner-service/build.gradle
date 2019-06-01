@@ -1,0 +1,24 @@
+group 'dk.sdu.cloud'
+version '0.1.1'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.redis.cleaner.MainKt"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
+
+buildscript {
+    ext.serviceCommonVersion = "1.4.10"
+    ext.authApiVersion = "1.21.0"
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:auth-api:$authApiVersion"
+    compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
+}
+
+sduCloud.createTasksForApiJar("redis.cleaner", [])

@@ -368,3 +368,5 @@ export interface WithAppInvocation {
 export interface WithAppFavorite {
     favorite: boolean
 }
+
+export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata

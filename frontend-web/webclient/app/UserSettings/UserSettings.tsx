@@ -31,10 +31,9 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
 
     private updateField(field: UserSettingsFields, value: string | boolean): void {
         const state = {...this.state}
-        state[field] = value;
         state.error = false;
         state.repeatPasswordError = false;
-        this.setState(() => state);
+        this.setState({...state, [field]: value});
     }
 
     private async validateAndSubmit(e: React.SyntheticEvent): Promise<void> {

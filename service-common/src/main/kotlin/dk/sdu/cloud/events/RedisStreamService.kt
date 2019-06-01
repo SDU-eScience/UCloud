@@ -7,6 +7,7 @@ import io.lettuce.core.Limit
 import io.lettuce.core.Range
 import io.lettuce.core.RedisClient
 import io.lettuce.core.StreamMessage
+import io.lettuce.core.XAddArgs
 import io.lettuce.core.XReadArgs
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
@@ -54,7 +55,7 @@ private object RedisScope : CoroutineScope {
 }
 
 class RedisStreamService(
-    private val connManager: RedisConnectionManager,
+    public val connManager: RedisConnectionManager,
     private val group: String,
     private val consumerId: String,
     private val parallelism: Int
@@ -246,7 +247,13 @@ class RedisEventProducer<V : Any>(
         // thread pool (suitable for blocking tasks).
         RedisScope.launch {
             val conn = connManager.getSync()
-            events.forEach { event -> conn.xadd(stream.name, mapOf("msg" to stream.serialize(event))) }
+            events.forEach { event ->
+                conn.xadd(
+                    stream.name,
+                    XAddArgs.Builder.maxlen(1_000_000L).approximateTrimming(true),
+                    mapOf("msg" to stream.serialize(event))
+                )
+            }
         }.join()
     }
 }

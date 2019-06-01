@@ -45,13 +45,13 @@ interface OwnProps {
 type ViewProps = OperationProps & StateProps & OwnProps;
 
 function View(props: ViewProps) {
-    
+
     React.useEffect(() => {
         fetchApp();
     }, []);
-    
+
     const { appName, appVersion } = props.match.params;
-    
+
     React.useEffect(() => {
         if (!props.application.loading && props.application.content) {
             const { name, version } = props.application.content.metadata;
@@ -259,7 +259,7 @@ const InfoAttributes = styled.div`
 function Information({ application }: { application: WithAppMetadata & WithAppInvocation }) {
     const time = application.invocation.tool.tool.description.defaultMaxTime;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
-
+    const backend = application.invocation.tool.tool.description.backend;
     return <>
         <Heading.h4>Information</Heading.h4>
 
@@ -278,7 +278,7 @@ function Information({ application }: { application: WithAppMetadata & WithAppIn
 
             <InfoAttribute
                 name="Container Type"
-                value={capitalized(application.invocation.tool.tool.description.backend)} />
+                value={backend === "UDOCKER" ? "Docker" : capitalized(backend)} />
         </InfoAttributes>
     </>;
 }

@@ -18,48 +18,47 @@ function getOrElse<T>(idx: number, otherwise: T, array?: (T | null)[]): T {
     return element;
 }
 
-class Chart extends React.Component<ChartProps> {
-    render() {
-        const chart: API.Chart<API.DataPoint2D> = this.props.chart || MockedChart.chart;
+function Chart (props: ChartProps) {
+    
+    const chart: API.Chart<API.DataPoint2D> = props.chart || MockedChart.chart;
 
-        const normalizedData = chart.data.map(d => {
-            const xType = getOrElse(0, DataTypes.NUMBER, chart.dataTypes)
-            let result: { name: string, value: any } = {
-                name: API.formatDataType(xType, d.x),
-                value: d.y
-            };
+    const normalizedData = chart.data.map(d => {
+        const xType = getOrElse(0, DataTypes.NUMBER, chart.dataTypes)
+        let result: { name: string, value: any } = {
+            name: API.formatDataType(xType, d.x),
+            value: d.y
+        };
 
-            return result;
-        });
+        return result;
+    });
 
-        return <Container aspect={16 / 9} maxHeight={576}>
-            <LineChart data={normalizedData}>
-                <XAxis
-                    dataKey="name"
-                    tickCount={12}
-                />
+    return <Container aspect={16 / 9} maxHeight={576}>
+        <LineChart data={normalizedData}>
+            <XAxis
+                dataKey="name"
+                tickCount={12}
+            />
 
-                <YAxis
-                    dataKey="value"
-                    tickFormatter={(d: number) =>
-                        API.formatDataType(getOrElse(1, DataTypes.NUMBER, chart.dataTypes), d)}
-                />
+            <YAxis
+                dataKey="value"
+                tickFormatter={(d: number) =>
+                    API.formatDataType(getOrElse(1, DataTypes.NUMBER, chart.dataTypes), d)}
+            />
 
-                <CartesianGrid strokeDasharray="3 3" />
-                <Tooltip
-                    formatter={(d: number) =>
-                        API.formatDataType(getOrElse(1, DataTypes.NUMBER, chart.dataTypes), d)}
-                />
-                <Legend />
-                <Line
-                    type="monotone"
-                    stroke="#8884d8"
-                    dataKey="value"
-                    name={chart.dataTitle || "Value"}
-                />
-            </LineChart>
-        </Container>;
-    }
+            <CartesianGrid strokeDasharray="3 3" />
+            <Tooltip
+                formatter={(d: number) =>
+                    API.formatDataType(getOrElse(1, DataTypes.NUMBER, chart.dataTypes), d)}
+            />
+            <Legend />
+            <Line
+                type="monotone"
+                stroke="#8884d8"
+                dataKey="value"
+                name={chart.dataTitle || "Value"}
+            />
+        </LineChart>
+    </Container>;
 }
 
 

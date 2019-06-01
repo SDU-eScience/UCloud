@@ -5,7 +5,7 @@ file system as SDUCloud. Workspaces are allowed to import and export data
 efficiently to the managed portion of SDUCloud.
 
 This feature is in particular useful for implementing
-[applications](../app-service) which need to efficiently transfer data back
+[applications](../../app-service) which need to efficiently transfer data back
 and forth to perform computations.
 
 A workspace is a simple directory created in the same file system. No
