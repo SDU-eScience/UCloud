@@ -195,7 +195,7 @@ const SidebarContent = styled.div`
     grid: auto-flow;
     & > * {
         min-width: 75px;
-        max-width: 175px;
+        max-width: 225px;
         margin-left: 5px;
         margin-right: 5px;
     }
@@ -246,10 +246,10 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => 
             def = { color: "#ff0004", text: "Sensitive", shortText: "S" };
             break;
         case SensitivityLevelMap.PRIVATE:
-            def = { color: Theme.colors.lightGray, text: "Private", shortText: "P" }
+            def = { color: Theme.colors.midGray, text: "Private", shortText: "P" }
             break;
         default:
-            def = { color: Theme.colors.lightGray, text: "", shortText: "" }
+            def = { color: Theme.colors.midGray, text: "", shortText: "" }
             break;
     }
 
@@ -344,9 +344,9 @@ function FilenameAndIcons({ file, size = 38, onRenameFile = () => null, onCheckF
 };
 
 export const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
-    <Box mb="13px">
+    <Box mb="13px" color="textBlack">
         <Heading.h5 pl="20px" pt="5px" pb="8px">{toFileText(files)}</Heading.h5>
-        <FileOperations files={files} fileOperations={fileOperations} As={Box} pl="20px" />
+        <FileOperations files={files} fileOperations={fileOperations} As={Flex} pl="20px" />
     </Box>
 ) : null;
 
@@ -358,8 +358,8 @@ export const FileOperations = ({ files, fileOperations, As, ...props }: FileOper
             if ("predicate" in operation)
                 operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
             return !operation.disabled(files, Cloud) ? (
-                <As cursor="pointer" key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
-                    {operation.icon ? <Icon size={16} mr="1em" color={operation.color} name={operation.icon} /> : null}
+                <As cursor="pointer" key={i} color={operation.color} alignItems="center" onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
+                    {operation.icon ? <Icon size={16} mr="1em"  name={operation.icon} /> : null}
                     <span>{operation.text}</span>
                 </As>
             ) : null;

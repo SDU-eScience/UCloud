@@ -133,7 +133,8 @@ const darkGray = "#53657d";
 //// Blue
 const lightBlue = "#f0f6ff";
 const lightBlue2 = "#cdf";
-const blue = "#0055d5"; 
+// const blue = "#0055d5";
+const blue = "#006aff";
 // const blue = "#007bff"; 
 const darkBlue = "#049";
 //// Green
