@@ -32,7 +32,7 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+        <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
         <Box px={3} py={1}>
@@ -192,7 +192,7 @@ interface DashboardNotificationProps {
 
 const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3}>
+        <Flex bg="lightGray" color="darkGray" px={3} py={2}>
             <Heading.h4>Recent Notifications</Heading.h4>
             <Box ml="auto" />
             <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />

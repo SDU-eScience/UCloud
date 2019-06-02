@@ -1,3 +1,6 @@
+import RatingBadge from "./RatingBadge";
+import { SSL_OP_SSLEAY_080_CLIENT_DH_BUG } from "constants";
+
 const createMinMediaQuery = (n: number) => `@media screen and (min-width:${n}px)`
 const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n-1}px)`
 
@@ -174,7 +177,7 @@ const text = textBlack;
 const textHighlight = blue;
 //const headerText = lightGray;
 const headerText = white;
-const headerBg = blue;
+const headerBg = '#006aff';
 const headerIconColor = headerText;
 const headerIconColor2 = midGray;
 // const borderGray = "#d1d6db";
@@ -342,13 +345,55 @@ export const radius = '5px'
 export const maxContainerWidth = '1280px'
 
 // boxShadows: styled-systems hooks into shadows
-export const shadows = [
-  `0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)`,
-  `0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)`,
-  `0 0 2px 0 rgba(0,0,0,.08),0 4px 16px 0 rgba(0,0,0,.16)`,
-  `0 0 2px 0 rgba(0,0,0,.08),0 8px 32px 0 rgba(0,0,0,.16)`
+// export const shadows = [
+//   `0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)`,
+//   `0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)`,
+//   `0 0 2px 0 rgba(0,0,0,.08),0 4px 16px 0 rgba(0,0,0,.16)`,
+//   `0 0 2px 0 rgba(0,0,0,.08),0 8px 32px 0 rgba(0,0,0,.16)`
+// ]
+// export const shadows = [
+//   `0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)`,
+//   `0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)`,
+//   `0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23)`,
+//   `0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22)`,
+//   `0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22)`
+// ]
+// from Material design: 1dp to 24dp elevations
+const MDshadows = [
+  `noshadow`,
+  `0px  2px  1px -1px rgba(0,0,0,0.2), 0px  1px  1px 0px rgba(0,0,0,.14),0px 1px  3px 0px rgba(0,0,0,.12)`,
+  `0px  3px  1px -2px rgba(0,0,0,0.2), 0px  2px  2px 0px rgba(0,0,0,.14),0px 1px  5px 0px rgba(0,0,0,.12)`,
+  `0px  3px  3px -2px rgba(0,0,0,0.2), 0px  3px  4px 0px rgba(0,0,0,.14),0px 1px  8px 0px rgba(0,0,0,.12)`,
+  `0px  2px  4px -1px rgba(0,0,0,0.2), 0px  4px  5px 0px rgba(0,0,0,.14),0px 1px 10px 0px rgba(0,0,0,.12)`,
+  `0px  3px  5px -1px rgba(0,0,0,0.2), 0px  5px  8px 0px rgba(0,0,0,.14),0px 1px 14px 0px rgba(0,0,0,.12)`,
+  `0px  3px  5px -1px rgba(0,0,0,0.2), 0px  6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12)`,
+  `0px  4px  5px -2px rgba(0,0,0,0.2), 0px  7px 10px 1px rgba(0,0,0,.14),0px 2px 16px 1px rgba(0,0,0,.12)`,
+  `0px  5px  5px -3px rgba(0,0,0,0.2), 0px  8px 10px 1px rgba(0,0,0,.14),0px 3px 14px 2px rgba(0,0,0,.12)`,
+  `0px  5px  6px -3px rgba(0,0,0,0.2), 0px  9px 12px 1px rgba(0,0,0,.14),0px 3px 16px 2px rgba(0,0,0,.12)`,
+  `0px  6px  6px -3px rgba(0,0,0,0.2), 0px 10px 14px 1px rgba(0,0,0,.14),0px 4px 18px 3px rgba(0,0,0,.12)`,
+  `0px  6px  7px -4px rgba(0,0,0,0.2), 0px 11px 15px 1px rgba(0,0,0,.14),0px 4px 20px 3px rgba(0,0,0,.12)`,
+  `0px  7px  8px -4px rgba(0,0,0,0.2), 0px 12px 17px 2px rgba(0,0,0,.14),0px 5px 22px 4px rgba(0,0,0,.12)`,
+  `0px  7px  8px -4px rgba(0,0,0,0.2), 0px 13px 19px 2px rgba(0,0,0,.14),0px 5px 24px 4px rgba(0,0,0,.12)`,
+  `0px  7px  9px -4px rgba(0,0,0,0.2), 0px 14px 21px 2px rgba(0,0,0,.14),0px 5px 26px 4px rgba(0,0,0,.12)`,
+  `0px  8px  9px -5px rgba(0,0,0,0.2), 0px 15px 22px 2px rgba(0,0,0,.14),0px 6px 28px 5px rgba(0,0,0,.12)`,
+  `0px  8px 10px -5px rgba(0,0,0,0.2), 0px 16px 24px 2px rgba(0,0,0,.14),0px 6px 30px 5px rgba(0,0,0,.12)`,
+  `0px  8px 11px -5px rgba(0,0,0,0.2), 0px 17px 26px 2px rgba(0,0,0,.14),0px 6px 32px 5px rgba(0,0,0,.12)`,
+  `0px  9px 11px -5px rgba(0,0,0,0.2), 0px 18px 28px 2px rgba(0,0,0,.14),0px 7px 34px 6px rgba(0,0,0,.12)`,
+  `0px  9px 12px -6px rgba(0,0,0,0.2), 0px 19px 29px 2px rgba(0,0,0,.14),0px 7px 36px 6px rgba(0,0,0,.12)`,
+  `0px 10px 13px -6px rgba(0,0,0,0.2), 0px 20px 31px 3px rgba(0,0,0,.14),0px 8px 38px 7px rgba(0,0,0,.12)`,
+  `0px 10px 13px -6px rgba(0,0,0,0.2), 0px 21px 33px 3px rgba(0,0,0,.14),0px 8px 40px 7px rgba(0,0,0,.12)`,
+  `0px 10px 14px -6px rgba(0,0,0,0.2), 0px 22px 35px 3px rgba(0,0,0,.14),0px 8px 42px 7px rgba(0,0,0,.12)`,
+  `0px 11px 14px -7px rgba(0,0,0,0.2), 0px 23px 36px 3px rgba(0,0,0,.14),0px 9px 44px 8px rgba(0,0,0,.12)`,
+  `0px 11px 15px -7px rgba(0,0,0,0.2), 0px 24px 38px 3px rgba(0,0,0,.14),0px 9px 46px 8px rgba(0,0,0,.12)`
 ]
-const BoxShadowsAliases = ['sm', 'md', 'lg', 'xl'];
+export const shadows = [
+  MDshadows[3],
+  MDshadows[6],
+  MDshadows[12],
+  MDshadows[18],
+  MDshadows[24]
+]
+const BoxShadowsAliases = ['sm', 'md', 'lg', 'xl', 'xxl'];
 addAliases(shadows, BoxShadowsAliases);
 
 // animation duration

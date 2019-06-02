@@ -79,7 +79,7 @@ const SidebarContainer = styled(Flex) <FlexCProps>`
     padding-top: 48px;
     height: 100%;
     background-color: ${props => props.theme.colors.lightGray}; 
-    border-right: 1px solid ${props => props.theme.colors.borderGray};
+    // border-right: 1px solid ${props => props.theme.colors.borderGray};
     //background: linear-gradient(135deg, rgba(246,248,249,1) 0%,rgba(229,235,238,1) 69%,rgba(215,222,227,1) 71%,rgba(245,247,249,1) 100%);
     ${HideText}
 `;

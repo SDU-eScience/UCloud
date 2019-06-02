@@ -12,8 +12,9 @@ import Absolute from "ui-components/Absolute";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { DropdownContent } from "ui-components/Dropdown";
 const sduPlainBlack = require("Assets/Images/SDU_WHITE_RGB-png.png");
-const bg2 = require("Assets/Images/bg2.svg");
 const bg1 = require("Assets/Images/bg1.svg");
+const bg2 = require("Assets/Images/bg2.svg");
+//const bg2 = require("Assets/Images/cloud_bg_small.jpg");
 const wayfLogo = require("Assets/Images/WAYFLogo.svg");
 
 const BackgroundImage = styled.div<{ image: string}>`
