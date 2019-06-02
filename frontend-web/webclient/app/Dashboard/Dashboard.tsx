@@ -154,7 +154,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
         {files.length || isLoading ? null : (<Heading.h6>No recent files found</Heading.h6>)}
         <List>
             {files.map((file, i) => (
-                <Flex alignItems="center" key={i} pt="0.5em" pb="0.3em">
+                <Flex key={i} alignItems="center" pt="0.5em" pb="0.3em">
                     <ListFileContent file={file} link={file.link} pixelsWide={130} />
                     <Box ml="auto" />
                     <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt!)).fromNow()}</Text>
@@ -172,12 +172,12 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
                 <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
                     <Icon name={statusToIconName(analysis.state)}
                         color={statusToColor(analysis.state)}
-                        size="1.5em"
+                        size="1.2em"
                         pr="0.3em"
                     />
                     <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.metadata.title}</TextSpan></Link>
                     <Box ml="auto" />
-                    <TextSpan fontSize={2}>{UF.prettierString(analysis.state)}</TextSpan>
+                    <Text fontSize={1} color="grey">{moment(new Date(analysis.modifiedAt!)).fromNow()}</Text>
                 </Flex>
             )}
         </List>
