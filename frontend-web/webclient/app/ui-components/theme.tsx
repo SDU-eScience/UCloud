@@ -125,7 +125,8 @@ const black = "#000";
 const white = "#fff";
 const textBlack = "#1e252e"
 //// Gray
-const lightGray = "#ebeff3";
+//const lightGray = "#ebeff3";
+const lightGray = "#f5f7f9";
 const midGray = "#c9d3df";
 const gray = "#8393A7";
 const darkGray = "#53657d";
