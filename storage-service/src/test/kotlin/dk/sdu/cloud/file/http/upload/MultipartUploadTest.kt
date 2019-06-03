@@ -17,6 +17,7 @@ import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.sendRequest
@@ -60,7 +61,9 @@ class MultipartUploadTest {
         TestContext.micro = micro
         val storageEventProducer =
             StorageEventProducer(micro.eventStreamService.createProducer(StorageEvents.events), {})
-        val coreFs = CoreFileSystemService(fs, storageEventProducer)
+        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
+        val coreFs =
+            CoreFileSystemService(fs, storageEventProducer, fileSensitivityService, ClientMock.authenticatedClient)
 
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
         val controller = MultiPartUploadController(
