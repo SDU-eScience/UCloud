@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
@@ -43,7 +44,7 @@ class FileLookupService(
         val userCloud = cloud.withoutAuthentication().bearerAuth(userCloudExtension.accessToken)
 
         val permissionGranted = FileDescriptions.verifyFileKnowledge.call(
-            VerifyFileKnowledgeRequest(user, listOf(path)),
+            VerifyFileKnowledgeRequest(user, listOf(path), KnowledgeMode.Permission(false)),
             cloud
         ).orThrow()
 
