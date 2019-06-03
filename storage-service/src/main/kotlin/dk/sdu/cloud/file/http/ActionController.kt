@@ -97,18 +97,7 @@ class ActionController<Ctx : FSUserContext>(
 
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
-                val targetPath =
-                    coreFs.copy(it, request.path, request.newPath, stat.sensitivityLevel, request.policy ?: WriteConflictPolicy.OVERWRITE)
-                val newSensitivity = fileLookupService.stat(it, targetPath).sensitivityLevel
-                if (stat.sensitivityLevel != newSensitivity) {
-                    sensitivityService.setSensitivityLevel(
-                        it,
-                        targetPath,
-                        stat.sensitivityLevel,
-                        ctx.securityPrincipal.username
-                    )
-                }
-
+                coreFs.copy(it, request.path, request.newPath, stat.sensitivityLevel, request.policy ?: WriteConflictPolicy.OVERWRITE)
                 audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }

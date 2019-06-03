@@ -86,7 +86,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             if (fromStat.size > 10000000000) {
                 sendNotification(
                     ctx.user,
-                    "Coping $from to $to.",
+                    "Copying $from to $to.",
                     "file_copy",
                     mapOf("Destination" to to, "original" to from)
                 )
@@ -95,11 +95,19 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             fs.copy(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
             writeTimeOfBirth(ctx, targetPath)
             setSensitivity(ctx, targetPath, sensitivityLevel)
+            if (fromStat.size > 10000000000) {
+                sendNotification(
+                    ctx.user,
+                    "Done copying $from to $to.",
+                    "file_copy",
+                    mapOf("Destination" to to, "original" to from)
+                )
+            }
             return targetPath
         } else {
             sendNotification(
                 ctx.user,
-                "Coping $from to $to.",
+                "Copying $from to $to.",
                 "dir_copy",
                 mapOf("Destination" to to, "original" to from)
             )
@@ -121,6 +129,12 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 )
             }
             setSensitivity(ctx, newRoot, sensitivityLevel)
+            sendNotification(
+                ctx.user,
+                "Done copying $from to $to.",
+                "dir_copy",
+                mapOf("Destination" to to, "original" to from)
+            )
             return newRoot
         }
     }
