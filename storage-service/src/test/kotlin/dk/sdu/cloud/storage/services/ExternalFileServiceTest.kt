@@ -9,8 +9,10 @@ import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FileScanner
+import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.storage.util.createDummyFSInRoot
 import dk.sdu.cloud.storage.util.createFS
@@ -41,7 +43,8 @@ class ExternalFileServiceTest {
     fun createService(root: String): TestContext<LinuxFSRunner> {
         EventServiceMock.reset()
         val (runner, fs) = linuxFSWithRelaxedMocks(root)
-        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
+        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
+        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true), fileSensitivityService, ClientMock.authenticatedClient)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
 
         return TestContext(

@@ -2,9 +2,11 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
@@ -47,7 +49,9 @@ class BulkDownloadTest {
     private fun createService(root: String):
             Pair<LinuxFSRunnerFactory, BulkDownloadService<LinuxFSRunner>> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root)
-        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
+        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
+        val coreFs =
+            CoreFileSystemService(fs, mockk(relaxed = true), fileSensitivityService, ClientMock.authenticatedClient)
 
         return Pair(runner, BulkDownloadService(coreFs))
     }

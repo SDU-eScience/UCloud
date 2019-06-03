@@ -14,6 +14,7 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageEventProducer
@@ -25,6 +26,7 @@ import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertCollectionHasItem
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
@@ -82,7 +84,8 @@ class DiffTest {
         val commandRunnerFactory = LinuxFSRunnerFactory(userDao)
         val cephFs = LinuxFS(commandRunnerFactory, root, userDao)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
-        val coreFs = CoreFileSystemService(cephFs, eventProducer)
+        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
+        val coreFs = CoreFileSystemService(cephFs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
         BackgroundScope.reset()

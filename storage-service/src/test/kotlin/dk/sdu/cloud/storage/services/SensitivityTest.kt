@@ -19,6 +19,7 @@ import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.mkdir
@@ -47,7 +48,7 @@ class SensitivityTest {
         val storageEventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val sensitivityService =
             FileSensitivityService(fs, storageEventProducer)
-        val coreFs = CoreFileSystemService(fs, storageEventProducer)
+        val coreFs = CoreFileSystemService(fs, storageEventProducer, sensitivityService, ClientMock.authenticatedClient)
         val fileLookupService = FileLookupService(coreFs)
 
         return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService) as TestContext<FSUserContext>

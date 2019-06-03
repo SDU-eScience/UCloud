@@ -1,6 +1,9 @@
 package dk.sdu.cloud.file.http.files
 
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.notification.api.FindByNotificationId
+import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
 import org.junit.Test
@@ -40,6 +43,7 @@ class CopyingTests {
             setup = { configureServerWithFileController() },
 
             test = {
+
                 val path = "/home/user1/folder/a"
                 val newPath = "/home/user1/folder/b"
 
@@ -108,6 +112,11 @@ class CopyingTests {
             test = {
                 val path = "/home/user1/folder"
                 val newPath = "/home/user1/new-folder"
+
+                ClientMock.mockCallSuccess(
+                    NotificationDescriptions.create,
+                    FindByNotificationId(1)
+                )
 
                 val response = engine.stat(path)
                 assertEquals(HttpStatusCode.OK, response.status())

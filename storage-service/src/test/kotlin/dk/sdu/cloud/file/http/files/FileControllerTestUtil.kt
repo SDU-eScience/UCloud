@@ -32,6 +32,7 @@ import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
@@ -75,7 +76,8 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     val fsRoot = fsRootInitializer()
     val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
-    val coreFs = CoreFileSystemService(fs, eventProducer)
+    val fileSensitivityService = FileSensitivityService(fs, eventProducer)
+    val coreFs = CoreFileSystemService(fs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
     val aclService = ACLService(runner, fs, mockk(relaxed = true))
     val homeFolderService = mockk<HomeFolderService>()

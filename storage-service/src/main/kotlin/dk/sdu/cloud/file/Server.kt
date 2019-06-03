@@ -87,7 +87,14 @@ class Server(
             log.warn(it.stackTraceToString())
             stop()
         }
-        val coreFileSystem = CoreFileSystemService(fs, storageEventProducer)
+
+        // Metadata services
+        val aclService = ACLService(processRunner, fs, bgExecutor).also { it.registerWorkers() }
+        val sensitivityService = FileSensitivityService(fs, storageEventProducer)
+        val homeFolderService = HomeFolderService(cloud)
+
+        // High level FS
+        val coreFileSystem = CoreFileSystemService(fs, storageEventProducer, sensitivityService, cloud)
 
         // Bulk operations
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
@@ -97,11 +104,6 @@ class Server(
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
         val workspaceService = WorkspaceService(fsRootFile, fileScanner, uidLookupService, processRunner)
-
-        // Metadata services
-        val aclService = ACLService(processRunner, fs, bgExecutor).also { it.registerWorkers() }
-        val sensitivityService = FileSensitivityService(fs, storageEventProducer)
-        val homeFolderService = HomeFolderService(cloud)
 
         // RPC services
         val wsService = WSFileSessionService(processRunner)
