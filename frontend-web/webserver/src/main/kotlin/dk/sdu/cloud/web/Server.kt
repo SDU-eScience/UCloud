@@ -19,6 +19,7 @@ import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.CachingOptions
+import io.ktor.http.content.file
 import io.ktor.http.content.files
 import io.ktor.http.content.static
 import io.ktor.response.respond
@@ -66,6 +67,8 @@ class Server(
                         files(staticContent)
                     }
                 }
+
+                file("/favicon.ico", File(staticContent, "favicon.ico"))
 
                 get("/app") {
                     call.respondRedirect("/app/dashboard", false)

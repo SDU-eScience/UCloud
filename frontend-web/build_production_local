@@ -20,8 +20,10 @@ mv build/service/bin/web-service build/service/bin/service
 
 cd ../
 
-echo `pwd`
-ls ./webserver/build/service/
+cd webclient
+npm install
+npm run build
+cd ../
 
 docker build \
     --target production \

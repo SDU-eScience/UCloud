@@ -6,7 +6,7 @@ metadata:
   annotations:
     getambassador.io/config: |
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: webclient_auth_callback
       prefix: ^/api/auth-callback(/.*)?$
@@ -15,7 +15,7 @@ metadata:
       rewrite: ""
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: webclient_auth_callback_csrf
       prefix: ^/api/auth-callback-csrf(/.*)?$
@@ -24,7 +24,7 @@ metadata:
       rewrite: ""
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: webclient_sync_callback
       prefix: ^/api/sync-callback(/.*)?$
@@ -33,7 +33,7 @@ metadata:
       rewrite: ""
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: webclient_app
       prefix: ^/app(/.*)?$
@@ -42,13 +42,23 @@ metadata:
       rewrite: ""
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: webclient_assets
       prefix: ^/assets(/.*)?$
       prefix_regex: true
       service: webclient:8080
       rewrite: ""
+
+      ---
+      apiVersion: ambassador/v1
+      kind: Mapping
+      name: webclient_favicon
+      prefix: ^/favicon.ico$
+      prefix_regex: true
+      service: webclient:8080
+      rewrite: ""
+
 
 spec:
   clusterIP: None
