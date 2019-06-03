@@ -359,7 +359,7 @@ export const FileOperations = ({ files, fileOperations, As, ...props }: FileOper
                 operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
             return !operation.disabled(files, Cloud) ? (
                 <As cursor="pointer" key={i} color={operation.color} alignItems="center" onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
-                    {operation.icon ? <Icon size={16} mr="1em"  name={operation.icon} /> : null}
+                    {operation.icon ? <Icon size={18} mr="1em"  name={operation.icon} /> : null}
                     <span>{operation.text}</span>
                 </As>
             ) : null;

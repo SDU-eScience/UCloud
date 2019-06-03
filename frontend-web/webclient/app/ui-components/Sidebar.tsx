@@ -186,7 +186,7 @@ export const sideBarMenuElements: { guest: SidebarMenuElements, general: Sidebar
     general: {
         items: [
             {icon: "files", label: "Files", to: () => fileTablePage(Cloud.homeFolder)},
-            {icon: "share", label: "Shares", to: "/shares/"},
+            {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "starFilled", label: "Favorites", to: "/favorites"},
             {icon: "appStore", label: "Apps", to: "/applications/"},
             {icon: "results", label: "My Results", to: "/applications/results/"}
@@ -251,7 +251,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                 </TextLabel> : null}
 
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em" ml="26px">
+                <TextLabel height="25px" icon="verified" iconSize="1em" textSize={1} space=".5em" ml="26px">
                     SDU Data Protection
                 </TextLabel>
             </ExternalLink>
