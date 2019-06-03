@@ -28,7 +28,7 @@ exports[`Zenodo Publish Mount Zenodo component 1`] = `
   line-height: 1.5;
   cursor: pointer;
   border-radius: 5px;
-  background-color: #0055d5;
+  background-color: #006aff;
   color: #fff;
   border-width: 0;
   border-style: solid;
