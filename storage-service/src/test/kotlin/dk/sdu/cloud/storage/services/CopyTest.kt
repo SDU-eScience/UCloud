@@ -32,7 +32,6 @@ class CopyTest {
         val runner: LinuxFSRunnerFactory,
         val fs: LowLevelFileSystemInterface<LinuxFSRunner>,
         val coreFs: CoreFileSystemService<LinuxFSRunner>,
-        val sensitivityService: FileSensitivityService<LinuxFSRunner>,
         val lookupService: FileLookupService<LinuxFSRunner>
     )
 
@@ -46,7 +45,7 @@ class CopyTest {
         val coreFs = CoreFileSystemService(fs, storageEventProducer, sensitivityService, ClientMock.authenticatedClient)
         val fileLookupService = FileLookupService(coreFs)
 
-        return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService)
+        return TestContext(runner, fs, coreFs, fileLookupService)
     }
 
     private fun createRoot(): File = Files.createTempDirectory("sensitivity-test").toFile()
