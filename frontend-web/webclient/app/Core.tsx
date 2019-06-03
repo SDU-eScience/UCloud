@@ -11,8 +11,6 @@ import ZenodoPublish from "Zenodo/Publish";
 import * as Share from "Shares";
 import Activity from "Activity/Page";
 import Uploader from "Uploader/Uploader";
-
-// use `const COMPNAME = React.lazy(() => import("${path}"));` when react router is updated
 import Search from "Search/Search";
 import FileInfo from "Files/FileInfo";
 import FilePreview from "Files/FilePreview";
@@ -38,6 +36,8 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { ErrorBoundary } from "ErrorBoundary/ErrorBoundary";
 import Dialog from "Dialog/Dialog";
 import { History } from "history";
+import ProjectList from "Project/List";
+import ProjectCreate from "Project/Create";
 
 const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -84,6 +84,9 @@ const Core = () => (
                 <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
 
                 <Route exact path="/search/:priority" component={requireAuth(Search)} />
+
+                <Route exact path="/projects" component={requireAuth(ProjectList)} />
+                <Route exact path="/projects/create" component={requireAuth(ProjectCreate)} />
 
                 <Route component={NotFound} />
             </Switch>

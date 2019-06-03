@@ -77,7 +77,7 @@ export async function callAPIWithErrorHandler<T>(
 export function useCloudAPI<T, Parameters = any>(
     callParametersInitial: APICallParameters<Parameters>,
     dataInitial: T
-): [APICallState<T>, (params: APICallParameters) => void, APICallParameters<Parameters>] {
+): [APICallState<T>, (params: APICallParameters<Parameters>) => void, APICallParameters<Parameters>] {
     const [params, setParams] = useState(callParametersInitial);
 
     const [state, dispatch] = useReducer(dataFetchReducer, {
