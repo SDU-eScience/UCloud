@@ -39,7 +39,6 @@ import kotlinx.coroutines.io.ByteReadChannel
 import kotlin.collections.set
 
 private const val SDU_CLOUD_REFRESH_TOKEN = "refreshToken"
-private const val APP_REFRESH_TOKEN = "appRefreshToken"
 
 class WebService(
     private val authenticationService: AuthenticationService,
@@ -50,7 +49,8 @@ class WebService(
      */
     private val performAuthentication: Boolean,
     private val prefix: String = "app-",
-    private val domain: String = "cloud.sdu.dk"
+    private val domain: String = "cloud.sdu.dk",
+    private val cookieName: String = "appRefreshToken"
 ) {
     private val client = HttpClient(OkHttp)
 
@@ -84,7 +84,7 @@ class WebService(
                 }
 
                 call.response.cookies.append(
-                    name = APP_REFRESH_TOKEN,
+                    name = cookieName,
                     value = ingoingToken,
                     secure = call.request.origin.scheme == "https",
                     httpOnly = true,
@@ -115,7 +115,7 @@ class WebService(
 
                     val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
                         // Remove authentication tokens
-                        remove(APP_REFRESH_TOKEN)
+                        remove(cookieName)
                         remove(SDU_CLOUD_REFRESH_TOKEN)
                     }
 
@@ -152,7 +152,7 @@ class WebService(
             return false
         }
 
-        val token = call.request.cookies[APP_REFRESH_TOKEN] ?: run {
+        val token = call.request.cookies[cookieName] ?: run {
             call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
             return false
         }
@@ -176,7 +176,7 @@ class WebService(
         val method = call.request.httpMethod
         val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
             // Remove authentication tokens
-            remove(APP_REFRESH_TOKEN)
+            remove(cookieName)
             remove(SDU_CLOUD_REFRESH_TOKEN)
         }
 
