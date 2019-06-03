@@ -10,9 +10,7 @@ import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.auth.api.usernameForProjectInRole
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.share.api.AcceptShareRequest
-import dk.sdu.cloud.share.api.CreateShareRequest
-import dk.sdu.cloud.share.api.ShareDescriptions
+import dk.sdu.cloud.share.api.Shares
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.GlobalScope
@@ -49,8 +47,8 @@ class StorageInitializer(
                 val userCloud = refreshTokenCloudFactory(tokens.authRefreshToken)
                 awaitFileSystem(projectHome, userCloud)
 
-                val shareResponse = ShareDescriptions.create.call(
-                    CreateShareRequest(
+                val shareResponse = Shares.create.call(
+                    Shares.Create.Request(
                         sharedWith = username,
                         path = projectHome,
                         rights = AccessRight.values().toSet()
@@ -61,8 +59,8 @@ class StorageInitializer(
                 if (shareResponse.statusCode == HttpStatusCode.Conflict) return@launch
                 val shareId = shareResponse.orThrow()
 
-                ShareDescriptions.accept.call(
-                    AcceptShareRequest(shareId.id, createLink = false),
+                Shares.accept.call(
+                    Shares.Accept.Request(shareId.id, createLink = false),
                     userCloud
                 ).orThrow()
             }
