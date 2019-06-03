@@ -54,7 +54,7 @@ class AutoSettingsService(
 
         productionTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 1)
-            .put("index.number_of_replicas", 1)
+            .put("index.number_of_replicas", 2)
         )
 
         elastic.indices().putTemplate(productionTemplateRequest, RequestOptions.DEFAULT)
@@ -64,7 +64,7 @@ class AutoSettingsService(
 
         httpTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 2)
-            .put("index.number_of_replicas", 1)
+            .put("index.number_of_replicas", 2)
         )
 
         elastic.indices().putTemplate(httpTemplateRequest, RequestOptions.DEFAULT)

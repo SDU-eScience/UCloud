@@ -120,7 +120,7 @@ export const AppCard = styled(Link)`
 
     padding: 10px;
     width: 100%;
-    min-width: 350px;
+    min-width: 400px;
     height: 128px;
     display: flex;
     flex-direction: column;
@@ -137,6 +137,7 @@ export const AppCard = styled(Link)`
     &:hover {
         transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
         transform: scale(1.02);
+        box-shadow: ${({ theme }) => theme.shadows["md"]};
     }
 
     // Background

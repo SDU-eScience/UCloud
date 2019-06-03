@@ -58,7 +58,8 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: 'app/index.html',
             baseUrl: baseHref,
-            hash: true
+            hash: true,
+            favicon: "app/Assets/images/favicon.png"
         }),
         new MiniCSSExtractPlugin("[name].[hash:6].css"),
         // Allows overriding inferred information.

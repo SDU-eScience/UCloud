@@ -32,7 +32,7 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+        <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
         <Box px={3} py={1}>
@@ -154,7 +154,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
         {files.length || isLoading ? null : (<Heading.h6>No recent files found</Heading.h6>)}
         <List>
             {files.map((file, i) => (
-                <Flex alignItems="center" key={i} pt="0.5em" pb="0.3em">
+                <Flex key={i} alignItems="center" pt="0.5em" pb="0.3em">
                     <ListFileContent file={file} link={file.link} pixelsWide={130} />
                     <Box ml="auto" />
                     <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt!)).fromNow()}</Text>
@@ -172,12 +172,12 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
                 <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
                     <Icon name={statusToIconName(analysis.state)}
                         color={statusToColor(analysis.state)}
-                        size="1.5em"
+                        size="1.2em"
                         pr="0.3em"
                     />
                     <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.metadata.title}</TextSpan></Link>
                     <Box ml="auto" />
-                    <TextSpan fontSize={2}>{UF.prettierString(analysis.state)}</TextSpan>
+                    <Text fontSize={1} color="grey">{moment(new Date(analysis.modifiedAt!)).fromNow()}</Text>
                 </Flex>
             )}
         </List>
@@ -192,7 +192,7 @@ interface DashboardNotificationProps {
 
 const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3}>
+        <Flex bg="lightGray" color="darkGray" px={3} py={2}>
             <Heading.h4>Recent Notifications</Heading.h4>
             <Box ml="auto" />
             <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />

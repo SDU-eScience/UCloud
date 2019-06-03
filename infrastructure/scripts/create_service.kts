@@ -321,7 +321,7 @@ run {
                echo "Build Failed"
                return currentBuild.result ?: 'FAILURE'
              } finally {
-               publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: '{{ serviceName }}-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: '{{ serviceName }}-service-detekt-Report', reportTitles: ''])
+               publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: '$serviceName-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: '$serviceName-service-detekt-Report', reportTitles: ''])
              }
              try {
                stage('test $serviceName-service') {
@@ -330,9 +330,9 @@ run {
                }
              } catch (e) {
                echo "Test FAILED"
-               return currentBuild.result ?: 'UNSTABLE'
+               return 'UNSTABLE'
              }
-             return currentBuild.result ?: 'SUCCESS'
+             return 'SUCCESS'
            }
 
            return this

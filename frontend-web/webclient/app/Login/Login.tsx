@@ -7,13 +7,26 @@ import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { errorMessageOrDefault } from "UtilityFunctions";
 import { History } from "history";
+import { TextSpan } from "ui-components/Text";
+import Absolute from "ui-components/Absolute";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import { DropdownContent } from "ui-components/Dropdown";
 const sduPlainBlack = require("Assets/Images/SDU_WHITE_RGB-png.png");
-const bg = require("Assets/Images/trianglify.svg");
+const bg1 = require("Assets/Images/bg1.svg");
+const bg2 = require("Assets/Images/bg2.svg");
+//const bg2 = require("Assets/Images/cloud_bg_small.jpg");
+const wayfLogo = require("Assets/Images/WAYFLogo.svg");
 
 const BackgroundImage = styled.div<{ image: string}>`
-    background: url(${({ image }) => image}) no-repeat center center fixed;
+    background: url(${({ image }) => image}) no-repeat 40% 100%;
     background-size: cover;
 `;
+
+const BGLogo = styled(Absolute)<{ image: string}>`
+    background: url(${({ image }) => image}) no-repeat 40% 0%;
+    background-size: cover;
+`;
+
 
 const inDevEnvironment = process.env.NODE_ENV === "development"
 const enabledWayf = true;
@@ -101,34 +114,56 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
         }
     }
     return (<>
-        <BackgroundImage image={bg}>
-            <Flex alignItems={"center"} justifyContent={"center"} width={"100vw"} height={"100vh"}>
-                <Box>
-                    <Flex alignItems="center" justifyContent="center">
-                        <Icon name="logoEsc" size="38px"/>
-                        <Box mr="8px" />
-                        <Heading.h2 color="white">SDUCloud</Heading.h2>
-                    </Flex>
-                    <Card minWidth="350px" mt="16px" bg="white" borderRadius="0" p="1em 1em 1em 1em">
-                        <form onSubmit={e => e.preventDefault()}>
-                            <Login enabled2fa={!!challengeId} usernameRef={usernameInput} passwordRef={passwordInput} />
-                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                            <Button fullWidth disabled={loading} onClick={() => challengeId ? submit2FA() : attemptLogin()}>
-                                {challengeId ? "Submit" : "Login"}
+        <Absolute top="-30px" left="80px"><Icon color="white" name="logoSdu" size="200px"/></Absolute>
+        <BGLogo image={bg1} bottom="0px" height="50%" width="100%"> </BGLogo>
+        <BackgroundImage image={bg2}>
+            <Flex alignItems={"top"} justifyContent={"center"} width={"100vw"} height={"100vh"} pt="20vh">
+                <Box width="315px">
+                    {enabledWayf && !challengeId ? 
+                        <a href={`/auth/saml/login?service=${wayfService}`}>
+                            <Button disabled={loading} fullWidth color="wayfGreen">
+                                <Image width="100px" src={wayfLogo} />
+                                <TextSpan fontSize={3} ml="2.5em">Login</TextSpan>
                             </Button>
-                        </form>
-                        <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
-                        <Divider/>
-                        {enabledWayf && !challengeId ? <a href={`/auth/saml/login?service=${wayfService}`}>
-                            <Button disabled={loading} fullWidth color="wayfGreen">Login with WAYF</Button>
                         </a> : null}
-                    </Card>
-                    <Card borderRadius="0.5em" mt="0.3em" height="auto" p="1em 1em 1em 1em" bg="white">
-                        <Flex>
-                            <Box><Text fontSize={1} color="textColor">Under development.</Text></Box>
-                        </Flex>
-                    </Card>
-                    <Flex mt="0.3em"><Box ml="auto" /><Box width="80px" mt="16px" height="16px"><Image height="8px" width="80px" src={sduPlainBlack} /></Box></Flex>
+                    {!challengeId ? 
+                        <ClickableDropdown colorOnHover={false} keepOpenOnClick top="30px" width={"315px"} left={"0px"} 
+                            trigger={
+                                <Text fontSize={1} color="white" mt="5px">More login options</Text>
+                            }>
+                            <Box width="100%">
+                                <form onSubmit={e => e.preventDefault()}>
+                                    <Login enabled2fa={!!challengeId} usernameRef={usernameInput} passwordRef={passwordInput} />
+                                    <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                                    <Button fullWidth disabled={loading} onClick={() => challengeId ? submit2FA() : attemptLogin()}>
+                                        {"Login"}
+                                    </Button>
+                                </form>
+                                <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
+                            </Box>
+                        </ClickableDropdown> :
+                        <>
+                            <Text fontSize={1} color="white" mt="5px">Enter 2-factor authentication code</Text>
+                            <DropdownContent 
+                                overflow={"visible"}
+                                squareTop={false}
+                                cursor="pointer"
+                                width={"315px"}
+                                hover={false}
+                                visible={true}
+                            >
+                                <Box width="100%">
+                                    <form onSubmit={e => e.preventDefault()}>
+                                        <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                                        <Button fullWidth disabled={loading} onClick={() => challengeId ? submit2FA() : attemptLogin()}>
+                                            {"Submit"}
+                                        </Button>
+                                    </form>
+                                    <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
+                                </Box>
+                            </DropdownContent>  
+                        </>
+                    }
                 </Box>
             </Flex>
         </BackgroundImage>

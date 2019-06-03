@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.22.3'
+version '1.22.4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.4.0-REDIS.3"
+    ext.serviceCommonVersion = "1.4.10"
 }
 
 dependencies {
