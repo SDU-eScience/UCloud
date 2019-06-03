@@ -93,15 +93,16 @@ interface TextLabelProps {
     iconSize?: string,
     textSize?: number,
     space?: string,
+    ml?: string,
     hover?: boolean
     title?: string
 }
 
 const TextLabel = ({
                        icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-                       iconSize = "24", space = "22px", textSize = 3, hover = true
+                       iconSize = "24", space = "22px", ml = "22px", textSize = 3, hover = true
                    }: TextLabelProps) => (
-    <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+    <SidebarElementContainer title={title} height={height} ml={ml} hover={hover}>
         <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}/>
         <Text fontSize={textSize}> {children} </Text>
     </SidebarElementContainer>
@@ -148,7 +149,7 @@ function enumToLabel(value: SidebarPages): string {
         case SidebarPages.Favorites:
             return "Favorites";
         case SidebarPages.AppStore:
-            return "App Store";
+            return "Apps";
         case SidebarPages.MyResults:
             return "My Results";
         case SidebarPages.Publish:
@@ -230,7 +231,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox/> </Flex> : null}
             {Cloud.isLoggedIn ?
-                <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em"
+                <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" ml="26px"
                            title={Cloud.username || ""}>
                     <Tooltip
                         left="-50%"
@@ -250,7 +251,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                 </TextLabel> : null}
 
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em">
+                <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em" ml="26px">
                     SDU Data Protection
                 </TextLabel>
             </ExternalLink>
