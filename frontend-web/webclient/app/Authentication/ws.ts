@@ -28,18 +28,18 @@ export class WebSocketFactory {
     }
 }
 
-export interface WebsocketResponse {
+export interface WebsocketResponse<T = any> {
     type: "message" | "response"
     streamId: string
-    payload?: any
+    payload?: T
     status?: number
 }
 
-interface WebsocketRequest {
+interface WebsocketRequest<T = any> {
     call: string
     streamId: string
     bearer: string
-    payload: any | null
+    payload: T | null
 }
 
 export class WebSocketConnection {
@@ -108,7 +108,7 @@ export class WebSocketConnection {
         this.socket.send(JSON.stringify(message));
     }
 
-    async subscribe(call: string, payload: any | null, handler: (message: WebsocketResponse) => void) {
+    async subscribe<T>(call: string, payload: T | null, handler: (message: WebsocketResponse) => void) {
         const streamId = (this.nextStreamId++).toString();
         this.handlers.set(streamId, (message) => {
             handler(message);
@@ -125,7 +125,7 @@ export class WebSocketConnection {
         });
     }
 
-    async call(call: string, payload: any | null): Promise<WebsocketResponse> {
+    async call<T>(call: string, payload: T | null): Promise<WebsocketResponse> {
         return new Promise(async (resolve, reject) => {
             this.subscribe(call, payload, async (message) => {
                 if (message.type === "response") {

@@ -16,8 +16,6 @@ import {ReduxObject} from "DefaultObjects"
 import {connect} from 'react-redux'
 import {FlexCProps} from "./Flex";
 import {inDevEnvironment, copyToClipboard} from "UtilityFunctions";
-import {Dispatch} from "redux";
-import {addSnack} from "Snackbar/Redux/SnackbarsActions";
 
 const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
     justify-content: left;
@@ -85,31 +83,31 @@ const SidebarContainer = styled(Flex) <FlexCProps>`
 `;
 
 interface TextLabelProps {
-    icon: IconName,
-    children: any,
-    height?: string,
-    color?: string,
-    color2?: string,
-    iconSize?: string,
-    textSize?: number,
-    space?: string,
+    icon: IconName
+    children: React.ReactText | JSX.Element
+    height?: string
+    color?: string
+    color2?: string
+    iconSize?: string
+    textSize?: number
+    space?: string
     hover?: boolean
     title?: string
 }
 
 const TextLabel = ({
-                       icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-                       iconSize = "24", space = "22px", textSize = 3, hover = true
-                   }: TextLabelProps) => (
-    <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
-        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}/>
-        <Text fontSize={textSize}> {children} </Text>
-    </SidebarElementContainer>
-);
+    icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
+    iconSize = "24", space = "22px", textSize = 3, hover = true
+}: TextLabelProps) => (
+        <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}/>
+            <Text fontSize={textSize}> {children} </Text>
+        </SidebarElementContainer>
+    );
 
 const SidebarLink = styled(Link) <{ active?: boolean }>`
     ${props => props.active ?
-    `&:not(:hover) > * > ${Text} { 
+        `&:not(:hover) > * > ${Text} { 
             color: ${props.theme.colors.blue};
         }
         &:not(:hover) > * > ${Icon} { 
@@ -221,7 +219,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                         <React.Fragment key={label}>
                             {categoryIdx === 0 ? <SidebarSpacer/> : null}
                             <SidebarElement icon={icon} activePage={page} label={label}
-                                            to={typeof to === "function" ? to() : to}/>
+                                to={typeof to === "function" ? to() : to}/>
                         </React.Fragment>))}
                     {categoryIdx !== sidebar.length - 1 ? (<Divider mt="6px" mb="6px" />) : null}
                 </React.Fragment>
@@ -231,10 +229,10 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox/> </Flex> : null}
             {Cloud.isLoggedIn ?
                 <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em"
-                           title={Cloud.username || ""}>
+                    title={Cloud.username || ""}>
                     <Tooltip
                         left="-50%"
-                        top
+                        top={"1"}
                         mb="35px"
                         trigger={
                             <EllipsedText

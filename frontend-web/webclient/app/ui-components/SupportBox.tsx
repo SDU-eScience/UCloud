@@ -86,7 +86,7 @@ function Support() {
                         Bug
                     </Label>
                 </Flex>
-                {type === "SUGGESTION" ? <p>Describe your suggestion and we will look into it.</p> :
+                {type === SupportType.SUGGESTION ? <p>Describe your suggestion and we will look into it.</p> :
                     <p>Describe your problem below and we will investigate it.</p>}
                 <form onSubmit={e => onSubmit(e)}>
                     <TextArea width="100%" ref={textArea} rows={6} />

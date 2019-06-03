@@ -29,11 +29,12 @@ interface NotificationProps {
     fetchNotifications: Function,
     notificationRead: (id: number | string) => void,
     history: History
-    activeUploads: number
     error?: string
 }
 
-function Notifications (props: NotificationProps & NotificationsOperations & RouteComponentProps) {
+type Notifications = NotificationProps & NotificationsOperations & RouteComponentProps;
+
+function Notifications (props: Notifications) {
     React.useEffect(() => {
         reload();
         const conn = WSFactory.open("/notifications", {
@@ -214,4 +215,4 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
 
-export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Notifications));
+export default connect<NotificationsReduxObject, NotificationsOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Notifications));

@@ -9,7 +9,7 @@ class MockCloud {
     private apiContext: string;
     private accessToken: string;
     private csrfToken: string;
-    private decodedToken: any;
+    private decodedToken: string | { [key: string]: string };
 
     constructor() {
         this.decodedToken = jwt.decode("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
