@@ -22,7 +22,7 @@ spec:
         - /etc/token-validation
         - --run-script
         - migrate-db
-        image: registry.cloud.sdu.dk/sdu-cloud/storage-service:2.0.0-RC.1
+        image: registry.cloud.sdu.dk/sdu-cloud/storage-service:2.0.5
         name: storage-migration
 
         volumeMounts:
