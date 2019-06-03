@@ -1,0 +1,26 @@
+# 
+FROM node:alpine as fe-development
+VOLUME /usr/src/app
+WORKDIR /usr/src/app
+
+# 
+FROM node:alpine as fe-build-production-ready
+
+COPY webclient /usr/src/app/
+WORKDIR /usr/src/app/
+
+RUN set -x && \
+    npm install && \
+    npm run build
+
+# TODO Run this on something that knows how to serve files!
+FROM alpine:3.8 as production
+
+RUN apk add --no-cache openjdk8
+RUN apk add --no-cache nss
+RUN mkdir -p /opt/
+
+COPY --from=fe-build-production-ready /usr/src/app/dist /var/www/
+COPY ./webserver/build/service/ /opt/service
+
+CMD ["/opt/service/bin/service", "--config-dir", "/etc/service"]

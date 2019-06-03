@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+echo "This script requires the JSON cli (npm install -g json)"
+echo "Using Gradle passwords from ~/.gradle/esci.properties"
+version=`cat webclient/package.json | json version`
+
+name="webclient"
+echo "Tagging as ${name}:${version}"
+
+cd webserver
+
+rm -rf build/distributions
+rm -rf build/service
+gradle distTar
+(mkdir -p build/service || true)
+cp build/distributions/*.tar build/service.tar
+cd build/service
+tar xvf ../service.tar --strip-components=1 && \
+cd ../../
+mv build/service/bin/web-service build/service/bin/service
+
+cd ../
+
+echo `pwd`
+ls ./webserver/build/service/
+
+docker build \
+    --target production \
+    --build-arg GRADLE_PROPS="`cat ~/.gradle/esci.properties`" \
+    --build-arg SERVICE_NAME="${name}" \
+    -t "${name}:${version}" \
+    -f Dockerfile.local \
+    .

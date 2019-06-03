@@ -7,6 +7,16 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const timeBetweenUpdates = 150;
 
+// https://stackoverflow.com/a/30106551
+function b64EncodeUnicode(str) {
+    // first we use encodeURIComponent to get percent-encoded UTF-8,
+    // then we convert the percent encodings into raw bytes which
+    // can be fed into btoa.
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+        function toSolidBytes(match, p1) {
+            return String.fromCharCode(parseInt('0x' + p1));
+        }));
+}
 
 interface UploadArgs {
     location: string
@@ -49,9 +59,9 @@ export const multipartUpload = async (
         }
     };
     request.responseType = "text";
-    request.setRequestHeader("Upload-Location", btoa(location));
-    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", btoa(sensitivity));
-    request.setRequestHeader("Upload-Policy", btoa(policy));
+    request.setRequestHeader("Upload-Location", b64EncodeUnicode(location));
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", b64EncodeUnicode(sensitivity));
+    request.setRequestHeader("Upload-Policy", b64EncodeUnicode(policy));
     request.send(file);
     return request;
 };
@@ -88,11 +98,11 @@ export const bulkUpload = async (
         }
     };
     request.responseType = "text";
-    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", btoa(sensitivity));
-    request.setRequestHeader("Upload-Policy", btoa(policy));
-    request.setRequestHeader("Upload-Location", btoa(location));
-    request.setRequestHeader("Upload-Format", btoa(format));
-    request.setRequestHeader("Upload-Name", btoa(file.name));
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", b64EncodeUnicode(sensitivity));
+    request.setRequestHeader("Upload-Policy", b64EncodeUnicode(policy));
+    request.setRequestHeader("Upload-Location", b64EncodeUnicode(location));
+    request.setRequestHeader("Upload-Format", b64EncodeUnicode(format));
+    request.setRequestHeader("Upload-Name", b64EncodeUnicode(file.name));
     request.send(file);
     return request;
 };
