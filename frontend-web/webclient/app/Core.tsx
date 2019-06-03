@@ -9,7 +9,6 @@ import Header from "Navigation/Header";
 import Sidebar from "ui-components/Sidebar";
 import ZenodoPublish from "Zenodo/Publish";
 import * as Share from "Shares";
-import * as Project from "Project";
 import Activity from "Activity/Page";
 import Uploader from "Uploader/Uploader";
 
@@ -79,10 +78,6 @@ const Core = () => (
 
                 <Route exact path="/shares" component={requireAuth(Share.List)} />
 
-                <Route exact path="/projects/edit" component={requireAuth(Project.CreateUpdate)} />
-                <Route exact path="/projects/view" component={requireAuth(Project.ManagedView)} />
-                <Route exact path="/projects/manage" component={requireAuth(Project.Manage)} />
-
                 <Route exact path="/admin/usercreation" component={requireAuth(UserCreation)} />
 
                 <Route exact path="/users/settings" component={requireAuth(UserSettings)} />
@@ -99,7 +94,7 @@ const Core = () => (
 const requireAuth = Delegate => props => {
     if (!Cloud.isLoggedIn) props.history.push("/login");
     return <Delegate {...props} />;
-}
+};
 
 const LoginSuccess = (props: { history: History }) => {
     dispatchUserAction(USER_LOGIN);

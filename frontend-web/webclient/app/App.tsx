@@ -24,7 +24,6 @@ import detailedResult from "Applications/Redux/DetailedResultReducer";
 import simpleSearch from "Search/Redux/SearchReducer";
 import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
-import detailedProjectSearch from "Project/Redux/ProjectSearchReducer";
 import filePreview from "Files/Redux/FilePreviewReducer";
 import * as AppRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
@@ -52,7 +51,6 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     simpleSearch,
     detailedFileSearch,
     detailedApplicationSearch,
-    detailedProjectSearch,
     fileInfo,
     filePreview,
     ...AppRedux.reducers,

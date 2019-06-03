@@ -18,7 +18,6 @@ import {withRouter} from "react-router";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {Dropdown} from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import DetailedProjectSearch from "Project/DetailedProjectSearch"
 import {inDevEnvironment, prettierString} from "UtilityFunctions";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
 import {EllipsedText, TextSpan} from "ui-components/Text";
@@ -122,13 +121,13 @@ const HeaderContainer = styled(Flex)`
     // background-color: #1a73e8
     // background: linear-gradient(to right, hsla(215, 100%, 50%, 1), hsla(220, 80%, 50%, 1));
     // background: linear-gradient(to right, hsla(215, 100%, 50%, 1), hsla(215, 90%, 50%, 1));
-    box-shadow: ${({ theme }) => theme.shadows["sm"]};
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
 `;
 
 const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems={"center"} ml="15px">
-            <Icon name={"logoEsc"} size={"38px"} />
+            <Icon name={"logoEsc"} size={"38px"}/>
             <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
         </Flex>
     </Link>
@@ -233,8 +232,7 @@ const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) =
                         <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide/> :
                         searchType === "applications" ?
                             <DetailedApplicationSearch defaultAppName={searchRef.current && searchRef.current.value}/> :
-                            searchType === "projects" ? <DetailedProjectSearch
-                                defaultProjectName={searchRef.current && searchRef.current.value}/> : null}
+                            null}
                 </ClickableDropdown>
                 {!Cloud.isLoggedIn ? <Login/> : null}
             </SearchInput>
@@ -289,7 +287,10 @@ const ContextSwitcher = (props) => {
             {[Cloud.username, "Project 1", "Project 2"].filter(it => it !== userContext).map(it => (
                 <EllipsedText
                     key={it}
-                    onClick={() => (snackbarStore.addSnack({message: "Not yet.", type: SnackType.Information}), setUserContext(it))}
+                    onClick={() => (snackbarStore.addSnack({
+                        message: "Not yet.",
+                        type: SnackType.Information
+                    }), setUserContext(it))}
                     width="150px"
                 >{it}</EllipsedText>
             ))}
@@ -318,7 +319,7 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 
 const anyLoading = (rO: ReduxObject): boolean =>
     rO.loading === true || rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
-    || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
+    || rO.simpleSearch.applicationsLoading || rO.zenodo.loading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
     || rO.accounting.resources["compute/timeUsed"].events.loading

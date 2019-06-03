@@ -15,7 +15,6 @@ import * as AccountingRedux from "Accounting/Redux";
 import * as SnackbarRedux from "Snackbar/Redux";
 import * as FavoritesRedux from "Favorites/Redux";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import {DetailedProjectSearchReduxState} from "Project";
 import {SidebarPages} from "ui-components/Sidebar";
 import {ScrollResult} from "Scroll/Types";
 
@@ -229,7 +228,6 @@ interface LegacyReduxObject {
     simpleSearch: SimpleSearchStateProps
     detailedFileSearch: DetailedFileSearchReduxState
     detailedApplicationSearch: DetailedApplicationSearchReduxState
-    detailedProjectSearch: DetailedProjectSearchReduxState
     fileInfo: FileInfoReduxObject
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
@@ -294,7 +292,6 @@ export function initObject(homeFolder: string): ReduxObject {
         simpleSearch: initSimpleSearch(),
         detailedApplicationSearch: initApplicationsAdvancedSearch(),
         detailedFileSearch: initFilesDetailedSearch(),
-        detailedProjectSearch: initProjectsAdvancedSearch(),
         fileInfo: initFileInfo(),
         avatar: initAvatar(),
         filePreview: initFilePreview(),
@@ -320,8 +317,6 @@ export const initSimpleSearch = (): SimpleSearchStateProps => ({
     filesLoading: false,
     applications: emptyPage,
     applicationsLoading: false,
-    projects: emptyPage,
-    projectsLoading: false,
     errors: [],
     search: "",
     applicationSearch: initApplicationsAdvancedSearch(),
@@ -405,11 +400,4 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     appName: "",
     appVersion: "",
     tags: ""
-});
-
-export const initProjectsAdvancedSearch = (): DetailedProjectSearchReduxState => ({
-    error: undefined,
-    loading: false,
-    hidden: true,
-    projectName: ""
 });
