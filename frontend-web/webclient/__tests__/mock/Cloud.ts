@@ -1,5 +1,20 @@
 import * as jwt from "jsonwebtoken";
 
+interface JWT {
+    sub: string
+    uid: number
+    lastName: string
+    aud: string
+    role: string
+    iss: string
+    firstNames: string
+    exp: number
+    extendedByChain: any[]
+    iat: number
+    principalType: string
+    publicSessionReference: string
+}
+
 class MockCloud {
     private readonly context: string;
     private readonly serviceName: string;
@@ -9,7 +24,7 @@ class MockCloud {
     private apiContext: string;
     private accessToken: string;
     private csrfToken: string;
-    private decodedToken: string | { [key: string]: string };
+    private decodedToken: any;
 
     constructor() {
         this.decodedToken = jwt.decode("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
@@ -64,9 +79,9 @@ class MockCloud {
         return true;
     }
 
-    get userInfo() {
+    get userInfo(): undefined | JWT {
         let token = this.decodedToken;
-        if (!token) return null;
+        if (!token) return undefined;
         else return this.decodedToken.payload;
     }
 
