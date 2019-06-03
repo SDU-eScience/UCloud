@@ -6,6 +6,7 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
@@ -28,14 +29,15 @@ import kotlin.test.assertEquals
 class CopyTest {
     val user = "user"
 
-    data class TestContext(
+    data class TestContext<Ctx : FSUserContext>(
         val runner: LinuxFSRunnerFactory,
-        val fs: LowLevelFileSystemInterface<LinuxFSRunner>,
-        val coreFs: CoreFileSystemService<LinuxFSRunner>,
-        val lookupService: FileLookupService<LinuxFSRunner>
+        val fs: LowLevelFileSystemInterface<Ctx>,
+        val coreFs: CoreFileSystemService<Ctx>,
+        val lookupService: FileLookupService<Ctx>,
+        val sensitivityService: FileSensitivityService<Ctx>
     )
 
-    private fun initTest(root: File): TestContext {
+    private fun initTest(root: File): TestContext<FSUserContext> {
         BackgroundScope.init()
 
         val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath)
@@ -45,7 +47,7 @@ class CopyTest {
         val coreFs = CoreFileSystemService(fs, storageEventProducer, sensitivityService, ClientMock.authenticatedClient)
         val fileLookupService = FileLookupService(coreFs)
 
-        return TestContext(runner, fs, coreFs, fileLookupService)
+        return TestContext(runner, fs, coreFs, fileLookupService, sensitivityService) as TestContext<FSUserContext>
     }
 
     private fun createRoot(): File = Files.createTempDirectory("sensitivity-test").toFile()
