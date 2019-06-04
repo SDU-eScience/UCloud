@@ -36,13 +36,15 @@ The test files is located in the [tests](./webclient/__tests__/) folder.
 
 Logging in to the site is done through Wayf on the production version, or with username/password combination on the development version, both as described in [auth-service](../auth-service#authenticating-with-sducloud).
 
-The SDUCloud object (as describe in [SDUCloud](#sducloud)) will validate the every new JWT-token received from the backend when refreshing. This is done throught the structure of the JWT, not the actual contents.
+The SDUCloud object (as describe in [SDUCloud](#sducloud)) will validate the every new JWT-token received from the backend when refreshing. This is done throught the structure of the JWT, not the actual contents of the JWT.
 
+On invalid token, the site will redirect to the login screen.
 
-<!-- ROLES -->
+On token expiration, the frontend will try to refresh the token. Failing that, the currently held tokens are cleared, and the user is redirected to the login page.
 
-<!--  -->
-**TODO**
+### Roles
+
+A logged in user can either be a `USER` or an `ADMIN`. The `USER` role only has access to a subset of the available sidebar options that the `ADMIN` role has, e.g. User Creation.
 
 ## Notable custom code
 
@@ -50,14 +52,13 @@ The SDUCloud object (as describe in [SDUCloud](#sducloud)) will validate the eve
 
 The project utilizes JSON Web Tokens, which contain information regarding the (if any) currently logged in user.
 
-To abstract away from this when contacting the backend, the codebase includes the `SDUCloud`-object, that has an
- instance exported for use, which contains the relevant HTTP operations (e.g. GET, PUT, POST, DELETE).
+To abstract away from this when contacting the backend, the codebase includes the `SDUCloud`-object, that has an instance exported for use, which contains the relevant HTTP operations (e.g. GET, PUT, POST, DELETE).
 
 This means contacting a Files-service with a `get`-operation would be done as shown below:
 
 ```typescript
 try {
-    const { request, response } = Cloud.get<File[]>("files-service/query-operation");
+    const { request, response } = Cloud.get<File[]>("files-service/operation");
 } catch (e) {
     /* Error handling */
 }
