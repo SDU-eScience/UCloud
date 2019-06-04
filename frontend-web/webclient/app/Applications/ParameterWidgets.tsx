@@ -1,43 +1,64 @@
 import * as React from "react";
 import FileSelector from "Files/FileSelector";
 import * as Types from ".";
-import { Box, Flex, Label, Text, Select, Markdown, Button } from "ui-components";
-import Input, { InputLabel } from "ui-components/Input";
-import { EllipsedText } from "ui-components/Text";
+import {Box, Flex, Label, Text, Select, Markdown, Button, Icon} from "ui-components";
+import Input, {InputLabel} from "ui-components/Input";
+import {EllipsedText} from "ui-components/Text";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import * as Fuse from "fuse.js";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { replaceHomeFolder, resolvePath } from "Utilities/FileUtilities";
-import { addTrailingSlash } from "UtilityFunctions";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {replaceHomeFolder, resolvePath} from "Utilities/FileUtilities";
+import {addTrailingSlash} from "UtilityFunctions";
 
 
 interface ParameterProps {
     initialSubmit: boolean
     parameter: Types.ApplicationParameter
     parameterRef: React.RefObject<HTMLInputElement | HTMLSelectElement>
+    onParamRemove: () => void
 }
 
 export const Parameter = (props: ParameterProps) => {
     let component = (<div />);
     switch (props.parameter.type) {
         case Types.ParameterTypes.InputFile:
-            component = <InputFileParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef} parameter={props.parameter} />;
+            component = <InputFileParameter {...props} />;
             break;
         case Types.ParameterTypes.InputDirectory:
-            component = <InputDirectoryParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef} parameter={props.parameter} />;
+            component = <InputDirectoryParameter {...props} />;
             break;
         case Types.ParameterTypes.Integer:
-            component = <IntegerParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>} parameter={props.parameter} />;
+            component = <IntegerParameter
+                onParamRemove={props.onParamRemove}
+                initialSubmit={props.initialSubmit}
+                parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
+                parameter={props.parameter}
+            />;
             break;
         case Types.ParameterTypes.FloatingPoint:
-            component = <FloatingParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>} parameter={props.parameter} />;
+            component = <FloatingParameter
+                onParamRemove={props.onParamRemove}
+                initialSubmit={props.initialSubmit}
+                parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
+                parameter={props.parameter}
+            />;
             break;
         case Types.ParameterTypes.Text:
-            component = <TextParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef} parameter={props.parameter as Types.TextParameter} />;
+            component = <TextParameter
+                onParamRemove={props.onParamRemove}
+                initialSubmit={props.initialSubmit}
+                parameterRef={props.parameterRef}
+                parameter={props.parameter}
+            />;
             break;
         case Types.ParameterTypes.Boolean:
-            component = <BooleanParameter initialSubmit={props.initialSubmit} parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>} parameter={props.parameter} />;
+            component = <BooleanParameter
+                onParamRemove={props.onParamRemove}
+                initialSubmit={props.initialSubmit}
+                parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>}
+                parameter={props.parameter}
+            />;
             break;
     }
     return (<>{component}<Box pb="1em" /></>);
@@ -49,12 +70,12 @@ interface InputFileParameterProps extends ParameterProps {
 }
 
 const InputFileParameter = (props: InputFileParameterProps) => (
-    <GenericParameter parameter={props.parameter}>
+    <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
         <FileSelector
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}
             path={props.parameterRef.current && props.parameterRef.current.value || ""}
-            onFileSelect={file => { props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)) }}
+            onFileSelect={file => {props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))}}
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             isRequired={!props.parameter.optional}
             unitName={props.parameter.unitName}
@@ -63,13 +84,13 @@ const InputFileParameter = (props: InputFileParameterProps) => (
 );
 
 export const InputDirectoryParameter = (props: InputFileParameterProps) => (
-    <GenericParameter parameter={props.parameter}>
+    <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
         <FileSelector
             defaultValue={props.defaultValue}
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}
             path={props.parameterRef.current && props.parameterRef.current.value || ""}
-            onFileSelect={file => { props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))) }}
+            onFileSelect={file => {props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)))}}
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             canSelectFolders
             onlyAllowFolders
@@ -88,7 +109,7 @@ const TextParameter = (props: TextParameterProps) => {
     let placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
     const hasUnitName = !!props.parameter.unitName;
     return (
-        <GenericParameter parameter={props.parameter}>
+        <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             <Input
                 showError={props.initialSubmit || props.parameter.optional}
                 key={props.parameter.name}
@@ -103,17 +124,16 @@ const TextParameter = (props: TextParameterProps) => {
     );
 };
 
-type BooleanParameterOption = { value?: boolean, display: string }
+type BooleanParameterOption = {value?: boolean, display: string}
 
-interface BooleanParameter {
+interface BooleanParameter extends ParameterProps {
     parameter: Types.BooleanParameter
     parameterRef: React.RefObject<HTMLSelectElement>
-    initialSubmit: boolean
 }
 const BooleanParameter = (props: BooleanParameter) => {
-    let options: BooleanParameterOption[] = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
+    let options: BooleanParameterOption[] = [{value: true, display: "Yes"}, {value: false, display: "No"}];
     if (props.parameter.optional) {
-        options.unshift({ value: undefined, display: "" });
+        options.unshift({value: undefined, display: ""});
     }
 
     const defaultValue = props.parameter.defaultValue ? props.parameter.defaultValue.value : null;
@@ -121,7 +141,7 @@ const BooleanParameter = (props: BooleanParameter) => {
     const hasUnitName = !!props.parameter.unitName;
 
     return (
-        <GenericParameter parameter={props.parameter}>
+        <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             <Flex>
                 <Select
                     showError={props.initialSubmit || props.parameter.optional}
@@ -142,7 +162,7 @@ const BooleanParameter = (props: BooleanParameter) => {
 };
 
 const GenericNumberParameter = (props: NumberParameterProps) => {
-    const { parameter, parameterRef } = props;
+    const {parameter, parameterRef} = props;
     const optSliderRef = React.useRef<HTMLInputElement>(null);
     const hasUnitName = !!props.parameter.unitName;
     if (optSliderRef.current && parameterRef.current && parameterRef.current.value !== optSliderRef.current!.value)
@@ -188,33 +208,36 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
     }
 
     return (
-        <GenericParameter parameter={props.parameter}>
+        <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             {baseField}
             {slider}
         </GenericParameter>
     );
 };
 
-interface NumberParameterProps {
+interface NumberParameterProps extends ParameterProps {
     parameter: Types.NumberParameter
     parameterRef: React.RefObject<HTMLInputElement>
     initialSubmit: boolean
 }
 
 const IntegerParameter = (props: NumberParameterProps) => {
-    let childProps = { ...props };
+    let childProps = {...props};
     return <GenericNumberParameter {...childProps} />;
 };
 
 const FloatingParameter = (props: NumberParameterProps) => {
-    let childProps = { ...props };
+    let childProps = {...props};
     return <GenericNumberParameter {...childProps} />;
 };
 
-const GenericParameter = ({ parameter, children }: { parameter: Types.ApplicationParameter, children: any }) => (
+const GenericParameter = ({parameter, children, onRemove}: {parameter: Types.ApplicationParameter, children: any, onRemove: () => void}) => (
     <>
         <Label fontSize={1} htmlFor={parameter.name}>
-            <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
+            <Flex>
+                <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
+                {parameter.optional ? <><Box ml="auto" /><Text onClick={onRemove}>Remove</Text><Icon size={16} name="close"/></> : null}
+            </Flex>
         </Label>
         {children}
         <Markdown source={parameter.description} />
@@ -245,7 +268,7 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
 
     constructor(props: OptionalParameterProps) {
         super(props);
-        this.state = { results: props.parameters };
+        this.state = {results: props.parameters};
         this.initFuse();
     }
 
@@ -277,18 +300,18 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
         if (this.currentTimeout !== -1) clearTimeout(this.currentTimeout);
 
         if (searchTerm === "") {
-            this.setState({ results: this.props.parameters });
+            this.setState({results: this.props.parameters});
         } else {
             this.currentTimeout = setTimeout(() => {
                 const results = this.fuse.search(searchTerm);
-                this.setState({ results });
+                this.setState({results});
             }, 300);
         }
     }
 
     render() {
-        const { onUse } = this.props;
-        const { results } = this.state;
+        const {onUse} = this.props;
+        const {results} = this.state;
         const components = results.map((p, i) => <OptionalParameter key={i} parameter={p} onUse={() => onUse(p)} />);
 
         return (
@@ -308,8 +331,8 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
     }
 }
 
-export class OptionalParameter extends React.Component<{ parameter: Types.ApplicationParameter, onUse: () => void }, { open: boolean }> {
-    state = { open: false };
+export class OptionalParameter extends React.Component<{parameter: Types.ApplicationParameter, onUse: () => void}, {open: boolean}> {
+    state = {open: false};
 
     private static Base = styled(Flex)`
         align-items: center;
@@ -344,12 +367,12 @@ export class OptionalParameter extends React.Component<{ parameter: Types.Applic
     `;
 
     render() {
-        const { parameter, onUse } = this.props;
-        const { open } = this.state;
+        const {parameter, onUse} = this.props;
+        const {open} = this.state;
 
         return (
             <Box mb={8}>
-                <OptionalParameter.Base onClick={(e) => (e.preventDefault(), this.setState({ open: !open }))}>
+                <OptionalParameter.Base onClick={(e) => (e.preventDefault(), this.setState({open: !open}))}>
                     <strong>{parameter.title}</strong>
                     {!open ?
                         <EllipsedText>
