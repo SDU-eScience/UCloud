@@ -139,7 +139,7 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
         // FIXME: in the event of other than 404
         return !(e.request.status === 404);
     }
-}
+};
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
     const paths = files.map(it => it.path);
@@ -147,18 +147,18 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
         if (paths.includes(file.path)) file.beingRenamed = true
     });
     return page;
-}
+};
 
 export type AccessRight = "READ" | "WRITE" | "EXECUTE";
 
 function hasAccess(accessRight: AccessRight, file: File) {
-    const username = Cloud.username;
+    const username = Cloud.activeUsername;
     if (file.ownerName === username) return true;
     if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
 
     const relevantEntries = file.acl.filter(item => !item.group && item.entity === username);
     return relevantEntries.some(entry => entry.rights.includes(accessRight));
-};
+}
 
 export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) =>
     files.every(f => hasAccess(accessRight, f));

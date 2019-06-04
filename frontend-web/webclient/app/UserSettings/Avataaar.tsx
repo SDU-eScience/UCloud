@@ -1,21 +1,22 @@
-import { default as Avataaar } from "avataaars";
+import {default as Avataaar} from "avataaars";
 import * as React from "react";
 import * as Options from "./AvatarOptions";
-import { MainContainer } from "MainContainer/MainContainer";
-import { Select, Label, Box, Flex, OutlineButton, Error } from "ui-components";
+import {MainContainer} from "MainContainer/MainContainer";
+import {Select, Label, Box, Flex, OutlineButton, Error} from "ui-components";
 import Spinner from "LoadingIcon/LoadingIcon";
-import { connect } from "react-redux";
-import { ReduxObject } from "DefaultObjects";
-import { Dispatch } from "redux";
-import { saveAvatar, setAvatarError } from "./Redux/AvataaarActions";
+import {connect} from "react-redux";
+import {ReduxObject} from "DefaultObjects";
+import {Dispatch} from "redux";
+import {saveAvatar, setAvatarError} from "./Redux/AvataaarActions";
 import PromiseKeeper from "PromiseKeeper";
-import { findAvatarQuery } from "Utilities/AvatarUtilities";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { setActivePage } from "Navigation/Redux/StatusActions";
-import { SidebarPages } from "ui-components/Sidebar";
-import { errorMessageOrDefault } from "UtilityFunctions";
+import {findAvatarQuery} from "Utilities/AvatarUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {setActivePage} from "Navigation/Redux/StatusActions";
+import {SidebarPages} from "ui-components/Sidebar";
+import {errorMessageOrDefault} from "UtilityFunctions";
 
 type AvataaarModificationStateProps = AvatarType & { error?: string };
+
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void
     setActivePage: () => void
@@ -28,7 +29,7 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
 
     async function fetchAvatar(promises: PromiseKeeper) {
         try {
-            const { response } = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery)).promise;
+            const {response} = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
             setAvatar(response);
         } catch (e) {
             if (!e.isCanceled)
@@ -48,11 +49,11 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
         <MainContainer
             headerSize={220 + (!props.error ? 0 : 60)}
             header={<>
-                <Error error={props.error} clearError={() => props.setError()} />
+                <Error error={props.error} clearError={() => props.setError()}/>
                 <Flex>
-                    <Box ml="auto" />
+                    <Box ml="auto"/>
                     <Avataaar
-                        style={{ height: "150px" }}
+                        style={{height: "150px"}}
                         avatarStyle="circle"
                         topType={avatar.top}
                         accessoriesType={avatar.topAccessory}
@@ -67,7 +68,7 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
                         mouthType={avatar.mouthTypes}
                         skinColor={avatar.skinColors}
                     />
-                    <Box mr="auto" />
+                    <Box mr="auto"/>
                 </Flex>
                 <Flex>
                     <OutlineButton
@@ -81,45 +82,45 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
                 </Flex></>}
 
             main={
-                loading ? (<Spinner size={24} />) : <>
+                loading ? (<Spinner size={24}/>) : <>
                     <AvatarSelect
                         defaultValue={avatar.top}
-                        update={value => setAvatar({ ...avatar, top: value })}
+                        update={value => setAvatar({...avatar, top: value})}
                         options={Options.Top}
                         title="Top"
                         disabled={false}
                     />
                     <AvatarSelect
                         defaultValue={avatar.topAccessory}
-                        update={value => setAvatar({ ...avatar, topAccessory: value })}
+                        update={value => setAvatar({...avatar, topAccessory: value})}
                         options={Options.TopAccessory}
                         title="Accessories"
                         disabled={avatar.top === "Eyepatch"}
                     />
                     <AvatarSelect
                         defaultValue={avatar.hairColor}
-                        update={value => setAvatar({ ...avatar, hairColor: value })}
+                        update={value => setAvatar({...avatar, hairColor: value})}
                         options={Options.HairColor}
                         title="Hair color"
                         disabled={!avatar.top.includes("Hair") || avatar.top === "LongHairFrida"}
                     />
                     <AvatarSelect
                         defaultValue={avatar.facialHair}
-                        update={value => setAvatar({ ...avatar, facialHair: value })}
+                        update={value => setAvatar({...avatar, facialHair: value})}
                         options={Options.FacialHair}
                         title="Facial Hair"
                         disabled={avatar.top === "Hijab"}
                     />
                     <AvatarSelect
                         defaultValue={avatar.facialHairColor}
-                        update={value => setAvatar({ ...avatar, facialHairColor: value })}
+                        update={value => setAvatar({...avatar, facialHairColor: value})}
                         options={Options.FacialHairColor}
                         title="Facial Hair Color"
                         disabled={avatar.facialHair === "Blank"}
                     />
                     <AvatarSelect
                         defaultValue={avatar.clothes}
-                        update={value => setAvatar({ ...avatar, clothes: value })}
+                        update={value => setAvatar({...avatar, clothes: value})}
                         options={Options.Clothes}
                         title="Clothes"
                         disabled={false}
@@ -128,13 +129,13 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
                         defaultValue={avatar.colorFabric}
                         title="Clothes Fabric"
                         options={Options.ColorFabric}
-                        update={value => setAvatar({ ...avatar, colorFabric: value })}
+                        update={value => setAvatar({...avatar, colorFabric: value})}
                         disabled={avatar.clothes === "BlazerShirt" || avatar.clothes === "BlazerSweater"}
                     />
                     <AvatarSelect
                         defaultValue={avatar.clothesGraphic}
                         title="Graphic"
-                        update={value => setAvatar({ ...avatar, clothesGraphic: value })}
+                        update={value => setAvatar({...avatar, clothesGraphic: value})}
                         options={Options.ClothesGraphic}
                         disabled={avatar.clothes !== "GraphicShirt"}
                     />
@@ -142,28 +143,28 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
                         defaultValue={avatar.eyes}
                         title="Eyes"
                         options={Options.Eyes}
-                        update={value => setAvatar({ ...avatar, eyes: value })}
+                        update={value => setAvatar({...avatar, eyes: value})}
                         disabled={false}
                     />
                     <AvatarSelect
                         defaultValue={avatar.eyebrows}
                         title="Eyebrow"
                         options={Options.Eyebrows}
-                        update={value => setAvatar({ ...avatar, eyebrows: value })}
+                        update={value => setAvatar({...avatar, eyebrows: value})}
                         disabled={false}
                     />
                     <AvatarSelect
                         defaultValue={avatar.mouthTypes}
                         title="Mouth type"
                         options={Options.MouthTypes}
-                        update={value => setAvatar({ ...avatar, mouthTypes: value })}
+                        update={value => setAvatar({...avatar, mouthTypes: value})}
                         disabled={false}
                     />
                     <AvatarSelect
                         defaultValue={avatar.skinColors}
                         title={"Skin color"}
                         options={Options.SkinColors}
-                        update={value => setAvatar({ ...avatar, skinColors: value })}
+                        update={value => setAvatar({...avatar, skinColors: value})}
                         disabled={false}
                     />
                 </>
@@ -179,18 +180,19 @@ interface AvatarSelect<T1, T2> {
     disabled: boolean
 }
 
-function AvatarSelect<T1, T2>({ update, options, title, disabled, defaultValue }: AvatarSelect<T1, T2>) {
+function AvatarSelect<T1, T2>({update, options, title, disabled, defaultValue}: AvatarSelect<T1, T2>) {
     if (disabled) return null;
     return (
         <Label mt="0.8em">{title}
-            <Select defaultValue={defaultValue} onChange={({ target: { value } }: { target: { value: T1 } }) => update(value)}>
+            <Select defaultValue={defaultValue}
+                    onChange={({target: {value}}: { target: { value: T1 } }) => update(value)}>
                 {Object.keys(options).map(it => <option key={it}>{it}</option>)}
             </Select>
         </Label>
     )
 }
 
-const mapStateToProps = ({ avatar }: ReduxObject): AvataaarModificationStateProps => avatar;
+const mapStateToProps = ({avatar}: ReduxObject): AvataaarModificationStateProps => avatar;
 const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
     save: async avatar => dispatch(await saveAvatar(avatar)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
@@ -214,4 +216,4 @@ const defaultAvatar = ({
 
 type AvatarType = typeof defaultAvatar;
 export default connect<AvataaarModificationStateProps, AvataaarModificationOperations>(mapStateToProps, mapDispatchToProps)(Modification);
-export { defaultAvatar, AvatarType }
+export {defaultAvatar, AvatarType}

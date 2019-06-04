@@ -20,7 +20,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
     private async loadStatus() {
         this.props.setLoading(true);
         try {
-            const res = await Cloud.get("2fa/status", "/auth");
+            const res = await Cloud.get("2fa/status", "/auth", true);
             this.setState(() => ({ isConnectedToAccount: res.response.connected }));
         } catch (res) {
             const why = res.response.why ? res.response.why as string : "";
@@ -149,7 +149,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
 
     private onSetupStart() {
         this.props.setLoading(true);
-        Cloud.post("2fa", undefined, "/auth").then(res => {
+        Cloud.post("2fa", undefined, "/auth", true).then(res => {
             this.setState(() => ({
                 challengeId: res.response.challengeId,
                 qrCode: res.response.qrCodeB64Data
@@ -167,7 +167,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
             await Cloud.post("2fa/challenge", {
                 challengeId: this.state.challengeId,
                 verificationCode: this.state.verificationCode
-            }, "/auth");
+            }, "/auth", true);
 
             this.setState(() => ({ isConnectedToAccount: true }));
         } catch (res) {

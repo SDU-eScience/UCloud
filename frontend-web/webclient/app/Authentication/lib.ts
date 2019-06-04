@@ -268,6 +268,14 @@ export default class SDUCloud {
         else return undefined;
     }
 
+    get activeUsername(): string | undefined {
+        if (this.useProjectToken(false) && !!this.projectDecodedToken) {
+            return this.projectDecodedToken.payload.sub;
+        }   else {
+            return this.username;
+        }
+    }
+
     /**
      * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
      */
