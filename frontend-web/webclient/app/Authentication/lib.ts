@@ -300,7 +300,7 @@ export default class SDUCloud {
      *
      * @return {Promise} a promise of an access token
      */
-    receiveAccessTokenOrRefreshIt(): Promise<any> {
+    receiveAccessTokenOrRefreshIt(): Promise<string> {
         let tokenPromise: Promise<any> | null = null;
         if (this.isTokenExpired() || this.forceRefresh) {
             tokenPromise = this.refresh();
