@@ -21,7 +21,7 @@ object BackgroundScope : CoroutineScope, Loggable {
     fun init() {
         log.debug("Calling init()")
         synchronized(this) {
-            if (executor != null) {
+            if (executor == null) {
                 log.info("Initializing BackgroundScope")
                 val newCachedThreadPool = Executors.newCachedThreadPool()
                 executor = newCachedThreadPool
