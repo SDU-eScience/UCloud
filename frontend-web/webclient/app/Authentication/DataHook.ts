@@ -59,8 +59,13 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (T) => T2): 
 export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
     let method = parameters.method !== undefined ? parameters.method : "GET";
     if (parameters.path === undefined) throw "Missing path";
-    return (await Cloud.call(method, parameters.path, parameters.payload, parameters.context,
-        parameters.maxRetries)).response;
+    return (await Cloud.call({
+        method: method,
+        path: parameters.path,
+        body: parameters.payload,
+        context: parameters.context,
+        maxRetries: parameters.maxRetries
+    })).response;
 }
 
 export async function callAPIWithErrorHandler<T>(
