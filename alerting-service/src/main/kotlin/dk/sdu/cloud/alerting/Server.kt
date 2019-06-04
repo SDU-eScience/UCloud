@@ -55,6 +55,7 @@ class Server(
                 ElasticAlerting(elastic, alertService).alertOnStatusCode(config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on StatusCode caught exception: ${ex.message}.")
+                alertService.createAlert(Alert("WARNING: Alert on 500 status' caught exception: ${ex.message}."))
                 exitProcess(1)
             }
         }
@@ -70,6 +71,7 @@ class Server(
                 ElasticAlerting(elastic, alertService).alertOnStorage(client, config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on elastic storage caught exception: ${ex}.")
+                alertService.createAlert(Alert("WARNING: Alert on cluster storage caught exception: ${ex.message}."))
                 client.close()
             }
         }
@@ -80,6 +82,8 @@ class Server(
                 KubernetesAlerting().crashLoopAndFailedDetection(alertService)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on crashLoop caught exception: ${ex}.")
+                alertService.createAlert(Alert("WARNING: Alert on crash loop caught exception: ${ex.message}."))
+                exitProcess(1)
             }
         }
     }
