@@ -23,11 +23,10 @@ import {DevelopmentBadgeBase} from "ui-components/Badge";
 import {EllipsedText, TextSpan} from "ui-components/Text";
 import {SearchOptions, SelectableText} from "Search/Search";
 import {AvatarType} from "UserSettings/Avataaar";
-import {SnackType} from "Snackbar/Snackbars";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
 import {SpaceProps} from "styled-system";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {ContextSwitcher} from "Project/ContextSwitcher";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
@@ -53,7 +52,6 @@ class Header extends React.Component<HeaderProps> {
         return (
             <HeaderContainer color="headerText" bg="headerBg">
                 <Logo/>
-                {/* <ContextSwitcher /> */}
                 <Box ml="auto"/>
                 <Hide xs sm md>
                     <Search
@@ -269,34 +267,6 @@ export const UserAvatar = ({avatar}: UserAvatar) => (
         />
     </ClippedBox>);
 
-const ContextSwitcherFlex = styled(Flex)`
-    border-radius: 4px;
-    border: 1px solid white;
-`;
-
-const ContextSwitcher = (props) => {
-    if (!inDevEnvironment()) return null;
-    const [userContext, setUserContext] = React.useState(Cloud.username);
-    return (<Box ml="6px">
-        <ClickableDropdown trigger={
-            <ContextSwitcherFlex>
-                <EllipsedText pl="8px" pr="6px" width="150px" title={userContext}>{userContext}</EllipsedText>
-                <Box cursor="pointer" pr="8px"><Icon size={"10"} name={"chevronDown"}/></Box>
-            </ContextSwitcherFlex>
-        } width="174px">
-            {[Cloud.username, "Project 1", "Project 2"].filter(it => it !== userContext).map(it => (
-                <EllipsedText
-                    key={it}
-                    onClick={() => (snackbarStore.addSnack({
-                        message: "Not yet.",
-                        type: SnackType.Information
-                    }), setUserContext(it))}
-                    width="150px"
-                >{it}</EllipsedText>
-            ))}
-        </ClickableDropdown>
-    </Box>);
-};
 
 interface HeaderOperations {
     fetchLoginStatus: () => void
