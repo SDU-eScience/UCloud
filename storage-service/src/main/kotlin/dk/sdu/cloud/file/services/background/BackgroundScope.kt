@@ -13,33 +13,33 @@ import kotlin.coroutines.CoroutineContext
 object BackgroundScope : CoroutineScope, Loggable {
     override val log: Logger = logger()
     private lateinit var dispatcher: CoroutineDispatcher
-    private lateinit var executor: ExecutorService
-    private lateinit var job: Job
+    private var executor: ExecutorService? = null
 
     override val coroutineContext: CoroutineContext
-        get() = dispatcher + job
+        get() = dispatcher
 
     fun init() {
         log.debug("Calling init()")
         synchronized(this) {
-            if (!this::job.isInitialized || job.isCompleted) {
+            if (executor != null) {
                 log.info("Initializing BackgroundScope")
-                executor = Executors.newCachedThreadPool()
-                dispatcher = executor.asCoroutineDispatcher()
-                job = Job()
+                val newCachedThreadPool = Executors.newCachedThreadPool()
+                executor = newCachedThreadPool
+                dispatcher = newCachedThreadPool.asCoroutineDispatcher()
             }
         }
     }
 
     fun stop() {
         log.debug("Calling stop()")
-        job.cancel()
-        executor.shutdown()
+        executor?.shutdown()
+        executor = null
     }
 
     fun reset() {
         log.debug("Calling reset()")
-        if (this::job.isInitialized && !job.isCompleted) {
+        val executor = executor
+        if (executor != null) {
             log.info("Resetting BackgroundScope")
             stop()
             while (!executor.isShutdown) {
