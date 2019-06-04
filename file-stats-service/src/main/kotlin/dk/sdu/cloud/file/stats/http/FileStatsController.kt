@@ -53,7 +53,7 @@ class FileStatsController(
         }
 
         implement(FileStatsDescriptions.directorySize) {
-            val paths = request.fileIds.toList()
+            val paths = request.paths.toList()
             ok(
                 DirectorySizesResponse(
                     directorySizeService.fetchDirectorySizes(paths, ctx.securityPrincipal.username, ctx.jobId)
