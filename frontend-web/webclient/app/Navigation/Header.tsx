@@ -119,17 +119,14 @@ const HeaderContainer = styled(Flex)`
     top: 0;
     width: 100%;
     z-index: 100;
-    // background-color: #1a73e8
-    // background: linear-gradient(to right, hsla(215, 100%, 50%, 1), hsla(220, 80%, 50%, 1));
-    // background: linear-gradient(to right, hsla(215, 100%, 50%, 1), hsla(215, 90%, 50%, 1));
-    box-shadow: ${({ theme }) => theme.shadows["sm"]};
+    background: linear-gradient(to right, hsla(215, 100%, 50%, 1), hsla(220, 80%, 50%, 1));
 `;
 
 const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems={"center"} ml="15px">
             <Icon name={"logoEsc"} size={"38px"} />
-            <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
+            <Text color="headerText" fontSize={3} ml={"8px"}>SDUCloud</Text>
         </Flex>
     </Link>
 );
@@ -232,7 +229,7 @@ const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) =
                     {searchType === "files" ?
                         <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide/> :
                         searchType === "applications" ?
-                            <DetailedApplicationSearch defaultAppName={searchRef.current && searchRef.current.value}/> :
+                            <DetailedApplicationSearch defaultAppName={searchRef.current && searchRef.current.value || undefined}/> :
                             searchType === "projects" ? <DetailedProjectSearch
                                 defaultProjectName={searchRef.current && searchRef.current.value}/> : null}
                 </ClickableDropdown>
@@ -312,11 +309,11 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
 const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToProps => ({
     ...header,
     avatar,
-    spin: anyLoading(rest as ReduxObject),
+    spin: isAnyLoading(rest as ReduxObject),
     statusLoading: rest.status.loading
 });
 
-const anyLoading = (rO: ReduxObject): boolean =>
+const isAnyLoading = (rO: ReduxObject): boolean =>
     rO.loading === true || rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
     || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading

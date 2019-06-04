@@ -1,19 +1,19 @@
 import * as React from "react";
-import { File, FileOperation, PredicatedOperation } from "Files";
-import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
-import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
+import {File, FileOperation, PredicatedOperation} from "Files";
+import {Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader} from "ui-components/Table";
+import {FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps} from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate, Tooltip } from "ui-components";
+import {Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate, Tooltip} from "ui-components";
 import * as UF from "UtilityFunctions"
-import { Arrow, FileIcon } from "UtilityComponents";
-import { TextSpan } from "ui-components/Text";
-import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, toFileText, filePreviewPage, replaceHomeFolder } from "Utilities/FileUtilities";
-import { Cloud } from "Authentication/SDUCloudObject";
+import {Arrow, FileIcon} from "UtilityComponents";
+import {TextSpan} from "ui-components/Text";
+import {clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, toFileText, filePreviewPage, replaceHomeFolder} from "Utilities/FileUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
-import { KeyCode, ReduxObject, SensitivityLevelMap, ResponsiveReduxObject } from "DefaultObjects";
+import {KeyCode, ReduxObject, SensitivityLevelMap, ResponsiveReduxObject} from "DefaultObjects";
 import styled from "styled-components";
-import { SpaceProps } from "styled-system";
-import { connect } from "react-redux";
+import {SpaceProps} from "styled-system";
+import {connect} from "react-redux";
 import Theme from "ui-components/theme";
 
 const FilesTable = ({
@@ -69,17 +69,17 @@ const FilesTable = ({
     );
 }
 
-interface FileOperationWrapper { files: File[], fileOperations: FileOperation[] }
-const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length > 1 ?
+interface FileOperationWrapper {files: File[], fileOperations: FileOperation[]}
+const FileOperationsWrapper = ({files, fileOperations}: FileOperationWrapper) => fileOperations.length > 1 ?
     <ClickableDropdown width="175px" left="-160px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
         <FileOperations files={files} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
     </ClickableDropdown> :
     <FileOperations files={files} fileOperations={fileOperations} As={OutlineButton} />;
 
-const notSticky = ({ notSticky }: { notSticky?: boolean }): { position: "sticky" } | null =>
-    notSticky ? null : { position: "sticky" };
+const notSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} | null =>
+    notSticky ? null : {position: "sticky"};
 
-const FileTableHeaderCell = styled(TableHeaderCell) <{ notSticky?: boolean }>`
+const FileTableHeaderCell = styled(TableHeaderCell) <{notSticky?: boolean}>`
     top: 144px; //topmenu + header size
     z-index: 10;
     background-color: white;
@@ -145,7 +145,7 @@ const FilesTableHeader = ({
                     <ResponsiveTableColumn
                         key={i}
                         isSortedBy={sC === sortBy}
-                        onSelect={(sortOrder: SortOrder, sortBy: SortBy) => { if (!!onDropdownSelect) onDropdownSelect(sortOrder, sortBy, i) }}
+                        onSelect={(sortOrder: SortOrder, sortBy: SortBy) => {if (!!onDropdownSelect) onDropdownSelect(sortOrder, sortBy, i)}}
                         currentSelection={sC!}
                         sortOrder={sortOrder}
                         asDropdown={!!onDropdownSelect}
@@ -159,7 +159,7 @@ const FilesTableHeader = ({
         </TableHeader>
     );
 
-const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isSortedBy }: SortByDropdownProps) => asDropdown ? (
+const SortByDropdown = ({currentSelection, sortOrder, onSelect, asDropdown, isSortedBy}: SortByDropdownProps) => asDropdown ? (
     <ClickableDropdown trigger={<TextSpan>{UF.sortByToPrettierString(currentSelection)}</TextSpan>} chevron>
         <Box ml="-16px" mr="-16px" pl="15px"
             hidden={sortOrder === SortOrder.ASCENDING && isSortedBy}
@@ -184,7 +184,7 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
         ))}
     </ClickableDropdown>) : <>{UF.sortByToPrettierString(currentSelection)}</>;
 
-export const ContextBar = ({ files, ...props }: ContextBarProps) => (
+export const ContextBar = ({files, ...props}: ContextBarProps) => (
     <Box>
         <ContextButtons toHome={props.toHome} inTrashFolder={props.inTrashFolder} showUploader={props.showUploader} createFolder={props.createFolder} />
         <FileOptions files={files} {...props} />
@@ -201,7 +201,7 @@ const SidebarContent = styled.div`
     }
 `;
 
-export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
+export const ContextButtons = ({createFolder, showUploader, inTrashFolder, toHome}: ContextButtonsProps) => (
     <VerticalButtonGroup>
         {!inTrashFolder ?
             <SidebarContent>
@@ -214,12 +214,12 @@ export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHo
     </VerticalButtonGroup>
 );
 
-interface PredicatedCheckbox { predicate: boolean, checked: boolean, onClick: (e: any) => void }
-const PredicatedCheckbox = ({ predicate, checked, onClick }: PredicatedCheckbox) => predicate ? (
+interface PredicatedCheckbox {predicate: boolean, checked: boolean, onClick: (e: any) => void}
+const PredicatedCheckbox = ({predicate, checked, onClick}: PredicatedCheckbox) => predicate ? (
     <Box><Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label></Box>
 ) : null;
 
-const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
+const PredicatedFavorite = ({predicate, item, onClick}) => predicate ? (
     <Icon
         data-tag="fileFavorite"
         size="1em" ml=".7em"
@@ -231,33 +231,33 @@ const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
 ) : null;
 
 
-interface Groupicon { isProject: boolean }
-const GroupIcon = ({ isProject }: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
+interface Groupicon {isProject: boolean}
+const GroupIcon = ({isProject}: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
 
-const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => {
-    type IconDef = { color: string, text: string, shortText: string };
+const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
+    type IconDef = {color: string, text: string, shortText: string};
     let def: IconDef;
 
     switch (props.sensitivity) {
         case SensitivityLevelMap.CONFIDENTIAL:
-            def = { color: Theme.colors.purple, text: "Confidential", shortText: "C" };
+            def = {color: Theme.colors.purple, text: "Confidential", shortText: "C"};
             break;
         case SensitivityLevelMap.SENSITIVE:
-            def = { color: "#ff0004", text: "Sensitive", shortText: "S" };
+            def = {color: "#ff0004", text: "Sensitive", shortText: "S"};
             break;
         case SensitivityLevelMap.PRIVATE:
-            def = { color: Theme.colors.midGray, text: "Private", shortText: "P" }
+            def = {color: Theme.colors.midGray, text: "Private", shortText: "P"}
             break;
         default:
-            def = { color: Theme.colors.midGray, text: "", shortText: "" }
+            def = {color: Theme.colors.midGray, text: "", shortText: ""}
             break;
     }
 
     const badge = <SensitivityBadge data-tag={"sensitivityBadge"} bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip right="0" top mb="50px" trigger={badge}>{def.text}</Tooltip>
+    return <Tooltip right={"0"} top={"1"} mb="50px" trigger={badge}>{def.text}</Tooltip>
 }
 
-const SensitivityBadge = styled.div<{ bg: string }>`
+const SensitivityBadge = styled.div<{bg: string}>`
     content: '';
     height: 2em;
     width: 2em;
@@ -268,7 +268,7 @@ const SensitivityBadge = styled.div<{ bg: string }>`
     border-radius: 100%;
 `;
 
-const FileLink = ({ file, children }: { file: File, children: any }) => {
+const FileLink = ({file, children}: {file: File, children: JSX.Element}) => {
     if (isDirectory(file)) {
         return (<Link to={fileTablePage(file.path)}>{children}</Link>);
     } else if (previewSupportedExtension(file.path)) {
@@ -278,7 +278,7 @@ const FileLink = ({ file, children }: { file: File, children: any }) => {
     }
 }
 
-function FilenameAndIcons({ file, size = 38, onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
+function FilenameAndIcons({file, size = 38, onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props}: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={!!file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
@@ -304,7 +304,7 @@ function FilenameAndIcons({ file, size = 38, onRenameFile = () => null, onCheckF
             width="100%"
             autoFocus
             data-tag="renameField"
-            onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as HTMLInputElement).value) }}
+            onKeyDown={e => {if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as HTMLInputElement).value)}}
         />
         <Icon size={"1em"} color="red" ml="9px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
     </>);
@@ -343,15 +343,15 @@ function FilenameAndIcons({ file, size = 38, onRenameFile = () => null, onCheckF
     </TableCell>
 };
 
-export const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
+export const FileOptions = ({files, fileOperations}: FileOptionsProps) => files.length ? (
     <Box mb="13px" color="textBlack">
         <Heading.h5 pl="20px" pt="5px" pb="8px">{toFileText(files)}</Heading.h5>
         <FileOperations files={files} fileOperations={fileOperations} As={Flex} pl="20px" />
     </Box>
 ) : null;
 
-interface FileOperations extends SpaceProps { files: File[], fileOperations: FileOperation[], As: typeof OutlineButton | typeof Box | typeof Button }
-export const FileOperations = ({ files, fileOperations, As, ...props }: FileOperations) => files.length && fileOperations.length ?
+interface FileOperations extends SpaceProps {files: File[], fileOperations: FileOperation[], As: typeof OutlineButton | typeof Box | typeof Button}
+export const FileOperations = ({files, fileOperations, As, ...props}: FileOperations) => files.length && fileOperations.length ?
     <>
         {fileOperations.map((fileOp: FileOperation, i: number) => {
             let operation = fileOp;
@@ -359,15 +359,15 @@ export const FileOperations = ({ files, fileOperations, As, ...props }: FileOper
                 operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
             return !operation.disabled(files, Cloud) ? (
                 <As cursor="pointer" key={i} color={operation.color} alignItems="center" onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
-                    {operation.icon ? <Icon size={18} mr="1em"  name={operation.icon} /> : null}
+                    {operation.icon ? <Icon size={16} mr="1em" name={operation.icon} /> : null}
                     <span>{operation.text}</span>
                 </As>
             ) : null;
         })}
     </> : null;
 
-type FilesTableStateProps = { responsive: ResponsiveReduxObject }
-const mapStateToProps = ({ responsive }: ReduxObject): FilesTableStateProps => ({
+type FilesTableStateProps = {responsive: ResponsiveReduxObject}
+const mapStateToProps = ({responsive}: ReduxObject): FilesTableStateProps => ({
     responsive: responsive!
 })
 

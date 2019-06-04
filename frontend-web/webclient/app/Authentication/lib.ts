@@ -4,7 +4,7 @@ import {
     is5xxStatusCode,
     inSuccessRange
 } from "UtilityFunctions";
-import { SnackType } from "Snackbar/Snackbars";
+import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
 export interface Override {
@@ -107,7 +107,7 @@ export default class SDUCloud {
                         this.call(method, path, body, context, maxRetries - 1)
                             .catch(e => reject(e)).then(e => resolve(e));
                     } else {
-                        reject({ request: req, response: parsedResponse });
+                        reject({request: req, response: parsedResponse});
                     }
                 };
 
@@ -167,49 +167,49 @@ export default class SDUCloud {
     /**
      * Calls with the GET HTTP method. See call(method, path, body)
      */
-    async get<T = any>(path: string, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async get<T = any>(path: string, context = this.apiContext): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call("GET", path, undefined, context);
     }
 
     /**
      * Calls with the POST HTTP method. See call(method, path, body)
      */
-    async post<T = any>(path: string, body?: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async post<T = any>(path: string, body?: object, context = this.apiContext): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call("POST", path, body, context);
     }
 
     /**
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
-    async put<T = any>(path: string, body: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async put<T = any>(path: string, body: object, context = this.apiContext): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call("PUT", path, body, context);
     }
 
     /**
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
-    async delete<T = any>(path: string, body: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async delete<T = any>(path: string, body: object, context = this.apiContext): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call("DELETE", path, body, context);
     }
 
     /**
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
-    async patch<T = any>(path: string, body: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async patch<T = any>(path: string, body: object, context = this.apiContext): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call("PATCH", path, body, context);
     }
 
     /**
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
-    async options<T = any>(path: string, body: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async options<T = any>(path: string, body: object, context = this.apiContext): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call("OPTIONS", path, body, context);
     }
 
     /**
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
-    async head<T = any>(path: string, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async head<T = any>(path: string, context = this.apiContext): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call("HEAD", path, undefined, context);
     }
 
@@ -300,7 +300,7 @@ export default class SDUCloud {
      *
      * @return {Promise} a promise of an access token
      */
-    receiveAccessTokenOrRefreshIt(): Promise<any> {
+    receiveAccessTokenOrRefreshIt(): Promise<string> {
         let tokenPromise: Promise<any> | null = null;
         if (this.isTokenExpired() || this.forceRefresh) {
             tokenPromise = this.refresh();
@@ -322,9 +322,9 @@ export default class SDUCloud {
                     req.setRequestHeader("Content-Type", "application/json");
                     req.onload = () => {
                         try {
-                            if (inRange({ status: req.status, min: 200, max: 299 })) {
+                            if (inRange({status: req.status, min: 200, max: 299})) {
                                 const response = req.response.length === 0 ? "{}" : req.response;
-                                resolve({ response: JSON.parse(response), request: req });
+                                resolve({response: JSON.parse(response), request: req});
                             } else {
                                 reject(req.response);
                             }
@@ -337,7 +337,7 @@ export default class SDUCloud {
             }).then((data: any) => new Promise((resolve, reject) => resolve(data.response.accessToken)));
     }
 
-    private refresh() {
+    private async refresh() {
         let csrfToken = SDUCloud.storedCsrfToken;
         if (!csrfToken) {
             return new Promise((resolve, reject) => {
@@ -346,7 +346,7 @@ export default class SDUCloud {
         }
 
         let refreshPath = this.context + this.authContext + "/refresh/web";
-        return new Promise((resolve, reject) => {
+        const data = await new Promise<{accessToken: string, csrfToken: string}>((resolve, reject) => {
             let req = new XMLHttpRequest();
             req.open("POST", refreshPath);
             req.setRequestHeader("X-CSRFToken", csrfToken);
@@ -359,18 +359,17 @@ export default class SDUCloud {
                             SDUCloud.clearTokens();
                             this.openBrowserLoginPage();
                         }
-                        reject({ status: req.status, response: req.response });
+                        reject({status: req.status, response: req.response});
                     }
                 } catch (e) {
-                    reject({ status: e.status, response: e.response });
+                    reject({status: e.status, response: e.response});
                 }
             };
             req.send();
-        }).then((data: any) => {
-            return new Promise((resolve, reject) => {
-                this.setTokens(data.accessToken, data.csrfToken);
-                resolve(data.accessToken);
-            });
+        });
+        return new Promise((resolve, reject) => {
+            this.setTokens(data.accessToken, data.csrfToken);
+            resolve(data.accessToken);
         });
     }
 
@@ -400,7 +399,7 @@ export default class SDUCloud {
             return void (0) as never;
         };
         try {
-            const token = jwt.decode(accessToken, { complete: true });
+            const token = jwt.decode(accessToken, {complete: true});
 
             if (token === null) {
                 return bail();
@@ -453,7 +452,7 @@ export default class SDUCloud {
             }
             throw Error("The server was unreachable, please try again later.")
         } catch (err) {
-            snackbarStore.addSnack({ message: err.message, type: SnackType.Failure });
+            snackbarStore.addSnack({message: err.message, type: SnackType.Failure});
         }
     }
 
