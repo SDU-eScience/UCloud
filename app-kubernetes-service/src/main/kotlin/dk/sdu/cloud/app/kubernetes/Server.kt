@@ -46,7 +46,8 @@ class Server(override val micro: Micro, private val configuration: Configuration
             tunnelManager = tunnelManager,
             performAuthentication = configuration.performAuthentication,
             prefix = configuration.prefix,
-            domain = configuration.domain
+            domain = configuration.domain,
+            cookieName = configuration.cookieName
         )
 
         podService.initializeListeners()

@@ -13,7 +13,6 @@ import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -29,28 +28,27 @@ import kotlin.coroutines.suspendCoroutine
 
 private object RedisScope : CoroutineScope {
     private lateinit var dispatcher: CoroutineDispatcher
-    private lateinit var executor: ExecutorService
-    private lateinit var job: Job
+    private var executor: ExecutorService? = null
 
     private val isRunning: Boolean
-        get() = this::job.isInitialized
+        get() = executor != null
 
     override val coroutineContext: CoroutineContext
-        get() = dispatcher + job
+        get() = dispatcher
 
     fun start() {
         synchronized(this) {
             if (isRunning) return
 
-            executor = Executors.newCachedThreadPool()
-            dispatcher = executor.asCoroutineDispatcher()
-            job = Job()
+            val newCachedThreadPool = Executors.newCachedThreadPool()
+            executor = newCachedThreadPool
+            dispatcher = newCachedThreadPool.asCoroutineDispatcher()
         }
     }
 
     fun stop() {
-        job.cancel()
-        executor.shutdown()
+        executor?.shutdown()
+        executor = null
     }
 }
 

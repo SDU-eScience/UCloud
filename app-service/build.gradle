@@ -1,11 +1,11 @@
 group 'dk.sdu.cloud'
-version '1.10.8'
+version '1.10.10'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
 
 buildscript {
-    ext.serviceCommonVersion = "1.4.10"
+    ext.serviceCommonVersion = "1.4.12"
     ext.fileApiVersion = '2.0.1'
 }
 

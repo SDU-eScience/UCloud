@@ -173,7 +173,7 @@ class JobOrchestrator<DBSession>(
                 }
             } else {
                 // if we have bad transition on canceling, the job is finished and should not change status
-                if ( proposedState != JobState.CANCELING) {
+                if (proposedState != JobState.CANCELING) {
                     throw JobException.BadStateTransition(job.currentState, event.newState)
                 }
             }

@@ -35,6 +35,7 @@ import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import java.net.ConnectException
 import java.net.URLEncoder
 import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 import kotlin.reflect.KClass
 import kotlin.reflect.full.companionObjectInstance
@@ -54,6 +55,13 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
 
     private val httpClient = HttpClient(OkHttp) {
+        engine {
+            config {
+                readTimeout(5, TimeUnit.MINUTES)
+                writeTimeout(5, TimeUnit.MINUTES)
+            }
+        }
+
         install(JsonFeature) {
             serializer = JacksonSerializer()
         }
