@@ -24,7 +24,7 @@ const List: React.FunctionComponent = props => {
                 page={response.data}
                 pageRenderer={page => <>
                     {page.items.map(e =>
-                        <ProjectSummary summary={e} key={e.id} />
+                        <ProjectSummary summary={e} key={e.id}/>
                     )}
                 </>}
                 loading={response.loading}
@@ -41,7 +41,8 @@ const List: React.FunctionComponent = props => {
 
 const ProjectSummary: React.FunctionComponent<{ summary: UserInProject }> = props => {
     return <Box>
-        In {props.summary.title} you are a {props.summary.whoami.role}
+        In {props.summary.title} you are a {props.summary.whoami.role}. This is a <Link
+        to={`/projects/view/${props.summary.id}`}>link</Link>
     </Box>;
 };
 

@@ -12,6 +12,12 @@ export interface Project {
     members: ProjectMember[]
 }
 
+export const emptyProject = (id: string): Project => ({
+    id,
+    title: "",
+    members: []
+});
+
 export enum ProjectRole {
     PI = "PI",
     ADMIN = "ADMIN",

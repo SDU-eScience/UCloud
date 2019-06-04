@@ -19,7 +19,7 @@ import ContainerForText from "ui-components/ContainerForText";
 
 import { dateToString } from "Utilities/DateUtilities";
 import { capitalized } from "UtilityFunctions"
-import { LoadingMainContainer } from "MainContainer/MainContainer";
+import { LoadableMainContainer } from "MainContainer/MainContainer";
 import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
 import { AppLogo, hashF } from "./Card";
 
@@ -73,7 +73,7 @@ function View(props: ViewProps) {
         );
     }
     return (
-        <LoadingMainContainer
+        <LoadableMainContainer
             loadable={props.application}
             main={
                 <ContainerForText>
