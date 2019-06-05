@@ -190,8 +190,8 @@ const paginationDisabled = lightGray;
 // Icons colors
 const iconColor = darkGray;
 const iconColor2 = gray;
-const FtIconColor = lightGray;
-const FtIconColor2 = gray;
+const FtIconColor = gray;
+const FtIconColor2 = midGray;
 const spinnerColor = blue;
 // File table colors
 const tableRowHighlight = lightBlue;
