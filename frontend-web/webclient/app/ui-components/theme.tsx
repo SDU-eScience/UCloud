@@ -190,8 +190,10 @@ const paginationDisabled = lightGray;
 // Icons colors
 const iconColor = darkGray;
 const iconColor2 = gray;
-const FtIconColor = gray;
+const FtIconColor = lightGray;
 const FtIconColor2 = midGray;
+const FtFolderColor = gray;
+const FtFolderColor2 = midGray;
 const spinnerColor = blue;
 // File table colors
 const tableRowHighlight = lightBlue;
@@ -231,6 +233,8 @@ const colors = {
   iconColor2,
   FtIconColor,
   FtIconColor2,
+  FtFolderColor,
+  FtFolderColor2,
   spinnerColor,
   tableRowHighlight,
   wayfGreen: "#66b340"

@@ -224,14 +224,14 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
 
   switch (fileIcon.type) {
     case "FAVFOLDER":
-      return (<Icon name={"ftFavFolder"} size={size} color={"FtIconColor"} color2={"FtIconColor2"} />);
+      return (<Icon name={"ftFavFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "TRASHFOLDER":
       return (<Icon name={"trash"} size={size} color={"red"} color2={"lightRed"} />);
     case "RESULTFOLDER":
-      return (<Icon name={"ftResultsFolder"} size={size} color={"FtIconColor"} color2={"FtIconColor2"} />);
+      return (<Icon name={"ftResultsFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "DIRECTORY":
-      return (<Icon name={"ftFolder"} size={size} color={"FtIconColor"} color2={"FtIconColor2"} />);
-      // return (<SvgFtFolder width={size} height={size} color={theme.colors["FtIconColor2"]} color2={theme.colors["lightGray"]} {...props} />);
+      return (<Icon name={"ftFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+      // return (<SvgFtFolder width={size} height={size} color={theme.colors["FtFolderColor2"]} color2={theme.colors["lightGray"]} {...props} />);
   }
   /* fileIcon.type should be "FILE" at this point */
   return (
