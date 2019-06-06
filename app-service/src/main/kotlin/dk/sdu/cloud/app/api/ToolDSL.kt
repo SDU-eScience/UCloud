@@ -11,7 +11,7 @@ private const val FIELD_MAX_LENGTH = 255
 
 enum class ToolBackend {
     SINGULARITY,
-    UDOCKER
+    DOCKER
 }
 
 @JsonTypeInfo(

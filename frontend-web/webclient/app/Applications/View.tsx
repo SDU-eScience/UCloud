@@ -278,7 +278,7 @@ function Information({ application }: { application: WithAppMetadata & WithAppIn
 
             <InfoAttribute
                 name="Container Type"
-                value={backend === "UDOCKER" ? "Docker" : capitalized(backend)} />
+                value={capitalized(backend)} />
         </InfoAttributes>
     </>;
 }

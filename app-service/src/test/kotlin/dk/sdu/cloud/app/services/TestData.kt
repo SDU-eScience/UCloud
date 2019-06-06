@@ -86,7 +86,7 @@ val normToolDesc = NormalizedToolDescription(
     listOf("Author"),
     "title",
     "description",
-    ToolBackend.UDOCKER
+    ToolBackend.DOCKER
 )
 
 val verifiedJob = VerifiedJob(

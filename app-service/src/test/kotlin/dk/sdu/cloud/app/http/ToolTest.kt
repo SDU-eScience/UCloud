@@ -45,7 +45,7 @@ class ToolTest {
         listOf("auther"),
         "title",
         "description",
-        ToolBackend.UDOCKER
+        ToolBackend.DOCKER
     )
 
     private val tool = Tool(

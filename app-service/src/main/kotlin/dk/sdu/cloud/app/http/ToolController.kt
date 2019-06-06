@@ -47,7 +47,6 @@ class ToolController<DBSession>(
                     request.version
                 )
             }
-
             ok(result)
         }
 
