@@ -236,7 +236,7 @@ const GenericParameter = ({parameter, children, onRemove}: {parameter: Types.App
         <Label fontSize={1} htmlFor={parameter.name}>
             <Flex>
                 <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
-                {parameter.optional ? <><Box ml="auto" /><Text onClick={onRemove}>Remove</Text><Icon size={16} name="close"/></> : null}
+                {parameter.optional ? <><Box ml="auto" /><Text cursor="pointer" mb="4px" onClick={onRemove}>Remove<Icon ml="6px" size={16} name="close"/></Text></> : null}
             </Flex>
         </Label>
         {children}
