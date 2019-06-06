@@ -92,8 +92,18 @@ exports[`View component Mount view 1`] = `
 
 .c8 {
   -webkit-font-smoothing: antialiased;
-  display: inline-block;
-  vertical-align: middle;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
   text-align: center;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -129,8 +139,18 @@ exports[`View component Mount view 1`] = `
 
 .c15 {
   -webkit-font-smoothing: antialiased;
-  display: inline-block;
-  vertical-align: middle;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
   text-align: center;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -206,6 +226,14 @@ exports[`View component Mount view 1`] = `
   z-index: 45;
 }
 
+.c4 {
+  cursor: auto;
+}
+
+.c22 {
+  cursor: auto;
+}
+
 .c19 {
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -239,11 +267,13 @@ exports[`View component Mount view 1`] = `
 }
 
 .c14 {
+  cursor: auto;
   padding-bottom: 1em;
   font-size: large;
 }
 
 .c18 {
+  cursor: auto;
   margin-bottom: 1em;
   font-size: large;
 }
@@ -308,6 +338,7 @@ exports[`View component Mount view 1`] = `
   </div>
   <div
     className="c4"
+    cursor="auto"
   >
     <div
       className="c5"
@@ -404,6 +435,7 @@ exports[`View component Mount view 1`] = `
         </h4>
         <div
           className="c14"
+          cursor="auto"
           fontSize="large"
         >
           <a
@@ -490,6 +522,7 @@ exports[`View component Mount view 1`] = `
         </h4>
         <div
           className="c18"
+          cursor="auto"
           fontSize="large"
         >
           <div
@@ -539,6 +572,7 @@ exports[`View component Mount view 1`] = `
         </h4>
         <div
           className="c18"
+          cursor="auto"
           fontSize="large"
         />
         <h4
@@ -578,6 +612,7 @@ exports[`View component Mount view 1`] = `
         </h4>
         <div
           className="c18"
+          cursor="auto"
           fontSize="large"
         />
       </div>
@@ -589,6 +624,7 @@ exports[`View component Mount view 1`] = `
   >
     <div
       className="c22"
+      cursor="auto"
     >
       <div
         className="c6"
@@ -679,6 +715,7 @@ exports[`View component Mount view 1`] = `
         </h4>
         <div
           className="c14"
+          cursor="auto"
           fontSize="large"
         >
           <a
@@ -765,6 +802,7 @@ exports[`View component Mount view 1`] = `
         </h4>
         <div
           className="c18"
+          cursor="auto"
           fontSize="large"
         >
           <div
@@ -814,6 +852,7 @@ exports[`View component Mount view 1`] = `
         </h4>
         <div
           className="c18"
+          cursor="auto"
           fontSize="large"
         />
         <h4
@@ -853,6 +892,7 @@ exports[`View component Mount view 1`] = `
         </h4>
         <div
           className="c18"
+          cursor="auto"
           fontSize="large"
         />
       </div>

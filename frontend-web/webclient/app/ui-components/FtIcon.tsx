@@ -193,20 +193,20 @@ const SvgFt = ({ color, color2, hasExt, ext, type, ...props }) => (
 );
 
 //Folder type icon component
-const SvgFtFolder = ({ color, color2, ...props }) => (
-  <svg
-    viewBox="0 0 24 22"
-    fillRule="evenodd"
-    clipRule="evenodd"
-    {...props}
-  >
-    <path
-      d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-      fill={color ? color : "currentcolor"}
-      fillRule="nonzero"
-    />
-  </svg>
-);
+// const SvgFtFolder = ({ color, color2, ...props }) => (
+//   <svg
+//     viewBox="0 0 24 22"
+//     fillRule="evenodd"
+//     clipRule="evenodd"
+//     {...props}
+//   >
+//     <path
+//       d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+//       fill={color ? color : "currentcolor"}
+//       fillRule="nonzero"
+//     />
+//   </svg>
+// );
 
 type FtLabelProps = WidthProps;
 const FtLabel = styled(Text) <FtLabelProps>`
@@ -224,14 +224,14 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
 
   switch (fileIcon.type) {
     case "FAVFOLDER":
-      return (<Icon name={"ftFavFolder"} size={size} color={"FtIconColor2"} color2={"lightGray"} />);
+      return (<Icon name={"ftFavFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "TRASHFOLDER":
       return (<Icon name={"trash"} size={size} color={"red"} color2={"lightRed"} />);
     case "RESULTFOLDER":
-      return (<Icon name={"ftResultsFolder"} size={size} color={"FtIconColor2"} color2={"lightGray"} />);
+      return (<Icon name={"ftResultsFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "DIRECTORY":
-      //return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
-      return (<SvgFtFolder width={size} height={size} color={theme.colors["FtIconColor2"]} color2={theme.colors["lightGray"]} {...props} />);
+      return (<Icon name={"ftFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+      // return (<SvgFtFolder width={size} height={size} color={theme.colors["FtFolderColor2"]} color2={theme.colors["lightGray"]} {...props} />);
   }
   /* fileIcon.type should be "FILE" at this point */
   return (

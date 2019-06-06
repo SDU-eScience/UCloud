@@ -1,5 +1,6 @@
 package dk.sdu.cloud.audit.ingestion.processors
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStream
@@ -9,8 +10,11 @@ import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.XContentType
+import java.text.DateFormat
+import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.*
 
 object HttpLogsStream : EventStream<String> {
     override val desiredPartitions: Int? = null
@@ -35,8 +39,9 @@ class AuditProcessor(
                     runCatching {
                         val tree = defaultMapper.readTree(document)
                         val requestName = tree["requestName"].textValue()!!
+                        (tree as ObjectNode).put("@timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
 
-                        Pair(requestName, document)
+                        Pair(requestName, defaultMapper.writeValueAsString(tree))
                     }.getOrNull()
                 }
                 .groupBy { (requestName, _) -> requestName }
@@ -45,6 +50,7 @@ class AuditProcessor(
                     val indexName = "http_logs_$requestName-$dateSuffix".toLowerCase()
 
                     log.debug("Inserting ${batch.size} elements into $indexName")
+
 
                     batch
                         .map { (_, doc) ->

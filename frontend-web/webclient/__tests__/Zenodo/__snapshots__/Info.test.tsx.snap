@@ -16,6 +16,10 @@ exports[`Zenodo Info Mount component 1`] = `
   padding-right: 14px;
 }
 
+.c2 {
+  cursor: auto;
+}
+
 .c3 {
   position: relative;
   margin: 20px auto;
@@ -150,6 +154,7 @@ exports[`Zenodo Info Mount component 1`] = `
   >
     <div
       className="c2"
+      cursor="auto"
     />
     <div
       className="c3"
