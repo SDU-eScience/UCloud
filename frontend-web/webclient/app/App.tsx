@@ -32,9 +32,10 @@ import snackbar from "Snackbar/Redux/SnackbarsReducer";
 import * as FavoritesRedux from "Favorites/Redux";
 import {configureStore} from "Utilities/ReduxUtilities";
 import {responsiveStoreEnhancer, createResponsiveStateReducer} from 'redux-responsive';
-import {responsiveBP} from "ui-components/theme";
+import {responsiveBP, invertedColors} from "ui-components/theme";
 import {fetchLoginStatus} from "Zenodo/Redux/ZenodoActions";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
+import Header from "Navigation/Header";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
@@ -90,16 +91,24 @@ const GlobalStyle = createGlobalStyle`
   ${() => UIGlobalStyle}
 `;
 
+function App() {
+    const [isLightTheme, setTheme] = React.useState(true);
+    return (
+        <Provider store={store}>
+            <ThemeProvider theme={!isLightTheme ? theme : {...theme, colors: invertedColors}}>
+                <>
+                    <GlobalStyle />
+                    <BrowserRouter basename="app">
+                        <Header toggleTheme={() => isLightTheme ? setTheme(false) : setTheme(true)} />
+                        <Core />
+                    </BrowserRouter>
+                </>
+            </ThemeProvider>
+        </Provider >
+    )
+}
+
 ReactDOM.render(
-    <Provider store={store}>
-        <ThemeProvider theme={theme}>
-            <>
-                <GlobalStyle/>
-                <BrowserRouter basename="app">
-                    <Core/>
-                </BrowserRouter>
-            </>
-        </ThemeProvider>
-    </Provider>,
+    <App />,
     document.getElementById("app")
 );

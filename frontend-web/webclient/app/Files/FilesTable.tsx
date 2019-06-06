@@ -80,9 +80,9 @@ const notSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} | n
     notSticky ? null : {position: "sticky"};
 
 const FileTableHeaderCell = styled(TableHeaderCell) <{notSticky?: boolean}>`
+    background-color: ${({theme}) => theme.colors.white};
     top: 144px; //topmenu + header size
     z-index: 10;
-    background-color: white;
     ${notSticky}
 `;
 
@@ -96,7 +96,7 @@ const ResponsiveTableColumn = ({
     notSticky
 }: ResponsiveTableColumnProps) => (
         <FileTableHeaderCell notSticky={notSticky} width="10rem" >
-            <Flex alignItems="center" cursor="pointer" justifyContent="left">
+            <Flex backgroundColor="white" alignItems="center" cursor="pointer" justifyContent="left">
                 <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ?
                     SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}
                 >
@@ -131,6 +131,7 @@ const FilesTableHeader = ({
             <TableRow>
                 <FileTableHeaderCell notSticky={notStickyHeader} textAlign="left" width="99%">
                     <Flex
+                        backgroundColor="white"
                         alignItems="center"
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
                         <Box mx="9px" onClick={e => e.stopPropagation()}>{masterCheckbox}</Box>
@@ -139,7 +140,7 @@ const FilesTableHeader = ({
                     </Flex>
                 </FileTableHeaderCell>
                 <FileTableHeaderCell notSticky={notStickyHeader} width={"3em"}>
-                    <Flex />
+                    <Flex backgroundColor="white" />
                 </FileTableHeaderCell>
                 {sortingColumns.filter(it => it != null).map((sC, i) => (
                     <ResponsiveTableColumn

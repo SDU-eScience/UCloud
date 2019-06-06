@@ -28,7 +28,7 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
 
     return (
         <React.StrictMode>
-            <Box ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
+            <Box backgroundColor="white" ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
                 {header &&
                     <HeaderContainer
                         top={topMenuSize} left="0"

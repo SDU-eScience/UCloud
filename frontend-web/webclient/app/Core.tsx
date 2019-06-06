@@ -5,7 +5,6 @@ import Dashboard from "Dashboard/Dashboard";
 import Applications from "Applications/Browse";
 import Run from "Applications/Run";
 import JobResults from "Applications/JobResults";
-import Header from "Navigation/Header";
 import Sidebar from "ui-components/Sidebar";
 import ZenodoPublish from "Zenodo/Publish";
 import * as Share from "Shares";
@@ -46,7 +45,6 @@ const Core = () => (
     <>
         <Dialog />
         <Snackbars />
-        <Header />
         <Uploader />
         <Sidebar />
         <ErrorBoundary>

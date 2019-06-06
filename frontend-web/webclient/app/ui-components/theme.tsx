@@ -1,8 +1,8 @@
 import RatingBadge from "./RatingBadge";
-import { SSL_OP_SSLEAY_080_CLIENT_DH_BUG } from "constants";
+import {SSL_OP_SSLEAY_080_CLIENT_DH_BUG} from "constants";
 
 const createMinMediaQuery = (n: number) => `@media screen and (min-width:${n}px)`
-const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n-1}px)`
+const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n - 1}px)`
 
 const addAliases = (arr: any, aliases: any[]) =>
   aliases.forEach((key, i) =>
@@ -18,7 +18,7 @@ const addAliases = (arr: any, aliases: any[]) =>
 const bp = [512, 640, 768, 1024, 1280]
 const aliases = ['xs', 'sm', 'md', 'lg', 'xl']
 export const breakpoints = bp.map(n => n + 'px')
-export const responsiveBP = bp.map((n,i) => ({[aliases[i]]: n-1})).reduce((obj, item) => ({...obj, ...item}) ,{})
+export const responsiveBP = bp.map((n, i) => ({[aliases[i]]: n - 1})).reduce((obj, item) => ({...obj, ...item}), {})
 //export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 } 
 
 export const mediaQueryGT = bp.map(createMinMediaQuery)
@@ -240,10 +240,20 @@ const colors = {
   wayfGreen: "#66b340"
 }
 
+export const invertedColors = {
+  ...colors,
+  white: "#282c35",
+  /* blue: "#ff9500", */
+  black: "#a4a5a9",
+  text: "#e5e5e6",
+  lightGray: "#111"
+}
+
+
 export type ThemeColor = keyof typeof colors;
 
 
-export { colors }
+export {colors}
 
 export const colorStyles = {
   whiteOnText: {
@@ -416,7 +426,7 @@ const easeInOut = 'cubic-bezier(0.5, 0, 0.25, 1)'
 const easeOut = 'cubic-bezier(0, 0, 0.25, 1)'
 const easeIn = 'cubic-bezier(0.5, 0, 1, 1)'
 const easeInQuint = 'cubic-bezier(0.755, 0.05, 0.855, 0.06)' //This is a steep easeIn curve
-const easeInQuintR = `cubic-bezier(${1-0.855}, ${1-0.06}, ${1-0.755}, ${1-0.05})` //This is a steep easeIn curve
+const easeInQuintR = `cubic-bezier(${1 - 0.855}, ${1 - 0.06}, ${1 - 0.755}, ${1 - 0.05})` //This is a steep easeIn curve
 const easeOutQuint = 'cubic-bezier(0.23, 1, 0.32, 1)'
 const stepStart = 'step-start'
 const stepEnd = 'step-end'

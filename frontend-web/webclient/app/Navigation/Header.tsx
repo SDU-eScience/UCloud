@@ -14,7 +14,7 @@ import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {searchPage} from "Utilities/SearchUtilities";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
-import {withRouter} from "react-router";
+import {withRouter, RouteComponentProps} from "react-router";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {Dropdown} from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
@@ -30,83 +30,93 @@ import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
 import {SpaceProps} from "styled-system";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
-interface HeaderProps extends HeaderStateToProps, HeaderOperations {
+interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteComponentProps {
     history: History
+    toggleTheme: () => void
 }
 
-const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
-    <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
+const DevelopmentBadge = ({onClick}) => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
+    <DevelopmentBadgeBase onClick={onClick}>DEVELOPMENT</DevelopmentBadgeBase> : null;
 
 // NOTE: Ideal for hooks, if useRouter ever happens
-class Header extends React.Component<HeaderProps> {
+function Header(props: HeaderProps) {
 
-    private searchRef = React.createRef<HTMLInputElement>();
+    const searchRef = React.useRef<HTMLInputElement>(null);
 
-    constructor(props) {
-        super(props);
+    const [c, setC] = React.useState(0);
+    const [t, setT] = React.useState(0);
+
+    React.useEffect(() => {
         props.fetchLoginStatus();
         props.fetchAvatar();
+    }, [])
+
+    function tryChange() {
+        if (t + 5_000 < new Date().getTime())
+            setC(0);
+        else if (c === 5)
+            props.toggleTheme();
+        setC((c + 1) % 6);
+        setT(new Date().getTime());
     }
 
-    public render() {
-        const {prioritizedSearch, history, refresh, spin} = this.props;
-        if (!Cloud.isLoggedIn) return null;
-        return (
-            <HeaderContainer color="headerText" bg="headerBg">
-                <Logo/>
-                {/* <ContextSwitcher /> */}
-                <Box ml="auto"/>
-                <Hide xs sm md>
-                    <Search
-                        searchType={this.props.prioritizedSearch}
-                        navigate={() => history.push(searchPage(prioritizedSearch, this.searchRef.current && this.searchRef.current.value || ""))}
-                        searchRef={this.searchRef}
-                        setSearchType={st => this.props.setSearchType(st)}
-                    />
-                </Hide>
-                <Hide lg xxl xl>
-                    <Icon name="search" size="32" mr="3px" cursor="pointer"
-                          onClick={() => this.props.history.push("/search/files")}/>
-                </Hide>
-                <Box mr="auto"/>
-                <DevelopmentBadge/>
-                <BackgroundTask/>
-                <Flex width="48px" justifyContent="center">
-                    <Refresh spin={spin} onClick={refresh} headerLoading={this.props.statusLoading}/>
+    const {prioritizedSearch, history, refresh, spin} = props;
+    if (!Cloud.isLoggedIn) return null;
+    return (
+        <HeaderContainer color="headerText" bg="headerBg">
+            <Logo />
+            {/* <ContextSwitcher /> */}
+            <Box ml="auto" onClick={tryChange} />
+            <Hide xs sm md>
+                <Search
+                    searchType={props.prioritizedSearch}
+                    navigate={() => history.push(searchPage(prioritizedSearch, searchRef.current && searchRef.current.value || ""))}
+                    searchRef={searchRef}
+                    setSearchType={st => props.setSearchType(st)}
+                />
+            </Hide>
+            <Hide lg xxl xl>
+                <Icon name="search" size="32" mr="3px" cursor="pointer"
+                    onClick={() => props.history.push("/search/files")} />
+            </Hide>
+            <Box mr="auto" onClick={tryChange} />
+            <DevelopmentBadge onClick={tryChange} />
+            <BackgroundTask />
+            <Flex width="48px" justifyContent="center">
+                <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />
+            </Flex>
+            <Support />
+            <Notification />
+            <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ?
+                <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}>
+                <Box ml="-17px" mr="-17px" pl="15px">
+                    <Link color="black" to="/users/settings">
+                        <Flex color="black">
+                            <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
+                            <TextSpan>Settings</TextSpan>
+                        </Flex>
+                    </Link>
+                </Box>
+                <Flex ml="-17px" mr="-17px" pl="15px">
+                    <Link to={"/users/avatar"}>
+                        <Flex color="black">
+                            <Icon name="edit" mr="0.5em" my="0.2em" size="1.3em" />
+                            <TextSpan>Edit Avatar</TextSpan>
+                        </Flex>
+                    </Link>
                 </Flex>
-                <Support/>
-                <Notification/>
-                <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ?
-                    <UserAvatar avatar={this.props.avatar} mx={"8px"}/> : null}</Flex>}>
-                    <Box ml="-17px" mr="-17px" pl="15px">
-                        <Link color="black" to="/users/settings">
-                            <Flex color="black">
-                                <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em"/>
-                                <TextSpan>Settings</TextSpan>
-                            </Flex>
-                        </Link>
-                    </Box>
-                    <Flex ml="-17px" mr="-17px" pl="15px">
-                        <Link to={"/users/avatar"}>
-                            <Flex color="black">
-                                <Icon name="edit" mr="0.5em" my="0.2em" size="1.3em"/>
-                                <TextSpan>Edit Avatar</TextSpan>
-                            </Flex>
-                        </Link>
+                <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
+                    <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
+                    Logout
                     </Flex>
-                    <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
-                        <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em"/>
-                        Logout
-                    </Flex>
-                </ClickableDropdown>
-            </HeaderContainer>
-        )
-    }
+            </ClickableDropdown>
+        </HeaderContainer>
+    )
 }
 
-export const Refresh = ({onClick, spin, headerLoading}: { onClick?: () => void, spin: boolean, headerLoading?: boolean }) => !!onClick || headerLoading ?
+export const Refresh = ({onClick, spin, headerLoading}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
     <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading}
-                 onClick={() => !!onClick ? onClick() : undefined}/> : <Box width="24px"/>
+        onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
@@ -119,7 +129,7 @@ const HeaderContainer = styled(Flex)`
     top: 0;
     width: 100%;
     z-index: 100;
-    box-shadow: ${({ theme }) => theme.shadows["sm"]};
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
 `;
 
 const Logo = () => (
@@ -132,7 +142,7 @@ const Logo = () => (
 );
 
 const Login = () => (
-    <Icon name="user"/>
+    <Icon name="user" />
 );
 
 
@@ -187,55 +197,55 @@ const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) =
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     if (inDevEnvironment()) allowedSearchTypes.push("projects");
     return (<Relative>
-            <SearchInput>
-                <Input
-                    pl="30px"
-                    id="search_input"
-                    type="text"
-                    ref={searchRef}
-                    noBorder
-                    onKeyDown={e => {
-                        if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate();
-                    }}
-                />
-                <Absolute left="6px" top="7px">
-                    <Label htmlFor="search_input">
-                        <Icon name="search" size="20"/>
-                    </Label>
-                </Absolute>
-                <ClickableDropdown
-                    overflow={"visible"}
-                    left={-425}
-                    top={15}
-                    width="425px"
-                    colorOnHover={false}
-                    keepOpenOnClick
-                    squareTop
-                    trigger={
-                        <Absolute top={-12.5} right={12} bottom={0} left={-28}>
-                            <Icon name="chevronDown" size="15px"/>
-                        </Absolute>
-                    }>
-                    <SearchOptions>
-                        <Box ml="auto"/>
-                        {allowedSearchTypes.map(it =>
-                            <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
-                                            selected={it === searchType}>
-                                {prettierString(it)}
-                            </SelectableText>
-                        )}
-                        <Box mr="auto"/>
-                    </SearchOptions>
-                    {searchType === "files" ?
-                        <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide/> :
-                        searchType === "applications" ?
-                            <DetailedApplicationSearch defaultAppName={searchRef.current && searchRef.current.value || undefined}/> :
-                            searchType === "projects" ? <DetailedProjectSearch
-                                defaultProjectName={searchRef.current && searchRef.current.value}/> : null}
-                </ClickableDropdown>
-                {!Cloud.isLoggedIn ? <Login/> : null}
-            </SearchInput>
-        </Relative>
+        <SearchInput>
+            <Input
+                pl="30px"
+                id="search_input"
+                type="text"
+                ref={searchRef}
+                noBorder
+                onKeyDown={e => {
+                    if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate();
+                }}
+            />
+            <Absolute left="6px" top="7px">
+                <Label htmlFor="search_input">
+                    <Icon name="search" size="20" />
+                </Label>
+            </Absolute>
+            <ClickableDropdown
+                overflow={"visible"}
+                left={-425}
+                top={15}
+                width="425px"
+                colorOnHover={false}
+                keepOpenOnClick
+                squareTop
+                trigger={
+                    <Absolute top={-12.5} right={12} bottom={0} left={-28}>
+                        <Icon name="chevronDown" size="15px" />
+                    </Absolute>
+                }>
+                <SearchOptions>
+                    <Box ml="auto" />
+                    {allowedSearchTypes.map(it =>
+                        <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
+                            selected={it === searchType}>
+                            {prettierString(it)}
+                        </SelectableText>
+                    )}
+                    <Box mr="auto" />
+                </SearchOptions>
+                {searchType === "files" ?
+                    <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide /> :
+                    searchType === "applications" ?
+                        <DetailedApplicationSearch defaultAppName={searchRef.current && searchRef.current.value || undefined} /> :
+                        searchType === "projects" ? <DetailedProjectSearch
+                            defaultProjectName={searchRef.current && searchRef.current.value} /> : null}
+            </ClickableDropdown>
+            {!Cloud.isLoggedIn ? <Login /> : null}
+        </SearchInput>
+    </Relative>
     )
 };
 
@@ -280,7 +290,7 @@ const ContextSwitcher = (props) => {
         <ClickableDropdown trigger={
             <ContextSwitcherFlex>
                 <EllipsedText pl="8px" pr="6px" width="150px" title={userContext}>{userContext}</EllipsedText>
-                <Box cursor="pointer" pr="8px"><Icon size={"10"} name={"chevronDown"}/></Box>
+                <Box cursor="pointer" pr="8px"><Icon size={"10"} name={"chevronDown"} /></Box>
             </ContextSwitcherFlex>
         } width="174px">
             {[Cloud.username, "Project 1", "Project 2"].filter(it => it !== userContext).map(it => (
