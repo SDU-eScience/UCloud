@@ -504,7 +504,7 @@ const Parameters = (props: ParameterProps) => {
                 </>
                 : null
             }
-            <Heading.h4 mb="4px">Mount additional folders <Button type="button" ml="5px" onClick={props.addFolder}>+</Button></Heading.h4>
+            <Heading.h4 mb="4px"><Flex>Mount additional folders <Button type="button" ml="5px" onClick={props.addFolder}>+</Button></Flex></Heading.h4>
             {props.additionalDirectories.some(it => !it.readOnly) ? "Note: Giving folders read/write access will make the startup and shutdown of the application longer." : ""}
             {props.additionalDirectories.map((entry, i) => (
                 <Box key={i} mb="7px">
