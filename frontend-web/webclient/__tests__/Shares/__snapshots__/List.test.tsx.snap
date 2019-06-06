@@ -24,6 +24,10 @@ exports[`Shares List Shares component 1`] = `
   font-weight: 400;
 }
 
+.c6 {
+  cursor: auto;
+}
+
 .c1 {
   cursor: auto;
   padding-top: 14px;
@@ -41,6 +45,7 @@ exports[`Shares List Shares component 1`] = `
 }
 
 .c2 {
+  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -90,6 +95,7 @@ exports[`Shares List Shares component 1`] = `
   >
     <div
       className="c2"
+      cursor="inherit"
     >
       <div
         className="c3"
@@ -115,6 +121,7 @@ exports[`Shares List Shares component 1`] = `
   >
     <div
       className="c6"
+      cursor="auto"
     />
     <h3
       className="c7"

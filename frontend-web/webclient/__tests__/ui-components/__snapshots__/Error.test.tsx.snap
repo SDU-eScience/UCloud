@@ -38,6 +38,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
 }
 
 .c0 {
+  cursor: auto;
   padding: 1em 1em 1em 1em;
   height: auto;
   color: #000;
@@ -50,6 +51,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
 <div
   className="c0"
   color="black"
+  cursor="auto"
   height="auto"
 >
   <div
@@ -118,6 +120,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
 }
 
 .c0 {
+  cursor: auto;
   padding: 1em 1em 1em 1em;
   height: auto;
   color: #000;
@@ -130,6 +133,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
 <div
   className="c0"
   color="black"
+  cursor="auto"
   height="auto"
 >
   <div
