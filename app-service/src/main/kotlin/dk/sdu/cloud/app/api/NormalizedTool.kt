@@ -13,7 +13,8 @@ data class NormalizedToolDescription(
     val authors: List<String>,
     val title: String,
     val description: String,
-    val backend: ToolBackend
+    val backend: ToolBackend,
+    val license: String
 ) {
     override fun toString(): String {
         return "NormalizedToolDescription(info=$info, container='$container')"

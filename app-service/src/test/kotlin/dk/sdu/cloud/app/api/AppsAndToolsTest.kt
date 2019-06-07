@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.api
 import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class AppsAndToolsTest {
     @Test
@@ -223,7 +224,8 @@ class AppsAndToolsTest {
             2,
             SimpleDuration(1, 2, 30),
             listOf("modules"),
-            "description"
+            "description",
+            "MIT"
         )
 
         assertEquals("name", v1.name)
@@ -239,6 +241,7 @@ class AppsAndToolsTest {
         assertEquals(30, v1.defaultMaxTime.seconds)
         assertEquals("modules", v1.requiredModules.first())
         assertEquals("description", v1.description)
+        assertEquals("MIT", v1.license)
 
         val normTool = v1.normalize()
 
@@ -255,6 +258,52 @@ class AppsAndToolsTest {
         assertEquals(30, normTool.defaultMaxTime.seconds)
         assertEquals("modules", normTool.requiredModules.first())
         assertEquals("description", normTool.description)
+        assertEquals("MIT", normTool.description)
+
+    }
+
+    @Test
+    fun `create simple V1 tool description - default values`() {
+        val v1 = ToolDescription.V1(
+            "name",
+            "2.2",
+            "title",
+            "container",
+            ToolBackend.SINGULARITY,
+            listOf("Authors")
+        )
+
+        assertEquals("name", v1.name)
+        assertEquals("2.2", v1.version)
+        assertEquals("title", v1.title)
+        assertEquals("container", v1.container)
+        assertEquals(ToolBackend.SINGULARITY, v1.backend)
+        assertEquals("Authors", v1.authors.first())
+        assertEquals(1, v1.defaultNumberOfNodes)
+        assertEquals(1, v1.defaultTasksPerNode)
+        assertEquals(1, v1.defaultMaxTime.hours)
+        assertEquals(0, v1.defaultMaxTime.minutes)
+        assertEquals(0, v1.defaultMaxTime.seconds)
+        assertTrue(v1.requiredModules.isEmpty())
+        assertEquals("", v1.description)
+        assertEquals("", v1.license)
+
+        val normTool = v1.normalize()
+
+        assertEquals("name", normTool.info.name)
+        assertEquals("2.2", normTool.info.version)
+        assertEquals("title", normTool.title)
+        assertEquals("container", normTool.container)
+        assertEquals(ToolBackend.SINGULARITY, normTool.backend)
+        assertEquals("Authors", normTool.authors.first())
+        assertEquals(1, normTool.defaultNumberOfNodes)
+        assertEquals(1, normTool.defaultTasksPerNode)
+        assertEquals(1, normTool.defaultMaxTime.hours)
+        assertEquals(0, normTool.defaultMaxTime.minutes)
+        assertEquals(0, normTool.defaultMaxTime.seconds)
+        assertTrue(normTool.requiredModules.isEmpty())
+        assertEquals("", normTool.description)
+        assertEquals("", normTool.description)
 
     }
 

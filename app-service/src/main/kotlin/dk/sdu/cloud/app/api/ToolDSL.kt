@@ -36,7 +36,8 @@ sealed class ToolDescription(val tool: String) {
         val defaultTasksPerNode: Int = 1,
         val defaultMaxTime: SimpleDuration = SimpleDuration(1, 0, 0),
         val requiredModules: List<String> = emptyList(),
-        val description: String = ""
+        val description: String = "",
+        val license: String = ""
     ) : ToolDescription("v1") {
         init {
             if (name.length > FIELD_MAX_LENGTH)
@@ -75,7 +76,8 @@ sealed class ToolDescription(val tool: String) {
                 authors,
                 title,
                 description,
-                backend
+                backend,
+                license
             )
         }
     }
