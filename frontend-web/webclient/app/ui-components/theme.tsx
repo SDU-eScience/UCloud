@@ -244,6 +244,7 @@ export const invertedColors = {
   ...colors,
   white: "#282c35",
   /* blue: "#ff9500", */
+  tableRowHighlight: "#393939",
   black: "#a4a5a9",
   text: "#e5e5e6",
   lightGray: "#111"

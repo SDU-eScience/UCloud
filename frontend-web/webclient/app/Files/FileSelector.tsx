@@ -92,7 +92,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         const inputRefValueOrNull = this.props.inputRef && this.props.inputRef.current && this.props.inputRef.current.value;
         const inputValue = inputRefValueOrNull || replaceHomeFolder(path, Cloud.homeFolder);
         return (
-            <Flex>
+            <Flex backgroundColor="white">
                 <FileSelectorInput
                     defaultValue={this.props.defaultValue}
                     showError={this.props.showError && this.props.isRequired}
@@ -135,7 +135,8 @@ const FileSelectorModalStyle = {
     content: {
         top: "80px",
         left: "25%",
-        right: "25%"
+        right: "25%",
+        background: ""
     }
 };
 
