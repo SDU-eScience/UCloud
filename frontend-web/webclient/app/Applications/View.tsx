@@ -257,7 +257,7 @@ const InfoAttributes = styled.div`
 `;
 
 function Information({ application }: { application: WithAppMetadata & WithAppInvocation }) {
-    const time = application.invocation.tool.tool.description.defaultMaxTime;
+    const time = application.invocation.tool.tool.description.defaultAllocationTime;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
     const backend = application.invocation.tool.tool.description.backend;
     const license = application.invocation.tool.tool.description.license

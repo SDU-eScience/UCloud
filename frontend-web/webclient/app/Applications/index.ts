@@ -72,7 +72,7 @@ interface ApplicationTool {
         container: string
         defaultNumberOfNodes: number
         defaultTasksPerNode: number
-        defaultMaxTime: MaxTime
+        defaultAllocationTime: MaxTime
         requiredModules: string[]
         authors: string[]
         title: string
@@ -350,7 +350,7 @@ interface ToolDescription {
     container: string
     defaultNumberOfNodes: number
     defaultTasksPerNode: number
-    defaultMaxTime: MaxTime
+    defaultAllocationTime: MaxTime
     requiredModules: string[]
     authors: string[]
     title: string
