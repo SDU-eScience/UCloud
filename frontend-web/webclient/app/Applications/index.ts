@@ -78,6 +78,7 @@ interface ApplicationTool {
         title: string
         description: string
         backend: string
+        license: string
     }
 }
 
@@ -355,6 +356,7 @@ interface ToolDescription {
     title: string
     description: string
     backend: string
+    license: string
 }
 
 export interface WithAppMetadata {

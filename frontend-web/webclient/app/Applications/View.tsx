@@ -260,6 +260,7 @@ function Information({ application }: { application: WithAppMetadata & WithAppIn
     const time = application.invocation.tool.tool.description.defaultMaxTime;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
     const backend = application.invocation.tool.tool.description.backend;
+    const license = application.invocation.tool.tool.description.license
     return <>
         <Heading.h4>Information</Heading.h4>
 
@@ -279,6 +280,10 @@ function Information({ application }: { application: WithAppMetadata & WithAppIn
             <InfoAttribute
                 name="Container Type"
                 value={capitalized(backend)} />
+
+            <InfoAttribute
+                name="License"
+                value={license} />
         </InfoAttributes>
     </>;
 }
