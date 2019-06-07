@@ -1,12 +1,12 @@
 import * as React from "react";
 import Markdown from "ui-components/Markdown"
-import { Absolute, Icon, Flex, RatingBadge, Text } from "ui-components";
+import {Absolute, Icon, Flex, RatingBadge, Text} from "ui-components";
 import Box from "ui-components/Box";
 import Link from "ui-components/Link";
-import { EllipsedText } from "ui-components/Text";
+import {EllipsedText} from "ui-components/Text";
 import * as Pages from "./Pages";
-import { WithAppMetadata } from ".";
-import styled, { css } from "styled-components";
+import {WithAppMetadata} from ".";
+import styled, {css} from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"
 
@@ -73,7 +73,7 @@ export const ApplicationCardContainer = styled.div`
 `;
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const { metadata } = props.app;
+    const {metadata} = props.app;
     return (
         <AppCardBase to={props.linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <Box mr={16} >
@@ -128,16 +128,16 @@ export const AppCard = styled(Link)`
     border-radius: ${props => props.theme.radius};
     position: relative;
     overflow: hidden;
-    box-shadow: ${({ theme }) => theme.shadows["sm"]};
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
     //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
     will-change: transform;
 
     &:hover {
-        transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
         transform: scale(1.02);
-        box-shadow: ${({ theme }) => theme.shadows["md"]};
+        box-shadow: ${({theme}) => theme.shadows["md"]};
     }
 
     // Background
@@ -155,7 +155,7 @@ export const AppCard = styled(Link)`
         background-repeat: repeat;
         transform: rotate(15deg) translate(0,-60%);
         transform-origin: 0 0;
-        }
+    }
 
     &:after {
         content: "";
@@ -177,17 +177,17 @@ export const AppCard = styled(Link)`
     }
 `;
 
-const Tag = ({ label }: { label: string }) => (
-    <RatingBadge mr={"3px"} bg={"darkGray"}><Heading.h6>{label}</Heading.h6></RatingBadge>
-)
+const Tag = ({label}: {label: string}) => (
+    <RatingBadge mr="3px" bg="darkGray"><Heading.h6>{label}</Heading.h6></RatingBadge>
+);
 
 const appColors = theme.appColors;
 
 const nColors = appColors.length;
 
-const bgGradients = appColors.map(x => ({ color1: x[0], color2: x[2] }));
+const bgGradients = appColors.map(x => ({color1: x[0], color2: x[2]}));
 
-const AppBg_triangle = ({ color1, color2 }: { color1: string, color2: string }) => (
+const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}) => (
     <svg height={"128px"} viewBox="0 0 72 128" >
         <path d="M0,128h72v-72z" fill={"url(#appbg_svg___" + color1 + "_" + color2} />
         <defs>
@@ -204,23 +204,7 @@ const AppBg_triangle = ({ color1, color2 }: { color1: string, color2: string }) 
     </svg>
 );
 
-const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
-    <svg height={"128px"} viewBox="0 0 100 128" >
-        <path d="M 25,0 h 75 v 128 h -100 z" fill={"url(#appbg_svg___" + color1 + "_" + color2} />
-        <defs>
-            <linearGradient
-                id={"appbg_svg___" + color1 + "_" + color2}
-                x1={25} x2={100} y1={0} y2={128}
-                gradientUnits="userSpaceOnUse"
-            >
-                <stop offset={0} stopColor={color1} />
-                <stop offset={1} stopColor={color2} />
-            </linearGradient>
-        </defs>
-    </svg>
-);
-
-export const AppLogoRaw = ({ rot, color1Offset, color2Offset, appC, size }: { color1Offset: number, color2Offset: number, appC: number, rot: number, size: string }) => {
+export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color1Offset: number, color2Offset: number, appC: number, rot: number, size: string}) => {
     const c1 = [color1Offset % 3, (color1Offset + 1) % 3, (color1Offset + 2) % 3];
     const c2 = [color2Offset % 3, (color2Offset + 1) % 3, (color2Offset + 2) % 3];
     const centerC = nColors - 1;
@@ -258,7 +242,7 @@ export const AppLogoRaw = ({ rot, color1Offset, color2Offset, appC, size }: { co
         </svg>
     );
 }
-export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
+export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
     const i1 = (hash >>> 30) & 3;
     const i2 = (hash >>> 20) & 3;
     const rot = [0, 15, 30];
@@ -269,8 +253,8 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
 }
 
 
-const AppRibbonContainer = styled(Absolute) <{ favorite?: boolean }>`
-    ${({ favorite }) => favorite ? null : css`transform: translate(0,-30px)`};
+const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
+    ${({favorite}) => favorite ? null : css`transform: translate(0,-30px)`};
     transition: transform ease 0.1s;
     will-change: transform;
 
@@ -304,9 +288,9 @@ const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
 `
 
-export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
+export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({app, onFavorite, isFavorite, linkToRun}: ApplicationCardProps) => {
     const hash = hashF(app.metadata.title);
-    const { metadata } = app;
+    const {metadata} = app;
     const appC = appColor(hash);
     return (
         <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)} hoverColor={null}>
@@ -328,7 +312,8 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 <AppLogo size={"48px"} hash={hash} />
                 <Flex flexDirection={"column"} ml="10px">
                     <Flex>
-                        <Heading.h4>{metadata.title}</Heading.h4>
+                        {/* FIXME: Find other way of handling color */}
+                        <Heading.h4 style={{color: "black"}}>{metadata.title}</Heading.h4>
                         <Text ml="0.4em" mt="3px" color="gray">v{metadata.version}</Text>
                     </Flex>
                     <EllipsedText width={200} title={`by ${metadata.authors.join(", ")} `} color="gray">

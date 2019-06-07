@@ -9,7 +9,7 @@ import {
     backgroundColor,
     BackgroundColorProps
 } from "styled-system";
-import theme from "./theme";
+import {Theme} from "./theme";
 import {Cursor} from "./Types";
 
 export const Table = styled.table<WidthProps & MinWidthProps & BackgroundColorProps>`
@@ -34,7 +34,7 @@ export const TableCell = styled.td<TextAlignProps>`
     ${textAlign};
 `;
 
-const highlighted = ({highlighted}: {highlighted?: boolean}) => highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
+const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) => highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
 
 export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string, cursor?: Cursor} & BackgroundColorProps>`
     ${highlighted};

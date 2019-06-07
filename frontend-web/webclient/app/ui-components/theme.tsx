@@ -1,6 +1,3 @@
-import RatingBadge from "./RatingBadge";
-import {SSL_OP_SSLEAY_080_CLIENT_DH_BUG} from "constants";
-
 const createMinMediaQuery = (n: number) => `@media screen and (min-width:${n}px)`
 const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n - 1}px)`
 
@@ -244,7 +241,7 @@ export const invertedColors = {
   ...colors,
   white: "#282c35",
   /* blue: "#ff9500", */
-  tableRowHighlight: "#393939",
+  tableRowHighlight: "#000",
   black: "#a4a5a9",
   text: "#e5e5e6",
   lightGray: "#111"
