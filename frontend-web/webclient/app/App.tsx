@@ -91,24 +91,26 @@ const GlobalStyle = createGlobalStyle`
   ${() => UIGlobalStyle}
 `;
 
-function App() {
+function App({children}) {
     const [isLightTheme, setTheme] = React.useState(true);
     return (
-        <Provider store={store}>
-            <ThemeProvider theme={!isLightTheme ? theme : {...theme, colors: invertedColors}}>
-                <>
-                    <GlobalStyle />
-                    <BrowserRouter basename="app">
-                        <Header toggleTheme={() => isLightTheme ? setTheme(false) : setTheme(true)} />
-                        <Core />
-                    </BrowserRouter>
-                </>
-            </ThemeProvider>
-        </Provider >
+        <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
+            <>
+                <GlobalStyle />
+                <BrowserRouter basename="app">
+                    <Header toggleTheme={() => isLightTheme ? setTheme(false) : setTheme(true)} />
+                    {children}
+                </BrowserRouter>
+            </>
+        </ThemeProvider>
     )
 }
 
 ReactDOM.render(
-    <App />,
+    <Provider store={store}>
+        <App>
+            <Core />
+        </App>
+    </Provider>,
     document.getElementById("app")
 );
