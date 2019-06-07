@@ -73,7 +73,7 @@
     "recharts": "^1.6.2",
     "redux": "4.0.1",
     "redux-responsive": "^4.3.8",
-    "styled-components": "^4.3.0",
+    "styled-components": "^4.3.1",
     "styled-system": "^4.2.4",
     "svgi": "^1.1.0"
   },
@@ -120,7 +120,7 @@
     "url-loader": "2.0.0",
     "webpack": "4.33.0",
     "webpack-cli": "^3.3.2",
-    "webpack-dev-server": "3.6.0",
+    "webpack-dev-server": "3.7.0",
     "webpack-merge": "4.2.1"
   }
 }
