@@ -93,7 +93,7 @@ StampBase.defaultProps = {
   py: 0,
   mr: "4px",
   theme,
-  color: "black",
+  color: "gray",
   fontSize: 0,
   fullWidth: false
 }
