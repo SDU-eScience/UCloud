@@ -17,9 +17,8 @@ const SvgFtResultsFolder = (props: any) => (
       fill={undefined}
     />
     <path
-      d="M9.47 15.7l-2.355-2.6-2.1 2.136 4.454 4.454 9.546-9.545L16.915 8l-7.446 7.7z"
+      d="M12 8l5.196 3v6L12 20l-5.196-3v-6L12 8z"
       fill={props.color2 ? props.color2 : null}
-      fillRule="nonzero"
     />
   </svg>
 );
