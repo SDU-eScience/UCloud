@@ -16,7 +16,7 @@ const BreadCrumbsBase = styled.ul<{ divider?: string }>`
 
     & li + li:before {
         padding: 8px;
-        color: black;
+        color: ${({theme}) => theme.colors.black};
         content: "${props => props.divider}";
     }
 
