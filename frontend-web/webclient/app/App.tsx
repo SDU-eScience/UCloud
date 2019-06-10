@@ -36,6 +36,7 @@ import {responsiveBP, invertedColors} from "ui-components/theme";
 import {fetchLoginStatus} from "Zenodo/Redux/ZenodoActions";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import Header from "Navigation/Header";
+import {isLightThemeStored, setSiteTheme} from "UtilityFunctions";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
@@ -92,13 +93,14 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 function App({children}) {
-    const [isLightTheme, setTheme] = React.useState(true);
+    const [isLightTheme, setTheme] = React.useState(isLightThemeStored());
+    const setAndStoreTheme = (isLight: boolean) => (setSiteTheme(isLight), setTheme(isLight));
     return (
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <>
                 <GlobalStyle />
                 <BrowserRouter basename="app">
-                    <Header toggleTheme={() => isLightTheme ? setTheme(false) : setTheme(true)} />
+                    <Header toggleTheme={() => isLightTheme ? setAndStoreTheme(false) : setAndStoreTheme(true)} />
                     {children}
                 </BrowserRouter>
             </>

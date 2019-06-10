@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Switch, Route } from "react-router-dom";
+import {Switch, Route} from "react-router-dom";
 import Files from "Files/Files";
 import Dashboard from "Dashboard/Dashboard";
 import Applications from "Applications/Browse";
@@ -28,16 +28,16 @@ import Status from "Navigation/StatusPage";
 import AvataaarModification from "UserSettings/Avataaar";
 import Snackbars from "Snackbar/Snackbars";
 import Favorites from "Favorites/Favorites";
-import { LoginPage } from "Login/Login";
+import {LoginPage} from "Login/Login";
 import Wayf from "Login/Wayf";
 import NoVNCClient from "NoVNC/NoVNCClient";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { dispatchUserAction, onLogin } from "App";
-import { USER_LOGIN } from "Navigation/Redux/HeaderReducer";
-import { MainContainer } from "MainContainer/MainContainer";
-import { ErrorBoundary } from "ErrorBoundary/ErrorBoundary";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {dispatchUserAction, onLogin} from "App";
+import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
+import {MainContainer} from "MainContainer/MainContainer";
+import {ErrorBoundary} from "ErrorBoundary/ErrorBoundary";
 import Dialog from "Dialog/Dialog";
-import { History } from "history";
+import {History} from "history";
 
 const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -99,7 +99,7 @@ const requireAuth = Delegate => props => {
     return <Delegate {...props} />;
 }
 
-const LoginSuccess = (props: { history: History }) => {
+const LoginSuccess = (props: {history: History}) => {
     dispatchUserAction(USER_LOGIN);
     onLogin();
     props.history.push("/");
