@@ -18,10 +18,10 @@ exports[`Zenodo Publish Mount Zenodo component 1`] = `
 
 .c3 {
   -webkit-font-smoothing: antialiased;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
   -webkit-box-pack: center;
   -webkit-justify-content: center;
   -ms-flex-pack: center;

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 25 23" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-679.999,-545)">
+        <g id="Folder" transform="matrix(1,0,0,1,-12.0013,52)">
+            <g transform="matrix(1,0,0,1,12.0006,-26)">
+                <path d="M680,523.5C680,522.672 680.672,522 681.5,522C685.809,522 698.191,522 702.5,522C703.329,522 704,522.671 704,523.5C704,524.973 704.001,527 704.001,527L680,527L680,523.5Z" style="fill:rgb(131,147,167);"/>
+            </g>
+            <g transform="matrix(1,0,0,1,12.0006,-23)">
+                <path d="M680,517.5C680,517.102 680.158,516.721 680.439,516.439C680.721,516.158 681.102,516 681.5,516C684.06,516 689,516 689,516L692,522L702.501,522C702.898,522 703.28,522.158 703.561,522.439C703.843,522.721 704.001,523.102 704.001,523.5C704,526.732 704,534.279 704,537C704,537.552 703.552,538 703,538C699.096,538 684.904,538 681,538C680.448,538 680,537.552 680,537C680,533.487 680,521.698 680,517.5Z" style="fill:rgb(83,101,125);"/>
+            </g>
+        </g>
+    </g>
+</svg>

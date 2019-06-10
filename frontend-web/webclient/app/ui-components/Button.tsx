@@ -38,7 +38,7 @@ export type ButtonProps = ButtonStyleProps & HeightProps & { fullWidth?: boolean
 
 const Button = styled.button<ButtonProps>` 
   -webkit-font-smoothing: antialiased;
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
   text-align: center;
