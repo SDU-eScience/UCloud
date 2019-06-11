@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
@@ -32,13 +33,13 @@ class FileFavoriteController<DBSession>(
         implement(FileFavoriteDescriptions.favoriteStatus) {
             ok(
                 FavoriteStatusResponse(
-                    fileFavoriteService.getFavoriteStatus(request.files, ctx.securityPrincipal.username)
+                    fileFavoriteService.getFavoriteStatus(request.files, ctx.securityToken)
                 )
             )
         }
 
         implement(FileFavoriteDescriptions.list) {
-            ok(fileFavoriteService.listAll(request.normalize(), ctx.securityPrincipal.username))
+            ok(fileFavoriteService.listAll(request.normalize(), ctx.securityToken))
         }
     }
 
@@ -54,7 +55,7 @@ class FileFavoriteController<DBSession>(
                     ToggleFavoriteResponse(
                         fileFavoriteService.toggleFavorite(
                             listOf(request.path),
-                            ctx.securityPrincipal.username,
+                            ctx.securityToken,
                             cloudContext.withoutAuthentication().bearerAuth(call.request.bearer!!),
                             auditMessage
                         )

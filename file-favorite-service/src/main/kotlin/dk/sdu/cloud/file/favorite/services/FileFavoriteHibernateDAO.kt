@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.favorite.services
 
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.service.Loggable
@@ -31,6 +32,8 @@ class FavoriteEntity(
 
     var username: String,
 
+    var project: String? = null,
+
     @Id
     @GeneratedValue
     var id: Long = 0
@@ -42,19 +45,19 @@ class FavoriteEntity(
 class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
     override fun isFavorite(
         session: HibernateSession,
-        user: String,
+        user: SecurityPrincipalToken,
         fileId: String
     ): Boolean {
         return session.criteria<FavoriteEntity> {
             (entity[FavoriteEntity::fileId] equal fileId) and
-                    (entity[FavoriteEntity::username] equal user)
+                    (entity[FavoriteEntity::username] equal user.principal.username)
         }.uniqueResult() != null
     }
 
     override fun bulkIsFavorite(
         session: HibernateSession,
         files: List<StorageFile>,
-        user: String
+        user: SecurityPrincipalToken
     ): Map<String, Boolean> {
         val allFileIds = files.map { it.fileId }
         val chunkedFileIds = allFileIds.chunked(250)
@@ -67,7 +70,7 @@ class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
                     .criteria<FavoriteEntity>(
                         orderBy = { listOf(descending(entity[FavoriteEntity::id])) },
                         predicate = {
-                            (entity[FavoriteEntity::username] equal user) and
+                            (entity[FavoriteEntity::username] equal user.principal.username) and
                                     (entity[FavoriteEntity::fileId] isInCollection fileIds)
                         }
                     )
@@ -80,15 +83,15 @@ class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
         return result
     }
 
-    override fun insert(session: HibernateSession, user: String, fileId: String) {
-        val entity = FavoriteEntity(fileId, user)
+    override fun insert(session: HibernateSession, user: SecurityPrincipalToken, fileId: String) {
+        val entity = FavoriteEntity(fileId, user.principal.username)
         session.save(entity)
     }
 
-    override fun delete(session: HibernateSession, user: String, fileId: String) {
+    override fun delete(session: HibernateSession, user: SecurityPrincipalToken, fileId: String) {
         val entity = session.criteria<FavoriteEntity> {
             (entity[FavoriteEntity::fileId] equal fileId) and
-                    (entity[FavoriteEntity::username] equal user)
+                    (entity[FavoriteEntity::username] equal user.principal.username)
         }.uniqueResult()
 
         session.delete(entity)
@@ -97,10 +100,10 @@ class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
     override fun listAll(
         session: HibernateSession,
         pagination: NormalizedPaginationRequest,
-        user: String
+        user: SecurityPrincipalToken
     ): Page<String> {
         return session.paginatedCriteria<FavoriteEntity>(pagination) {
-            entity[FavoriteEntity::username] equal user
+            entity[FavoriteEntity::username] equal user.principal.username
         }.mapItems { it.fileId }
     }
 
