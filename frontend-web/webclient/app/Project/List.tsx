@@ -11,6 +11,7 @@ import Link from "ui-components/Link";
 import Box from "ui-components/Box";
 import {Dispatch} from "redux";
 import {connect} from "react-redux";
+import * as Heading from "ui-components/Heading";
 
 const List: React.FunctionComponent<DispatchProps> = props => {
     const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
@@ -25,7 +26,6 @@ const List: React.FunctionComponent<DispatchProps> = props => {
             <Pagination.List
                 page={response.data}
                 pageRenderer={page => <>
-                    <Button onClick={e => props.setProject(undefined)}>Clear Project</Button>
                     {page.items.map(e =>
                         <ProjectSummary summary={e} setProject={props.setProject} key={e.id}/>
                     )}
@@ -37,6 +37,7 @@ const List: React.FunctionComponent<DispatchProps> = props => {
         sidebar={
             <VerticalButtonGroup>
                 <Link to={"/projects/create"}><Button>Create</Button></Link>
+                <Button color={"red"} onClick={e => props.setProject(undefined)}>Clear Project</Button>
             </VerticalButtonGroup>
         }
     />;
@@ -44,9 +45,13 @@ const List: React.FunctionComponent<DispatchProps> = props => {
 
 const ProjectSummary: React.FunctionComponent<{ summary: UserInProject } & DispatchProps> = props => {
     return <Box>
-        In {props.summary.title} you are a {props.summary.whoami.role}. This is a
-        <Link to={`/projects/view/${props.summary.id}`}>link</Link>
-        <Button onClick={() => props.setProject(props.summary.id)}>Set as active</Button>
+        <Heading.h3>{props.summary.title}</Heading.h3>
+        <ul>
+            <li>{props.summary.id}</li>
+            <li>{props.summary.whoami.role}</li>
+            <li><Link to={`/projects/view/${props.summary.id}`}>View</Link></li>
+            <li><Link onClick={() => props.setProject(props.summary.id)}>Set as active</Link></li>
+        </ul>
     </Box>;
 };
 

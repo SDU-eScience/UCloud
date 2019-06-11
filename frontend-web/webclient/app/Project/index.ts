@@ -1,5 +1,6 @@
 import {APICallParameters} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
 
 export interface ProjectMember {
     username: string,
@@ -58,7 +59,7 @@ export const addMemberInProject = (payload: { projectId: string, member: Project
     disallowProjects: true
 });
 
-export const deleteMemberInProject = (payload: { projectId: string, member: ProjectMember }): APICallParameters => ({
+export const deleteMemberInProject = (payload: { projectId: string, member: string }): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members",
     payload,
@@ -66,8 +67,8 @@ export const deleteMemberInProject = (payload: { projectId: string, member: Proj
     disallowProjects: true
 });
 
-export const changeRoleInProject = (payload: { projectId: string, member: ProjectMember, newRole: ProjectRole }): APICallParameters => ({
-    method: "DELETE",
+export const changeRoleInProject = (payload: { projectId: string, member: string, newRole: ProjectRole }): APICallParameters => ({
+    method: "POST",
     path: "/projects/members/change-role",
     payload,
     reloadId: Math.random(),
@@ -90,3 +91,11 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
     disallowProjects: true
 });
 
+export const roleInProject = (project: Project): ProjectRole | undefined => {
+    const member = project.members.find(member => {
+        return member.username == Cloud.username;
+    });
+
+    if (member === undefined) return undefined;
+    return member.role;
+};
