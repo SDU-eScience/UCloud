@@ -12,7 +12,7 @@ import {
 import {History} from "history";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {Dispatch} from "redux";
-import {Absolute, Badge, Box, Button, Divider, Error, Flex, Icon, Relative, theme} from "ui-components";
+import {Absolute, Badge, Box, Button, Divider, Error, Flex, Icon, Relative} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {TextSpan} from "ui-components/Text";
 import styled from "styled-components";
@@ -22,6 +22,7 @@ import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Snack} from "Snackbar/Snackbars";
+import {Theme} from "ui-components/theme";
 
 interface NotificationProps {
     items: Notification[]
@@ -34,7 +35,7 @@ interface NotificationProps {
 
 type Notifications = NotificationProps & NotificationsOperations & RouteComponentProps;
 
-function Notifications (props: Notifications) {
+function Notifications(props: Notifications) {
     React.useEffect(() => {
         reload();
         const conn = WSFactory.open("/notifications", {
@@ -93,7 +94,7 @@ function Notifications (props: Notifications) {
     const readAllButton = unreadLength ? (
         <>
             <Button onClick={() => props.readAll()} fullWidth>Mark all as read</Button>
-            <Divider/>
+            <Divider />
         </>) : null;
     return (
         <ClickableDropdown colorOnHover={false} top="37px" width={"380px"} left={"-270px"} trigger={
@@ -101,7 +102,7 @@ function Notifications (props: Notifications) {
                 <Relative top="0" left="0">
                     <Flex justifyContent="center" width="48px">
                         <Icon cursor="pointer" name="notification" color="headerIconColor"
-                            color2="headerIconColor2"/>
+                            color2="headerIconColor2" />
                     </Flex>
                     {unreadLength > 0 ? <Absolute top="-12px" left="28px">
                         <Badge bg="red">{unreadLength}</Badge>
@@ -148,7 +149,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps> {
         return (
             <NotificationWrapper alignItems="center" read={notification.read} flexDirection="row"
                 onClick={() => this.handleAction()}>
-                <Box mr="0.4em" width="10%"><Icon name={NotificationEntry.resolveEventIcon(notification.type)}/></Box>
+                <Box mr="0.4em" width="10%"><Icon name={NotificationEntry.resolveEventIcon(notification.type)} /></Box>
                 <Flex width="90%" flexDirection="column">
                     <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
                     <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Cloud.homeFolder)}</TextSpan>
@@ -178,13 +179,13 @@ export class NotificationEntry extends React.Component<NotificationEntryProps> {
     }
 }
 
-const read = (p: { read: boolean }) => p.read ? {
-    backgroundColor: theme.colors.white
+const read = (p: {read: boolean, theme: Theme}) => p.read ? {
+    backgroundColor: p.theme.colors.white
 } : {
-    backgroundColor: theme.colors.lightGray
-};
+        backgroundColor: p.theme.colors.lightGray
+    };
 
-const NotificationWrapper = styled(Flex)`
+const NotificationWrapper = styled(Flex) <{read: boolean}>`
     ${read};
     margin: 0.1em 0.1em 0.1em 0.1em;
     padding: 0.3em 0.3em 0.3em 0.3em;
