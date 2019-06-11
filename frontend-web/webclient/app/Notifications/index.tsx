@@ -193,7 +193,7 @@ const NotificationWrapper = styled(Flex)`
     width: 100%;
     background-color: ${({theme}) => theme.colors.white}
     &:hover {
-        background-color: ${theme.colors.lightGray};
+        background-color: ${({theme}) => theme.colors.lightGray};
     }
 `;
 
