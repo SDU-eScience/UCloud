@@ -49,7 +49,7 @@ function Header(props: HeaderProps) {
     React.useEffect(() => {
         props.fetchLoginStatus();
         props.fetchAvatar();
-    }, [])
+    }, []);
 
     function tryChange() {
         if (t + 5_000 < new Date().getTime())
@@ -172,7 +172,7 @@ const SearchInput = styled(Flex)`
         color: white;
     }
 
-    input:focus {
+    & > input:focus {
         color: black;
         background-color: white; 
     }
