@@ -111,8 +111,6 @@ sealed class ApplicationDescription(val application: String) {
 
                     else -> return@forEachIndexed
                 }
-
-
                 val missingVariable = variables.find { !parameters.containsKey(it) }
                 if (missingVariable != null) {
                     throw ApplicationVerificationException.BadVariableReference(parameterName, missingVariable)
@@ -158,6 +156,7 @@ sealed class ApplicationDescription(val application: String) {
                             val prefixGlobal = map["prefixGlobal"]?.toString() ?: ""
                             val suffixGlobal = map["suffixGlobal"]?.toString() ?: ""
                             val prefixVariable = map["prefixVariable"]?.toString() ?: ""
+                            val suffixVariable = map["suffixVariable"]?.toString() ?: ""
                             val isPrefixVariablePartOfArg = map["isPrefixVariablePartOfArg"] as? Boolean ?: false
                             val isSuffixVariablePartOfArg = map["isSuffixVariablePartOfArg"] as? Boolean ?: false
 
@@ -166,7 +165,7 @@ sealed class ApplicationDescription(val application: String) {
                                 prefixGlobal,
                                 suffixGlobal,
                                 prefixVariable,
-                                suffixGlobal,
+                                suffixVariable,
                                 isPrefixVariablePartOfArg,
                                 isSuffixVariablePartOfArg
                             )

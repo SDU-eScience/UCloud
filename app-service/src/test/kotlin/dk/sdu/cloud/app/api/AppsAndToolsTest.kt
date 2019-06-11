@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.api
 
+import dk.sdu.cloud.app.services.withInvocation
 import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -15,8 +16,17 @@ class AppsAndToolsTest {
             listOf("Authors"),
             "title",
             "description",
-            listOf("string"),
-            mapOf(Pair("string", mockk(relaxed = true))),
+            listOf(
+                mapOf(
+                    "type" to "var",
+                    "vars" to "arg1",
+                    "prefixGlobal" to "prefixG",
+                    "prefixVariable" to "prefixV",
+                    "suffixVariable" to "suffixV",
+                    "suffixGlobal" to "suffixG"
+                )
+            ),
+            mapOf(Pair("arg1", ApplicationParameter.Text("arg1") )),
             listOf("globs")
         )
 
@@ -29,8 +39,15 @@ class AppsAndToolsTest {
         assertEquals("Authors", v1.authors.first())
         assertEquals("title", v1.title)
         assertEquals("description", v1.description)
-        assertEquals("string", v1.parameters.keys.first())
+        //assertEquals(listOf(),v1.invocation)
+        assertEquals("arg1", v1.parameters.keys.first())
         assertEquals("globs", v1.outputFileGlobs.first())
+        assertEquals(
+            "\"prefixG\" \"prefixV\" \"arg1\" \"suffixV\" \"suffixG\"",
+            v1.invocation.first().buildInvocationSnippet(
+                mapOf(ApplicationParameter.Text("arg1") to StringApplicationParameter("arg1"))
+            )
+        )
 
         val normalizedApplication = v1.normalize()
 
@@ -42,7 +59,6 @@ class AppsAndToolsTest {
         assertEquals("globs", normalizedApplication.invocation.outputFileGlobs.first().toString())
         assertEquals("name", normalizedApplication.invocation.tool.name)
         assertEquals("2.2", normalizedApplication.invocation.tool.version)
-
     }
 
     @Test
