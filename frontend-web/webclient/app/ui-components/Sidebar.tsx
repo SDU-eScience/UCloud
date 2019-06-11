@@ -205,6 +205,7 @@ export const sideBarMenuElements: { guest: SidebarMenuElements, general: Sidebar
 interface SidebarStateProps {
     page: SidebarPages
     loggedIn: boolean
+    activeProject?: string
 }
 
 interface SidebarProps extends SidebarStateProps {
@@ -264,10 +265,14 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     );
 };
 
-const mapStateToProps = ({status}: ReduxObject): SidebarStateProps => ({
+const mapStateToProps = ({status, project}: ReduxObject): SidebarStateProps => ({
     page: status.page,
-    /* Used to ensure rerendering of Sidebar after user logs in. */
-    loggedIn: Cloud.isLoggedIn
+
+    /* Used to ensure re-rendering of Sidebar after user logs in. */
+    loggedIn: Cloud.isLoggedIn,
+
+    /* Used to ensure re-rendering of Sidebar after project change. */
+    activeProject: project.project
 });
 
 export const enum SidebarPages {

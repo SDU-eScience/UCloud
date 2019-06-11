@@ -25,6 +25,7 @@ const List: React.FunctionComponent<DispatchProps> = props => {
             <Pagination.List
                 page={response.data}
                 pageRenderer={page => <>
+                    <Button onClick={e => props.setProject(undefined)}>Clear Project</Button>
                     {page.items.map(e =>
                         <ProjectSummary summary={e} setProject={props.setProject} key={e.id}/>
                     )}
@@ -50,11 +51,11 @@ const ProjectSummary: React.FunctionComponent<{ summary: UserInProject } & Dispa
 };
 
 interface DispatchProps {
-    setProject: (id: string) => void
+    setProject: (id?: string) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
-    setProject: (id: string) => dispatch({type: "SET_PROJECT", project: id})
+    setProject: (id?: string) => dispatch({type: "SET_PROJECT", project: id})
 });
 
 export default connect(null, mapDispatchToProps)(List);

@@ -295,8 +295,8 @@ export default class SDUCloud {
      */
     get homeFolder(): string {
         let username = this.username;
-        if (this.projectId !== undefined && this.projectDecodedToken !== undefined) {
-            username = this.projectDecodedToken.payload.sub;
+        if (this.projectId !== undefined) {
+            username = this.projectId;
         }
         return `/home/${username}/`
     }

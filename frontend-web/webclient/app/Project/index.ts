@@ -32,11 +32,12 @@ export interface UserInProject {
 }
 
 // TODO This is a service only API. We need a gateway API which is responsible for also creating a data management plan
-export const createShare = (payload: { title: string, principalInvestigator: string }): APICallParameters => ({
+export const createProject = (payload: { title: string, principalInvestigator: string }): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload: payload,
-    reloadId: Math.random()
+    reloadId: Math.random(),
+    disallowProjects: true
 });
 
 export const viewProject = (payload: { id: string }): APICallParameters => ({
@@ -45,28 +46,32 @@ export const viewProject = (payload: { id: string }): APICallParameters => ({
     parameters: {
         id: payload.id
     },
-    reloadId: Math.random()
+    reloadId: Math.random(),
+    disallowProjects: true
 });
 
 export const addMemberInProject = (payload: { projectId: string, member: ProjectMember }): APICallParameters => ({
     method: "POST",
     path: "/projects/members",
     payload,
-    reloadId: Math.random()
+    reloadId: Math.random(),
+    disallowProjects: true
 });
 
 export const deleteMemberInProject = (payload: { projectId: string, member: ProjectMember }): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members",
     payload,
-    reloadId: Math.random()
+    reloadId: Math.random(),
+    disallowProjects: true
 });
 
 export const changeRoleInProject = (payload: { projectId: string, member: ProjectMember, newRole: ProjectRole }): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members/change-role",
     payload,
-    reloadId: Math.random()
+    reloadId: Math.random(),
+    disallowProjects: true
 });
 
 export interface ListProjectsRequest {
@@ -81,6 +86,7 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
         parameters
     ),
     parameters,
-    reloadId: Math.random()
+    reloadId: Math.random(),
+    disallowProjects: true
 });
 

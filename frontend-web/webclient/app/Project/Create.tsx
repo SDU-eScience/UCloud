@@ -6,7 +6,7 @@ import Box from "ui-components/Box";
 import Label from "ui-components/Label";
 import Button from "ui-components/Button";
 import {useAsyncCommand} from "Authentication/DataHook";
-import {createShare} from "Project/index";
+import {createProject} from "Project/index";
 import {useRef} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 
@@ -19,7 +19,7 @@ const Create: React.FunctionComponent = props => {
         if (loading) return;
 
         // TODO FIXME This will only work for admin accounts!!!
-        await invokeCommand(createShare({
+        await invokeCommand(createProject({
             title: title.current!.value,
             principalInvestigator: Cloud.username!
         }));

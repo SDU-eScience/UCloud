@@ -43,7 +43,7 @@ export const receiveNotifications = (page: Page<Notification>): ReceiveNotificat
  */
 export async function fetchNotifications(): Promise<ReceiveNotificationAction | SetNotificationError> {
     try {
-        const res = await Cloud.get<Page<Notification>>(notificationsQuery);
+        const res = await Cloud.get<Page<Notification>>(notificationsQuery, undefined, true);
         return receiveNotifications(res.response);
     } catch (e) {
         return setNotificationError(errorMessageOrDefault(e, "Failed to retrieve notifications, please try again later"));

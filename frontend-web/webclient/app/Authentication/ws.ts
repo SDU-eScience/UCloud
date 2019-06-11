@@ -13,6 +13,7 @@ export interface WebSocketOpenSettings {
 
 export class WebSocketFactory {
     private readonly cloud: Cloud;
+
     constructor(cloud: Cloud) {
         this.cloud = cloud;
     }
@@ -42,6 +43,19 @@ interface WebsocketRequest {
     payload: any | null
 }
 
+interface SubscribeParameters {
+    call: string;
+    payload: any | null;
+    handler: (message: WebsocketResponse) => void;
+    disallowProjects?: boolean
+}
+
+interface CallParameters {
+    call: string;
+    payload: any | null;
+    disallowProjects?: boolean
+}
+
 export class WebSocketConnection {
     private cloud: Cloud;
     private socket: WebSocket;
@@ -63,16 +77,18 @@ export class WebSocketConnection {
     close() {
         this._closed = true;
         this.socket.close();
-        const closeScript = this.settings.onClose || (() => { });
+        const closeScript = this.settings.onClose || (() => {
+        });
         closeScript(this);
     }
 
     private resetSocket(socketFactory: () => WebSocket) {
         const socket = socketFactory();
-        const initScript = this.settings.init || (() => { });
+        const initScript = this.settings.init || (() => {
+            // Do nothing
+        });
 
         socket.addEventListener("open", () => {
-            console.log("Connecting to WS is open");
             initScript(this);
         });
 
@@ -81,7 +97,7 @@ export class WebSocketConnection {
                 // We will reconnect by default.
                 console.log("Lost connection to WS. Reconnecting...");
                 this.handlers.forEach(e => {
-                    e({ type: "response", status: 503, streamId: "unknown" })
+                    e({type: "response", status: 503, streamId: "unknown"})
                 });
                 this.handlers.clear();
                 this.resetSocket(socketFactory);
@@ -108,7 +124,7 @@ export class WebSocketConnection {
         this.socket.send(JSON.stringify(message));
     }
 
-    async subscribe(call: string, payload: any | null, handler: (message: WebsocketResponse) => void) {
+    async subscribe({call, payload, handler, disallowProjects = false}: SubscribeParameters) {
         const streamId = (this.nextStreamId++).toString();
         this.handlers.set(streamId, (message) => {
             handler(message);
@@ -121,18 +137,23 @@ export class WebSocketConnection {
             call,
             streamId,
             payload,
-            bearer: await this.cloud.receiveAccessTokenOrRefreshIt()
+            bearer: await this.cloud.receiveAccessTokenOrRefreshIt(disallowProjects)
         });
     }
 
-    async call(call: string, payload: any | null): Promise<WebsocketResponse> {
+    async call({call, payload, disallowProjects = false}: CallParameters): Promise<WebsocketResponse> {
         return new Promise(async (resolve, reject) => {
-            this.subscribe(call, payload, async (message) => {
-                if (message.type === "response") {
-                    const success = message.status !== undefined && message.status <= 399;
+            this.subscribe({
+                call,
+                payload,
+                disallowProjects,
+                handler: async (message) => {
+                    if (message.type === "response") {
+                        const success = message.status !== undefined && message.status <= 399;
 
-                    if (success) resolve(message);
-                    else reject(message);
+                        if (success) resolve(message);
+                        else reject(message);
+                    }
                 }
             });
         });
