@@ -43,7 +43,7 @@ export interface DetailedResultOperations {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    detailedResultError: (error: string) => void
+    detailedResultError: (error?: string) => void
     fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
     setRefresh: (refresh?: () => void) => void
 }
