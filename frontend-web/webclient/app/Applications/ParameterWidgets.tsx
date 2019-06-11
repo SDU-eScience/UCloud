@@ -16,7 +16,7 @@ interface ParameterProps {
     initialSubmit: boolean
     parameter: Types.ApplicationParameter
     parameterRef: React.RefObject<HTMLInputElement | HTMLSelectElement>
-    onParamRemove: () => void
+    onParamRemove?: () => void
 }
 
 export const Parameter = (props: ParameterProps) => {
@@ -137,7 +137,6 @@ const BooleanParameter = (props: BooleanParameter) => {
     }
 
     const defaultValue = props.parameter.defaultValue ? props.parameter.defaultValue.value : null;
-
     const hasUnitName = !!props.parameter.unitName;
 
     return (
@@ -231,12 +230,12 @@ const FloatingParameter = (props: NumberParameterProps) => {
     return <GenericNumberParameter {...childProps} />;
 };
 
-const GenericParameter = ({parameter, children, onRemove}: {parameter: Types.ApplicationParameter, children: any, onRemove: () => void}) => (
+const GenericParameter = ({parameter, children, onRemove}: {parameter: Types.ApplicationParameter, children: any, onRemove?: () => void}) => (
     <>
         <Label fontSize={1} htmlFor={parameter.name}>
             <Flex>
                 <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
-                {parameter.optional ? <><Box ml="auto" /><Text cursor="pointer" mb="4px" onClick={onRemove}>Remove<Icon ml="6px" size={16} name="close"/></Text></> : null}
+                {parameter.optional && !!onRemove ? <><Box ml="auto" /><Text cursor="pointer" mb="4px" onClick={onRemove}>Remove<Icon ml="6px" size={16} name="close"/></Text></> : null}
             </Flex>
         </Label>
         {children}

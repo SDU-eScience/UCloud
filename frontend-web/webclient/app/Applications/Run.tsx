@@ -511,7 +511,6 @@ const Parameters = (props: ParameterProps) => {
             {props.additionalDirectories.map((entry, i) => (
                 <Box key={i} mb="7px">
                     <InputDirectoryParameter
-                        onParamRemove={() => undefined}
                         defaultValue={entry.defaultValue}
                         initialSubmit={false}
                         parameterRef={entry.ref}
