@@ -8,6 +8,7 @@ exports[`UserCreation Mount 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c3 {
@@ -124,6 +125,7 @@ exports[`UserCreation Mount 1`] = `
 
 .c6:focus {
   outline: none;
+  background-color: #fff;
 }
 
 .c6:focus {

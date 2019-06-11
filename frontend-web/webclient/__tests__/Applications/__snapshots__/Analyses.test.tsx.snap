@@ -8,6 +8,7 @@ exports[`Analyses component Mount component 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c3 {
@@ -258,6 +259,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c3 {
@@ -407,6 +409,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c14 {
+  background-color: #fff;
   border: 0px;
   border-spacing: 0;
   table-layout: fixed;
@@ -442,6 +445,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c15 {
+  background-color: #fff;
   padding-top: 11px;
   padding-bottom: 11px;
 }

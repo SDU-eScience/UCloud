@@ -8,6 +8,7 @@ exports[`CreateUpdate Component Mount 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c2 {
@@ -350,6 +351,7 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c8:focus {
   outline: none;
+  background-color: #fff;
 }
 
 .c8:focus {
@@ -401,6 +403,7 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c15:focus {
   outline: none;
+  background-color: #fff;
 }
 
 .c15:focus {
@@ -452,6 +455,7 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c20:focus {
   outline: none;
+  background-color: #fff;
 }
 
 .c20:focus {

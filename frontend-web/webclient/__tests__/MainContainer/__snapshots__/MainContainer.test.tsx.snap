@@ -8,6 +8,7 @@ exports[`Main container Main container with header 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c2 {
@@ -87,6 +88,7 @@ exports[`Main container Main container with sidebar 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c3 {
@@ -194,6 +196,7 @@ exports[`Main container Only main container 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c1 {

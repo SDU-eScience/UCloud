@@ -8,6 +8,7 @@ exports[`Shares List Shares component 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c5 {
