@@ -8,6 +8,7 @@ import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
+import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -83,7 +84,7 @@ class ShareServiceTest {
             devMode = false
         )
 
-        shareQueryService = ShareQueryService(micro.hibernateDatabase, shareDao)
+        shareQueryService = ShareQueryService(micro.hibernateDatabase, shareDao, ClientMock.authenticatedClient)
 
         shareService.initializeJobQueue()
     }
@@ -524,25 +525,25 @@ class ShareServiceTest {
         assertEquals(0, createShare(recipient = user2))
 
         assertThatPropertyEquals(
-            shareQueryService.findSharesForPath(recipient, "/home/$owner/$sharedFile"),
+            shareQueryService.findSharesForPath(recipient, "/home/$owner/$sharedFile", "accesstoken"),
             { it.shares.size },
             1
         )
 
         assertThatPropertyEquals(
-            shareQueryService.findSharesForPath(user2, "/home/$owner/$sharedFile"),
+            shareQueryService.findSharesForPath(user2, "/home/$owner/$sharedFile", "accesstoken"),
             { it.shares.size },
             1
         )
 
         assertThatPropertyEquals(
-            shareQueryService.findSharesForPath(owner, "/home/$owner/$sharedFile"),
+            shareQueryService.findSharesForPath(owner, "/home/$owner/$sharedFile", "accesstoken"),
             { it.shares.size },
             2
         )
 
         assertStatusCode(HttpStatusCode.NotFound) {
-            shareQueryService.findSharesForPath("unrelated", "/home/$owner/$sharedFile")
+            shareQueryService.findSharesForPath("unrelated", "/home/$owner/$sharedFile", "accesstoken")
         }
     }
 

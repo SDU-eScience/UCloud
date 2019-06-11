@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.4.6'
+version '0.4.7'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"
@@ -19,7 +19,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
     compile 'io.fabric8:kubernetes-client:4.1.3'
-    compile 'dk.sdu.cloud:app-api:1.10.5'
+    compile 'dk.sdu.cloud:app-api:1.10.11'
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }

@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.share.api.Shares
@@ -79,7 +80,8 @@ class ShareController(
             ok(
                 shareQueryService.findSharesForPath(
                     ctx.securityPrincipal.username,
-                    request.path
+                    request.path,
+                    ctx.bearer!!
                 )
             )
         }

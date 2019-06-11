@@ -20,7 +20,7 @@ import {Dispatch} from "redux";
 import {addSnack} from "Snackbar/Redux/SnackbarsActions";
 import {ContextSwitcher} from "Project/ContextSwitcher";
 
-const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
+const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
     justify-content: left;
     flex-flow: row;
     align-items: center;
@@ -86,14 +86,15 @@ const SidebarContainer = styled(Flex) <FlexCProps>`
 `;
 
 interface TextLabelProps {
-    icon: IconName,
-    children: any,
-    height?: string,
-    color?: string,
-    color2?: string,
-    iconSize?: string,
-    textSize?: number,
-    space?: string,
+    icon: IconName
+    children: React.ReactText | JSX.Element
+    ml?: string
+    height?: string
+    color?: string
+    color2?: string
+    iconSize?: string
+    textSize?: number
+    space?: string
     hover?: boolean
     title?: string
 }
@@ -110,9 +111,9 @@ export const SidebarTextLabel = (
     </SidebarElementContainer>
 );
 
-const SidebarLink = styled(Link) <{ active?: boolean }>`
+const SidebarLink = styled(Link) <{active?: boolean}>`
     ${props => props.active ?
-    `&:not(:hover) > * > ${Text} { 
+        `&:not(:hover) > * > ${Text} { 
             color: ${props.theme.colors.blue};
         }
         &:not(:hover) > * > ${Icon} { 
@@ -151,7 +152,7 @@ function enumToLabel(value: SidebarPages): string {
         case SidebarPages.Favorites:
             return "Favorites";
         case SidebarPages.AppStore:
-            return "App Store";
+            return "Apps";
         case SidebarPages.MyResults:
             return "My Results";
         case SidebarPages.Publish:
@@ -171,13 +172,13 @@ const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
 
-type MenuElement = { icon: IconName, label: string, to: string | (() => string) };
+type MenuElement = {icon: IconName, label: string, to: string | (() => string)};
 type SidebarMenuElements = {
     items: MenuElement[]
     predicate: () => boolean
 }
 
-export const sideBarMenuElements: { guest: SidebarMenuElements, general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
+export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements} = {
     guest: {
         items: [
             {icon: "files", label: "Files", to: "/login"},
@@ -188,7 +189,7 @@ export const sideBarMenuElements: { guest: SidebarMenuElements, general: Sidebar
     general: {
         items: [
             {icon: "files", label: "Files", to: () => fileTablePage(Cloud.homeFolder)},
-            {icon: "share", label: "Shares", to: "/shares/"},
+            {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "starFilled", label: "Favorites", to: "/favorites"},
             {icon: "appStore", label: "Apps", to: "/applications/"},
             {icon: "results", label: "My Results", to: "/applications/results/"}
@@ -218,19 +219,19 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SidebarContainer color="text" flexDirection="column" width={190}>
+        <SidebarContainer color="sidebar" flexDirection="column" width={190}>
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>
                     {category.items.map(({icon, label, to}: MenuElement) => (
                         <React.Fragment key={label}>
-                            {categoryIdx === 0 ? <SidebarSpacer/> : null}
+                            {categoryIdx === 0 ? <SidebarSpacer /> : null}
                             <SidebarElement icon={icon} activePage={page} label={label}
-                                            to={typeof to === "function" ? to() : to}/>
+                                to={typeof to === "function" ? to() : to} />
                         </React.Fragment>))}
                     {categoryIdx !== sidebar.length - 1 ? (<Divider mt="6px" mb="6px"/>) : null}
                 </React.Fragment>
             )}
-            <SidebarPushToBottom/>
+            <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox/> </Flex> : null}
             {Cloud.userRole === "ADMIN" ? <ContextSwitcher maxSize={140}/> : null}
@@ -239,7 +240,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                                   title={Cloud.username || ""}>
                     <Tooltip
                         left="-50%"
-                        top
+                        top={"1"}
                         mb="35px"
                         trigger={
                             <EllipsedText
@@ -260,7 +261,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                     SDU Data Protection
                 </SidebarTextLabel>
             </ExternalLink>
-            <Box mb="10px"/>
+            <Box mb="10px" />
         </SidebarContainer>
     );
 };

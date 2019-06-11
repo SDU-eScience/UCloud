@@ -8,6 +8,7 @@ exports[`CreateUpdate Component Mount 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c2 {
@@ -111,8 +112,18 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c22 {
   -webkit-font-smoothing: antialiased;
-  display: inline-block;
-  vertical-align: middle;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
   text-align: center;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -147,8 +158,18 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c25 {
   -webkit-font-smoothing: antialiased;
-  display: inline-block;
-  vertical-align: middle;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
   text-align: center;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -184,8 +205,18 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c28 {
   -webkit-font-smoothing: antialiased;
-  display: inline-block;
-  vertical-align: middle;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
   text-align: center;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -221,8 +252,18 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c31 {
   -webkit-font-smoothing: antialiased;
-  display: inline-block;
-  vertical-align: middle;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
   text-align: center;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -310,6 +351,7 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c8:focus {
   outline: none;
+  background-color: #fff;
 }
 
 .c8:focus {
@@ -361,6 +403,7 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c15:focus {
   outline: none;
+  background-color: #fff;
 }
 
 .c15:focus {
@@ -412,6 +455,7 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c20:focus {
   outline: none;
+  background-color: #fff;
 }
 
 .c20:focus {
@@ -426,6 +470,10 @@ exports[`CreateUpdate Component Mount 1`] = `
 
 .c13 .c0 {
   pointer-events: none;
+}
+
+.c3 {
+  cursor: auto;
 }
 
 .c11 {
@@ -444,7 +492,7 @@ exports[`CreateUpdate Component Mount 1`] = `
   border-bottom-right-radius: 5px;
   border-top-left-radius: 5px;
   border-top-right-radius: 5px;
-  box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
+  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2),0px 6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12);
   position: absolute;
   background-color: #fff;
   color: #000;
@@ -518,6 +566,7 @@ exports[`CreateUpdate Component Mount 1`] = `
   >
     <div
       className="c0 c3"
+      cursor="auto"
     />
     <form
       onSubmit={[Function]}

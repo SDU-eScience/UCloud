@@ -7,7 +7,7 @@ const Dialog: React.FunctionComponent = props => {
     const [dialogs, setDialogs] = useState<JSX.Element[]>([]);
 
     useEffect(() => {
-        const subscription = dialogs => setDialogs(dialogs);
+        const subscription = (dialogs: JSX.Element[]) => setDialogs(dialogs);
 
         dialogStore.subscribe(subscription);
         return () => dialogStore.unsubscribe(subscription);
@@ -27,7 +27,8 @@ const Dialog: React.FunctionComponent = props => {
                 right: "auto",
                 bottom: "auto",
                 marginRight: "-50%",
-                transform: "translate(-50%, -50%)"
+                transform: "translate(-50%, -50%)",
+                background: ""
             }
         }}
     >{current}</ReactModal>;

@@ -31,9 +31,11 @@ import snackbar from "Snackbar/Redux/SnackbarsReducer";
 import * as FavoritesRedux from "Favorites/Redux";
 import {configureStore} from "Utilities/ReduxUtilities";
 import {responsiveStoreEnhancer, createResponsiveStateReducer} from 'redux-responsive';
-import {responsiveBP} from "ui-components/theme";
+import {responsiveBP, invertedColors} from "ui-components/theme";
 import {fetchLoginStatus} from "Zenodo/Redux/ZenodoActions";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
+import Header from "Navigation/Header";
+import {isLightThemeStored, setSiteTheme} from "UtilityFunctions";
 import * as ProjectRedux from "Project/Redux";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
@@ -92,16 +94,27 @@ const GlobalStyle = createGlobalStyle`
 
 Cloud.initializeStore(store);
 
-ReactDOM.render(
-    <Provider store={store}>
-        <ThemeProvider theme={theme}>
+function App({children}) {
+    const [isLightTheme, setTheme] = React.useState(isLightThemeStored());
+    const setAndStoreTheme = (isLight: boolean) => (setSiteTheme(isLight), setTheme(isLight));
+    return (
+        <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <>
-                <GlobalStyle/>
+                <GlobalStyle />
                 <BrowserRouter basename="app">
-                    <Core/>
+                    <Header toggleTheme={() => isLightTheme ? setAndStoreTheme(false) : setAndStoreTheme(true)} />
+                    {children}
                 </BrowserRouter>
             </>
         </ThemeProvider>
+    )
+}
+
+ReactDOM.render(
+    <Provider store={store}>
+        <App>
+            <Core />
+        </App>
     </Provider>,
     document.getElementById("app")
 );

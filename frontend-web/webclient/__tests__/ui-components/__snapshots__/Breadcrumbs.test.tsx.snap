@@ -15,7 +15,7 @@ exports[`Breadcrumbs Build breadcrumbs 1`] = `
 
 .c0 li + li:before {
   padding: 8px;
-  color: black;
+  color: #000;
   content: "/";
 }
 

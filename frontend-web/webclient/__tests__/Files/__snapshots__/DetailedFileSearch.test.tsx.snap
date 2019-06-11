@@ -3,16 +3,28 @@
 exports[`Detailed File Search Mount file search 1`] = `
 .c0 {
   -webkit-font-smoothing: antialiased;
-  display: inline-block;
-  vertical-align: middle;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
   text-align: center;
   -webkit-text-decoration: none;
   text-decoration: none;
   font-family: inherit;
   font-weight: 700;
+  line-height: 1.5;
   cursor: pointer;
   border-radius: 5px;
   background-color: #00823c;
+  color: #fff;
   border-width: 0;
   border-style: solid;
   -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;

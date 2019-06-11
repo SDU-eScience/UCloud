@@ -5,8 +5,28 @@ import {SortBy, SortOrder, File, Acl, FileType} from "Files";
 import {dateToString} from "Utilities/DateUtilities";
 import {getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
-import {SnackType, Snack} from "Snackbar/Snackbars";
+import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+
+/**
+ * Sets theme based in input. Either "light" or "dark".
+ * @param {boolean} isLightTheme Signifies if the currently selected theme is "light".
+ */
+
+export const setSiteTheme = (isLightTheme: boolean): void => {
+    const lightTheme = isLightTheme ? "light" : "dark";
+    window.localStorage.setItem("theme", lightTheme);
+}
+
+/**
+ * Returns whether or not the value "light", "dark" or null is stored. 
+ * @returns {boolean} True if "light" or null is stored, otherwise "dark".
+ * */
+export const isLightThemeStored = (): boolean => {
+    const theme = window.localStorage.getItem("theme");
+    if (theme === "dark") return false;
+    else return true;
+}
 
 /**
  * Capitalizes the input string

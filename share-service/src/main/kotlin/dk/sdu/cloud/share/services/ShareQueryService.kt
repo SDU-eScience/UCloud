@@ -1,15 +1,32 @@
 package dk.sdu.cloud.share.services
 
+import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionRequest
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.StatRequest
+import dk.sdu.cloud.file.api.canonicalPath
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.share.api.MinimalShare
 import dk.sdu.cloud.share.api.SharesByPath
+import kotlinx.coroutines.runBlocking
+
+private const val ONE_MINUTE = 60*1000L
 
 class ShareQueryService<Session>(
     private val db: DBSessionFactory<Session>,
-    private val dao: ShareDAO<Session>
+    private val dao: ShareDAO<Session>,
+    private val client: AuthenticatedClient
 ) {
     fun list(
         user: String,
@@ -35,9 +52,20 @@ class ShareQueryService<Session>(
 
     fun findSharesForPath(
         user: String,
-        path: String
+        path: String,
+        userAccessToken: String
     ): SharesByPath {
-        return db.withTransaction { dao.findAllByPath(it, AuthRequirements(user, ShareRole.PARTICIPANT), path) }
+        val userCloud = client.withoutAuthentication().bearerAuth(userAccessToken)
+
+        val stat =
+            runBlocking {
+                FileDescriptions.stat.call(
+                    StatRequest(path),
+                    userCloud
+                ).orThrow()
+            }
+
+        return db.withTransaction { dao.findAllByPath(it, AuthRequirements(user, ShareRole.PARTICIPANT), stat.canonicalPath) }
             .groupByPath(user)
             .single()
     }

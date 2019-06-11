@@ -73,6 +73,15 @@ exports[`FileIcon FileIcon, link 1`] = `
   font-size: 14px;
 }
 
+.c1 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  color: #8393A7;
+}
+
 .c4 {
   -webkit-flex: none;
   -ms-flex: none;
@@ -97,7 +106,7 @@ exports[`FileIcon FileIcon, link 1`] = `
   border-bottom-right-radius: 5px;
   border-top-left-radius: 5px;
   border-top-right-radius: 5px;
-  box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
+  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2),0px 6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12);
   display: none;
   position: absolute;
   background-color: #f5f7f9;
@@ -120,14 +129,6 @@ exports[`FileIcon FileIcon, link 1`] = `
   margin-right: 1em;
 }
 
-.c1 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-}
-
 .c0 {
   cursor: inherit;
   display: -webkit-box;
@@ -144,16 +145,20 @@ exports[`FileIcon FileIcon, link 1`] = `
   <svg
     className="c1"
     clipRule="evenodd"
+    color2="#c9d3df"
     cursor="inherit"
+    fill="currentcolor"
     fillRule="evenodd"
     height={30}
-    viewBox="0 0 24 22"
+    viewBox="0 0 25 23"
     width={30}
   >
     <path
-      d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-      fill="#8393A7"
-      fillRule="nonzero"
+      d="M0 1.5A1.503 1.503 0 0 1 1.5 0H9l3 4h10.5A1.5 1.5 0 0 1 24 5.5V8H0V1.5z"
+      fill="#c9d3df"
+    />
+    <path
+      d="M0 7.5A1.5 1.5 0 0 1 1.5 6h21A1.5 1.5 0 0 1 24 7.5l.001 13.5a1.002 1.002 0 0 1-1 1H1a1 1 0 0 1-1-1V7.5z"
     />
   </svg>
   <div
@@ -209,21 +214,26 @@ exports[`FileIcon FileIcon, not link or shared 1`] = `
   flex: none;
   vertical-align: middle;
   cursor: inherit;
+  color: #8393A7;
 }
 
 <svg
   className="c0"
   clipRule="evenodd"
+  color2="#c9d3df"
   cursor="inherit"
+  fill="currentcolor"
   fillRule="evenodd"
   height={30}
-  viewBox="0 0 24 22"
+  viewBox="0 0 25 23"
   width={30}
 >
   <path
-    d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-    fill="#8393A7"
-    fillRule="nonzero"
+    d="M0 1.5A1.503 1.503 0 0 1 1.5 0H9l3 4h10.5A1.5 1.5 0 0 1 24 5.5V8H0V1.5z"
+    fill="#c9d3df"
+  />
+  <path
+    d="M0 7.5A1.5 1.5 0 0 1 1.5 6h21A1.5 1.5 0 0 1 24 7.5l.001 13.5a1.002 1.002 0 0 1-1 1H1a1 1 0 0 1-1-1V7.5z"
   />
 </svg>
 `;
@@ -239,6 +249,15 @@ exports[`FileIcon FileIcon, shared 1`] = `
 .c6 {
   cursor: inherit;
   font-size: 14px;
+}
+
+.c1 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  color: #8393A7;
 }
 
 .c4 {
@@ -265,7 +284,7 @@ exports[`FileIcon FileIcon, shared 1`] = `
   border-bottom-right-radius: 5px;
   border-top-left-radius: 5px;
   border-top-right-radius: 5px;
-  box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
+  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2),0px 6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12);
   display: none;
   position: absolute;
   background-color: #f5f7f9;
@@ -288,14 +307,6 @@ exports[`FileIcon FileIcon, shared 1`] = `
   margin-right: 1em;
 }
 
-.c1 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-}
-
 .c0 {
   cursor: inherit;
   display: -webkit-box;
@@ -312,16 +323,20 @@ exports[`FileIcon FileIcon, shared 1`] = `
   <svg
     className="c1"
     clipRule="evenodd"
+    color2="#c9d3df"
     cursor="inherit"
+    fill="currentcolor"
     fillRule="evenodd"
     height={30}
-    viewBox="0 0 24 22"
+    viewBox="0 0 25 23"
     width={30}
   >
     <path
-      d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-      fill="#8393A7"
-      fillRule="nonzero"
+      d="M0 1.5A1.503 1.503 0 0 1 1.5 0H9l3 4h10.5A1.5 1.5 0 0 1 24 5.5V8H0V1.5z"
+      fill="#c9d3df"
+    />
+    <path
+      d="M0 7.5A1.5 1.5 0 0 1 1.5 6h21A1.5 1.5 0 0 1 24 7.5l.001 13.5a1.002 1.002 0 0 1-1 1H1a1 1 0 0 1-1-1V7.5z"
     />
   </svg>
   <div

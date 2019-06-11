@@ -52,7 +52,7 @@ class Server(
         val processingService =
             ProcessingService(micro.hibernateDatabase, shareDao, userClientFactory, client, shareService)
 
-        val shareQueryService = ShareQueryService(micro.hibernateDatabase, shareDao)
+        val shareQueryService = ShareQueryService(micro.hibernateDatabase, shareDao, client)
 
         // Processors
         StorageEventProcessor(processingService, micro.eventStreamService).init()

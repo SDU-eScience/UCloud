@@ -18,8 +18,9 @@ const bg2 = require("Assets/Images/bg2.svg");
 const wayfLogo = require("Assets/Images/WAYFLogo.svg");
 
 const BackgroundImage = styled.div<{ image: string}>`
-    background: url(${({ image }) => image}) no-repeat 40% 100%;
+    background: url(${({ image }) => image}) no-repeat 40% 0%;
     background-size: cover;
+    overflow: hidden;
 `;
 
 const BGLogo = styled(Absolute)<{ image: string}>`
@@ -114,9 +115,9 @@ export const LoginPage = (props: { history: History, initialState?: any }) => {
         }
     }
     return (<>
-        <Absolute top="-30px" left="80px"><Icon color="white" name="logoSdu" size="200px"/></Absolute>
+        <Absolute top="43px" left="80px"><Box width="200px"><Icon color="white" name="logoSdu" size="20vw"/></Box></Absolute>
         <BGLogo image={bg1} bottom="0px" height="50%" width="100%"> </BGLogo>
-        <BackgroundImage image={bg2}>
+        <BackgroundImage image={bg2} >
             <Flex alignItems={"top"} justifyContent={"center"} width={"100vw"} height={"100vh"} pt="20vh">
                 <Box width="315px">
                     {enabledWayf && !challengeId ? 

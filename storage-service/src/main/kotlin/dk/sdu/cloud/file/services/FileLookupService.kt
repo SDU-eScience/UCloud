@@ -212,7 +212,10 @@ class FileLookupService<Ctx : FSUserContext>(
             linkOrNull = row._isLink,
             fileIdOrNull = row._inode,
             creatorOrNull = creator,
-            canonicalPathOrNull = row._path
+            canonicalPathOrNull = run {
+                if (row.isLink) row._linkTarget
+                else row._rawPath
+            }
         )
     }
 

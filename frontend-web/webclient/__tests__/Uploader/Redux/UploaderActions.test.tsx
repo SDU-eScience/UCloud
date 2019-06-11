@@ -1,11 +1,11 @@
 import * as Adapter from "enzyme-adapter-react-16";
-import { configureStore } from "Utilities/ReduxUtilities";
-import { initUploads, initFiles, SensitivityLevelMap } from "DefaultObjects";
-import uploader from "Uploader/Redux/UploaderReducer";
-import files from "Files/Redux/FilesReducer";
-import * as UploaderActions from "Uploader/Redux/UploaderActions";
+import { configureStore } from "../../../app/Utilities/ReduxUtilities";
+import { initUploads, initFiles, SensitivityLevelMap } from "../../../app/DefaultObjects";
+import uploader from "../../../app/Uploader/Redux/UploaderReducer";
+import files from "../../../app/Files/Redux/FilesReducer";
+import * as UploaderActions from "../../../app/Uploader/Redux/UploaderActions";
 import { configure } from "enzyme";
-import { UploadPolicy } from "Uploader/api";
+import { UploadPolicy } from "../../../app/Uploader/api";
 
 configure({ adapter: new Adapter() });
 
@@ -16,7 +16,7 @@ describe("Uploader actions", () => {
             files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
-        store.dispatch(UploaderActions.setUploaderVisible(shown))
+        store.dispatch<any>(UploaderActions.setUploaderVisible(shown))
         expect(store.getState().uploader.visible).toBe(shown);
     });
 
@@ -26,7 +26,7 @@ describe("Uploader actions", () => {
             files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
-        store.dispatch(UploaderActions.setUploaderVisible(shown))
+        store.dispatch<any>(UploaderActions.setUploaderVisible(shown))
         expect(store.getState().uploader.visible).toBe(shown);
     });
 
@@ -35,7 +35,7 @@ describe("Uploader actions", () => {
             files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
-        store.dispatch(UploaderActions.setUploads([]));
+        store.dispatch<any>(UploaderActions.setUploads([]));
         expect(store.getState().uploader.uploads.length).toBe(0);
     });
 
@@ -44,7 +44,7 @@ describe("Uploader actions", () => {
             files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
-        store.dispatch(UploaderActions.setUploads([{
+        store.dispatch<any>(UploaderActions.setUploads([{
             file: new File(["1"], "name"),
             conflictFile: undefined,
             resolution: UploadPolicy.REJECT,

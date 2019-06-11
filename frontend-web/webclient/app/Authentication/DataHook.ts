@@ -28,10 +28,10 @@ function dataFetchReducer(state, action) {
     }
 }
 
-export interface APICallParameters<Parameters = any> {
+export interface APICallParameters<Parameters = any, Payload = any> {
     method?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH" | "OPTIONS" | "HEAD"
     path?: string
-    payload?: any
+    payload?: Payload
     context?: string
     maxRetries?: number
     parameters?: Parameters
@@ -50,7 +50,7 @@ export interface APICallState<T> {
     data: T
 }
 
-export function mapCallState<T, T2>(state: APICallState<T>, mapper: (T) => T2): APICallState<T2> {
+export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2): APICallState<T2> {
     return {
         ...state,
         data: mapper(state.data)

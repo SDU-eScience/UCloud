@@ -1,4 +1,4 @@
-import { css } from "styled-components";
+import {css} from "styled-components";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
@@ -81,6 +81,10 @@ html {
   /* word-break: break-word;  */ /* 6 */
 }
 
+div.ReactModal__Content.ReactModal__Content--after-open {
+  background-color: ${({theme}) => theme.colors.white};
+}
+
 /* Sections
  * ========================================================================== */
 
@@ -90,6 +94,7 @@ html {
 
 body {
   margin: 0;
+  background-color: ${({theme}) => theme.colors.white};
 }
 
 /**

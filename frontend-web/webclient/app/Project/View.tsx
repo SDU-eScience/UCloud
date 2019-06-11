@@ -104,7 +104,7 @@ const ViewMember: React.FunctionComponent<{
             <UserAvatar avatar={defaultAvatar}/>
             <Box flexGrow={1}>
                 {props.member.username} <br/>
-                {!props.allowManagement ? {role} :
+                {!props.allowManagement ? role :
                     <ClickableDropdown
                         chevron
                         trigger={role}

@@ -1,9 +1,19 @@
 import styled from "styled-components";
-import { textAlign, TextAlignProps, WidthProps, width, MinWidthProps, minWidth } from "styled-system";
-import theme from "./theme";
-import { Cursor } from "./Types";
+import {
+    textAlign,
+    TextAlignProps,
+    WidthProps,
+    width,
+    MinWidthProps,
+    minWidth,
+    backgroundColor,
+    BackgroundColorProps
+} from "styled-system";
+import {Theme} from "./theme";
+import {Cursor} from "./Types";
 
-export const Table = styled.table< WidthProps & MinWidthProps >`
+export const Table = styled.table<WidthProps & MinWidthProps & BackgroundColorProps>`
+    ${backgroundColor}
     border: 0px;
     border-spacing: 0;
     table-layout: fixed;
@@ -11,6 +21,7 @@ export const Table = styled.table< WidthProps & MinWidthProps >`
 `;
 
 Table.defaultProps = {
+    backgroundColor: "white",
     width: "100%",
     minWidth: "15em"
 }
@@ -23,9 +34,9 @@ export const TableCell = styled.td<TextAlignProps>`
     ${textAlign};
 `;
 
-const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.tableRowHighlight } : null;
+const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) => highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
 
-export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string, cursor?: Cursor }>`
+export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string, cursor?: Cursor} & BackgroundColorProps>`
     ${highlighted};
     cursor: ${props => props.cursor};
 
@@ -38,10 +49,12 @@ export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string
 `;
 
 TableRow.defaultProps = {
+    backgroundColor: "white",
     cursor: "auto"
 }
 
 export const TableHeader = styled.thead`
+    background-color: ${({theme}) => theme.colors.white};
     padding-top: 11px;
     padding-bottom: 11px;
 `;

@@ -8,12 +8,17 @@ exports[`RunApp component Mount 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c1 {
   cursor: auto;
   padding-top: 14px;
   padding-right: 14px;
+}
+
+.c2 {
+  cursor: auto;
 }
 
 .c3 {
@@ -150,6 +155,7 @@ exports[`RunApp component Mount 1`] = `
   >
     <div
       className="c2"
+      cursor="auto"
     />
     <div
       className="c3"

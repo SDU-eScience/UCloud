@@ -1,37 +1,37 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject"
-import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
-import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
-import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
-import { connect } from "react-redux";
+import {Cloud} from "Authentication/SDUCloudObject"
+import {favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory} from "Utilities/FileUtilities";
+import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
+import {setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage} from "./Redux/DashboardActions";
+import {connect} from "react-redux";
 import * as moment from "moment";
-import { FileIcon } from "UtilityComponents";
-import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
-import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
-import { Notification, NotificationEntry } from "Notifications";
-import { Analysis, AppState } from "Applications";
-import { File } from "Files";
-import { Dispatch } from "redux";
-import { ReduxObject } from "DefaultObjects";
-import { Error, Box, Flex, Card, Text, Link, Icon } from "ui-components";
-import { EllipsedText } from "ui-components/Text"
+import {FileIcon} from "UtilityComponents";
+import {DASHBOARD_FAVORITE_ERROR} from "./Redux/DashboardReducer";
+import {DashboardProps, DashboardOperations, DashboardStateProps} from ".";
+import {Notification, NotificationEntry} from "Notifications";
+import {Analysis, AppState} from "Applications";
+import {File} from "Files";
+import {Dispatch} from "redux";
+import {ReduxObject} from "DefaultObjects";
+import {Error, Box, Flex, Card, Text, Link, Icon} from "ui-components";
+import {EllipsedText} from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
-import { GridCardGroup } from "ui-components/Grid";
-import { TextSpan } from "ui-components/Text";
-import { fileTablePage } from "Utilities/FileUtilities";
-import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
-import { History } from "history";
+import {GridCardGroup} from "ui-components/Grid";
+import {TextSpan} from "ui-components/Text";
+import {fileTablePage} from "Utilities/FileUtilities";
+import {notificationRead, readAllNotifications} from "Notifications/Redux/NotificationsActions";
+import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
-import { MainContainer } from "MainContainer/MainContainer";
-import { fetchUsage } from "Accounting/Redux/AccountingActions";
-import { SidebarPages } from "ui-components/Sidebar";
-import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
+import {MainContainer} from "MainContainer/MainContainer";
+import {fetchUsage} from "Accounting/Redux/AccountingActions";
+import {SidebarPages} from "ui-components/Sidebar";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 
-const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
-    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+const DashboardCard = ({title, isLoading, children}: {title: string, isLoading: boolean, children?: React.ReactNode}) => (
+    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{overflow: "hidden"}}>
         <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
@@ -43,7 +43,7 @@ const DashboardCard = ({ title, isLoading, children }: { title: string, isLoadin
     </Card>
 );
 
-function Dashboard(props: DashboardProps & { history: History }) {
+function Dashboard(props: DashboardProps & {history: History}) {
 
     React.useEffect(() => {
         props.onInit();
@@ -77,8 +77,8 @@ function Dashboard(props: DashboardProps & { history: History }) {
         props.receiveFavorites(props.favoriteFiles.filter(f => f.favorited));
     };
 
-    const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
-        analysesLoading, errors } = props;
+    const {favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
+        analysesLoading, errors} = props;
     favoriteFiles.forEach(f => f.favorited = true);
     const main = (
         <>
@@ -121,7 +121,7 @@ function Dashboard(props: DashboardProps & { history: History }) {
 }
 
 
-const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: (file: File) => void }) => (
+const DashboardFavoriteFiles = ({files, isLoading, favorite}: {files: File[], isLoading: boolean, favorite: (file: File) => void}) => (
     <DashboardCard title="Favorite Files" isLoading={isLoading}>
         {files.length || isLoading ? null : (<Heading.h6>No favorites found</Heading.h6>)}
         <List>
@@ -135,7 +135,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
     </DashboardCard>
 );
 
-const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean, pixelsWide: number }) => {
+const ListFileContent = ({file, link, pixelsWide}: {file: File, link: boolean, pixelsWide: number}) => {
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     return (
         <Flex alignItems="center">
@@ -149,7 +149,7 @@ const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean
     );
 };
 
-const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
+const DashboardRecentFiles = ({files, isLoading}: {files: File[], isLoading: boolean}) => (
     <DashboardCard title="Recently Used Files" isLoading={isLoading}>
         {files.length || isLoading ? null : (<Heading.h6>No recent files found</Heading.h6>)}
         <List>
@@ -164,7 +164,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
     </DashboardCard>
 );
 
-const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
+const DashboardAnalyses = ({analyses, isLoading}: {analyses: Analysis[], isLoading: boolean}) => (
     <DashboardCard title="Recent Jobs" isLoading={isLoading}>
         {isLoading || analyses.length ? null : (<Heading.h6>No results found</Heading.h6>)}
         <List>
@@ -190,8 +190,8 @@ interface DashboardNotificationProps {
     readAll: () => void
 }
 
-const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
-    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+const DashboardNotifications = ({notifications, readAll, onNotificationAction}: DashboardNotificationProps) => (
+    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{overflow: "hidden"}}>
         <Flex bg="lightGray" color="darkGray" px={3} py={2}>
             <Heading.h4>Recent Notifications</Heading.h4>
             <Box ml="auto" />

@@ -29,30 +29,30 @@ export class WebSocketFactory {
     }
 }
 
-export interface WebsocketResponse {
+export interface WebsocketResponse<T = any> {
     type: "message" | "response"
     streamId: string
-    payload?: any
+    payload?: T
     status?: number
 }
 
-interface WebsocketRequest {
+interface WebsocketRequest<T = any> {
     call: string
     streamId: string
     bearer: string
-    payload: any | null
+    payload: T | null
 }
 
-interface SubscribeParameters {
+interface SubscribeParameters<T = any> {
     call: string;
-    payload: any | null;
+    payload: T | null;
     handler: (message: WebsocketResponse) => void;
     disallowProjects?: boolean
 }
 
-interface CallParameters {
+interface CallParameters<T = any> {
     call: string;
-    payload: any | null;
+    payload: T | null;
     disallowProjects?: boolean
 }
 
@@ -124,7 +124,7 @@ export class WebSocketConnection {
         this.socket.send(JSON.stringify(message));
     }
 
-    async subscribe({call, payload, handler, disallowProjects = false}: SubscribeParameters) {
+    async subscribe<T>({call, payload, handler, disallowProjects = false}: SubscribeParameters<T>) {
         const streamId = (this.nextStreamId++).toString();
         this.handlers.set(streamId, (message) => {
             handler(message);
@@ -141,7 +141,7 @@ export class WebSocketConnection {
         });
     }
 
-    async call({call, payload, disallowProjects = false}: CallParameters): Promise<WebsocketResponse> {
+    async call<T>({call, payload, disallowProjects = false}: CallParameters<T>): Promise<WebsocketResponse> {
         return new Promise(async (resolve, reject) => {
             this.subscribe({
                 call,

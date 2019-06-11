@@ -6,6 +6,7 @@ import Flex from "./Flex";
 import Box from "./Box";
 import Icon from "./Icon";
 import Button from "./Button";
+import { TextSpan } from "./Text";
 import * as Heading from "ui-components/Heading";
 import ClickableDropdown from "./ClickableDropdown";
 import { useEffect, useRef, useState } from "react";
@@ -86,13 +87,13 @@ function Support() {
                         Bug
                     </Label>
                 </Flex>
-                {type === "SUGGESTION" ? <p>Describe your suggestion and we will look into it.</p> :
+                {type === SupportType.SUGGESTION ? <p>Describe your suggestion and we will look into it.</p> :
                     <p>Describe your problem below and we will investigate it.</p>}
                 <form onSubmit={e => onSubmit(e)}>
                     <TextArea width="100%" ref={textArea} rows={6} />
                     <Button mt="0.4em" fullWidth type="submit" disabled={loading}>
-                        <Icon name="mail" size="1em" mr=".5em" color="lightGray" color2="white" />
-                        Send
+                        <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
+                        <TextSpan fontSize={2}>Send</TextSpan> 
                     </Button>
                 </form>
             </Box>

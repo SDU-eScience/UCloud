@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.5'
+version '1.4.5.RC-1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
@@ -13,7 +13,7 @@ buildscript {
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:1.21.0"
-    compile "dk.sdu.cloud:file-api:1.8.0-REDIS.0"
+    compile "dk.sdu.cloud:file-api:2.0.4"
     compile "dk.sdu.cloud:indexing-api:1.13.0"
     compile "dk.sdu.cloud:file-favorite-api:1.1.2"
 

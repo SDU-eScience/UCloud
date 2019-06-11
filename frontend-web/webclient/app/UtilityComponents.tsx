@@ -47,10 +47,10 @@ export function addStandardDialog({
             {!!title ? <Divider/> : null}
             <Box>{message}</Box>
         </Box>
-        <Box textAlign="right" mt="20px">
+        <Flex mt="20px">
             <Button onClick={() => { onCancel(); dialogStore.popDialog() }} color="red" mr="5px">{cancelText}</Button>
             <Button onClick={() => { if (validator()) onConfirm(); dialogStore.popDialog() }} color="green">{confirmText}</Button>
-        </Box>
+        </Flex>
     </Box>)
 }
 
@@ -93,7 +93,7 @@ export function shareDialog(): Promise<{ cancelled: true } | { username: string,
                 <Input required type="text" onChange={e => username = e.target.value}
                        placeholder="Enter username..."/>
             </Label>
-            <Box textAlign="right" mt="20px">
+            <Flex mt="20px">
                 <Button type="button" onClick={() => {
                     dialogStore.popDialog();
                     resolve({cancelled: true})
@@ -106,7 +106,7 @@ export function shareDialog(): Promise<{ cancelled: true } | { username: string,
                         error = true;
                     }
                 }} color="green">Share</Button>
-            </Box>
+            </Flex>
         </form>
     ))
 }
