@@ -34,6 +34,7 @@ import {responsiveStoreEnhancer, createResponsiveStateReducer} from 'redux-respo
 import {responsiveBP} from "ui-components/theme";
 import {fetchLoginStatus} from "Zenodo/Redux/ZenodoActions";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
+import * as ProjectRedux from "Project/Redux";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
@@ -59,6 +60,7 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     snackbar,
     avatar,
     loading,
+    project: ProjectRedux.reducer,
     responsive: createResponsiveStateReducer(
         responsiveBP,
         {infinity: "xxl"}),
@@ -87,6 +89,8 @@ export async function onLogin() {
 const GlobalStyle = createGlobalStyle`
   ${() => UIGlobalStyle}
 `;
+
+Cloud.initializeStore(store);
 
 ReactDOM.render(
     <Provider store={store}>

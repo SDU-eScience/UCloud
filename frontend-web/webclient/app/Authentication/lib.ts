@@ -6,6 +6,8 @@ import {
 } from "UtilityFunctions";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Store} from "redux";
+import {ReduxObject} from "DefaultObjects";
 
 export interface Override {
     path: string,
@@ -41,8 +43,8 @@ export default class SDUCloud {
     private forceRefresh: boolean = false;
 
 
-    private projectId: string | undefined = "9aa73f48-7cec-4a25-9a52-f2a784ff9ad2";
-    // private projectId: string | undefined = undefined;
+    // private projectId: string | undefined = "9aa73f48-7cec-4a25-9a52-f2a784ff9ad2";
+    private projectId: string | undefined = undefined;
     private projectAccessToken: string | undefined = undefined;
     private projectDecodedToken: any | undefined = undefined;
 
@@ -78,6 +80,18 @@ export default class SDUCloud {
         if (accessToken && csrfToken) {
             this.setTokens(accessToken, csrfToken);
         }
+    }
+
+    initializeStore(store: Store<ReduxObject>) {
+        store.subscribe(() => {
+            const project = store.getState().project.project;
+            if (project !== this.projectId) {
+                console.log("Something");
+                this.projectId = project;
+                this.projectDecodedToken = undefined;
+                this.projectAccessToken = undefined;
+            }
+        });
     }
 
     /**
@@ -271,7 +285,7 @@ export default class SDUCloud {
     get activeUsername(): string | undefined {
         if (this.useProjectToken(false) && !!this.projectDecodedToken) {
             return this.projectDecodedToken.payload.sub;
-        }   else {
+        } else {
             return this.username;
         }
     }
@@ -395,7 +409,7 @@ export default class SDUCloud {
     private async refresh(disallowProjects: boolean): Promise<string> {
         const project = this.projectId;
         if (project !== undefined && !disallowProjects) {
-            const result = await this.post("/projects/auth", { project }, undefined, true);
+            const result = await this.post("/projects/auth", {project}, undefined, true);
             if (inSuccessRange(result.request.status)) {
                 const accessToken = result.response.accessToken;
                 this.projectAccessToken = accessToken;

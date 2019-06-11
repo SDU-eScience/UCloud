@@ -3,11 +3,13 @@ import Box from "ui-components/Box";
 import {inDevEnvironment} from "UtilityFunctions";
 import * as React from "react";
 import {SidebarTextLabel} from "ui-components/Sidebar";
+import {connect} from "react-redux";
+import {ReduxObject} from "DefaultObjects";
 
-export const ContextSwitcher: React.FunctionComponent<{ maxSize: number }> = props => {
+const _ContextSwitcher: React.FunctionComponent<{ maxSize: number } & ContextSwitcherReduxProps> = props => {
     if (!inDevEnvironment()) return null;
 
-    const userContext = "Personal Project";
+    const userContext = props.activeProject || "Personal Project";
 
     return <SidebarTextLabel icon={"projects"} height={"25px"} textSize={1} iconSize="1em" space={".5em"}>
         <Box cursor={"pointer"}>
@@ -22,3 +24,13 @@ export const ContextSwitcher: React.FunctionComponent<{ maxSize: number }> = pro
         </Box>
     </SidebarTextLabel>
 };
+
+interface ContextSwitcherReduxProps {
+    activeProject?: string
+}
+
+export const ContextSwitcher = connect(
+    (state: ReduxObject) => ({
+        activeProject: state.project.project
+    })
+)(_ContextSwitcher);

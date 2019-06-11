@@ -17,6 +17,7 @@ import * as FavoritesRedux from "Favorites/Redux";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {SidebarPages} from "ui-components/Sidebar";
 import {ScrollResult} from "Scroll/Types";
+import * as ProjectRedux from "Project/Redux";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -232,6 +233,7 @@ interface LegacyReduxObject {
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
     responsive?: ResponsiveReduxObject
+    project: ProjectRedux.State
     loading?: boolean
 }
 
@@ -241,7 +243,6 @@ export type ReduxObject =
     AccountingRedux.Objects &
     FavoritesRedux.Objects &
     SnackbarRedux.Wrapper;
-
 
 export const initActivity = (): ActivityReduxObject => ({
     loading: false
@@ -295,6 +296,7 @@ export function initObject(homeFolder: string): ReduxObject {
         fileInfo: initFileInfo(),
         avatar: initAvatar(),
         filePreview: initFilePreview(),
+        project: ProjectRedux.initialState,
         ...ApplicationRedux.init(),
         ...AccountingRedux.init(),
         ...FavoritesRedux.init(),

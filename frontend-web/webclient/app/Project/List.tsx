@@ -9,8 +9,10 @@ import {Page} from "Types";
 import {listProjects, ListProjectsRequest, UserInProject} from "Project/index";
 import Link from "ui-components/Link";
 import Box from "ui-components/Box";
+import {Dispatch} from "redux";
+import {connect} from "react-redux";
 
-const List: React.FunctionComponent = props => {
+const List: React.FunctionComponent<DispatchProps> = props => {
     const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
@@ -24,7 +26,7 @@ const List: React.FunctionComponent = props => {
                 page={response.data}
                 pageRenderer={page => <>
                     {page.items.map(e =>
-                        <ProjectSummary summary={e} key={e.id}/>
+                        <ProjectSummary summary={e} setProject={props.setProject} key={e.id}/>
                     )}
                 </>}
                 loading={response.loading}
@@ -39,11 +41,20 @@ const List: React.FunctionComponent = props => {
     />;
 };
 
-const ProjectSummary: React.FunctionComponent<{ summary: UserInProject }> = props => {
+const ProjectSummary: React.FunctionComponent<{ summary: UserInProject } & DispatchProps> = props => {
     return <Box>
-        In {props.summary.title} you are a {props.summary.whoami.role}. This is a <Link
-        to={`/projects/view/${props.summary.id}`}>link</Link>
+        In {props.summary.title} you are a {props.summary.whoami.role}. This is a
+        <Link to={`/projects/view/${props.summary.id}`}>link</Link>
+        <Button onClick={() => props.setProject(props.summary.id)}>Set as active</Button>
     </Box>;
 };
 
-export default List;
+interface DispatchProps {
+    setProject: (id: string) => void
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
+    setProject: (id: string) => dispatch({type: "SET_PROJECT", project: id})
+});
+
+export default connect(null, mapDispatchToProps)(List);
