@@ -1,5 +1,8 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.VerifiedJob
@@ -11,6 +14,7 @@ import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -18,7 +22,7 @@ import java.util.*
 import kotlin.test.assertEquals
 
 class JobHibernateDaoTest {
-    private val user = "User1"
+    private val user = TestUsers.user.copy(username = "User1")
     private val systemId = UUID.randomUUID().toString()
     private val appName = normAppDesc.metadata.name
     private val version = normAppDesc.metadata.version
@@ -67,8 +71,8 @@ class JobHibernateDaoTest {
         val jobHibDao = JobHibernateDao(appDao, toolDao, tokenValidation)
 
         db.withTransaction(autoFlush = true) {
-            toolDao.create(it, user, normToolDesc)
-            appDao.create(it, user, normAppDesc)
+            toolDao.create(it, user.username, normToolDesc)
+            appDao.create(it, user.username, normAppDesc)
         }
 
         db.withTransaction(autoFlush = true) {
@@ -78,7 +82,7 @@ class JobHibernateDaoTest {
                     app,
                     emptyList(),
                     systemId,
-                    user,
+                    user.username,
                     1,
                     1,
                     SimpleDuration(0, 1, 0),
@@ -100,7 +104,7 @@ class JobHibernateDaoTest {
         }
 
         db.withTransaction(autoFlush = true) {
-            val result = jobHibDao.findOrNull(it, systemId, user)
+            val result = jobHibDao.findOrNull(it, systemId, user.createToken())
             assertEquals(JobState.VALIDATED, result?.job?.currentState)
             assertEquals("good", result?.job?.status)
         }
@@ -117,14 +121,22 @@ class JobHibernateDaoTest {
         }
 
         db.withTransaction(autoFlush = true) {
-            val result = jobHibDao.findOrNull(it, systemId, user)
+            val result = jobHibDao.findOrNull(it, systemId, user.createToken())
             assertEquals(JobState.SUCCESS, result?.job?.currentState)
             assertEquals("better", result?.job?.status)
         }
 
         db.withTransaction(autoFlush = true) {
-            val result = jobHibDao.list(it, user, NormalizedPaginationRequest(10, 0))
+            val result = jobHibDao.list(it, user.createToken(), NormalizedPaginationRequest(10, 0))
             assertEquals(1, result.itemsInTotal)
         }
     }
 }
+
+fun SecurityPrincipal.createToken(): SecurityPrincipalToken = SecurityPrincipalToken(
+    this,
+    listOf(SecurityScope.ALL_WRITE),
+    0,
+    Long.MAX_VALUE,
+    null
+)

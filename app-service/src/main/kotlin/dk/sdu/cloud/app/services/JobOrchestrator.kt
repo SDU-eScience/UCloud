@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.api.AccountingEvents
 import dk.sdu.cloud.app.api.CancelInternalRequest
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
@@ -148,7 +149,7 @@ class JobOrchestrator<DBSession>(
         event: JobStateChange,
         newStatus: String?,
         computeBackend: SecurityPrincipal? = null,
-        jobOwner: String? = null
+        jobOwner: SecurityPrincipalToken? = null
     ) {
         withJobExceptionHandler(event.systemId) {
             if (computeBackend == null && jobOwner == null) {
@@ -359,7 +360,7 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    private fun findJobForId(id: String, jobOwner: String? = null): VerifiedJobWithAccessToken =
+    private fun findJobForId(id: String, jobOwner: SecurityPrincipalToken? = null): VerifiedJobWithAccessToken =
         db.withTransaction { session -> jobDao.find(session, id, jobOwner) }
 
     companion object : Loggable {
@@ -404,7 +405,7 @@ class JobOrchestrator<DBSession>(
 fun <DBSession> JobDao<DBSession>.find(
     session: DBSession,
     id: String,
-    jobOwner: String? = null
+    jobOwner: SecurityPrincipalToken? = null
 ): VerifiedJobWithAccessToken {
     return findOrNull(session, id, jobOwner) ?: throw JobException.NotFound("Job: $id")
 }
