@@ -3,7 +3,6 @@ import PromiseKeeper from "PromiseKeeper";
 import { Page } from "Types";
 import { Application, DetailedApplicationSearchReduxState, ApplicationMetadata, WithAppFavorite, WithAppMetadata } from "Applications";
 import { File, DetailedFileSearchReduxState, AdvancedSearchRequest } from "Files";
-import { ProjectMetadata } from "Project/api";
 import { History } from "history";
 import { Dispatch } from "redux";
 import { HeaderSearchType } from "DefaultObjects";
@@ -19,8 +18,6 @@ export interface SimpleSearchStateProps {
     filesLoading: boolean
     applications: Page<WithAppMetadata & WithAppFavorite>
     applicationsLoading: boolean
-    projects: Page<ProjectMetadata>
-    projectsLoading: boolean
     errors: string[]
     search: string
     fileSearch: DetailedFileSearchReduxState
@@ -31,14 +28,11 @@ export interface SimpleSearchOperations {
     clear: () => void
     setFilesLoading: (loading: boolean) => void
     setApplicationsLoading: (loading: boolean) => void
-    setProjectsLoading: (loading: boolean) => void
     setError: (error?: string) => void
     searchFiles: (body: AdvancedSearchRequest) => void
     searchApplications: (query: string, page: number, itemsPerPage: number) => void
-    searchProjects: (query: string, page: number, itemsPerPage: number) => void
     setFilesPage: (page: Page<File>) => void
     setApplicationsPage: (page: Page<WithAppMetadata & WithAppFavorite>) => void
-    setProjectsPage: (page: Page<ProjectMetadata>) => void
     setSearch: (search: string) => void
     setPrioritizedSearch: (st: HeaderSearchType) => void
     toggleAdvancedSearch: () => void

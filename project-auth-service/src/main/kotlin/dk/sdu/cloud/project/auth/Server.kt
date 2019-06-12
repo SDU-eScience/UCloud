@@ -1,13 +1,14 @@
 package dk.sdu.cloud.project.auth
 
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.project.auth.http.ProjectAuthController
 import dk.sdu.cloud.project.auth.processors.ProjectAuthEventProcessor
 import dk.sdu.cloud.project.auth.processors.ProjectEventProcessor
@@ -17,6 +18,7 @@ import dk.sdu.cloud.project.auth.services.StorageInitializer
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
 import dk.sdu.cloud.project.auth.services.TokenRefresher
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.startServices
@@ -36,7 +38,11 @@ class Server(
 
         val storageInitializer = StorageInitializer(
             refreshTokenCloudFactory = { refreshToken ->
-                client.withoutAuthentication().bearerAuth(refreshToken)
+                RefreshingJWTAuthenticator(
+                    micro.client,
+                    refreshToken,
+                    micro.tokenValidation as TokenValidationJWT
+                ).authenticateClient(OutgoingHttpCall)
             }
         )
 

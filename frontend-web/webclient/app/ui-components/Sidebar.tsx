@@ -16,6 +16,9 @@ import {ReduxObject} from "DefaultObjects"
 import {connect} from 'react-redux'
 import {FlexCProps} from "./Flex";
 import {inDevEnvironment, copyToClipboard} from "UtilityFunctions";
+import {Dispatch} from "redux";
+import {addSnack} from "Snackbar/Redux/SnackbarsActions";
+import {ContextSwitcher} from "Project/ContextSwitcher";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
     justify-content: left;
@@ -96,15 +99,17 @@ interface TextLabelProps {
     title?: string
 }
 
-const TextLabel = ({
-    icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-    iconSize = "24", space = "22px", ml = "22px", textSize = 3, hover = true
-}: TextLabelProps) => (
-        <SidebarElementContainer title={title} height={height} ml={ml} hover={hover}>
-            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
-            <Text fontSize={textSize}> {children} </Text>
-        </SidebarElementContainer>
-    );
+export const SidebarTextLabel = (
+    {
+        icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
+        iconSize = "24", space = "22px", textSize = 3, hover = true
+    }: TextLabelProps
+) => (
+    <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}/>
+        <Text fontSize={textSize}> {children} </Text>
+    </SidebarElementContainer>
+);
 
 const SidebarLink = styled(Link) <{active?: boolean}>`
     ${props => props.active ?
@@ -134,7 +139,7 @@ interface SidebarElement {
 
 const SidebarElement = ({icon, label, to, activePage}: SidebarElement) => (
     <SidebarLink to={to} active={enumToLabel(activePage) === label ? true : undefined}>
-        <TextLabel icon={icon}>{label}</TextLabel>
+        <SidebarTextLabel icon={icon}>{label}</SidebarTextLabel>
     </SidebarLink>
 );
 
@@ -161,7 +166,7 @@ function enumToLabel(value: SidebarPages): string {
     }
 }
 
-const SidebarSpacer = () => (<Box mt="12px" />);
+const SidebarSpacer = () => (<Box mt="12px"/>);
 
 const SidebarPushToBottom = styled.div`
     flex-grow: 1;
@@ -201,6 +206,7 @@ export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarM
 interface SidebarStateProps {
     page: SidebarPages
     loggedIn: boolean
+    activeProject?: string
 }
 
 interface SidebarProps extends SidebarStateProps {
@@ -222,15 +228,16 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                             <SidebarElement icon={icon} activePage={page} label={label}
                                 to={typeof to === "function" ? to() : to} />
                         </React.Fragment>))}
-                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="6px" mb="6px" />) : null}
+                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="6px" mb="6px"/>) : null}
                 </React.Fragment>
             )}
             <SidebarPushToBottom />
             {/* Screen size indicator */}
-            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
+            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox/> </Flex> : null}
+            {Cloud.userRole === "ADMIN" ? <ContextSwitcher maxSize={140}/> : null}
             {Cloud.isLoggedIn ?
-                <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" ml="26px"
-                    title={Cloud.username || ""}>
+                <SidebarTextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em"
+                                  title={Cloud.username || ""}>
                     <Tooltip
                         left="-50%"
                         top={"1"}
@@ -246,22 +253,27 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                         }>
                         {`Click to copy "${Cloud.username}" to clipboard`}
                     </Tooltip>
-                </TextLabel> : null}
+                </SidebarTextLabel> : null}
 
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                <TextLabel height="25px" icon="verified" iconSize="1em" textSize={1} space=".5em" ml="26px">
+                <SidebarTextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1}
+                                  space=".5em">
                     SDU Data Protection
-                </TextLabel>
+                </SidebarTextLabel>
             </ExternalLink>
             <Box mb="10px" />
         </SidebarContainer>
     );
 };
 
-const mapStateToProps = ({status}: ReduxObject): SidebarStateProps => ({
+const mapStateToProps = ({status, project}: ReduxObject): SidebarStateProps => ({
     page: status.page,
-    /* Used to ensure rerendering of Sidebar after user logs in. */
-    loggedIn: Cloud.isLoggedIn
+
+    /* Used to ensure re-rendering of Sidebar after user logs in. */
+    loggedIn: Cloud.isLoggedIn,
+
+    /* Used to ensure re-rendering of Sidebar after project change. */
+    activeProject: project.project
 });
 
 export const enum SidebarPages {

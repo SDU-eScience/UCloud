@@ -26,6 +26,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.service.Controller
@@ -51,7 +52,7 @@ class JobController<DBSession>(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
             val (job, _) = db.withTransaction { session ->
-                jobDao.findOrNull(session, request.id, ctx.securityPrincipal.username)
+                jobDao.findOrNull(session, request.id, ctx.securityToken)
             } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(job.toJobWithStatus())
@@ -59,7 +60,7 @@ class JobController<DBSession>(
 
         implement(JobDescriptions.listRecent) {
             val result = db.withTransaction {
-                jobDao.list(it, ctx.securityPrincipal.username, request.normalize())
+                jobDao.list(it, ctx.securityToken, request.normalize())
             }.mapItems { it.job.toJobWithStatus() }
 
             ok(result)
@@ -105,7 +106,7 @@ class JobController<DBSession>(
             jobOrchestrator.handleProposedStateChange(
                 JobStateChange(request.jobId, JobState.CANCELING),
                 newStatus = "Job is cancelling...",
-                jobOwner = ctx.securityPrincipal.username
+                jobOwner = ctx.securityToken
             )
 
             ok(Unit)

@@ -2,9 +2,8 @@ import * as React from "react";
 import List from "../../app/Shares/List";
 import {create} from "react-test-renderer";
 import {MemoryRouter} from "react-router";
-import {configure, shallow} from "enzyme"
+import {configure} from "enzyme"
 import * as Adapter from "enzyme-adapter-react-16";
-import {shares as mock_shares} from "../mock/Shares";
 import theme, {responsiveBP} from "../../app/ui-components/theme";
 import {ThemeProvider} from "styled-components";
 import "jest-styled-components";

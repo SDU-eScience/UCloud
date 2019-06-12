@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.securityPrincipal
@@ -13,7 +12,6 @@ import dk.sdu.cloud.project.auth.api.ProjectAuthDescriptions
 import dk.sdu.cloud.project.auth.services.TokenRefresher
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 
 class ProjectAuthController(
@@ -29,8 +27,7 @@ class ProjectAuthController(
     private fun CallHandler<*, *, *>.userCloud(): AuthenticatedClient =
         cloudContext.withoutAuthentication()
             .bearerAuth(
-                (ctx as? HttpCall)?.call?.request?.bearer
-                    ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                ctx.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
             )//.optionallyCausedBy(ctx.jobId)
 
     companion object : Loggable {

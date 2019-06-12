@@ -88,6 +88,8 @@ class ProjectService<DBSession>(
             val project = findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
             val removedMember = project.members.find { it.username == member } ?: throw ProjectException.NotFound()
 
+            if (removedMember.role == ProjectRole.PI) throw ProjectException.CantDeleteUserFromProject()
+
             dao.deleteMember(session, projectId, member)
 
             val newProject = project.copy(members = project.members.filter { it.username == member })
@@ -113,6 +115,8 @@ class ProjectService<DBSession>(
         db.withTransaction { session ->
             val project = findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
             val oldRole = project.members.find { it.username == member } ?: throw ProjectException.NotFound()
+
+            if (oldRole.role == ProjectRole.PI) throw ProjectException.CantChangeRole()
 
             dao.changeMemberRole(session, projectId, member, newRole)
 
@@ -156,6 +160,11 @@ sealed class ProjectException(why: String, statusCode: HttpStatusCode) : RPCExce
     class UserDoesNotExist : ProjectException("User does not exist", HttpStatusCode.BadRequest)
     class CantAddUserToProject :
         ProjectException("This user cannot be added to this project", HttpStatusCode.BadRequest)
+
+    class CantDeleteUserFromProject :
+        ProjectException("This user cannot be deleted from the project", HttpStatusCode.BadRequest)
+
+    class CantChangeRole : ProjectException("Cannot change role of this user", HttpStatusCode.BadRequest)
 
     class AlreadyMember : ProjectException("User is already a member of this project", HttpStatusCode.Conflict)
     class InternalError : ProjectException("Internal Server Error", HttpStatusCode.InternalServerError)

@@ -24,7 +24,6 @@ import detailedResult from "Applications/Redux/DetailedResultReducer";
 import simpleSearch from "Search/Redux/SearchReducer";
 import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
-import detailedProjectSearch from "Project/Redux/ProjectSearchReducer";
 import filePreview from "Files/Redux/FilePreviewReducer";
 import * as AppRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
@@ -37,6 +36,7 @@ import {fetchLoginStatus} from "Zenodo/Redux/ZenodoActions";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import Header from "Navigation/Header";
 import {isLightThemeStored, setSiteTheme} from "UtilityFunctions";
+import * as ProjectRedux from "Project/Redux";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
@@ -54,7 +54,6 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     simpleSearch,
     detailedFileSearch,
     detailedApplicationSearch,
-    detailedProjectSearch,
     fileInfo,
     filePreview,
     ...AppRedux.reducers,
@@ -63,6 +62,7 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     snackbar,
     avatar,
     loading,
+    project: ProjectRedux.reducer,
     responsive: createResponsiveStateReducer(
         responsiveBP,
         {infinity: "xxl"}),
@@ -91,6 +91,8 @@ export async function onLogin() {
 const GlobalStyle = createGlobalStyle`
   ${() => UIGlobalStyle}
 `;
+
+Cloud.initializeStore(store);
 
 function App({children}) {
     const [isLightTheme, setTheme] = React.useState(isLightThemeStored());

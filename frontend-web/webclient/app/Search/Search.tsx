@@ -2,7 +2,6 @@ import * as React from "react";
 import * as Pagination from "Pagination";
 import {connect} from "react-redux";
 import {ApplicationCard} from "Applications/Card";
-import {SearchItem} from "Project/Search";
 import {allFileOperations, favoriteFileFromPage} from "Utilities/FileUtilities";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
 import {HeaderSearchType, ReduxObject, emptyPage} from "DefaultObjects";
@@ -30,10 +29,8 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import {prettierString} from "UtilityFunctions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
-import DetailedProjectSearch from "Project/DetailedProjectSearch";
 
 function Search(props: SearchProps) {
-
     React.useEffect(() => {
         props.toggleAdvancedSearch();
         props.setActivePage();
@@ -52,7 +49,7 @@ function Search(props: SearchProps) {
 
     const queryFromProps = (props: SearchProps): string => {
         return getQueryParamOrElse(props, "query", "");
-    }
+    };
 
     const fileSearchBody = (): AdvancedSearchRequest => {
         // FIXME Duplicate code
@@ -78,7 +75,7 @@ function Search(props: SearchProps) {
             itemsPerPage: props.files.itemsPerPage || 25,
             page: 0
         }
-    }
+    };
 
     React.useEffect(() => {
         props.setSearch(query());
@@ -89,16 +86,20 @@ function Search(props: SearchProps) {
     const setPath = (text: string) => {
         props.setPrioritizedSearch(text as HeaderSearchType);
         props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
-    }
+    };
 
     function fetchAll(search: string, itemsPerPage?: number) {
         props.setError();
-        props.searchFiles({...fileSearchBody(), fileName: search, itemsPerPage: itemsPerPage || props.files.itemsPerPage});
+        props.searchFiles({
+            ...fileSearchBody(),
+            fileName: search,
+            itemsPerPage: itemsPerPage || props.files.itemsPerPage
+        });
         props.searchApplications(search, 0, itemsPerPage || props.applications.itemsPerPage);
     }
 
-    const refreshFiles = () => props.searchFiles({...fileSearchBody()})
-    const {search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors} = props;
+    const refreshFiles = () => props.searchFiles({...fileSearchBody()});
+    const {search, files, applications, filesLoading, applicationsLoading, errors} = props;
     const fileOperations = allFileOperations({
         stateless: true,
         history: props.history,
@@ -108,7 +109,7 @@ function Search(props: SearchProps) {
         setLoading: () => props.setFilesLoading(true),
     });
 
-    const Tab = ({searchType}: {searchType: HeaderSearchType}): JSX.Element => (
+    const Tab = ({searchType}: { searchType: HeaderSearchType }): JSX.Element => (
         <SelectableText
             cursor="pointer"
             fontSize={2}
@@ -127,7 +128,7 @@ function Search(props: SearchProps) {
     if (priority === "files") {
         main = <>
             <Hide xxl xl lg>
-                <DetailedFileSearch cantHide />
+                <DetailedFileSearch cantHide/>
             </Hide>
             <Pagination.List
                 loading={filesLoading}
@@ -151,7 +152,7 @@ function Search(props: SearchProps) {
     } else if (priority === "applications") {
         main = <>
             <Hide xxl xl lg>
-                <DetailedApplicationSearch />
+                <DetailedApplicationSearch/>
             </Hide>
             <Pagination.List
                 loading={applicationsLoading}
@@ -169,37 +170,23 @@ function Search(props: SearchProps) {
                 onPageChanged={pageNumber => props.searchApplications(search, pageNumber, applications.itemsPerPage)}
             />
         </>
-    } else if (priority === "projects" && allowedSearchTypes.includes("projects")) {
-        main = <>
-            <Hide xxl xl lg>
-                <DetailedProjectSearch />
-            </Hide>
-            <Pagination.List
-                loading={projectsLoading}
-                pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
-                page={projects}
-                onPageChanged={pageNumber => props.searchProjects(search, pageNumber, projects.itemsPerPage)}
-            />
-        </>
     }
 
     return (
         <MainContainer
             header={
                 <React.Fragment>
-                    <Error error={errors.join("\n")} clearError={() => props.setError(undefined)} />
+                    <Error error={errors.join("\n")} clearError={() => props.setError(undefined)}/>
                     <SearchOptions>
-                        {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
+                        {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index}/>)}
                     </SearchOptions>
                     <Spacer left={null} right={<Pagination.EntriesPerPageSelector
                         onChange={itemsPerPage => fetchAll(props.search, itemsPerPage)}
                         content={`${prettierString(priority)} per page`}
                         entriesPerPage={
-                            priority === "files" ? props.files.itemsPerPage : (
-                                priority === "applications" ? props.projects.itemsPerPage :
-                                    props.applications.itemsPerPage)
+                            priority === "files" ? props.files.itemsPerPage : (props.applications.itemsPerPage)
                         }
-                    />} />
+                    />}/>
                 </React.Fragment>
             }
             main={main}
@@ -215,7 +202,7 @@ export const SearchOptions = styled(Flex)`
 
 SearchOptions.defaultProps = {
     theme
-}
+};
 
 export const SelectableText = styled(Text) <{selected: boolean}>`
     border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
@@ -223,17 +210,15 @@ export const SelectableText = styled(Text) <{selected: boolean}>`
 
 SelectableText.defaultProps = {
     theme
-}
+};
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
     setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
-    setProjectsLoading: loading => dispatch(SSActions.setProjectsLoading(loading)),
     setError: error => dispatch(SSActions.setErrorMessage(error)),
     clear: () => {
         dispatch(SSActions.receiveFiles(emptyPage))
         dispatch(SSActions.receiveFiles(emptyPage))
-        dispatch(SSActions.receiveProjects(emptyPage))
     },
     searchFiles: async body => {
         dispatch(SSActions.setFilesLoading(true));
@@ -245,13 +230,8 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
         dispatch(await SSActions.searchApplications(query, page, itemsPerPage));
         dispatch(setAppName(query));
     },
-    searchProjects: async (query, page, itemsPerPage) => {
-        dispatch(SSActions.setProjectsLoading(true));
-        dispatch(await SSActions.searchProjects(query, page, itemsPerPage));
-    },
     setFilesPage: page => dispatch(SSActions.receiveFiles(page)),
     setApplicationsPage: page => dispatch(SSActions.receiveApplications(page)),
-    setProjectsPage: page => dispatch(SSActions.receiveProjects(page)),
     setSearch: search => dispatch(SSActions.setSearch(search)),
     setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden()),
@@ -259,7 +239,7 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
-const mapStateToProps = ({simpleSearch, detailedFileSearch, detailedApplicationSearch}: ReduxObject): SimpleSearchStateProps & {favFilesCount: number} => ({
+const mapStateToProps = ({simpleSearch, detailedFileSearch, detailedApplicationSearch}: ReduxObject): SimpleSearchStateProps & { favFilesCount: number } => ({
     ...simpleSearch,
     favFilesCount: simpleSearch.files.items.filter(it => it.favorited).length,
     fileSearch: detailedFileSearch,

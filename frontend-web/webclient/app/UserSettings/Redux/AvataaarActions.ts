@@ -17,7 +17,7 @@ const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
 
 export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {
     try {
-        await Cloud.post(saveAvatarQuery, avatar).then(it => saveAvataaar(avatar));
+        await Cloud.post(saveAvatarQuery, avatar, undefined, true).then(it => saveAvataaar(avatar));
         return saveAvataaar(avatar);
     } catch (e) {
         return setAvatarError(errorMessageOrDefault(e, "An error occurred saving the avatar."))
@@ -34,7 +34,7 @@ export const setAvatarError = (error?: string): SetAvatarError => ({
 
 export const findAvatar = async (): Promise<SaveAvataaar | AddSnack> => {
     try {
-        const res = await Cloud.get<AvatarType>(findAvatarQuery);
+        const res = await Cloud.get<AvatarType>(findAvatarQuery, undefined, true);
         return saveAvataaar(res.response);
     } catch (e) {
         return addSnack({
@@ -42,4 +42,4 @@ export const findAvatar = async (): Promise<SaveAvataaar | AddSnack> => {
             type: SnackType.Failure
         });
     }
-}
+};

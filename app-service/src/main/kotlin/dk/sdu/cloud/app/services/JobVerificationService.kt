@@ -82,7 +82,7 @@ class JobVerificationService<DBSession>(
                 application = application,
                 files = files,
                 id = jobId,
-                owner = token.principal.username,
+                owner = token.realUsername(),
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,
                 maxTime = allocatedTime,
@@ -90,10 +90,12 @@ class JobVerificationService<DBSession>(
                 backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
                 currentState = JobState.VALIDATED,
                 status = "Validated",
-                ownerUid = token.principal.uid,
                 archiveInCollection = archiveInCollection,
                 _mounts = mounts,
-                startedAt = null
+                startedAt = null,
+                user = token.principal.username,
+                uid = token.principal.uid,
+                project = token.projectOrNull()
             ),
             unverifiedJob.principal.token
         )

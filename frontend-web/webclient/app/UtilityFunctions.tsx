@@ -42,7 +42,7 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  */
 export const getOwnerFromAcls = (acls?: Acl[]): string => {
     if (acls === undefined) return "N/A";
-    const filteredAcl = acls.filter(it => it.entity !== currentCloud.username);
+    const filteredAcl = acls.filter(it => it.entity !== currentCloud.activeUsername);
     if (filteredAcl.length > 0) {
         return `${acls.length} members`;
     } else {

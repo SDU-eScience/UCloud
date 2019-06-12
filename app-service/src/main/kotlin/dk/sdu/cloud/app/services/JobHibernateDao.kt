@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.ParsedApplicationParameter
@@ -126,7 +127,13 @@ data class JobInformationEntity(
 
     override var modifiedAt: Date,
 
-    override var createdAt: Date
+    override var createdAt: Date,
+
+    @Column(length = 1024)
+    var user: String,
+
+    @Column(length = 1024)
+    var project: String?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -160,7 +167,9 @@ class JobHibernateDao(
             job.maxTime.hours,
             null,
             Date(System.currentTimeMillis()),
-            Date(System.currentTimeMillis())
+            Date(System.currentTimeMillis()),
+            job.user,
+            job.project
         )
 
         session.save(entity)
@@ -205,10 +214,14 @@ class JobHibernateDao(
     override fun findOrNull(
         session: HibernateSession,
         systemId: String,
-        owner: String?
+        owner: SecurityPrincipalToken?
     ): VerifiedJobWithAccessToken? {
         return JobInformationEntity[session, systemId]
-            ?.takeIf { owner == null || it.owner == owner }
+            ?.takeIf {
+                owner == null ||
+                        it.owner == owner.realUsername() ||
+                        (it.project == owner.projectOrNull() && it.state.isFinal())
+            }
             ?.toModel(session, resolveTool = true)
     }
 
@@ -234,16 +247,35 @@ class JobHibernateDao(
 
     override fun list(
         session: HibernateSession,
-        owner: String,
+        owner: SecurityPrincipalToken,
         pagination: NormalizedPaginationRequest
     ): Page<VerifiedJobWithAccessToken> {
         return session.paginatedCriteria<JobInformationEntity>(
             pagination,
             orderBy = { listOf(descending(entity[JobInformationEntity::createdAt])) },
             predicate = {
-                entity[JobInformationEntity::owner] equal owner
+                val canViewAsOwner = entity[JobInformationEntity::owner] equal owner.realUsername()
+
+                val project = owner.projectOrNull()
+                val canViewAsPartOfProject =
+                    if (project == null) {
+                        literal(false).toPredicate()
+                    } else {
+                        allOf(
+                            entity[JobInformationEntity::project] equal project,
+                            anyOf(
+                                entity[JobInformationEntity::state] equal JobState.FAILURE,
+                                entity[JobInformationEntity::state] equal JobState.SUCCESS
+                            )
+                        )
+                    }
+
+                anyOf(
+                    canViewAsOwner,
+                    canViewAsPartOfProject
+                )
             }
-        ).mapItems { it.toModel(session) } // TODO This will do a query for every single result!
+        ).mapItems { it.toModel(session) }
     }
 
     private fun JobInformationEntity.toModel(
@@ -270,7 +302,9 @@ class JobHibernateDao(
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
                 _mounts = mounts,
-                startedAt = startedAt?.time
+                startedAt = startedAt?.time,
+                user = user,
+                project = project
             ),
             accessToken
         )

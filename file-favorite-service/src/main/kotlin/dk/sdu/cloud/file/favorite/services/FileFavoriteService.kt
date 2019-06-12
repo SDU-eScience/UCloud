@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.favorite.services
 
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -25,7 +26,7 @@ class FileFavoriteService<DBSession>(
 ) {
     suspend fun toggleFavorite(
         files: List<String>,
-        user: String,
+        user: SecurityPrincipalToken,
         userCloud: AuthenticatedClient,
         audit: ToggleFavoriteAudit? = null
     ): List<String> {
@@ -60,12 +61,12 @@ class FileFavoriteService<DBSession>(
         return failures
     }
 
-    fun getFavoriteStatus(files: List<StorageFile>, user: String): Map<String, Boolean> =
+    fun getFavoriteStatus(files: List<StorageFile>, user: SecurityPrincipalToken): Map<String, Boolean> =
         db.withTransaction { dao.bulkIsFavorite(it, files, user) }
 
     suspend fun listAll(
         pagination: NormalizedPaginationRequest,
-        user: String
+        user: SecurityPrincipalToken
     ): Page<StorageFile> {
         val fileIds = db.withTransaction {
             dao.listAll(it, pagination, user)

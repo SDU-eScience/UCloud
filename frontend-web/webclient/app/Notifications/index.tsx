@@ -40,9 +40,14 @@ function Notifications(props: Notifications) {
         reload();
         const conn = WSFactory.open("/notifications", {
             init: conn => {
-                conn.subscribe("notifications.subscription", {}, message => {
-                    if (message.type === "message") {
-                        props.receiveNotification(message.payload);
+                conn.subscribe({
+                    call: "notifications.subscription",
+                    payload: {},
+                    disallowProjects: true,
+                    handler: message => {
+                        if (message.type === "message") {
+                            props.receiveNotification(message.payload);
+                        }
                     }
                 });
             }
@@ -59,6 +64,7 @@ function Notifications(props: Notifications) {
                 });
         };
         snackbarStore.subscribe(subscriber);
+
         return () => conn.close();
     }, []);
 

@@ -7,7 +7,7 @@ import { WithAppFavorite, WithAppMetadata } from ".";
 import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { LoadingMainContainer } from "MainContainer/MainContainer";
+import { LoadableMainContainer } from "MainContainer/MainContainer";
 import { ApplicationCard } from "./Card";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
@@ -154,7 +154,7 @@ class Applications extends React.Component<ApplicationsProps> {
         );
 
         return (
-            <LoadingMainContainer
+            <LoadableMainContainer
                 header={<Spacer left={<Heading.h1>Applications</Heading.h1>} right={
                     <Pagination.EntriesPerPageSelector
                         content="Apps per page"

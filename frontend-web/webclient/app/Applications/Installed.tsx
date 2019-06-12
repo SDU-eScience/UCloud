@@ -8,7 +8,7 @@ import { WithAppMetadata, WithAppFavorite } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
 import { ApplicationCard } from "./Card";
-import { LoadingMainContainer } from "MainContainer/MainContainer";
+import { LoadableMainContainer } from "MainContainer/MainContainer";
 import { GridCardGroup } from "ui-components/Grid";
 import * as Actions from "./Redux/FavoriteActions";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
@@ -83,7 +83,7 @@ function Installed(props: InstalledProps & { header: any }) {
         </>
     );
     return (
-        <LoadingMainContainer
+        <LoadableMainContainer
             header={props.header}
             loadable={props.applications}
             main={main}

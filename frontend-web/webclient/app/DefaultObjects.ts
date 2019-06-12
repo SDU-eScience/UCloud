@@ -15,9 +15,9 @@ import * as AccountingRedux from "Accounting/Redux";
 import * as SnackbarRedux from "Snackbar/Redux";
 import * as FavoritesRedux from "Favorites/Redux";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import {DetailedProjectSearchReduxState} from "Project";
 import {SidebarPages} from "ui-components/Sidebar";
 import {ScrollResult} from "Scroll/Types";
+import * as ProjectRedux from "Project/Redux";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -229,11 +229,11 @@ interface LegacyReduxObject {
     simpleSearch: SimpleSearchStateProps
     detailedFileSearch: DetailedFileSearchReduxState
     detailedApplicationSearch: DetailedApplicationSearchReduxState
-    detailedProjectSearch: DetailedProjectSearchReduxState
     fileInfo: FileInfoReduxObject
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
     responsive?: ResponsiveReduxObject
+    project: ProjectRedux.State
     loading?: boolean
 }
 
@@ -243,7 +243,6 @@ export type ReduxObject =
     AccountingRedux.Objects &
     FavoritesRedux.Objects &
     SnackbarRedux.Wrapper;
-
 
 export const initActivity = (): ActivityReduxObject => ({
     loading: false
@@ -294,10 +293,10 @@ export function initObject(homeFolder: string): ReduxObject {
         simpleSearch: initSimpleSearch(),
         detailedApplicationSearch: initApplicationsAdvancedSearch(),
         detailedFileSearch: initFilesDetailedSearch(),
-        detailedProjectSearch: initProjectsAdvancedSearch(),
         fileInfo: initFileInfo(),
         avatar: initAvatar(),
         filePreview: initFilePreview(),
+        project: ProjectRedux.initialState,
         ...ApplicationRedux.init(),
         ...AccountingRedux.init(),
         ...FavoritesRedux.init(),
@@ -320,8 +319,6 @@ export const initSimpleSearch = (): SimpleSearchStateProps => ({
     filesLoading: false,
     applications: emptyPage,
     applicationsLoading: false,
-    projects: emptyPage,
-    projectsLoading: false,
     errors: [],
     search: "",
     applicationSearch: initApplicationsAdvancedSearch(),
@@ -405,11 +402,4 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     appName: "",
     appVersion: "",
     tags: ""
-});
-
-export const initProjectsAdvancedSearch = (): DetailedProjectSearchReduxState => ({
-    error: undefined,
-    loading: false,
-    hidden: true,
-    projectName: ""
 });

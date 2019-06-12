@@ -284,13 +284,6 @@ export interface DetailedFileSearchReduxState {
     loading: boolean
 }
 
-export interface DetailedProjectSearch {
-    hidden: boolean
-    projectName: string
-    error?: string
-    loading: boolean
-}
-
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalidPath: boolean }
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";

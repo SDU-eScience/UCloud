@@ -1,10 +1,12 @@
 package dk.sdu.cloud.file.favorite.services
 
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.CriteriaBuilderGeneralContext
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
@@ -19,6 +21,7 @@ import javax.persistence.GeneratedValue
 import javax.persistence.Id
 import javax.persistence.Index
 import javax.persistence.Table
+import javax.persistence.criteria.Expression
 
 @Entity
 @Table(
@@ -31,6 +34,9 @@ class FavoriteEntity(
 
     var username: String,
 
+    @Column(name = "project", nullable = true)
+    var project: String? = null,
+
     @Id
     @GeneratedValue
     var id: Long = 0
@@ -38,23 +44,23 @@ class FavoriteEntity(
     companion object : HibernateEntity<FavoriteEntity>, WithId<Long>
 }
 
-
 class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
     override fun isFavorite(
         session: HibernateSession,
-        user: String,
+        user: SecurityPrincipalToken,
         fileId: String
     ): Boolean {
         return session.criteria<FavoriteEntity> {
             (entity[FavoriteEntity::fileId] equal fileId) and
-                    (entity[FavoriteEntity::username] equal user)
+                    (entity[FavoriteEntity::username] equal user.realUsername()) and
+                    (entity[FavoriteEntity::project] equal toExpression(user.projectOrNull()))
         }.uniqueResult() != null
     }
 
     override fun bulkIsFavorite(
         session: HibernateSession,
         files: List<StorageFile>,
-        user: String
+        user: SecurityPrincipalToken
     ): Map<String, Boolean> {
         val allFileIds = files.map { it.fileId }
         val chunkedFileIds = allFileIds.chunked(250)
@@ -67,8 +73,9 @@ class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
                     .criteria<FavoriteEntity>(
                         orderBy = { listOf(descending(entity[FavoriteEntity::id])) },
                         predicate = {
-                            (entity[FavoriteEntity::username] equal user) and
-                                    (entity[FavoriteEntity::fileId] isInCollection fileIds)
+                            (entity[FavoriteEntity::username] equal user.realUsername()) and
+                                    (entity[FavoriteEntity::fileId] isInCollection fileIds) and
+                                    (entity[FavoriteEntity::project] equal toExpression(user.projectOrNull()))
                         }
                     )
                     .list()
@@ -80,15 +87,16 @@ class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
         return result
     }
 
-    override fun insert(session: HibernateSession, user: String, fileId: String) {
-        val entity = FavoriteEntity(fileId, user)
+    override fun insert(session: HibernateSession, user: SecurityPrincipalToken, fileId: String) {
+        val entity = FavoriteEntity(fileId, user.realUsername(), user.projectOrNull())
         session.save(entity)
     }
 
-    override fun delete(session: HibernateSession, user: String, fileId: String) {
+    override fun delete(session: HibernateSession, user: SecurityPrincipalToken, fileId: String) {
         val entity = session.criteria<FavoriteEntity> {
             (entity[FavoriteEntity::fileId] equal fileId) and
-                    (entity[FavoriteEntity::username] equal user)
+                    (entity[FavoriteEntity::username] equal user.realUsername()) and
+                    (entity[FavoriteEntity::project] equal toExpression(user.projectOrNull()))
         }.uniqueResult()
 
         session.delete(entity)
@@ -97,10 +105,11 @@ class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
     override fun listAll(
         session: HibernateSession,
         pagination: NormalizedPaginationRequest,
-        user: String
+        user: SecurityPrincipalToken
     ): Page<String> {
         return session.paginatedCriteria<FavoriteEntity>(pagination) {
-            entity[FavoriteEntity::username] equal user
+            (entity[FavoriteEntity::username] equal user.realUsername()) and
+                    (entity[FavoriteEntity::project] equal toExpression(user.projectOrNull()))
         }.mapItems { it.fileId }
     }
 
@@ -116,4 +125,9 @@ class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
     companion object : Loggable {
         override val log = logger()
     }
+}
+
+inline fun <reified T : Any> CriteriaBuilderGeneralContext.toExpression(value: T?): Expression<T?> {
+    if (value == null) return nullLiteral()
+    else return literal(value)
 }

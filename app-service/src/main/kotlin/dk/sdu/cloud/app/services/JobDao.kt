@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -32,12 +33,12 @@ interface JobDao<Session> {
     fun findOrNull(
         session: Session,
         systemId: String,
-        owner: String? = null
+        owner: SecurityPrincipalToken? = null
     ): VerifiedJobWithAccessToken?
 
     fun list(
         session: Session,
-        owner: String,
+        owner: SecurityPrincipalToken,
         pagination: NormalizedPaginationRequest
     ): Page<VerifiedJobWithAccessToken>
 

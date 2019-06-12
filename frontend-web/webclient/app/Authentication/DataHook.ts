@@ -35,6 +35,7 @@ export interface APICallParameters<Parameters = any, Payload = any> {
     context?: string
     maxRetries?: number
     parameters?: Parameters
+    disallowProjects?: boolean
     reloadId?: number // Can be used to force an ID by setting this to a random value
 }
 
@@ -59,8 +60,14 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2
 export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
     let method = parameters.method !== undefined ? parameters.method : "GET";
     if (parameters.path === undefined) throw "Missing path";
-    return (await Cloud.call(method, parameters.path, parameters.payload, parameters.context,
-        parameters.maxRetries)).response;
+    return (await Cloud.call({
+        method: method,
+        path: parameters.path,
+        body: parameters.payload,
+        context: parameters.context,
+        maxRetries: parameters.maxRetries,
+        disallowProjects: parameters.disallowProjects
+    })).response;
 }
 
 export async function callAPIWithErrorHandler<T>(
@@ -77,7 +84,7 @@ export async function callAPIWithErrorHandler<T>(
 export function useCloudAPI<T, Parameters = any>(
     callParametersInitial: APICallParameters<Parameters>,
     dataInitial: T
-): [APICallState<T>, (params: APICallParameters) => void, APICallParameters<Parameters>] {
+): [APICallState<T>, (params: APICallParameters<Parameters>) => void, APICallParameters<Parameters>] {
     const [params, setParams] = useState(callParametersInitial);
 
     const [state, dispatch] = useReducer(dataFetchReducer, {

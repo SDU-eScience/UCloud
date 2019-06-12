@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: project-auth-service
-          image: registry.cloud.sdu.dk/sdu-cloud/project-auth-service:0.1.0
+          image: registry.cloud.sdu.dk/sdu-cloud/project-auth-service:0.1.3
           args:
           - /opt/service/bin/service
           - --config-dir

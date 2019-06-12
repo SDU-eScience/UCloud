@@ -64,7 +64,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                 await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/password", {
                     currentPassword,
                     newPassword
-                }, "")).promise;
+                }, "", true)).promise;
 
                 snackbarStore.addSnack({message: "Password successfully changed", type: SnackType.Success});
                 this.setState(() => this.initialState());
@@ -73,7 +73,6 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                 let status = defaultErrorHandler(e);
                 this.setState(() => ({error: true}));
             }
-            ;
         }
     }
 
