@@ -117,7 +117,7 @@ const AppHeaderDetails = styled.div`
     }
 `;
 
-export const AppHeader: React.StatelessComponent<MainContentProps & { slim?: boolean }> = props => {
+export const AppHeader: React.FunctionComponent<MainContentProps & { slim?: boolean }> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "32px" : "128px";
     return (
@@ -142,7 +142,7 @@ export const AppHeader: React.StatelessComponent<MainContentProps & { slim?: boo
     );
 };
 
-const Sidebar: React.StatelessComponent<MainContentProps> = props => (
+const Sidebar: React.FunctionComponent<MainContentProps> = props => (
     <VerticalButtonGroup>
         <ActionButton
             fullWidth
@@ -192,7 +192,7 @@ function Content(props: MainContentProps & { previousVersions?: Page<WithAppMeta
     );
 }
 
-const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<WithAppMetadata> }> = props => (
+const PreviousVersions: React.FunctionComponent<{ previousVersions?: Page<WithAppMetadata> }> = props => (
     <>
         {!props.previousVersions ? null :
             (!props.previousVersions.items.length ? null :

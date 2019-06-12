@@ -31,11 +31,11 @@ const CategoryList = styled.ul`
     }
 `;
 
-const CategoryItem: React.StatelessComponent<{ tag?: string }> = props => (
+const CategoryItem: React.FunctionComponent<{ tag?: string }> = props => (
     <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
 );
 
-const Sidebar: React.StatelessComponent<{ itemsPerPage: number }> = ({ itemsPerPage }) => (<>
+const Sidebar: React.FunctionComponent<{ itemsPerPage: number }> = ({ itemsPerPage }) => (<>
     <Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
 
     <Heading.h4 m="0 0 -14px">Categories</Heading.h4>

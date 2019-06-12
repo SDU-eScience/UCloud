@@ -230,12 +230,12 @@ const FloatingParameter = (props: NumberParameterProps) => {
     return <GenericNumberParameter {...childProps} />;
 };
 
-const GenericParameter = ({parameter, children, onRemove}: {parameter: Types.ApplicationParameter, children: any, onRemove?: () => void}) => (
+const GenericParameter: React.FunctionComponent<{parameter: Types.ApplicationParameter, onRemove?: () => void}> = ({parameter, children, onRemove}) => (
     <>
         <Label fontSize={1} htmlFor={parameter.name}>
             <Flex>
                 <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
-                {parameter.optional && !!onRemove ? <><Box ml="auto" /><Text cursor="pointer" mb="4px" onClick={onRemove}>Remove<Icon ml="6px" size={16} name="close"/></Text></> : null}
+                {parameter.optional && !!onRemove ? <><Box ml="auto" /><Text cursor="pointer" mb="4px" onClick={onRemove}>Remove<Icon ml="6px" size={16} name="close" /></Text></> : null}
             </Flex>
         </Label>
         {children}

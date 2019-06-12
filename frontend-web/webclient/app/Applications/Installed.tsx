@@ -97,7 +97,7 @@ interface InstalledPageProps {
     onFavorite: (name: string, version: string) => void
 }
 
-const InstalledPage: React.StatelessComponent<InstalledPageProps> = props => (
+const InstalledPage: React.FunctionComponent<InstalledPageProps> = props => (
     <GridCardGroup>
         {props.page.items.map((it, idx) => (
             <ApplicationCard onFavorite={props.onFavorite} app={it} key={idx} isFavorite={it.favorite} linkToRun />)

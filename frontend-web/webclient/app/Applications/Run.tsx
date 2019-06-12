@@ -560,7 +560,7 @@ interface SchedulingFieldProps {
     max?: number
 }
 
-const SchedulingField: React.StatelessComponent<SchedulingFieldProps> = props => (
+const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => (
     <Label>
         {props.text}
 

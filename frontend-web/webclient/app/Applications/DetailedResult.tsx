@@ -177,7 +177,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     message: "An error occurred retrieving Information and Output from the job.",
                     type: SnackType.Failure
                 });
-                this.props.detailedResultError("An error occurred retrieving Information and Output from the job.");
+            this.props.detailedResultError("An error occurred retrieving Information and Output from the job.");
         } finally {
             this.props.setLoading(false);
         }
@@ -379,7 +379,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     public render() {
         return <MainContainer
-            header={this.props.error ? <Error error={this.props.error} clearError={() => this.props.detailedResultError()}  /> : null}
+            header={this.props.error ? <Error error={this.props.error} clearError={() => this.props.detailedResultError()} /> : null}
             main={this.state.app ?
                 <ContainerForText>
                     {this.renderProgressPanel()}
@@ -430,7 +430,7 @@ const stateToTitle = (state: AppState): string => {
     }
 }
 
-const StepTrackerItem: React.StatelessComponent<{stateToDisplay: AppState, currentState: AppState}> = ({stateToDisplay, currentState}) => {
+const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, currentState: AppState}> = ({stateToDisplay, currentState}) => {
     const active = stateToDisplay === currentState;
     const complete = isStateComplete(stateToDisplay, currentState);
     const failed = currentState === AppState.FAILURE;
