@@ -104,7 +104,7 @@ val verifiedJob = VerifiedJob(
     archiveInCollection = normAppDesc.metadata.title,
     createdAt = 12345678,
     modifiedAt = 123456789,
-    ownerUid = 1337L
+    uid = 1337L
 )
 
 val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(

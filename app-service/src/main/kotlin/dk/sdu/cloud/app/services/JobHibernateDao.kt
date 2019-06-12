@@ -126,7 +126,13 @@ data class JobInformationEntity(
 
     override var modifiedAt: Date,
 
-    override var createdAt: Date
+    override var createdAt: Date,
+
+    @Column(length = 1024)
+    var user: String,
+
+    @Column(length = 1024)
+    var project: String?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -160,7 +166,9 @@ class JobHibernateDao(
             job.maxTime.hours,
             null,
             Date(System.currentTimeMillis()),
-            Date(System.currentTimeMillis())
+            Date(System.currentTimeMillis()),
+            job.user,
+            job.project
         )
 
         session.save(entity)
@@ -270,7 +278,9 @@ class JobHibernateDao(
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
                 _mounts = mounts,
-                startedAt = startedAt?.time
+                startedAt = startedAt?.time,
+                user = user,
+                project = project
             ),
             accessToken
         )

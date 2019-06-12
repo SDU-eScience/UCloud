@@ -87,7 +87,7 @@ class JobHibernateDaoTest {
                     JobState.VALIDATED,
                     "Unknown",
                     archiveInCollection = app.metadata.title,
-                    ownerUid = 1337L
+                    uid = 1337L
                 ),
                 "token"
             )

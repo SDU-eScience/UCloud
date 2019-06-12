@@ -80,7 +80,7 @@ class JobTest {
             currentState = JobState.SUCCESS,
             status = "Prepared",
             archiveInCollection = app.metadata.title,
-            ownerUid = 1337L
+            uid = 1337L
         ),
         "accessToken"
     )

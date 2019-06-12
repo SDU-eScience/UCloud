@@ -35,3 +35,19 @@ A project can be updated by adding/removing/changing any of its `members`.
 Such an update will trigger a new message on the event stream. A project can
 also be deleted, this will trigger a cleanup of associated resources (such as
 files).
+
+## Applications
+
+Applications started by a member is billed to the project. Only the user who
+started the job will be able to interact with the job. The job is started
+with the UID corresponding to their project user. All project users will be
+able to view the results.
+
+Applications running for a project will only appear under "My Results" for
+the user who started it. Once the job is complete it will appear for all
+other project users.
+
+It is crucial that only the user can interact with the application to avoid
+privilege escalation.
+
+This could be expanded to allow for cancelation by a PI/ADMIN.
