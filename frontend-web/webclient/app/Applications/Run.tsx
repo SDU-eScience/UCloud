@@ -231,7 +231,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 favorite: app.favorite,
                 parameterValues,
                 schedulingOptions: {
-                    maxTime: toolDescription.defaultAllocationTime,
+                    maxTime: toolDescription.defaultTimeAllocation,
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
                     tasksPerNode: toolDescription.defaultTasksPerNode
                 }
@@ -580,7 +580,7 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
 );
 
 
-interface JobSchedulingOptionsProps {onChange: (a, b, c) => void, options: any, app: WithAppMetadata & WithAppInvocation}
+interface JobSchedulingOptionsProps {onChange: (a, b, c) => void, options: JobSchedulingOptionsForInput, app: WithAppMetadata & WithAppInvocation}
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
     const {maxTime, numberOfNodes, tasksPerNode} = props.options;

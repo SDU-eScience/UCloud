@@ -350,7 +350,7 @@ interface ToolDescription {
     container: string
     defaultNumberOfNodes: number
     defaultTasksPerNode: number
-    defaultAllocationTime: MaxTime
+    defaultTimeAllocation: MaxTime
     requiredModules: string[]
     authors: string[]
     title: string
