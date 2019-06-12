@@ -150,7 +150,7 @@ export const AppCard = styled(Link)`
         top: 0;
         left: 0;
         z-index: -1;
-        background-color: #ebeff3;
+        background-color: ${props => props.theme.colors.appCard};
         background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
         background-repeat: repeat;
         transform: rotate(15deg) translate(0,-60%);
@@ -188,11 +188,11 @@ const nColors = appColors.length;
 const bgGradients = appColors.map(x => ({color1: x[0], color2: x[2]}));
 
 const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}) => (
-    <svg height={"128px"} viewBox="0 0 72 128" >
-        <path d="M0,128h72v-72z" fill={"url(#appbg_svg___" + color1 + "_" + color2} />
+    <svg height="128px" viewBox="0 0 72 128">
+        <path d="M0,128h72v-72z" fill={`url(#appbg_svg___${color1}_${color2}`} />
         <defs>
             <linearGradient
-                id={"appbg_svg___" + color1 + "_" + color2}
+                id={`appbg_svg___${color1}_${color2}`}
                 x1={72} x2={0} y1={128 - 72} y2={128}
                 // x1={21} x2={72} y1={77} y2={128}
                 gradientUnits="userSpaceOnUse"
@@ -226,9 +226,9 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color
             clipRule="evenodd"
         >
             <defs>
-                <path id="hex_to___" d={"M-" + r1 + " 0H-1L-0.5 " + s32 + "H0.5L" + (0.5 * r1) + " " + (s32 * r1) + "H-" + (0.5 * r1) + "Z"} />
+                <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${(s32 * r1)}H-${(0.5 * r1)}Z`} />
                 <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fill-opacity=".55" />
-                <path id="hex_th___" d={"M-" + r3 + " 0L-" + (0.5 * r3) + " " + (s32 * r3) + "H" + (0.5 * r3) + "L" + r3 + " 0L" + (0.5 * r3) + " -" + (s32 * r3) + "H-" + (0.5 * r3) + "Z"} />
+                <path id="hex_th___" d={`M-${r3} 0L-${(0.5 * r3)} ${(s32 * r3)}H${(0.5 * r3)}L${r3} 0L${(0.5 * r3)} -${(s32 * r3)}H-${(0.5 * r3)}Z`} />
             </defs>
             <g transform={`rotate(${rot} 0 0)`} >
                 <use xlinkHref="#hex_th___" fill="#fff" />
@@ -312,8 +312,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 <AppLogo size={"48px"} hash={hash} />
                 <Flex flexDirection={"column"} ml="10px">
                     <Flex>
-                        {/* FIXME: Find other way of handling color */}
-                        <Heading.h4 style={{color: "black"}}>{metadata.title}</Heading.h4>
+                        <Heading.h4>{metadata.title}</Heading.h4>
                         <Text ml="0.4em" mt="3px" color="gray">v{metadata.version}</Text>
                     </Flex>
                     <EllipsedText width={200} title={`by ${metadata.authors.join(", ")} `} color="gray">

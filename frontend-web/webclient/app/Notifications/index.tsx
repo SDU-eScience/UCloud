@@ -52,15 +52,17 @@ function Notifications(props: Notifications) {
                 });
             }
         });
-
-        const subscriber = (snack: Snack) => props.receiveNotification({
-            id: -new Date().getTime(),
-            message: snack.message,
-            read: false,
-            type: "info",
-            ts: new Date().getTime(),
-            meta: ""
-        });
+        const subscriber = (snack?: Snack) => {
+            if (!!snack)
+                props.receiveNotification({
+                    id: -new Date().getTime(),
+                    message: snack.message,
+                    read: false,
+                    type: "info",
+                    ts: new Date().getTime(),
+                    meta: ""
+                });
+        };
         snackbarStore.subscribe(subscriber);
 
         return () => conn.close();

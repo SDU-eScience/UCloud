@@ -89,7 +89,7 @@ how long the tool/application can be scheduled.
 The type is a simple duration described below:
 
 ```yaml
-hours: int (> 0)
+hours: int (>= 0)
 minutes: int (0-59)
 seconds: int (0-59)
 ```

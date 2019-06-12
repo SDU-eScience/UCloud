@@ -7,7 +7,7 @@ export class ErrorBoundary extends React.Component<{}, { hasError: boolean, erro
 
     private ref = React.createRef<HTMLTextAreaElement>();
 
-    constructor(props) {
+    constructor(props: Readonly<{}>) {
         super(props);
         this.state = {
             submissionError: undefined,
@@ -28,7 +28,7 @@ export class ErrorBoundary extends React.Component<{}, { hasError: boolean, erro
         const textAreaContent = this.ref.current ? this.ref.current.value : "None";
         try {
             await Cloud.post("/support/ticket", {
-                message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nAdditional info: ${textAreaContent}`
+                message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location.pathname},\nAdditional info: ${textAreaContent}`
             })
         } catch (e) {
             this.setState(() => ({ submissionError: !!e.response.why ? e.response.why : "An error occurred" }));

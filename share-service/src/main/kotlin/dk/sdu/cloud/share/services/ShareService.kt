@@ -2,6 +2,7 @@ package dk.sdu.cloud.share.services
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -96,9 +97,11 @@ class ShareService<DBSession>(
                     LookupUsersRequest(listOf(share.sharedWith)),
                     serviceClient
                 ).orRethrowAs { throw ShareException.InternalError("Could not look up user") }
-
                 lookup.results[share.sharedWith]
                     ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+                if (lookup.results[share.sharedWith]?.role == Role.SERVICE) {
+                    throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+                }
             }
 
             // Join tasks

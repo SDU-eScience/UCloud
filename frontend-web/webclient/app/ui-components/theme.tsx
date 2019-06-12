@@ -194,6 +194,7 @@ const FtFolderColor2 = midGray;
 const spinnerColor = blue;
 // File table colors
 const tableRowHighlight = lightBlue;
+const appCard = "#ebeff3";
 
 
 const colors = {
@@ -234,7 +235,8 @@ const colors = {
   FtFolderColor2,
   spinnerColor,
   tableRowHighlight,
-  wayfGreen: "#66b340"
+  wayfGreen: "#66b340",
+  appCard
 }
 
 export const invertedColors = {
@@ -246,7 +248,8 @@ export const invertedColors = {
   text: "#e5e5e6",
   lightGray: "#111",
   paginationDisabled: "#111",
-  paginationHoverColor: "#444"
+  paginationHoverColor: "#444",
+  appCard: "#060707"
 }
 
 

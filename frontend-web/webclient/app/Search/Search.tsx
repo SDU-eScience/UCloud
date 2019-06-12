@@ -196,7 +196,7 @@ function Search(props: SearchProps) {
 
 // FIXME: Move to own file.
 export const SearchOptions = styled(Flex)`
-    border-bottom: 1px solid ${theme.colors.lightGray};
+    border-bottom: 1px solid ${({theme}) => theme.colors.lightGray};
     cursor: pointer;
 `;
 
@@ -204,8 +204,8 @@ SearchOptions.defaultProps = {
     theme
 };
 
-export const SelectableText = styled(Text) <{ selected: boolean }>`
-    border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
+export const SelectableText = styled(Text) <{selected: boolean}>`
+    border-bottom: ${props => props.selected ? `2px solid ${({theme}) => theme.colors.blue}` : ""};
 `;
 
 SelectableText.defaultProps = {
