@@ -25,7 +25,8 @@ class ToolHibernateDaoTest {
         listOf("author"),
         "title",
         "description",
-        ToolBackend.DOCKER
+        ToolBackend.DOCKER,
+        "MIT"
     )
 
     private val normToolDesc2 = NormalizedToolDescription(
@@ -38,7 +39,8 @@ class ToolHibernateDaoTest {
         listOf("author"),
         "title",
         "description",
-        ToolBackend.DOCKER
+        ToolBackend.DOCKER,
+        "MIT"
     )
 
     private val normToolDesc3 = NormalizedToolDescription(
@@ -51,7 +53,8 @@ class ToolHibernateDaoTest {
         listOf("author"),
         "title",
         "description",
-        ToolBackend.DOCKER
+        ToolBackend.DOCKER,
+        "GNU"
     )
 
     private val normToolDesc4 = NormalizedToolDescription(
@@ -64,7 +67,8 @@ class ToolHibernateDaoTest {
         listOf("author"),
         "title",
         "description",
-        ToolBackend.DOCKER
+        ToolBackend.DOCKER,
+        "GNU"
     )
 
     @Test

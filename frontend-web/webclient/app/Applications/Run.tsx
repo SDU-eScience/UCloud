@@ -231,7 +231,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 favorite: app.favorite,
                 parameterValues,
                 schedulingOptions: {
-                    maxTime: toolDescription.defaultMaxTime,
+                    maxTime: toolDescription.defaultAllocationTime,
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
                     tasksPerNode: toolDescription.defaultTasksPerNode
                 }
