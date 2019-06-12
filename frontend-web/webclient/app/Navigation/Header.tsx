@@ -192,7 +192,6 @@ interface SearchProps {
 
 const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) => {
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
-    if (inDevEnvironment()) allowedSearchTypes.push("projects");
     return (<Relative>
             <SearchInput>
                 <Input

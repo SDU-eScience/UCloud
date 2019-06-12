@@ -205,7 +205,7 @@ SearchOptions.defaultProps = {
 };
 
 export const SelectableText = styled(Text) <{selected: boolean}>`
-    border-bottom: ${props => props.selected ? `2px solid ${({theme}) => theme.colors.blue}` : ""};
+    border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
 `;
 
 SelectableText.defaultProps = {
