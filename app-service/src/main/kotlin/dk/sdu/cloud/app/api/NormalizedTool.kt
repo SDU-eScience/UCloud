@@ -8,12 +8,13 @@ data class NormalizedToolDescription(
     val container: String,
     val defaultNumberOfNodes: Int,
     val defaultTasksPerNode: Int,
-    val defaultMaxTime: SimpleDuration,
+    val defaultTimeAllocation: SimpleDuration,
     val requiredModules: List<String>,
     val authors: List<String>,
     val title: String,
     val description: String,
-    val backend: ToolBackend
+    val backend: ToolBackend,
+    val license: String
 ) {
     override fun toString(): String {
         return "NormalizedToolDescription(info=$info, container='$container')"

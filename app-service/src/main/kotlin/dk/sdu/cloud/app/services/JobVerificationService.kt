@@ -71,7 +71,7 @@ class JobVerificationService<DBSession>(
 
         val numberOfJobs = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes
         val tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode
-        val maxTime = unverifiedJob.request.maxTime ?: tool.description.defaultMaxTime
+        val allocatedTime = unverifiedJob.request.maxTime ?: tool.description.defaultTimeAllocation
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
 
@@ -85,7 +85,7 @@ class JobVerificationService<DBSession>(
                 owner = token.realUsername(),
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,
-                maxTime = maxTime,
+                maxTime = allocatedTime,
                 jobInput = verifiedParameters,
                 backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
                 currentState = JobState.VALIDATED,

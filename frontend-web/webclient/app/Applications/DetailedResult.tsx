@@ -29,6 +29,8 @@ import {JobStateIcon} from "./JobStateIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
+import {Error} from "ui-components";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -73,7 +75,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     public async componentDidUpdate() {
         if (!this.state.appType && this.state.app) {
             const {name, version} = this.state.app;
-
             const {response} = await this.state.promises.makeCancelable(
                 Cloud.get<WithAppInvocation>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
             ).promise;
@@ -94,7 +95,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.props.receivePage(emptyPage);
     }
 
-    fileOperations = () => allFileOperations({
+    readonly fileOperations = () => allFileOperations({
         stateless: true,
         history: this.props.history,
         fileSelectorOperations: {
@@ -141,8 +142,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
             } else if (this.state.appType === "WEB" && !this.state.webLink) {
                 this.props.setLoading(false);
-                /* FIXME: Wrap in PromiseKeeper */
-                const {response} = await Cloud.get(`/hpc/jobs/query-web/${this.jobId}`);
+                const {response} = await this.state.promises.makeCancelable(Cloud.get(`/hpc/jobs/query-web/${this.jobId}`)).promise;
                 this.setState(() => ({webLink: response.path}));
             }
         }
@@ -177,6 +177,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     message: "An error occurred retrieving Information and Output from the job.",
                     type: SnackType.Failure
                 });
+                this.props.detailedResultError("An error occurred retrieving Information and Output from the job.");
         } finally {
             this.props.setLoading(false);
         }
@@ -190,7 +191,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
-        this.props.fetchPage(this.state.outputFolder!!, pageNumber, itemsPerPage);
+        this.props.fetchPage(this.state.outputFolder!, pageNumber, itemsPerPage);
         window.clearTimeout(this.state.reloadIntervalId);
     }
 
@@ -363,7 +364,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private renderCancelButton() {
-        if (!inCancelableState(this.state.appState)) return null;
+        if (!inCancelableState(this.state.appState) || !this.state.app) return null;
         return <Button ml="8px" color="red" onClick={() => this.cancelJob()}>Cancel job</Button>
     }
 
@@ -377,19 +378,18 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     public render() {
-        return (
-            <MainContainer
-                main={
-                    <ContainerForText>
-                        {this.renderProgressPanel()}
-                        {this.renderInfoPanel()}
-                        {this.renderFilePanel()}
-                        {this.renderWebLink()}
-                        {this.renderCancelButton()}
-                        {this.renderStreamPanel()}
-                    </ContainerForText>
-                } />
-        )
+        return <MainContainer
+            header={this.props.error ? <Error error={this.props.error} clearError={() => this.props.detailedResultError()}  /> : null}
+            main={this.state.app ?
+                <ContainerForText>
+                    {this.renderProgressPanel()}
+                    {this.renderInfoPanel()}
+                    {this.renderFilePanel()}
+                    {this.renderWebLink()}
+                    {this.renderCancelButton()}
+                    {this.renderStreamPanel()}
+                </ContainerForText> : <LoadingIcon size={24} />}
+        />
     }
 }
 

@@ -43,7 +43,7 @@ export interface DetailedResultOperations {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    detailedResultError: (error: string) => void
+    detailedResultError: (error?: string) => void
     fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
     setRefresh: (refresh?: () => void) => void
 }
@@ -72,12 +72,13 @@ interface ApplicationTool {
         container: string
         defaultNumberOfNodes: number
         defaultTasksPerNode: number
-        defaultMaxTime: MaxTime
+        defaultAllocationTime: MaxTime
         requiredModules: string[]
         authors: string[]
         title: string
         description: string
         backend: string
+        license: string
     }
 }
 
@@ -349,12 +350,13 @@ interface ToolDescription {
     container: string
     defaultNumberOfNodes: number
     defaultTasksPerNode: number
-    defaultMaxTime: MaxTime
+    defaultAllocationTime: MaxTime
     requiredModules: string[]
     authors: string[]
     title: string
     description: string
     backend: string
+    license: string
 }
 
 export interface WithAppMetadata {
