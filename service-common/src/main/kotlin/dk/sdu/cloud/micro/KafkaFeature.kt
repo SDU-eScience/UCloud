@@ -111,3 +111,8 @@ var Micro.eventStreamService: EventStreamService
     set(value) {
         attributes[eventStreamServiceKey] = value
     }
+
+val Micro.eventStreamServiceOrNull: EventStreamService?
+    get() {
+        return attributes.getOrNull(eventStreamServiceKey)
+    }

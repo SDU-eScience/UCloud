@@ -8,8 +8,10 @@ typealias ScriptHandler = () -> ScriptHandlerResult
 class ScriptFeature : MicroFeature {
     private val scriptsToRun = ArrayList<String>()
     private val handlers = HashMap<String, MutableList<ScriptHandler>>()
+    private lateinit var ctx: Micro
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
+        this.ctx = ctx
         val iterator = cliArgs.iterator()
         while (iterator.hasNext()) {
             val arg = iterator.next()
@@ -32,7 +34,7 @@ class ScriptFeature : MicroFeature {
         handlers[scriptName] = list
     }
 
-    fun runScripts(): Boolean {
+    fun runScripts(deinit: Boolean = true): Boolean {
         var found = false
         scriptsToRun.forEach { scriptName ->
             val handlersForScript = handlers[scriptName] ?: arrayListOf()
@@ -49,6 +51,11 @@ class ScriptFeature : MicroFeature {
                 }
             }
         }
+
+        if (deinit) {
+            ctx.featureOrNull(DeinitFeature)?.runHandlers()
+        }
+
         return found
     }
 

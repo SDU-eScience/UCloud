@@ -101,6 +101,7 @@ interface MicroFeatureFactory<Feature : MicroFeature, Config> {
 }
 
 fun Micro.installDefaultFeatures() {
+    install(DeinitFeature)
     install(ScriptFeature)
     install(ConfigurationFeature)
     install(ServiceDiscoveryOverrides)
