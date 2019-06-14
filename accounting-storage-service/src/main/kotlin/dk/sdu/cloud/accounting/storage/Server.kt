@@ -12,6 +12,7 @@ import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.stopServices
 import kotlinx.coroutines.runBlocking
 
 class Server(

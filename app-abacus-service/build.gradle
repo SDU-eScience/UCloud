@@ -5,7 +5,7 @@ apply plugin: 'application'
 mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'
 
 buildscript {
-    ext.serviceCommonVersion = "1.4.0-REDIS.2"
+    ext.serviceCommonVersion = "1.5.0"
 }
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"

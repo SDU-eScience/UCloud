@@ -38,6 +38,10 @@ class RedisFeature : MicroFeature {
             ctx.serviceInstance.hostname,
             Runtime.getRuntime().availableProcessors()
         )
+
+        ctx.featureOrNull(DeinitFeature)?.addHandler {
+            ctx.eventStreamService.stop()
+        }
     }
 
     companion object Feature : MicroFeatureFactory<RedisFeature, Unit>, Loggable {

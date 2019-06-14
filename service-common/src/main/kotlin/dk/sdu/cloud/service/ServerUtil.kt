@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import dk.sdu.cloud.micro.DeinitFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.eventStreamService
@@ -74,9 +75,19 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
 fun CommonServer.stopServices() {
     val serverFeature = micro.featureOrNull(ServerFeature)
     if (serverFeature != null) {
-        log.info("Stopping RPC server")
-        serverFeature.server.stop()
+        try {
+            log.info("Stopping RPC server")
+            serverFeature.server.stop()
+        } catch (ex: Throwable) {
+            log.warn("Caught exception while stopping RPC server!")
+            log.warn(ex.stackTraceToString())
+        }
     }
 
-    micro.eventStreamService.stop()
+    try {
+        micro.featureOrNull(DeinitFeature)?.runHandlers()
+    } catch (ex: Throwable) {
+        log.warn("Caught exception while stopping micro features")
+        log.warn(ex.stackTraceToString())
+    }
 }

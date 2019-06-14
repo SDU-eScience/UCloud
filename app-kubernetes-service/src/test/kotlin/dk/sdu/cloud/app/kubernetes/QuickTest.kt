@@ -19,7 +19,8 @@ val normToolDesc = NormalizedToolDescription(
     listOf("Author"),
     "title",
     "description",
-    ToolBackend.SINGULARITY
+    ToolBackend.SINGULARITY,
+    ""
 )
 val normAppDesc = Application(
     ApplicationMetadata(

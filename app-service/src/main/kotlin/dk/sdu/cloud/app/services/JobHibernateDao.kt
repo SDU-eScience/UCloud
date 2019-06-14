@@ -130,7 +130,7 @@ data class JobInformationEntity(
     override var createdAt: Date,
 
     @Column(length = 1024)
-    var user: String,
+    var username: String?,
 
     @Column(length = 1024)
     var project: String?
@@ -303,7 +303,7 @@ class JobHibernateDao(
                 modifiedAt = modifiedAt.time,
                 _mounts = mounts,
                 startedAt = startedAt?.time,
-                user = user,
+                user = username ?: owner,
                 project = project
             ),
             accessToken
