@@ -11,7 +11,7 @@ Elastic-management uses different arguments to handle different jobs:
    of available space left.
    * **High:** Elasticsearch tries to reallocate shards to other nodes if the node with low space has 
    `less than 25GB` of available space left.
-   * **Flood:** When a node has `less than 10GB Elasticsearch changes all indices that have a shard on the flooded node into a 
+   * **Flood:** When a node has `less than 10GB` Elasticsearch changes all indices that have a shard on the flooded node into a 
    read/delete only state. At this point manual interventions is needed. 
    This requires the owner of the cluster to clean up the node and manually remove the flood limitation.
 - *"--cleanup"*  
