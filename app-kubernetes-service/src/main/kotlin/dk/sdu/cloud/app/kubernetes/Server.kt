@@ -1,5 +1,18 @@
 package dk.sdu.cloud.app.kubernetes
 
+import dk.sdu.cloud.app.api.Application
+import dk.sdu.cloud.app.api.ApplicationInvocationDescription
+import dk.sdu.cloud.app.api.ApplicationMetadata
+import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NormalizedToolDescription
+import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.Tool
+import dk.sdu.cloud.app.api.ToolBackend
+import dk.sdu.cloud.app.api.ToolReference
+import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.api.VerifiedJobInput
+import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
 import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
 import dk.sdu.cloud.app.kubernetes.services.PodService
@@ -19,6 +32,7 @@ import dk.sdu.cloud.service.startServices
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.ktor.application.install
 import io.ktor.routing.routing
+import java.util.*
 
 class Server(override val micro: Micro, private val configuration: Configuration) : CommonServer {
     override val log = logger()
@@ -51,6 +65,64 @@ class Server(override val micro: Micro, private val configuration: Configuration
         )
 
         podService.initializeListeners()
+
+        if (micro.commandLineArguments.contains("--testing")) {
+            podService.create(
+                VerifiedJob(
+                    Application(
+                        ApplicationMetadata(
+                            "test-app",
+                            "0.1.0",
+                            emptyList(),
+                            "testapp",
+                            "",
+                            emptyList(),
+                            null
+                        ),
+                        ApplicationInvocationDescription(
+                            ToolReference(
+                                "tool", "1.0.0", Tool(
+                                    "owner",
+                                    0L,
+                                    0L,
+                                    NormalizedToolDescription(
+                                        NameAndVersion("tool", "1.0.0"),
+                                        "alpine:latest",
+                                        1,
+                                        1,
+                                        SimpleDuration(1, 0, 0),
+                                        emptyList(),
+                                        emptyList(),
+                                        "",
+                                        "",
+                                        ToolBackend.DOCKER,
+                                        ""
+                                    )
+                                )
+                            ),
+                            listOf(WordInvocationParameter("sleep"), WordInvocationParameter("1000")),
+                            emptyList(),
+                            emptyList()
+                        )
+                    ),
+                    emptyList(),
+                    UUID.randomUUID().toString(),
+                    "no-owner",
+                    2,
+                    1,
+                    SimpleDuration(0, 30, 0),
+                    VerifiedJobInput(emptyMap()),
+                    "kubernetes",
+                    JobState.VALIDATED,
+                    "",
+                    "testing",
+                    1,
+                    workspace = "not-a-real-workspace"
+                )
+            )
+
+            return
+        }
 
         with(micro.server) {
             configureControllers(
