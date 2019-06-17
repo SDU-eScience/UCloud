@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
 import io.fabric8.kubernetes.api.model.EnvVar
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
@@ -39,16 +40,16 @@ import java.nio.file.Files
 import java.time.ZonedDateTime
 import kotlin.system.exitProcess
 
-private const val JOB_PREFIX = "job-"
-private const val ROLE_LABEL = "role"
-private const val RANK_LABEL = "rank"
-private const val JOB_ID_LABEL = "job-id"
-private const val INPUT_DIRECTORY = "/input"
-private const val WORKING_DIRECTORY = "/work"
-private const val MULTI_NODE_DIRECTORY = "/etc/sducloud"
-private const val DATA_STORAGE = "workspace-storage"
-private const val MULTI_NODE_STORAGE = "multi-node-config"
-private const val MULTI_NODE_CONTAINER = "init"
+const val JOB_PREFIX = "job-"
+const val ROLE_LABEL = "role"
+const val RANK_LABEL = "rank"
+const val JOB_ID_LABEL = "job-id"
+const val INPUT_DIRECTORY = "/input"
+const val WORKING_DIRECTORY = "/work"
+const val MULTI_NODE_DIRECTORY = "/etc/sducloud"
+const val DATA_STORAGE = "workspace-storage"
+const val MULTI_NODE_STORAGE = "multi-node-config"
+const val MULTI_NODE_CONTAINER = "init"
 
 private class K8JobState(val id: String) {
     private val mutex: Mutex = Mutex()
@@ -96,6 +97,7 @@ private class JobManager {
 class PodService(
     private val k8sClient: KubernetesClient,
     private val serviceClient: AuthenticatedClient,
+    private val networkPolicyService: NetworkPolicyService,
     private val namespace: String = "app-kubernetes",
     private val appRole: String = "sducloud-app"
 ) {
@@ -270,6 +272,7 @@ class PodService(
     fun create(verifiedJob: VerifiedJob) {
         log.info("Creating new job with name: ${verifiedJob.id}")
 
+        networkPolicyService.createPolicy(verifiedJob.id)
         repeat(verifiedJob.nodes) { rank ->
             val podName = jobName(verifiedJob.id, rank)
             k8sClient.batch().jobs().inNamespace(namespace).createNew()
@@ -561,6 +564,15 @@ class PodService(
     }
 
     fun cleanup(requestId: String) {
+        try {
+            networkPolicyService.deletePolicy(requestId)
+        } catch (ex: KubernetesClientException) {
+            // Ignored
+            if (ex.status.code !in setOf(400, 404)) {
+                log.warn(ex.stackTraceToString())
+            }
+        }
+
         try {
             k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, appRole)
                 .withLabel(JOB_ID_LABEL, requestId).delete()

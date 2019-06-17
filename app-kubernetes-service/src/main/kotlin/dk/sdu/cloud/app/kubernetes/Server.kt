@@ -15,6 +15,7 @@ import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
 import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
+import dk.sdu.cloud.app.kubernetes.services.NetworkPolicyService
 import dk.sdu.cloud.app.kubernetes.services.PodService
 import dk.sdu.cloud.app.kubernetes.services.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.VncService
@@ -40,14 +41,24 @@ class Server(override val micro: Micro, private val configuration: Configuration
 
     override fun start() {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
+
+        val k8sClient = DefaultKubernetesClient()
+        val appRole = if (micro.developmentModeEnabled) {
+            "sducloud-app-dev"
+        } else {
+            "sducloud-app"
+        }
+
+        val networkPolicyService = NetworkPolicyService(
+            k8sClient,
+            appRole = appRole
+        )
+
         val podService = PodService(
-            DefaultKubernetesClient(),
+            k8sClient,
             serviceClient,
-            appRole = if (micro.developmentModeEnabled) {
-                "sducloud-app-dev"
-            } else {
-                "sducloud-app"
-            }
+            networkPolicyService,
+            appRole = appRole
         )
 
         val authenticationService = AuthenticationService(serviceClient, micro.tokenValidation)
