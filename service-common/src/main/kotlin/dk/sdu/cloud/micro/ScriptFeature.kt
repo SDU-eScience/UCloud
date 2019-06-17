@@ -52,7 +52,7 @@ class ScriptFeature : MicroFeature {
             }
         }
 
-        if (deinit) {
+        if (deinit && found) {
             ctx.featureOrNull(DeinitFeature)?.runHandlers()
         }
 

@@ -391,8 +391,8 @@ class LinuxFS(
             }
 
             if (Files.isDirectory(path)) {
-                Files.list(path).forEach {
-                    traverseAndDelete(it)
+                path.toFile().listFiles().forEach {
+                    traverseAndDelete(it.toPath())
                 }
             }
 
@@ -801,7 +801,7 @@ class LinuxFS(
                         Files.newByteChannel(resolve, openOptions).close()
                         Files.deleteIfExists(resolve)
                     } else {
-                        Files.list(internalPath).count()
+                        internalPath.toFile().list()
                     }
                 } else if (attributes.isRegularFile) {
                     val openOptions = hashSetOf<OpenOption>(StandardOpenOption.READ)

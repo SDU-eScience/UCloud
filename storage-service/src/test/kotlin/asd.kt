@@ -41,7 +41,7 @@ fun test(path: String, requireWrite: Boolean): FSResult<Boolean> {
                 Files.newByteChannel(resolve, openOptions).close()
                 Files.deleteIfExists(resolve)
             } else {
-                Files.list(internalPath).count()
+                internalPath.toFile().list()
             }
         } else if (attributes.isRegularFile) {
             val openOptions = hashSetOf<OpenOption>(StandardOpenOption.READ)
