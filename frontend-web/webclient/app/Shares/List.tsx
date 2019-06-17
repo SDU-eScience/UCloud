@@ -92,16 +92,22 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     });
 
     useEffect(() => {
-        const usernames = new Set(page.data.items.flatMap(group =>
-            group.shares.flatMap(share => share.sharedWith)
-        ));
+
+        /* In place of 
+            new Set(page.data.items.flatMap(group =>
+                group.shares.map(share => share.sharedWith)
+            ));
+        */
+        const usernames: Set<string> = new Set(page.data.items.map(group =>
+            group.shares.map(share => share.sharedWith)
+        ).reduce((acc, val) => acc.concat(val), []));
 
         if (JSON.stringify(Array.from(avatarParams.parameters!.usernames)) !== JSON.stringify(Array.from(usernames))) {
             setAvatarParams(loadAvatars({usernames}));
         }
     }, [page]);
 
-    const AvatarComponent = (props: { username: string }) => {
+    const AvatarComponent = (props: {username: string}) => {
         let avatar = defaultAvatar;
         let loadedAvatar = !!avatars.data && !!avatars.data.avatars ? avatars.data.avatars[props.username] : undefined;
         if (!!loadedAvatar) avatar = loadedAvatar;
@@ -170,7 +176,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     );
 };
 
-const NoShares = ({sharedByMe}: { sharedByMe: boolean }) =>
+const NoShares = ({sharedByMe}: {sharedByMe: boolean}) =>
     <Heading.h3 textAlign="center">
         No shares
         <br/>
@@ -233,7 +239,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                         <Box flexGrow={1}>
                             <form onSubmit={e => doCreateShare(e)}>
                                 <Input disabled={isCreatingShare} leftLabel placeholder={"Username"}
-                                       ref={newShareUsername}/>
+                                    ref={newShareUsername}/>
                             </form>
                         </Box>
                     </Flex>
@@ -250,7 +256,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                     >
                         <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT}/>
                         <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
-                                    text={CAN_EDIT_TEXT}/>
+                            text={CAN_EDIT_TEXT}/>
                     </ClickableDropdown>
                 </Box>
             </Flex>
@@ -327,13 +333,13 @@ const ShareRow: React.FunctionComponent<{
     </Flex>
 };
 
-const OptionItem: React.FunctionComponent<{ onClick: () => void, text: string, color?: string }> = (props) => (
+const OptionItem: React.FunctionComponent<{onClick: () => void, text: string, color?: string}> = (props) => (
     <Box cursor="pointer" width="auto" ml="-17px" pl="15px" mr="-17px" onClick={() => props.onClick()}>
         <TextSpan color={props.color}>{props.text}</TextSpan>
     </Box>
 );
 
-const ShareStateRow: React.FunctionComponent<{ state: ShareState }> = props => {
+const ShareStateRow: React.FunctionComponent<{state: ShareState}> = props => {
     let body: JSX.Element = <></>;
 
     switch (props.state) {
@@ -412,7 +418,7 @@ interface ListOperations {
     updatePageTitle: () => void,
     setRefresh: (f?: () => void) => void
     setActivePage: () => void
-    setGlobalLoading: (boolean) => void
+    setGlobalLoading: (loading: boolean) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ListOperations => ({

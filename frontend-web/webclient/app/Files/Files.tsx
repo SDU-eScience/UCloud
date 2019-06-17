@@ -34,7 +34,7 @@ function Files(props: Readonly<FilesProps>) {
     const urlPath = (): string => urlPathFromProps();
 
     useEffect(() => {
-        const { page, sortOrder, sortBy } = props;
+        const {page, sortOrder, sortBy} = props;
         props.onInit();
         props.setUploaderCallback(() => props.fetchFiles(urlPath(), page.itemsPerPage, page.pageNumber, sortOrder, sortBy, baseFRs));
         return () => props.clearRefresh()
@@ -45,7 +45,7 @@ function Files(props: Readonly<FilesProps>) {
     }
 
     const onRenameFile = (key: number, file: File, name: string) => {
-        const { path, fetchPageFromPath, updateFiles, page } = props;
+        const {path, fetchPageFromPath, updateFiles, page} = props;
         if (key === KeyCode.ESC) {
             const item = page.items.find(f => f.path === file.path);
             if (item !== undefined) item.beingRenamed = false;
@@ -53,9 +53,9 @@ function Files(props: Readonly<FilesProps>) {
             updateFiles(page);
         } else if (key === KeyCode.ENTER) {
             const fileNames = page.items.map(file => getFilenameFromPath(file.path));
-            if (isInvalidPathName({ path: name, filePaths: fileNames })) return;
+            if (isInvalidPathName({path: name, filePaths: fileNames})) return;
             const fullPath = `${UF.addTrailingSlash(path)}${name}`;
-            const { sortOrder, sortBy } = props;
+            const {sortOrder, sortBy} = props;
             if (file.isMockFolder) {
                 createFolder({
                     path: fullPath,
@@ -75,7 +75,7 @@ function Files(props: Readonly<FilesProps>) {
     };
 
     useEffect(() => {
-        const { page, sortOrder, sortBy } = props;
+        const {page, sortOrder, sortBy} = props;
         if (!props.loading) props.fetchFiles(urlPath(), page.itemsPerPage, 0, sortOrder, sortBy, baseFRs)
     }, [urlPath()]);
 
@@ -91,7 +91,7 @@ function Files(props: Readonly<FilesProps>) {
     };
 
     const refetch = () => {
-        const { path, page, sortOrder, sortBy } = props;
+        const {path, page, sortOrder, sortBy} = props;
         props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, baseFRs);
     };
 
@@ -225,7 +225,8 @@ const mapStateToProps = ({files, responsive}: ReduxObject): FilesStateProps => {
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
     const fileCount = page.items.length;
-    const aclCount = page.items.filter(it => it.acl !== null).flatMap(it => it.acl!).length;
+    const aclCount = page.items.filter(it => it.acl !== null).map(it => it.acl!)
+                         .reduce(((acc, acl) => acc + acl.length), 0);
     const sensitivityCount = page.items.filter(it => it.sensitivityLevel != null).length;
     return {
         error,
