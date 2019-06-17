@@ -32,7 +32,6 @@ import * as FavoritesRedux from "Favorites/Redux";
 import {configureStore} from "Utilities/ReduxUtilities";
 import {responsiveStoreEnhancer, createResponsiveStateReducer} from 'redux-responsive';
 import {responsiveBP, invertedColors} from "ui-components/theme";
-import {fetchLoginStatus} from "Zenodo/Redux/ZenodoActions";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import Header from "Navigation/Header";
 import {isLightThemeStored, setSiteTheme} from "UtilityFunctions";
@@ -84,7 +83,6 @@ export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT 
 }
 
 export async function onLogin() {
-    store.dispatch(await fetchLoginStatus());
     store.dispatch(await findAvatar());
 }
 

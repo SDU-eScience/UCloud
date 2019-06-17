@@ -6,7 +6,6 @@ import {Dispatch} from "redux";
 import Avatar from "avataaars";
 import {History} from "history";
 import {HeaderStateToProps} from "Navigation";
-import {fetchLoginStatus} from "Zenodo/Redux/ZenodoActions";
 import {ReduxObject, KeyCode, HeaderSearchType} from "DefaultObjects";
 import {Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide} from "ui-components";
 import Notification from "Notifications";
@@ -20,7 +19,7 @@ import {Dropdown} from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {inDevEnvironment, prettierString} from "UtilityFunctions";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
-import {EllipsedText, TextSpan} from "ui-components/Text";
+import {TextSpan} from "ui-components/Text";
 import {SearchOptions, SelectableText} from "Search/Search";
 import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
@@ -45,7 +44,6 @@ function Header(props: HeaderProps) {
     const [t, setT] = React.useState(0);
 
     React.useEffect(() => {
-        props.fetchLoginStatus();
         props.fetchAvatar();
     }, []);
 
@@ -277,13 +275,11 @@ export const UserAvatar = ({avatar}: UserAvatar) => (
     </ClippedBox>);
 
 interface HeaderOperations {
-    fetchLoginStatus: () => void
     fetchAvatar: () => void
     setSearchType: (st: HeaderSearchType) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
-    fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
     fetchAvatar: async () => dispatch(await findAvatar()),
     setSearchType: st => dispatch(setPrioritizedSearch(st)),
 });

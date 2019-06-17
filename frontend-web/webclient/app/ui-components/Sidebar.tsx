@@ -178,7 +178,7 @@ type SidebarMenuElements = {
     predicate: () => boolean
 }
 
-export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements} = {
+export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements} = {
     guest: {
         items: [
             {icon: "files", label: "Files", to: "/login"},
@@ -194,10 +194,6 @@ export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarM
             {icon: "appStore", label: "Apps", to: "/applications/"},
             {icon: "results", label: "My Results", to: "/applications/results/"}
         ], predicate: () => Cloud.isLoggedIn
-    },
-    dev: {
-        items: [{icon: "publish", label: "Publish", to: "/zenodo/publish/"}],
-        predicate: () => inDevEnvironment() && Cloud.isLoggedIn
     },
     auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Cloud.isLoggedIn},
     admin: {items: [{icon: "admin", label: "Admin", to: "/admin/userCreation/"}], predicate: () => Cloud.userIsAdmin}
