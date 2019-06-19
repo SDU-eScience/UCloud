@@ -17,6 +17,7 @@ import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
 import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
 import dk.sdu.cloud.app.kubernetes.services.NetworkPolicyService
 import dk.sdu.cloud.app.kubernetes.services.PodService
+import dk.sdu.cloud.app.kubernetes.services.SharedFileSystemMountService
 import dk.sdu.cloud.app.kubernetes.services.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
@@ -54,11 +55,13 @@ class Server(override val micro: Micro, private val configuration: Configuration
             appRole = appRole
         )
 
+        val sharedFileSystemMountService = SharedFileSystemMountService()
         val podService = PodService(
             k8sClient,
             serviceClient,
             networkPolicyService,
-            appRole = appRole
+            appRole = appRole,
+            sharedFileSystemMountService = sharedFileSystemMountService
         )
 
         val authenticationService = AuthenticationService(serviceClient, micro.tokenValidation)

@@ -97,6 +97,7 @@ class PodService(
     private val k8sClient: KubernetesClient,
     private val serviceClient: AuthenticatedClient,
     private val networkPolicyService: NetworkPolicyService,
+    private val sharedFileSystemMountService: SharedFileSystemMountService,
     private val namespace: String = "app-kubernetes",
     private val appRole: String = "sducloud-app"
 ) {
@@ -270,6 +271,8 @@ class PodService(
 
     fun create(verifiedJob: VerifiedJob) {
         log.info("Creating new job with name: ${verifiedJob.id}")
+
+        val (sharedVolumes, sharedMounts) = sharedFileSystemMountService.createVolumesAndMounts(verifiedJob)
 
         networkPolicyService.createPolicy(verifiedJob.id)
         repeat(verifiedJob.nodes) { rank ->
@@ -452,7 +455,9 @@ class PodService(
                                                 MULTI_NODE_STORAGE,
                                                 true,
                                                 null
-                                            )
+                                            ),
+
+                                            *sharedMounts.toTypedArray()
                                         )
                                     }
                                 )
@@ -466,7 +471,9 @@ class PodService(
                                     volume {
                                         withName(MULTI_NODE_STORAGE)
                                         withEmptyDir(EmptyDirVolumeSource())
-                                    }
+                                    },
+
+                                    *sharedVolumes.toTypedArray()
                                 )
                             }
                         }.build()

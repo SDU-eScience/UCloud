@@ -46,24 +46,25 @@ class JobVerificationService<DBSession>(
     private val applicationDAO: ApplicationDAO<DBSession>,
     private val toolDAO: ToolDAO<DBSession>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val defaultBackend: String
+    private val defaultBackend: String,
+    private val sharedMountVerificationService: SharedMountVerificationService
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
-        cloud: AuthenticatedClient
+        userClient: AuthenticatedClient
     ): VerifiedJobWithAccessToken {
         val jobId = UUID.randomUUID().toString()
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
         val verifiedParameters = verifyParameters(application, unverifiedJob)
         val workDir = URI("/$jobId")
-        val files = collectFiles(application, verifiedParameters, workDir, cloud).map {
+        val files = collectFiles(application, verifiedParameters, workDir, userClient).map {
             it.copy(
                 destinationPath = "./" + it.destinationPath.removePrefix(workDir.path)
             )
         }
 
-        val mounts = collectCloudFiles(verifyMounts(unverifiedJob), workDir, cloud).map {
+        val mounts = collectCloudFiles(verifyMounts(unverifiedJob), workDir, userClient).map {
             it.copy(
                 destinationPath = "./" + it.destinationPath.removePrefix(workDir.path)
             )
@@ -76,6 +77,9 @@ class JobVerificationService<DBSession>(
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
 
         val token = tokenValidation.decodeToken(unverifiedJob.principal)
+
+        val sharedMounts =
+            sharedMountVerificationService.verifyMounts(unverifiedJob.request.sharedFileSystemMounts, userClient)
 
         return VerifiedJobWithAccessToken(
             VerifiedJob(
@@ -95,7 +99,8 @@ class JobVerificationService<DBSession>(
                 startedAt = null,
                 user = token.principal.username,
                 uid = token.principal.uid,
-                project = token.projectOrNull()
+                project = token.projectOrNull(),
+                _sharedFileSystemMounts = sharedMounts
             ),
             unverifiedJob.principal.token
         )

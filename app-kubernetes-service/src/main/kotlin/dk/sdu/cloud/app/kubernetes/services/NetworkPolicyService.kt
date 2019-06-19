@@ -18,6 +18,7 @@ class NetworkPolicyService(
         }
 
         k8sClient.network().networkPolicies()
+            .inNamespace(namespace)
             .createNew()
             //
             .withNewMetadata()

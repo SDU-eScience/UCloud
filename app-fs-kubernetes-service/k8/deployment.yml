@@ -33,6 +33,9 @@ spec:
           name: token-validation
         - mountPath: /etc/psql
           name: app-fs-kubernetes-psql
+        - mountPath: /mnt/cephfs/app-filesystems
+          name: storage
+          subPath: app-filesystems
         env:
         - name: POD_IP
           valueFrom:
@@ -51,6 +54,10 @@ spec:
         secret:
           optional: false
           secretName: app-fs-kubernetes-psql
+      - name: storage
+        persistentVolumeClaim:
+          claimName: app-fs-k8s
+
 
       imagePullSecrets:
         - name: esci-docker

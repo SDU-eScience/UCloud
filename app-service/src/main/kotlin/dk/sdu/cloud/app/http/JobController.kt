@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.fs.api.AppFileSystems
 import dk.sdu.cloud.app.services.JobDao
 import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.app.services.StreamFollowService
@@ -76,7 +77,8 @@ class JobController<DBSession>(
                         FileDescriptions.download.requiredAuthScope.toString(),
                         FileDescriptions.createDirectory.requiredAuthScope.toString(),
                         FileDescriptions.stat.requiredAuthScope.toString(),
-                        FileDescriptions.extract.requiredAuthScope.toString()
+                        FileDescriptions.extract.requiredAuthScope.toString(),
+                        AppFileSystems.view.requiredAuthScope.toString()
                     ),
                     JOB_MAX_TIME
                 ),

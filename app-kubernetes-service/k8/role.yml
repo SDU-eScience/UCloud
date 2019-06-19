@@ -11,6 +11,9 @@ rules:
 - apiGroups: ["batch", "extensions"]
   resources: ["jobs"]
   verbs: ["*"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["*"]
 
 ---
 kind: RoleBinding

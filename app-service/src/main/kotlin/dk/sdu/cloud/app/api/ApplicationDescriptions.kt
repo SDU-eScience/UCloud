@@ -195,5 +195,6 @@ data class StartJobRequest(
     val maxTime: SimpleDuration? = null,
     val backend: String? = null,
     val archiveInCollection: String? = null,
-    val mounts: List<Any> = emptyList()
+    val mounts: List<Any> = emptyList(),
+    val sharedFileSystemMounts: List<SharedFileSystemMountDescription> = emptyList()
 )
