@@ -13,7 +13,7 @@ authors:
 
 description: Tool for rendering text.
 
-defaultMaxTime:
+defaultTimeAllocation:
   hours: 0
   minutes: 1
   seconds: 0

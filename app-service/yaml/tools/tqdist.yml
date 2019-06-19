@@ -13,7 +13,7 @@ authors:
 
 description: Tools for running tqDist
 
-defaultMaxTime:
+defaultTimeAllocation:
   hours: 0
   minutes: 10
   seconds: 0

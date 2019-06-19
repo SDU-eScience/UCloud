@@ -38,7 +38,6 @@ import java.io.Closeable
 import java.io.File
 import java.nio.file.Files
 import java.time.ZonedDateTime
-import kotlin.system.exitProcess
 
 const val JOB_PREFIX = "job-"
 const val ROLE_LABEL = "role"

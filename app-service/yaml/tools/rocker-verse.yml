@@ -13,9 +13,9 @@ authors:
 
 description: Rocker Verse
 
-defaultMaxTime:
+defaultTimeAllocation:
   hours: 1
   minutes: 0
   seconds: 0
 
-backend: UDOCKER
+backend: DOCKER

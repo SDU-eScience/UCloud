@@ -13,7 +13,7 @@ authors:
 
 description: Tools for running rapidnj
 
-defaultMaxTime:
+defaultTimeAllocation:
   hours: 0
   minutes: 10
   seconds: 0
