@@ -48,4 +48,19 @@ class NetworkPolicyService(
     fun deletePolicy(jobId: String) {
         k8sClient.network().networkPolicies().inNamespace(namespace).withName("policy-$jobId").delete()
     }
+
+    private fun findAliasesForRunningJob(jobId: String) {
+        k8sClient.pods()
+            .inNamespace(namespace)
+            .withLabel(ROLE_LABEL, appRole)
+            .withLabel(JOB_ID_LABEL, jobId)
+            .list()
+            .items
+            .forEach {
+                val ipAddress = it.status.podIP
+                val rank = it.metadata.labels[RANK_LABEL]!!.toInt()
+
+
+            }
+    }
 }
