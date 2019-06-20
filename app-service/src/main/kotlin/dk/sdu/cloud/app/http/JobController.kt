@@ -68,6 +68,10 @@ class JobController<DBSession>(
 
         implement(JobDescriptions.start) {
             log.debug("Extending token")
+            val maxTime = request.maxTime
+            if (maxTime != null && maxTime.toMillis() > JOB_MAX_TIME) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Maximum job time exceeded")
+            }
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     ctx.bearer!!,
