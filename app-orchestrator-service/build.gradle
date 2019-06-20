@@ -9,6 +9,9 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.5.1"
     ext.authApiVersion = "1.21.0"
+    ext.appStoreApiVersion = "0.1.0"
+    ext.fileApiVersion = "2.0.1"
+    ext.appFsVersion = "0.1.0"
 }
 
 repositories {
@@ -18,7 +21,13 @@ repositories {
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
-    compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
+    compile "dk.sdu.cloud:app-store-api:$appStoreApiVersion"
+    compile "dk.sdu.cloud:file-api:${fileApiVersion}"
+    compile "dk.sdu.cloud:app-fs-api:$appFsVersion"
+    compile 'com.vladmihalcea:hibernate-types-52:2.4.1'
+    compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
+
+    testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
 sduCloud.createTasksForApiJar("app.orchestrator", [])
