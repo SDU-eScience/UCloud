@@ -141,6 +141,7 @@ class CoreAuthController<DBSession>(
                 audit(auditMessage)
 
                 log.debug("Validating input token")
+                log.debug("Principal: $securityPrincipal")
                 val token = tokenValidation.validateOrNull(request.validJWT)?.toSecurityToken()
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 

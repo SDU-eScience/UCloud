@@ -15,6 +15,8 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
+import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
 import io.fabric8.kubernetes.api.model.EnvVar
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
@@ -37,11 +39,16 @@ import java.io.File
 import java.nio.file.Files
 import java.time.ZonedDateTime
 
-private const val JOB_PREFIX = "job-"
-private const val ROLE_LABEL = "role"
-private const val INPUT_DIRECTORY = "/input"
-private const val WORKING_DIRECTORY = "/work"
-private const val DATA_STORAGE = "workspace-storage"
+const val JOB_PREFIX = "job-"
+const val ROLE_LABEL = "role"
+const val RANK_LABEL = "rank"
+const val JOB_ID_LABEL = "job-id"
+const val INPUT_DIRECTORY = "/input"
+const val WORKING_DIRECTORY = "/work"
+const val MULTI_NODE_DIRECTORY = "/etc/sducloud"
+const val DATA_STORAGE = "workspace-storage"
+const val MULTI_NODE_STORAGE = "multi-node-config"
+const val MULTI_NODE_CONTAINER = "init"
 
 private class K8JobState(val id: String) {
     private val mutex: Mutex = Mutex()
@@ -89,6 +96,9 @@ private class JobManager {
 class PodService(
     private val k8sClient: KubernetesClient,
     private val serviceClient: AuthenticatedClient,
+    private val networkPolicyService: NetworkPolicyService,
+    private val sharedFileSystemMountService: SharedFileSystemMountService,
+    private val hostAliasesService: HostAliasesService,
     private val namespace: String = "app-kubernetes",
     private val appRole: String = "sducloud-app"
 ) {
@@ -100,13 +110,13 @@ class PodService(
         }.getOrNull() == true
     }
 
-    private fun jobName(requestId: String): String = "$JOB_PREFIX$requestId"
+    private fun jobName(requestId: String, rank: Int): String = "$JOB_PREFIX$requestId-$rank"
 
     private fun reverseLookupJobName(jobName: String): String? =
-        if (jobName.startsWith(JOB_PREFIX)) jobName.removePrefix(JOB_PREFIX) else null
+        if (jobName.startsWith(JOB_PREFIX)) jobName.removePrefix(JOB_PREFIX).substringBeforeLast('-') else null
 
-    private fun findPod(jobName: String?): Pod? =
-        k8sClient.pods().inNamespace(namespace).withLabel("job-name", jobName).list().items.firstOrNull()
+    private fun findPods(jobId: String?): List<Pod> =
+        k8sClient.pods().inNamespace(namespace).withLabel(JOB_ID_LABEL, jobId).list().items
 
     fun initializeListeners() {
         fun handlePodEvent(job: Job) {
@@ -141,23 +151,42 @@ class PodService(
                 return
             }
 
-            val resource = findPod(jobName) ?: return
-            val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
-            val containerState = userContainer.state.terminated
+            val resources = findPods(jobId)
+            if (resources.isEmpty()) return
 
-            // Check for completion
-            if (containerState != null && containerState.startedAt != null) {
+            var isDone = true
+            var maxDurationInMillis = 0L
+            var isSuccess = true
+            for (resource in resources) {
+                val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
+                val containerState = userContainer.state.terminated
+
+                if (containerState == null || containerState.startedAt == null) {
+                    isDone = false
+                    break
+                }
+
+                val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
+                val finishedAt =
+                    ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
+
+                // We add 5 seconds for just running the application.
+                // It seems unfair that a job completing instantly is accounted for nothing.
+                val duration = ((finishedAt - startAt) + 5_000)
+                if (duration > maxDurationInMillis) {
+                    maxDurationInMillis = duration
+                }
+
+                if (containerState.exitCode != 0) {
+                    isSuccess = false
+                }
+            }
+
+            if (isDone) {
+                val resource = resources.first()
                 GlobalScope.launch {
                     jobManager.get(jobId).markAsFinished {
-                        val duration = run {
-                            val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
-                            val finishedAt =
-                                ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
-
-                            // We add 5 seconds for just running the application.
-                            // It seems unfair that a job completing instantly is accounted for nothing.
-                            SimpleDuration.fromMillis((finishedAt - startAt) + 5_000)
-                        }
+                        val duration = SimpleDuration.fromMillis(maxDurationInMillis)
                         log.info("App finished in $duration")
 
                         ComputationCallbackDescriptions.requestStateChange.call(
@@ -176,7 +205,7 @@ class PodService(
                             JobCompletedRequest(
                                 jobId,
                                 duration,
-                                containerState.exitCode == 0
+                                isSuccess
                             ),
                             serviceClient
                         ).orThrow()
@@ -224,11 +253,16 @@ class PodService(
     }
 
     suspend fun cancel(verifiedJob: VerifiedJob) {
-        val jobName = jobName(verifiedJob.id)
-        val pod = findPod(jobName) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val pod = findPods(verifiedJob.id).firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         jobManager.get(verifiedJob.id).markAsFinished {
             transferLog(verifiedJob.id, pod.metadata.name)
-            k8sClient.batch().jobs().inNamespace(namespace).withName(jobName).delete()
+
+            k8sClient.batch().jobs()
+                .inNamespace(namespace)
+                .withLabel(ROLE_LABEL, appRole)
+                .withLabel(JOB_ID_LABEL, verifiedJob.id)
+                .delete()
+
             ComputationCallbackDescriptions.completed.call(
                 JobCompletedRequest(verifiedJob.id, null, true),
                 serviceClient
@@ -237,168 +271,284 @@ class PodService(
     }
 
     fun create(verifiedJob: VerifiedJob) {
-        val podName = jobName(verifiedJob.id)
+        log.info("Creating new job with name: ${verifiedJob.id}")
 
-        log.info("Creating new job with name: $podName")
+        val (sharedVolumes, sharedMounts) = sharedFileSystemMountService.createVolumesAndMounts(verifiedJob)
 
-        k8sClient.batch().jobs().inNamespace(namespace).createNew()
-            .metadata {
-                withName(podName)
-                withNamespace(this@PodService.namespace)
+        networkPolicyService.createPolicy(verifiedJob.id, verifiedJob.peers.map { it.jobId })
+        val hostAliases = hostAliasesService.findAliasesForPeers(verifiedJob.peers)
 
-                withLabels(
-                    mapOf(
-                        ROLE_LABEL to appRole
+        repeat(verifiedJob.nodes) { rank ->
+            val podName = jobName(verifiedJob.id, rank)
+            k8sClient.batch().jobs().inNamespace(namespace).createNew()
+                .metadata {
+                    withName(podName)
+                    withNamespace(this@PodService.namespace)
+
+                    withLabels(
+                        mapOf(
+                            ROLE_LABEL to appRole,
+                            RANK_LABEL to rank.toString(),
+                            JOB_ID_LABEL to verifiedJob.id
+                        )
                     )
-                )
-            }
-            .spec {
-                val containerConfig = verifiedJob.application.invocation.container ?: ContainerDescription()
+                }
+                .spec {
+                    val containerConfig = verifiedJob.application.invocation.container ?: ContainerDescription()
 
-                val deadline = verifiedJob.maxTime.toSeconds()
-                withActiveDeadlineSeconds(deadline)
-                withBackoffLimit(1)
-                withParallelism(1)
+                    val deadline = verifiedJob.maxTime.toSeconds()
+                    withActiveDeadlineSeconds(deadline)
+                    withBackoffLimit(1)
+                    withParallelism(1)
 
-                withTemplate(
-                    PodTemplateSpecBuilder().apply {
-                        metadata {
-                            withName(podName)
-                            withNamespace(this@PodService.namespace)
+                    withTemplate(
+                        PodTemplateSpecBuilder().apply {
+                            metadata {
+                                withName(podName)
+                                withNamespace(this@PodService.namespace)
 
-                            withLabels(
-                                mapOf(
-                                    ROLE_LABEL to appRole
+                                withLabels(
+                                    mapOf(
+                                        ROLE_LABEL to appRole,
+                                        RANK_LABEL to rank.toString(),
+                                        JOB_ID_LABEL to verifiedJob.id
+                                    )
                                 )
-                            )
-                        }
+                            }
 
-                        spec {
-                            withContainers(
-                                container {
-                                    val uid = verifiedJob.ownerUid + 1000
-                                    val app = verifiedJob.application.invocation
-                                    val tool = verifiedJob.application.invocation.tool.tool!!.description
-                                    val givenParameters =
-                                        verifiedJob.jobInput.asMap().mapNotNull { (paramName, value) ->
-                                            if (value != null) {
-                                                app.parameters.find { it.name == paramName }!! to value
-                                            } else {
-                                                null
-                                            }
-                                        }.toMap()
+                            spec {
+                                if (verifiedJob.nodes > 1) {
+                                    // Insert multi-node data
+                                    //
+                                    // Each pod creates a single shared volume between the init container and the
+                                    // work container. This shared volume can use `emptyDir`. This directory will be
+                                    // mounted at `/etc/sducloud` and will contain metadata about the other nodes.
 
-                                    val command = app.invocation.flatMap { it.buildInvocationList(givenParameters) }
-
-                                    log.debug("Container is: ${tool.container}")
-                                    log.debug("Executing command: $command")
-
-                                    withName("user-job")
-                                    withImage(tool.container)
-                                    withRestartPolicy("Never")
-                                    withCommand(command)
-                                    withAutomountServiceAccountToken(false)
-
-                                    run {
-                                        val envVars = ArrayList<EnvVar>()
-
-                                        val builtInVars = mapOf(
-                                            "CLOUD_UID" to uid.toString()
-                                        )
-
-                                        builtInVars.forEach { (t, u) ->
-                                            envVars.add(EnvVar(t, u, null))
-                                        }
-
-                                        verifiedJob.application.invocation.environment?.forEach { (name, value) ->
-                                            if (name !in builtInVars) {
-                                                val resolvedValue = value.buildEnvironmentValue(givenParameters)
-                                                if (resolvedValue != null) {
-                                                    envVars.add(EnvVar(name, resolvedValue, null))
-                                                }
-                                            }
-                                        }
-
-                                        withEnv(envVars)
-                                    }
-
-                                    if (containerConfig.changeWorkingDirectory) {
-                                        withWorkingDir(WORKING_DIRECTORY)
-                                    }
-
-                                    if (containerConfig.runAsRoot) {
-                                        withSecurityContext(
-                                            PodSecurityContext(
-                                                0,
-                                                0,
-                                                false,
-                                                0,
-                                                null,
-                                                emptyList(),
-                                                emptyList()
+                                    withInitContainers(
+                                        container {
+                                            withName(MULTI_NODE_CONTAINER)
+                                            withImage("alpine:latest")
+                                            withRestartPolicy("Never")
+                                            withCommand(
+                                                "sh",
+                                                "-c",
+                                                "while [ ! -f $MULTI_NODE_DIRECTORY/job_id.txt ]; do sleep 0.5; done;"
                                             )
-                                        )
-                                    } else if (containerConfig.runAsRealUser) {
-                                        withSecurityContext(
-                                            PodSecurityContext(
-                                                uid,
-                                                uid,
-                                                false,
-                                                uid,
-                                                null,
-                                                emptyList(),
-                                                emptyList()
+                                            withAutomountServiceAccountToken(false)
+
+                                            withVolumeMounts(
+                                                VolumeMount(
+                                                    MULTI_NODE_DIRECTORY,
+                                                    null,
+                                                    MULTI_NODE_STORAGE,
+                                                    false,
+                                                    null
+                                                )
                                             )
-                                        )
-                                    }
-
-                                    withVolumeMounts(
-                                        VolumeMount(
-                                            WORKING_DIRECTORY,
-                                            null,
-                                            DATA_STORAGE,
-                                            false,
-                                            verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/output" }
-                                                ?: throw RPCException(
-                                                    "No workspace found",
-                                                    HttpStatusCode.BadRequest
-                                                )
-                                        ),
-
-                                        VolumeMount(
-                                            INPUT_DIRECTORY,
-                                            null,
-                                            DATA_STORAGE,
-                                            true,
-                                            verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/input" }
-                                                ?: throw RPCException(
-                                                    "No workspace found",
-                                                    HttpStatusCode.BadRequest
-                                                )
-                                        )
+                                        }
                                     )
                                 }
-                            )
 
-                            withVolumes(
-                                volume {
-                                    withName(DATA_STORAGE)
-                                    withPersistentVolumeClaim(PersistentVolumeClaimVolumeSource("cephfs", false))
-                                }
-                            )
-                        }
-                    }.build()
-                )
-            }
-            .done()
+                                withContainers(
+                                    container {
+                                        val uid = verifiedJob.uid + 1000
+                                        val app = verifiedJob.application.invocation
+                                        val tool = verifiedJob.application.invocation.tool.tool!!.description
+                                        val givenParameters =
+                                            verifiedJob.jobInput.asMap().mapNotNull { (paramName, value) ->
+                                                if (value != null) {
+                                                    app.parameters.find { it.name == paramName }!! to value
+                                                } else {
+                                                    null
+                                                }
+                                            }.toMap()
+
+                                        val command = app.invocation.flatMap { it.buildInvocationList(givenParameters) }
+
+                                        log.debug("Container is: ${tool.container}")
+                                        log.debug("Executing command: $command")
+
+                                        withName("user-job")
+                                        withImage(tool.container)
+                                        withRestartPolicy("Never")
+                                        withCommand(command)
+                                        withAutomountServiceAccountToken(false)
+
+                                        run {
+                                            val envVars = ArrayList<EnvVar>()
+
+                                            val builtInVars = mapOf(
+                                                "CLOUD_UID" to uid.toString()
+                                            )
+
+                                            builtInVars.forEach { (t, u) ->
+                                                envVars.add(EnvVar(t, u, null))
+                                            }
+
+                                            verifiedJob.application.invocation.environment?.forEach { (name, value) ->
+                                                if (name !in builtInVars) {
+                                                    val resolvedValue = value.buildEnvironmentValue(givenParameters)
+                                                    if (resolvedValue != null) {
+                                                        envVars.add(EnvVar(name, resolvedValue, null))
+                                                    }
+                                                }
+                                            }
+
+                                            withEnv(envVars)
+                                        }
+
+                                        if (containerConfig.changeWorkingDirectory) {
+                                            withWorkingDir(WORKING_DIRECTORY)
+                                        }
+
+                                        if (containerConfig.runAsRoot) {
+                                            withSecurityContext(
+                                                PodSecurityContext(
+                                                    0,
+                                                    0,
+                                                    false,
+                                                    0,
+                                                    null,
+                                                    emptyList(),
+                                                    emptyList()
+                                                )
+                                            )
+                                        } else if (containerConfig.runAsRealUser) {
+                                            withSecurityContext(
+                                                PodSecurityContext(
+                                                    uid,
+                                                    uid,
+                                                    false,
+                                                    uid,
+                                                    null,
+                                                    emptyList(),
+                                                    emptyList()
+                                                )
+                                            )
+                                        }
+
+                                        withVolumeMounts(
+                                            VolumeMount(
+                                                WORKING_DIRECTORY,
+                                                null,
+                                                DATA_STORAGE,
+                                                false,
+                                                verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/output" }
+                                                    ?: throw RPCException(
+                                                        "No workspace found",
+                                                        HttpStatusCode.BadRequest
+                                                    )
+                                            ),
+
+                                            VolumeMount(
+                                                INPUT_DIRECTORY,
+                                                null,
+                                                DATA_STORAGE,
+                                                true,
+                                                verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/input" }
+                                                    ?: throw RPCException(
+                                                        "No workspace found",
+                                                        HttpStatusCode.BadRequest
+                                                    )
+                                            ),
+
+                                            VolumeMount(
+                                                MULTI_NODE_DIRECTORY,
+                                                null,
+                                                MULTI_NODE_STORAGE,
+                                                true,
+                                                null
+                                            ),
+
+                                            *sharedMounts.toTypedArray()
+                                        )
+
+                                        withHostAliases(*hostAliases.toTypedArray())
+                                    }
+                                )
+
+                                withVolumes(
+                                    volume {
+                                        withName(DATA_STORAGE)
+                                        withPersistentVolumeClaim(PersistentVolumeClaimVolumeSource("cephfs", false))
+                                    },
+
+                                    volume {
+                                        withName(MULTI_NODE_STORAGE)
+                                        withEmptyDir(EmptyDirVolumeSource())
+                                    },
+
+                                    *sharedVolumes.toTypedArray()
+                                )
+                            }
+                        }.build()
+                    )
+                }
+                .done()
+        }
 
         GlobalScope.launch {
             log.info("Awaiting container start!")
             try {
+                if (verifiedJob.nodes > 1) {
+                    awaitCatching(retries = 36_000, delay = 100) {
+                        val pods = findPods(verifiedJob.id)
+                        pods.all { pod ->
+                            // Note: We are awaiting the init containers
+                            val state = pod.status.initContainerStatuses.first().state
+                            state.running != null || state.terminated != null
+                        }
+                    }
+
+                    // Now we initialize the files stored in MULTI_NODE_CONFIG
+                    val findPods = findPods(verifiedJob.id)
+
+                    log.info("Found the following pods: ${findPods.map { it.metadata.name }}")
+
+                    val podsWithIp = findPods.map {
+                        val rankLabel = it.metadata.labels[RANK_LABEL]!!.toInt()
+                        rankLabel to it.status.podIP
+                    }
+
+                    log.info(podsWithIp.toString())
+
+                    findPods.forEach { pod ->
+                        val podResource = k8sClient.pods()
+                            .inNamespace(namespace)
+                            .withName(pod.metadata.name)
+
+                        fun writeFile(path: String, contents: String) {
+                            val (out, _, ins) = podResource.execWithDefaultListener(
+                                listOf("sh", "-c", "cat > $path"),
+                                attachStdout = true,
+                                attachStdin = true,
+                                container = MULTI_NODE_CONTAINER
+                            )
+
+                            ins!!.use {
+                                it.write(contents.toByteArray())
+                            }
+                        }
+
+                        podsWithIp.forEach { (rank, ip) ->
+                            writeFile("$MULTI_NODE_DIRECTORY/node-$rank.txt", ip + "\n")
+                        }
+
+                        writeFile("$MULTI_NODE_DIRECTORY/rank.txt", pod.metadata.labels[RANK_LABEL]!! + "\n")
+                        writeFile("$MULTI_NODE_DIRECTORY/number_of_nodes.txt", verifiedJob.nodes.toString() + "\n")
+                        writeFile("$MULTI_NODE_DIRECTORY/job_id.txt", verifiedJob.id + "\n")
+                    }
+
+                    log.debug("Multi node configuration written to all nodes for ${verifiedJob.id}")
+                }
+
                 awaitCatching(retries = 36_000, delay = 100) {
-                    val pod = findPod(podName)!!
-                    val state = pod.status.containerStatuses.first().state
-                    state.running != null || state.terminated != null
+                    val pods = findPods(verifiedJob.id)
+                    pods.all { pod ->
+                        // Note: We are awaiting the user container
+                        val state = pod.status.containerStatuses.first().state
+                        state.running != null || state.terminated != null
+                    }
                 }
 
                 jobManager.get(verifiedJob.id).withLock {
@@ -425,9 +575,18 @@ class PodService(
     }
 
     fun cleanup(requestId: String) {
-        val pod = jobName(requestId)
         try {
-            k8sClient.batch().jobs().inNamespace(namespace).withName(pod).delete()
+            networkPolicyService.deletePolicy(requestId)
+        } catch (ex: KubernetesClientException) {
+            // Ignored
+            if (ex.status.code !in setOf(400, 404)) {
+                log.warn(ex.stackTraceToString())
+            }
+        }
+
+        try {
+            k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, appRole)
+                .withLabel(JOB_ID_LABEL, requestId).delete()
         } catch (ex: KubernetesClientException) {
             when (ex.status.code) {
                 400, 404 -> return
@@ -439,8 +598,7 @@ class PodService(
     fun retrieveLogs(requestId: String, startLine: Int, maxLines: Int): Pair<String, Int> {
         return try {
             // This is a stupid implementation that works with the current API. We should be using websockets.
-            val jobName = jobName(requestId)
-            val pod = findPod(jobName) ?: return Pair("", 0)
+            val pod = findPods(requestId).firstOrNull() ?: return Pair("", 0)
             val completeLog = k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).log.lines()
             val lines = completeLog.drop(startLine).take(maxLines)
             val nextLine = startLine + lines.size
@@ -454,7 +612,7 @@ class PodService(
     }
 
     fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int): Tunnel {
-        val pod = findPod(jobName(jobId)) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val pod = findPods(jobId).firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         fun findPodResource() = k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name)
         val podResource = findPodResource()
 

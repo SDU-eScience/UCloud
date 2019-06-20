@@ -13,9 +13,9 @@ authors:
 
 description: Tools for running SearchGUI
 
-defaultMaxTime:
+defaultTimeAllocation:
   hours: 3
   minutes: 0
   seconds: 0
 
-backend: UDOCKER
+backend: DOCKER

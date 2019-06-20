@@ -15,6 +15,7 @@ import dk.sdu.cloud.app.services.JobHibernateDao
 import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.app.services.JobVerificationService
 import dk.sdu.cloud.app.services.OrchestrationScope
+import dk.sdu.cloud.app.services.SharedMountVerificationService
 import dk.sdu.cloud.app.services.StreamFollowService
 import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.app.services.VncService
@@ -58,11 +59,19 @@ class Server(
         val toolDao = ToolHibernateDAO()
         val applicationDao = ApplicationHibernateDAO(toolDao)
 
+        val sharedMountVerificationService = SharedMountVerificationService()
         val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
         val jobDao = JobHibernateDao(applicationDao, toolDao, tokenValidation)
         val jobVerificationService =
-            JobVerificationService(db, applicationDao, toolDao, tokenValidation, config.defaultBackend)
+            JobVerificationService(
+                db,
+                applicationDao,
+                toolDao,
+                tokenValidation,
+                config.defaultBackend,
+                sharedMountVerificationService
+            )
         val jobFileService = JobFileService(serviceClient)
         val streamFollowService = StreamFollowService(
             jobFileService,
