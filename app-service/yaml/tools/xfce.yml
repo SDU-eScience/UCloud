@@ -13,9 +13,9 @@ authors:
 
 description: Interactive Ubuntu container with VNC, Xfce4 and browsers.
 
-defaultMaxTime:
+defaultTimeAllocation:
   hours: 1
   minutes: 0
   seconds: 0
 
-backend: UDOCKER
+backend: DOCKER

@@ -1,0 +1,51 @@
+---
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: app-fs-kubernetes-migration
+
+spec:
+  template:
+    metadata:
+      name: app-fs-kubernetes-migration
+
+    spec:
+      containers:
+        - name: app-fs-kubernetes-service
+          image: registry.cloud.sdu.dk/sdu-cloud/app-fs-kubernetes-service:0.1.0
+          args:
+          - /opt/service/bin/service
+          - --config-dir
+          - /etc/refresh-token
+          - --config-dir
+          - /etc/token-validation
+          - --config-dir
+          - /etc/psql
+          - --run-script
+          - migrate-db
+          volumeMounts:
+          - mountPath: /etc/refresh-token
+            name: refresh-token
+          - mountPath: /etc/token-validation
+            name: token-validation
+          - mountPath: /etc/psql
+            name: app-fs-kubernetes-psql
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-fs-kubernetes-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+          defaultMode: 420
+      - name: app-fs-kubernetes-psql
+        secret:
+          optional: false
+          secretName: app-fs-kubernetes-psql
+
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: esci-docker

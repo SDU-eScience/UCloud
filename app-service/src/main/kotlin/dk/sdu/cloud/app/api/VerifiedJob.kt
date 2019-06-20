@@ -116,11 +116,34 @@ data class VerifiedJob(
      * If this project is started by a project proxy user then this property will point to that project. If this is not
      * started by a project proxy user then this will be null.
      */
-    val project: String? = null
+    val project: String? = null,
+
+    /**
+     * A list of shared file systems to be mounted inside of the container.
+     *
+     * A backend is allowed to reject a shared file system mount if it does not support mounting it. This should
+     * happen early, for example, by comparing the backend against a whitelist of supported backends.
+     */
+    @get:JsonProperty("sharedFileSystemMounts")
+    val _sharedFileSystemMounts: List<SharedFileSystemMount>? = null,
+
+    /**
+     * A list of peers that this application is requesting networking with.
+     */
+    @get:JsonProperty("peers")
+    val _peers: List<ApplicationPeer>? = null
 ) {
     @get:JsonIgnore
     val mounts: List<ValidatedFileForUpload>
         get() = _mounts ?: emptyList()
+
+    @get:JsonIgnore
+    val peers: List<ApplicationPeer>
+        get() = _peers ?: emptyList()
+
+    @get:JsonIgnore
+    val sharedFileSystemMounts: List<SharedFileSystemMount>
+        get() = _sharedFileSystemMounts ?: emptyList()
 
     @Deprecated("Renamed to uid to avoid confusion between user and owner attributes", ReplaceWith("uid"))
     val ownerUid: Long = uid

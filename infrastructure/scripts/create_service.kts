@@ -8,7 +8,7 @@ import kotlin.system.exitProcess
 object Versions {
     val GradleBootstrap = "v0.2.11"
     val AuthAPI = "1.21.0"
-    val ServiceCommon = "1.4.0"
+    val ServiceCommon = "1.5.1"
 }
 
 if (args.size != 1) {

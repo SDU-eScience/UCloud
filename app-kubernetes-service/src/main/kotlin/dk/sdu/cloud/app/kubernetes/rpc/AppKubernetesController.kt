@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.api.InternalStdStreamsResponse
-import dk.sdu.cloud.app.api.QueryInternalVncParametersResponse
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.services.PodService
 import dk.sdu.cloud.app.kubernetes.services.VncService
@@ -34,6 +33,16 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.jobVerified) {
+            val sharedFileSystemMountsAreSupported =
+                request.sharedFileSystemMounts.all { it.sharedFileSystem.backend == "kubernetes" }
+
+            if (!sharedFileSystemMountsAreSupported) {
+                throw RPCException(
+                    "A file system mount was attempted which this backend does not support",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
             ok(Unit)
         }
 

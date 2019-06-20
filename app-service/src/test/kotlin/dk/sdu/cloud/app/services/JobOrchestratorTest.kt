@@ -64,7 +64,7 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(db, appDao, toolDao, tokenValidation, backendName),
+            JobVerificationService(db, appDao, toolDao, tokenValidation, backendName, SharedMountVerificationService()),
             compBackend,
             jobFileService,
             jobDao,
