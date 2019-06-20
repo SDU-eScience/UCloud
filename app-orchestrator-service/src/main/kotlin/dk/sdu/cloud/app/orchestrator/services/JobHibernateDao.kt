@@ -65,7 +65,7 @@ data class JobInformationEntity(
         parameters = [
             Parameter(
                 name = JSONB_LIST_PARAM_TYPE,
-                value = "dk.sdu.cloud.app.store.api.ValidatedFileForUpload"
+                value = "dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload"
             )
         ]
     )
@@ -76,7 +76,7 @@ data class JobInformationEntity(
         parameters = [
             Parameter(
                 name = JSONB_LIST_PARAM_TYPE,
-                value = "dk.sdu.cloud.app.store.api.ValidatedFileForUpload"
+                value = "dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload"
             )
         ]
     )
@@ -278,7 +278,7 @@ class JobHibernateDao(
         ).mapItems { it.toModel() }
     }
 
-    private suspend fun JobInformationEntity.toModel(
+       private suspend fun JobInformationEntity.toModel(
         resolveTool: Boolean = false
     ): VerifiedJobWithAccessToken {
         val withoutTool = VerifiedJobWithAccessToken(
