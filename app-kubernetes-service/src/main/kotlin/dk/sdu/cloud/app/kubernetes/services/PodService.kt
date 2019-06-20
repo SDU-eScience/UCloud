@@ -98,6 +98,7 @@ class PodService(
     private val serviceClient: AuthenticatedClient,
     private val networkPolicyService: NetworkPolicyService,
     private val sharedFileSystemMountService: SharedFileSystemMountService,
+    private val hostAliasesService: HostAliasesService,
     private val namespace: String = "app-kubernetes",
     private val appRole: String = "sducloud-app"
 ) {
@@ -274,7 +275,9 @@ class PodService(
 
         val (sharedVolumes, sharedMounts) = sharedFileSystemMountService.createVolumesAndMounts(verifiedJob)
 
-        networkPolicyService.createPolicy(verifiedJob.id)
+        networkPolicyService.createPolicy(verifiedJob.id, verifiedJob.peers.map { it.jobId })
+        val hostAliases = hostAliasesService.findAliasesForPeers(verifiedJob.peers)
+
         repeat(verifiedJob.nodes) { rank ->
             val podName = jobName(verifiedJob.id, rank)
             k8sClient.batch().jobs().inNamespace(namespace).createNew()
@@ -459,6 +462,8 @@ class PodService(
 
                                             *sharedMounts.toTypedArray()
                                         )
+
+                                        withHostAliases(*hostAliases.toTypedArray())
                                     }
                                 )
 

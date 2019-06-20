@@ -100,7 +100,8 @@ class JobVerificationService<DBSession>(
                 user = token.principal.username,
                 uid = token.principal.uid,
                 project = token.projectOrNull(),
-                _sharedFileSystemMounts = sharedMounts
+                _sharedFileSystemMounts = sharedMounts,
+                _peers = unverifiedJob.request.peers
             ),
             unverifiedJob.principal.token
         )

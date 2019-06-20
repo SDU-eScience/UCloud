@@ -15,6 +15,7 @@ import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
 import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
+import dk.sdu.cloud.app.kubernetes.services.HostAliasesService
 import dk.sdu.cloud.app.kubernetes.services.NetworkPolicyService
 import dk.sdu.cloud.app.kubernetes.services.PodService
 import dk.sdu.cloud.app.kubernetes.services.SharedFileSystemMountService
@@ -55,13 +56,16 @@ class Server(override val micro: Micro, private val configuration: Configuration
             appRole = appRole
         )
 
+        val hostAliasesService = HostAliasesService(k8sClient, appRole = appRole)
+
         val sharedFileSystemMountService = SharedFileSystemMountService()
         val podService = PodService(
             k8sClient,
             serviceClient,
             networkPolicyService,
             appRole = appRole,
-            sharedFileSystemMountService = sharedFileSystemMountService
+            sharedFileSystemMountService = sharedFileSystemMountService,
+            hostAliasesService = hostAliasesService
         )
 
         val authenticationService = AuthenticationService(serviceClient, micro.tokenValidation)

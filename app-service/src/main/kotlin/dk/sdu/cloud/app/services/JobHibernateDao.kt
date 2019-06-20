@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.app.api.ApplicationPeer
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.ParsedApplicationParameter
@@ -145,7 +146,18 @@ data class JobInformationEntity(
             )
         ]
     )
-    var sharedFileSystemMounts: List<SharedFileSystemMount>?
+    var sharedFileSystemMounts: List<SharedFileSystemMount>?,
+
+    @Type(
+        type = JSONB_LIST_TYPE,
+        parameters = [
+            Parameter(
+                name = JSONB_LIST_PARAM_TYPE,
+                value = "dk.sdu.cloud.app.api.ApplicationPeer"
+            )
+        ]
+    )
+    var peers: List<ApplicationPeer>?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -182,7 +194,8 @@ class JobHibernateDao(
             Date(System.currentTimeMillis()),
             job.user,
             job.project,
-            job.sharedFileSystemMounts
+            job.sharedFileSystemMounts,
+            job.peers
         )
 
         session.save(entity)
@@ -318,7 +331,8 @@ class JobHibernateDao(
                 startedAt = startedAt?.time,
                 user = username ?: owner,
                 project = project,
-                _sharedFileSystemMounts = sharedFileSystemMounts
+                _sharedFileSystemMounts = sharedFileSystemMounts,
+                _peers = peers
             ),
             accessToken
         )

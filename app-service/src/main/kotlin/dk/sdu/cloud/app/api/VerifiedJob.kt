@@ -125,11 +125,21 @@ data class VerifiedJob(
      * happen early, for example, by comparing the backend against a whitelist of supported backends.
      */
     @get:JsonProperty("sharedFileSystemMounts")
-    val _sharedFileSystemMounts: List<SharedFileSystemMount>? = null
+    val _sharedFileSystemMounts: List<SharedFileSystemMount>? = null,
+
+    /**
+     * A list of peers that this application is requesting networking with.
+     */
+    @get:JsonProperty("peers")
+    val _peers: List<ApplicationPeer>? = null
 ) {
     @get:JsonIgnore
     val mounts: List<ValidatedFileForUpload>
         get() = _mounts ?: emptyList()
+
+    @get:JsonIgnore
+    val peers: List<ApplicationPeer>
+        get() = _peers ?: emptyList()
 
     @get:JsonIgnore
     val sharedFileSystemMounts: List<SharedFileSystemMount>
