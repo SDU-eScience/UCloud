@@ -1,0 +1,24 @@
+group 'dk.sdu.cloud'
+version '0.1.0'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
+
+buildscript {
+    ext.serviceCommonVersion = "1.5.1"
+    ext.authApiVersion = "1.21.0"
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:auth-api:$authApiVersion"
+    compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
+}
+
+sduCloud.createTasksForApiJar("app.orchestrator", [])
