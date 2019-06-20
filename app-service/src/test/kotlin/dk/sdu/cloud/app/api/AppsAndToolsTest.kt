@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.api
 
-import dk.sdu.cloud.app.services.withInvocation
 import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -59,6 +58,30 @@ class AppsAndToolsTest {
         assertEquals("globs", normalizedApplication.invocation.outputFileGlobs.first().toString())
         assertEquals("name", normalizedApplication.invocation.tool.name)
         assertEquals("2.2", normalizedApplication.invocation.tool.version)
+    }
+
+    @Test (expected = ApplicationVerificationException::class)
+    fun `create simple V1 Application description - title contains forward slash`() {
+        ApplicationDescription.V1(
+            "name",
+            "2.2",
+            NameAndVersion("name", "2.2"),
+            listOf("Authors"),
+            "title/hello",
+            "description",
+            listOf(
+                mapOf(
+                    "type" to "var",
+                    "vars" to "arg1",
+                    "prefixGlobal" to "prefixG",
+                    "prefixVariable" to "prefixV",
+                    "suffixVariable" to "suffixV",
+                    "suffixGlobal" to "suffixG"
+                )
+            ),
+            mapOf(Pair("arg1", ApplicationParameter.Text("arg1") )),
+            listOf("globs")
+        )
     }
 
     @Test
@@ -404,6 +427,5 @@ class AppsAndToolsTest {
             listOf("modules"),
             "description"
         )
-
     }
 }

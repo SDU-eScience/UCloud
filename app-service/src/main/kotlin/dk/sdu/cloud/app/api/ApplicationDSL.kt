@@ -47,7 +47,7 @@ sealed class ApplicationDescription(val application: String) {
 
         init {
             ::title.requireNotBlank()
-            ::title.disallowCharacters('\n')
+            ::title.disallowCharacters('\n', '/')
             ::title.requireSize(maxSize = 1024)
 
             ::name.requireNotBlank()
