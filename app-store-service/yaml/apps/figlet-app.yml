@@ -1,0 +1,26 @@
+---
+application: v1
+
+title: Figlet
+name: figlet
+version: 1.0.0
+
+tool:
+  name: figlet
+  version: 1.0.0
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: >
+  Render some text!
+
+invocation:
+- figlet
+- type: var
+  vars: text
+ 
+parameters:
+  text:
+    title: "Some text to render with figlet"
+    type: text

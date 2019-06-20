@@ -9,10 +9,21 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: app-orchestrator
-      prefix: ^/api/app/orchestrator(/.*)?$
+      prefix: ^/api/hpc/jobs(/.*)?$
       prefix_regex: true
       service: app-orchestrator:8080
       rewrite: ""
+      timeout_ms: 0
+
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: app-orchestrator-compute
+      prefix: ^/api/app/compute(/.*)?$
+      prefix_regex: true
+      service: app-orchestrator:8080
+      rewrite: ""
+      timeout_ms: 0
 
 spec:
   clusterIP: None

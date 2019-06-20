@@ -1,0 +1,21 @@
+---
+tool: v1
+
+title: Figlet-file
+
+name: figlet-file
+version: 1.0.2
+
+container: truek/figlet-file:1.0.2
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: Tool for rendering text.
+
+defaultTimeAllocation:
+  hours: 0
+  minutes: 1
+  seconds: 0
+
+backend: DOCKER

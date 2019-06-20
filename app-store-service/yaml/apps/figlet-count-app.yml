@@ -1,0 +1,30 @@
+---
+application: v1
+
+title: Figlet Counter
+name: figlet-count
+version: 1.0.0
+
+tool:
+  name: figlet
+  version: 1.0.0
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: >
+  Count with Figlet!
+
+invocation:
+- figlet-count
+- type: var
+  vars: n
+ 
+parameters:
+  n:
+    title: Count
+    description: How much should we count to?
+    defaultValue:
+      type: integer
+      value: 100
+    type: integer

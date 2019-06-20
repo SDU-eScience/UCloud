@@ -9,10 +9,11 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: app-store
-      prefix: ^/api/app/store(/.*)?$
+      prefix: ^/api/hpc(/.*)?$
       prefix_regex: true
       service: app-store:8080
       rewrite: ""
+      timeout_ms: 0
 
 spec:
   clusterIP: None
