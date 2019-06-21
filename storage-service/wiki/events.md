@@ -36,9 +36,9 @@ potentially notify the users who it was shared with.
 
 ## Event Guarantees
 
-This is done asynchronously and there are no guarantees that any given event
-will be emitted. To improve on these guarantees the
-[indexing-service](../../indexing-service) regularly compares its view of the
-system with the storage-service. If differences are found corrections are
-emitted on the same stream. This allows for most services to not care about
-these edge-cases.
+Events are sent asynchronously and there are no guarantees that any given
+event is sent. To improve on these guarantees the
+[`indexing-service`](../../indexing-service) regularly compares its view of
+the system with the `storage-service`. If differences are found corrections
+are emitted on the same stream. This allows for most services to not care
+about these edge-cases.

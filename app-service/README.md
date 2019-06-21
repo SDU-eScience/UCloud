@@ -22,13 +22,7 @@ here](./wiki/apps.md).
 ## Application Orchestrator
 
 The application orchestrator is responsible for orchestrating commands from
-the user to the relevant computation backend.
-
-![Scheduling applications](./wiki/schedule.png)
-
-Figure: The end-user sends commands to the `app-service`. Commands are
-validated and transformed into useful commands for the computation backend.
-The computation backend can implemented these requests in any way they see
-fit.
+the user to the relevant computation backend. Read more about it
+[here](./wiki/orchestrator).
 
 The default computation backend is [app-kubernetes](../app-kubernetes-service).
