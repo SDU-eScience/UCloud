@@ -3,8 +3,8 @@
 SDUCloud is a digital research environment. It provides an intuitive user
 interface that improves the usability HPC environments or other computing
 environments such as Kubernetes clusters. SDUCloud provides a way to access and
-run [Applications](./app-service) regardless of users’ location and devices. It
-also serves as a cloud [data storage](./storage-service), which allows users to
+run [applications](#applications) regardless of users’ location and devices. It
+also serves as a cloud [data storage](#storage), which allows users to
 analyse and share their data.
 
 <!-- TOOD Maybe talk about how this is an integrated platform. -->
@@ -16,29 +16,30 @@ If you are a user and just want to know how to use SDUCloud, check out our
 
 ## Storage
 
-Storage is presented to users in the form of a file system.
+The users can access their data via the 'Files' tab in the web app. Storage is
+presented to users in the form of a file system. 
 
 This file system provides familiar operations on data to end-users. The file
 system allows, e.g., users to read and write folders and files.
 
 Access to the file system is provided through a common API interface which
-enforces data management constraints and auditing. The users can access their
-data via the 'Files' tab in the web app.
+enforces data management constraints and auditing.  The [storage
+service](./storage-service) is responsible for the storage on SDUCloud.
 
-SDUCloud keeps track of [each users storage
-consumption](./accounting-storage-service), and has the ability to create
-reports on each user for accounting.
+SDUCloud keeps track and can create accounting reports for storage consumed by
+each user. The [accounting services](./accounting-storage-service) are
+responsible for accounting in SDUCloud.
 
 ### Metadata
 
-In SDUCloud, there is the possibility to attach metadata to the data present in
-the system. SDUCloud uses multiple types of metadata such as regular file
+In SDUCloud, it is possible to attach metadata to the data present in the
+system. SDUCloud internally uses multiple types of metadata such as regular file
 attributes (e.g. timestamps for creation and last modified at, access control
 list, file size, etc) but also the following:
 
-- **Sensitivity**   
+- **Sensitivity levels**   
 
-  SDUCloud provide specific features for dealing with (sensitive) research data.
+  SDUCloud provide specific features for handling sensitive (research) data.
   All files have an attached sensitivity field used to clearly communicate to
   the user and systems the classification of a file. We currently use three
   different levels of security:
@@ -49,10 +50,10 @@ list, file size, etc) but also the following:
 
 - **Favorites**   
 
-  A user can [favorite](./file-favorite-service) a file, directory or app. The
-  [file gateway](./file-gateway-service) combine this attribute with the results
-  from a list(ls) of a directory.   
-  It is also possible to get all favorites of a user across the entire file
+  A user can [favorite](./file-favorite-service) a file, directory or app. For
+  files and folders, the [file gateway service](./file-gateway-service) combines
+  this attribute with the results from a list(ls) of a directory.   
+  It is possible to get all favorites of a user across the entire file
   system, which is used for quick access to favorites.
 
 Metadata is [indexed](./indexing-service) in the system and it is possible to
@@ -136,7 +137,7 @@ For more details on the tool and app format see:
 
 TO DO:
 
-- Link to the technical overview.
+- Link to the technical overview. (partially in app and storage service docs)
 
 ### CI/CD
 
