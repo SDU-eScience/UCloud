@@ -12,7 +12,7 @@ this service is to ensure that all user requests are validated before they
 are forwarded. This hugely simplifies backend implementation and makes it easier
 to create different implementations.
 
-![Scheduling applications](schedule.png)
+![Scheduling applications](./wiki/schedule.png)
 
 Figure: The end-user sends commands to the `app-service`. Commands are
 validated and transformed into useful commands for the computation backend.
