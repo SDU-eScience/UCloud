@@ -23,6 +23,6 @@ here](./wiki/apps.md).
 
 The application orchestrator is responsible for orchestrating commands from
 the user to the relevant computation backend. Read more about it
-[here](./wiki/orchestration).
+[here](./wiki/orchestrator).
 
 The default computation backend is [app-kubernetes](../app-kubernetes-service).
