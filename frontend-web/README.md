@@ -1,6 +1,6 @@
 # SDUCloud Frontend
 
-TSDUCloud uses a web application as frontend for its users.
+SDUCloud uses a web application as frontend for its users.
 
 This repository contains the frontend components used in SDUCloud, logic for contacting backend services and a test suite.
 
