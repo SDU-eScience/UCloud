@@ -9,9 +9,10 @@ analyse and share their data.
 
 <!-- TOOD Maybe talk about how this is an integrated platform. -->
 
-## Basic User Quick Start Guide
+## User Getting Started Guide
 
-[Getting started](https://escience.sdu.dk/index.php/sducloud/)
+If you are a user and just want to know how to use SDUCloud, check out our
+[getting started guide](https://escience.sdu.dk/index.php/sducloud/). 
 
 ## Storage
 
@@ -133,9 +134,22 @@ For more details on the tool and app format see:
 
 ## Technical Overview
 
-## TO DO:
+TO DO:
 
-- Link to the technical overview and developer's guide.
-- Add docs for the frontend
-- Add docs for CI/CD
+- Link to the technical overview.
 
+### CI/CD
+
+For continuous integration we use [Jenkins](https://jenkins.io/). The CI is
+responsible for building and testing the software. For more information on how
+we use Jenkins, see [here](./infrastructure/JenkinsDoc.md)
+
+We do not implement an automated delivery/deployment scheme after each code
+change. The system can build docker images of all our services on demand. 
+
+### Frontend
+Read more about the frontend right [here](./frontend-web/README.md)
+
+### Developer's Guide
+If you are a developer, you might be interested in our [developer's
+guide](./service-common/wiki/getting_started.md).
