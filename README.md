@@ -10,7 +10,8 @@ users can store their data.
 
 ## Quick Start for Users
 
-[Getting started](https://escience.sdu.dk/index.php/sducloud/)
+If you are a user and just want to know how to use SDUCloud, checkout our
+[user guide](https://escience.sdu.dk/index.php/sducloud/). 
 
 ## Storage
 
@@ -119,8 +120,20 @@ these should be invoked. For more details on the format see:
 
 ## Technical Overview
 
-Items to cover:
+### CI/CD
 
-- We need some links to the technical overview and developer's guide.
-- Check that we have some docs for frontend
-- CI/CD? Do we have any yet?
+For continuous integration we are using Jenkins. The CI is responsible for
+building our software and testing it. For more information on how we use
+Jenkins, see [here](./infrastructure/JenkinsDoc.md)
+
+We do however not have a automated deliver/deployment scheme. We are able to
+build docker images of all our services, but only at our request. Not each time
+the code base changes. 
+
+### Frontend
+Read more about the frontend right [here](./frontend-web/README.md)
+
+### Developer's Guide
+If you are a developer, you might find the [developer's guide](./service-common/wiki/getting_started.md) very
+useful.
+
