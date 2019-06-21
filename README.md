@@ -88,7 +88,7 @@ file information up to date.
 
 To make sure that the information is always up to date, even in the unlikely 
 event that system events are lost, is the entire file system 
-[indexed](./indexing-service) multiple times per day.
+[indexed](./indexing-service) multiple times per day. 
 
 
 
@@ -109,6 +109,22 @@ Items to cover:
 - Accounting
 
 ## Applications
+
+Applications are jobs that the user can run directly from SDUCloud on a 
+supported backend (HPC). They are available through the 
+[application store](./app-service). 
+
+An application is associated to a tool and gives the user the ability to run a 
+subset of the tools functionality specified by the application. 
+
+![Application to tool association](./images/ApplicationAndTool.png)
+
+Each application has the ability to use files that are already located in 
+the file system as input data. Once an application has finished the result files
+are transfered back to the file system into job specific folders.
+
+Just as with the storage, SDUCloud enforces [accounting on used compute
+time](./accounting-compute-service). Just 
 
 Items to cover:
 
