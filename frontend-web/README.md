@@ -1,9 +1,8 @@
 # SDUCloud Frontend
 
-The frontend for SDUCloud is in this repository. See [webclient](./webclient)
-for the actual code.
+TSDUCloud uses a web application as frontend for its users.
 
-Contains the code for the frontend components used at [SDUCloud](https://cloud.sdu.dk/), logic for contacting backend services and a test suite.
+This repository contains the frontend components used in SDUCloud, logic for contacting backend services and a test suite.
 
 ## Code Structure
 
@@ -52,7 +51,7 @@ The test files is located in the [tests](./webclient/__tests__/) folder.
 
 Logging in to the site is done through Wayf on the production version, or with username/password combination on the development version, both as described in [auth-service](../auth-service#authenticating-with-sducloud).
 
-The SDUCloud object (as describe in [SDUCloud](#sducloud)) will validate the every new JWT-token received from the backend when refreshing. This is done throught the structure of the JWT, not the actual contents of the JWT.
+The [SDUCloud object](#sducloud-object) will validate the every new JWT-token received from the backend when refreshing. This is done throught the structure of the JWT, not the actual contents of the JWT.
 
 On invalid token, the site will redirect to the login screen.
 
@@ -64,7 +63,7 @@ A logged in user can either be a `USER` or an `ADMIN`. The `USER` role only has 
 
 ## Notable custom code
 
-### SDUCloud
+### SDUCloud object
 
 The project utilizes JSON Web Tokens, which contain information regarding the (if any) currently logged in user.
 
