@@ -273,8 +273,7 @@ export const initDashboard = (): DashboardStateProps => ({
     notifications: [],
     favoriteLoading: false,
     recentLoading: false,
-    analysesLoading: false,
-    errors: []
+    analysesLoading: false
 });
 
 export function initObject(homeFolder: string): ReduxObject {

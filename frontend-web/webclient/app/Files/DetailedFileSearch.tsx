@@ -7,7 +7,7 @@ import {
 import {DatePicker} from "ui-components/DatePicker";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Flex, Input, Label, Stamp, InputGroup, Checkbox, Error, OutlineButton, Button} from "ui-components";
+import {Flex, Input, Label, Stamp, InputGroup, Checkbox, OutlineButton, Button} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {History} from "history";
 import {ReduxObject, KeyCode} from "DefaultObjects";
@@ -149,7 +149,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
                         <form onSubmit={e => (e.preventDefault(), this.onSearch())}>
-                            <Error error={this.props.error} clearError={() => this.props.setError()}/>
                             <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                             <Input
                                 pb="6px"

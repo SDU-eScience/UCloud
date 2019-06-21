@@ -30,7 +30,6 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {Error} from "ui-components";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -177,7 +176,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     message: "An error occurred retrieving Information and Output from the job.",
                     type: SnackType.Failure
                 });
-            this.props.detailedResultError("An error occurred retrieving Information and Output from the job.");
         } finally {
             this.props.setLoading(false);
         }
@@ -379,7 +377,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     public render() {
         return <MainContainer
-            header={this.props.error ? <Error error={this.props.error} clearError={() => this.props.detailedResultError()} /> : null}
             main={this.state.app ?
                 <ContainerForText>
                     {this.renderProgressPanel()}
@@ -460,7 +457,6 @@ const mapStateToProps = ({detailedResult}: ReduxObject): DetailedResultReduxObje
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
-    detailedResultError: error => dispatch(detailedResultError(error)),
     setLoading: loading => dispatch(setLoading(loading)),
     setPageTitle: jobId => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
     receivePage: page => dispatch(receivePage(page)),

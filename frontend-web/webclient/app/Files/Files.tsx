@@ -145,8 +145,6 @@ function Files(props: Readonly<FilesProps>) {
     const main = (
         <Pagination.List
             loading={loading}
-            errorMessage={props.error}
-            onErrorDismiss={props.dismissError}
             customEmptyPage={!props.error ? <Heading.h3>No files in current folder</Heading.h3> : <Box />}
             pageRenderer={page => (
                 <FilesTable

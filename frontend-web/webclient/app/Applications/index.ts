@@ -43,7 +43,6 @@ export interface DetailedResultOperations {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    detailedResultError: (error?: string) => void
     fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
     setRefresh: (refresh?: () => void) => void
 }
@@ -168,7 +167,6 @@ export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
     initialSubmit: boolean
-    error?: string
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
@@ -289,7 +287,6 @@ export interface DetailedApplicationSearchReduxState {
 export interface DetailedApplicationOperations {
     setAppName: (n: string) => void
     setVersionName: (v: string) => void
-    setError: (err?: string) => void
     fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void
     fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void
 }

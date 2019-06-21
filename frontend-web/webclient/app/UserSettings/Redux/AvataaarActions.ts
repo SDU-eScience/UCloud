@@ -6,6 +6,8 @@ import { saveAvatarQuery, findAvatarQuery } from "Utilities/AvatarUtilities";
 import { errorMessageOrDefault } from "UtilityFunctions";
 import { AddSnack, addSnack } from "Snackbar/Redux/SnackbarsActions";
 import { SnackType } from "Snackbar/Snackbars";
+import {Action} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 export type AvatarActions = SaveAvataaar | SetAvatarError
 
@@ -20,16 +22,16 @@ export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | Set
         await Cloud.post(saveAvatarQuery, avatar, undefined, true).then(it => saveAvataaar(avatar));
         return saveAvataaar(avatar);
     } catch (e) {
-        return setAvatarError(errorMessageOrDefault(e, "An error occurred saving the avatar."))
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred saving the avatar"));
+        return setAvatarError();
     }
 }
 
 export const updateAvatar = (avatar: AvatarType): SaveAvataaar => saveAvataaar(avatar);
 
-type SetAvatarError = PayloadAction<typeof AVATAR_ERROR, { error?: string }>
-export const setAvatarError = (error?: string): SetAvatarError => ({
+type SetAvatarError = Action<typeof AVATAR_ERROR>
+export const setAvatarError = (): SetAvatarError => ({
     type: AVATAR_ERROR,
-    payload: { error }
 });
 
 export const findAvatar = async (): Promise<SaveAvataaar | AddSnack> => {

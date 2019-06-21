@@ -1,4 +1,4 @@
-import {Snack} from "Snackbar/Snackbars";
+import {Snack, SnackType} from "Snackbar/Snackbars";
 import {timestampUnixMs} from "UtilityFunctions";
 
 type SnackbarSubscriber = (activeSnack?: Snack) => void;
@@ -22,6 +22,13 @@ class SnackbarStore {
         if (this.activeExpiresAt == -1) {
             this.process();
         }
+    }
+
+    public addFailure(message: string) {
+        this.addSnack({
+            message,
+            type: SnackType.Failure
+        })
     }
 
     requestCancellation() {

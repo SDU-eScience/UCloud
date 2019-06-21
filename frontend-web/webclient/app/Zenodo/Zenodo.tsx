@@ -36,7 +36,7 @@ function ZenodoHome(props: Props) {
         props.setRefresh(() => refresh());
     }
 
-    const {connected, loading, page, error, onErrorDismiss} = props;
+    const {connected, loading, page} = props;
     if (!connected && !loading) {
         return (<MainContainer main={<NotConnectedToZenodo />} />);
     } else {
@@ -53,8 +53,6 @@ function ZenodoHome(props: Props) {
                 main={
                     <List
                         loading={loading}
-                        errorMessage={error}
-                        onErrorDismiss={onErrorDismiss}
                         customEmptyPage={<Heading.h6>No Zenodo publications found.</Heading.h6>}
                         pageRenderer={(page) => (
                             <Table>
@@ -109,7 +107,6 @@ const PublicationRow = ({publication}: {publication: Publication}) => {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ZenodoOperations => ({
-    onErrorDismiss: () => dispatch(setErrorMessage(SET_ZENODO_ERROR, undefined)),
     fetchPublications: async (pageNo, pageSize) => {
         dispatch(setZenodoLoading(true));
         dispatch(await fetchPublications(pageNo, pageSize))

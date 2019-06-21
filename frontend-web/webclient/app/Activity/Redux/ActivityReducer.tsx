@@ -7,7 +7,7 @@ const activity = (state: ActivityReduxObject = initActivity(), action: ActivityA
         case RESET_ACTIVITY:
             return { ...state, scroll: undefined, loading: false };
         case SET_ACTIVITY_ERROR_MESSAGE:
-            return { ...state, ...action.payload, loading: false };
+            return { ...state, loading: false };
         case RECEIVE_ACTIVITY:
             const incoming = action.payload.page
             return { ...state, scroll: concatScrolls(incoming, state.scroll), loading: false };

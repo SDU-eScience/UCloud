@@ -9,8 +9,7 @@ const Avatar = (state: AvatarType = initAvatar(), action: AvatarActions) => {
     switch (action.type) {
         case AVATAR_SAVE:
             return { ...state, ...action.payload.avatar, loading: false };
-        case AVATAR_ERROR: 
-            return { ...state, ...action.payload };
+        case AVATAR_ERROR:
         default:
             return state;
     }

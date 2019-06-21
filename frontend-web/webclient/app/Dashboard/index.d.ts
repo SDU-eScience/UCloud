@@ -13,12 +13,10 @@ export interface DashboardStateProps {
     analysesLoading: boolean
     recentLoading: boolean
     favoriteFilesLength?: number
-    errors: string[]
 }
 
 export interface DashboardOperations {
     onInit: () => void
-    errorDismiss: () => void
     receiveFavorites: (files: File[]) => void
     setAllLoading: (loading: boolean) => void
     fetchUsage: () => void

@@ -1,32 +1,32 @@
 import * as React from "react";
-import { capitalized } from "UtilityFunctions"
-import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
-import { ContainerForText } from "ui-components";
-import { List } from "Pagination/List";
-import { connect } from "react-redux";
-import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
-import { AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis } from ".";
-import { setErrorMessage } from "./Redux/AnalysesActions";
-import { Dispatch } from "redux";
-import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
-import { MainContainer } from "MainContainer/MainContainer";
-import { History } from "history";
-import { ReduxObject } from "DefaultObjects";
-import { SidebarPages } from "ui-components/Sidebar";
+import {capitalized} from "UtilityFunctions"
+import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
+import {ContainerForText} from "ui-components";
+import {List} from "Pagination/List";
+import {connect} from "react-redux";
+import {setLoading, fetchAnalyses} from "./Redux/AnalysesActions";
+import {AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis} from ".";
+import {setErrorMessage} from "./Redux/AnalysesActions";
+import {Dispatch} from "redux";
+import {Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import {MainContainer} from "MainContainer/MainContainer";
+import {History} from "history";
+import {ReduxObject} from "DefaultObjects";
+import {SidebarPages} from "ui-components/Sidebar";
 import * as Heading from "ui-components/Heading";
-import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
-import { EntriesPerPageSelector } from "Pagination";
-import { Spacer } from "ui-components/Spacer";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {EntriesPerPageSelector} from "Pagination";
+import {Spacer} from "ui-components/Spacer";
 import * as moment from "moment";
 import "moment/locale/en-gb";
-import { JobStateIcon } from "./JobStateIcon";
+import {JobStateIcon} from "./JobStateIcon";
 
 interface FetchJobsOptions {
     itemsPerPage?: number
     pageNumber?: number
 }
 
-function JobResults(props: AnalysesProps & { history: History }) {
+function JobResults(props: AnalysesProps & {history: History}) {
 
     React.useEffect(() => {
         moment.locale("en-gb");
@@ -38,21 +38,19 @@ function JobResults(props: AnalysesProps & { history: History }) {
 
     function fetchJobs(options?: FetchJobsOptions) {
         const opts = options || {};
-        const { page, setLoading } = props;
+        const {page, setLoading} = props;
         const itemsPerPage = opts.itemsPerPage !== undefined ? opts.itemsPerPage : page.itemsPerPage;
         const pageNumber = opts.pageNumber !== undefined ? opts.pageNumber : page.pageNumber;
         setLoading(true);
         props.fetchJobs(itemsPerPage, pageNumber);
     }
 
-    
-    const { page, loading, error, onErrorDismiss, history, responsive } = props;
+
+    const {page, loading, history, responsive} = props;
     const hide = responsive.lessThan.lg;
     const content = <List
         customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
         loading={loading}
-        onErrorDismiss={onErrorDismiss}
-        errorMessage={error}
         pageRenderer={page =>
             <ContainerForText>
                 <Table>
@@ -71,7 +69,7 @@ function JobResults(props: AnalysesProps & { history: History }) {
             </ContainerForText>
         }
         page={page}
-        onPageChanged={pageNumber => fetchJobs({ pageNumber })}
+        onPageChanged={pageNumber => fetchJobs({pageNumber})}
     />;
 
     return (<MainContainer
@@ -82,7 +80,7 @@ function JobResults(props: AnalysesProps & { history: History }) {
                     <EntriesPerPageSelector
                         content="Jobs per page"
                         entriesPerPage={page.itemsPerPage}
-                        onChange={itemsPerPage => fetchJobs({ itemsPerPage })}
+                        onChange={itemsPerPage => fetchJobs({itemsPerPage})}
                     />
                 }
             />
@@ -92,7 +90,7 @@ function JobResults(props: AnalysesProps & { history: History }) {
     />);
 }
 
-const Header = ({ hide }: { hide: boolean }) => (
+const Header = ({hide}: {hide: boolean}) => (
     <TableHeader>
         <TableRow>
             <TableHeaderCell textAlign="left">State</TableHeaderCell>
@@ -103,7 +101,7 @@ const Header = ({ hide }: { hide: boolean }) => (
     </TableHeader>
 );
 
-const Row = ({ analysis, to, hide }: { analysis: Analysis, to: () => void, hide: boolean }) => {
+const Row = ({analysis, to, hide}: {analysis: Analysis, to: () => void, hide: boolean}) => {
     const metadata: ApplicationMetadata = analysis.metadata;
     return (
         <TableRow cursor="pointer" onClick={() => to()}>
@@ -125,5 +123,5 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     }
 });
 
-const mapStateToProps = ({ analyses, responsive }: ReduxObject): AnalysesStateProps => ({ ...analyses, responsive: responsive! });
+const mapStateToProps = ({analyses, responsive}: ReduxObject): AnalysesStateProps => ({...analyses, responsive: responsive!});
 export default connect(mapStateToProps, mapDispatchToProps)(JobResults);
