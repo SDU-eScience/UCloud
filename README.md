@@ -26,8 +26,7 @@ end-user through the 'Files' menu option.
 
 SDUCloud keeps track of 
 [each users storage consumption](./accounting-storage-service), 
-and has the ability to 
-create reports on each user in case billing is needed
+and has the ability to create reports on each user in case billing is needed.
 
 ### Metadata
 
@@ -90,24 +89,6 @@ To make sure that the information is always up to date, even in the unlikely
 event that system events are lost, is the entire file system 
 [indexed](./indexing-service) multiple times per day. 
 
-
-
-Items to cover:
-
-- Access x
-- File sensitivity x
-- Metadata
-  - Favorites x
-- Data management
-- Collaboration
-  - Shares x
-  - File ownership 
-  - Projects x
-- Indexing x
-- Statistics and search x
-- File gateway x 
-- Accounting
-
 ## Applications
 
 Applications are jobs that the user can run directly from SDUCloud on a 
@@ -117,23 +98,24 @@ supported backend (HPC). They are available through the
 An application is associated to a tool and gives the user the ability to run a 
 subset of the tools functionality specified by the application. 
 
-![Application to tool association](./images/ApplicationAndTool.png)
+![Application to tool association](./wiki/ApplicationAndTool.png)
 
 Each application has the ability to use files that are already located in 
 the file system as input data. Once an application has finished the result files
 are transfered back to the file system into job specific folders.
 
 Just as with the storage, SDUCloud enforces [accounting on used compute
-time](./accounting-compute-service). Just 
+time](./accounting-compute-service). A user can at all time see how much compute
+time they have used on SDU Cloud for any given period. Again, it is possible 
+to create reports if billing is needed.
 
-Items to cover:
+Both tools and applications are defined in YAML documents. The tools describes
+which container should be used by the applications associated to the tool. The
+application YAML document describes the parameters the application need and how
+these should be invoked. For more details on the format see:
+ - [Tools](./app-service/wiki/tools.md)
+ - [Applications](./app-service/wiki/apps.md)
 
-- General introduction
-- Technical overview and limitations
-- Accounting and node guarantees (this is different from typical HPC)
-- Access to files and data management (Keep this vague as some of this will
-  change)
-- Overview of tool and application formats
 
 ## Technical Overview
 
