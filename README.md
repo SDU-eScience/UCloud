@@ -1,126 +1,141 @@
 # SDUCloud
 
-The SDUCloud is a digital research environment. It provides an interface that
-improves the HPC environment usability and the access to
-[Applications](./app-service) and Software regardless of users’ location and
-devices. It also serves as a [data storage](./storage-service), where the
-users can store their data.
+SDUCloud is a digital research environment. It provides an intuitive user
+interface that improves the usability HPC environments or other computing
+environments such as Kubernetes clusters. SDUCloud provides a way to access and
+run [Applications](./app-service) regardless of users’ location and devices. It
+also serves as a cloud [data storage](./storage-service), which allows users to
+analyse and share their data.
 
 <!-- TOOD Maybe talk about how this is an integrated platform. -->
 
-## Quick Start for Users
+## Basic User Quick Start Guide
 
 [Getting started](https://escience.sdu.dk/index.php/sducloud/)
 
 ## Storage
 
-Storage is provided to users in the form of a file system.
+Storage is presented to users in the form of a file system.
 
-This file system provides operations which an end-user might be familiar with
-from other file systems. The file system allows for users to read and write
-folders and files.
+This file system provides familiar operations on data to end-users. The file
+system allows, e.g., users to read and write folders and files.
 
-Access to the file system is provided through a common interface which
-enforces data management constraints and auditing. This is provided to the
-end-user through the 'Files' menu option.
+Access to the file system is provided through a common API interface which
+enforces data management constraints and auditing. The users can access their
+data via the 'Files' tab in the web app.
 
-SDUCloud keeps track of 
-[each users storage consumption](./accounting-storage-service), 
-and has the ability to create reports on each user in case billing is needed.
+SDUCloud keeps track of [each users storage
+consumption](./accounting-storage-service), and has the ability to create
+reports on each user for accounting.
 
 ### Metadata
 
-We have multiple types of metadata attached to the files of the file system.
-Besides the regular file attributes such as timestamps for creation and last
-modified at, access control list and file size it also contains the following
-metadata:
+In SDUCloud, there is the possibility to attach metadata to the data present in
+the system. SDUCloud uses multiple types of metadata such as regular file
+attributes (e.g. timestamps for creation and last modified at, access control
+list, file size, etc) but also the following:
 
 - **Sensitivity**   
-  On top of traditional features SDUCloud provide features tailored
-  for dealing with (sensitive) research data. All files have an attached
-  sensitivity field used to clearly communicate to the user and systems the
-  classification of a file. We differ between three different levels of
-  security.
 
-	- Private
-	- Confidential
-	- Sensitive
+  SDUCloud provide specific features for dealing with (sensitive) research data.
+  All files have an attached sensitivity field used to clearly communicate to
+  the user and systems the classification of a file. We currently use three
+  different levels of security:
+
+    - Private
+    - Confidential
+    - Sensitive
 
 - **Favorites**   
-  A user is able to [favorite](./file-favorite-service) a file or directory. 
-  This attribute is used by our [file gateway](./file-gateway-service) to 
-  aggregate the results from a list(ls) of a directory with the information on 
-  whether a file/directory has been marked as favorite by the user.   
-  It is also possible to get all favorites of a user across the entire file 
-  system.
+
+  A user can [favorite](./file-favorite-service) a file, directory or app. The
+  [file gateway](./file-gateway-service) combine this attribute with the results
+  from a list(ls) of a directory.   
+  It is also possible to get all favorites of a user across the entire file
+  system, which is used for quick access to favorites.
+
+Metadata is [indexed](./indexing-service) in the system and it is possible to
+perform simple searches or advanced queries on it. SDUCloud uses an
+[elasticsearch](https://www.elastic.co/products/elasticsearch) cluster to index
+and query metadata.
+
+The metadata system can be used to implement FAIR data principles and advanced
+data management.
 
 ### Collaboration
 
-Users of the file system are able to [share](./share-service) the files
-they own with other users. When sharing a file, the user specifies whether the
-receiving user only can view the file or if he/she is able to edit the file as
-well. If the user chooses to accept the share, it will automatically create a
-file link to the original file and setup the correct permissions for the user.
-The user can of course also revoke a share. When revoking the system
-automatically removes all permissions that the receiver was given and deletes
-the previous mentioned link from the receivers part of the file system.
+Users are able to [share](./share-service) the files they own with other users.
+When sharing a file, the owner specifies whether the receiving user only can
+view the file or if he/she is able to edit the file as well. If the receiving
+user chooses to accept the share, the file will be available in her/his home
+folder with the correct permissions. The owner of the file can also revoke a
+share. When revoking a shared file, the system automatically removes all
+permissions to the receiver and the file will not be accessible anymore.
 
-The system also provides the possibility to create [projects](./project-service)
-for research collaborations between users. This will setup a shared file system
-with the specified collaborators. The shared file system is separate from the
-users normal file system. To use the project specific file system the user will
-have to switch context to their project. This makes a clear division between a
-users own files and those that belong to the project.
+SDUCloud provides the possibility to create [projects](./project-service) for
+research collaborations between users. When a project is created, the system
+creates a shared file system among the specified collaborators. The shared file
+system is separate from the users normal file system. To use the project
+specific file system the user will have to switch context to their project. This
+mechanism enforces a clear division between a users own files and those that
+belong to the project.
 
 ### Searching
-SDUCloud also supports [searching of files](./filesearch-service). The search
-support many different criteria such as date ranges, file extensions and, of
-course, filename. The backbone of this a
-[elasticsearch](https://www.elastic.co/products/elasticsearch) cluster
-containing information of the files in the file system.
+
+SDUCloud supports [searching of files](./filesearch-service). The search support
+several different criteria such as date ranges, file extensions and, of course,
+filename. Searching is powered by the internal
+[elasticsearch](https://www.elastic.co/products/elasticsearch) cluster, which
+contains the information for the files in the system.
 
 ### Events and Indexing
-When a file is changed, moved, upload etc. the system is informed using events. 
-These events can trigger specific actions in different services. These events 
-usually also makes changes to the the elasticsearch index keeping the 
-file information up to date.
 
-To make sure that the information is always up to date, even in the unlikely 
-event that system events are lost, is the entire file system 
+When a file is changed, moved, uploaded etc. events are generated in the system.
+These events can trigger specific actions in different services. E.g. events
+are generated to keep the elasticsearch index information up to date.
+
+To make sure that the information is always up to date, even in the unlikely
+event that system events are lost, the entire file system is
 [indexed](./indexing-service) multiple times per day. 
 
 ## Applications
 
-Applications are jobs that the user can run directly from SDUCloud on a 
-supported backend (HPC). They are available through the 
-[application store](./app-service). 
+SDUCloud presents a collection of software packages to the users in the "Apps"
+tab of the web app. The apps can be executed in batch (headless) mode or
+interactive mode. The web GUI allows user to run apps on a supported backend
+(HPC slurm, K8s). Applications are handled via the [app
+service](./app-service). More computational backend can be supported (e.g.
+OpenStack, commercial clouds).
 
-An application is associated to a tool and gives the user the ability to run a 
-subset of the tools functionality specified by the application. 
+Each app in SDUCloud is associated to a "tool" (Docker image) and gives the user
+the ability to run a specific command of the tool. 
 
 ![Application to tool association](./wiki/ApplicationAndTool.png)
 
-Each application has the ability to use files that are already located in 
-the file system as input data. Once an application has finished the result files
-are transfered back to the file system into job specific folders.
+An app can use the files that are already located in SDUCloud as input data.
+Folders can be made available read only or read/write. Each app is executed in a
+root "work" folder, into which other folders from SDUCloud are mounted. Once an
+app has finished, the output files in the "work" folder are transferred back to
+the SDUCloud file system into job specific folders, according to the app
+definition (e.g. apps can be defined to not copy back temporary files).
 
-Just as with the storage, SDUCloud enforces [accounting on used compute
-time](./accounting-compute-service). A user can at all time see how much compute
-time they have used on SDU Cloud for any given period. Again, it is possible 
-to create reports if billing is needed.
+Just as with the storage, SDUCloud keeps an [account of the compute time
+used](./accounting-compute-service). A user can see, via the web app, how much
+compute time they have used on SDUCloud for any given time period. Again, it is
+possible to create reports if billing is needed.
 
-Both tools and applications are defined in YAML documents. The tools describes
-which container should be used by the applications associated to the tool. The
-application YAML document describes the parameters the application need and how
-these should be invoked. For more details on the format see:
+Both tools and apps are defined via YAML documents. The tools describes which
+container image should be used by the apps associated to the tool. The app YAML
+document describes how the tool should be invoked and the necessary parameters.
+For more details on the tool and app format see:
  - [Tools](./app-service/wiki/tools.md)
  - [Applications](./app-service/wiki/apps.md)
 
-
 ## Technical Overview
 
-Items to cover:
+## TO DO:
 
-- We need some links to the technical overview and developer's guide.
-- Check that we have some docs for frontend
-- CI/CD? Do we have any yet?
+- Link to the technical overview and developer's guide.
+- Add docs for the frontend
+- Add docs for CI/CD
+
