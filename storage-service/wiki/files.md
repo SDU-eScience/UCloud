@@ -1,8 +1,25 @@
 # Files in SDUCloud
 
-We model file system's structure after a typical unix-like file system. The
-system only supports **files**, **directories**, and **soft symbolic links**.
-There is no support for hard links.
+We model file system's structure after a typical unix-like file system. In
+this document we describe what files are in the context of SDUCloud.
+
+The table below summarize the properties of a file. More details can be found
+below the table.
+
+| Property                 | Summary                                                                     |
+|--------------------------|-----------------------------------------------------------------------------|
+| `fileType`               | The type of file (`FILE`/`DIRECTORY`/`LINK`)                                |
+| `path`/`canonicalPath`   | The path to reach the file starting from the root. Uses `/` as a separator. |
+| `owner`                  | The username of the file owner                                              |
+| `fileId`                 | A unique identifier for this file                                           |
+| `createdAt`/`modifiedAt` | Timestamps for the creation event and most recent modification              |
+| `size`                   | The size of file in bytes                                                   |
+| `acl`                    | The access control list of this file                                        |
+| `sensitivityLevel`       | The sensitivity level of this file (potentially inherited)                  |
+| `ownSensitivityLevel`    | The sensitivity level of this file                                          |
+
+The system only supports **files**, **directories**, and **soft symbolic
+links**. There is no support for hard links.
 
 > Users cannot create soft links. We expect that soft links will become
 deprecated at a later time.
@@ -41,3 +58,6 @@ track of its target.
 The platform controls access to files via **access control lists**. End users
 don't have direct access to the ACL. Instead, they use higher-level features
 such as [shares](../../share-service) and [projects](../../project-service).
+
+All files have an associated __sensitivity level__. You can read more about
+file sensitivity [here](./sensitivity.md).
