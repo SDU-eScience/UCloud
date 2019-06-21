@@ -1,7 +1,7 @@
 # File Sensitivity
 
 All files in SDUCloud have an associated sensitivity level. Sensitivity
-levels are used as an indicator for the user who is working with the file.
+levels is an indicator for the user who is working with the file.
 This allows users to, at a glance, know if the files they are working with
 are sensitive or not. It also allows the internal systems of SDUCloud to make
 decisions based on the sensitivity level of a file.
