@@ -1,3 +1,4 @@
 # app-abacus-service
 
-A compute backend using abacus. This backend is not currently being maintained.
+A compute backend using abacus. Does not currently support all features of
+app-service.
