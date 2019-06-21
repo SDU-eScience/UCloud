@@ -49,8 +49,7 @@ file sensitivity [here](./sensitivity.md).
 
 ## Properties
 
-The table below summarize the properties of a file. More details can be found
-below the table.
+The table below summarize the properties of a file.
 
 | Property                 | Summary                                                                     |
 |--------------------------|-----------------------------------------------------------------------------|
