@@ -16,7 +16,7 @@ Data is retrieved from the backend by contacting the corresponding backend-servi
 
 ## Application Architecture
 
-![Frontend Diagram](./webclient/Wiki/FrontEndDiagram.png)
+![Frontend Diagram](./webclient/wiki/FrontEndDiagram.png)
 
 **Figure**: The application will on startup instantiate the Redux-store, which is then used for every connected component. Every component, that does not solely rely on local state, connects to the store and gets its state from there. When a component is mounted, updated or a user interaction happens, the current component can contact the backend using the CloudObject instance. When the backend responds with data, an action is created and sent to the reducer. A new state is then derived, and sent to the component, providing the component with its new state.
 

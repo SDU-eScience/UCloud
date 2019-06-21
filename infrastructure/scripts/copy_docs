@@ -10,7 +10,7 @@ set -x
 target_dir=$1
 current_dir=`pwd`
 
-for service_name in *-service infrastructure service-common frontend-web ; do
+for service_name in *-service infrastructure service-common frontend-web frontend-web/webclient ; do
     mkdir -p "${target_dir}/${service_name}"
     cp "${service_name}"/*.md "${target_dir}/${service_name}/"
     cp -r "${service_name}/wiki" "${target_dir}/${service_name}/wiki"
