@@ -239,13 +239,13 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                             <Input disabled={isCreatingShare} rightLabel placeholder={"Username"}
                                 ref={newShareUsername} />
                         </Flex>
-                        <InputLabel rightLabel backgroundColor="lightBlue">
+                        <InputLabel rightLabel backgroundColor="lightBlue" width="125px">
                             <ClickableDropdown
+                                left={"-16px"}
+                                chevron
+                                width="125px"
                                 trigger={
-                                    <Flex alignItems={"center"} width="100px">
-                                        {sharePermissionsToText(newShareRights)}
-                                        < Icon name="chevronDown" size=".7em" ml=".7em" />
-                                    </Flex>
+                                        sharePermissionsToText(newShareRights)
                                 }
                             >
                                 <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT} />

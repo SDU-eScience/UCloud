@@ -94,16 +94,21 @@ export default Input;
 const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
 const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
 
-export const InputLabel = styled(Text) <{leftLabel?: boolean, rightLabel?: boolean}>`
+export interface InputLabelProps extends WidthProps {
+  leftLabel?: boolean
+  rightLabel?: boolean
+}
+
+export const InputLabel = styled(Text) <InputLabelProps>`
   border: ${themeGet("colors.borderGray")} solid 1px;
-  margin: ${props => props.margin};
+  margin: -1px;
   ${leftLabel}
   ${rightLabel}
+  ${width}
   padding-left: 1em;
   padding-right: 1em;
   padding-top: 6px;
 `;
 
 InputLabel.defaultProps = {
-  margin: "-1px"
 };
