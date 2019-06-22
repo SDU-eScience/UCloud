@@ -291,35 +291,38 @@ const ShareRow: React.FunctionComponent<{
         permissionsBlock = <Button color={"red"} disabled={isLoading} onClick={() => doRevoke()}>Remove</Button>;
     } else if (share.state == ShareState.UPDATING || isLoading) {
         permissionsBlock = sharePermissionsToText(share.rights);
-    } else if (!sharedByMe && share.state == ShareState.REQUEST_SENT) {
-        permissionsBlock = <Box flexShrink={1}>
-            <Button color={"red"} mx={"8px"} onClick={() => doRevoke()}>Reject</Button>
-            <Button color={"green"} onClick={() => doAccept()}>Accept</Button>
-        </Box>;
-    } else {
-        permissionsBlock = <ClickableDropdown
-            left={"-66%"}
-            trigger={sharePermissionsToText(share.rights)}
-            chevron
-        >
-            {!sharedByMe ? null :
-                <>
-                    <OptionItem
-                        onClick={() => doUpdate(AccessRights.READ_RIGHTS)}
-                        text={CAN_VIEW_TEXT}/>
-
-                    <OptionItem
-                        onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)}
-                        text={CAN_EDIT_TEXT}/>
+    } else if (!sharedByMe) {
+        if (share.state == ShareState.REQUEST_SENT) {
+            permissionsBlock = <Box flexShrink={1}>
+                <Button color={"red"} mx={"8px"} onClick={() => doRevoke()}>Reject</Button>
+                <Button color={"green"} onClick={() => doAccept()}>Accept</Button>
+            </Box>;
+        } else {
+            permissionsBlock = <>
+                {sharePermissionsToText(share.rights)}
+                <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Reject</Button>
                 </>
+        }
+    } else {
+        permissionsBlock = <>
+            <ClickableDropdown
+                right={"0px"}
+                chevron
+                width="100px"
+                trigger={sharePermissionsToText(share.rights)}
+            >
+            { share.rights.indexOf(AccessRight.WRITE) !== -1 ? 
+                <OptionItem
+                    onClick={() => doUpdate(AccessRights.READ_RIGHTS)}
+                    text={CAN_VIEW_TEXT} />
+                    :
+                <OptionItem
+                    onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)}
+                    text={CAN_EDIT_TEXT} />
             }
-
-            <OptionItem
-                onClick={() => doRevoke()}
-                color={colors.red}
-                text={"Remove Access"}
-            />
-        </ClickableDropdown>;
+        </ClickableDropdown>
+        <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Revoke</Button>
+        </>;
     }
 
     return <Flex alignItems={"center"} mb={"16px"}>
