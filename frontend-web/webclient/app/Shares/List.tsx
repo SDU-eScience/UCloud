@@ -233,19 +233,15 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
 
         {!groupedShare.sharedByMe ? null :
             <Flex mb={"16px"} alignItems={"center"}>
-                <Box flexGrow={1}>
-                    <Flex>
-                        <InputLabel leftLabel>To:</InputLabel>
-                        <Box flexGrow={1}>
-                            <form onSubmit={e => doCreateShare(e)}>
-                                <Input disabled={isCreatingShare} leftLabel placeholder={"Username"}
-                                    ref={newShareUsername}/>
-                            </form>
-                        </Box>
-                    </Flex>
-                </Box>
+                <Flex flex={1}>
+                    <InputLabel as={Flex} style={{flex:"1 0 auto"}} leftLabel>Share with:</InputLabel>
+                    <form onSubmit={e => doCreateShare(e)} style={{width:"100%"}}>
+                        <Input disabled={isCreatingShare} leftLabel placeholder={"Username"}
+                            ref={newShareUsername}/>
+                    </form>
+                </Flex>
 
-                <Box ml={"5px"}>
+                <Box ml={"6px"}>
                     <ClickableDropdown
                         trigger={
                             <OutlineButton>

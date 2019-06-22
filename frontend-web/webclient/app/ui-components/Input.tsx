@@ -17,7 +17,7 @@ export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, 
     ':focus': {
       outline: 0,
       'border-color': focusColor,
-      'box-shadow': `0 0 0 2px ${focusColor}`
+      'box-shadow': `0 0 0 1px ${focusColor},inset 0 0 0 1px ${focusColor}`
     }
   }
 };
@@ -99,8 +99,8 @@ export const InputLabel = styled(Text) <{leftLabel?: boolean, rightLabel?: boole
   margin: ${props => props.margin};
   ${leftLabel}
   ${rightLabel}
-  padding-left: 1%;
-  padding-right: 1%;
+  padding-left: 1em;
+  padding-right: 1em;
   padding-top: 6px;
 `;
 
