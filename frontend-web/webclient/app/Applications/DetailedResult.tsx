@@ -272,28 +272,28 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private renderStreamPanel() {
         if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
         return (
-            <Panel width="100%">
+            <Box width="100%" mt={24}>
                 <Heading.h4>
                     Standard Streams
                     &nbsp;
                     <Dropdown>
-                        <Icon name="info" color="white" color2="black" />
-                        <DropdownContent width="200px" visible colorOnHover={false} color="white" backgroundColor="black">
+                        <Icon name="info" color="white" color2="black" size="1em" />
+                        <DropdownContent width="400px" visible colorOnHover={false} color="white" backgroundColor="black">
                             <TextSpan fontSize={1}>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</TextSpan>
                         </DropdownContent>
                     </Dropdown>
                 </Heading.h4>
-                <Flex flexDirection="row">
-                    <Box width={1 / 2}>
-                        <Heading.h5>Output</Heading.h5>
+                <Flex flexDirection="column">
+                    <Box width={1} backgroundColor="lightGray" mt={12}>
+                        <Heading.h5 backgroundColor="midGray">Output</Heading.h5>
                         <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
                     </Box>
-                    <Box width={1 / 2}>
-                        <Heading.h5>Information</Heading.h5>
+                    <Box width={1} backgroundColor="lightGray" mt={12}>
+                        <Heading.h5 backgroundColor="midGray">Information</Heading.h5>
                         <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
                     </Box>
                 </Flex>
-            </Panel>
+            </Box>
         );
     }
 
