@@ -91,8 +91,8 @@ export const HiddenInputField = styled(Input)`
 
 export default Input;
 
-const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px;` : null;
-const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px;` : null;
+const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
+const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
 
 export const InputLabel = styled(Text) <{leftLabel?: boolean, rightLabel?: boolean}>`
   border: ${themeGet("colors.borderGray")} solid 1px;

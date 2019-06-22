@@ -232,30 +232,37 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         </Heading.h4>
 
         {!groupedShare.sharedByMe ? null :
-            <Flex mb={"16px"} alignItems={"center"}>
-                <Flex flex={1}>
-                    <InputLabel as={Flex} style={{flex:"1 0 auto"}} leftLabel>Share with:</InputLabel>
-                    <form onSubmit={e => doCreateShare(e)} style={{width:"100%"}}>
-                        <Input disabled={isCreatingShare} leftLabel placeholder={"Username"}
-                            ref={newShareUsername}/>
-                    </form>
+            <form onSubmit={e => doCreateShare(e)}>
+                <Flex mb={"16px"} alignItems={"center"}>
+                    <Flex flex="1 0 auto">
+                        <Flex flex="1 0 auto" style={{zIndex:1}}>
+                            <Input disabled={isCreatingShare} rightLabel placeholder={"Username"}
+                                ref={newShareUsername} />
+                        </Flex>
+                        <InputLabel rightLabel backgroundColor="lightBlue">
+                            <ClickableDropdown
+                                trigger={
+                                    <Flex alignItems={"center"} width="100px">
+                                        {sharePermissionsToText(newShareRights)}
+                                        < Icon name="chevronDown" size=".7em" ml=".7em" />
+                                    </Flex>
+                                }
+                            >
+                                <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT} />
+                                <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
+                                    text={CAN_EDIT_TEXT} />
+                            </ClickableDropdown>
+                        </InputLabel>
+                    </Flex>
+    
+                    <Box ml={"12px"} width="150px">
+                        <Button fullWidth type="submit">
+                            <Icon name="share" size="1em" mr=".7em" />
+                            Share
+                        </Button>
+                    </Box>
                 </Flex>
-
-                <Box ml={"6px"}>
-                    <ClickableDropdown
-                        trigger={
-                            <OutlineButton>
-                                {sharePermissionsToText(newShareRights)}
-                                <Icon name="chevronDown" size=".7em" ml=".7em"/>
-                            </OutlineButton>
-                        }
-                    >
-                        <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT}/>
-                        <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
-                            text={CAN_EDIT_TEXT}/>
-                    </ClickableDropdown>
-                </Box>
-            </Flex>
+            </form>
         }
 
         {props.children}

@@ -284,12 +284,16 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     </Dropdown>
                 </Heading.h4>
                 <Flex flexDirection="column">
-                    <Box width={1} backgroundColor="lightGray" mt={12}>
-                        <Heading.h5 backgroundColor="midGray">Output</Heading.h5>
+                    <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
+                        <Heading.h5>Output</Heading.h5>
+                    </Box>
+                    <Box width={1} backgroundColor="lightGray">
                         <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
                     </Box>
-                    <Box width={1} backgroundColor="lightGray" mt={12}>
-                        <Heading.h5 backgroundColor="midGray">Information</Heading.h5>
+                    <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
+                        <Heading.h5>Information</Heading.h5>
+                    </Box>
+                    <Box width={1} backgroundColor="lightGray">
                         <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
                     </Box>
                 </Flex>
