@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-orchestrator
+  labels:
+    app: app-orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-orchestrator
+  template:
+    metadata:
+      labels:
+        app: app-orchestrator
+    spec:
+      containers:
+      - name: app-orchestrator
+        image: registry.cloud.sdu.dk/sdu-cloud/app-orchestrator-service:0.1.4
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/config
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/psql
+          name: app-orchestrator-psql
+        - mountPath: /etc/config
+          name: config
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-orchestrator-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+      - name: app-orchestrator-psql
+        secret:
+          optional: false
+          secretName: app-orchestrator-psql
+      - name: config
+        configMap:
+          name: app-config
+
+      imagePullSecrets:
+        - name: esci-docker

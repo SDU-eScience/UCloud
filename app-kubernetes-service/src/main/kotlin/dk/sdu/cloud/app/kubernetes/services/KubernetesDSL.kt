@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import io.fabric8.kubernetes.api.model.Container
 import io.fabric8.kubernetes.api.model.ContainerBuilder
 import io.fabric8.kubernetes.api.model.DoneablePod

@@ -1,0 +1,34 @@
+---
+application: v1
+
+title: RStudio
+name: rstudio
+version: 3.6.0-V2
+
+applicationType: WEB
+
+tool:
+  name: rocker-verse
+  version: 3.6.0
+
+authors:
+  - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: |
+  Run [RStudio](https://rstudio.org) on SDUCloud.
+
+environment:
+  DISABLE_AUTH: true
+  ROOT: true
+  USERID:
+    type: env
+    var: CLOUD_UID
+
+invocation:
+  - "/init"
+
+web:
+  port: 8787
+
+outputFileGlobs:
+  - "*"

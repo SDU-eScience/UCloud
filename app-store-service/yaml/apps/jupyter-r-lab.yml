@@ -1,0 +1,41 @@
+---
+application: v1
+
+title: "Jupyter: R Lab"
+name: jupyter-r
+version: 1.0.0
+
+applicationType: WEB
+
+tool:
+  name: jupyter-r
+  version: 1.0.0
+
+authors:
+- jupyter.org
+
+description: |
+  Run [Jupyter Lab](https://jupyter.org) on SDUCloud.
+
+invocation:
+- "bash"
+- "-c"
+- >
+  mkdir -p ~/.jupyter;
+  echo "c.NotebookApp.token = ''" > ~/.jupyter/jupyter_notebook_config.py;
+  jupyter lab --allow-root
+
+web:
+  port: 8888
+
+container:
+  changeWorkingDirectory: true
+  runAsRoot: true
+
+tags:
+  - Development
+  - Editor
+  - R
+
+outputFileGlobs:
+  - "*"

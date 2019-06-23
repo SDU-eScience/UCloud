@@ -1,0 +1,21 @@
+---
+tool: v1
+
+title: tqDist
+
+name: tqdist
+version: 1.0.0
+
+container: tqdist.simg
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: Tools for running tqDist
+
+defaultTimeAllocation:
+  hours: 0
+  minutes: 10
+  seconds: 0
+
+backend: SINGULARITY
