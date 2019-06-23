@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+if test "$#" -lt 1; then
+    echo "Usage: copy_docs <docs_repo>"
+    echo "This script should be run from the root of SDUCloud"
+    exit 1
+fi
+
+set -x
+target_dir=$1
+current_dir=`pwd`
+
+for service_name in *-service infrastructure service-common frontend-web frontend-web/webclient ; do
+    mkdir -p "${target_dir}/${service_name}"
+    cp "${service_name}"/*.md "${target_dir}/${service_name}/"
+    cp -r "${service_name}/wiki" "${target_dir}/${service_name}/wiki"
+done
+
+cp README.md "${target_dir}/README.md"
+cp -r "wiki" "${target_dir}/wiki"
+
+cd $target_dir
+git add -A :/
+git commit -m "Synchronized repository at $(date)"
+git push
+
+cd $current_dir
