@@ -1,8 +1,8 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.api.QueryInternalVncParametersResponse
-import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.orchestrator.api.QueryInternalVncParametersResponse
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route

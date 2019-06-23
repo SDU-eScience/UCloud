@@ -1,14 +1,9 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
-import dk.sdu.cloud.app.api.ContainerDescription
-import dk.sdu.cloud.app.api.JobCompletedRequest
-import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.StateChangeRequest
-import dk.sdu.cloud.app.api.SubmitComputationResult
-import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.app.api.buildEnvironmentValue
+import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.store.api.ContainerDescription
+import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.buildEnvironmentValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -16,13 +11,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
-import io.fabric8.kubernetes.api.model.EnvVar
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
-import io.fabric8.kubernetes.api.model.Pod
-import io.fabric8.kubernetes.api.model.PodSecurityContext
-import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
-import io.fabric8.kubernetes.api.model.VolumeMount
+import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException

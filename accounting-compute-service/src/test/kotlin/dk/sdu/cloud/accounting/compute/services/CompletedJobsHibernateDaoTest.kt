@@ -4,8 +4,8 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.util.withDatabase
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.test.ClientMock
 import org.junit.Test

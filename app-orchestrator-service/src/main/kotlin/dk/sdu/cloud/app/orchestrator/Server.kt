@@ -7,10 +7,7 @@ import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.*
 
 class Server(override val micro: Micro, val config: Configuration) : CommonServer {
     override val log = logger()
@@ -76,7 +73,13 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
 
         log.info("Replaying lost jobs")
-        jobOrchestrator.replayLostJobs()
+        try {
+            jobOrchestrator.replayLostJobs()
+        } catch (ex: Throwable) {
+            log.warn("Caught exception while replaying lost jobs. These are ignored!")
+            log.warn(ex.stackTraceToString())
+            log.warn("Caught exception while replaying lost jobs. These are ignored!")
+        }
 
         log.info("Starting application services")
         startServices()

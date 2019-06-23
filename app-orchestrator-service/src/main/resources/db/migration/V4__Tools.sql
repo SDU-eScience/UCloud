@@ -1,5 +1,3 @@
-set search_path to app;
-
 create table tools
 (
   name              varchar(255) not null,
@@ -24,4 +22,4 @@ alter table applications
 alter table if exists applications
   add constraint FKd3d72f8m75fv0xlhwwi8nqyvv
     foreign key (tool_name, tool_version)
-      references app.tools;
+      references tools;

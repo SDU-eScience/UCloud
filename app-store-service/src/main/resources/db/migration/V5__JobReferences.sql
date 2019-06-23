@@ -1,5 +1,3 @@
-set search_path to app;
-
 alter table jobs
   drop column app_name;
 

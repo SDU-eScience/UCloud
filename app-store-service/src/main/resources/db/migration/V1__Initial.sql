@@ -1,5 +1,3 @@
-set search_path to app;
-
 create table jobs
 (
   system_id         uuid         not null,

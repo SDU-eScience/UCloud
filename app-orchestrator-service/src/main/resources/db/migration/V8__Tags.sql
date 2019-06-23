@@ -1,5 +1,3 @@
-set search_path to app;
-
 create table application_tags
 (
   name    varchar(255) not null,

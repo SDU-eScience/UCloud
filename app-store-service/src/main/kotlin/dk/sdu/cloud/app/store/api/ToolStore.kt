@@ -16,6 +16,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
 
     val findByNameAndVersion = call<FindByNameAndVersion, Tool, CommonErrorMessage>("findByNameAndVersion") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -30,6 +31,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
 
     val findByName = call<FindByNameAndPagination, Page<Tool>, CommonErrorMessage>("findByName") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -48,6 +50,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
 
     val listAll = call<PaginationRequest, Page<Tool>, CommonErrorMessage>("listAll") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 

@@ -6,7 +6,6 @@ import dk.sdu.cloud.accounting.api.ChartingHelpers
 import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
-import dk.sdu.cloud.accounting.compute.services.toMillis
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller

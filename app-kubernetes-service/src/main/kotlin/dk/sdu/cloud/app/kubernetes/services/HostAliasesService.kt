@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.api.ApplicationPeer
+import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
 import dk.sdu.cloud.calls.RPCException
 import io.fabric8.kubernetes.api.model.HostAlias
 import io.fabric8.kubernetes.client.KubernetesClient

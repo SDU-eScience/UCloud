@@ -78,6 +78,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     val searchTags = call<TagSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("searchTags") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -99,6 +100,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val searchApps = call<AppSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("searchApps") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -121,6 +123,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
     val findByName =
         call<FindByNameAndPagination, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("findByName") {
             auth {
+                roles = Roles.AUTHENTICATED
                 access = AccessRight.READ
             }
 
@@ -142,6 +145,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             ApplicationWithFavorite,
             CommonErrorMessage>("findByNameAndVersion") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -156,6 +160,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val listAll = call<PaginationRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("listAll") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 

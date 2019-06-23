@@ -1,5 +1,3 @@
-set search_path to app;
-
 create table job_information
 (
   system_id           varchar(255)  not null,

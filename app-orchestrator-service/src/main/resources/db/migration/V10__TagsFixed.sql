@@ -1,5 +1,3 @@
-set search_path to app;
-
 drop table if exists application_tags;
 drop table if exists favorited_by;
 

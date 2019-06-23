@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.1.0'
+version '0.1.4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
@@ -9,7 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.5.1"
     ext.authApiVersion = "1.21.0"
-    ext.appStoreApiVersion = "0.1.0"
+    ext.appStoreApiVersion = "0.3.0"
     ext.fileApiVersion = "2.0.1"
     ext.appFsVersion = "0.1.0"
 }
@@ -30,4 +30,11 @@ dependencies {
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
-sduCloud.createTasksForApiJar("app.orchestrator", [])
+sduCloud.createTasksForApiJar(
+        "app.orchestrator",
+        [
+                "dk.sdu.cloud:app-store-api:$appStoreApiVersion",
+                "dk.sdu.cloud:file-api:$fileApiVersion",
+                "dk.sdu.cloud:app-fs-api:$appFsVersion"
+        ]
+)

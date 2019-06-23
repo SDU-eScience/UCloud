@@ -6,8 +6,8 @@ import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsHibernateDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
