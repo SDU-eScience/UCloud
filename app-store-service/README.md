@@ -1,8 +1,3 @@
-# Applications
-
-The app-store service contains two components. These are likely two be
-refactored into two services in the future. These are described below.
-
 ## Application Store
 
 The application store manages the core abstractions of SDUCloud applications
@@ -18,17 +13,3 @@ __Applications__ are described by YAML documents. The document describes the
 parameters of an application and how these should be used to invoke it. Each
 application has an associated tool. You can read more about [applications
 here](./wiki/apps.md).
-
-## Application Orchestrator
-
-The application orchestrator is responsible for orchestrating commands from
-the user to the relevant computation backend.
-
-![Scheduling applications](./wiki/schedule.png)
-
-Figure: The end-user sends commands to the `app-service`. Commands are
-validated and transformed into useful commands for the computation backend.
-The computation backend can implemented these requests in any way they see
-fit.
-
-The default computation backend is [app-kubernetes](../app-kubernetes-service).
