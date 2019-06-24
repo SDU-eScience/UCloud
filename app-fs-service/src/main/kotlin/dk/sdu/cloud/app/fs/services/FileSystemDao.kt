@@ -12,7 +12,14 @@ enum class FileSystemState {
 }
 
 interface FileSystemDao<Session> {
-    fun create(session: Session, systemId: String, backend: String, owner: SecurityPrincipalToken)
+    fun create(
+        session: Session,
+        systemId: String,
+        backend: String,
+        owner: SecurityPrincipalToken,
+        title: String? = null
+    )
+
     fun markAsActive(session: Session, systemId: String, backend: String, owner: SecurityPrincipalToken?)
     fun markAsDeleting(session: Session, systemId: String, backend: String, owner: SecurityPrincipalToken?)
     fun delete(session: Session, systemId: String, backend: String, owner: SecurityPrincipalToken?)

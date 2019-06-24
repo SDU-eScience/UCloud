@@ -10,7 +10,6 @@ import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
-import io.ktor.http.cio.expectHttpBody
 
 object AppFileSystems : CallDescriptionContainer("app.fs") {
     val baseContext = "/api/app/fs"

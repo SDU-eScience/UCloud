@@ -15,6 +15,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import normalize from "normalize-path";
 import * as Text from "ui-components/Text";
+import Icon from "ui-components/Icon";
 
 interface ManagementProps {
     onMountsChange?: (mounts: SharedFileSystemMount[]) => void
@@ -63,20 +64,18 @@ const Management: React.FunctionComponent<ManagementProps> = (
             selectedMounts.map(m =>
                 <Flex mt={16}>
                     <Box flexGrow={1}>
-                        {m.sharedFileSystem.id}
-                        <br/>
-                        Mounted at <Text.TextSpan bold>{m.mountedAt}</Text.TextSpan>
+                        {m.sharedFileSystem.id} at <code>{m.mountedAt}</code>
                     </Box>
 
                     <Button
-                        color={"red"}
+                        color={"blue"}
                         type={"button"}
                         onClick={() => {
                             let newSelectedMounts = selectedMounts.filter(it => it.sharedFileSystem.id !== m.sharedFileSystem.id);
                             setSelectedMounts(newSelectedMounts);
                             onMountsChange(newSelectedMounts);
                         }}>
-                        Remove
+                        ✗
                     </Button>
                 </Flex>
             )
@@ -98,6 +97,24 @@ const Management: React.FunctionComponent<ManagementProps> = (
                     {filteredItems.length !== 0 ? null :
                         <Text.TextP>No items</Text.TextP>
                     }
+
+                    <Button type={"button"} onClick={() => {
+                        addStandardDialog({
+                            title: "Hi",
+                            onConfirm: () => 42,
+                            onCancel: () => 42,
+                            message: (
+                                <Button type={"button"} onClick={() => {
+                                    addStandardDialog({
+                                        title: "Hi",
+                                        onConfirm: () => 42,
+                                        onCancel: () => 42,
+                                        message: "Hello!"
+                                    })
+                                }}>Nesting</Button>
+                            )
+                        })
+                    }}>Hi!</Button>
 
                     {
                         filteredItems.map((fs, idx) => {
