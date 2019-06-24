@@ -141,7 +141,6 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         loading={page.loading}
         page={page.data}
         customEmptyPage={<NoShares sharedByMe={sharedByMe}/>}
-        errorMessage={page.error && page.error.statusCode != 404 ? page.error.why : undefined}
         onPageChanged={(pageNumber, page) => setFetchParams(listShares({
             sharedByMe,
             page: pageNumber,

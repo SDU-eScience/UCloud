@@ -1,14 +1,15 @@
 import * as React from "react";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import { Cloud } from "Authentication/SDUCloudObject";
+import {Cloud} from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
-import { dateToString } from "Utilities/DateUtilities";
-import { ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus } from ".";
-import { Error, Progress, Box, Flex } from "ui-components";
+import {dateToString} from "Utilities/DateUtilities";
+import {ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus} from ".";
+import {Progress, Box, Flex} from "ui-components";
 import * as Table from "ui-components/Table";
 import * as Heading from "ui-components/Heading";
-import { replaceHomeFolder } from "Utilities/FileUtilities";
-import { MainContainer } from "MainContainer/MainContainer";
+import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {MainContainer} from "MainContainer/MainContainer";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const isTerminal = (status: ZenodoPublicationStatus): boolean =>
     status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
@@ -17,7 +18,6 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
     constructor(props: Readonly<ZenodoInfoProps>) {
         super(props);
         this.state = {
-            error: undefined,
             promises: new PromiseKeeper(),
             loading: true,
             publicationID: decodeURIComponent(props.match.params.jobID),
@@ -26,25 +26,23 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
         };
     }
 
-    onErrorDismiss = (): void => this.setState(() => ({ error: undefined }));
-
-
-    setErrorMessage = (jobID: string): void =>
+    setErrorMessage = (jobID: string): void => {
+        snackbarStore.addFailure(`An error occured fetching publication ${jobID}`);
         this.setState(() => ({
-            error: `An error occured fetching publication ${jobID}`,
             loading: false
         }));
+    }
 
     componentDidMount() {
-        this.setState(() => ({ loading: true }));
+        this.setState(() => ({loading: true}));
         const intervalId = window.setInterval(this.reload, 2_000);
-        this.setState(() => ({ intervalId: intervalId }));
+        this.setState(() => ({intervalId: intervalId}));
     }
 
     reload = () => {
-        const { promises } = this.state;
+        const {promises} = this.state;
         promises.makeCancelable(Cloud.get(`/zenodo/publications/${encodeURIComponent(this.state.publicationID)}`))
-            .promise.then(({ response }) => {
+            .promise.then(({response}) => {
                 this.setState(() => ({
                     publication: response,
                     loading: false,
@@ -67,7 +65,6 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
             return (
                 <MainContainer
                     main={<>
-                        <Error error={this.state.error} clearError={this.onErrorDismiss} />
                         <ZenodoPublishingBody publication={this.state.publication} />
                     </>}
                 />
@@ -80,9 +77,9 @@ const enum PublicationStatus {
     UPLOADING = "UPLOADING"
 }
 
-const ZenodoPublishingBody = ({ publication }) => {
+const ZenodoPublishingBody = ({publication}) => {
     if (publication == null) return null;
-    const { uploads } = publication;
+    const {uploads} = publication;
     let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
     return (
         <>
@@ -111,7 +108,7 @@ const ZenodoPublishingBody = ({ publication }) => {
         </>)
 };
 
-const FilesList = ({ files }) =>
+const FilesList = ({files}) =>
     files === null ? null :
         (<Table.Table>
             <Table.TableHeader>

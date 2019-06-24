@@ -1,25 +1,25 @@
 import * as React from "react";
-import { connect } from "react-redux";
-import { Dispatch } from "redux";
-import { ReduxObject } from "DefaultObjects";
-import { updatePageTitle, StatusActions } from "Navigation/Redux/StatusActions";
-import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
-import { WithAppMetadata, WithAppFavorite } from "Applications";
-import { Page } from "Types";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {ReduxObject} from "DefaultObjects";
+import {updatePageTitle, StatusActions} from "Navigation/Redux/StatusActions";
+import {setPrioritizedSearch, HeaderActions, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {WithAppMetadata, WithAppFavorite} from "Applications";
+import {Page} from "Types";
 import * as Pagination from "Pagination";
-import { ApplicationCard } from "./Card";
-import { LoadableMainContainer } from "MainContainer/MainContainer";
-import { GridCardGroup } from "ui-components/Grid";
+import {ApplicationCard} from "./Card";
+import {LoadableMainContainer} from "MainContainer/MainContainer";
+import {GridCardGroup} from "ui-components/Grid";
 import * as Actions from "./Redux/FavoriteActions";
-import { Type as ReduxType } from "./Redux/FavoriteObject";
-import { loadingEvent } from "LoadableContent";
-import { Box } from "ui-components";
-import { Spacer } from "ui-components/Spacer";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { hpcFavoriteApp } from "Utilities/ApplicationUtilities";
-import { snackbarStore } from "Snackbar/SnackbarStore";
-import { errorMessageOrDefault } from "UtilityFunctions";
-import { SnackType } from "Snackbar/Snackbars";
+import {Type as ReduxType} from "./Redux/FavoriteObject";
+import {loadingEvent} from "LoadableContent";
+import {Box} from "ui-components";
+import {Spacer} from "ui-components/Spacer";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {hpcFavoriteApp} from "Utilities/ApplicationUtilities";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {SnackType} from "Snackbar/Snackbars";
 
 interface InstalledOperations {
     onInit: () => void
@@ -31,7 +31,7 @@ type InstalledStateProps = ReduxType;
 
 type InstalledProps = InstalledOperations & InstalledStateProps;
 
-function Installed(props: InstalledProps & { header: any }) {
+function Installed(props: InstalledProps & {header: any}) {
 
     React.useEffect(() => {
         props.onInit();
@@ -41,14 +41,14 @@ function Installed(props: InstalledProps & { header: any }) {
     }, []);
 
     function refresh() {
-        const { content } = props.applications;
+        const {content} = props.applications;
         const pageNumber = !!content ? content.pageNumber : 0;
         const itemsPerPage = !!content ? content.itemsPerPage : 25;
         props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage));
     }
 
 
-    async function onFavorite(name: string, version: string) {
+    async function onFavorite(name: string, version: string): Promise<void> {
         try {
             await Cloud.post(hpcFavoriteApp(name, version))
             const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
@@ -112,7 +112,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     },
 
     fetchItems: async (pageNumber: number, itemsPerPage: number) => {
-        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetch(itemsPerPage, pageNumber))
     },
 

@@ -1,8 +1,8 @@
-import { Cloud } from "Authentication/SDUCloudObject";
-import { PayloadAction, Page } from "Types";
-import { WithAppMetadata, WithAppFavorite } from "Applications";
-import { LoadableEvent, unwrapCall } from "LoadableContent";
-import { buildQueryString } from "Utilities/URIUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {PayloadAction, Page} from "Types";
+import {WithAppMetadata, WithAppFavorite} from "Applications";
+import {LoadableEvent, unwrapCall} from "LoadableContent";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 export enum Tag {
     RECEIVE_APP = "FAVORITE_APPS_RECEIVE_APP"

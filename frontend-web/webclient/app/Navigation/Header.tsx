@@ -25,7 +25,6 @@ import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
 import {SpaceProps} from "styled-system";
-import {ContextSwitcher} from "Project/ContextSwitcher";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteComponentProps {
     history: History
@@ -60,8 +59,8 @@ function Header(props: HeaderProps) {
     if (!Cloud.isLoggedIn) return null;
     return (
         <HeaderContainer color="headerText" bg="headerBg">
-            <Logo/>
-            <Box ml="auto" onClick={tryChange}/>
+            <Logo />
+            <Box ml="auto" onClick={tryChange} />
             <Hide xs sm md>
                 <Search
                     searchType={props.prioritizedSearch}
@@ -72,22 +71,22 @@ function Header(props: HeaderProps) {
             </Hide>
             <Hide lg xxl xl>
                 <Icon name="search" size="32" mr="3px" cursor="pointer"
-                      onClick={() => props.history.push("/search/files")}/>
+                    onClick={() => props.history.push("/search/files")} />
             </Hide>
-            <Box mr="auto" onClick={tryChange}/>
-            <DevelopmentBadge onClick={tryChange}/>
-            <BackgroundTask/>
+            <Box mr="auto" onClick={tryChange} />
+            <DevelopmentBadge onClick={tryChange} />
+            <BackgroundTask />
             <Flex width="48px" justifyContent="center">
-                <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading}/>
+                <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />
             </Flex>
-            <Support/>
-            <Notification/>
+            <Support />
+            <Notification />
             <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ?
-                <UserAvatar avatar={props.avatar} mx={"8px"}/> : null}</Flex>}>
+                <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}>
                 <Box ml="-17px" mr="-17px" pl="15px">
                     <Link color="black" to="/users/settings">
                         <Flex color="black">
-                            <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em"/>
+                            <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
                             <TextSpan>Settings</TextSpan>
                         </Flex>
                     </Link>
@@ -95,13 +94,13 @@ function Header(props: HeaderProps) {
                 <Flex ml="-17px" mr="-17px" pl="15px">
                     <Link to={"/users/avatar"}>
                         <Flex color="black">
-                            <Icon name="edit" mr="0.5em" my="0.2em" size="1.3em"/>
+                            <Icon name="edit" mr="0.5em" my="0.2em" size="1.3em" />
                             <TextSpan>Edit Avatar</TextSpan>
                         </Flex>
                     </Link>
                 </Flex>
                 <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
-                    <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em"/>
+                    <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
             </ClickableDropdown>
@@ -109,9 +108,9 @@ function Header(props: HeaderProps) {
     )
 }
 
-export const Refresh = ({onClick, spin, headerLoading}: { onClick?: () => void, spin: boolean, headerLoading?: boolean }) => !!onClick || headerLoading ?
+export const Refresh = ({onClick, spin, headerLoading}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
     <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading}
-                 onClick={() => !!onClick ? onClick() : undefined}/> : <Box width="24px"/>;
+        onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />;
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
@@ -130,14 +129,14 @@ const HeaderContainer = styled(Flex)`
 const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems={"center"} ml="15px">
-            <Icon name={"logoEsc"} size={"38px"}/>
+            <Icon name={"logoEsc"} size={"38px"} />
             <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
         </Flex>
     </Link>
 );
 
 const Login = () => (
-    <Icon name="user"/>
+    <Icon name="user" />
 );
 
 
@@ -191,57 +190,57 @@ interface SearchProps {
 const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) => {
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     return (<Relative>
-            <SearchInput>
-                <Input
-                    pl="30px"
-                    id="search_input"
-                    type="text"
-                    ref={searchRef}
-                    noBorder
-                    onKeyDown={e => {
-                        if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate();
-                    }}
-                />
-                <Absolute left="6px" top="7px">
-                    <Label htmlFor="search_input">
-                        <Icon name="search" size="20"/>
-                    </Label>
-                </Absolute>
-                <ClickableDropdown
-                    overflow={"visible"}
-                    left={-425}
-                    top={15}
-                    width="425px"
-                    colorOnHover={false}
-                    keepOpenOnClick
-                    squareTop
-                    trigger={
-                        <Absolute top={-12.5} right={12} bottom={0} left={-28}>
-                            <Icon name="chevronDown" size="15px"/>
-                        </Absolute>
-                    }>
-                    <SearchOptions>
-                        <Box ml="auto"/>
-                        {allowedSearchTypes.map(it =>
-                            <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
-                                            selected={it === searchType}>
-                                {prettierString(it)}
-                            </SelectableText>
-                        )}
-                        <Box mr="auto"/>
-                    </SearchOptions>
-                    {searchType === "files" ?
-                        <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide/> :
+        <SearchInput>
+            <Input
+                pl="30px"
+                id="search_input"
+                type="text"
+                ref={searchRef}
+                noBorder
+                onKeyDown={e => {
+                    if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate();
+                }}
+            />
+            <Absolute left="6px" top="7px">
+                <Label htmlFor="search_input">
+                    <Icon name="search" size="20" />
+                </Label>
+            </Absolute>
+            <ClickableDropdown
+                overflow={"visible"}
+                left={-425}
+                top={15}
+                width="425px"
+                colorOnHover={false}
+                keepOpenOnClick
+                squareTop
+                trigger={
+                    <Absolute top={-12.5} right={12} bottom={0} left={-28}>
+                        <Icon name="chevronDown" size="15px" />
+                    </Absolute>
+                }>
+                <SearchOptions>
+                    <Box ml="auto" />
+                    {allowedSearchTypes.map(it =>
+                        <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
+                            selected={it === searchType}>
+                            {prettierString(it)}
+                        </SelectableText>
+                    )}
+                    <Box mr="auto" />
+                </SearchOptions>
+                {searchType === "files" ?
+                    <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide /> :
 
-                        searchType === "applications" ?
-                            <DetailedApplicationSearch
-                                defaultAppName={searchRef.current && searchRef.current.value || undefined}/> :
+                    searchType === "applications" ?
+                        <DetailedApplicationSearch
+                            defaultAppName={searchRef.current && searchRef.current.value || undefined} /> :
 
-                            null}
-                </ClickableDropdown>
-                {!Cloud.isLoggedIn ? <Login/> : null}
-            </SearchInput>
-        </Relative>
+                        null}
+            </ClickableDropdown>
+            {!Cloud.isLoggedIn ? <Login /> : null}
+        </SearchInput>
+    </Relative>
     )
 };
 

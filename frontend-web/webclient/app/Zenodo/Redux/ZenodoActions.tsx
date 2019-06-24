@@ -8,6 +8,10 @@ import {
 import {SetLoadingAction, ReceivePage, Page, Error} from "Types";
 import {Publication} from "..";
 import {PayloadAction} from "Types";
+import {Action} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {SnackType} from "Snackbar/Snackbars";
 
 /**
  * Fetches publications by the user
@@ -18,23 +22,35 @@ import {PayloadAction} from "Types";
 
 export type ZenodoActions = LoginStatusProps | SetLoadingAction<typeof SET_ZENODO_LOADING> | ReceivePublicationsAction | Error<typeof SET_ZENODO_ERROR>;
 
-export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePublicationsAction | Error<typeof SET_ZENODO_ERROR>> =>
-    Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({response}) =>
-        receivePublications(response)
-    ).catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching zenodo publications"));
+export const fetchPublications = async (page: number, itemsPerPage: number): Promise<ReceivePublicationsAction | Action<typeof SET_ZENODO_ERROR>> => {
+    try {
+        const {response} = await Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`);
+        return receivePublications(response);
+    } catch (e) {
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching zenodo publications"));
+        return setErrorMessage();
+    }
+}
 
-export const setErrorMessage = (type: typeof SET_ZENODO_ERROR, error?: string): Error<typeof SET_ZENODO_ERROR> => ({
-    type,
-    payload: {error}
+export const setErrorMessage = (): Action<typeof SET_ZENODO_ERROR> => ({
+    type: SET_ZENODO_ERROR
 });
 
 /**
  * Contacts a backend to see if the user is logged in to Zenodo.
  */
-export const fetchLoginStatus = () =>
-    Cloud.get("/zenodo/status")
-        .then(({response}) => receiveLoginStatus(response.connected))
-        .catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching Zenodo log-in status"));
+export async function fetchLoginStatus() {
+    try {
+        const {response} = await Cloud.get("/zenodo/status");
+        return receiveLoginStatus(response.connected)
+    } catch (e) {
+        snackbarStore.addSnack({
+            message: "An error occurred fetching Zenodo log-in status",
+            type: SnackType.Failure
+        })
+        return setErrorMessage();
+    }
+}
 
 interface LoginStatusProps extends PayloadAction<typeof RECEIVE_ZENODO_LOGIN_STATUS, {connected: boolean}> {}
 export const receiveLoginStatus = (connected: boolean): LoginStatusProps => ({

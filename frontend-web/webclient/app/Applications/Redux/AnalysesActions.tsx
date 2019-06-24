@@ -1,7 +1,10 @@
-import { Cloud } from "Authentication/SDUCloudObject";
-import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_ERROR } from "./AnalysesReducer";
-import { Page, ReceivePage, SetLoadingAction, Error } from "Types";
-import { Analysis } from "..";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_ERROR} from "./AnalysesReducer";
+import {Page, ReceivePage, SetLoadingAction} from "Types";
+import {Analysis} from "..";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {Action} from "redux";
 
 
 export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoading;
@@ -11,11 +14,15 @@ export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoa
  * @param {number} itemsPerPage number of items the retrieved page should contain
  * @param {number} page the page number to be retrieved
  */
-export const fetchAnalyses = (itemsPerPage: number, page: number): Promise<ReceiveAnalysesProps | AnalysesError> =>
-    Cloud.get(`/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`)
-        .then(({ response }) => receiveAnalyses(response)).catch(() =>
-            setErrorMessage("Retrieval of analyses failed, please try again later.")
-        );
+export const fetchAnalyses = async (itemsPerPage: number, page: number): Promise<ReceiveAnalysesProps | AnalysesError> => {
+    try {
+        const {response} = await Cloud.get(`/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`);
+        return receiveAnalyses(response);
+    } catch (e) {
+        snackbarStore.addFailure(errorMessageOrDefault(e, "Retrieval of analyses failed, please try again later."));
+        return setError()
+    }
+}
 
 type ReceiveAnalysesProps = ReceivePage<typeof RECEIVE_ANALYSES, Analysis>
 /**
@@ -24,18 +31,16 @@ type ReceiveAnalysesProps = ReceivePage<typeof RECEIVE_ANALYSES, Analysis>
  */
 const receiveAnalyses = (page: Page<Analysis>): ReceiveAnalysesProps => ({
     type: RECEIVE_ANALYSES,
-    payload: { page }
+    payload: {page}
 });
 
-type AnalysesError = Error<typeof SET_ANALYSES_ERROR>
+type AnalysesError = Action<typeof SET_ANALYSES_ERROR>
 /**
- * Used to set or remove the error for the component
- * @param {string?} error The error to be rendered in the component. Nothing will be rendered if string is null
- * @returns {Error}
+ * Action used to represent an error has occurred.
+ * @returns {AnalysesError}
  */
-export const setErrorMessage = (error?: string): AnalysesError => ({
-    type: SET_ANALYSES_ERROR,
-    payload: { error }
+export const setError = (): AnalysesError => ({
+    type: SET_ANALYSES_ERROR
 });
 
 
@@ -46,5 +51,5 @@ type AnalysesLoading = SetLoadingAction<typeof SET_ANALYSES_LOADING>
  */
 export const setLoading = (loading: boolean): AnalysesLoading => ({
     type: SET_ANALYSES_LOADING,
-    payload: { loading }
+    payload: {loading}
 });

@@ -3,7 +3,6 @@ import { match } from "react-router-dom";
 import { Page } from "Types";
 
 export interface ZenodoOperations {
-    onErrorDismiss: () => void
     fetchPublications: (a: number, b: number) => void
     updatePageTitle: () => void
     setRefresh: (refresh?: () => void) => void
@@ -33,7 +32,6 @@ interface Upload {
 }
 
 export interface ZenodoInfoState {
-    error?: string
     promises: PromiseKeeper
     loading: boolean
     publicationID: string
@@ -56,7 +54,6 @@ export interface ZenodoHomeStateProps {
 export type ZenodoHomeProps = ZenodoHomeStateProps & ZenodoHomeOperations
 
 export interface ZenodoHomeOperations {
-    onErrorDismiss: () => void
     fetchPublications: (page: Number, itemsPerPage: number) => void
     updatePageTitle: () => void
 }

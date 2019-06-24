@@ -1,6 +1,9 @@
 import * as React from "react";
-import { emptyPage } from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import * as Self from ".";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {SnackType} from "Snackbar/Snackbars";
 
 export class ManagedList extends React.Component<Self.ManagedListProps, Self.ManagedListState> {
     constructor(props: Self.ManagedListProps) {
@@ -13,13 +16,13 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
         };
     }
 
-    componentDidMount() {
+    public componentDidMount() {
         this.refresh();
     }
-
-    componentDidUpdate() {
+    
+    public componentDidUpdate() {
         if (this.state.dataProvider !== this.props.dataProvider) {
-            this.setState(() => ({ dataProvider: this.props.dataProvider }));
+            this.setState(() => ({dataProvider: this.props.dataProvider}));
             this.refresh();
         }
     }
@@ -28,30 +31,31 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
         this.retrieveData(this.state.results.pageNumber, this.state.results.itemsPerPage);
     }
 
-    private retrieveData(page: number, itemsPerPage: number) {
+    private async retrieveData(page: number, itemsPerPage: number) {
         this.setState(() => ({
             loading: true,
         }));
-
-        this.props.dataProvider(page, itemsPerPage)
-            .then(results => {
-                this.setState(() => ({ results }));
-            }).catch(e => {
-                // TODO Use error message from request
-                if (!e.isCanceled) this.setState(() => ({ errorMessage: "An error has occured" }));
-            }).finally(() => this.setState({ loading: false }));
+        try {
+            const results = await this.props.dataProvider(page, itemsPerPage);
+            this.setState(() => ({results}));
+        } catch (e) {
+            if (!e.isCanceled) snackbarStore.addSnack({
+                message: errorMessageOrDefault(e, "An error occurred"),
+                type: SnackType.Failure
+            });
+        } finally {
+            this.setState({loading: false});
+        };
     }
 
     render() {
-        const { loading, results, errorMessage } = this.state;
+        const {loading, results} = this.state;
         const props = this.props;
         return <Self.List
             loading={loading}
             page={results}
-            errorMessage={errorMessage}
             pageRenderer={props.pageRenderer}
             onPageChanged={page => this.retrieveData(page, results.itemsPerPage)}
-            onErrorDismiss={() => this.setState(() => ({ errorMessage: undefined }))}
         />
     }
 }

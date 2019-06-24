@@ -15,7 +15,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import {ReduxObject} from "DefaultObjects";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
-class UserSettings extends React.Component<UserSettingsOperations & { headerLoading: boolean }, UserSettingsState> {
+class UserSettings extends React.Component<UserSettingsOperations & {headerLoading: boolean}, UserSettingsState> {
     public state = this.initialState();
 
     private initialState(): UserSettingsState {
@@ -104,7 +104,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                                                 placeholder={"Current password"}
                                                 onChange={({target: {value}}) => this.updateField("currentPassword", value)}
                                             />
-                                            {error && !currentPassword ? <Icon name="warning" color="red"/> : null}
+                                            {error && !currentPassword ? <Icon name="warning" color="red" /> : null}
                                         </Label>
                                     </Box>
                                     <Box mt="0.5em" pt="0.5em">
@@ -116,7 +116,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                                                 onChange={({target: {value}}) => this.updateField("newPassword", value)}
                                                 placeholder="New password"
                                             />
-                                            {error && !newPassword ? <Icon name="warning" color="red"/> : null}
+                                            {error && !newPassword ? <Icon name="warning" color="red" /> : null}
                                         </Label>
                                     </Box>
                                     <Box mt="0.5em" pt="0.5em">
@@ -128,7 +128,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                                                 onChange={({target: {value}}) => this.updateField("repeatedPassword", value)}
                                                 placeholder="Repeat password"
                                             />
-                                            {error && !repeatedPassword ? <Icon name="warning" color="red"/> : null}
+                                            {error && !repeatedPassword ? <Icon name="warning" color="red" /> : null}
                                         </Label>
                                     </Box>
                                     <Button
@@ -140,7 +140,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                                     </Button>
                                 </form> : null}
                                 <TwoFactorSetup loading={this.props.headerLoading}
-                                                setLoading={this.props.setLoading}/>
+                                    setLoading={this.props.setLoading} />
                             </>
                         }
                     />
@@ -159,7 +159,7 @@ const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
     setLoading: loading => dispatch(setLoading(loading))
 });
 
-const mapStateToProps = ({status}: ReduxObject): { headerLoading: boolean } => ({
+const mapStateToProps = ({status}: ReduxObject): {headerLoading: boolean} => ({
     headerLoading: status.loading
 });
 

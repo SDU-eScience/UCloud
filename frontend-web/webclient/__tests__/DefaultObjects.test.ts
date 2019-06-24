@@ -1,8 +1,8 @@
-import * as Defaults from "DefaultObjects";
-import { SortOrder, SortBy } from "Files";
-import { SidebarPages } from "ui-components/Sidebar";
-import { Analysis } from "Applications";
-import { DashboardStateProps } from "Dashboard";
+import * as Defaults from "../app/DefaultObjects";
+import { SortOrder, SortBy } from "../app/Files";
+import { SidebarPages } from "../app/ui-components/Sidebar";
+import { Analysis } from "../app/Applications";
+import { DashboardStateProps } from "../app/Dashboard";
 
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
@@ -14,7 +14,6 @@ describe("Initialize Redux Objects", () => {
             favoriteLoading: false,
             recentLoading: false,
             analysesLoading: false,
-            errors: []
         } as DashboardStateProps)
     });
 

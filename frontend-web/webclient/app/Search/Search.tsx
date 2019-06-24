@@ -9,7 +9,6 @@ import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderA
 import {Dispatch} from "redux";
 import {SortOrder, SortBy, AdvancedSearchRequest, FileType} from "Files";
 import * as SSActions from "./Redux/SearchActions";
-import Error from "ui-components/Error";
 import Text from "ui-components/Text";
 import Flex from "ui-components/Flex";
 import Hide from "ui-components/Hide";
@@ -89,7 +88,6 @@ function Search(props: SearchProps) {
     };
 
     function fetchAll(search: string, itemsPerPage?: number) {
-        props.setError();
         props.searchFiles({
             ...fileSearchBody(),
             fileName: search,
@@ -176,7 +174,6 @@ function Search(props: SearchProps) {
         <MainContainer
             header={
                 <React.Fragment>
-                    <Error error={errors.join("\n")} clearError={() => props.setError(undefined)}/>
                     <SearchOptions>
                         {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index}/>)}
                     </SearchOptions>
@@ -194,7 +191,7 @@ function Search(props: SearchProps) {
     )
 }
 
-// FIXME: Move to own file.
+// FIXME: Move to own file and rename.
 export const SearchOptions = styled(Flex)`
     border-bottom: 1px solid ${({theme}) => theme.colors.lightGray};
     cursor: pointer;
@@ -215,7 +212,6 @@ SelectableText.defaultProps = {
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
     setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
-    setError: error => dispatch(SSActions.setErrorMessage(error)),
     clear: () => {
         dispatch(SSActions.receiveFiles(emptyPage))
         dispatch(SSActions.receiveFiles(emptyPage))

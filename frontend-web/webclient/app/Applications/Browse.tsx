@@ -1,27 +1,27 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
-import { connect } from "react-redux";
-import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
-import { Page } from "Types";
-import { WithAppFavorite, WithAppMetadata } from ".";
-import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
-import { Dispatch } from "redux";
-import { ReduxObject } from "DefaultObjects";
-import { LoadableMainContainer } from "MainContainer/MainContainer";
-import { ApplicationCard } from "./Card";
+import {connect} from "react-redux";
+import {updatePageTitle, StatusActions, setActivePage} from "Navigation/Redux/StatusActions";
+import {Page} from "Types";
+import {WithAppFavorite, WithAppMetadata} from ".";
+import {setPrioritizedSearch, HeaderActions, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {Dispatch} from "redux";
+import {ReduxObject} from "DefaultObjects";
+import {LoadableMainContainer} from "MainContainer/MainContainer";
+import {ApplicationCard} from "./Card";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
-import { Link } from "ui-components";
-import { GridCardGroup } from "ui-components/Grid";
-import { getQueryParam, RouterLocationProps, getQueryParamOrElse } from "Utilities/URIUtilities";
+import {Link} from "ui-components";
+import {GridCardGroup} from "ui-components/Grid";
+import {getQueryParam, RouterLocationProps, getQueryParamOrElse} from "Utilities/URIUtilities";
 import * as Pages from "./Pages";
-import { Type as ReduxType } from "./Redux/BrowseObject";
+import {Type as ReduxType} from "./Redux/BrowseObject";
 import * as Actions from "./Redux/BrowseActions";
-import { loadingEvent } from "LoadableContent";
-import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { SidebarPages } from "ui-components/Sidebar";
-import { Spacer } from "ui-components/Spacer";
+import {loadingEvent} from "LoadableContent";
+import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {SidebarPages} from "ui-components/Sidebar";
+import {Spacer} from "ui-components/Spacer";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -31,11 +31,11 @@ const CategoryList = styled.ul`
     }
 `;
 
-const CategoryItem: React.FunctionComponent<{ tag?: string }> = props => (
+const CategoryItem: React.FunctionComponent<{tag?: string}> = props => (
     <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
 );
 
-const Sidebar: React.FunctionComponent<{ itemsPerPage: number }> = ({ itemsPerPage }) => (<>
+const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}) => (<>
     <Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
 
     <Heading.h4 m="0 0 -14px">Categories</Heading.h4>
@@ -68,9 +68,9 @@ export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocat
 
 class Applications extends React.Component<ApplicationsProps> {
     public componentDidMount() {
-        const { props } = this;
+        const {props} = this;
         props.onInit();
-        
+
         this.fetch();
         props.setRefresh(() => this.fetch());
     }
@@ -179,12 +179,12 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     },
 
     fetchByTag: async (tag: string, itemsPerPage: number, page: number) => {
-        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetchByTag(tag, itemsPerPage, page));
     },
 
     fetchDefault: async (itemsPerPage: number, page: number) => {
-        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetch(itemsPerPage, page));
     },
 
@@ -192,9 +192,9 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
-const mapStateToProps = ({ applicationsBrowse }: ReduxObject): ReduxType & { favCount } => ({
+const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {favCount} => ({
     ...applicationsBrowse,
-    favCount: applicationsBrowse.applications.content ? 
+    favCount: applicationsBrowse.applications.content ?
         applicationsBrowse.applications.content.items.filter((it: any) => it.favorite).length : 0
 });
 

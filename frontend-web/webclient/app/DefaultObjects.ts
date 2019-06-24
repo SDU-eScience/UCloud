@@ -273,8 +273,7 @@ export const initDashboard = (): DashboardStateProps => ({
     notifications: [],
     favoriteLoading: false,
     recentLoading: false,
-    analysesLoading: false,
-    errors: []
+    analysesLoading: false
 });
 
 export function initObject(homeFolder: string): ReduxObject {
@@ -334,8 +333,7 @@ export const initAnalyses = (): ComponentWithPage<Analysis> => ({
 export const initZenodo = (): ZenodoReduxObject => ({
     connected: false,
     loading: false,
-    page: emptyPage,
-    error: undefined
+    page: emptyPage
 });
 
 export const initSidebar = (): SidebarReduxObject => ({
