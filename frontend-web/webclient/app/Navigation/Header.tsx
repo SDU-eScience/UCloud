@@ -17,7 +17,7 @@ import {withRouter, RouteComponentProps} from "react-router";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {Dropdown} from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import {inDevEnvironment, prettierString} from "UtilityFunctions";
+import {inDevEnvironment, prettierString, isLightThemeStored} from "UtilityFunctions";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
 import {TextSpan} from "ui-components/Text";
 import {SearchOptions, SelectableText} from "Search/Search";
@@ -31,36 +31,24 @@ interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteCompone
     toggleTheme: () => void
 }
 
-const DevelopmentBadge = ({onClick}) => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
-    <DevelopmentBadgeBase onClick={onClick}>DEVELOPMENT</DevelopmentBadgeBase> : null;
+const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
+    <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
 
 // NOTE: Ideal for hooks, if useRouter ever happens
 function Header(props: HeaderProps) {
 
     const searchRef = React.useRef<HTMLInputElement>(null);
 
-    const [c, setC] = React.useState(0);
-    const [t, setT] = React.useState(0);
-
     React.useEffect(() => {
         props.fetchAvatar();
     }, []);
-
-    function tryChange() {
-        if (t + 5_000 < new Date().getTime())
-            setC(0);
-        else if (c === 5)
-            props.toggleTheme();
-        setC((c + 1) % 6);
-        setT(new Date().getTime());
-    }
 
     const {prioritizedSearch, history, refresh, spin} = props;
     if (!Cloud.isLoggedIn) return null;
     return (
         <HeaderContainer color="headerText" bg="headerBg">
             <Logo />
-            <Box ml="auto" onClick={tryChange} />
+            <Box ml="auto" />
             <Hide xs sm md>
                 <Search
                     searchType={props.prioritizedSearch}
@@ -73,8 +61,8 @@ function Header(props: HeaderProps) {
                 <Icon name="search" size="32" mr="3px" cursor="pointer"
                     onClick={() => props.history.push("/search/files")} />
             </Hide>
-            <Box mr="auto" onClick={tryChange} />
-            <DevelopmentBadge onClick={tryChange} />
+            <Box mr="auto" />
+            <DevelopmentBadge />
             <BackgroundTask />
             <Flex width="48px" justifyContent="center">
                 <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />
@@ -99,7 +87,11 @@ function Header(props: HeaderProps) {
                         </Flex>
                     </Link>
                 </Flex>
-                <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
+                <Flex ml="-17px" mr="-17px" pl="15px" onClick={props.toggleTheme}>
+                    <Icon name={isLightThemeStored() ?  "moon" : "sun"} mr="0.5em" my="0.2em" size="1.3em" />
+                    Switch theme
+                </Flex>
+                <Flex ml="-17px" mr="-17px" pl="15px" onClick={Cloud.logout}>
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
