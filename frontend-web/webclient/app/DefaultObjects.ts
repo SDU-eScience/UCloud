@@ -333,8 +333,7 @@ export const initAnalyses = (): ComponentWithPage<Analysis> => ({
 export const initZenodo = (): ZenodoReduxObject => ({
     connected: false,
     loading: false,
-    page: emptyPage,
-    error: undefined
+    page: emptyPage
 });
 
 export const initSidebar = (): SidebarReduxObject => ({

@@ -1,11 +1,11 @@
-import Zenodo from "Zenodo/Zenodo";
+import Zenodo from "../../app/Zenodo/Zenodo";
 import { create } from "react-test-renderer";
 import { MemoryRouter } from "react-router";
-import { configureStore } from "Utilities/ReduxUtilities";
+import { configureStore } from "../../app/Utilities/ReduxUtilities";
 import { Provider } from "react-redux";
 import * as React from "react";
-import zenodo from "Zenodo/Redux/ZenodoReducer";
-import { initZenodo } from "DefaultObjects";
+import zenodo from "../../app/Zenodo/Redux/ZenodoReducer";
+import { initZenodo } from "../../app/DefaultObjects";
 import "jest-styled-components";
 
 describe("Zenodo", () => {
