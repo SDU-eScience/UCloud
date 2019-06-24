@@ -37,6 +37,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import * as AppFS from "AppFileSystem";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -158,7 +159,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         // FIXME: Unify with extractParametersFromMap
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
-            const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder)
+            const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!,
@@ -314,7 +315,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
 
 
-
                 if (invalidFiles.length) {
                     snackbarStore.addSnack({
                         message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
@@ -357,10 +357,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (!application) return (
             <MainContainer
                 main={<>
-                    <LoadingIcon size={18} />
+                    <LoadingIcon size={18}/>
                     <Error
                         clearError={() => this.setState(() => ({error: undefined}))}
-                        error={error} />
+                        error={error}/>
                 </>}
             />
         );
@@ -369,21 +369,26 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const {mountedFolders} = this.state;
             mountedFolders[index].readOnly = readOnly;
             this.setState(() => ({mountedFolders}));
-        }
+        };
 
         const header = (
             <Flex ml="12%">
-                <AppHeader slim application={application} />
+                <AppHeader slim application={application}/>
             </Flex>
         );
 
         const main = (
             <ContainerForText>
-                <Error clearError={() => this.setState(() => ({error: undefined}))} error={error} />
+                <Error clearError={() => this.setState(() => ({error: undefined}))} error={error}/>
 
                 <Parameters
                     initialSubmit={this.state.initialSubmit}
-                    addFolder={() => this.setState(s => ({mountedFolders: s.mountedFolders.concat([{ref: React.createRef<HTMLInputElement>(), readOnly: true}])}))}
+                    addFolder={() => this.setState(s => ({
+                        mountedFolders: s.mountedFolders.concat([{
+                            ref: React.createRef<HTMLInputElement>(),
+                            readOnly: true
+                        }])
+                    }))}
                     removeDirectory={index => this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, index)}))}
                     additionalDirectories={this.state.mountedFolders}
                     values={parameterValues}
@@ -395,7 +400,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
                     onParameterChange={(p, visible) => {
                         p.visible = visible;
-                        if (!visible) parameterValues.set(p.name, React.createRef<HTMLSelectElement | HTMLInputElement>())
+                        if (!visible) parameterValues.set(p.name, React.createRef<HTMLSelectElement | HTMLInputElement>());
                         this.setState(() => ({application: this.state.application}));
                     }}
                 />
@@ -422,7 +427,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         type="file"
                         onChange={e => {
                             if (e.target.files) this.importParameters(e.target.files[0])
-                        }} />
+                        }}/>
                 </OutlineButton>
                 <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                     {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
@@ -476,7 +481,7 @@ const Parameters = (props: ParameterProps) => {
     const mandatory = props.parameters.filter(parameter => !parameter.optional);
     const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values.get(parameter.name)!.current != null));
     const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values.get(parameter.name)!.current == null);
-    
+
     const mapParamToComponent = (parameter: ApplicationParameter) => {
         let ref = props.values.get(parameter.name)!;
 
@@ -506,7 +511,8 @@ const Parameters = (props: ParameterProps) => {
                 </>
                 : null
             }
-            <Heading.h4 mb="4px"><Flex>Mount additional folders <Button type="button" ml="5px" onClick={props.addFolder}>+</Button></Flex></Heading.h4>
+            <Heading.h4 mb="4px"><Flex>Mount additional folders <Button type="button" ml="5px"
+                                                                        onClick={props.addFolder}>+</Button></Flex></Heading.h4>
             {props.additionalDirectories.some(it => !it.readOnly) ? "Note: Giving folders read/write access will make the startup and shutdown of the application longer." : ""}
             {props.additionalDirectories.map((entry, i) => (
                 <Box key={i} mb="7px">
@@ -528,11 +534,17 @@ const Parameters = (props: ParameterProps) => {
                                 minWidth="150px"
                                 onChange={key => props.onAccessChange(i, key === "READ")}
                                 trigger={entry.readOnly ? "Read only" : "Read/Write"}
-                                options={[{text: "Read only", value: "READ"}, {text: "Read/Write", value: "READ/WRITE"}]}
+                                options={[{text: "Read only", value: "READ"}, {
+                                    text: "Read/Write",
+                                    value: "READ/WRITE"
+                                }]}
                             ><Box>Read only</Box><Box>Read/Write</Box></ClickableDropdown></Box>),
                         }}
                     />
                 </Box>))}
+            <Heading.h4>Shared File Systems</Heading.h4>
+            <AppFS.Management onMountsChange={e => console.log(e)} />
+
             <Heading.h4>Scheduling</Heading.h4>
             <JobSchedulingOptions
                 onChange={props.onJobSchedulingParamsChange}
@@ -541,7 +553,7 @@ const Parameters = (props: ParameterProps) => {
             />
 
             {optional.length > 0 ?
-                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)} />
+                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)}/>
                 : null
             }
         </form>
@@ -580,25 +592,35 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
 );
 
 
-interface JobSchedulingOptionsProps {onChange: (a, b, c) => void, options: JobSchedulingOptionsForInput, app: WithAppMetadata & WithAppInvocation}
+interface JobSchedulingOptionsProps {
+    onChange: (a, b, c) => void,
+    options: JobSchedulingOptionsForInput,
+    app: WithAppMetadata & WithAppInvocation
+}
+
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
     const {maxTime, numberOfNodes, tasksPerNode} = props.options;
     return (
         <>
             <Flex mb="1em">
-                <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" value={maxTime.hours} onChange={props.onChange} />
-                <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="minutes" text="Minutes" value={maxTime.minutes} onChange={props.onChange} />
-                <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" value={maxTime.seconds} onChange={props.onChange} />
+                <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" value={maxTime.hours}
+                                 onChange={props.onChange}/>
+                <Box ml="4px"/>
+                <SchedulingField min={0} field="maxTime" subField="minutes" text="Minutes" value={maxTime.minutes}
+                                 onChange={props.onChange}/>
+                <Box ml="4px"/>
+                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" value={maxTime.seconds}
+                                 onChange={props.onChange}/>
             </Flex>
 
             {!props.app.invocation.resources.multiNodeSupport ? null :
                 <Flex mb="1em">
-                    <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" value={numberOfNodes} onChange={props.onChange} />
-                    <Box ml="5px" />
-                    <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" value={tasksPerNode} onChange={props.onChange} />
+                    <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" value={numberOfNodes}
+                                     onChange={props.onChange}/>
+                    <Box ml="5px"/>
+                    <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" value={tasksPerNode}
+                                     onChange={props.onChange}/>
                 </Flex>
             }
         </>)
@@ -628,12 +650,11 @@ function exportParameters({application, schedulingOptions, parameterValues, moun
     const jobInfo = extractJobInfo(schedulingOptions);
     const element = document.createElement("a");
 
-    const values: {[key: string]: string} = {};
+    const values: { [key: string]: string } = {};
 
     for (const [key, ref] of parameterValues[Symbol.iterator]()) {
         if (ref && ref.current) values[key] = ref.current.value;
     }
-
 
 
     element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
@@ -643,7 +664,10 @@ function exportParameters({application, schedulingOptions, parameterValues, moun
             version: appInfo.version
         },
         parameters: values,
-        mountedFolders: mountedFolders.map(it => ({ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
+        mountedFolders: mountedFolders.map(it => ({
+            ref: it.ref.current && it.ref.current.value,
+            readOnly: it.readOnly
+        })).filter(it => it.ref),
         numberOfNodes: jobInfo.numberOfNodes,
         tasksPerNode: jobInfo.tasksPerNode,
         maxTime: jobInfo.maxTime,
