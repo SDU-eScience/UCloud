@@ -1,11 +1,10 @@
 import {Cloud} from "Authentication/SDUCloudObject";
 import {ActivityGroup, ActivityFilter} from "Activity";
-import {PayloadAction, SetLoadingAction, Error} from "Types";
+import {PayloadAction, SetLoadingAction} from "Types";
 import {activityQuery} from "Utilities/ActivityUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {ScrollResult, ScrollRequest} from "Scroll/Types";
 import {Action} from "redux";
-import {async} from "q";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
 // Request builders
@@ -19,7 +18,6 @@ export const fetchActivity = async (scroll: ScrollRequest<number>, filter?: Acti
     }
 }
 
-// Action builders
 export type ActivityActions =
     ActivityError |
     SetActivityLoading |

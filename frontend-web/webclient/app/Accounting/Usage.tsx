@@ -1,16 +1,16 @@
 import * as React from "react";
 import * as API from "./api";
 import * as DataTypes from "./DataTypes";
-import { Box, Link } from "ui-components";
+import {Box, Link} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import { resourceName, emptyResourceState } from "./Redux/AccountingObject";
+import {resourceName, emptyResourceState} from "./Redux/AccountingObject";
 import * as Actions from "./Redux/AccountingActions";
-import { connect } from "react-redux";
-import { ReduxObject } from "DefaultObjects";
-import { Dispatch } from "redux";
-import { LoadableContent } from "LoadableContent";
+import {connect} from "react-redux";
+import {ReduxObject} from "DefaultObjects";
+import {Dispatch} from "redux";
+import {LoadableContent} from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
-import { detailedPage } from "Accounting";
+import {detailedPage} from "Accounting";
 
 interface UsageOwnProps {
     resource: string
@@ -32,8 +32,8 @@ const Container: React.FunctionComponent = props => (
     <Box textAlign="center">{props.children}</Box>
 );
 
-const Quota: React.FunctionComponent<{ usage: API.Usage }> = props => {
-    const { usage } = props;
+const Quota: React.FunctionComponent<{usage: API.Usage}> = props => {
+    const {usage} = props;
     if (usage.quota === null || usage.quota === undefined) return null;
 
     const percentage = ((usage.usage / usage.quota) * 100).toFixed(2);
@@ -46,7 +46,7 @@ const Usage: React.FunctionComponent<{
     subResource: string,
     renderTitle?: boolean
 }> = props => {
-    const { usage } = props;
+    const {usage} = props;
     const type = (usage.dataType || DataTypes.NUMBER);
     return <>
         <Heading.h2 title={API.formatDataTypeLong(type, usage.usage)}>
@@ -97,7 +97,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type>, ownProps: UsageOwn
 const mapStateToProps = (state: ReduxObject, ownProps: UsageOwnProps): UsageStateProps => {
     const name = resourceName(ownProps.resource, ownProps.subResource);
     const resource = state.accounting.resources[name] || emptyResourceState();
-    return { usage: resource.usage };
+    return {usage: resource.usage};
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(UsageContainer);

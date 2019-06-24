@@ -19,16 +19,15 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const scrollSize = 250;
 
-const dropdownOptions: {text: string, value: string}[] =
-    [
-        {value: "NO_FILTER", text: "Don't filter"},
-        {value: Module.ActivityType.DELETED, text: "Deletions"},
-        {value: Module.ActivityType.DOWNLOAD, text: "Downloads"},
-        {value: Module.ActivityType.FAVORITE, text: "Favorites"},
-        {value: Module.ActivityType.INSPECTED, text: "Inspections"},
-        {value: Module.ActivityType.MOVED, text: "Moves"},
-        {value: Module.ActivityType.UPDATED, text: "Updates"},
-    ]
+const dropdownOptions: {text: string, value: string}[] = [
+    {value: "NO_FILTER", text: "Don't filter"},
+    {value: Module.ActivityType.DELETED, text: "Deletions"},
+    {value: Module.ActivityType.DOWNLOAD, text: "Downloads"},
+    {value: Module.ActivityType.FAVORITE, text: "Favorites"},
+    {value: Module.ActivityType.INSPECTED, text: "Inspections"},
+    {value: Module.ActivityType.MOVED, text: "Moves"},
+    {value: Module.ActivityType.UPDATED, text: "Updates"},
+]
 
 function Activity(props: ActivityProps) {
 
@@ -49,17 +48,15 @@ function Activity(props: ActivityProps) {
 
     function renderMain(): React.ReactNode {
         const {scroll, loading, fetchActivity} = props;
-        return <>
-            <Scroll.List
-                scroll={scroll}
-                scrollSize={scrollSize}
-                onNextScrollRequested={req => fetchActivity(req, props)}
-                loading={loading}
-                frame={(ref, children) => <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>}
-                renderer={(props) => <ActivityFeedItem activity={props.item} />}
-                spacer={height => <ActivityFeedSpacer height={height} />}
-            />
-        </>;
+        return <Scroll.List
+            scroll={scroll}
+            scrollSize={scrollSize}
+            onNextScrollRequested={req => fetchActivity(req, props)}
+            loading={loading}
+            frame={(ref, children) => <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>}
+            renderer={(props) => <ActivityFeedItem activity={props.item} />}
+            spacer={height => <ActivityFeedSpacer height={height} />}
+        />;
     }
 
     function renderSidebar(): React.ReactNode {

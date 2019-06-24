@@ -83,6 +83,6 @@ export async function unwrap<T = any>(httpResponse: Promise<{ request: XMLHttpRe
     }
 }
 
-export function isError(obj: any): boolean {
+export function isError(obj: any): obj is ErrorMessage  {
     return obj.statusCode !== undefined && obj.errorMessage !== undefined;
 }

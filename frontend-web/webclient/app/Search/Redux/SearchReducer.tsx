@@ -10,7 +10,10 @@ import {SimpleSearchActions} from "./SearchActions";
 import {initSimpleSearch} from "DefaultObjects";
 import {SimpleSearchStateProps} from "Search";
 
-const simpleSearch = (state: SimpleSearchStateProps = initSimpleSearch(), action: SimpleSearchActions): SimpleSearchStateProps => {
+const simpleSearch = (
+    state: SimpleSearchStateProps = initSimpleSearch(),
+    action: SimpleSearchActions
+): SimpleSearchStateProps => {
     switch (action.type) {
         case SET_SIMPLE_APPLICATIONS_LOADING:
         case SET_SIMPLE_FILES_LOADING:

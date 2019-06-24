@@ -6,8 +6,7 @@ import {
     fetchNotifications,
     notificationRead,
     readAllNotifications,
-    receiveSingleNotification,
-    setNotificationError
+    receiveSingleNotification
 } from "./Redux/NotificationsActions";
 import {History} from "history";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";

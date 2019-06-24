@@ -7,7 +7,7 @@ import Spinner from "LoadingIcon/LoadingIcon";
 import {connect} from "react-redux";
 import {ReduxObject} from "DefaultObjects";
 import {Dispatch} from "redux";
-import {saveAvatar, setAvatarError} from "./Redux/AvataaarActions";
+import {saveAvatar} from "./Redux/AvataaarActions";
 import PromiseKeeper from "PromiseKeeper";
 import {findAvatarQuery} from "Utilities/AvatarUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";

@@ -27,10 +27,7 @@ export const fetchPublications = async (page: number, itemsPerPage: number): Pro
         const {response} = await Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`);
         return receivePublications(response);
     } catch (e) {
-        snackbarStore.addSnack({
-            message: errorMessageOrDefault(e, "An error occurred fetching zenodo publications"),
-            type: SnackType.Failure
-        });
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching zenodo publications"));
         return setErrorMessage();
     }
 }

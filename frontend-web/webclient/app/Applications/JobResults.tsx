@@ -6,7 +6,6 @@ import {List} from "Pagination/List";
 import {connect} from "react-redux";
 import {setLoading, fetchAnalyses} from "./Redux/AnalysesActions";
 import {AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis} from ".";
-import {setErrorMessage} from "./Redux/AnalysesActions";
 import {Dispatch} from "redux";
 import {Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -34,7 +33,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         fetchJobs();
         props.setRefresh(() => fetchJobs());
         return () => props.setRefresh();
-    }, [])
+    }, []);
 
     function fetchJobs(options?: FetchJobsOptions) {
         const opts = options || {};
@@ -44,7 +43,6 @@ function JobResults(props: AnalysesProps & {history: History}) {
         setLoading(true);
         props.fetchJobs(itemsPerPage, pageNumber);
     }
-
 
     const {page, loading, history, responsive} = props;
     const hide = responsive.lessThan.lg;
@@ -113,7 +111,6 @@ const Row = ({analysis, to, hide}: {analysis: Analysis, to: () => void, hide: bo
 };
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
-    onErrorDismiss: () => dispatch(setErrorMessage()),
     setLoading: loading => dispatch(setLoading(loading)),
     fetchJobs: async (itemsPerPage, pageNumber) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),

@@ -1,20 +1,20 @@
-import { AvatarType } from "UserSettings/Avataaar";
-import { PayloadAction } from "Types";
-import { AVATAR_SAVE, AVATAR_ERROR } from "./AvataaarReducer";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { saveAvatarQuery, findAvatarQuery } from "Utilities/AvatarUtilities";
-import { errorMessageOrDefault } from "UtilityFunctions";
-import { AddSnack, addSnack } from "Snackbar/Redux/SnackbarsActions";
-import { SnackType } from "Snackbar/Snackbars";
+import {AvatarType} from "UserSettings/Avataaar";
+import {PayloadAction} from "Types";
+import {AVATAR_SAVE, AVATAR_ERROR} from "./AvataaarReducer";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {saveAvatarQuery, findAvatarQuery} from "Utilities/AvatarUtilities";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {AddSnack, addSnack} from "Snackbar/Redux/SnackbarsActions";
+import {SnackType} from "Snackbar/Snackbars";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
 export type AvatarActions = SaveAvataaar | SetAvatarError
 
-type SaveAvataaar = PayloadAction<typeof AVATAR_SAVE, { avatar: AvatarType, loading: true }>
+type SaveAvataaar = PayloadAction<typeof AVATAR_SAVE, {avatar: AvatarType, loading: true}>
 const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
     type: AVATAR_SAVE,
-    payload: { avatar, loading: true }
+    payload: {avatar, loading: true}
 });
 
 export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {

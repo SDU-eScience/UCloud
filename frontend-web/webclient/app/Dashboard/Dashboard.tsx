@@ -1,8 +1,20 @@
 import * as React from "react";
 import {Cloud} from "Authentication/SDUCloudObject"
-import {favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory} from "Utilities/FileUtilities";
+import {
+    favoriteFile,
+    getParentPath,
+    getFilenameFromPath,
+    replaceHomeFolder,
+    isDirectory
+} from "Utilities/FileUtilities";
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import {setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites} from "./Redux/DashboardActions";
+import {
+    setAllLoading,
+    fetchFavorites,
+    fetchRecentAnalyses,
+    fetchRecentFiles,
+    receiveFavorites
+} from "./Redux/DashboardActions";
 import {connect} from "react-redux";
 import * as moment from "moment";
 import {FileIcon} from "UtilityComponents";
@@ -29,7 +41,7 @@ import {fetchUsage} from "Accounting/Redux/AccountingActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 
-const DashboardCard = ({title, isLoading, children}: {title: string, isLoading: boolean, children?: React.ReactNode}) => (
+const DashboardCard: React.FunctionComponent<{title: string, isLoading: boolean}> = ({title, isLoading, children}) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{overflow: "hidden"}}>
         <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>

@@ -14,7 +14,7 @@ import {allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolve
 import {favoriteFileFromPage} from "Utilities/FileUtilities";
 import {hpcJobQuery, cancelJobQuery, cancelJobDialog} from "Utilities/ApplicationUtilities";
 import {Dispatch} from "redux";
-import {detailedResultError, fetchPage, setLoading, receivePage} from "Applications/Redux/DetailedResultActions";
+import {fetchPage, setLoading, receivePage} from "Applications/Redux/DetailedResultActions";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import {Flex, Box, List, Card, ContainerForText, ExternalLink, Button} from "ui-components";
 import {Step, StepGroup} from "ui-components/Step";

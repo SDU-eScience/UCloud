@@ -24,9 +24,10 @@ import {
 } from "./Redux/DetailedFileSearchReducer";
 import {searchFiles} from "Search/Redux/SearchActions";
 import {withRouter} from "react-router";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 
-type DetailedFileSearchGivenProps = { history: History, defaultFilename?: string, cantHide?: boolean, omitFileName?: boolean };
+type DetailedFileSearchGivenProps = {history: History, defaultFilename?: string, cantHide?: boolean, omitFileName?: boolean};
 
 type DetailedFileSearchProps = DetailedFileSearchStateProps & DetailedFileSearchGivenProps;
 
@@ -59,7 +60,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     }
 
     validateAndSetDate(m: Date | null, property: PossibleTime) {
-        const {setTimes, setError, createdBefore, modifiedBefore, createdAfter, modifiedAfter} = this.props;
+        const {setTimes, createdBefore, modifiedBefore, createdAfter, modifiedAfter} = this.props;
         if (m == null) {
             setTimes({[property]: undefined});
             return
@@ -71,7 +72,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     setTimes({createdBefore: m});
                     return;
                 } else {
-                    setError("Invalid date range");
+                    snackbarStore.addFailure("Invalid date range");
                     return;
                 }
             } else if (!before && createdBefore) {
@@ -79,7 +80,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     setTimes({createdAfter: m});
                     return;
                 } else {
-                    setError("Invalid date range");
+                    snackbarStore.addFailure("Invalid date range");
                     return;
                 }
             }
@@ -89,7 +90,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     setTimes({modifiedBefore: m});
                     return;
                 } else {
-                    setError("Invalid date range");
+                    snackbarStore.addFailure("Invalid date range");
                     return;
                 }
             } else if (!before && modifiedBefore) {
@@ -97,7 +98,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     setTimes({modifiedAfter: m});
                     return;
                 } else {
-                    setError("Invalid date range");
+                    snackbarStore.addFailure("Invalid date range");
                     return;
                 }
             }
@@ -126,7 +127,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ?
                 createdAt : undefined,
-            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? 
+            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ?
                 modifiedAt : undefined,
             itemsPerPage: 25,
             page: 0
@@ -300,8 +301,8 @@ interface SearchStampsProps {
 const SearchStamps = ({stamps, onStampRemove, clearAll}: SearchStampsProps) => (
     <Box pb="5px">
         {[...stamps].map(l => (
-            <Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l}/>))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="red" onClick={() => clearAll()} text="Clear all"/>) : null}
+            <Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="red" onClick={() => clearAll()} text="Clear all" />) : null}
     </Box>
 );
 
@@ -312,7 +313,7 @@ const extensionPresets = [
     {text: "Compressed files", value: ".zip .tar.gz"}
 ];
 
-const mapStateToProps = ({detailedFileSearch}: ReduxObject): DetailedFileSearchReduxState & { sizeCount: number } => ({
+const mapStateToProps = ({detailedFileSearch}: ReduxObject): DetailedFileSearchReduxState & {sizeCount: number} => ({
     ...detailedFileSearch,
     sizeCount: detailedFileSearch.extensions.size + detailedFileSearch.tags.size + detailedFileSearch.sensitivities.size
 });
@@ -336,7 +337,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations =>
     },
     setLoading: loading => dispatch(DFSActions.setFilesSearchLoading(loading)),
     setTimes: times => dispatch(DFSActions.setTime(times)),
-    setError: error => dispatch(DFSActions.setErrorMessage(error))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(withRouter(DetailedFileSearch));

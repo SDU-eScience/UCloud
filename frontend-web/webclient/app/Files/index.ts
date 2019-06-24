@@ -1,10 +1,10 @@
-import { Page, ClearRefresh } from "Types";
+import {Page, ClearRefresh} from "Types";
 import Cloud from "Authentication/lib";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
-import { ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
-import { Times } from "./Redux/DetailedFileSearchActions";
-import { RouterLocationProps } from "Utilities/URIUtilities";
+import {ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
+import {Times} from "./Redux/DetailedFileSearchActions";
+import {RouterLocationProps} from "Utilities/URIUtilities";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -37,7 +37,7 @@ export interface Acl {
     group: boolean
 }
 
-// FIXME: SortBy is subset of 
+// FIXME: SortBy is subset of {FileResource}
 export enum SortBy {
     FILE_TYPE = "fileType",
     PATH = "path",
@@ -117,7 +117,7 @@ export interface FileSelectorProps {
     allowUpload?: boolean
     inputRef?: React.RefObject<HTMLInputElement>
     showError?: boolean
-    onFileSelect: (file: { path: string }) => void
+    onFileSelect: (file: {path: string}) => void
     path: string
     defaultValue?: string
     isRequired?: boolean
@@ -235,8 +235,8 @@ export interface SortByDropdownProps {
     isSortedBy: boolean
 }
 
-export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon?: string, color?: string }
+export type PredicatedOperation = {predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation}
+export type Operation = {text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon?: string, color?: string}
 export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {
@@ -261,7 +261,6 @@ export interface DetailedFileSearchOperations {
     fetchPage: (request: AdvancedSearchRequest, callback?: () => void) => void
     setLoading: (loading: boolean) => void
     setTimes: (times: Times) => void
-    setError: (error?: string) => void
 }
 
 export type DetailedFileSearchStateProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
@@ -284,7 +283,7 @@ export interface DetailedFileSearchReduxState {
     loading: boolean
 }
 
-export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalidPath: boolean }
+export type ContextBarProps = ContextButtonsProps & FileOptionsProps & {invalidPath: boolean}
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
@@ -298,8 +297,8 @@ export type AdvancedSearchRequest = {
     fileName?: string
     extensions?: String[]
     fileTypes: [FileType?, FileType?]
-    createdAt?: { after?: number, before?: number }
-    modifiedAt?: { after?: number, before?: number }
+    createdAt?: {after?: number, before?: number}
+    modifiedAt?: {after?: number, before?: number}
     sensitivity?: SensitivityLevel[]
     itemsPerPage?: number
     page?: number

@@ -1,6 +1,6 @@
-import { Reducer as ReduxReducer } from "redux";
-import { FavoriteActions } from "./FavoritesActions";
-import { init, Type as ReduxType } from "./FavoriteObject";
+import {Reducer as ReduxReducer} from "redux";
+import {FavoriteActions} from "./FavoritesActions";
+import {init, Type as ReduxType} from "./FavoriteObject";
 
 export const RECEIVE_FAVORITES = "RECEIVE_FAVORITES";
 export const SET_ERROR_MESSAGE = "SET_ERROR_MESSAGE";
@@ -16,10 +16,9 @@ export interface Reducer {
 const favorites = (state: ReduxType = init().favorites, action: FavoriteActions): ReduxType => {
     switch (action.type) {
         case RECEIVE_FAVORITES:
-        case SET_ERROR_MESSAGE:
         case SET_FAVORITES_LOADING:
         case SET_FAVORITES_SHOWN:
-            return { ...state, ...action.payload };
+            return {...state, ...action.payload};
         case CHECK_ALL_FAVORITES: {
             return {
                 ...state, page: {
@@ -40,6 +39,7 @@ const favorites = (state: ReduxType = init().favorites, action: FavoriteActions)
                 }
             }
         }
+        case SET_ERROR_MESSAGE:
         default:
             return state;
     }

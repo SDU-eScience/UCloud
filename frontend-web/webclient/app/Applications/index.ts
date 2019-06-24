@@ -29,7 +29,6 @@ export interface AnalysesStateProps {
 }
 
 export interface AnalysesOperations {
-    onErrorDismiss: () => void
     setLoading: (loading: boolean) => void
     fetchJobs: (itemsPerPage: number, pageNumber: number) => void
     onInit: () => void

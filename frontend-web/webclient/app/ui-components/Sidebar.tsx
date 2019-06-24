@@ -16,8 +16,6 @@ import {ReduxObject} from "DefaultObjects"
 import {connect} from 'react-redux'
 import {FlexCProps} from "./Flex";
 import {inDevEnvironment, copyToClipboard} from "UtilityFunctions";
-import {Dispatch} from "redux";
-import {addSnack} from "Snackbar/Redux/SnackbarsActions";
 import {ContextSwitcher} from "Project/ContextSwitcher";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
@@ -105,11 +103,11 @@ export const SidebarTextLabel = (
         iconSize = "24", space = "22px", textSize = 3, hover = true
     }: TextLabelProps
 ) => (
-    <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
-        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}/>
-        <Text fontSize={textSize}> {children} </Text>
-    </SidebarElementContainer>
-);
+        <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
+            <Text fontSize={textSize}> {children} </Text>
+        </SidebarElementContainer>
+    );
 
 const SidebarLink = styled(Link) <{active?: boolean}>`
     ${props => props.active ?
@@ -166,7 +164,7 @@ function enumToLabel(value: SidebarPages): string {
     }
 }
 
-const SidebarSpacer = () => (<Box mt="12px"/>);
+const SidebarSpacer = () => (<Box mt="12px" />);
 
 const SidebarPushToBottom = styled.div`
     flex-grow: 1;
@@ -224,16 +222,16 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                             <SidebarElement icon={icon} activePage={page} label={label}
                                 to={typeof to === "function" ? to() : to} />
                         </React.Fragment>))}
-                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="6px" mb="6px"/>) : null}
+                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="6px" mb="6px" />) : null}
                 </React.Fragment>
             )}
             <SidebarPushToBottom />
             {/* Screen size indicator */}
-            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox/> </Flex> : null}
-            {Cloud.userRole === "ADMIN" ? <ContextSwitcher maxSize={140}/> : null}
+            {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
+            {Cloud.userRole === "ADMIN" ? <ContextSwitcher maxSize={140} /> : null}
             {Cloud.isLoggedIn ?
                 <SidebarTextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em"
-                                  title={Cloud.username || ""}>
+                    title={Cloud.username || ""}>
                     <Tooltip
                         left="-50%"
                         top={"1"}
@@ -253,7 +251,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
 
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
                 <SidebarTextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1}
-                                  space=".5em">
+                    space=".5em">
                     SDU Data Protection
                 </SidebarTextLabel>
             </ExternalLink>
