@@ -1,6 +1,6 @@
 import * as React from "react";
 import {createRef, useState} from "react";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI} from "Authentication/DataHook";
 import {listFileSystems, SharedFileSystem} from "AppFileSystem/index";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
@@ -33,12 +33,10 @@ const Management: React.FunctionComponent<ManagementProps> = (
     const [showMountRules, setShowMountRules] = useState(false);
     const [selectedMounts, setSelectedMounts] = useState<SharedFileSystemMount[]>([]);
 
-    const [currentPage, setListParams, listParams] = useCloudAPI<Page<SharedFileSystem>>(
+    const [currentPage, setListParams] = useCloudAPI<Page<SharedFileSystem>>(
         listFileSystems({}),
         emptyPage
     );
-
-    const [commandLoading, invokeCommand] = useAsyncCommand();
 
     return <Box>
         <Box mb={16}>
@@ -89,13 +87,15 @@ const Management: React.FunctionComponent<ManagementProps> = (
             page={currentPage.data}
             onPageChanged={(page: number) => setListParams(listFileSystems({page}))}
             pageRenderer={page => {
-                let filteredItems = page.items.filter(fs => selectedMounts.find(m => m.sharedFileSystem.id == fs.id) === undefined);
+                const filteredItems = page.items.filter(fs =>
+                    selectedMounts.find(m => m.sharedFileSystem.id == fs.id) === undefined);
+
                 return <Box>
                     {selectedMounts.length === 0 ? null :
                         <Text.TextP bold mt={16}>Available file systems</Text.TextP>
                     }
 
-                    { filteredItems.length !== 0 ? null :
+                    {filteredItems.length !== 0 ? null :
                         <Text.TextP>No items</Text.TextP>
                     }
 
@@ -104,51 +104,44 @@ const Management: React.FunctionComponent<ManagementProps> = (
                             const isSelected = selectedMounts.find(m => m.sharedFileSystem.id == fs.id) !== undefined;
                             if (isSelected) return null;
 
-                            return <>
-                                <Flex>
-                                    <Box mb={16} key={fs.id} flexGrow={1}>
-                                        {fs.id}
+                            return <Flex>
+                                <Box mb={16} key={fs.id} flexGrow={1}>{fs.id}</Box>
 
-                                    </Box>
+                                <Button type={"button"} color={"green"} ml={8}
+                                        onClick={async () => {
+                                            const location = (await mountDialog(fs.id)).mountLocation;
 
-                                    <Button type={"button"} color={"green"} ml={8}
-                                            onClick={async () => {
-                                                const location = (await mountDialog(fs.id)).mountLocation;
+                                            if (location !== undefined) {
+                                                if (blacklistLocations.indexOf(normalize(location)) !== -1 ||
+                                                    location.indexOf("/") !== 0) {
+                                                    snackbarStore.addSnack({
+                                                        message: `Invalid mount location: ${location}`,
+                                                        type: SnackType.Failure
+                                                    });
 
-                                                if (location !== undefined) {
-                                                    if (blacklistLocations.indexOf(normalize(location)) !== -1 || location.indexOf("/") !== 0) {
-                                                        snackbarStore.addSnack({
-                                                            message: `Invalid mount location: ${location}.`,
-                                                            type: SnackType.Failure
-                                                        });
-
-                                                        setShowMountRules(true);
-                                                        return;
-                                                    }
-
-                                                    let newSelectedMounts = selectedMounts.concat(
-                                                        [{
-                                                            sharedFileSystem: fs,
-                                                            mountedAt: location
-                                                        }]
-                                                    );
-                                                    setSelectedMounts(newSelectedMounts);
-                                                    onMountsChange(newSelectedMounts);
+                                                    setShowMountRules(true);
+                                                    return;
                                                 }
-                                            }}>
-                                        Mount
-                                    </Button>
-                                </Flex>
 
-                            </>
+                                                let newSelectedMounts = selectedMounts.concat(
+                                                    [{
+                                                        sharedFileSystem: fs,
+                                                        mountedAt: location
+                                                    }]
+                                                );
+                                                setSelectedMounts(newSelectedMounts);
+                                                onMountsChange(newSelectedMounts);
+                                            }
+                                        }}>
+                                    Mount
+                                </Button>
+                            </Flex>;
                         })
                     }
                 </Box>
-            }
-        }
-    />
-</Box>
-    ;
+            }}
+        />
+    </Box>;
 };
 
 const blacklistLocations = [
