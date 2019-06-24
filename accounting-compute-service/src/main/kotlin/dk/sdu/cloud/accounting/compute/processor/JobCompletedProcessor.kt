@@ -3,7 +3,7 @@ package dk.sdu.cloud.accounting.compute.processor
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.accounting.compute.services.normalizeUsername
-import dk.sdu.cloud.app.api.JobCompletedEvent
+import dk.sdu.cloud.app.orchestrator.api.JobCompletedEvent
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -13,7 +13,7 @@ import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.app.api.AccountingEvents as JobAccountingEvents
+import dk.sdu.cloud.app.orchestrator.api.AccountingEvents as JobAccountingEvents
 
 
 class JobCompletedProcessor<DBSession>(

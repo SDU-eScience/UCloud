@@ -234,7 +234,7 @@ const redirectToProject = ({path, cloud, navigate, remainingTries}: RedirectToPr
  *
  * @param params: { status, min, max } (both inclusive)
  */
-export const inRange = ({status, min, max}: { status: number, min: number, max: number }): boolean =>
+export const inRange = ({status, min, max}: {status: number, min: number, max: number}): boolean =>
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
@@ -262,7 +262,7 @@ export const downloadAllowed = (files: File[]) =>
 export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
-    error: { request: XMLHttpRequest, response: any }
+    error: {request: XMLHttpRequest, response: any}
 ): number {
     let request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
@@ -323,9 +323,9 @@ export function requestFullScreen(el: Element, onFailure: () => void) {
 
 export function timestampUnixMs(): number {
     return window.performance &&
-    window.performance.now &&
-    window.performance.timing &&
-    window.performance.timing.navigationStart ?
+        window.performance.now &&
+        window.performance.timing &&
+        window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
         Date.now();
 }
@@ -359,12 +359,16 @@ export function copyToClipboard({value, message}: CopyToClipboard) {
     snackbarStore.addSnack({message, type: SnackType.Success});
 }
 
-export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any } | { status: number, response: string }, defaultMessage: string): string {
-    if ("status" in err) {
-        return err.response;
-    } else {
-        if (err.response.why) return err.response.why;
-        return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
+export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: any} | {status: number, response: string}, defaultMessage: string): string {
+    try {
+        if ("status" in err) {
+            return err.response;
+        } else {
+            if (err.response.why) return err.response.why;
+            return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
+        }
+    } catch {
+        return defaultMessage;
     }
 }
 

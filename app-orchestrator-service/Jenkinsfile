@@ -1,0 +1,26 @@
+def initialize() {
+  try {
+    stage('build app-orchestrator-service') {
+      sh '''cd app-orchestrator-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'app-orchestrator-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'app-orchestrator-service-detekt-Report', reportTitles: ''])
+  }
+  try {
+    stage('test app-orchestrator-service') {
+      sh '''cd app-orchestrator-service
+      ./gradlew test'''
+    }
+  } catch (e) {
+    echo "Test FAILED"
+    return 'UNSTABLE'
+  }
+  return 'SUCCESS'
+}
+
+return this

@@ -1,19 +1,18 @@
 import * as React from "react";
-import { Flex, Input, Box, Error, Button } from "ui-components";
+import {Flex, Input, Box, Button} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import { ReduxObject } from "DefaultObjects";
-import { DetailedApplicationSearchReduxState, DetailedApplicationOperations } from "Applications";
-import { connect } from "react-redux";
-import { Dispatch } from "redux";
+import {ReduxObject} from "DefaultObjects";
+import {DetailedApplicationSearchReduxState, DetailedApplicationOperations} from "Applications";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
 import {
     setAppName,
     setVersion,
     fetchApplicationPageFromName,
-    fetchApplicationPageFromTag,
-    setError
+    fetchApplicationPageFromTag
 } from "./Redux/DetailedApplicationSearchActions";
-import { searchPage } from "Utilities/SearchUtilities";
-import { withRouter, RouteComponentProps } from "react-router";
+import {searchPage} from "Utilities/SearchUtilities";
+import {withRouter, RouteComponentProps} from "react-router";
 
 interface DetailedApplicationSearchProps extends
     DetailedApplicationOperations, DetailedApplicationSearchReduxState, RouteComponentProps {
@@ -28,7 +27,6 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
     const inputField = React.useRef<HTMLInputElement>(null);
 
     function onSearch(e: React.FormEvent<HTMLFormElement>) {
-        console.log("onSearch")
         e.preventDefault();
         if (!inputField.current) return;
         const inputFieldValue = inputField.current.value;
@@ -41,7 +39,6 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
     return (
         <Flex flexDirection="column" pl="0.5em" pr="0.5em">
             <Box mt="0.5em">
-                <Error clearError={() => props.setError()} error={props.error} />
                 <form onSubmit={e => onSearch(e)}>
                     <Heading.h5 pb="0.3em" pt="0.5em">Application Name</Heading.h5>
                     <Input
@@ -59,11 +56,10 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
         </Flex>)
 }
 
-const mapStateToProps = ({ detailedApplicationSearch }: ReduxObject) => detailedApplicationSearch;
+const mapStateToProps = ({detailedApplicationSearch}: ReduxObject) => detailedApplicationSearch;
 const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
     setAppName: appName => dispatch(setAppName(appName)),
     setVersionName: version => dispatch(setVersion(version)),
-    setError: err => dispatch(setError(err)),
     fetchApplicationsFromName: async (query, itemsPerPage, page, callback) => {
         dispatch(await fetchApplicationPageFromName(query, itemsPerPage, page));
         if (typeof callback === "function") callback();

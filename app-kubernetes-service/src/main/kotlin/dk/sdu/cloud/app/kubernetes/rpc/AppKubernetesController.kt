@@ -1,10 +1,10 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
-import dk.sdu.cloud.app.api.InternalStdStreamsResponse
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.services.PodService
 import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
+import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller

@@ -195,8 +195,6 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             />
 
             <PaginationList
-                errorMessage={props.errorMessage}
-                onErrorDismiss={props.onErrorDismiss}
                 pageRenderer={page =>
                     <FileSelectorBody
                         omitRelativeFolders={props.isFavorites}

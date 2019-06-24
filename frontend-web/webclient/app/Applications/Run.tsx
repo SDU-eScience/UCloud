@@ -18,7 +18,7 @@ import {
     FullAppInfo
 } from ".";
 import {Dispatch} from "redux";
-import {Box, Flex, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, Button} from "ui-components";
+import {Box, Flex, Label, OutlineButton, ContainerForText, VerticalButtonGroup, Button} from "ui-components";
 import Input, {HiddenInputField} from "ui-components/Input";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Parameter, OptionalParameters, InputDirectoryParameter} from "./ParameterWidgets";
@@ -47,8 +47,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
             initialSubmit: false,
-
-            error: undefined,
 
             parameterValues: new Map(),
             mountedFolders: [],
@@ -186,10 +184,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Cloud.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            this.setState(() => ({
-                error: errorMessageOrDefault(err, "An error ocurred submitting the job."),
-                jobSubmitted: false
-            }));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."))
+            this.setState(() => ({jobSubmitted: false}));
         } finally {
             this.props.setLoading(false);
         }
@@ -203,7 +199,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             await this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise;
             this.setState(() => ({favorite: !this.state.favorite}));
         } catch (e) {
-            this.setState(() => ({error: errorMessageOrDefault(e, "An error occurred")}));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"))
         } finally {
             this.setState(() => ({favoriteLoading: false}));
         }
@@ -237,7 +233,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }
             }));
         } catch (e) {
-            this.setState(() => ({error: errorMessageOrDefault(e, `An error occurred fetching ${name}`)}));
+            snackbarStore.addFailure(errorMessageOrDefault(e, `An error occurred fetching ${name}`));
         } finally {
             this.props.setLoading(false);
         }
@@ -353,15 +349,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 
     render() {
-        const {application, error, jobSubmitted, schedulingOptions, parameterValues} = this.state;
+        const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
         if (!application) return (
             <MainContainer
-                main={<>
-                    <LoadingIcon size={18} />
-                    <Error
-                        clearError={() => this.setState(() => ({error: undefined}))}
-                        error={error} />
-                </>}
+                main={<LoadingIcon size={18} />}
             />
         );
 
@@ -379,7 +370,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const main = (
             <ContainerForText>
-                <Error clearError={() => this.setState(() => ({error: undefined}))} error={error} />
 
                 <Parameters
                     initialSubmit={this.state.initialSubmit}
@@ -476,7 +466,7 @@ const Parameters = (props: ParameterProps) => {
     const mandatory = props.parameters.filter(parameter => !parameter.optional);
     const visible = props.parameters.filter(parameter => parameter.optional && (parameter.visible === true || props.values.get(parameter.name)!.current != null));
     const optional = props.parameters.filter(parameter => parameter.optional && parameter.visible !== true && props.values.get(parameter.name)!.current == null);
-    
+
     const mapParamToComponent = (parameter: ApplicationParameter) => {
         let ref = props.values.get(parameter.name)!;
 

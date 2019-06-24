@@ -1,8 +1,8 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.api.QueryInternalWebParametersResponse
-import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
@@ -36,6 +36,7 @@ import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
 import io.ktor.websocket.webSocket
 import kotlinx.coroutines.io.ByteReadChannel
+import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
 private const val SDU_CLOUD_REFRESH_TOKEN = "refreshToken"
@@ -52,7 +53,16 @@ class WebService(
     private val domain: String = "cloud.sdu.dk",
     private val cookieName: String = "appRefreshToken"
 ) {
-    private val client = HttpClient(OkHttp)
+    private val client = HttpClient(OkHttp) {
+        engine {
+            config {
+                // NOTE(Dan): Anything which takes more than 15 minutes is definitely broken.
+                // I do not believe we should increase this to fix other peoples broken software.
+                readTimeout(15, TimeUnit.MINUTES)
+                writeTimeout(15, TimeUnit.MINUTES)
+            }
+        }
+    }
 
     private val jobIdToJob = HashMap<String, VerifiedJob>()
 

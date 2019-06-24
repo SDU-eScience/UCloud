@@ -1,11 +1,10 @@
 import * as React from "react";
-import { Page } from "Types";
+import {Page} from "Types";
 import * as Self from ".";
-import { ifPresent } from "UtilityFunctions";
+import {ifPresent} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
-import { Error } from "ui-components";
 import Spinner from "LoadingIcon/LoadingIcon";
-import { emptyPage } from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 
 interface ListProps<T> {
     pageRenderer: (page: Page<T>) => React.ReactNode
@@ -16,13 +15,10 @@ interface ListProps<T> {
     // Page results
     page: Page<T>
 
-    // Error properties  
-    errorMessage?: string | (() => React.ReactNode | null)
     customEmptyPage?: React.ReactNode
 
     // Callbacks
     onPageChanged: (newPage: number, page: Page<T>) => void
-    onErrorDismiss?: () => void
 }
 
 export class List<T> extends React.PureComponent<ListProps<T>> {
@@ -31,19 +27,11 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
     }
 
     render() {
-        const { props } = this;
+        const {props} = this;
         const body = this.renderBody();
 
-        let errorComponent: React.ReactNode = null;
-        if (typeof props.errorMessage == "string") {
-            errorComponent = <Error clearError={props.onErrorDismiss} error={props.errorMessage} />;
-        } else if (typeof props.errorMessage == "function") {
-            errorComponent = props.errorMessage();
-        }
-        
         return (
             <>
-                {errorComponent}
                 {body}
                 <Self.PaginationButtons
                     currentPage={props.page.pageNumber}
@@ -56,9 +44,9 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
 
 
     private renderBody(): React.ReactNode {
-        const { props } = this;
+        const {props} = this;
         if (props.loading && props.page.itemsInTotal === 0) {
-            return (<Spinner size={24}/>)
+            return (<Spinner size={24} />)
         } else {
             if (props.page == null || props.page.items.length == 0) {
                 if (!props.customEmptyPage) {

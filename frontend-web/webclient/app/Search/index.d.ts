@@ -28,7 +28,6 @@ export interface SimpleSearchOperations {
     clear: () => void
     setFilesLoading: (loading: boolean) => void
     setApplicationsLoading: (loading: boolean) => void
-    setError: (error?: string) => void
     searchFiles: (body: AdvancedSearchRequest) => void
     searchApplications: (query: string, page: number, itemsPerPage: number) => void
     setFilesPage: (page: Page<File>) => void

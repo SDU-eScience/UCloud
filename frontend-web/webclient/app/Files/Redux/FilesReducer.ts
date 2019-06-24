@@ -1,6 +1,6 @@
-import { FileActions } from "./FilesActions";
-import { FilesReduxObject, initFiles, emptyPage } from "DefaultObjects";
-import { newMockFolder } from "Utilities/FileUtilities";
+import {FileActions} from "./FilesActions";
+import {FilesReduxObject, initFiles, emptyPage} from "DefaultObjects";
+import {newMockFolder} from "Utilities/FileUtilities";
 
 export const RECEIVE_FILES = "RECEIVE_FILES";
 export const UPDATE_FILES = "UPDATE_FILES";
@@ -42,31 +42,37 @@ function files(state: FilesReduxObject = initFiles(""), action: FileActions): Fi
         case FILES_INVALID_PATH:
         case SET_FILES_LOADING:
         case UPDATE_FILES: {
-            return { ...state, ...action.payload };
+            return {...state, ...action.payload};
         }
         case UPDATE_PATH: {
-            return { ...state, path: action.path, fileSelectorPath: action.path };
+            return {...state, path: action.path, fileSelectorPath: action.path};
         }
         case FILE_SELECTOR_SHOWN: {
-            return { ...state, fileSelectorShown: action.payload.state };
+            return {...state, fileSelectorShown: action.payload.state};
         }
         case RECEIVE_FILE_SELECTOR_FILES: {
-            return { ...state, fileSelectorPage: action.payload.page, fileSelectorPath: action.payload.path, fileSelectorLoading: false, fileSelectorIsFavorites: action.payload.fileSelectorIsFavorites };
+            return {
+                ...state,
+                fileSelectorPage: action.payload.page,
+                fileSelectorPath: action.payload.path,
+                fileSelectorLoading: false,
+                fileSelectorIsFavorites: action.payload.fileSelectorIsFavorites
+            };
         }
         case SET_FILE_SELECTOR_LOADING: {
-            return { ...state, fileSelectorLoading: true };
+            return {...state, fileSelectorLoading: true};
         }
         case SET_FILE_SELECTOR_CALLBACK: {
-            return { ...state, fileSelectorCallback: action.payload.callback };
+            return {...state, fileSelectorCallback: action.payload.callback};
         }
         case SET_FILE_SELECTOR_ERROR: {
-            return { ...state, fileSelectorError: action.payload.error, fileSelectorLoading: false }
+            return {...state, fileSelectorError: action.payload.error, fileSelectorLoading: false}
         }
         case SET_DISALLOWED_PATHS: {
-            return { ...state, disallowedPaths: action.payload.paths }
+            return {...state, disallowedPaths: action.payload.paths}
         }
         case FILES_ERROR: {
-            return { ...state, error: action.payload.error, loading: false, page: emptyPage };
+            return {...state, error: action.payload.error, loading: false, page: emptyPage};
         }
         case CHECK_ALL_FILES: {
             return {
@@ -89,10 +95,10 @@ function files(state: FilesReduxObject = initFiles(""), action: FileActions): Fi
             }
         }
         case SET_FILES_SORTING_COLUMN: {
-            const { sortingColumns } = state;
+            const {sortingColumns} = state;
             sortingColumns[action.index] = action.sortingColumn;
             window.localStorage.setItem(`filesSorting${action.index}`, action.sortingColumn);
-            return { ...state, sortingColumns };
+            return {...state, sortingColumns};
         }
         case CREATE_FOLDER: {
             if (state.page.items.some(it => !!it.isMockFolder)) return state;

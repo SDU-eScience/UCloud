@@ -1,26 +1,26 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { capitalized, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
-import { sizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile, fileTablePage, expandHomeFolder } from "Utilities/FileUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {capitalized, removeTrailingSlash} from "UtilityFunctions";
+import {sizeToString, getParentPath, favoriteFile, reclassifyFile, fileTablePage, expandHomeFolder} from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
-import { dateToString } from "Utilities/DateUtilities"
-import { connect } from "react-redux";
-import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
+import {SensitivityLevel, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
+import {dateToString} from "Utilities/DateUtilities"
+import {connect} from "react-redux";
+import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import ShareList from "Shares/List";
-import { File } from "Files";
-import { ActivityFeed } from "Activity/Feed";
-import { Dispatch } from "redux";
-import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat, fileInfoError } from "./Redux/FileInfoActions";
-import { Flex, Box, Icon, Card, Error } from "ui-components";
+import {File} from "Files";
+import {ActivityFeed} from "Activity/Feed";
+import {Dispatch} from "redux";
+import {fetchFileStat, setLoading, fetchFileActivity, receiveFileStat, fileInfoError} from "./Redux/FileInfoActions";
+import {Flex, Box, Icon, Card} from "ui-components";
 import List from "ui-components/List";
 import * as Heading from "ui-components/Heading"
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { FileInfoReduxObject } from "DefaultObjects";
-import { MainContainer } from "MainContainer/MainContainer";
-import { SidebarPages } from "ui-components/Sidebar";
-import { BreadCrumbs } from "ui-components/Breadcrumbs";
-import { History } from "history";
+import {FileInfoReduxObject} from "DefaultObjects";
+import {MainContainer} from "MainContainer/MainContainer";
+import {SidebarPages} from "ui-components/Sidebar";
+import {BreadCrumbs} from "ui-components/Breadcrumbs";
+import {History} from "history";
 
 interface FileInfoOperations {
     updatePageTitle: () => void
@@ -28,12 +28,11 @@ interface FileInfoOperations {
     fetchFileStat: (path: string) => void
     fetchFileActivity: (path: string) => void
     receiveFileStat: (file: File) => void
-    setError: (err?: string) => void
     setActivePage: () => void
 }
 
 interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
-    location: { pathname: string, search: string }
+    location: {pathname: string, search: string}
     history: History
 }
 
@@ -42,7 +41,7 @@ function FileInfo(props: Readonly<FileInfo>) {
     React.useEffect(() => {
         props.setActivePage();
         props.updatePageTitle();
-        const { file } = props;
+        const {file} = props;
         const filePath = path();
         if (!file || getParentPath(filePath) !== file.path) {
             props.setLoading(true);
@@ -60,10 +59,10 @@ function FileInfo(props: Readonly<FileInfo>) {
         return param ? removeTrailingSlash(param) : "";
     }
 
-    
-    const { loading, file, activity } = props;
+
+    const {loading, file, activity} = props;
     if (loading) return (<LoadingIcon size={18} />);
-    if (!file) return <MainContainer main={<Error error={props.error} clearError={() => props.setError()} />} />;
+    if (!file) return null;
     return (
         <MainContainer
             header={
@@ -81,7 +80,7 @@ function FileInfo(props: Readonly<FileInfo>) {
                         file={file}
                         onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
                         onReclassify={async sensitivity => {
-                            props.receiveFileStat(await reclassifyFile({ file, sensitivity, cloud: Cloud }))
+                            props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}))
                             props.fetchFileStat(path())
                         }} />
                     {activity.items.length ? (
@@ -97,7 +96,7 @@ function FileInfo(props: Readonly<FileInfo>) {
     );
 }
 
-const Attribute: React.FunctionComponent<{ name: string, value?: string }> = props => (
+const Attribute: React.FunctionComponent<{name: string, value?: string}> = props => (
     <Flex>
         <Box flexGrow={1}>{props.name}</Box>
         {props.value}{props.children}
@@ -117,7 +116,7 @@ interface FileViewProps {
     onFavorite: () => void
     onReclassify: (level: SensitivityLevelMap) => void
 }
-const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
+const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
     !file ? null : (
         <Flex flexDirection="row" justifyContent="center" flexWrap="wrap">
             <AttributeBox>
@@ -151,7 +150,7 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
         </Flex >
     );
 
-const mapStateToProps = ({ fileInfo }: ReduxObject): FileInfoReduxObject & { favorite: boolean } => ({
+const mapStateToProps = ({fileInfo}: ReduxObject): FileInfoReduxObject & {favorite: boolean} => ({
     loading: fileInfo.loading,
     file: fileInfo.file,
     favorite: !!(fileInfo.file && fileInfo.file.favorited),
@@ -162,7 +161,6 @@ const mapStateToProps = ({ fileInfo }: ReduxObject): FileInfoReduxObject & { fav
 const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("File Info")),
     setLoading: loading => dispatch(setLoading(loading)),
-    setError: err => dispatch(fileInfoError(err)),
     fetchFileStat: async path => dispatch(await fetchFileStat(path)),
     fetchFileActivity: async path => dispatch(await fetchFileActivity(path)),
     receiveFileStat: file => dispatch(receiveFileStat(file)),

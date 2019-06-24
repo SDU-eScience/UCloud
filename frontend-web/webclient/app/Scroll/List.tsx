@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ScrollResult, ScrollRequest, ScrollSize } from "./Types";
-import { Error, Flex, Button } from "ui-components";
+import { Flex, Button } from "ui-components";
 import * as Heading from "ui-components/Heading";
 
 interface ListProps<Item, OffsetType> {
@@ -15,10 +15,7 @@ interface ListProps<Item, OffsetType> {
     // Loading
     loading: boolean
 
-    // Error handling
-    errorMessage?: string | (() => React.ReactNode)
     customEmptyPage?: React.ReactNode
-    onErrorDismiss?: () => void
 }
 
 interface ListState {
@@ -180,21 +177,9 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
 
     render() {
         return <>
-            {this.renderError()}
             {this.renderBody()}
             {this.renderLoadingButton()}
         </>;
-    }
-
-    private renderError(): React.ReactNode {
-        const { props } = this;
-        if (typeof props.errorMessage == "string") {
-            return <Error clearError={props.onErrorDismiss} error={props.errorMessage} />;
-        } else if (typeof props.errorMessage == "function") {
-            return props.errorMessage();
-        } else {
-            return null;
-        }
     }
 
     private renderBody(): React.ReactNode {

@@ -141,7 +141,6 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         loading={page.loading}
         page={page.data}
         customEmptyPage={<NoShares sharedByMe={sharedByMe}/>}
-        errorMessage={page.error && page.error.statusCode != 404 ? page.error.why : undefined}
         onPageChanged={(pageNumber, page) => setFetchParams(listShares({
             sharedByMe,
             page: pageNumber,
@@ -232,34 +231,37 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         </Heading.h4>
 
         {!groupedShare.sharedByMe ? null :
-            <Flex mb={"16px"} alignItems={"center"}>
-                <Box flexGrow={1}>
-                    <Flex>
-                        <InputLabel leftLabel>To:</InputLabel>
-                        <Box flexGrow={1}>
-                            <form onSubmit={e => doCreateShare(e)}>
-                                <Input disabled={isCreatingShare} leftLabel placeholder={"Username"}
-                                    ref={newShareUsername}/>
-                            </form>
-                        </Box>
+            <form onSubmit={e => doCreateShare(e)}>
+                <Flex mb={"16px"} alignItems={"center"}>
+                    <Flex flex="1 0 auto">
+                        <Flex flex="1 0 auto" style={{zIndex:1}}>
+                            <Input disabled={isCreatingShare} rightLabel placeholder={"Username"}
+                                ref={newShareUsername} />
+                        </Flex>
+                        <InputLabel rightLabel backgroundColor="lightBlue" width="125px">
+                            <ClickableDropdown
+                                left={"-16px"}
+                                chevron
+                                width="125px"
+                                trigger={
+                                        sharePermissionsToText(newShareRights)
+                                }
+                            >
+                                <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT} />
+                                <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
+                                    text={CAN_EDIT_TEXT} />
+                            </ClickableDropdown>
+                        </InputLabel>
                     </Flex>
-                </Box>
-
-                <Box ml={"5px"}>
-                    <ClickableDropdown
-                        trigger={
-                            <OutlineButton>
-                                {sharePermissionsToText(newShareRights)}
-                                <Icon name="chevronDown" size=".7em" ml=".7em"/>
-                            </OutlineButton>
-                        }
-                    >
-                        <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT}/>
-                        <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
-                            text={CAN_EDIT_TEXT}/>
-                    </ClickableDropdown>
-                </Box>
-            </Flex>
+    
+                    <Box ml={"12px"} width="150px">
+                        <Button fullWidth type="submit">
+                            <Icon name="share" size="1em" mr=".7em" />
+                            Share
+                        </Button>
+                    </Box>
+                </Flex>
+            </form>
         }
 
         {props.children}
@@ -288,35 +290,38 @@ const ShareRow: React.FunctionComponent<{
         permissionsBlock = <Button color={"red"} disabled={isLoading} onClick={() => doRevoke()}>Remove</Button>;
     } else if (share.state == ShareState.UPDATING || isLoading) {
         permissionsBlock = sharePermissionsToText(share.rights);
-    } else if (!sharedByMe && share.state == ShareState.REQUEST_SENT) {
-        permissionsBlock = <Box flexShrink={1}>
-            <Button color={"red"} mx={"8px"} onClick={() => doRevoke()}>Reject</Button>
-            <Button color={"green"} onClick={() => doAccept()}>Accept</Button>
-        </Box>;
-    } else {
-        permissionsBlock = <ClickableDropdown
-            left={"-66%"}
-            trigger={sharePermissionsToText(share.rights)}
-            chevron
-        >
-            {!sharedByMe ? null :
-                <>
-                    <OptionItem
-                        onClick={() => doUpdate(AccessRights.READ_RIGHTS)}
-                        text={CAN_VIEW_TEXT}/>
-
-                    <OptionItem
-                        onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)}
-                        text={CAN_EDIT_TEXT}/>
+    } else if (!sharedByMe) {
+        if (share.state == ShareState.REQUEST_SENT) {
+            permissionsBlock = <Box flexShrink={1}>
+                <Button color={"red"} mx={"8px"} onClick={() => doRevoke()}>Reject</Button>
+                <Button color={"green"} onClick={() => doAccept()}>Accept</Button>
+            </Box>;
+        } else {
+            permissionsBlock = <>
+                {sharePermissionsToText(share.rights)}
+                <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Reject</Button>
                 </>
+        }
+    } else {
+        permissionsBlock = <>
+            <ClickableDropdown
+                right={"0px"}
+                chevron
+                width="100px"
+                trigger={sharePermissionsToText(share.rights)}
+            >
+            { share.rights.indexOf(AccessRight.WRITE) !== -1 ? 
+                <OptionItem
+                    onClick={() => doUpdate(AccessRights.READ_RIGHTS)}
+                    text={CAN_VIEW_TEXT} />
+                    :
+                <OptionItem
+                    onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)}
+                    text={CAN_EDIT_TEXT} />
             }
-
-            <OptionItem
-                onClick={() => doRevoke()}
-                color={colors.red}
-                text={"Remove Access"}
-            />
-        </ClickableDropdown>;
+        </ClickableDropdown>
+        <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Revoke</Button>
+        </>;
     }
 
     return <Flex alignItems={"center"} mb={"16px"}>

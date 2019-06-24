@@ -14,7 +14,7 @@ import {allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolve
 import {favoriteFileFromPage} from "Utilities/FileUtilities";
 import {hpcJobQuery, cancelJobQuery, cancelJobDialog} from "Utilities/ApplicationUtilities";
 import {Dispatch} from "redux";
-import {detailedResultError, fetchPage, setLoading, receivePage} from "Applications/Redux/DetailedResultActions";
+import {fetchPage, setLoading, receivePage} from "Applications/Redux/DetailedResultActions";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import {Flex, Box, List, Card, ContainerForText, ExternalLink, Button} from "ui-components";
 import {Step, StepGroup} from "ui-components/Step";
@@ -30,7 +30,6 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {Error} from "ui-components";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -177,7 +176,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     message: "An error occurred retrieving Information and Output from the job.",
                     type: SnackType.Failure
                 });
-            this.props.detailedResultError("An error occurred retrieving Information and Output from the job.");
         } finally {
             this.props.setLoading(false);
         }
@@ -272,28 +270,32 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private renderStreamPanel() {
         if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
         return (
-            <Panel width="100%">
+            <Box width="100%" mt={24}>
                 <Heading.h4>
                     Standard Streams
                     &nbsp;
                     <Dropdown>
-                        <Icon name="info" color="white" color2="black" />
-                        <DropdownContent width="200px" visible colorOnHover={false} color="white" backgroundColor="black">
+                        <Icon name="info" color="white" color2="black" size="1em" />
+                        <DropdownContent width="400px" visible colorOnHover={false} color="white" backgroundColor="black">
                             <TextSpan fontSize={1}>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</TextSpan>
                         </DropdownContent>
                     </Dropdown>
                 </Heading.h4>
-                <Flex flexDirection="row">
-                    <Box width={1 / 2}>
+                <Flex flexDirection="column">
+                    <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
                         <Heading.h5>Output</Heading.h5>
+                    </Box>
+                    <Box width={1} backgroundColor="lightGray">
                         <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
                     </Box>
-                    <Box width={1 / 2}>
+                    <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
                         <Heading.h5>Information</Heading.h5>
+                    </Box>
+                    <Box width={1} backgroundColor="lightGray">
                         <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
                     </Box>
                 </Flex>
-            </Panel>
+            </Box>
         );
     }
 
@@ -379,7 +381,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     public render() {
         return <MainContainer
-            header={this.props.error ? <Error error={this.props.error} clearError={() => this.props.detailedResultError()} /> : null}
             main={this.state.app ?
                 <ContainerForText>
                     {this.renderProgressPanel()}
@@ -460,7 +461,6 @@ const mapStateToProps = ({detailedResult}: ReduxObject): DetailedResultReduxObje
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
-    detailedResultError: error => dispatch(detailedResultError(error)),
     setLoading: loading => dispatch(setLoading(loading)),
     setPageTitle: jobId => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
     receivePage: page => dispatch(receivePage(page)),

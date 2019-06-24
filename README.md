@@ -105,9 +105,10 @@ event that system events are lost, the entire file system is
 SDUCloud presents a collection of software packages to the users in the "Apps"
 tab of the web app. The apps can be executed in batch (headless) mode or
 interactive mode. The web GUI allows user to run apps on a supported backend
-(HPC slurm, K8s). Applications are handled via the [app
-service](./app-service). More computational backend can be supported (e.g.
-OpenStack, commercial clouds).
+(HPC slurm, K8s). Applications are handled via the [app store
+service](./app-store-service) and the [app orchestrator
+service](./app-orchestrator-service). More computational backend can be supported
+(e.g. OpenStack, commercial clouds).
 
 Each app in SDUCloud is associated to a "tool" (Docker image) and gives the user
 the ability to run a specific command of the tool. 
@@ -130,8 +131,8 @@ Both tools and apps are defined via YAML documents. The tools describes which
 container image should be used by the apps associated to the tool. The app YAML
 document describes how the tool should be invoked and the necessary parameters.
 For more details on the tool and app format see:
- - [Tools](./app-service/wiki/tools.md)
- - [Applications](./app-service/wiki/apps.md)
+ - [Tools](./app-store-service/wiki/tools.md)
+ - [Applications](./app-store-service/wiki/apps.md)
 
 ## Technical Overview
 

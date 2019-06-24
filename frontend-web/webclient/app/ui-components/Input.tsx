@@ -17,7 +17,7 @@ export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, 
     ':focus': {
       outline: 0,
       'border-color': focusColor,
-      'box-shadow': `0 0 0 2px ${focusColor}`
+      'box-shadow': `0 0 0 1px ${focusColor},inset 0 0 0 1px ${focusColor}`
     }
   }
 };
@@ -91,19 +91,24 @@ export const HiddenInputField = styled(Input)`
 
 export default Input;
 
-const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px;` : null;
-const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px;` : null;
+const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
+const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
 
-export const InputLabel = styled(Text) <{leftLabel?: boolean, rightLabel?: boolean}>`
+export interface InputLabelProps extends WidthProps {
+  leftLabel?: boolean
+  rightLabel?: boolean
+}
+
+export const InputLabel = styled(Text) <InputLabelProps>`
   border: ${themeGet("colors.borderGray")} solid 1px;
-  margin: ${props => props.margin};
+  margin: -1px;
   ${leftLabel}
   ${rightLabel}
-  padding-left: 1%;
-  padding-right: 1%;
+  ${width}
+  padding-left: 1em;
+  padding-right: 1em;
   padding-top: 6px;
 `;
 
 InputLabel.defaultProps = {
-  margin: "-1px"
 };
