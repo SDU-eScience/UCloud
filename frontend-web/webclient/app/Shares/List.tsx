@@ -8,7 +8,7 @@ import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareStat
 import {Box, Card, Flex, Icon, Text} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
-import {FileIcon} from "UtilityComponents";
+import {FileIcon, addStandardDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
 import {SearchOptions, SelectableText} from "Search/Search";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
@@ -17,7 +17,6 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {TextSpan} from "ui-components/Text";
 import {colors} from "ui-components/theme";
 import Input, {InputLabel} from "ui-components/Input";
-import OutlineButton from "ui-components/OutlineButton";
 import {
     APICallParameters,
     APICallState,
@@ -95,11 +94,11 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
 
         /* In place of 
             new Set(page.data.items.flatMap(group =>
-                group.shares.map(share => share.sharedWith)
+                group.shares.map(group.sharedByMe ? share.sharedWith : group.sharedBy)
             ));
         */
         const usernames: Set<string> = new Set(page.data.items.map(group =>
-            group.shares.map(share => share.sharedWith)
+            group.shares.map(share => group.sharedByMe ? share.sharedWith : group.sharedBy)
         ).reduce((acc, val) => acc.concat(val), []));
 
         if (JSON.stringify(Array.from(avatarParams.parameters!.usernames)) !== JSON.stringify(Array.from(usernames))) {
@@ -111,7 +110,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         let avatar = defaultAvatar;
         let loadedAvatar = !!avatars.data && !!avatars.data.avatars ? avatars.data.avatars[props.username] : undefined;
         if (!!loadedAvatar) avatar = loadedAvatar;
-        return <UserAvatar avatar={avatar} mr={"10px"}/>;
+        return <UserAvatar avatar={avatar} mr={"10px"} />;
     };
 
     const header = props.byPath !== undefined ? null : (
@@ -140,7 +139,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const main = <Pagination.List
         loading={page.loading}
         page={page.data}
-        customEmptyPage={<NoShares sharedByMe={sharedByMe}/>}
+        customEmptyPage={<NoShares sharedByMe={sharedByMe} />}
         onPageChanged={(pageNumber, page) => setFetchParams(listShares({
             sharedByMe,
             page: pageNumber,
@@ -150,12 +149,12 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
             {props.innerComponent ? header : null}
             {
                 shares.length === 0 ?
-                    <NoShares sharedByMe={sharedByMe}/> :
+                    <NoShares sharedByMe={sharedByMe} /> :
                     shares.map(it =>
                         <GroupedShareCard onUpdate={refresh} groupedShare={it} key={it.path}>
                             {it.shares.map(share =>
-                                <ShareRow key={share.id} onUpdate={refresh} share={share} sharedByMe={sharedByMe}>
-                                    <AvatarComponent username={share.sharedWith}/>
+                                <ShareRow key={share.id} sharedBy={it.sharedBy} onUpdate={refresh} share={share} sharedByMe={sharedByMe}>
+                                    <AvatarComponent username={sharedByMe ? share.sharedWith : it.sharedBy} />
                                 </ShareRow>
                             )}
                         </GroupedShareCard>
@@ -178,7 +177,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
 const NoShares = ({sharedByMe}: {sharedByMe: boolean}) =>
     <Heading.h3 textAlign="center">
         No shares
-        <br/>
+        <br />
         {sharedByMe ?
             <small>You can create a new share by clicking 'Share' on one of your files.</small> :
             <small>Files shared will appear here.</small>
@@ -222,11 +221,13 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             <Flex alignItems={"center"}>
                 <Box ml="3px" mr="10px">
                     <FileIcon
-                        fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)}/>
+                        fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)} />
                 </Box>
                 <Link to={fileInfoPage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link>
-                <Box ml="auto"/>
-                {groupedShare.shares.length} {groupedShare.shares.length > 1 ? "collaborators" : "collaborator"}
+                <Box ml="auto" />
+                {groupedShare.sharedByMe ?
+                    `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?
+                        "collaborators" : "collaborator"}` : sharePermissionsToText(groupedShare.shares[0].rights)}
             </Flex>
         </Heading.h4>
 
@@ -234,7 +235,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             <form onSubmit={e => doCreateShare(e)}>
                 <Flex mb={"16px"} alignItems={"center"}>
                     <Flex flex="1 0 auto">
-                        <Flex flex="1 0 auto" style={{zIndex:1}}>
+                        <Flex flex="1 0 auto" style={{zIndex: 1}}>
                             <Input disabled={isCreatingShare} rightLabel placeholder={"Username"}
                                 ref={newShareUsername} />
                         </Flex>
@@ -244,7 +245,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                                 chevron
                                 width="125px"
                                 trigger={
-                                        sharePermissionsToText(newShareRights)
+                                    sharePermissionsToText(newShareRights)
                                 }
                             >
                                 <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT} />
@@ -253,7 +254,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                             </ClickableDropdown>
                         </InputLabel>
                     </Flex>
-    
+
                     <Box ml={"12px"} width="150px">
                         <Button fullWidth type="submit">
                             <Icon name="share" size="1em" mr=".7em" />
@@ -271,8 +272,9 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
 const ShareRow: React.FunctionComponent<{
     share: Share,
     sharedByMe: boolean,
-    onUpdate: () => void
-}> = ({share, sharedByMe, onUpdate, ...props}) => {
+    sharedBy: string,
+    onUpdate: () => void    
+}> = ({share, sharedByMe, onUpdate, sharedBy, ...props}) => {
     const [isLoading, sendCommand] = useAsyncCommand();
 
     const sendCommandAndUpdate = async (call: APICallParameters) => {
@@ -281,7 +283,11 @@ const ShareRow: React.FunctionComponent<{
     };
 
     const doAccept = () => sendCommandAndUpdate(acceptShare(share.id));
-    const doRevoke = () => sendCommandAndUpdate(revokeShare(share.id));
+    const doRevoke = () => addStandardDialog({
+        title: "Revoke?",
+        message: "Remove share?",
+        onConfirm: () => sendCommandAndUpdate(revokeShare(share.id))
+    });
     const doUpdate = (newRights: AccessRight[]) => sendCommandAndUpdate(updateShare(share.id, newRights));
 
     let permissionsBlock: JSX.Element | string | null = null;
@@ -289,7 +295,7 @@ const ShareRow: React.FunctionComponent<{
     if (share.state == ShareState.FAILURE) {
         permissionsBlock = <Button color={"red"} disabled={isLoading} onClick={() => doRevoke()}>Remove</Button>;
     } else if (share.state == ShareState.UPDATING || isLoading) {
-        permissionsBlock = sharePermissionsToText(share.rights);
+        permissionsBlock = null;
     } else if (!sharedByMe) {
         if (share.state == ShareState.REQUEST_SENT) {
             permissionsBlock = <Box flexShrink={1}>
@@ -297,10 +303,8 @@ const ShareRow: React.FunctionComponent<{
                 <Button color={"green"} onClick={() => doAccept()}>Accept</Button>
             </Box>;
         } else {
-            permissionsBlock = <>
-                {sharePermissionsToText(share.rights)}
+            permissionsBlock =
                 <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Reject</Button>
-                </>
         }
     } else {
         permissionsBlock = <>
@@ -310,17 +314,17 @@ const ShareRow: React.FunctionComponent<{
                 width="100px"
                 trigger={sharePermissionsToText(share.rights)}
             >
-            { share.rights.indexOf(AccessRight.WRITE) !== -1 ? 
-                <OptionItem
-                    onClick={() => doUpdate(AccessRights.READ_RIGHTS)}
-                    text={CAN_VIEW_TEXT} />
+                {share.rights.indexOf(AccessRight.WRITE) !== -1 ?
+                    <OptionItem
+                        onClick={() => doUpdate(AccessRights.READ_RIGHTS)}
+                        text={CAN_VIEW_TEXT} />
                     :
-                <OptionItem
-                    onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)}
-                    text={CAN_EDIT_TEXT} />
-            }
-        </ClickableDropdown>
-        <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Revoke</Button>
+                    <OptionItem
+                        onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)}
+                        text={CAN_EDIT_TEXT} />
+                }
+            </ClickableDropdown>
+            <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Revoke</Button>
         </>;
     }
 
@@ -328,11 +332,11 @@ const ShareRow: React.FunctionComponent<{
         {props.children}
 
         <Box>
-            <Text bold>{share.sharedWith}</Text>
-            <ShareStateRow state={share.state}/>
+            <Text bold>{sharedByMe ? share.sharedWith : sharedBy}</Text>
+            <ShareStateRow state={share.state} />
         </Box>
 
-        <Box flexGrow={1}/>
+        <Box flexGrow={1} />
 
         {permissionsBlock}
     </Flex>
@@ -349,14 +353,14 @@ const ShareStateRow: React.FunctionComponent<{state: ShareState}> = props => {
 
     switch (props.state) {
         case ShareState.ACCEPTED:
-            body = <><Icon size={20} color={colors.green} name={"check"}/> The share has been accepted.</>;
+            body = <><Icon size={20} color={colors.green} name={"check"} /> The share has been accepted.</>;
             break;
         case ShareState.FAILURE:
-            body = <><Icon size={20} color={colors.red} name={"close"}/> An error has occurred. The share is no longer
+            body = <><Icon size={20} color={colors.red} name={"close"} /> An error has occurred. The share is no longer
                 valid.</>;
             break;
         case ShareState.UPDATING:
-            body = <><Icon size={20} color={colors.blue} name={"refresh"}/> The share is currently updating.</>;
+            body = <><Icon size={20} color={colors.blue} name={"refresh"} /> The share is currently updating.</>;
             break;
         case ShareState.REQUEST_SENT:
             body = <>The share has not yet been accepted.</>;
