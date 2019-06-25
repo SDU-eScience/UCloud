@@ -247,6 +247,7 @@ export const invertedColors = {
   black: "#a4a5a9",
   text: "#e5e5e6",
   lightGray: "#111",
+  lightBlue: "#000",
   paginationDisabled: "#111",
   paginationHoverColor: "#444",
   appCard: "#060707"
