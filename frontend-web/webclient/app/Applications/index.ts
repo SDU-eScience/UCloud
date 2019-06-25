@@ -6,6 +6,7 @@ import { History } from "history";
 import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 import { ParameterValues } from "Utilities/ApplicationUtilities";
 import { SetStatusLoading } from "Navigation/Redux/StatusActions";
+import {SharedFileSystemMount} from "Applications/FileSystems";
 
 export interface Analysis {
     status: string
@@ -167,7 +168,7 @@ export interface RefReadPair {
 export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
-    initialSubmit: boolean
+    hasSentInitialSubmit: boolean
     error?: string
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: ParameterValues
@@ -175,6 +176,7 @@ export interface RunAppState {
     favorite: boolean
     favoriteLoading: boolean
     mountedFolders: RefReadPair[]
+    sharedFileSystems: { mounts: SharedFileSystemMount[] }
 }
 
 export interface RunOperations extends SetStatusLoading {

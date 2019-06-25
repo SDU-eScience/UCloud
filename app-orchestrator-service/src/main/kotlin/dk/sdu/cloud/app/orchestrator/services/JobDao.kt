@@ -40,7 +40,8 @@ interface JobDao<Session> {
     suspend fun list(
         session: Session,
         owner: SecurityPrincipalToken,
-        pagination: NormalizedPaginationRequest
+        pagination: NormalizedPaginationRequest,
+        state: JobState?
     ): Page<VerifiedJobWithAccessToken>
 
     suspend fun findJobsCreatedBefore(

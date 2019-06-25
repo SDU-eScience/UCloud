@@ -13,7 +13,7 @@ import {addTrailingSlash} from "UtilityFunctions";
 
 
 interface ParameterProps {
-    initialSubmit: boolean
+    hasSentInitialSubmit: boolean
     parameter: Types.ApplicationParameter
     parameterRef: React.RefObject<HTMLInputElement | HTMLSelectElement>
     onParamRemove?: () => void
@@ -31,7 +31,7 @@ export const Parameter = (props: ParameterProps) => {
         case Types.ParameterTypes.Integer:
             component = <IntegerParameter
                 onParamRemove={props.onParamRemove}
-                initialSubmit={props.initialSubmit}
+                hasSentInitialSubmit={props.hasSentInitialSubmit}
                 parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 parameter={props.parameter}
             />;
@@ -39,7 +39,7 @@ export const Parameter = (props: ParameterProps) => {
         case Types.ParameterTypes.FloatingPoint:
             component = <FloatingParameter
                 onParamRemove={props.onParamRemove}
-                initialSubmit={props.initialSubmit}
+                hasSentInitialSubmit={props.hasSentInitialSubmit}
                 parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 parameter={props.parameter}
             />;
@@ -47,7 +47,7 @@ export const Parameter = (props: ParameterProps) => {
         case Types.ParameterTypes.Text:
             component = <TextParameter
                 onParamRemove={props.onParamRemove}
-                initialSubmit={props.initialSubmit}
+                hasSentInitialSubmit={props.hasSentInitialSubmit}
                 parameterRef={props.parameterRef}
                 parameter={props.parameter}
             />;
@@ -55,7 +55,7 @@ export const Parameter = (props: ParameterProps) => {
         case Types.ParameterTypes.Boolean:
             component = <BooleanParameter
                 onParamRemove={props.onParamRemove}
-                initialSubmit={props.initialSubmit}
+                hasSentInitialSubmit={props.hasSentInitialSubmit}
                 parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>}
                 parameter={props.parameter}
             />;
@@ -72,7 +72,7 @@ interface InputFileParameterProps extends ParameterProps {
 const InputFileParameter = (props: InputFileParameterProps) => (
     <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
         <FileSelector
-            showError={props.initialSubmit || props.parameter.optional}
+            showError={props.hasSentInitialSubmit || props.parameter.optional}
             key={props.parameter.name}
             path={props.parameterRef.current && props.parameterRef.current.value || ""}
             onFileSelect={file => {props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))}}
@@ -87,7 +87,7 @@ export const InputDirectoryParameter = (props: InputFileParameterProps) => (
     <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
         <FileSelector
             defaultValue={props.defaultValue}
-            showError={props.initialSubmit || props.parameter.optional}
+            showError={props.hasSentInitialSubmit || props.parameter.optional}
             key={props.parameter.name}
             path={props.parameterRef.current && props.parameterRef.current.value || ""}
             onFileSelect={file => {props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)))}}
@@ -111,7 +111,7 @@ const TextParameter = (props: TextParameterProps) => {
     return (
         <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             <Input
-                showError={props.initialSubmit || props.parameter.optional}
+                showError={props.hasSentInitialSubmit || props.parameter.optional}
                 key={props.parameter.name}
                 ref={props.parameterRef as React.RefObject<HTMLInputElement>}
                 placeholder={placeholder}
@@ -143,7 +143,7 @@ const BooleanParameter = (props: BooleanParameter) => {
         <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             <Flex>
                 <Select
-                    showError={props.initialSubmit || props.parameter.optional}
+                    showError={props.hasSentInitialSubmit || props.parameter.optional}
                     id="select"
                     selectRef={props.parameterRef}
                     key={props.parameter.name}
@@ -170,7 +170,7 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
     let baseField = (
         <Flex>
             <Input
-                showError={props.initialSubmit || props.parameter.optional}
+                showError={props.hasSentInitialSubmit || props.parameter.optional}
                 required={!props.parameter.optional}
                 name={props.parameter.name}
                 type="number"
@@ -192,7 +192,7 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
     if (parameter.min !== null && parameter.max !== null) {
         slider = (
             <Input
-                showError={props.initialSubmit || props.parameter.optional}
+                showError={props.hasSentInitialSubmit || props.parameter.optional}
                 key={`${parameter.name}-slider`}
                 mt="2px"
                 noBorder
@@ -217,7 +217,7 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
 interface NumberParameterProps extends ParameterProps {
     parameter: Types.NumberParameter
     parameterRef: React.RefObject<HTMLInputElement>
-    initialSubmit: boolean
+    hasSentInitialSubmit: boolean
 }
 
 const IntegerParameter = (props: NumberParameterProps) => {

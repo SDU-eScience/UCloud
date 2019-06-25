@@ -37,7 +37,9 @@ import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import * as AppFS from "AppFileSystem";
+import * as AppFS from "Applications/FileSystems";
+import {SharedFileSystemMount} from "Applications/FileSystems";
+import Networking from "Applications/Networking";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -47,7 +49,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.state = {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
-            initialSubmit: false,
+            hasSentInitialSubmit: false,
 
             error: undefined,
 
@@ -63,7 +65,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 tasksPerNode: 1,
             },
             favorite: false,
-            favoriteLoading: false
+            favoriteLoading: false,
+            sharedFileSystems: {mounts: []}
         };
     };
 
@@ -91,7 +94,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
         const {invocation} = this.state.application;
-        this.setState(() => ({initialSubmit: true}));
+        this.setState(() => ({hasSentInitialSubmit: true}));
 
         const parameters = extractParametersFromMap({
             map: this.state.parameterValues,
@@ -382,7 +385,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 <Error clearError={() => this.setState(() => ({error: undefined}))} error={error}/>
 
                 <Parameters
-                    initialSubmit={this.state.initialSubmit}
+                    hasSentInitialSubmit={this.state.hasSentInitialSubmit}
                     addFolder={() => this.setState(s => ({
                         mountedFolders: s.mountedFolders.concat([{
                             ref: React.createRef<HTMLInputElement>(),
@@ -403,6 +406,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         if (!visible) parameterValues.set(p.name, React.createRef<HTMLSelectElement | HTMLInputElement>());
                         this.setState(() => ({application: this.state.application}));
                     }}
+                    onSharedMountsChange={mounts => this.setState({sharedFileSystems: {mounts}})}
                 />
             </ContainerForText>
         );
@@ -461,7 +465,7 @@ const SubmitButton = ({onSubmit, jobSubmitted}: SubmitButton) =>
     (<Button onClick={onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>);
 
 interface ParameterProps {
-    initialSubmit: boolean
+    hasSentInitialSubmit: boolean
     values: ParameterValues
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
@@ -473,6 +477,7 @@ interface ParameterProps {
     addFolder: () => void
     removeDirectory: (index: number) => void
     onAccessChange: (index: number, readOnly: boolean) => void
+    onSharedMountsChange: (mounts: SharedFileSystemMount[]) => void
 }
 
 const Parameters = (props: ParameterProps) => {
@@ -488,7 +493,7 @@ const Parameters = (props: ParameterProps) => {
         return (
             <Parameter
                 key={parameter.name}
-                initialSubmit={props.initialSubmit}
+                hasSentInitialSubmit={props.hasSentInitialSubmit}
                 parameterRef={ref}
                 parameter={parameter}
                 onParamRemove={() => props.onParameterChange(parameter, false)}
@@ -511,14 +516,25 @@ const Parameters = (props: ParameterProps) => {
                 </>
                 : null
             }
-            <Heading.h4 mb="4px"><Flex>Mount additional folders <Button type="button" ml="5px"
-                                                                        onClick={props.addFolder}>+</Button></Flex></Heading.h4>
-            {props.additionalDirectories.some(it => !it.readOnly) ? "Note: Giving folders read/write access will make the startup and shutdown of the application longer." : ""}
+            <Heading.h4 mb="4px">
+                <Flex>
+                    Mount additional folders
+                    <Button type="button" ml="5px" onClick={props.addFolder}>
+                        +
+                    </Button>
+                </Flex>
+            </Heading.h4>
+
+            {props.additionalDirectories.some(it => !it.readOnly) ?
+                "Note: Giving folders read/write access will make the startup and shutdown of the application longer." :
+                ""
+            }
+
             {props.additionalDirectories.map((entry, i) => (
                 <Box key={i} mb="7px">
                     <InputDirectoryParameter
                         defaultValue={entry.defaultValue}
-                        initialSubmit={false}
+                        hasSentInitialSubmit={false}
                         parameterRef={entry.ref}
                         onRemove={() => props.removeDirectory(i)}
                         parameter={{
@@ -529,21 +545,32 @@ const Parameters = (props: ParameterProps) => {
                             description: "",
                             defaultValue: "",
                             visible: true,
-                            unitName: (<Box width="105px"><ClickableDropdown
-                                chevron
-                                minWidth="150px"
-                                onChange={key => props.onAccessChange(i, key === "READ")}
-                                trigger={entry.readOnly ? "Read only" : "Read/Write"}
-                                options={[{text: "Read only", value: "READ"}, {
-                                    text: "Read/Write",
-                                    value: "READ/WRITE"
-                                }]}
-                            ><Box>Read only</Box><Box>Read/Write</Box></ClickableDropdown></Box>),
+                            unitName: (
+                                <Box width="105px">
+                                    <ClickableDropdown
+                                        chevron
+                                        minWidth="150px"
+                                        onChange={key => props.onAccessChange(i, key === "READ")}
+                                        trigger={entry.readOnly ? "Read only" : "Read/Write"}
+                                        options={[{text: "Read only", value: "READ"}, {
+                                            text: "Read/Write",
+                                            value: "READ/WRITE"
+                                        }]}
+                                    >
+                                        <Box>Read only</Box>
+                                        <Box>Read/Write</Box>
+                                    </ClickableDropdown>
+                                </Box>
+                            ),
                         }}
                     />
                 </Box>))}
+
             <Heading.h4>Shared File Systems</Heading.h4>
-            <AppFS.Management onMountsChange={e => console.log(e)} />
+            <AppFS.Management onMountsChange={mounts => props.onSharedMountsChange(mounts)}/>
+
+            <Heading.h4>Networking Peers</Heading.h4>
+            <Networking />
 
             <Heading.h4>Scheduling</Heading.h4>
             <JobSchedulingOptions

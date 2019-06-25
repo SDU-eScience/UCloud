@@ -51,7 +51,7 @@ class JobController<DBSession>(
 
         implement(JobDescriptions.listRecent) {
             val result = db.withTransaction {
-                jobDao.list(it, ctx.securityToken, request.normalize())
+                jobDao.list(it, ctx.securityToken, request.normalize(), request.state)
             }.mapItems { it.job.toJobWithStatus() }
 
             ok(result)

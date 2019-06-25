@@ -2,7 +2,7 @@ import * as React from "react";
 import {createRef, useState} from "react";
 import {APICallParameters, APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import * as Heading from "ui-components/Heading";
-import {createFileSystem, listFileSystems, SharedFileSystem} from "AppFileSystem/index";
+import {createFileSystem, listFileSystems, SharedFileSystem, SharedFileSystemMount} from "Applications/FileSystems/index";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
@@ -21,14 +21,10 @@ import {dateToString} from "Utilities/DateUtilities";
 import ButtonGroup from "ui-components/ButtonGroup";
 import Label from "ui-components/Label";
 import * as ReactModal from "react-modal";
+import {inDevEnvironment} from "UtilityFunctions";
 
 interface ManagementProps {
     onMountsChange?: (mounts: SharedFileSystemMount[]) => void
-}
-
-interface SharedFileSystemMount {
-    sharedFileSystem: SharedFileSystem,
-    mountedAt: string
 }
 
 const Management: React.FunctionComponent<ManagementProps> = (
@@ -36,6 +32,8 @@ const Management: React.FunctionComponent<ManagementProps> = (
         onMountsChange = (mounts) => 42
     }: ManagementProps
 ) => {
+    if (!inDevEnvironment()) return null;
+
     const [selectedMounts, setSelectedMounts] = useState<SharedFileSystemMount[]>([]);
 
     const [currentPage, setListParams] = useCloudAPI<Page<SharedFileSystem>>(
@@ -47,7 +45,7 @@ const Management: React.FunctionComponent<ManagementProps> = (
 
     const [isMountDialogOpen, setIsMountDialogOpen] = useState(false);
 
-    return <Box>
+    return <Box mb={16}>
         <Box mb={16}>
             Shared file systems can be mounted by multiple running applications.
             Changes from one applications is immediately visible by others. The contents of a shared file system
@@ -76,9 +74,7 @@ const Management: React.FunctionComponent<ManagementProps> = (
         }
 
         <ButtonGroup>
-            <Button fullWidth type={"button"} onClick={() => {
-                setIsMountDialogOpen(true)
-            }}>
+            <Button fullWidth type={"button"} onClick={() => setIsMountDialogOpen(true)}>
                 Mount existing file system
             </Button>
 

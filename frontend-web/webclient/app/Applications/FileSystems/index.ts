@@ -11,6 +11,11 @@ export interface SharedFileSystem {
     createdAt: number
 }
 
+export interface SharedFileSystemMount {
+    sharedFileSystem: SharedFileSystem,
+    mountedAt: string
+}
+
 interface CreateFileSystemParameters {
     title: string;
     backend?: string;
