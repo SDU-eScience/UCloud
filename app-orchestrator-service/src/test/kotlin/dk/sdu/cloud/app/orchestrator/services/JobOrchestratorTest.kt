@@ -93,56 +93,62 @@ class JobOrchestratorTest {
 
     fun setup(): JobOrchestrator<HibernateSession> = orchestrator
 
+    //This test requires to run in multiple runBlocking - otherwise it won't change status.
+    //When no runBlocking, it fails when run alone or on jenkins, when all tests are run, it passes....
     @Test
-    fun `orchestrator start job, handle proposed state, lookup test `() = runBlocking {
+    fun `orchestrator start job, handle proposed state, lookup test `() {
         val orchestrator = setup()
 
-        val returnedID =
+        val returnedID = runBlocking {
             orchestrator.startJob(
                 startJobRequest,
                 decodedJWT,
                 client
             )
-
-        orchestrator.handleProposedStateChange(
-            JobStateChange(returnedID, JobState.PREPARED),
-            "newStatus",
-            TestUsers.user
-        )
-
-        // Same state for branch check
-        orchestrator.handleProposedStateChange(
-            JobStateChange(returnedID, JobState.FAILURE),
-            "newFAILStatus",
-            TestUsers.user
-        )
-
-        orchestrator.handleProposedStateChange(
-            JobStateChange(returnedID, JobState.FAILURE),
-            "newStatus",
-            TestUsers.user
-        )
-
-        val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-        assertEquals("newFAILStatus", job.status)
-
-        orchestrator.handleAddStatus(returnedID, "Status Is FAIL", TestUsers.user)
-
-        val jobAfterStatusChange = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-        assertEquals("Status Is FAIL", jobAfterStatusChange.status)
-
-        // Checking bad transition - Prepared -> Validated not legal
-        try {
+        }
+        runBlocking {
             orchestrator.handleProposedStateChange(
-                JobStateChange(returnedID, JobState.VALIDATED),
-                "newerStatus",
+                JobStateChange(returnedID, JobState.PREPARED),
+                "newStatus",
                 TestUsers.user
             )
-        } catch (ex: JobException.BadStateTransition) {
-            println("Caught Expected Exception")
         }
+        runBlocking {
+            // Same state for branch check
+            orchestrator.handleProposedStateChange(
+                JobStateChange(returnedID, JobState.FAILURE),
+                "newFAILStatus",
+                TestUsers.user
+            )
+        }
+        runBlocking {
+            orchestrator.handleProposedStateChange(
+                JobStateChange(returnedID, JobState.FAILURE),
+                "newStatus",
+                TestUsers.user
+            )
 
-        orchestrator.removeExpiredJobs()
+            val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
+            assertEquals("newFAILStatus", job.status)
+
+            orchestrator.handleAddStatus(returnedID, "Status Is FAIL", TestUsers.user)
+
+            val jobAfterStatusChange = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
+            assertEquals("Status Is FAIL", jobAfterStatusChange.status)
+
+            // Checking bad transition - Prepared -> Validated not legal
+            try {
+                orchestrator.handleProposedStateChange(
+                    JobStateChange(returnedID, JobState.VALIDATED),
+                    "newerStatus",
+                    TestUsers.user
+                )
+            } catch (ex: JobException.BadStateTransition) {
+                println("Caught Expected Exception")
+            }
+
+            orchestrator.removeExpiredJobs()
+        }
     }
 
     @Test
