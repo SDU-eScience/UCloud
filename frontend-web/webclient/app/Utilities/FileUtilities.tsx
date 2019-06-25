@@ -34,6 +34,7 @@ interface CopyOrMoveFiles {
     setLoading: () => void
 }
 
+/* This function is way too large */
 export function copyOrMoveFiles({operation, files, copyMoveOps, cloud, setLoading}: CopyOrMoveFiles): void {
     const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
     let successes = 0, failures = 0, pathToFetch = "";
@@ -63,38 +64,33 @@ export function copyOrMoveFiles({operation, files, copyMoveOps, cloud, setLoadin
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
-                const request = await cloud.post(copyOrMoveQuery(f.path, newPathForFile, policy))
-                if (UF.inSuccessRange(request.request.status)) {
+                try {
+                    const {request} = await cloud.post(copyOrMoveQuery(f.path, newPathForFile, policy))
                     successes++;
                     pathToFetch = newPathForFile;
-                    if (request.request.status === 202) snackbarStore.addSnack({
+                    if (request.status === 202) snackbarStore.addSnack({
                         message: `Operation for ${f.path} is in progress.`,
                         type: SnackType.Success
                     })
-                } else {
+                } catch {
                     failures++;
                     failurePaths.push(getFilenameFromPath(f.path))
-                    snackbarStore.addSnack({
-                        message: `An error occurred ${operation === CopyOrMove.Copy ? "copying" : "moving"} ${f.path}`,
-                        type: SnackType.Failure
-                    });
                 }
             }
         }
+
         if (successes) {
             setLoading();
             if (policy === UploadPolicy.RENAME) copyMoveOps.fetchFilesPage(getParentPath(pathToFetch));
             else copyMoveOps.fetchPageFromPath(pathToFetch);
         }
-        if (!failures && successes) onOnlySuccess({
-            operation: operation === CopyOrMove.Copy ? "Copied" : "Moved",
-            fileCount: files.length
-        });
-        else if (failures)
-            snackbarStore.addSnack({
-                message: `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`,
-                type: SnackType.Failure
-            });
+
+        if (!failures && successes) {
+            onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: files.length});
+        } else if (failures)
+            snackbarStore.addFailure(
+                `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`
+            );
     });
 };
 
@@ -110,12 +106,7 @@ async function moveCopySetup({targetPath, path, cloud}: MoveCopySetup) {
     return {exists, allowRewrite: false, newPathForFile};
 }
 
-interface OnOnlySuccess {
-    operation: string
-    fileCount: number
-}
-
-function onOnlySuccess({operation, fileCount}: OnOnlySuccess) {
+function onOnlySuccess({operation, fileCount}: {operation: string, fileCount: number}): void {
     snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
 }
 
@@ -125,7 +116,7 @@ interface ResetFileSelector {
     setDisallowedPaths: (array: string[]) => void;
 }
 
-function resetFileSelector(operations: ResetFileSelector) {
+function resetFileSelector(operations: ResetFileSelector): void {
     operations.showFileSelector(false);
     operations.setFileSelectorCallback(undefined);
     operations.setDisallowedPaths([]);
@@ -599,7 +590,7 @@ export const toFileText = (selectedFiles: File[]): string =>
     `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`
 
 export const isLink = (file: File) => file.link;
-export const isDirectory = (file: { fileType: FileType }): boolean => file.fileType === "DIRECTORY";
+export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
 export const expandHomeFolder = (path: string, homeFolder: string): string => {
     if (path.startsWith("Home/"))
@@ -631,7 +622,7 @@ export const extractArchive = ({files, cloud, onFinished}: ExtractArchive): void
 };
 
 
-export const clearTrash = ({cloud, callback}: { cloud: SDUCloud, callback: () => void }) =>
+export const clearTrash = ({cloud, callback}: {cloud: SDUCloud, callback: () => void}) =>
     clearTrashDialog({
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
@@ -759,7 +750,7 @@ export const shareFiles = async ({files, cloud}: ShareFiles) => {
     });
 };
 
-const moveToTrashDialog = ({filePaths, onCancel, onConfirm}: { onConfirm: () => void, onCancel: () => void, filePaths: string[] }): void => {
+const moveToTrashDialog = ({filePaths, onCancel, onConfirm}: {onConfirm: () => void, onCancel: () => void, filePaths: string[]}): void => {
     const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
 
@@ -771,7 +762,7 @@ const moveToTrashDialog = ({filePaths, onCancel, onConfirm}: { onConfirm: () => 
     });
 };
 
-export function clearTrashDialog({onConfirm, onCancel}: { onConfirm: () => void, onCancel: () => void }): void {
+export function clearTrashDialog({onConfirm, onCancel}: {onConfirm: () => void, onCancel: () => void}): void {
     addStandardDialog({
         title: "Empty trash?",
         message: "",
@@ -807,7 +798,7 @@ function resultToNotification({failures, paths, homeFolder}: ResultToNotificatio
 const successResponse = (paths: string[], homeFolder: string) =>
     paths.length > 1 ? `${paths.length} files moved to trash.` : `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
 
-type Failures = { failures: string[] }
+type Failures = {failures: string[]}
 
 interface MoveToTrash {
     files: File[]
@@ -851,7 +842,7 @@ export const batchDeleteFiles = ({files, cloud, setLoading, callback}: BatchDele
         confirmText: "Delete files",
         onConfirm: async () => {
             setLoading();
-            const promises: { status?: number, response?: string }[] =
+            const promises: {status?: number, response?: string}[] =
                 await Promise.all(paths.map(path => cloud.delete("/files", {path}))).then(it => it).catch(it => it);
             const failures = promises.filter(it => it.status).length;
             if (failures > 0) {
