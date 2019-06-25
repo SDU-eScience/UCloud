@@ -1,5 +1,22 @@
 # `activity-service`
 
+The activity service makes it possible for a user to see what actions have
+been applied to a specific file or directory. It also makes it possible to get
+an activity log for a specific user.
+
+The services listens to the audit stream from storage-service and the 
+file-favorite-service and for incoming events. These entries are transformed 
+into an ActivityEvent and saved in the underlying database for further usage since Redis does not keep the events for ever.
+
+![Activity service layout](./wiki/Activityservice.png)
+
+When browsing a users activity, there is a chance that a lot of activity events
+are of the same type within the same period, these gathered in groups. If the
+group contains more than a certain number of entries, it will be
+collapsed/hidden. This will not happen with any of the other endpoints in this
+service.
+
+<!--
 __Which API will we provide?__
 
 - We want to provide the user with a list of stuff they have done
@@ -63,3 +80,4 @@ app-service activity?__
     responsible for calling implementations and merging.
 - Why not do this now? We need time to validate the design of the current
   activity-service.
+--> 
