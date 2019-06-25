@@ -12,7 +12,9 @@ class AppFsController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppFileSystems.create) {
-            ok(AppFileSystems.Create.Response(sharedFileSystemService.create(ctx.securityToken, request.backend)))
+            ok(AppFileSystems.Create.Response(
+                sharedFileSystemService.create(ctx.securityToken, request.backend, request.title)
+            ))
         }
 
         implement(AppFileSystems.delete) {

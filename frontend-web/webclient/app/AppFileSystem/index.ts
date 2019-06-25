@@ -6,13 +6,21 @@ export {default as Management} from "./Management";
 export interface SharedFileSystem {
     id: string,
     owner: string,
-    backend: string
+    backend: string,
+    title: string,
+    createdAt: number
 }
 
-export const createFileSystem = (backend?: string): APICallParameters => ({
+interface CreateFileSystemParameters {
+    title: string;
+    backend?: string;
+}
+
+export const createFileSystem = ({title, backend}: CreateFileSystemParameters): APICallParameters => ({
     method: "PUT",
     path: "/app/fs",
-    reloadId: Math.random()
+    reloadId: Math.random(),
+    payload: {title, backend}
 });
 
 export const deleteFileSystem = (id: string): APICallParameters => ({
@@ -26,7 +34,7 @@ interface ListFileSystemsParameters {
     itemsPerPage?: number;
 }
 
-export const listFileSystems = ({page = 0, itemsPerPage = 50}: ListFileSystemsParameters): APICallParameters<ListFileSystemsParameters> => ({
+export const listFileSystems = ({page = 0, itemsPerPage = 10}: ListFileSystemsParameters): APICallParameters<ListFileSystemsParameters> => ({
     method: "GET",
     path: buildQueryString("/app/fs", {page, itemsPerPage}),
     parameters: {page, itemsPerPage},

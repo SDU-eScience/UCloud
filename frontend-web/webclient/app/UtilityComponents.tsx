@@ -32,15 +32,17 @@ interface StandardDialog {
     validator?: () => boolean
 }
 
-export function addStandardDialog({
-   title,
-   message,
-   onConfirm,
-   onCancel = () => undefined,
-   validator = () => true,
-   cancelText = "Cancel",
-   confirmText = "Confirm"
-}: StandardDialog) {
+export function addStandardDialog(
+    {
+        title,
+        message,
+        onConfirm,
+        onCancel = () => undefined,
+        validator = () => true,
+        cancelText = "Cancel",
+        confirmText = "Confirm"
+    }: StandardDialog
+) {
     dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>{title}</Heading.h3>
@@ -48,8 +50,16 @@ export function addStandardDialog({
             <Box>{message}</Box>
         </Box>
         <Flex mt="20px">
-            <Button onClick={() => { onCancel(); dialogStore.popDialog() }} color="red" mr="5px">{cancelText}</Button>
-            <Button onClick={() => { if (validator()) onConfirm(); dialogStore.popDialog() }} color="green">{confirmText}</Button>
+            <Button onClick={() => {
+                onCancel();
+                dialogStore.popDialog()
+            }} color="red" mr="5px">{cancelText}</Button>
+            <Button onClick={() => {
+                if (validator()) {
+                    onConfirm();
+                    dialogStore.popDialog();
+                }
+            }} color="green">{confirmText}</Button>
         </Flex>
     </Box>)
 }
@@ -59,15 +69,15 @@ export function sensitivityDialog(): Promise<{ cancelled: true } | { option: Sen
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
         message: (<Box>
-                <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
-                    <option value="INHERIT">Inherit</option>
-                    <option value="PRIVATE">Private</option>
-                    <option value="CONFIDENTIAL">Confidential</option>
-                    <option value="SENSITIVE">Sensitive</option>
-                </Select>
+            <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
+                <option value="INHERIT">Inherit</option>
+                <option value="PRIVATE">Private</option>
+                <option value="CONFIDENTIAL">Confidential</option>
+                <option value="SENSITIVE">Sensitive</option>
+            </Select>
         </Box>),
-        onConfirm: () => resolve({ option }),
-        onCancel: () => resolve({ cancelled: true }),
+        onConfirm: () => resolve({option}),
+        onCancel: () => resolve({cancelled: true}),
         confirmText: "Change"
     }));
 }
@@ -117,7 +127,7 @@ export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
         message: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
         cancelText: "Continue Upload",
         confirmText: "Cancel Upload",
-        onConfirm: () =>  resolve({}),
+        onConfirm: () => resolve({}),
         onCancel: () => resolve({cancelled: true})
     }));
 }
@@ -173,17 +183,17 @@ interface FileIconProps {
 
 export const FileIcon = ({shared = false, link = false, fileIcon, size = 30}: FileIconProps) =>
     link || shared ?
-    <RelativeFlex>
-        <FtIcon size={size} fileIcon={fileIcon}/>
-        <Absolute bottom={"-6px"} right={"-2px"}>
-            <Dropdown>
-                <Icon size="15px" name="link" color2="white"/>
-                <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
-                    <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
-                </DropdownContent>
-            </Dropdown>
-        </Absolute>
-    </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>
+        <RelativeFlex>
+            <FtIcon size={size} fileIcon={fileIcon}/>
+            <Absolute bottom={"-6px"} right={"-2px"}>
+                <Dropdown>
+                    <Icon size="15px" name="link" color2="white"/>
+                    <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
+                        <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
+                    </DropdownContent>
+                </Dropdown>
+            </Absolute>
+        </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>
 
 const RelativeFlex = styled(Flex)`
     position: relative;

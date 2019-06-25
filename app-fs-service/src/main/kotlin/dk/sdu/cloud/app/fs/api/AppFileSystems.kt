@@ -31,7 +31,7 @@ object AppFileSystems : CallDescriptionContainer("app.fs") {
     }
 
     object Create {
-        data class Request(val backend: String?)
+        data class Request(val backend: String?, val title: String)
         data class Response(val id: String)
     }
 

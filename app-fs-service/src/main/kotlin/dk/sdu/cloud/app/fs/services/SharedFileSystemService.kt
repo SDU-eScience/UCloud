@@ -20,12 +20,12 @@ class SharedFileSystemService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val fileSystemDao: FileSystemDao<DBSession>
 ) {
-    suspend fun create(token: SecurityPrincipalToken, backend: String?): String {
+    suspend fun create(token: SecurityPrincipalToken, backend: String?, title: String): String {
         val allocatedId = UUID.randomUUID().toString()
 
         val resolvedBackend = backendService.verifyBackend(backend)
 
-        db.withTransaction { fileSystemDao.create(it, allocatedId, resolvedBackend, token) }
+        db.withTransaction { fileSystemDao.create(it, allocatedId, resolvedBackend, token, title) }
 
         try {
             backendService.getBackend(backend).create.call(
