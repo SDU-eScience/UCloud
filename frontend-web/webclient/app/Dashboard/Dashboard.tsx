@@ -184,7 +184,7 @@ const DashboardAnalyses = ({analyses, isLoading}: {analyses: Analysis[], isLoadi
                         size="1.2em"
                         pr="0.3em"
                     />
-                    <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.metadata.title}</TextSpan></Link>
+                    <Link to={`/applications/results/${analysis.jobId}`}><EllipsedText width={130} fontSize={2}>{analysis.metadata.title}</EllipsedText></Link>
                     <Box ml="auto" />
                     <Text fontSize={1} color="grey">{moment(new Date(analysis.modifiedAt!)).fromNow()}</Text>
                 </Flex>
