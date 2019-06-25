@@ -15,8 +15,9 @@ import RBox from "./RBox";
 import {ReduxObject} from "DefaultObjects"
 import {connect} from 'react-redux'
 import {FlexCProps} from "./Flex";
-import {inDevEnvironment, copyToClipboard} from "UtilityFunctions";
+import {inDevEnvironment, copyToClipboard, isLightThemeStored} from "UtilityFunctions";
 import {ContextSwitcher} from "Project/ContextSwitcher";
+import {ThemeToggler} from "./ThemeToggle";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
     justify-content: left;
@@ -248,7 +249,6 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                         {`Click to copy "${Cloud.username}" to clipboard`}
                     </Tooltip>
                 </SidebarTextLabel> : null}
-
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
                 <SidebarTextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1}
                     space=".5em">
