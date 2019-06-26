@@ -679,26 +679,6 @@ class LinuxFS(
         return FSResult(0, Unit)
     }
 
-    override suspend fun chmod(
-        ctx: LinuxFSRunner,
-        path: String,
-        owner: Set<AccessRight>,
-        group: Set<AccessRight>,
-        other: Set<AccessRight>
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = runAndRethrowNIOExceptions {
-        // No-op
-        return FSResult(0, emptyList())
-    }
-
-    override suspend fun chown(
-        ctx: LinuxFSRunner,
-        path: String,
-        owner: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
-        // No-op
-        return FSResult(0, emptyList())
-    }
-
     override suspend fun checkPermissions(ctx: LinuxFSRunner, path: String, requireWrite: Boolean): FSResult<Boolean> =
         runAndRethrowNIOExceptions {
             return FSResult(

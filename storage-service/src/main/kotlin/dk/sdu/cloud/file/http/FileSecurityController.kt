@@ -31,21 +31,6 @@ class FileSecurityController<Ctx : FSUserContext>(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.chmod) {
-            val fileIdsUpdated = ArrayList<String>()
-            audit(BulkFileAudit(fileIdsUpdated, request))
-            requirePermissionToChangeFilePermissions()
-
-            runCodeAsUnixOwner(request.path) { ctx ->
-                coreFs.chmod(
-                    ctx,
-                    request.path,
-                    request.owner,
-                    request.group,
-                    request.other,
-                    request.recurse,
-                    fileIdsUpdated
-                )
-            }
             ok(Unit)
         }
 

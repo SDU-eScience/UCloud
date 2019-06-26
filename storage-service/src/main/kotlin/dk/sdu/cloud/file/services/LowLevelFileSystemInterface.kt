@@ -282,25 +282,5 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         transferOwnershipTo: String? = null
     ): FSResult<Unit>
 
-    /**
-     * Changes the permissions of the file at [path].
-     *
-     * @throws FSException.PermissionException
-     * @throws FSException.NotFound
-     */
-    suspend fun chmod(
-        ctx: Ctx,
-        path: String,
-        owner: Set<AccessRight>,
-        group: Set<AccessRight>,
-        other: Set<AccessRight>
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-
-    suspend fun chown(
-        ctx: Ctx,
-        path: String,
-        owner: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-
     suspend fun checkPermissions(ctx: Ctx, path: String, requireWrite: Boolean): FSResult<Boolean>
 }

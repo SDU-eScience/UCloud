@@ -545,6 +545,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
+    @Deprecated("No longer in use")
     val chmod = call<ChmodRequest, Unit, CommonErrorMessage>("chmod") {
         audit<BulkFileAudit<ChmodRequest>>()
 

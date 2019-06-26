@@ -257,35 +257,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         return filesCreated.single()
     }
 
-    suspend fun chmod(
-        ctx: Ctx,
-        path: String,
-        owner: Set<AccessRight>,
-        group: Set<AccessRight>,
-        other: Set<AccessRight>,
-        recurse: Boolean,
-        fileIds: ArrayList<String>? = null
-    ) {
-        suspend fun applyChmod(path: String): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
-            return fs.chmod(ctx, path, owner, group, other)
-        }
-
-        if (recurse) {
-            fs.tree(
-                ctx, path, setOf(
-                    FileAttribute.PATH,
-                    FileAttribute.INODE
-                )
-            ).unwrap().forEach {
-                fileIds?.add(it.inode)
-                applyChmod(it.path).emitAll()
-            }
-        } else {
-            fileIds?.add(fs.stat(ctx, path, setOf(FileAttribute.INODE)).unwrap().inode)
-            applyChmod(path).emitAll()
-        }
-    }
-
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
     private suspend fun findFreeNameForNewFile(ctx: Ctx, desiredPath: String): String {
         fun findFileNameNoExtension(fileName: String): String {
