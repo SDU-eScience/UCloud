@@ -1,35 +1,63 @@
 import styled from "styled-components";
 import * as React from "react";
+import Relative from "./Relative";
 
-// Inspired by https://codepen.io/efreeman79/pen/XgZPGO
-export function ThemeToggler({isDarkTheme}) {
-    const [active, setActive] = React.useState<boolean>(isDarkTheme);
+/*
+
+    The MIT License (MIT)
+
+    Copyright (c) <2019> <Erin Freeman> <https://codepen.io/efreeman79/pen/XgZPGO>
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
+    documentation files (the "Software"), to deal in the Software without restriction, including without limitation 
+    the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+    to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+    the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO 
+    THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+    SOFTWARE.
+
+ */
+
+interface ThemeToggleProps {
+    size: number
+    active: boolean
+}
+export function ThemeToggler({isLightTheme}: {isLightTheme: boolean}) {
+    const [active, setActive] = React.useState<boolean>(isLightTheme);
     return (
-        <Wrapper onClick={() => setActive(!active)} active={active}>
-            <Switch active={active}>
-                <Moon>
-                    <Crater active={active} />
-                    <Crater active={active} />
-                    <Crater active={active} />
-                </Moon>
-            </Switch>
-            <Clouds active={active}>
-                <Cloud />
-                <Cloud />
-                <Cloud />
-                <Cloud />
-                <Cloud />
-                <Cloud />
-            </Clouds>
-            <Stars active={active}>
-                <Star active={active} />
-                <Star active={active} />
-                <Star active={active} />
-                <Star active={active} />
-                <Star active={active} />
-                <Star active={active} />
-            </Stars>
-        </Wrapper>
+        <Relative top="10px" left="82px">
+            <Wrapper size={1} onClick={() => setActive(!active)} active={active}>
+                <Switch size={1} active={active}>
+                    <Moon>
+                        <Crater active={active}/>
+                        <Crater active={active}/>
+                        <Crater active={active}/>
+                    </Moon>
+                </Switch>
+                <Clouds active={active}>
+                    <Cloud/>
+                    <Cloud/>
+                    <Cloud/>
+                    <Cloud/>
+                    <Cloud/>
+                    <Cloud/>
+                </Clouds>
+                <Stars active={active}>
+                    <Star active={active}/>
+                    <Star active={active}/>
+                    <Star active={active}/>
+                    <Star active={active}/>
+                    <Star active={active}/>
+                    <Star active={active}/>
+                </Stars>
+            </Wrapper>
+        </Relative>
     );
 }
 
@@ -38,43 +66,43 @@ const Moon = styled.div`
 `;
 
 
-const activeWrapper = ({active}) => active ? ({
+const activeWrapper = ({active}: ThemeToggleProps) => active ? ({
     background: "#09f"
 }) : null;
 
-const Wrapper = styled.div`
-    height: 6em;
-    width: 14em;
+const Wrapper = styled.div<ThemeToggleProps>`
+    height: ${p => p.size * 1.2}em;
+    width: ${p => p.size * 2.8}em;
     background: #3c4145;
-    position: absolute;
     overflow: hidden;
     top: 50%;
     left: 50%;
     transform: translate(-50%,-50%);
-    border-radius: 4em;
+    border-radius: ${p => p.size * 0.8}em;
     transition: all 0.35s ease;
     &:hover {
         cursor: pointer;
     }
     ${activeWrapper}
-`
-const activeSwitch = ({active}) => active ? ({
-    left: "8em",
+`;
+
+const activeSwitch = ({active, size}: ThemeToggleProps) => active ? ({
+    left: `${size * 1.6}em`,
     background: "#ffdf6d",
     borderColor: "#e1c448"
 }) : null;
 
-const Switch = styled.div`
+const Switch = styled.div<ThemeToggleProps>`
     position: absolute;
     z-index: 2;
     transition: all 0.35s ease;
-    margin: 0.5em;
-    height: 5em;
-    width: 5em;
+    margin: ${p => p.size * 0.1}em;
+    height: ${p => p.size * 1}em;
+    width: ${p => p.size * 1}em;
     left: 0;
-    border-radius: 3em;
+    border-radius: ${p => p.size * 0.6}em;
     background: #ffffff;
-    border: 0.4em solid #333;
+    border: ${p => p.size * 0.08}em solid #333;
     box-sizing: border-box;
     border-color: #e3e7c7;
     ${activeSwitch}

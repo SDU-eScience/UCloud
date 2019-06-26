@@ -7,7 +7,7 @@ import Avatar from "avataaars";
 import {History} from "history";
 import {HeaderStateToProps} from "Navigation";
 import {ReduxObject, KeyCode, HeaderSearchType} from "DefaultObjects";
-import {Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide} from "ui-components";
+import {Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide, Divider} from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -25,6 +25,7 @@ import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
 import {SpaceProps} from "styled-system";
+import {ThemeToggler} from "ui-components/ThemeToggle";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteComponentProps {
     history: History
@@ -69,7 +70,7 @@ function Header(props: HeaderProps) {
             </Flex>
             <Support />
             <Notification />
-            <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ?
+            <ClickableDropdown colorOnHover={false} width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ?
                 <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}>
                 <Box ml="-17px" mr="-17px" pl="15px">
                     <Link color="black" to="/users/settings">
@@ -87,13 +88,13 @@ function Header(props: HeaderProps) {
                         </Flex>
                     </Link>
                 </Flex>
-                <Flex ml="-17px" mr="-17px" pl="15px" onClick={props.toggleTheme}>
-                    <Icon name={isLightThemeStored() ?  "moon" : "sun"} mr="0.5em" my="0.2em" size="1.3em" />
-                    Switch theme
-                </Flex>
                 <Flex ml="-17px" mr="-17px" pl="15px" onClick={Cloud.logout}>
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
+                </Flex>
+                <Divider />
+                <Flex onClick={e => (e.preventDefault(), e.stopPropagation(), props.toggleTheme())}>
+                    <ThemeToggler isLightTheme={isLightThemeStored()} />
                 </Flex>
             </ClickableDropdown>
         </HeaderContainer>
