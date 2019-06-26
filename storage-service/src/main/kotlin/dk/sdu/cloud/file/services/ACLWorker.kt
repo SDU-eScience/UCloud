@@ -17,7 +17,7 @@ import io.ktor.http.HttpStatusCode
 
 private data class UpdateRequestWithRealOwner(val request: UpdateAclRequest, val realOwner: String)
 
-class ACLService<Ctx : FSUserContext>(
+class ACLWorker<Ctx : FSUserContext>(
     private val fsCommandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val backgroundExecutor: BackgroundExecutor<*>
