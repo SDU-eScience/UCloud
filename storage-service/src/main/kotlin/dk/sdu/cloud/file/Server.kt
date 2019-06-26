@@ -90,7 +90,6 @@ class Server(
         // FS root
         val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }
             ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
-        val fsRoot = fsRootFile.normalize().absolutePath
 
         // Low level FS
         val processRunner = LinuxFSRunnerFactory()

@@ -29,7 +29,6 @@ interface CLibrary : Library {
     }
 }
 
-
 interface XAttrOSX : Library {
     fun getxattr(path: String, name: String, value: ByteArray, size: Int, position: Int, options: Int): Int
     fun setxattr(path: String, name: String, value: ByteArray, size: Int, position: Int, options: Int): Int
@@ -41,50 +40,3 @@ interface XAttrOSX : Library {
     }
 }
 
-
-// This is an insane API
-interface ACLLibrary : Library {
-    fun acl_init(entries: Int): Pointer?
-    fun acl_get_file(path: String, type: Int): Pointer?
-    fun acl_get_entry(tag: Pointer?, entryIdx: Int, destination: ACLEntryBuf?): Int
-    fun acl_get_tag_type(entry: ACLEntry, tag: ACLTag?): Int
-    fun acl_get_qualifier(entry: ACLEntry): Pointer?
-    fun acl_get_permset(entry: ACLEntry, destination: ACLPermSet?): Int
-    fun acl_set_permset(entry: ACLEntry, destination: Long): Int
-    fun acl_get_perm(permset: Long, value: Int): Int
-    fun acl_clear_perms(permset: Long): Int
-    fun acl_free(pointer: Pointer)
-
-    fun acl_create_entry(acl: PointerType, entry: ACLEntryBuf): Int
-    fun acl_delete_entry(acl: Pointer, entry: Long): Int
-    fun acl_set_qualifier(entry: ACLEntry, qualifier: IntArray): Int
-    fun acl_set_tag_type(entry: ACLEntry, tag: Int): Int
-    fun acl_add_perm(permset: Long, value: Int): Int
-    fun acl_set_file(path: String, type: Int, acl: Pointer): Int
-    fun acl_valid(acl: Pointer): Int
-    fun acl_check(acl: Pointer, last: IntArray): Int
-    fun acl_error(err: Int): String
-    fun acl_entries(acl: Pointer): Long
-
-    companion object {
-        val INSTANCE by lazy {
-            if (Platform.isLinux()) Native.load("acl", ACLLibrary::class.java) as ACLLibrary
-            else Native.load("c", ACLLibrary::class.java) as ACLLibrary
-        }
-    }
-}
-
-// The following types are seemingly meant to be anonymous. They can only be queried with the functions in the API.
-// For this reason whenever we need to use them we just use a buffer of the appropriate size. These constructor
-// functions should take into account differences between OSX and Linux.
-
-typealias ACLEntryBuf = LongArray
-typealias ACLEntry = Long
-
-typealias ACLTag = IntArray
-
-fun ACLTag() = IntArray(1)
-
-typealias ACLPermSet = LongArray
-
-fun ACLPermSet() = LongArray(1)

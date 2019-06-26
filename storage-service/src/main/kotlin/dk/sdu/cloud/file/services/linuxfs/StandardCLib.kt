@@ -5,78 +5,6 @@ import com.sun.jna.Platform
 import kotlinx.io.pool.useInstance
 
 object StandardCLib {
-    fun getuid(): Int {
-        return if (Platform.isWindows()) {
-            -1
-        } else {
-            CLibrary.INSTANCE.getuid()
-        }
-    }
-
-    fun setgid(gid: Int): StatusCode {
-        return if (Platform.isWindows()) {
-            StatusCode.OK
-        } else {
-            StatusCode(
-                CLibrary.INSTANCE.setgid(
-                    gid
-                )
-            )
-        }
-    }
-
-    fun setuid(uid: Int): StatusCode {
-        return if (Platform.isWindows()) {
-            StatusCode.OK
-        } else {
-            StatusCode(
-                CLibrary.INSTANCE.setuid(
-                    uid
-                )
-            )
-        }
-    }
-
-    fun setfsuid(uid: Long): StatusCode {
-        return if (!Platform.isLinux()) {
-            StatusCode.OK
-        } else {
-            StatusCode(
-                CLibrary.INSTANCE.setfsuid(
-                    uid
-                )
-            )
-        }
-    }
-
-    fun setfsgid(uid: Long): StatusCode {
-        return if (!Platform.isLinux()) {
-            StatusCode.OK
-        } else {
-            StatusCode(
-                CLibrary.INSTANCE.setfsgid(
-                    uid
-                )
-            )
-        }
-    }
-
-    fun umask(value: Int) {
-        if (!Platform.isWindows()) {
-            CLibrary.INSTANCE.umask(value)
-        }
-    }
-
-    fun chown(path: String, owner: Int, group: Int): StatusCode {
-        return if (!Platform.isLinux()) {
-            StatusCode(
-                CLibrary.INSTANCE.chown(path, owner, group)
-            )
-        } else {
-            StatusCode.OK
-        }
-    }
-
     fun realPath(path: String): String? {
         return CLibrary.INSTANCE.realpath(path, null)
     }
@@ -142,14 +70,6 @@ object StandardCLib {
         } else {
             CLibrary.INSTANCE.removexattr(path, name)
         }
-    }
-}
-
-class StatusCode(val value: Int) {
-    fun isOkay(): Boolean = value == 0
-
-    companion object {
-        val OK = StatusCode(0)
     }
 }
 
