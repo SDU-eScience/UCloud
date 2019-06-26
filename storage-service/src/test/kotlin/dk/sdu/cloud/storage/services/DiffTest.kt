@@ -81,7 +81,7 @@ class DiffTest {
         EventServiceMock.reset()
         val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
-        val commandRunnerFactory = LinuxFSRunnerFactory(userDao)
+        val commandRunnerFactory = LinuxFSRunnerFactory()
         val cephFs = LinuxFS(commandRunnerFactory, root, userDao)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()

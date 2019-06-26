@@ -11,7 +11,7 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
-import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.ACLWorker
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAttribute
@@ -25,7 +25,7 @@ import io.ktor.http.HttpStatusCode
 class FileSecurityController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
-    private val aclService: ACLService<Ctx>,
+    private val aclWorker: ACLWorker<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
@@ -40,7 +40,7 @@ class FileSecurityController<Ctx : FSUserContext>(
             requirePermissionToChangeFilePermissions()
             val (_, owner) = checkPermissionsAndReturnOwners(request.path)
 
-            ok(FindByStringId(aclService.updateAcl(request, owner, ctx.securityPrincipal.username)))
+            ok(FindByStringId(aclWorker.updateAcl(request, owner, ctx.securityPrincipal.username)))
         }
 
         implement(FileDescriptions.reclassify) {

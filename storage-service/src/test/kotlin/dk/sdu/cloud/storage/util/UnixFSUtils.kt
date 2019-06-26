@@ -25,7 +25,7 @@ fun linuxFSWithRelaxedMocks(
     fsRoot: String,
     userDao: UIDLookupService = simpleStorageUserDao()
 ): Pair<LinuxFSRunnerFactory, LinuxFS> {
-    val commandRunner = LinuxFSRunnerFactory(userDao)
+    val commandRunner = LinuxFSRunnerFactory()
     return Pair(
         commandRunner,
         LinuxFS(

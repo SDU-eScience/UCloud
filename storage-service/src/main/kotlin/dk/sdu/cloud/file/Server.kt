@@ -17,7 +17,7 @@ import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.http.WorkspaceController
 import dk.sdu.cloud.file.processors.UserProcessor
-import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.ACLWorker
 import dk.sdu.cloud.file.services.AuthUIDLookupService
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
@@ -93,7 +93,7 @@ class Server(
         val fsRoot = fsRootFile.normalize().absolutePath
 
         // Low level FS
-        val processRunner = LinuxFSRunnerFactory(uidLookupService)
+        val processRunner = LinuxFSRunnerFactory()
         val fs = LinuxFS(fsRootFile, homeFolderService, newAclService)
 
         // High level FS
@@ -104,7 +104,7 @@ class Server(
         }
 
         // Metadata services
-        val aclService = ACLService(processRunner, fs, bgExecutor).also { it.registerWorkers() }
+        val aclService = ACLWorker(processRunner, fs, bgExecutor).also { it.registerWorkers() }
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
 
         // High level FS
