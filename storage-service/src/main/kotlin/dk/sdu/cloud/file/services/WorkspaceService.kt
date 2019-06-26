@@ -46,6 +46,9 @@ class WorkspaceService(
     private val fsRoot = fsRoot.absoluteFile.normalize()
     private val workspaceFile = File(fsRoot, WORKSPACE_PATH)
 
+    // TODO This might need to clear ACLs from user code. Technically this won't be needed under new system but would
+    //  be needed if we change stuff around again.
+
     fun workspace(id: String) = File(workspaceFile, id).toPath().normalize().toAbsolutePath()
 
     suspend fun create(
