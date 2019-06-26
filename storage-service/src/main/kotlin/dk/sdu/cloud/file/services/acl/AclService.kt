@@ -14,6 +14,8 @@ class AclService<Session>(
 ) {
     suspend fun createOrUpdatePermission(path: String, username: String, permission: AclPermission) {
         val normalizedPath = path.normalize()
+
+        log.debug("createOrUpdatePermission($normalizedPath, $username, $permission)")
         db.withTransaction {
             dao.createOrUpdatePermission(it, normalizedPath, username, permission)
         }

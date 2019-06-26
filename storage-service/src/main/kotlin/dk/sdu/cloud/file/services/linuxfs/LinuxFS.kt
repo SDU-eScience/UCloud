@@ -1,33 +1,13 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.services.FSACLEntity
-import dk.sdu.cloud.file.services.FSResult
-import dk.sdu.cloud.file.services.FileAttribute
-import dk.sdu.cloud.file.services.FileRow
-import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.XATTR_BIRTH
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclPermission
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
-import dk.sdu.cloud.file.util.CappedInputStream
-import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
-import dk.sdu.cloud.file.util.toCreatedEvent
-import dk.sdu.cloud.file.util.toDeletedEvent
-import dk.sdu.cloud.file.util.toMovedEvent
+import dk.sdu.cloud.file.util.*
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -35,15 +15,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
-import java.nio.file.InvalidPathException
-import java.nio.file.LinkOption
-import java.nio.file.NoSuchFileException
-import java.nio.file.OpenOption
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
@@ -681,6 +653,7 @@ class LinuxFS(
         recursive: Boolean,
         transferOwnershipTo: String?
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
+        if (entity !is FSACLEntity.User) throw FSException.CriticalException("Unknown entity type")
         val hasRead = AccessRight.READ in rights
         val hasWrite = AccessRight.WRITE in rights
         if (!hasRead && !hasWrite) return FSResult(0, Unit)
@@ -688,7 +661,11 @@ class LinuxFS(
         // TODO transferOwnershipTo
         // TODO Handle not being recursive
 
-        aclService.createOrUpdatePermission(path, ctx.user, if (hasWrite) AclPermission.WRITE else AclPermission.READ)
+        aclService.createOrUpdatePermission(
+            path,
+            entity.user,
+            if (hasWrite) AclPermission.WRITE else AclPermission.READ
+        )
         return FSResult(0, Unit)
     }
 

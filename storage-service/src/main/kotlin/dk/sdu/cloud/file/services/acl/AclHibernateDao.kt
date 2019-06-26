@@ -8,9 +8,7 @@ import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.deleteCriteria
 import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.updateCriteria
 import java.io.Serializable
-import java.security.Permission
 import javax.persistence.Column
 import javax.persistence.Embeddable
 import javax.persistence.EmbeddedId
@@ -55,14 +53,25 @@ class AclHibernateDao : AclDao<HibernateSession> {
         permission: AclPermission
     ): Boolean {
         val normalizedPath = path.normalize()
-        val parents = normalizedPath.parents()
+        val parents = normalizedPath.parents().map { it.normalize() } + listOf(normalizedPath)
 
         return session.criteria<PermissionEntry> {
             anyOf(
                 *(parents.map { parent ->
+                    val permissionPredicate = when (permission) {
+                        AclPermission.READ -> {
+                            (entity[PermissionEntry::permission] equal AclPermission.READ) or
+                                    (entity[PermissionEntry::permission] equal AclPermission.WRITE)
+                        }
+
+                        AclPermission.WRITE -> {
+                            (entity[PermissionEntry::permission] equal AclPermission.WRITE)
+                        }
+                    }
+
                     (entity[PermissionEntry::key][PermissionEntry.Key::username] equal username) and
                             (entity[PermissionEntry::key][PermissionEntry.Key::path] equal parent) and
-                            (entity[PermissionEntry::permission] equal permission)
+                            permissionPredicate
                 }.toTypedArray())
             )
         }.list().isNotEmpty()

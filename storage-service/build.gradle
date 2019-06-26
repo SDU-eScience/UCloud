@@ -5,7 +5,7 @@ apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.1"
+    ext.serviceCommonVersion = "1.5.2-ACL"
 }
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
