@@ -115,8 +115,8 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     fetchJobs: async (itemsPerPage, pageNumber) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     onInit: () => {
-        dispatch(setActivePage(SidebarPages.MyResults));
-        dispatch(updatePageTitle("My Results"))
+        dispatch(setActivePage(SidebarPages.Runs));
+        dispatch(updatePageTitle("Runs"))
     }
 });
 
