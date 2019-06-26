@@ -648,15 +648,11 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         path: String,
         entity: FSACLEntity,
-        rights: Set<AccessRight>,
-        defaultList: Boolean,
-        transferOwnershipTo: String?
+        rights: Set<AccessRight>
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
         val hasRead = AccessRight.READ in rights
         val hasWrite = AccessRight.WRITE in rights
         if (!hasRead && !hasWrite) return FSResult(0, Unit)
-        if (defaultList) return FSResult(0, Unit)
-        // TODO transferOwnershipTo
 
         aclService.createOrUpdatePermission(
             path,
@@ -669,12 +665,8 @@ class LinuxFS(
     override suspend fun removeACLEntry(
         ctx: LinuxFSRunner,
         path: String,
-        entity: FSACLEntity,
-        defaultList: Boolean,
-        transferOwnershipTo: String?
+        entity: FSACLEntity
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
-        if (defaultList) return FSResult(0, Unit)
-        // TODO transferOwnershipTo
         aclService.revokePermission(path, entity.user)
         return FSResult(0, Unit)
     }

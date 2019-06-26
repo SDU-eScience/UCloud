@@ -263,9 +263,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,
-        rights: Set<AccessRight>,
-        defaultList: Boolean = false,
-        transferOwnershipTo: String? = null
+        rights: Set<AccessRight>
     ): FSResult<Unit>
 
     /**
@@ -277,9 +275,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun removeACLEntry(
         ctx: Ctx,
         path: String,
-        entity: FSACLEntity,
-        defaultList: Boolean = false,
-        transferOwnershipTo: String? = null
+        entity: FSACLEntity
     ): FSResult<Unit>
 
     suspend fun checkPermissions(ctx: Ctx, path: String, requireWrite: Boolean): FSResult<Boolean>

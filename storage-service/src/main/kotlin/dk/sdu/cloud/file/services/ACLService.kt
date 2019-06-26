@@ -6,7 +6,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.ACLEntryRequest
-import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.background.BackgroundResponse
@@ -23,124 +22,24 @@ class ACLService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val backgroundExecutor: BackgroundExecutor<*>
 ) {
-    private suspend fun grantRights(
-        ctx: Ctx,
-        path: String,
-        entity: FSACLEntity,
-        rights: Set<AccessRight>,
-        realOwner: String
-    ) {
-        suspend fun grant(entity: FSACLEntity, defaultList: Boolean) {
-            fs.createACLEntry(
-                ctx,
-                path,
-                entity,
-                rights,
-                defaultList = defaultList,
-                transferOwnershipTo = null
-            ).setfaclUnwrap()
-        }
-
-        // Add to both the default and the actual list. This needs to be recursively applied
-        // We need to apply this process to both the creator and the entity.
-        grant(FSACLEntity(realOwner), false)
-        grant(FSACLEntity(realOwner), true)
-
-        grant(entity, false)
-        grant(entity, true)
-    }
-
-    private suspend fun revokeRights(
-        ctx: Ctx,
-        path: String,
-        entity: FSACLEntity,
-        realOwner: String
-    ) {
-        suspend fun revoke(defaultList: Boolean) {
-            fs.removeACLEntry(
-                ctx,
-                path,
-                entity,
-                defaultList = defaultList,
-                transferOwnershipTo = realOwner
-            ).setfaclUnwrap()
-        }
-
-        revoke(false)
-        revoke(true)
-    }
-
-    private fun <T> FSResult<T>.setfaclUnwrap(): T {
-        if (statusCode == 256) {
-            throw FSException.NotFound()
-        }
-
-        return unwrap()
-    }
-
     fun registerWorkers() {
         backgroundExecutor.addWorker(REQUEST_TYPE) { _, message ->
             fsCommandRunnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
-                val initiatedChanges = ArrayList<ACLEntryRequest>()
-                var parsedRequest: UpdateRequestWithRealOwner? = null
+                val parsed = defaultMapper.readValue<UpdateRequestWithRealOwner>(message)
+                val (request, _) = parsed
+                log.debug("Executing ACL update request: $request")
 
-                try {
-                    val parsed = defaultMapper.readValue<UpdateRequestWithRealOwner>(message)
-                    parsedRequest = parsed
-                    val (request, realOwner) = parsed
-                    log.debug("Executing ACL update request: $request")
+                request.changes.forEach { change ->
+                    val entity = FSACLEntity(change.entity)
 
-                    request.changes.forEach { change ->
-                        // We roll all changes back which have been initiated.
-                        // It is safe to perform reverts for the actions that may not have been performed yet.
-                        initiatedChanges.add(change)
-
-                        val entity =
-                            FSACLEntity(change.entity)
-
-                        if (change.revoke) {
-                            revokeRights(ctx, request.path, entity, realOwner)
-                        } else {
-                            grantRights(ctx, request.path, entity, change.rights, realOwner)
-                        }
-                    }
-
-                    BackgroundResponse(HttpStatusCode.OK, Unit)
-                } catch (ex: Exception) {
-                    log.info("Caught exception while updating ACL!")
-                    log.info(ex.stackTraceToString())
-
-                    // Rollback changes that were applied
-                    if (parsedRequest != null && parsedRequest.request.automaticRollback != false) {
-                        val negatedChanges = initiatedChanges.map { change ->
-                            change.copy(revoke = !change.revoke)
-                        }
-
-                        if (negatedChanges.isNotEmpty()) {
-                            log.debug("Rolling changes back!")
-                            updateAcl(
-                                UpdateAclRequest(
-                                    parsedRequest.request.path,
-                                    negatedChanges,
-                                    automaticRollback = false
-                                ),
-                                parsedRequest.realOwner,
-                                SERVICE_USER
-                            )
-                        }
-                    }
-
-                    if (parsedRequest != null && parsedRequest.request.automaticRollback == false) {
-                        log.warn("Unable to rollback changes for $parsedRequest")
-                        log.warn("The FS ACL will be out of sync!")
-                    }
-
-                    if (ex is RPCException) {
-                        BackgroundResponse(ex.httpStatusCode, CommonErrorMessage(ex.why))
+                    if (change.revoke) {
+                        fs.removeACLEntry(ctx, request.path, entity).unwrap()
                     } else {
-                        BackgroundResponse(HttpStatusCode.InternalServerError, CommonErrorMessage("Internal error"))
+                        fs.createACLEntry(ctx, request.path, entity, change.rights).unwrap()
                     }
                 }
+
+                BackgroundResponse(HttpStatusCode.OK, Unit)
             }
         }
     }
