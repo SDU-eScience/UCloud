@@ -38,7 +38,6 @@ data class CreateLinkRequest(
 
 data class UpdateAclRequest(
     val path: String,
-    val recurse: Boolean,
     val changes: List<ACLEntryRequest>,
     val automaticRollback: Boolean? = null
 ) {

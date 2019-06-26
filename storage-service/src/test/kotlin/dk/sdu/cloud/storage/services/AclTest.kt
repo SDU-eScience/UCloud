@@ -87,7 +87,7 @@ class AclTest {
 
         with(initTest(root.absolutePath)) {
             runner.withBlockingContext("A") {
-                fs.createACLEntry(it, "/home/A/share", FSACLEntity.User("B"), setOf(AccessRight.READ), recursive = true)
+                fs.createACLEntry(it, "/home/A/share", FSACLEntity.User("B"), setOf(AccessRight.READ))
 
                 fs.createACLEntry(
                     it,

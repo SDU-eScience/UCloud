@@ -650,7 +650,6 @@ class LinuxFS(
         entity: FSACLEntity,
         rights: Set<AccessRight>,
         defaultList: Boolean,
-        recursive: Boolean,
         transferOwnershipTo: String?
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
         if (entity !is FSACLEntity.User) throw FSException.CriticalException("Unknown entity type")
@@ -659,7 +658,6 @@ class LinuxFS(
         if (!hasRead && !hasWrite) return FSResult(0, Unit)
         if (defaultList) return FSResult(0, Unit)
         // TODO transferOwnershipTo
-        // TODO Handle not being recursive
 
         aclService.createOrUpdatePermission(
             path,
@@ -674,13 +672,11 @@ class LinuxFS(
         path: String,
         entity: FSACLEntity,
         defaultList: Boolean,
-        recursive: Boolean,
         transferOwnershipTo: String?
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
         if (entity !is FSACLEntity.User) throw FSException.CriticalException("Unknown entity type")
         if (defaultList) return FSResult(0, Unit)
         // TODO transferOwnershipTo
-        // TODO Handle not being recursive
         aclService.revokePermission(path, entity.user)
         return FSResult(0, Unit)
     }

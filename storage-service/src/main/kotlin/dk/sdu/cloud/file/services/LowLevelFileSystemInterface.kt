@@ -279,7 +279,6 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         entity: FSACLEntity,
         rights: Set<AccessRight>,
         defaultList: Boolean = false,
-        recursive: Boolean = false,
         transferOwnershipTo: String? = null
     ): FSResult<Unit>
 
@@ -294,7 +293,6 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         path: String,
         entity: FSACLEntity,
         defaultList: Boolean = false,
-        recursive: Boolean = false,
         transferOwnershipTo: String? = null
     ): FSResult<Unit>
 

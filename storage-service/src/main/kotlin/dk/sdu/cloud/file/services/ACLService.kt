@@ -28,7 +28,6 @@ class ACLService<Ctx : FSUserContext>(
         path: String,
         entity: FSACLEntity,
         rights: Set<AccessRight>,
-        recursive: Boolean = true,
         realOwner: String
     ) {
         suspend fun grant(entity: FSACLEntity, defaultList: Boolean) {
@@ -38,7 +37,6 @@ class ACLService<Ctx : FSUserContext>(
                 entity,
                 rights,
                 defaultList = defaultList,
-                recursive = recursive,
                 transferOwnershipTo = null
             ).setfaclUnwrap()
         }
@@ -56,7 +54,6 @@ class ACLService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,
-        recursive: Boolean = true,
         realOwner: String
     ) {
         suspend fun revoke(defaultList: Boolean) {
@@ -65,7 +62,6 @@ class ACLService<Ctx : FSUserContext>(
                 path,
                 entity,
                 defaultList = defaultList,
-                recursive = recursive,
                 transferOwnershipTo = realOwner
             ).setfaclUnwrap()
         }
@@ -103,9 +99,9 @@ class ACLService<Ctx : FSUserContext>(
                             if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
 
                         if (change.revoke) {
-                            revokeRights(ctx, request.path, entity, request.recurse, realOwner)
+                            revokeRights(ctx, request.path, entity, realOwner)
                         } else {
-                            grantRights(ctx, request.path, entity, change.rights, request.recurse, realOwner)
+                            grantRights(ctx, request.path, entity, change.rights, realOwner)
                         }
                     }
 
@@ -125,7 +121,6 @@ class ACLService<Ctx : FSUserContext>(
                             updateAcl(
                                 UpdateAclRequest(
                                     parsedRequest.request.path,
-                                    parsedRequest.request.recurse,
                                     negatedChanges,
                                     automaticRollback = false
                                 ),
