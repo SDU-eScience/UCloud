@@ -10,7 +10,7 @@ data class UserWithPermissions(val username: String, val permission: AclPermissi
 interface AclDao<Session> {
     fun createOrUpdatePermission(session: Session, path: String, username: String, permission: AclPermission)
     fun hasPermission(session: Session, path: String, username: String, permission: AclPermission): Boolean
-    fun listAcl(session: Session, path: String): List<UserWithPermissions>
+    fun listAcl(session: Session, paths: List<String>): Map<String, List<UserWithPermissions>>
     fun revokePermission(session: Session, path: String, username: String)
     fun handleFilesMoved(session: Session, path: String)
     fun handleFilesDeleted(session: Session, path: String)

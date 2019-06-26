@@ -82,7 +82,7 @@ class DiffTest {
         val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
         val commandRunnerFactory = LinuxFSRunnerFactory()
-        val cephFs = LinuxFS(commandRunnerFactory, root, userDao)
+        val cephFs = LinuxFS(commandRunnerFactory, userDao)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         val coreFs = CoreFileSystemService(cephFs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)

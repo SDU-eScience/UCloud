@@ -77,13 +77,24 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }.list().isNotEmpty()
     }
 
-    override fun listAcl(session: HibernateSession, path: String): List<UserWithPermissions> {
-        val normalizedPath = path.normalize()
-        return session.criteria<PermissionEntry> {
-            entity[PermissionEntry::key][PermissionEntry.Key::path] equal normalizedPath
-        }.list().map {
-            UserWithPermissions(it.key.username, it.permission)
-        }
+    override fun listAcl(session: HibernateSession, paths: List<String>): Map<String, List<UserWithPermissions>> {
+        val result = HashMap<String, ArrayList<UserWithPermissions>>()
+        session
+            .criteria<PermissionEntry> {
+                anyOf(
+                    *paths.map { normalizedPath ->
+                        entity[PermissionEntry::key][PermissionEntry.Key::path] equal normalizedPath
+                    }.toTypedArray()
+                )
+            }
+            .list()
+            .forEach { item ->
+                val list = result[item.key.path] ?: ArrayList()
+                list.add(UserWithPermissions(item.key.username, item.permission))
+                result[item.key.path] = list
+            }
+
+        return result
     }
 
     override fun revokePermission(session: HibernateSession, path: String, username: String) {

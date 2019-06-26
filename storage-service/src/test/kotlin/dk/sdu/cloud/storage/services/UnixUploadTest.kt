@@ -20,7 +20,7 @@ class UnixUploadTest {
         val userDao = simpleStorageUserDao()
         val fsRoot = Files.createTempDirectory("ceph-fs").toFile()
         val factory = LinuxFSRunnerFactory()
-        val cephFs = LinuxFS(factory, fsRoot, userDao)
+        val cephFs = LinuxFS(factory, userDao)
         val owner = SERVICE_USER
 
         factory.withBlockingContext(owner) { ctx ->

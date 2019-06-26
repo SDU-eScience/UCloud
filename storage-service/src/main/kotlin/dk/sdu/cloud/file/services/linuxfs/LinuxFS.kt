@@ -23,7 +23,6 @@ import kotlin.streams.toList
 
 class LinuxFS(
     fsRoot: File,
-    private val homeFolderService: HomeFolderService,
     private val aclService: AclService<*>
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
     private val fsRoot = fsRoot.normalize().absoluteFile
@@ -44,7 +43,13 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                stat(ctx, systemTo, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
+                stat(
+                    ctx,
+                    systemTo,
+                    STORAGE_EVENT_MODE,
+                    HashMap(),
+                    hasPerformedPermissionCheck = true
+                ).toCreatedEvent(true)
             )
         )
     }
@@ -67,11 +72,18 @@ class LinuxFS(
             ctx,
             systemFrom,
             setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.FILE_TYPE),
-            HashMap()
+            HashMap(),
+            hasPerformedPermissionCheck = true
         )
 
         val targetType =
-            runCatching { stat(ctx, systemTo, setOf(FileAttribute.FILE_TYPE), HashMap()) }.getOrNull()?.fileType
+            runCatching { stat(
+                ctx,
+                systemTo,
+                setOf(FileAttribute.FILE_TYPE),
+                HashMap(),
+                hasPerformedPermissionCheck = true
+            ) }.getOrNull()?.fileType
 
         if (targetType != null && fromStat.fileType != targetType) {
             throw FSException.BadRequest("Target already exists and is not of same type as source.")
@@ -80,7 +92,13 @@ class LinuxFS(
         Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
 
         // We compare this information with after the move to get the correct old path.
-        val toStat = stat(ctx, systemTo, STORAGE_EVENT_MODE, HashMap())
+        val toStat = stat(
+            ctx,
+            systemTo,
+            STORAGE_EVENT_MODE,
+            HashMap(),
+            hasPerformedPermissionCheck = true
+        )
         val basePath = toStat.path.removePrefix(toStat.path).removePrefix("/")
         val oldPath = if (fromStat.fileType == FileType.DIRECTORY) {
             joinPath(fromStat.path, basePath)
@@ -93,7 +111,13 @@ class LinuxFS(
             // TODO copyCausedBy
             val cache = HashMap<String, String>()
             Files.walk(systemTo.toPath()).toList().map {
-                stat(ctx, it.toFile(), STORAGE_EVENT_MODE, cache).toMovedEvent(oldPath, copyCausedBy = true)
+                stat(
+                    ctx,
+                    it.toFile(),
+                    STORAGE_EVENT_MODE,
+                    cache,
+                    hasPerformedPermissionCheck = true
+                ).toMovedEvent(oldPath, copyCausedBy = true)
             }
         } else {
             listOf(toStat.toMovedEvent(oldPath, copyCausedBy = true))
@@ -118,7 +142,7 @@ class LinuxFS(
             0,
             (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).mapNotNull { child ->
                 try {
-                    stat(ctx, child, mode, pathCache)
+                    stat(ctx, child, mode, pathCache, hasPerformedPermissionCheck = true)
                 } catch (ex: NoSuchFileException) {
                     null
                 }
@@ -131,10 +155,12 @@ class LinuxFS(
         systemFile: File,
         mode: Set<FileAttribute>,
         pathCache: MutableMap<String, String>,
+        hasPerformedPermissionCheck: Boolean,
         followLink: Boolean = false
     ): FileRow {
-        // TODO Optimize this call away
-        aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AclPermission.READ)
+        if (!hasPerformedPermissionCheck) {
+            aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AclPermission.READ)
+        }
 
         var fileType: FileType? = null
         var isLink: Boolean? = null
@@ -307,7 +333,9 @@ class LinuxFS(
         }
 
         if (FileAttribute.SHARES in mode) {
-            shares = aclService.listAcl(systemFile.path.toCloudPath()).map {
+            // TODO Optimize this by making a bulk request in a list dir scenario
+            val cloudPath = systemFile.path.toCloudPath()
+            shares = aclService.listAcl(listOf(cloudPath)).getOrDefault(cloudPath, emptyList()).map {
                 AccessEntry(
                     it.username, false, when (it.permission) {
                         AclPermission.READ -> setOf(AccessRight.READ, AccessRight.EXECUTE)
@@ -360,7 +388,7 @@ class LinuxFS(
         deletedRows: ArrayList<StorageEvent.Deleted>
     ) {
         try {
-            val stat = stat(ctx, path.toFile(), STORAGE_EVENT_MODE, cache)
+            val stat = stat(ctx, path.toFile(), STORAGE_EVENT_MODE, cache, hasPerformedPermissionCheck = true)
             Files.delete(path)
             deletedRows.add(stat.toDeletedEvent(true))
         } catch (ex: NoSuchFileException) {
@@ -419,7 +447,13 @@ class LinuxFS(
             FSResult(
                 0,
                 listOf(
-                    stat(ctx, systemFile, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
+                    stat(
+                        ctx,
+                        systemFile,
+                        STORAGE_EVENT_MODE,
+                        HashMap(),
+                        hasPerformedPermissionCheck = true
+                    ).toCreatedEvent(true)
                 )
             )
         } else {
@@ -454,7 +488,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                stat(ctx, file, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
+                stat(ctx, file, STORAGE_EVENT_MODE, HashMap(), hasPerformedPermissionCheck = false).toCreatedEvent(true)
             )
         )
     }
@@ -473,7 +507,7 @@ class LinuxFS(
             Files.walk(systemFile.toPath())
                 .toList()
                 .map {
-                    stat(ctx, it.toFile(), mode, cache)
+                    stat(ctx, it.toFile(), mode, cache, hasPerformedPermissionCheck = true)
                 }
         )
     }
@@ -490,7 +524,13 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                stat(ctx, systemFile, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
+                stat(
+                    ctx,
+                    systemFile,
+                    STORAGE_EVENT_MODE,
+                    HashMap(),
+                    hasPerformedPermissionCheck = true
+                ).toCreatedEvent(true)
             )
         )
     }
@@ -574,7 +614,7 @@ class LinuxFS(
 
             FSResult(
                 0,
-                stat(ctx, File(translateAndCheckFile(path)), mode, HashMap())
+                stat(ctx, File(translateAndCheckFile(path)), mode, HashMap(), hasPerformedPermissionCheck = true)
             )
         }
 
@@ -638,7 +678,14 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                stat(ctx, systemLink, STORAGE_EVENT_MODE, HashMap(), followLink = false).toCreatedEvent(true)
+                stat(
+                    ctx,
+                    systemLink,
+                    STORAGE_EVENT_MODE,
+                    HashMap(),
+                    followLink = false,
+                    hasPerformedPermissionCheck = true
+                ).toCreatedEvent(true)
             )
         )
     }

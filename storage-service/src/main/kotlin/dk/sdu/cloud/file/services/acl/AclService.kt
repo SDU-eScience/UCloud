@@ -36,10 +36,10 @@ class AclService<Session>(
         }
     }
 
-    suspend fun listAcl(path: String): List<UserWithPermissions> {
-        val normalizedPath = path.normalize()
+    suspend fun listAcl(paths: List<String>): Map<String, List<UserWithPermissions>> {
+        val normalizedPaths = paths.map { it.normalize() }
 
-        return db.withTransaction { dao.listAcl(it, normalizedPath) }
+        return db.withTransaction { dao.listAcl(it, normalizedPaths) }
     }
 
     suspend fun revokePermission(path: String, username: String) {

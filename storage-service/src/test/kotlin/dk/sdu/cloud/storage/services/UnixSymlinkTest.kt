@@ -41,7 +41,7 @@ class UnixSymlinkTest {
             }
         }
         factory = LinuxFSRunnerFactory()
-        cephFs = LinuxFS(factory, fsRoot, userDao)
+        cephFs = LinuxFS(factory, userDao)
         owner = SERVICE_USER
     }
 

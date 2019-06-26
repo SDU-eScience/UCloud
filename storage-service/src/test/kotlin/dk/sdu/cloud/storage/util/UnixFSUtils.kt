@@ -30,7 +30,6 @@ fun linuxFSWithRelaxedMocks(
         commandRunner,
         LinuxFS(
             commandRunner,
-            File(fsRoot),
             userDao
         )
     )

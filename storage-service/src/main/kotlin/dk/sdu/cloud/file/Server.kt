@@ -93,7 +93,7 @@ class Server(
 
         // Low level FS
         val processRunner = LinuxFSRunnerFactory()
-        val fs = LinuxFS(fsRootFile, homeFolderService, newAclService)
+        val fs = LinuxFS(fsRootFile, newAclService)
 
         // High level FS
         val storageEventProducer = StorageEventProducer(streams.createProducer(StorageEvents.events)) {
