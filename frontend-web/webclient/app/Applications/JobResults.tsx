@@ -1,7 +1,7 @@
 import * as React from "react";
-import {capitalized} from "UtilityFunctions"
+import {capitalized, inDevEnvironment} from "UtilityFunctions"
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import {ContainerForText} from "ui-components";
+import {ContainerForText, Box, Input, InputGroup, Label} from "ui-components";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
 import {setLoading, fetchAnalyses} from "./Redux/AnalysesActions";
@@ -19,6 +19,9 @@ import {Spacer} from "ui-components/Spacer";
 import * as moment from "moment";
 import "moment/locale/en-gb";
 import {JobStateIcon} from "./JobStateIcon";
+import {TextSpan} from "ui-components/Text";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {DatePicker} from "ui-components/DatePicker";
 
 interface FetchJobsOptions {
     itemsPerPage?: number
@@ -70,6 +73,55 @@ function JobResults(props: AnalysesProps & {history: History}) {
         onPageChanged={pageNumber => fetchJobs({pageNumber})}
     />;
 
+    const [currentStateFilter, setFilter] = React.useState("don't filter");
+    const [firstDate, setFirstDate] = React.useState<Date | null>(null);
+    const [secondDate, setSecondDate] = React.useState<Date | null>(null);
+
+    const sidebar = (<Box pt={48}>
+        <Heading.h3>
+            Quick Filters
+        </Heading.h3>
+        <Box><TextSpan>Today</TextSpan></Box>
+        <Box><TextSpan>Yesterday</TextSpan></Box>
+        <Box><TextSpan>This week</TextSpan></Box>
+        <Box><TextSpan>No filter</TextSpan></Box>
+        <Heading.h3 mt={16}>Active Filters</Heading.h3>
+        <Label>Filter by app state</Label>
+        <ClickableDropdown
+            chevron
+            trigger={<TextSpan>{capitalized(currentStateFilter)}</TextSpan>}
+            onChange={setFilter}
+            options={[
+                {text: "Don't filter", value: "don't filter"},
+                {text: "Success", value: "success"},
+                {text: "Failure", value: "failure"},
+                {text: "Other", value: "other"}
+            ].filter(it => it.value != currentStateFilter)}
+        />
+        <Box mb={16} mt={16}>
+            <Label>App started after</Label>
+            <InputGroup>
+                <DatePicker
+                    placeholderText="Don't filter"
+                    isClearable
+                    selected={firstDate}
+                    onChange={setFirstDate}
+                />
+            </InputGroup>
+        </Box>
+        <Box mb={16}>
+            <Label>App started before</Label>
+            <InputGroup>
+                <DatePicker
+                    placeholderText="Don't filter"
+                    isClearable
+                    selected={secondDate}
+                    onChange={setSecondDate}
+                />
+            </InputGroup>
+        </Box>
+    </Box>)
+
     return (<MainContainer
         header={
             <Spacer
@@ -84,7 +136,9 @@ function JobResults(props: AnalysesProps & {history: History}) {
             />
         }
         headerSize={48}
+        sidebarSize={340}
         main={content}
+        sidebar={inDevEnvironment() ? sidebar : null}
     />);
 }
 
