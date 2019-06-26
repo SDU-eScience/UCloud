@@ -77,13 +77,15 @@ class LinuxFS(
         )
 
         val targetType =
-            runCatching { stat(
-                ctx,
-                systemTo,
-                setOf(FileAttribute.FILE_TYPE),
-                HashMap(),
-                hasPerformedPermissionCheck = true
-            ) }.getOrNull()?.fileType
+            runCatching {
+                stat(
+                    ctx,
+                    systemTo,
+                    setOf(FileAttribute.FILE_TYPE),
+                    HashMap(),
+                    hasPerformedPermissionCheck = true
+                )
+            }.getOrNull()?.fileType
 
         if (targetType != null && fromStat.fileType != targetType) {
             throw FSException.BadRequest("Target already exists and is not of same type as source.")
@@ -136,17 +138,21 @@ class LinuxFS(
         val file = File(translateAndCheckFile(directory))
         val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
-        val pathCache = HashMap<String, String>()
-
+        // TODO Maybe this works
+        // TODO Maybe this works
+        // TODO Maybe this works
+        // TODO Maybe this works
+        // TODO Maybe this works
+        // TODO Maybe this works
         FSResult(
             0,
-            (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).mapNotNull { child ->
-                try {
-                    stat(ctx, child, mode, pathCache, hasPerformedPermissionCheck = true)
-                } catch (ex: NoSuchFileException) {
-                    null
-                }
-            }
+            stat(
+                ctx,
+                (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).toList(),
+                mode,
+                HashMap<String, String>(),
+                hasPerformedPermissionCheck = true
+            ).filterNotNull()
         )
     }
 
@@ -158,210 +164,238 @@ class LinuxFS(
         hasPerformedPermissionCheck: Boolean,
         followLink: Boolean = false
     ): FileRow {
-        if (!hasPerformedPermissionCheck) {
-            aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AclPermission.READ)
-        }
+        return stat(ctx, listOf(systemFile), mode, pathCache, hasPerformedPermissionCheck, followLink).first()
+            ?: throw FSException.NotFound()
+    }
 
-        var fileType: FileType? = null
-        var isLink: Boolean? = null
-        var linkTarget: String? = null
-        var unixMode: Int? = null
-        var timestamps: Timestamps? = null
-        var path: String? = null
-        var rawPath: String? = null
-        var inode: String? = null
-        var size: Long? = null
-        var shares: List<AccessEntry>? = null
-        var sensitivityLevel: SensitivityLevel? = null
-        var linkInode: String? = null
-
-        val systemPath = try {
-            systemFile.toPath()
-        } catch (ex: InvalidPathException) {
-            throw FSException.BadRequest()
-        }
-        val linkOpts = if (!followLink) arrayOf(LinkOption.NOFOLLOW_LINKS) else emptyArray()
-
-        run {
-            // UNIX file attributes
-            val attributes = run {
-                val opts = ArrayList<String>()
-                if (FileAttribute.INODE in mode) opts.add("ino")
-                if (FileAttribute.CREATOR in mode) opts.add("uid")
-                if (FileAttribute.UNIX_MODE in mode) opts.add("mode")
-
-                if (opts.isEmpty()) {
-                    null
-                } else {
-                    Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}", *linkOpts)
-                }
-            } ?: return@run
-
-            if (FileAttribute.INODE in mode) inode = (attributes.getValue("ino") as Long).toString()
-            if (FileAttribute.UNIX_MODE in mode) unixMode = attributes["mode"] as Int
-        }
-
-        run {
-            // Basic file attributes and symlinks
-            val basicAttributes = run {
-                val opts = ArrayList<String>()
-
-                // We always add SIZE. This will make sure we always get a stat executed and thus throw if the
-                // file doesn't actually exist.
-                opts.add("size")
-
-                if (FileAttribute.TIMESTAMPS in mode) {
-                    // Note we don't rely on the creationTime due to not being available in all file systems.
-                    opts.addAll(listOf("lastAccessTime", "lastModifiedTime"))
-                }
-
-                if (FileAttribute.FILE_TYPE in mode) {
-                    opts.add("isDirectory")
-                }
-
-                if (opts.isEmpty()) {
-                    null
-                } else {
-                    Files.readAttributes(systemPath, opts.joinToString(","), *linkOpts)
-                }
-            }
-
-            if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
-            if (FileAttribute.PATH in mode || FileAttribute.OWNER in mode) { // owner requires path
-                val realParent = run {
-                    val parent = systemFile.parent
-                    val cached = pathCache[parent]
-                    if (cached != null) {
-                        cached
-                    } else {
-                        val result = StandardCLib.realPath(parent) ?: parent
-                        pathCache[parent] = result
-                        result
-                    }
-                }
-
-                path = joinPath(realParent, systemFile.name).toCloudPath()
-            }
-
-            if (basicAttributes != null) {
-                // We need to always ask if this file is a link to correctly resolve target file type.
-                val capturedIsLink = Files.isSymbolicLink(systemFile.toPath())
-                isLink = capturedIsLink
-
-                if (FileAttribute.SIZE in mode) size = basicAttributes.getValue("size") as Long
-
-                if (FileAttribute.FILE_TYPE in mode) {
-                    val isDirectory = if (capturedIsLink) {
-                        Files.isDirectory(systemPath)
-                    } else {
-                        basicAttributes.getValue("isDirectory") as Boolean
-                    }
-
-                    fileType = if (isDirectory) {
-                        FileType.DIRECTORY
-                    } else {
-                        FileType.FILE
-                    }
-                }
-
-                if (FileAttribute.TIMESTAMPS in mode) {
-                    val lastAccess = basicAttributes.getValue("lastAccessTime") as FileTime
-                    val lastModified = basicAttributes.getValue("lastModifiedTime") as FileTime
-
-                    // The extended attribute is set by CoreFS
-                    // Old setup would ignore errors. This is required for createLink to work
-                    val creationTime =
-                        runCatching {
-                            getExtendedAttributeInternal(systemFile, XATTR_BIRTH)?.toLongOrNull()
-                                ?.let { it * 1000 }
-                        }.getOrNull() ?: lastModified.toMillis()
-
-                    timestamps = Timestamps(
-                        lastAccess.toMillis(),
-                        creationTime,
-                        lastModified.toMillis()
-                    )
-                }
-
-                if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
-                    if (capturedIsLink && (FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode)) {
-                        val readSymbolicLink = Files.readSymbolicLink(systemPath)
-                        var targetExists = true
-                        linkInode = try {
-                            Files.readAttributes(readSymbolicLink, "unix:ino")["ino"].toString()
-                        } catch (ex: NoSuchFileException) {
-                            targetExists = false
-                            "0"
-                        }
-
-                        if (targetExists) {
-                            linkTarget = readSymbolicLink?.toFile()?.absolutePath?.toCloudPath()
-                        } else {
-                            linkTarget = "/"
-                        }
-                    }
-                }
-            }
-        }
-
-        val realOwner = if (FileAttribute.OWNER in mode || FileAttribute.CREATOR in mode) {
-            val realPath = systemFile.path.toCloudPath()
-
-            log.debug("realPath is $realPath")
-
-            val components = realPath.components()
-            if (components.isEmpty()) {
-                SERVICE_USER
-            } else if (components.first() != "home") {
-                SERVICE_USER
-            } else if (components.size < 2) {
-                SERVICE_USER
-            } else {
-                // TODO This won't work for projects (?)
-                components[1]
-            }
+    private suspend fun stat(
+        ctx: LinuxFSRunner,
+        systemFiles: List<File>,
+        mode: Set<FileAttribute>,
+        pathCache: MutableMap<String, String>,
+        hasPerformedPermissionCheck: Boolean,
+        followLink: Boolean = false
+    ): List<FileRow?> {
+        val shareLookup = if (FileAttribute.SHARES in mode) {
+            val paths = systemFiles.map { it.path.toCloudPath() }
+            aclService.listAcl(paths)
         } else {
-            null
+            emptyMap()
         }
 
-        if (FileAttribute.SENSITIVITY in mode) {
-            // Old setup would ignore errors. This is required for createLink to work
-            sensitivityLevel =
-                runCatching {
-                    getExtendedAttributeInternal(systemFile, "sensitivity")?.let { SensitivityLevel.valueOf(it) }
-                }.getOrNull()
-        }
+        return systemFiles.mapNotNull { systemFile ->
+            try {
+                if (!hasPerformedPermissionCheck) {
+                    aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AclPermission.READ)
+                }
 
-        if (FileAttribute.SHARES in mode) {
-            // TODO Optimize this by making a bulk request in a list dir scenario
-            val cloudPath = systemFile.path.toCloudPath()
-            shares = aclService.listAcl(listOf(cloudPath)).getOrDefault(cloudPath, emptyList()).map {
-                AccessEntry(
-                    it.username, false, when (it.permission) {
-                        AclPermission.READ -> setOf(AccessRight.READ, AccessRight.EXECUTE)
-                        AclPermission.WRITE -> setOf(AccessRight.READ, AccessRight.WRITE, AccessRight.EXECUTE)
+                var fileType: FileType? = null
+                var isLink: Boolean? = null
+                var linkTarget: String? = null
+                var unixMode: Int? = null
+                var timestamps: Timestamps? = null
+                var path: String? = null
+                var rawPath: String? = null
+                var inode: String? = null
+                var size: Long? = null
+                var shares: List<AccessEntry>? = null
+                var sensitivityLevel: SensitivityLevel? = null
+                var linkInode: String? = null
+
+                val systemPath = try {
+                    systemFile.toPath()
+                } catch (ex: InvalidPathException) {
+                    throw FSException.BadRequest()
+                }
+
+                val linkOpts = if (!followLink) arrayOf(LinkOption.NOFOLLOW_LINKS) else emptyArray()
+
+                run {
+                    // UNIX file attributes
+                    val attributes = run {
+                        val opts = ArrayList<String>()
+                        if (FileAttribute.INODE in mode) opts.add("ino")
+                        if (FileAttribute.CREATOR in mode) opts.add("uid")
+                        if (FileAttribute.UNIX_MODE in mode) opts.add("mode")
+
+                        if (opts.isEmpty()) {
+                            null
+                        } else {
+                            Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}", *linkOpts)
+                        }
+                    } ?: return@run
+
+                    if (FileAttribute.INODE in mode) inode = (attributes.getValue("ino") as Long).toString()
+                    if (FileAttribute.UNIX_MODE in mode) unixMode = attributes["mode"] as Int
+                }
+
+                run {
+                    // Basic file attributes and symlinks
+                    val basicAttributes = run {
+                        val opts = ArrayList<String>()
+
+                        // We always add SIZE. This will make sure we always get a stat executed and thus throw if the
+                        // file doesn't actually exist.
+                        opts.add("size")
+
+                        if (FileAttribute.TIMESTAMPS in mode) {
+                            // Note we don't rely on the creationTime due to not being available in all file systems.
+                            opts.addAll(listOf("lastAccessTime", "lastModifiedTime"))
+                        }
+
+                        if (FileAttribute.FILE_TYPE in mode) {
+                            opts.add("isDirectory")
+                        }
+
+                        if (opts.isEmpty()) {
+                            null
+                        } else {
+                            Files.readAttributes(systemPath, opts.joinToString(","), *linkOpts)
+                        }
                     }
+
+                    if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
+                    if (FileAttribute.PATH in mode || FileAttribute.OWNER in mode) { // owner requires path
+                        val realParent = run {
+                            val parent = systemFile.parent
+                            val cached = pathCache[parent]
+                            if (cached != null) {
+                                cached
+                            } else {
+                                val result = StandardCLib.realPath(parent) ?: parent
+                                pathCache[parent] = result
+                                result
+                            }
+                        }
+
+                        path = joinPath(realParent, systemFile.name).toCloudPath()
+                    }
+
+                    if (basicAttributes != null) {
+                        // We need to always ask if this file is a link to correctly resolve target file type.
+                        val capturedIsLink = Files.isSymbolicLink(systemFile.toPath())
+                        isLink = capturedIsLink
+
+                        if (FileAttribute.SIZE in mode) size = basicAttributes.getValue("size") as Long
+
+                        if (FileAttribute.FILE_TYPE in mode) {
+                            val isDirectory = if (capturedIsLink) {
+                                Files.isDirectory(systemPath)
+                            } else {
+                                basicAttributes.getValue("isDirectory") as Boolean
+                            }
+
+                            fileType = if (isDirectory) {
+                                FileType.DIRECTORY
+                            } else {
+                                FileType.FILE
+                            }
+                        }
+
+                        if (FileAttribute.TIMESTAMPS in mode) {
+                            val lastAccess = basicAttributes.getValue("lastAccessTime") as FileTime
+                            val lastModified = basicAttributes.getValue("lastModifiedTime") as FileTime
+
+                            // The extended attribute is set by CoreFS
+                            // Old setup would ignore errors. This is required for createLink to work
+                            val creationTime =
+                                runCatching {
+                                    getExtendedAttributeInternal(systemFile, XATTR_BIRTH)?.toLongOrNull()
+                                        ?.let { it * 1000 }
+                                }.getOrNull() ?: lastModified.toMillis()
+
+                            timestamps = Timestamps(
+                                lastAccess.toMillis(),
+                                creationTime,
+                                lastModified.toMillis()
+                            )
+                        }
+
+                        if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
+                            if (capturedIsLink && (FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode)) {
+                                val readSymbolicLink = Files.readSymbolicLink(systemPath)
+                                var targetExists = true
+                                linkInode = try {
+                                    Files.readAttributes(readSymbolicLink, "unix:ino")["ino"].toString()
+                                } catch (ex: NoSuchFileException) {
+                                    targetExists = false
+                                    "0"
+                                }
+
+                                if (targetExists) {
+                                    linkTarget = readSymbolicLink?.toFile()?.absolutePath?.toCloudPath()
+                                } else {
+                                    linkTarget = "/"
+                                }
+                            }
+                        }
+                    }
+                }
+
+                val realOwner = if (FileAttribute.OWNER in mode || FileAttribute.CREATOR in mode) {
+                    val realPath = systemFile.path.toCloudPath()
+
+                    log.debug("realPath is $realPath")
+
+                    val components = realPath.components()
+                    if (components.isEmpty()) {
+                        SERVICE_USER
+                    } else if (components.first() != "home") {
+                        SERVICE_USER
+                    } else if (components.size < 2) {
+                        SERVICE_USER
+                    } else {
+                        // TODO This won't work for projects (?)
+                        components[1]
+                    }
+                } else {
+                    null
+                }
+
+                if (FileAttribute.SENSITIVITY in mode) {
+                    // Old setup would ignore errors. This is required for createLink to work
+                    sensitivityLevel =
+                        runCatching {
+                            getExtendedAttributeInternal(
+                                systemFile,
+                                "sensitivity"
+                            )?.let { SensitivityLevel.valueOf(it) }
+                        }.getOrNull()
+                }
+
+                if (FileAttribute.SHARES in mode) {
+                    val cloudPath = systemFile.path.toCloudPath()
+                    shares = shareLookup.getOrDefault(cloudPath, emptyList()).map {
+                        AccessEntry(
+                            it.username, false, when (it.permission) {
+                                AclPermission.READ -> setOf(AccessRight.READ, AccessRight.EXECUTE)
+                                AclPermission.WRITE -> setOf(AccessRight.READ, AccessRight.WRITE, AccessRight.EXECUTE)
+                            }
+                        )
+                    }
+                }
+
+                FileRow(
+                    fileType,
+                    isLink,
+                    linkTarget,
+                    unixMode,
+                    realOwner,
+                    "",
+                    timestamps,
+                    path,
+                    rawPath,
+                    inode,
+                    size,
+                    shares,
+                    sensitivityLevel,
+                    linkInode,
+                    realOwner
                 )
+            } catch (ex: NoSuchFileException) {
+                null
             }
         }
-
-        return FileRow(
-            fileType,
-            isLink,
-            linkTarget,
-            unixMode,
-            realOwner,
-            "",
-            timestamps,
-            path,
-            rawPath,
-            inode,
-            size,
-            shares,
-            sensitivityLevel,
-            linkInode,
-            realOwner
-        )
     }
 
     override suspend fun delete(ctx: LinuxFSRunner, path: String): FSResult<List<StorageEvent.Deleted>> =
