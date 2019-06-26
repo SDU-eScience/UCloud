@@ -13,7 +13,7 @@ class LinuxFSRunnerFactory(
     override suspend fun invoke(user: String): LinuxFSRunner {
         val userid = userDao.findStorageUser(user)
         if (userid != null) {
-            return LinuxFSRunner(userDao, user)
+            return LinuxFSRunner(user)
         }
         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
     }

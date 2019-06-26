@@ -189,8 +189,12 @@ class FileLookupService<Ctx : FSUserContext>(
         val owner = row._owner?.takeIf { it.isNotBlank() } ?: row._creator
         val creator = row._creator
 
-        if (FileAttribute.OWNER in attributes && owner == null) return null
-        if (FileAttribute.CREATOR in attributes && creator == null) return null
+        if (FileAttribute.OWNER in attributes && owner == null) {
+            return null
+        }
+        if (FileAttribute.CREATOR in attributes && creator == null) {
+            return null
+        }
 
         return StorageFileImpl(
             fileTypeOrNull = row._fileType,

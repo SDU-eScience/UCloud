@@ -12,7 +12,12 @@ import dk.sdu.cloud.file.util.FSException
 class HomeFolderService(
     private val serviceCloud: AuthenticatedClient
 ) {
+    private val cache = HashMap<String, String>()
+
     suspend fun findHomeFolder(username: String): String {
+        val cached = cache[username]
+        if (cached != null) return cached
+
         val user =
             UserDescriptions.lookupUsers
                 .call(
@@ -25,9 +30,9 @@ class HomeFolderService(
                 .singleOrNull() ?: throw FSException.PermissionException()
 
         return if (user.role == Role.PROJECT_PROXY) {
-            homeDirectory(username.substringBeforeLast('#'))
+            homeDirectory(username.substringBeforeLast('#')).also { cache[username] = it }
         } else {
-            homeDirectory(username)
+            homeDirectory(username).also { cache[username] = it }
         }
     }
 }

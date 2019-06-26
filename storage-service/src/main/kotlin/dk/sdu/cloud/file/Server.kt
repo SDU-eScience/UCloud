@@ -30,6 +30,9 @@ import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.WorkspaceService
+import dk.sdu.cloud.file.services.acl.AclHibernateDao
+import dk.sdu.cloud.file.services.acl.AclPermission
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.background.BackgroundJobHibernateDao
 import dk.sdu.cloud.file.services.background.BackgroundScope
@@ -59,7 +62,7 @@ class Server(
 
     override fun start() = runBlocking {
         val streams = micro.eventStreamService
-        val cloud = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         log.info("Creating core services")
 
@@ -70,7 +73,19 @@ class Server(
         // Authentication
         val useFakeUsers = micro.developmentModeEnabled && !micro.commandLineArguments.contains("--real-users")
         val uidLookupService =
-            if (useFakeUsers) DevelopmentUIDLookupService("admin@dev") else AuthUIDLookupService(cloud)
+            if (useFakeUsers) DevelopmentUIDLookupService("admin@dev") else AuthUIDLookupService(client)
+
+        // Authorization
+        val homeFolderService = HomeFolderService(client)
+        val aclDao = AclHibernateDao()
+        val newAclService = AclService(micro.hibernateDatabase, aclDao, homeFolderService)
+
+        run {
+            // Authorization testing code. We should always add the user as the owner of their own home folder.
+            // We simulate that this has already happened here.
+            newAclService.createOrUpdatePermission("/home/admin@dev", "admin@dev", AclPermission.WRITE)
+            newAclService.createOrUpdatePermission("/home/user@dev", "user@dev", AclPermission.WRITE)
+        }
 
         // FS root
         val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }
@@ -79,7 +94,7 @@ class Server(
 
         // Low level FS
         val processRunner = LinuxFSRunnerFactory(uidLookupService)
-        val fs = LinuxFS(processRunner, fsRootFile, uidLookupService)
+        val fs = LinuxFS(fsRootFile, homeFolderService, newAclService)
 
         // High level FS
         val storageEventProducer = StorageEventProducer(streams.createProducer(StorageEvents.events)) {
@@ -91,10 +106,9 @@ class Server(
         // Metadata services
         val aclService = ACLService(processRunner, fs, bgExecutor).also { it.registerWorkers() }
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
-        val homeFolderService = HomeFolderService(cloud)
 
         // High level FS
-        val coreFileSystem = CoreFileSystemService(fs, storageEventProducer, sensitivityService, cloud)
+        val coreFileSystem = CoreFileSystemService(fs, storageEventProducer, sensitivityService, client)
 
         // Bulk operations
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
@@ -162,7 +176,7 @@ class Server(
                 ),
 
                 SimpleDownloadController(
-                    cloud,
+                    client,
                     processRunner,
                     coreFileSystem,
                     bulkDownloadService,
@@ -170,14 +184,14 @@ class Server(
                 ),
 
                 MultiPartUploadController(
-                    cloud,
+                    client,
                     processRunner,
                     coreFileSystem,
                     sensitivityService
                 ),
 
                 ExtractController(
-                    cloud,
+                    client,
                     coreFileSystem,
                     fileLookupService,
                     processRunner,

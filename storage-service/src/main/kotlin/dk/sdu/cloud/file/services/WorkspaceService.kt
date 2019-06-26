@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.listAndClose
+import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -55,9 +56,7 @@ class WorkspaceService(
         createSymbolicLinkAt: String
     ): CreatedWorkspace {
         return fsCommandRunnerFactory.withContext(user) { ctx ->
-            ctx.submit {
-                ctx.requireContext()
-
+            runAndRethrowNIOExceptions {
                 val workspaceId = UUID.randomUUID().toString()
                 val workspace = workspace(workspaceId).also {
                     Files.createDirectories(it)
