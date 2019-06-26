@@ -113,10 +113,6 @@ val StorageFile.ownSensitivityLevel: SensitivityLevel?
 val StorageFile.link: Boolean
     get() = linkOrNull!!
 
-@Deprecated("no longer in use")
-val StorageFile.annotations: Set<String>
-    get() = annotationsOrNull!!
-
 val StorageFile.fileId: String
     get() = fileIdOrNull!!
 

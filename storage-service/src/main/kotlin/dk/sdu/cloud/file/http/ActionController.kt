@@ -103,11 +103,6 @@ class ActionController<Ctx : FSUserContext>(
             }
         }
 
-        implement(FileDescriptions.annotate) {
-            audit(SingleFileAudit(null, request))
-            ok(Unit)
-        }
-
         implement(FileDescriptions.createLink) {
             audit(SingleFileAudit(null, request))
 

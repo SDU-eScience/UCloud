@@ -43,8 +43,8 @@ class ACLService<Ctx : FSUserContext>(
 
         // Add to both the default and the actual list. This needs to be recursively applied
         // We need to apply this process to both the creator and the entity.
-        grant(FSACLEntity.User(realOwner), false)
-        grant(FSACLEntity.User(realOwner), true)
+        grant(FSACLEntity(realOwner), false)
+        grant(FSACLEntity(realOwner), true)
 
         grant(entity, false)
         grant(entity, true)
@@ -96,7 +96,7 @@ class ACLService<Ctx : FSUserContext>(
                         initiatedChanges.add(change)
 
                         val entity =
-                            if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
+                            FSACLEntity(change.entity)
 
                         if (change.revoke) {
                             revokeRights(ctx, request.path, entity, realOwner)

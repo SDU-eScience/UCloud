@@ -652,7 +652,6 @@ class LinuxFS(
         defaultList: Boolean,
         transferOwnershipTo: String?
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
-        if (entity !is FSACLEntity.User) throw FSException.CriticalException("Unknown entity type")
         val hasRead = AccessRight.READ in rights
         val hasWrite = AccessRight.WRITE in rights
         if (!hasRead && !hasWrite) return FSResult(0, Unit)
@@ -674,7 +673,6 @@ class LinuxFS(
         defaultList: Boolean,
         transferOwnershipTo: String?
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
-        if (entity !is FSACLEntity.User) throw FSException.CriticalException("Unknown entity type")
         if (defaultList) return FSResult(0, Unit)
         // TODO transferOwnershipTo
         aclService.revokePermission(path, entity.user)

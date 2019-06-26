@@ -55,25 +55,6 @@ data class SimpleBulkUpload(
 object MultiPartUploadDescriptions : CallDescriptionContainer("files.upload") {
     const val baseContext = "/api/files/upload"
 
-    @Deprecated("Being removed")
-    val upload =
-        call<StreamingRequest<UploadRequest>, Unit, CommonErrorMessage>("upload") {
-            audit<MultiPartUploadAudit>()
-
-            auth {
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-                path {
-                    using(baseContext)
-                }
-
-                body { bindEntireRequestFromBody() }
-            }
-        }
-
     val simpleUpload = call<SimpleUploadRequest, Unit, CommonErrorMessage>("simpleUpload") {
         audit<MultiPartUploadAudit>()
 
@@ -128,27 +109,6 @@ object MultiPartUploadDescriptions : CallDescriptionContainer("files.upload") {
                 body {
                     bindToSubProperty(SimpleBulkUpload::file)
                 }
-            }
-        }
-
-    @Deprecated("Being removed")
-    val bulkUpload =
-        call<StreamingRequest<BulkUploadRequest>, BulkUploadErrorMessage, CommonErrorMessage>("bulkUpload") {
-            audit<BulkUploadAudit>()
-
-            auth {
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"bulk"
-                }
-
-                body { bindEntireRequestFromBody() }
             }
         }
 }

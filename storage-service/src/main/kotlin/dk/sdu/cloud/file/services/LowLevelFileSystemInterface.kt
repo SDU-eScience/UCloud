@@ -14,21 +14,7 @@ class FSResult<T>(
     val value: T get() = _value!!
 }
 
-sealed class FSACLEntity {
-    abstract val serializedEntity: String
-
-    data class User(val user: String) : FSACLEntity() {
-        override val serializedEntity: String = "u:$user"
-    }
-
-    data class Group(val group: String) : FSACLEntity() {
-        override val serializedEntity: String = "g:$group"
-    }
-
-    object Other : FSACLEntity() {
-        override val serializedEntity: String = "o"
-    }
-}
+data class FSACLEntity(val user: String)
 
 interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     /**

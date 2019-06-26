@@ -50,8 +50,7 @@ data class UpdateAclRequest(
 data class ACLEntryRequest(
     val entity: String,
     val rights: Set<FileAccessRight>,
-    val revoke: Boolean = false,
-    val isUser: Boolean = true
+    val revoke: Boolean = false
 )
 
 data class ChmodRequest(
@@ -202,12 +201,6 @@ data class BulkDownloadRequest(val prefix: String, val files: List<String>)
 
 data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null)
 
-data class AnnotateFileRequest(val path: String, val annotatedWith: String, val proxyUser: String) {
-    init {
-        validateAnnotation(annotatedWith)
-        if (proxyUser.isBlank()) throw IllegalArgumentException("proxyUser cannot be blank")
-    }
-}
 
 data class FindHomeFolderRequest(val username: String)
 data class FindHomeFolderResponse(val path: String)
@@ -502,31 +495,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
             path {
                 using(baseContext)
                 +"bulk"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    /**
-     * Annotates a file with metadata. Privileged API.
-     */
-    @Deprecated("No longer in use")
-    val annotate = call<AnnotateFileRequest, Unit, CommonErrorMessage>("annotate") {
-        audit<SingleFileAudit<AnnotateFileRequest>>()
-
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
-        }
-
-        websocket(wsBaseContext)
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"annotate"
             }
 
             body { bindEntireRequestFromBody() }
