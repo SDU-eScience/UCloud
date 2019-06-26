@@ -5,7 +5,7 @@ import {ContainerForText, Box, Input, InputGroup, Label} from "ui-components";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
 import {setLoading, fetchAnalyses} from "./Redux/AnalysesActions";
-import {AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis} from ".";
+import {AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis, AppState} from ".";
 import {Dispatch} from "redux";
 import {Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -22,6 +22,7 @@ import {JobStateIcon} from "./JobStateIcon";
 import {TextSpan} from "ui-components/Text";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
+import {prettierString} from "UtilityFunctions";
 
 interface FetchJobsOptions {
     itemsPerPage?: number
@@ -77,6 +78,9 @@ function JobResults(props: AnalysesProps & {history: History}) {
     const [firstDate, setFirstDate] = React.useState<Date | null>(null);
     const [secondDate, setSecondDate] = React.useState<Date | null>(null);
 
+    const appStates = Object.keys(AppState).map(it => ({text: prettierString(it), value: it}))
+    appStates.push({text: "Don't Filter", value: "Don't filter"})
+
     const sidebar = (<Box pt={48}>
         <Heading.h3>
             Quick Filters
@@ -89,14 +93,9 @@ function JobResults(props: AnalysesProps & {history: History}) {
         <Label>Filter by app state</Label>
         <ClickableDropdown
             chevron
-            trigger={<TextSpan>{capitalized(currentStateFilter)}</TextSpan>}
+            trigger={<TextSpan>{prettierString(currentStateFilter)}</TextSpan>}
             onChange={setFilter}
-            options={[
-                {text: "Don't filter", value: "don't filter"},
-                {text: "Success", value: "success"},
-                {text: "Failure", value: "failure"},
-                {text: "Other", value: "other"}
-            ].filter(it => it.value != currentStateFilter)}
+            options={appStates.filter(it => it.value != currentStateFilter)}
         />
         <Box mb={16} mt={16}>
             <Label>App started after</Label>
