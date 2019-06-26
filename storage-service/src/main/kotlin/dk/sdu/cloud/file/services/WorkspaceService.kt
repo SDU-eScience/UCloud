@@ -4,7 +4,6 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.WorkspaceMount
-import dk.sdu.cloud.file.services.linuxfs.ACL
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
@@ -180,11 +179,6 @@ class WorkspaceService(
                 } else {
                     transferred.add(resolvedDestination.toCloudPath())
                     Files.move(sourceFile, resolvedDestination, *copyOptions)
-
-                    Files.walk(resolvedDestination).forEach {
-                        val addDefaultList = Files.isDirectory(it)
-                        ACL.copyList(it.parent.toFile().absolutePath, it.toFile().absolutePath, addDefaultList)
-                    }
                 }
             } else {
                 if (Files.exists(resolvedDestination)) {
@@ -220,12 +214,6 @@ class WorkspaceService(
                 } else {
                     transferred.add(resolvedDestination.toCloudPath())
                     Files.move(sourceFile, resolvedDestination, *copyOptions)
-
-                    ACL.copyList(
-                        resolvedDestination.parent.toFile().absolutePath,
-                        resolvedDestination.toFile().absolutePath,
-                        addDefaultList = false
-                    )
                 }
             }
             return resolvedDestination
