@@ -1,19 +1,33 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.LookupUsersResponse
+import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.services.FileAttribute
+import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.acl.AclHibernateDao
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.unwrap
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.TestCallResult
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.simpleStorageUserDao
 import dk.sdu.cloud.storage.util.touch
+import io.mockk.every
 import org.junit.Ignore
 import org.junit.Test
 import java.io.File
@@ -41,7 +55,18 @@ class UnixSymlinkTest {
             }
         }
         factory = LinuxFSRunnerFactory()
-        cephFs = LinuxFS(factory, userDao)
+
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+        val db = micro.hibernateDatabase
+        val homeFolderService = HomeFolderService(ClientMock.authenticatedClient)
+        ClientMock.mockCall(UserDescriptions.lookupUsers) {
+            TestCallResult.Ok(
+                LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
+            )
+        }
+        val aclService = AclService(db, AclHibernateDao(), homeFolderService)
+        cephFs = LinuxFS(fsRoot, aclService)
         owner = SERVICE_USER
     }
 

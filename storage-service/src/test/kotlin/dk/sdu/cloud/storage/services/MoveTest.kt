@@ -56,14 +56,15 @@ class MoveTest {
         val fsRoot = createDummyFS()
         val (runner, service) = createService(fsRoot.absolutePath)
 
-        val nonExistingFolder = File(fsRoot, "home/user1/another-one/a")
+        val target = "/home/user1/another-one/a"
+        val nonExistingFolder = File(fsRoot, "./$target")
         Assert.assertFalse(nonExistingFolder.exists())
 
         runner.withBlockingContext("user1") {
-            service.move(it, "home/user1/folder/a", "home/user1/another-one/a", WriteConflictPolicy.OVERWRITE)
+            service.move(it, "/home/user1/folder/a", target, WriteConflictPolicy.OVERWRITE)
         }
 
-        val existingFolder = File(fsRoot, "home/user1/another-one/a")
+        val existingFolder = File(fsRoot, "./$target")
         Assert.assertTrue(existingFolder.exists())
     }
 
@@ -72,11 +73,12 @@ class MoveTest {
         val fsRoot = createDummyFS()
         val (runner, service) = createService(fsRoot.absolutePath)
 
-        val existingFolder = File(fsRoot, "home/user1/folder/a")
+        val child = "/home/user1/folder/a"
+        val existingFolder = File(fsRoot, "./$child")
         Assert.assertTrue(existingFolder.exists())
 
         runner.withBlockingContext("user1") {
-            service.move(it, "home/user1/folder/a", "home/user1/folder/", WriteConflictPolicy.REJECT)
+            service.move(it, child, "/home/user1/folder/", WriteConflictPolicy.REJECT)
         }
     }
 
@@ -85,14 +87,15 @@ class MoveTest {
         val fsRoot = createDummyFS()
         val (runner, service) = createService(fsRoot.absolutePath)
 
-        val nonexistingFolder = File(fsRoot, "home/user1/folder/newly/created/folder")
+        val child = "/home/user1/folder/newly/created/folder"
+        val nonexistingFolder = File(fsRoot, "./$child")
         Assert.assertFalse(nonexistingFolder.exists())
 
         runner.withBlockingContext("user1") {
             service.move(
                 it,
-                "home/user1/folder/a",
-                "home/user1/folder/newly/created/folder",
+                "/home/user1/folder/a",
+                child,
                 WriteConflictPolicy.OVERWRITE
             )
         }

@@ -4,9 +4,17 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.size
+import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.acl.AclHibernateDao
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.storage.util.simpleStorageUserDao
 import org.junit.Ignore
 import org.junit.Test
@@ -20,7 +28,13 @@ class UnixUploadTest {
         val userDao = simpleStorageUserDao()
         val fsRoot = Files.createTempDirectory("ceph-fs").toFile()
         val factory = LinuxFSRunnerFactory()
-        val cephFs = LinuxFS(factory, userDao)
+
+        val micro = initializeMicro()
+        val db = micro.hibernateDatabase
+        micro.install(HibernateFeature)
+        val homeFolderService = HomeFolderService(ClientMock.authenticatedClient)
+        val aclService = AclService(db, AclHibernateDao(), homeFolderService)
+        val cephFs = LinuxFS(fsRoot, aclService)
         val owner = SERVICE_USER
 
         factory.withBlockingContext(owner) { ctx ->

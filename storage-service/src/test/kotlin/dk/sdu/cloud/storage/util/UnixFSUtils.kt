@@ -1,11 +1,24 @@
 package dk.sdu.cloud.storage.util
 
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.LookupUsersResponse
+import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
+import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.acl.AclHibernateDao
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.initializeMicro
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
@@ -26,11 +39,21 @@ fun linuxFSWithRelaxedMocks(
     userDao: UIDLookupService = simpleStorageUserDao()
 ): Pair<LinuxFSRunnerFactory, LinuxFS> {
     val commandRunner = LinuxFSRunnerFactory()
+    val micro = initializeMicro()
+    micro.install(HibernateFeature)
+    val db = micro.hibernateDatabase
+    val homeFolderService = HomeFolderService(ClientMock.authenticatedClient)
+    ClientMock.mockCall(UserDescriptions.lookupUsers) {
+        TestCallResult.Ok(
+            LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
+        )
+    }
+    val aclService = AclService(db, AclHibernateDao(), homeFolderService)
     return Pair(
         commandRunner,
         LinuxFS(
-            commandRunner,
-            userDao
+            File(fsRoot),
+            aclService
         )
     )
 }
@@ -77,6 +100,31 @@ fun createDummyFS(): File {
 
 fun File.createDummyFSInRoot() {
     mkdir("home") {
+        mkdir("user") {
+            mkdir("folder") {
+                touch("a", "File A")
+                touch("b", "File B")
+                touch("c", "File C")
+                touch("d", "File E")
+                touch("e", "File F")
+
+            }
+
+            mkdir("another-one") {
+                touch("b")
+                touch("g", "File G")
+                touch("h", "File H")
+
+            }
+            mkdir("one") {
+                touch("a", "File AA")
+                touch("i", "File I")
+                touch("j", "File J")
+                touch("file", "File BB")
+            }
+            mkdir("Favorites") {}
+        }
+
         mkdir("user1") {
             mkdir("folder") {
                 touch("a", "File A")

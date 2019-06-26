@@ -183,7 +183,7 @@ class LinuxFS(
             emptyMap()
         }
 
-        return systemFiles.mapNotNull { systemFile ->
+        return systemFiles.map { systemFile ->
             try {
                 if (!hasPerformedPermissionCheck) {
                     aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AclPermission.READ)

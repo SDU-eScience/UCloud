@@ -35,7 +35,7 @@ class DownloadTests {
                 val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
                 val response = sendRequest(
                     HttpMethod.Get,
-                    "/api/files/download?path=/home/user1/folder/a&token=$token",
+                    "/api/files/download?path=/home/user/folder/a&token=$token",
                     TestUsers.user
                 ).response
 
@@ -84,7 +84,7 @@ class DownloadTests {
                 val response =
                     sendRequest(
                         HttpMethod.Get,
-                        "/api/files/download?path=/home/user1/folder&token=$token",
+                        "/api/files/download?path=/home/user/folder&token=$token",
                         TestUsers.user
                     ).response
 
@@ -106,7 +106,7 @@ class DownloadTests {
                 val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
                 val response = sendRequest(
                     HttpMethod.Get,
-                    "/api/files/download?path=/home/user1/folder/notThere/a&token=$token",
+                    "/api/files/download?path=/home/user/folder/notThere/a&token=$token",
                     TestUsers.user
                 ).response
 
@@ -123,7 +123,7 @@ class DownloadTests {
                 val response = sendJson(
                     HttpMethod.Post,
                     "/api/files/bulk",
-                    BulkDownloadRequest("/home/user1/folder/", listOf("a", "b", "c")),
+                    BulkDownloadRequest("/home/user/folder/", listOf("a", "b", "c")),
                     TestUsers.user
                 ).response
 
@@ -141,7 +141,7 @@ class DownloadTests {
                 val response = sendJson(
                     HttpMethod.Post,
                     "/api/files/bulk",
-                    BulkDownloadRequest("/home/user1/folder/", listOf("a", "b", "c", "d")),
+                    BulkDownloadRequest("/home/user/folder/", listOf("a", "b", "c", "d")),
                     TestUsers.user
                 ).response
 
@@ -153,12 +153,13 @@ class DownloadTests {
 
     @Test
     fun `test download with dead symlink`() {
-        val linkPath = "/home/user1/deadlink"
+        val user = TestUsers.user
+        val linkPath = "/home/${user.username}/deadlink"
         withKtorTest(
             setup = {
                 configureWithDownloadController {
-                    it.runner.withBlockingContext(TestUsers.user.username) { ctx ->
-                        val path = "/home/user1/notfound"
+                    it.runner.withBlockingContext(user.username) { ctx ->
+                        val path = "/home/${user.username}/notfound"
                         it.coreFs.write(ctx, path, WriteConflictPolicy.OVERWRITE) { write(42) }
                         it.coreFs.createSymbolicLink(ctx, path, linkPath)
                         it.coreFs.delete(ctx, path)

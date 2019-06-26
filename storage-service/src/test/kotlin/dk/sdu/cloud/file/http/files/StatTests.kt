@@ -24,7 +24,7 @@ class StatTests {
             setup = { configureServerWithFileController() },
 
             test = {
-                val response = engine.stat("/home/yep/folder/a")
+                val response = engine.stat("/home/user1/folder/notThere")
                 assertEquals(HttpStatusCode.NotFound, response.status())
             }
         )

@@ -46,7 +46,7 @@ class ListAtPathTests {
             setup = { configureServerWithFileController() },
 
             test = {
-                val path = "/home/notThere"
+                val path = "/home/user1/notThere"
                 val response = engine.listDir(path)
                 assertEquals(HttpStatusCode.NotFound, response.status())
             }
