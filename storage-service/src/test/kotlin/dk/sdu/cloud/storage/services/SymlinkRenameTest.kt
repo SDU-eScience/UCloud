@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.path
@@ -68,7 +69,7 @@ class SymlinkRenameTest {
                 mkdir("user2") {}
             }
 
-            runner.withBlockingContext(user) { ctx ->
+            runner.withBlockingContext(SERVICE_USER) { ctx ->
                 val created1 = coreFs.createSymbolicLink(ctx, "/home/user/Foo(1)", "/home/user2/Foo(1)")
                 val created2 = coreFs.createSymbolicLink(ctx, "/home/user/Foo", "/home/user2/Foo")
 

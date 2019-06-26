@@ -703,7 +703,7 @@ class LinuxFS(
         targetPath: String,
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(targetPath.parent(), ctx.user, AclPermission.WRITE)
+        aclService.requirePermission(linkPath.parent(), ctx.user, AclPermission.WRITE)
 
         val systemLink = File(translateAndCheckFile(linkPath))
         val systemTarget = File(translateAndCheckFile(targetPath))
