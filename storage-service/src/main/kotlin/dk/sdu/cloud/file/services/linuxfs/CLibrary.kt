@@ -7,18 +7,11 @@ import com.sun.jna.Pointer
 import com.sun.jna.PointerType
 
 interface CLibrary : Library {
-    fun getuid(): Int
-    fun setgid(gid: Int): Int
-    fun setuid(uid: Int): Int
-    fun setfsuid(uid: Long): Int
-    fun setfsgid(uid: Long): Int
     fun realpath(path: String, destination: ByteArray?): String?
     fun getxattr(path: String, name: String, value: ByteArray, size: Int): Int
     fun setxattr(path: String, name: String, value: ByteArray, size: Int, position: Int): Int
     fun listxattr(path: String, destination: ByteArray, length: Int): Int
     fun removexattr(path: String, name: String): Int
-    fun umask(value: Int): Int
-    fun chown(path: String, owner: Int, group: Int): Int
 
     companion object {
         val INSTANCE =

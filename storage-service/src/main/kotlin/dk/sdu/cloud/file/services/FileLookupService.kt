@@ -257,19 +257,5 @@ class FileLookupService<Ctx : FSUserContext>(
 
     companion object : Loggable {
         override val log = logger()
-
-        @Suppress("ObjectPropertyNaming")
-        private val STORAGE_FILE_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.RAW_PATH,
-            FileAttribute.TIMESTAMPS,
-            FileAttribute.CREATOR,
-            FileAttribute.SIZE,
-            FileAttribute.SHARES,
-            FileAttribute.SENSITIVITY,
-            FileAttribute.INODE,
-            FileAttribute.IS_LINK,
-            FileAttribute.OWNER
-        )
     }
 }

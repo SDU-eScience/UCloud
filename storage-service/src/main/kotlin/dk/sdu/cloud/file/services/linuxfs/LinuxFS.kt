@@ -246,7 +246,7 @@ class LinuxFS(
                     // Old setup would ignore errors. This is required for createLink to work
                     val creationTime =
                         runCatching {
-                            getExtendedAttributeInternal(ctx, systemFile, XATTR_BIRTH)?.toLongOrNull()
+                            getExtendedAttributeInternal(systemFile, XATTR_BIRTH)?.toLongOrNull()
                                 ?.let { it * 1000 }
                         }.getOrNull() ?: lastModified.toMillis()
 
@@ -302,7 +302,7 @@ class LinuxFS(
             // Old setup would ignore errors. This is required for createLink to work
             sensitivityLevel =
                 runCatching {
-                    getExtendedAttributeInternal(ctx, systemFile, "sensitivity")?.let { SensitivityLevel.valueOf(it) }
+                    getExtendedAttributeInternal(systemFile, "sensitivity")?.let { SensitivityLevel.valueOf(it) }
                 }.getOrNull()
         }
 
@@ -380,7 +380,7 @@ class LinuxFS(
         }
 
         if (Files.isDirectory(path)) {
-            path.toFile().listFiles().forEach {
+            path.toFile().listFiles()?.forEach {
                 traverseAndDelete(ctx, it.toPath(), cache, deletedRows)
             }
         }
@@ -496,7 +496,6 @@ class LinuxFS(
     }
 
     private fun getExtendedAttributeInternal(
-        ctx: LinuxFSRunner,
         systemFile: File,
         attribute: String
     ): String? {
@@ -519,7 +518,7 @@ class LinuxFS(
 
         FSResult(
             0,
-            getExtendedAttributeInternal(ctx, File(translateAndCheckFile(path)), attribute)
+            getExtendedAttributeInternal(File(translateAndCheckFile(path)), attribute)
         )
     }
 

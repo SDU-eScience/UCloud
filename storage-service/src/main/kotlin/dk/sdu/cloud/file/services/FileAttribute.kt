@@ -66,8 +66,7 @@ enum class FileAttribute(val value: Long) {
      */
     SHARES(1 shl 12),
 
-//    ANNOTATIONS(1 shl 13),
-//    CHECKSUM(1 shl 14),
+    // 13 and 14 are no longer in use
 
     /**
      * Sensitivity information
