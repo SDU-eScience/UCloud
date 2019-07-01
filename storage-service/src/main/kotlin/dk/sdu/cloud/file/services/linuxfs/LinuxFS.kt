@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.services.linuxfs
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.*
-import dk.sdu.cloud.file.services.acl.AclPermission
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
@@ -33,8 +32,8 @@ class LinuxFS(
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(from, ctx.user, AclPermission.READ)
-        aclService.requirePermission(to, ctx.user, AclPermission.WRITE)
+        aclService.requirePermission(from, ctx.user, AccessRight.READ)
+        aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
         val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
         val systemFrom = File(translateAndCheckFile(from))
@@ -60,8 +59,8 @@ class LinuxFS(
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.Moved>> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(from, ctx.user, AclPermission.READ)
-        aclService.requirePermission(to, ctx.user, AclPermission.WRITE)
+        aclService.requirePermission(from, ctx.user, AccessRight.READ)
+        aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
         val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
         val systemFrom = File(translateAndCheckFile(from))
@@ -133,7 +132,7 @@ class LinuxFS(
         directory: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(directory, ctx.user, AclPermission.READ)
+        aclService.requirePermission(directory, ctx.user, AccessRight.READ)
 
         val file = File(translateAndCheckFile(directory))
         val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
@@ -186,7 +185,7 @@ class LinuxFS(
         return systemFiles.map { systemFile ->
             try {
                 if (!hasPerformedPermissionCheck) {
-                    aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AclPermission.READ)
+                    aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AccessRight.READ)
                 }
 
                 var fileType: FileType? = null
@@ -366,12 +365,7 @@ class LinuxFS(
                 if (FileAttribute.SHARES in mode) {
                     val cloudPath = systemFile.path.toCloudPath()
                     shares = shareLookup.getOrDefault(cloudPath, emptyList()).map {
-                        AccessEntry(
-                            it.username, false, when (it.permission) {
-                                AclPermission.READ -> setOf(AccessRight.READ, AccessRight.EXECUTE)
-                                AclPermission.WRITE -> setOf(AccessRight.READ, AccessRight.WRITE, AccessRight.EXECUTE)
-                            }
-                        )
+                        AccessEntry(it.username, it.permissions)
                     }
                 }
 
@@ -400,8 +394,8 @@ class LinuxFS(
 
     override suspend fun delete(ctx: LinuxFSRunner, path: String): FSResult<List<StorageEvent.Deleted>> =
         runAndRethrowNIOExceptions {
-            aclService.requirePermission(path.parent(), ctx.user, AclPermission.WRITE)
-            aclService.requirePermission(path, ctx.user, AclPermission.WRITE)
+            aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
+            aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
             val systemFile = File(translateAndCheckFile(path))
             val deletedRows = ArrayList<StorageEvent.Deleted>()
@@ -455,7 +449,7 @@ class LinuxFS(
         path: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(path, ctx.user, AclPermission.WRITE)
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         if (ctx.outputStream == null) {
             val options = HashSet<OpenOption>()
@@ -532,7 +526,7 @@ class LinuxFS(
         path: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(path, ctx.user, AclPermission.READ)
+        aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
         val systemFile = File(translateAndCheckFile(path))
         val cache = HashMap<String, String>()
@@ -550,7 +544,7 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         path: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(path.parent(), ctx.user, AclPermission.WRITE)
+        aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
 
         val systemFile = File(translateAndCheckFile(path))
         Files.createDirectory(systemFile.toPath(), PosixFilePermissions.asFileAttribute(DEFAULT_DIRECTORY_MODE))
@@ -588,7 +582,7 @@ class LinuxFS(
         attribute: String
     ): FSResult<String> = runAndRethrowNIOExceptions {
         // TODO Should this be owner only?
-        aclService.requirePermission(path, ctx.user, AclPermission.READ)
+        aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
         FSResult(
             0,
@@ -604,7 +598,7 @@ class LinuxFS(
         allowOverwrite: Boolean
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
         // TODO Should this be owner only?
-        aclService.requirePermission(path, ctx.user, AclPermission.WRITE)
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         FSResult(
             StandardCLib.setxattr(
@@ -620,7 +614,7 @@ class LinuxFS(
     override suspend fun listExtendedAttribute(ctx: LinuxFSRunner, path: String): FSResult<List<String>> =
         runAndRethrowNIOExceptions {
             // TODO Should this be owner only?
-            aclService.requirePermission(path, ctx.user, AclPermission.READ)
+            aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
             FSResult(
                 0,
@@ -634,7 +628,7 @@ class LinuxFS(
         attribute: String
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
         // TODO Should this be owner only?
-        aclService.requirePermission(path, ctx.user, AclPermission.WRITE)
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         FSResult(
             StandardCLib.removexattr(translateAndCheckFile(path), "user.$attribute"),
@@ -644,7 +638,7 @@ class LinuxFS(
 
     override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> =
         runAndRethrowNIOExceptions {
-            aclService.requirePermission(path, ctx.user, AclPermission.READ)
+            aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
             FSResult(
                 0,
@@ -653,7 +647,7 @@ class LinuxFS(
         }
 
     override suspend fun openForReading(ctx: LinuxFSRunner, path: String): FSResult<Unit> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(path, ctx.user, AclPermission.READ)
+        aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
         if (ctx.inputStream != null) {
             log.warn("openForReading() called without closing last stream")
@@ -703,7 +697,7 @@ class LinuxFS(
         targetPath: String,
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(linkPath.parent(), ctx.user, AclPermission.WRITE)
+        aclService.requirePermission(linkPath.parent(), ctx.user, AccessRight.WRITE)
 
         val systemLink = File(translateAndCheckFile(linkPath))
         val systemTarget = File(translateAndCheckFile(targetPath))
@@ -730,15 +724,7 @@ class LinuxFS(
         entity: FSACLEntity,
         rights: Set<AccessRight>
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
-        val hasRead = AccessRight.READ in rights
-        val hasWrite = AccessRight.WRITE in rights
-        if (!hasRead && !hasWrite) return FSResult(0, Unit)
-
-        aclService.createOrUpdatePermission(
-            path,
-            entity.user,
-            if (hasWrite) AclPermission.WRITE else AclPermission.READ
-        )
+        aclService.updatePermissions(path, entity.user, rights)
         return FSResult(0, Unit)
     }
 
@@ -755,7 +741,7 @@ class LinuxFS(
         runAndRethrowNIOExceptions {
             return FSResult(
                 0,
-                aclService.hasPermission(path, ctx.user, if (requireWrite) AclPermission.WRITE else AclPermission.READ)
+                aclService.hasPermission(path, ctx.user, if (requireWrite) AccessRight.WRITE else AccessRight.READ)
             )
         }
 

@@ -5,11 +5,10 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 
 enum class AccessRight {
     READ,
-    WRITE,
-    EXECUTE
+    WRITE
 }
 
-data class AccessEntry(val entity: String, val isGroup: Boolean, val rights: Set<AccessRight>)
+data class AccessEntry(val entity: String, val rights: Set<AccessRight>)
 
 enum class FileType {
     FILE,

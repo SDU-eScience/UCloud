@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.BackgroundJobController
@@ -31,7 +32,6 @@ import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.WorkspaceService
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
-import dk.sdu.cloud.file.services.acl.AclPermission
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.background.BackgroundJobHibernateDao
@@ -79,13 +79,6 @@ class Server(
         val homeFolderService = HomeFolderService(client)
         val aclDao = AclHibernateDao()
         val newAclService = AclService(micro.hibernateDatabase, aclDao, homeFolderService)
-
-        run {
-            // Authorization testing code. We should always add the user as the owner of their own home folder.
-            // We simulate that this has already happened here.
-            newAclService.createOrUpdatePermission("/home/admin@dev", "admin@dev", AclPermission.WRITE)
-            newAclService.createOrUpdatePermission("/home/user@dev", "user@dev", AclPermission.WRITE)
-        }
 
         // FS root
         val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }

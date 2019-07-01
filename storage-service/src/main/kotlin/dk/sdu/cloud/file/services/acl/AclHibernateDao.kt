@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.services.acl
 
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parents
 import dk.sdu.cloud.service.db.HibernateEntity
@@ -21,36 +22,42 @@ import javax.persistence.Table
 @Table(name = "permissions")
 data class PermissionEntry(
     @get:EmbeddedId
-    var key: Key,
-
-    @get:Enumerated(EnumType.STRING)
-    var permission: AclPermission
+    var key: Key
 ) {
     companion object : HibernateEntity<PermissionEntry>, WithId<Key>
 
     @Embeddable
     data class Key(
         @get:Column(length = 2048) var path: String,
-        @get:Column(length = 2048) var username: String
+        @get:Column(length = 2048) var username: String,
+        @get:Enumerated(EnumType.STRING) var permission: AccessRight
     ) : Serializable
 }
 
 class AclHibernateDao : AclDao<HibernateSession> {
-    override fun createOrUpdatePermission(
+    override fun updatePermissions(
         session: HibernateSession,
         path: String,
         username: String,
-        permission: AclPermission
+        permissions: Set<AccessRight>
     ) {
-        val entry = PermissionEntry(PermissionEntry.Key(path.normalize(), username), permission)
-        session.saveOrUpdate(entry)
+        val entries = permissions.map { PermissionEntry(PermissionEntry.Key(path, username, it)) }
+        entries.forEach { session.saveOrUpdate(it) }
+
+        session.deleteCriteria<PermissionEntry> {
+            val key = entity[PermissionEntry::key]
+
+            (key[PermissionEntry.Key::username] equal username) and
+                    (key[PermissionEntry.Key::path] equal path) and
+                    (not (key[PermissionEntry.Key::permission] isInCollection permissions))
+        }.executeUpdate()
     }
 
     override fun hasPermission(
         session: HibernateSession,
         path: String,
         username: String,
-        permission: AclPermission
+        permission: AccessRight
     ): Boolean {
         val normalizedPath = path.normalize()
         val parents = normalizedPath.parents().map { it.normalize() } + listOf(normalizedPath)
@@ -58,28 +65,16 @@ class AclHibernateDao : AclDao<HibernateSession> {
         return session.criteria<PermissionEntry> {
             anyOf(
                 *(parents.map { parent ->
-                    val permissionPredicate = when (permission) {
-                        AclPermission.READ -> {
-                            (entity[PermissionEntry::permission] equal AclPermission.READ) or
-                                    (entity[PermissionEntry::permission] equal AclPermission.WRITE)
-                        }
-
-                        AclPermission.WRITE -> {
-                            (entity[PermissionEntry::permission] equal AclPermission.WRITE)
-                        }
-                    }
-
                     (entity[PermissionEntry::key][PermissionEntry.Key::username] equal username) and
                             (entity[PermissionEntry::key][PermissionEntry.Key::path] equal parent) and
-                            permissionPredicate
+                            (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal permission)
                 }.toTypedArray())
             )
         }.list().isNotEmpty()
     }
 
     override fun listAcl(session: HibernateSession, paths: List<String>): Map<String, List<UserWithPermissions>> {
-        val result = HashMap<String, ArrayList<UserWithPermissions>>()
-        session
+        return session
             .criteria<PermissionEntry> {
                 anyOf(
                     *paths.map { normalizedPath ->
@@ -88,13 +83,15 @@ class AclHibernateDao : AclDao<HibernateSession> {
                 )
             }
             .list()
-            .forEach { item ->
-                val list = result[item.key.path] ?: ArrayList()
-                list.add(UserWithPermissions(item.key.username, item.permission))
-                result[item.key.path] = list
+            .groupBy { it.key.path }
+            .mapValues { (_, entries) ->
+                entries
+                    .groupBy { it.key.username }
+                    .map { (username, permissions) ->
+                        UserWithPermissions(username, permissions.map { it.key.permission }.toSet())
+                    }
             }
-
-        return result
+            .toMap()
     }
 
     override fun revokePermission(session: HibernateSession, path: String, username: String) {
