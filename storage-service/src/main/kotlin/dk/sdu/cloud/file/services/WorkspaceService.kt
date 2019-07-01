@@ -3,10 +3,12 @@ package dk.sdu.cloud.file.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.services.acl.AclService
+import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
-import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.listAndClose
 import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
@@ -41,7 +43,7 @@ class WorkspaceService(
 
     private val userDao: StorageUserDao<Long>,
 
-    private val fsCommandRunnerFactory: FSCommandRunnerFactory<LinuxFSRunner>
+    private val aclService: AclService<*>
 ) {
     private val fsRoot = fsRoot.absoluteFile.normalize()
     private val workspaceFile = File(fsRoot, WORKSPACE_PATH)
@@ -56,91 +58,58 @@ class WorkspaceService(
         mounts: List<WorkspaceMount>,
         allowFailures: Boolean,
         createSymbolicLinkAt: String
-    ): CreatedWorkspace {
-        return fsCommandRunnerFactory.withContext(user) { ctx ->
-            runAndRethrowNIOExceptions {
-                val workspaceId = UUID.randomUUID().toString()
-                val workspace = workspace(workspaceId).also {
-                    Files.createDirectories(it)
-                    Files.setPosixFilePermissions(
-                        it,
-                        setOf(
-                            PosixFilePermission.OWNER_READ,
-                            PosixFilePermission.OWNER_WRITE,
-                            PosixFilePermission.OWNER_EXECUTE
-                        )
-                    )
-                }
-                val inputWorkspace = workspace.resolve("input").also { Files.createDirectories(it) }
-                val outputWorkspace = workspace.resolve("output").also { Files.createDirectories(it) }
-                val symLinkPath = createSymbolicLinkAt.let { File(it).absoluteFile.toPath() }
+    ): CreatedWorkspace = runAndRethrowNIOExceptions {
+        val workspaceId = UUID.randomUUID().toString()
+        val workspace = workspace(workspaceId).also {
+            Files.createDirectories(it)
+            Files.setPosixFilePermissions(
+                it,
+                setOf(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                    PosixFilePermission.OWNER_EXECUTE
+                )
+            )
+        }
+        val inputWorkspace = workspace.resolve("input").also { Files.createDirectories(it) }
+        val outputWorkspace = workspace.resolve("output").also { Files.createDirectories(it) }
+        val symLinkPath = createSymbolicLinkAt.let { File(it).absoluteFile.toPath() }
 
-                writeManifest(workspace, WorkspaceManifest(user, mounts, createSymbolicLinkAt))
+        writeManifest(workspace, WorkspaceManifest(user, mounts, createSymbolicLinkAt))
 
-                fun transferFile(
-                    file: Path,
-                    rootPath: Path,
-                    initialDestination: String,
-                    readOnly: Boolean
-                ) {
-                    val isInitialFile = Files.isSameFile(file, rootPath)
-                    val relativePath = rootPath.relativize(file)
+        val failures = ArrayList<WorkspaceMount>()
+        mounts.forEach {
+            aclService.requirePermission(
+                it.source,
+                user,
+                if (it.readOnly) AccessRight.READ else AccessRight.WRITE
+            )
 
-                    val inputRoot = inputWorkspace.resolve(initialDestination)
-                    val outputRoot = outputWorkspace.resolve(initialDestination)
-                    val symlinkRoot = symLinkPath.resolve(initialDestination)
+            try {
+                val file = File(translateAndCheckFile(fsRoot, it.source)).toPath()
+                transferFileNoAccessCheck(
+                    inputWorkspace,
+                    outputWorkspace,
+                    symLinkPath,
+                    file,
+                    file,
+                    it.destination,
+                    it.readOnly
+                )
+            } catch (ex: Throwable) {
+                log.info("Failed to add ${it.source}. ${ex.message}")
+                log.debug(ex.stackTraceToString())
 
-                    val inputDestinationPath =
-                        if (isInitialFile) inputRoot
-                        else inputRoot.resolve(relativePath)
-
-                    val outputDestinationPath =
-                        if (isInitialFile) outputRoot
-                        else outputRoot.resolve(relativePath)
-
-                    if (Files.isDirectory(file)) {
-                        if (readOnly) Files.createDirectories(inputDestinationPath)
-                        Files.createDirectories(outputDestinationPath)
-
-                        file.listAndClose().forEach {
-                            transferFile(it, rootPath, initialDestination, readOnly)
-                        }
-                    } else {
-                        val resolvedFile =
-                            if (Files.isSymbolicLink(file)) Files.readSymbolicLink(file)
-                            else file
-
-                        if (readOnly) {
-                            Files.createLink(inputDestinationPath, resolvedFile)
-                            Files.createSymbolicLink(outputDestinationPath, symlinkRoot.resolve(relativePath))
-                        } else {
-                            Files.copy(resolvedFile, outputDestinationPath, StandardCopyOption.COPY_ATTRIBUTES)
-                        }
-                    }
-                }
-
-                val failures = ArrayList<WorkspaceMount>()
-                mounts.forEach {
-                    try {
-                        val file = File(translateAndCheckFile(fsRoot, it.source)).toPath()
-                        transferFile(file, file, it.destination, it.readOnly)
-                    } catch (ex: Throwable) {
-                        log.info("Failed to add ${it.source}. ${ex.message}")
-                        log.debug(ex.stackTraceToString())
-
-                        failures.add(it)
-                    }
-                }
-
-                if (failures.isNotEmpty() && !allowFailures) {
-                    delete(workspaceId)
-                    throw RPCException("Workspace creation had failures: $failures", HttpStatusCode.BadRequest)
-                }
-
-                CreatedWorkspace(workspaceId, failures)
+                failures.add(it)
             }
         }
 
+        if (failures.isNotEmpty() && !allowFailures) {
+            delete(workspaceId)
+            throw RPCException("Workspace creation had failures: $failures", HttpStatusCode.BadRequest)
+        }
+
+        CreatedWorkspace(workspaceId, failures)
     }
 
     suspend fun transfer(
@@ -271,6 +240,7 @@ class WorkspaceService(
                         }
                     }
 
+                    // TODO FIXME We need to check permissions here!
                     // We will put the file in the mount (if one exists) otherwise it will go in the default destination
                     if (mount == null) {
                         // The file is then transferred to the new system and recorded for later use
@@ -320,6 +290,52 @@ class WorkspaceService(
         val file = workspace.resolve(WORKSPACE_MANIFEST_NAME)
         if (!Files.exists(file)) throw RPCException("Invalid workspace", HttpStatusCode.BadRequest)
         return defaultMapper.readValue(file.toFile())
+    }
+
+    private fun transferFileNoAccessCheck(
+        inputWorkspace: Path,
+        outputWorkspace: Path,
+        symLinkPath: Path,
+
+        file: Path,
+        rootPath: Path,
+        initialDestination: String,
+        readOnly: Boolean
+    ) {
+        val isInitialFile = Files.isSameFile(file, rootPath)
+        val relativePath = rootPath.relativize(file)
+
+        val inputRoot = inputWorkspace.resolve(initialDestination)
+        val outputRoot = outputWorkspace.resolve(initialDestination)
+        val symlinkRoot = symLinkPath.resolve(initialDestination)
+
+        val inputDestinationPath =
+            if (isInitialFile) inputRoot
+            else inputRoot.resolve(relativePath)
+
+        val outputDestinationPath =
+            if (isInitialFile) outputRoot
+            else outputRoot.resolve(relativePath)
+
+        if (Files.isDirectory(file)) {
+            if (readOnly) Files.createDirectories(inputDestinationPath)
+            Files.createDirectories(outputDestinationPath)
+
+            file.listAndClose().forEach {
+                transferFileNoAccessCheck(inputWorkspace, outputWorkspace, symLinkPath, it, rootPath, initialDestination, readOnly)
+            }
+        } else {
+            val resolvedFile =
+                if (Files.isSymbolicLink(file)) Files.readSymbolicLink(file)
+                else file
+
+            if (readOnly) {
+                Files.createLink(inputDestinationPath, resolvedFile)
+                Files.createSymbolicLink(outputDestinationPath, symlinkRoot.resolve(relativePath))
+            } else {
+                Files.copy(resolvedFile, outputDestinationPath, StandardCopyOption.COPY_ATTRIBUTES)
+            }
+        }
     }
 
     companion object : Loggable {

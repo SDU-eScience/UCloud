@@ -38,6 +38,7 @@ import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.background.BackgroundJobHibernateDao
 import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.background.BackgroundStreams
+import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.micro.Micro
@@ -66,6 +67,8 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         log.info("Creating core services")
+
+        Chown.isDevMode = micro.developmentModeEnabled
 
         val bgDao = BackgroundJobHibernateDao()
         val bgExecutor =
@@ -110,7 +113,7 @@ class Server(
         val fileLookupService = FileLookupService(coreFileSystem)
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
-        val workspaceService = WorkspaceService(fsRootFile, fileScanner, uidLookupService, processRunner)
+        val workspaceService = WorkspaceService(fsRootFile, fileScanner, uidLookupService, newAclService)
 
         // RPC services
         val wsService = WSFileSessionService(processRunner)

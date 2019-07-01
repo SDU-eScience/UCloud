@@ -25,7 +25,6 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
@@ -74,7 +73,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                 }
 
                 lateinit var stat: FileRow
-                tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
+                commandRunnerFactory.withContext(principal.subject) { ctx ->
                     val mode = setOf(
                         FileAttribute.PATH,
                         FileAttribute.INODE,
@@ -113,7 +112,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     contentType = ContentType.Application.Zip,
                                     status = HttpStatusCode.OK
                                 ) {
-                                    tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
+                                    commandRunnerFactory.withContext(principal.subject) { ctx ->
                                         ZipOutputStream(toOutputStream()).use { os ->
                                             fs.tree(
                                                 ctx,
@@ -158,7 +157,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     contentType = contentType,
                                     status = HttpStatusCode.OK
                                 ) {
-                                    tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
+                                    commandRunnerFactory.withContext(principal.subject) { ctx ->
                                         val writeChannel = this
                                         fs.read(ctx, request.path) {
                                             val stream = this
@@ -178,7 +177,8 @@ class SimpleDownloadController<Ctx : FSUserContext>(
             }
         }
 
-        implement(FileDescriptions.bulkDownload) {
+        implement(FileDescriptions.bulkDownload)
+        {
             val filesDownloaded = ArrayList<String?>()
             audit(BulkFileAudit(filesDownloaded, request))
 

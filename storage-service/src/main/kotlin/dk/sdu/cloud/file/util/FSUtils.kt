@@ -99,34 +99,6 @@ sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCExcep
         FSException("File cannot overwrite directory.", HttpStatusCode.Conflict)
 }
 
-@Deprecated("Deprecated")
-suspend inline fun CallHandler<*, *, CommonErrorMessage>.tryWithFS(
-    body: () -> Unit
-) {
-    try {
-        body()
-    } catch (ex: Exception) {
-        fsLog.debug(ex.stackTraceToString())
-        val (msg, status) = handleFSException(ex)
-        error(msg, status)
-    }
-}
-
-@Deprecated("Deprecated")
-suspend inline fun <Ctx : FSUserContext> CallHandler<*, *, CommonErrorMessage>.tryWithFS(
-    factory: FSCommandRunnerFactory<Ctx>,
-    user: String,
-    body: (Ctx) -> Unit
-) {
-    try {
-        factory.withContext(user) { body(it) }
-    } catch (ex: Exception) {
-        fsLog.debug(ex.stackTraceToString())
-        val (msg, status) = handleFSException(ex)
-        error(msg, status)
-    }
-}
-
 sealed class CallResult<S, E>(val status: HttpStatusCode) {
     class Success<S, E>(val item: S, status: HttpStatusCode = HttpStatusCode.OK) : CallResult<S, E>(status)
     class Error<S, E>(val item: E, status: HttpStatusCode) : CallResult<S, E>(status)

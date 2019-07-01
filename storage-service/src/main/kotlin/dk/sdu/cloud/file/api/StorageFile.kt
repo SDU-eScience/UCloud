@@ -5,7 +5,10 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 
 enum class AccessRight {
     READ,
-    WRITE
+    WRITE,
+
+    @Deprecated("No longer in use")
+    EXECUTE
 }
 
 data class AccessEntry(val entity: String, val rights: Set<AccessRight>)

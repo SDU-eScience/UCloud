@@ -1,21 +1,16 @@
 package dk.sdu.cloud.file.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.background.BackgroundResponse
-import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 
-private data class UpdateRequestWithRealOwner(val request: UpdateAclRequest, val realOwner: String)
+private data class UpdateRequest(val request: UpdateAclRequest)
 
 class ACLWorker<Ctx : FSUserContext>(
     private val fsCommandRunnerFactory: FSCommandRunnerFactory<Ctx>,
@@ -25,8 +20,8 @@ class ACLWorker<Ctx : FSUserContext>(
     fun registerWorkers() {
         backgroundExecutor.addWorker(REQUEST_TYPE) { _, message ->
             fsCommandRunnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
-                val parsed = defaultMapper.readValue<UpdateRequestWithRealOwner>(message)
-                val (request, _) = parsed
+                val parsed = defaultMapper.readValue<UpdateRequest>(message)
+                val (request) = parsed
                 log.debug("Executing ACL update request: $request")
 
                 request.changes.forEach { change ->
@@ -44,8 +39,8 @@ class ACLWorker<Ctx : FSUserContext>(
         }
     }
 
-    suspend fun updateAcl(request: UpdateAclRequest, realOwner: String, user: String): String {
-        return backgroundExecutor.addJobToQueue(REQUEST_TYPE, UpdateRequestWithRealOwner(request, realOwner), user)
+    suspend fun updateAcl(request: UpdateAclRequest, user: String): String {
+        return backgroundExecutor.addJobToQueue(REQUEST_TYPE, UpdateRequest(request), user)
     }
 
     companion object : Loggable {
