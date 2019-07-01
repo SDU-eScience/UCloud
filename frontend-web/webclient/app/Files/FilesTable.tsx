@@ -7,7 +7,7 @@ import {Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, La
 import * as UF from "UtilityFunctions"
 import {Arrow, FileIcon} from "UtilityComponents";
 import {TextSpan} from "ui-components/Text";
-import {clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, toFileText, filePreviewPage, replaceHomeFolder} from "Utilities/FileUtilities";
+import {clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, toFileText, filePreviewPage, replaceHomeFolder, getParentPath} from "Utilities/FileUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
 import {KeyCode, ReduxObject, SensitivityLevelMap, ResponsiveReduxObject} from "DefaultObjects";
@@ -19,7 +19,7 @@ import Theme from "ui-components/theme";
 const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, onDropdownSelect, sortingColumns,
     fileOperations, sortOrder, onFavoriteFile, sortBy, onNavigationClick, notStickyHeader,
-    responsive
+    responsive, canNavigateFiles
 }: FilesTableProps) => {
     const checkedFiles = files.filter(it => it.isChecked);
     const checkedCount = checkedFiles.length;
@@ -43,6 +43,7 @@ const FilesTable = ({
                 {files.map(file => (
                     <TableRow highlighted={file.isChecked} key={file.fileId!} data-tag={"fileRow"}>
                         <FilenameAndIcons
+                            canNavigateFiles={!!canNavigateFiles}
                             onNavigationClick={onNavigationClick}
                             file={file}
                             onFavoriteFile={onFavoriteFile}
@@ -269,11 +270,15 @@ const SensitivityBadge = styled.div<{bg: string}>`
     border-radius: 100%;
 `;
 
-const FileLink = ({file, children}: {file: File, children: JSX.Element}) => {
+const FileLink: React.FunctionComponent<{file: File, canNavigateFiles: boolean}> = ({
+    file,
+    canNavigateFiles,
+    children
+}) => {
     if (isDirectory(file)) {
         return (<Link to={fileTablePage(file.path)}>{children}</Link>);
-    } else if (previewSupportedExtension(file.path)) {
-        return (<Link to={filePreviewPage(file.path)}>{children}</Link>);
+    } else if (canNavigateFiles) {
+        return (<Link to={fileTablePage(getParentPath(file.path))}>{children}</Link>);
     } else {
         return (<>{children}</>);
     }
@@ -320,7 +325,7 @@ function FilenameAndIcons({file, size = 38, onRenameFile = () => null, onCheckFi
         </Flex>
         :
         <Box title={replaceHomeFolder(file.path, Cloud.homeFolder)} width="100%" >
-            <FileLink file={file}>
+            <FileLink file={file} canNavigateFiles={props.canNavigateFiles}>
                 <Flex alignItems="center">
                     {icon}
                     <Truncate cursor={cursor} mr="5px">{fileName}</Truncate>

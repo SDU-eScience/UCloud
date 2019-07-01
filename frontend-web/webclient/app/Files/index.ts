@@ -140,6 +140,7 @@ export interface FileSelectorState {
 
 export interface FilesTableProps {
     onNavigationClick?: (path: string) => void
+    canNavigateFiles?: boolean
     sortOrder: SortOrder
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     sortingColumns: SortBy[]
@@ -173,6 +174,7 @@ export interface FilesTableHeaderProps {
 
 export interface FilenameAndIconsProps {
     size?: number | string
+    canNavigateFiles: boolean
     file: File
     hasCheckbox: boolean
     onRenameFile?: (key: number, file: File, name: string) => void
