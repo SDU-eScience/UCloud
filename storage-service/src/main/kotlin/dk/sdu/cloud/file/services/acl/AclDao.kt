@@ -15,6 +15,6 @@ interface AclDao<Session> {
     fun listAcl(session: Session, paths: List<String>): Map<String, List<UserWithPermissions>>
     fun revokePermission(session: Session, path: String, username: String)
     fun handleFilesMoved(session: Session, oldPath: String, newPath: String)
-    fun handleFilesDeleted(session: Session, path: String)
+    fun handleFilesDeleted(session: Session, paths: List<String>)
     fun dumpAllForDebugging(session: Session): Map<String, List<UserWithPermissions>>
 }

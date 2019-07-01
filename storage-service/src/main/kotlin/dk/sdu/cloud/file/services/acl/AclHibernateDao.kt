@@ -128,11 +128,14 @@ class AclHibernateDao : AclDao<HibernateSession> {
         ).executeUpdate()
     }
 
-    override fun handleFilesDeleted(session: HibernateSession, path: String) {
-        val normalizedPath = path.normalize()
+    override fun handleFilesDeleted(session: HibernateSession, paths: List<String>) {
         session.deleteCriteria<PermissionEntry> {
-            (entity[PermissionEntry::key][PermissionEntry.Key::path] equal normalizedPath) or
-                    (entity[PermissionEntry::key][PermissionEntry.Key::path] like "$normalizedPath/%")
+            anyOf(
+                *paths.map { normalizedPath ->
+                    (entity[PermissionEntry::key][PermissionEntry.Key::path] equal normalizedPath) or
+                            (entity[PermissionEntry::key][PermissionEntry.Key::path] like "$normalizedPath/%")
+                }.toTypedArray()
+            )
         }.executeUpdate()
     }
 

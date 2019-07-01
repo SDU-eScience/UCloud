@@ -79,7 +79,7 @@ class AclService<Session>(
         val observedChanges = HashMap<String, String>()
 
         db.withTransaction {
-            from.zip(to).forEach { (rawOld, rawNew) ->
+            from.zip(to).sortedBy { it.first.length }.forEach { (rawOld, rawNew) ->
                 val old = rawOld.normalize()
                 val new = rawNew.normalize()
 
@@ -117,12 +117,16 @@ class AclService<Session>(
     suspend fun handleFilesDeleted(paths: List<String>) {
         if (paths.isEmpty()) return
 
-        // TODO FIXME
-        paths.forEach { path ->
-            val normalizedPath = path.normalize()
+        val filesToDelete = HashSet<String>()
+        paths.asSequence().sortedBy { it.length }.map { it.normalize() }.forEach { path ->
+            if (path.parents().all { it.normalize() !in filesToDelete }) {
+                filesToDelete.add(path)
+            }
+        }
 
+        filesToDelete.chunked(64).forEach { chunk ->
             db.withTransaction {
-                dao.handleFilesDeleted(it, normalizedPath)
+                dao.handleFilesDeleted(it, chunk)
             }
         }
     }

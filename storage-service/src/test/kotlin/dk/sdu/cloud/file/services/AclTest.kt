@@ -300,4 +300,19 @@ class AclTest {
         assertTrue(aclService.hasPermission(sharedFolderNew, notUser, AccessRight.WRITE))
         assertTrue(aclService.hasPermission(sharedFolderNew, notUser, AccessRight.READ))
     }
+
+    @Test
+    fun `test deleting files from share`() = runBlocking {
+        val username = "user"
+        val sharedFolder = "/home/$username/shared"
+        val notUser = "notUser"
+
+        aclService.updatePermissions(sharedFolder, notUser, AccessRights.READ_WRITE)
+        aclService.handleFilesDeleted(
+            Array(200) { "$sharedFolder/f-$it" }.toList() + listOf(sharedFolder)
+        )
+
+        assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.WRITE))
+        assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.READ))
+    }
 }
