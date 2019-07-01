@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.http.files
+package dk.sdu.cloud.file.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue

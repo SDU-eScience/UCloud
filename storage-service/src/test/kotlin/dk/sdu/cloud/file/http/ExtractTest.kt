@@ -1,12 +1,11 @@
-package dk.sdu.cloud.file.http.files
+package dk.sdu.cloud.file.http
 
-import dk.sdu.cloud.file.http.ExtractController
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.withKtorTest
-import dk.sdu.cloud.storage.util.mkdir
-import dk.sdu.cloud.storage.util.touch
+import dk.sdu.cloud.file.util.mkdir
+import dk.sdu.cloud.file.util.touch
 import io.ktor.http.HttpStatusCode
 import org.junit.Test
 import java.io.File

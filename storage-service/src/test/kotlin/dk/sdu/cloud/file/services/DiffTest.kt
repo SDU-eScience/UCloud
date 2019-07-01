@@ -1,8 +1,7 @@
-package dk.sdu.cloud.storage.services
+package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundScope
@@ -14,12 +13,12 @@ import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.*
-import dk.sdu.cloud.storage.util.createFS
-import dk.sdu.cloud.storage.util.inode
-import dk.sdu.cloud.storage.util.mkdir
-import dk.sdu.cloud.storage.util.storageUserDaoWithFixedAnswer
-import dk.sdu.cloud.storage.util.timestamps
-import dk.sdu.cloud.storage.util.touch
+import dk.sdu.cloud.file.util.createFS
+import dk.sdu.cloud.file.util.inode
+import dk.sdu.cloud.file.util.mkdir
+import dk.sdu.cloud.file.util.storageUserDaoWithFixedAnswer
+import dk.sdu.cloud.file.util.timestamps
+import dk.sdu.cloud.file.util.touch
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

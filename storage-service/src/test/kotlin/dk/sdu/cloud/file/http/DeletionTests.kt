@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.http.files
+package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode

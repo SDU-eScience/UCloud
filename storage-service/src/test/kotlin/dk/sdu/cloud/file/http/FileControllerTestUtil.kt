@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.http.files
+package dk.sdu.cloud.file.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
@@ -10,10 +10,6 @@ import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.homeDirectory
-import dk.sdu.cloud.file.http.ActionController
-import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
-import dk.sdu.cloud.file.http.FileSecurityController
-import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.services.ACLWorker
 import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
@@ -35,9 +31,9 @@ import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
-import dk.sdu.cloud.storage.util.createDummyFS
-import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
-import dk.sdu.cloud.storage.util.simpleStorageUserDao
+import dk.sdu.cloud.file.util.createDummyFS
+import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
+import dk.sdu.cloud.file.util.simpleStorageUserDao
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.server.testing.TestApplicationEngine

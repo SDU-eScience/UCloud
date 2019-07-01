@@ -1,23 +1,17 @@
-package dk.sdu.cloud.storage.services
+package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.modifiedAt
 import dk.sdu.cloud.file.services.background.BackgroundScope
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertThatInstance
-import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
-import dk.sdu.cloud.storage.util.mkdir
+import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
+import dk.sdu.cloud.file.util.mkdir
 import io.mockk.mockk
 import kotlinx.coroutines.delay
 import java.io.File

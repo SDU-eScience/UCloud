@@ -153,4 +153,4 @@ fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
     }
 }
 
-val fsLog = LoggerFactory.getLogger("dk.sdu.cloud.storage.services.FileSystemServiceKt")!!
+val fsLog = LoggerFactory.getLogger("dk.sdu.cloud.file.services.FileSystemServiceKt")!!

@@ -1,13 +1,9 @@
-package dk.sdu.cloud.storage.services
+package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.file.services.BulkDownloadService
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
+import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test

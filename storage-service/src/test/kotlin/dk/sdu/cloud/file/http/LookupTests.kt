@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.http.files
+package dk.sdu.cloud.file.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -8,8 +8,8 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.test.withKtorTest
-import dk.sdu.cloud.storage.util.mkdir
-import dk.sdu.cloud.storage.util.touch
+import dk.sdu.cloud.file.util.mkdir
+import dk.sdu.cloud.file.util.touch
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationEngine
 import org.junit.Test

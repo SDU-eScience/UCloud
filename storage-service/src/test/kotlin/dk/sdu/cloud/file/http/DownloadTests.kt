@@ -1,11 +1,8 @@
-package dk.sdu.cloud.file.http.download
+package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.file.api.BulkDownloadRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.http.SimpleDownloadController
-import dk.sdu.cloud.file.http.files.FileControllerContext
-import dk.sdu.cloud.file.http.files.configureServerWithFileController
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.micro.tokenValidation

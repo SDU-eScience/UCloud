@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.services
+package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersResponse
@@ -9,14 +9,10 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.services.FileAttribute
-import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -24,10 +20,9 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.storage.util.mkdir
-import dk.sdu.cloud.storage.util.simpleStorageUserDao
-import dk.sdu.cloud.storage.util.touch
-import io.mockk.every
+import dk.sdu.cloud.file.util.mkdir
+import dk.sdu.cloud.file.util.simpleStorageUserDao
+import dk.sdu.cloud.file.util.touch
 import org.junit.Ignore
 import org.junit.Test
 import java.io.File

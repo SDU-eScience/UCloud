@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.util
+package dk.sdu.cloud.file.util
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersResponse

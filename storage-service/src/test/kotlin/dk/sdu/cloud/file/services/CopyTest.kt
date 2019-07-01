@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.services
+package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.file.api.SensitivityLevel
@@ -6,23 +6,14 @@ import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.services.background.BackgroundScope
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileAttribute
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertThatInstance
-import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
-import dk.sdu.cloud.storage.util.mkdir
-import dk.sdu.cloud.storage.util.touch
+import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
+import dk.sdu.cloud.file.util.mkdir
+import dk.sdu.cloud.file.util.touch
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
