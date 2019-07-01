@@ -17,6 +17,7 @@ import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.http.WorkspaceController
+import dk.sdu.cloud.file.processors.StorageProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLWorker
 import dk.sdu.cloud.file.services.AuthUIDLookupService
@@ -127,6 +128,8 @@ class Server(
             processRunner,
             coreFileSystem
         ).init()
+
+        StorageProcessor(streams, newAclService).init()
 
         val tokenValidation =
             micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")
