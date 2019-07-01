@@ -219,4 +219,85 @@ class AclTest {
         val listB = aclService.listAcl(listOf(folderB))
         assertThatPropertyEquals(listB, { it.size }, 1)
     }
+
+    @Test
+    fun `add user to acl several times`() = runBlocking {
+        val username = "user"
+        val userHome = "/home/$username"
+        val notUser = "notUser"
+
+        repeat(10) {
+            aclService.updatePermissions(userHome, notUser, AccessRights.READ_WRITE)
+        }
+
+        assertTrue(aclService.hasPermission(userHome, username, AccessRight.WRITE))
+        assertTrue(aclService.hasPermission(userHome, username, AccessRight.READ))
+
+        assertTrue(aclService.hasPermission(userHome, notUser, AccessRight.WRITE))
+        assertTrue(aclService.hasPermission(userHome, notUser, AccessRight.READ))
+
+        val list = aclService.listAcl(listOf(userHome))
+        assertThatPropertyEquals(list, { it.size }, 1)
+        assertThatInstance(list) {
+            val user = it[it.keys.single()]!!.single()
+            user.permissions == AccessRights.READ_WRITE && user.username == notUser
+        }
+    }
+
+    @Test
+    fun `test adding user and moving file`() = runBlocking {
+        val username = "user"
+        val sharedFolder = "/home/$username/shared"
+        val sharedFolderNew = "/home/$username/sharedNew"
+        val notUser = "notUser"
+
+        aclService.updatePermissions(sharedFolder, notUser, AccessRights.READ_WRITE)
+        aclService.handleFilesMoved(listOf(sharedFolder), listOf(sharedFolderNew))
+
+        assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.WRITE))
+        assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.READ))
+
+        assertTrue(aclService.hasPermission(sharedFolderNew, notUser, AccessRight.WRITE))
+        assertTrue(aclService.hasPermission(sharedFolderNew, notUser, AccessRight.READ))
+    }
+
+    @Test
+    fun `test adding user and moving multiple files`() = runBlocking {
+        val username = "user"
+        val sharedFolder = "/home/$username/shared"
+        val sharedFolderNew = "/home/$username/sharedNew"
+        val notUser = "notUser"
+
+        aclService.updatePermissions(sharedFolder, notUser, AccessRights.READ_WRITE)
+        aclService.handleFilesMoved(
+            listOf(sharedFolder, "$sharedFolder/file"),
+            listOf(sharedFolderNew, "$sharedFolderNew/file")
+        )
+
+        assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.WRITE))
+        assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.READ))
+
+        assertTrue(aclService.hasPermission(sharedFolderNew, notUser, AccessRight.WRITE))
+        assertTrue(aclService.hasPermission(sharedFolderNew, notUser, AccessRight.READ))
+    }
+
+    @Test
+    fun `test adding user and moving multiple files 2`() = runBlocking {
+        val username = "user"
+        val sharedFolder = "/home/$username/shared"
+        val sharedFolderNew = "/home/$username/sharedNew"
+        val notUser = "notUser"
+
+        aclService.updatePermissions(sharedFolder, notUser, AccessRights.READ_WRITE)
+        aclService.handleFilesMoved(
+            listOf(sharedFolder, "$sharedFolder/file"),
+            listOf(sharedFolderNew, "$sharedFolderNew/file22")
+        )
+
+        assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.WRITE))
+        assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.READ))
+
+        assertTrue(aclService.hasPermission(sharedFolderNew, notUser, AccessRight.WRITE))
+        assertTrue(aclService.hasPermission(sharedFolderNew, notUser, AccessRight.READ))
+    }
 }

@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.services.acl
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.parents
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -71,19 +72,64 @@ class AclService<Session>(
         }
     }
 
-    suspend fun handleFilesMoved(path: String) {
-        val normalizedPath = path.normalize()
+    suspend fun handleFilesMoved(from: List<String>, to: List<String>) {
+        if (from.size != to.size) throw IllegalArgumentException("from.size != to.size")
+        if (from.isEmpty()) return
+
+        val observedChanges = HashMap<String, String>()
 
         db.withTransaction {
-            dao.handleFilesMoved(it, normalizedPath)
+            from.zip(to).forEach { (rawOld, rawNew) ->
+                val old = rawOld.normalize()
+                val new = rawNew.normalize()
+
+                val canSkipUpdate = old.parents().map { it.normalize() }.any { oldParent ->
+                    // If we haven't observed another change here then we need to update.
+                    val newPrefix = observedChanges[oldParent] ?: return@any false
+
+                    // We have observed a change to this parent which would have affected this one. We need to
+                    // determine if these are related or not.
+
+                    // First we check if the prefixes are changing in the same way.
+                    if (!new.startsWith("$newPrefix/")) return@any false
+
+                    // Secondly we need to make sure that _only_ the prefix has changed. This means that the suffix
+                    // of old must match the new suffix. The suffix is anything after the prefix.
+
+                    // TODO Should this be an assert instead?
+                    if (newPrefix.length >= new.length) return@any false
+
+                    val newSuffix = new.substring(newPrefix.length + 1)
+                    val oldSuffix = old.substring(oldParent.length + 1)
+
+                    newSuffix == oldSuffix
+                }
+
+                observedChanges[old] = new
+
+                if (!canSkipUpdate) {
+                    dao.handleFilesMoved(it, old, new)
+                }
+            }
         }
     }
 
-    suspend fun handleFilesDeleted(path: String) {
-        val normalizedPath = path.normalize()
+    suspend fun handleFilesDeleted(paths: List<String>) {
+        if (paths.isEmpty()) return
 
+        // TODO FIXME
+        paths.forEach { path ->
+            val normalizedPath = path.normalize()
+
+            db.withTransaction {
+                dao.handleFilesDeleted(it, normalizedPath)
+            }
+        }
+    }
+
+    fun dumpAllForDebugging(): Map<String, List<UserWithPermissions>> {
         db.withTransaction {
-            dao.handleFilesDeleted(it, normalizedPath)
+            return dao.dumpAllForDebugging(it)
         }
     }
 

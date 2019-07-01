@@ -3,12 +3,7 @@ package dk.sdu.cloud.file.services.acl
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parents
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.deleteCriteria
-import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.*
 import java.io.Serializable
 import javax.persistence.Column
 import javax.persistence.Embeddable
@@ -49,7 +44,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
             (key[PermissionEntry.Key::username] equal username) and
                     (key[PermissionEntry.Key::path] equal path) and
-                    (not (key[PermissionEntry.Key::permission] isInCollection permissions))
+                    (not(key[PermissionEntry.Key::permission] isInCollection permissions))
         }.executeUpdate()
     }
 
@@ -62,15 +57,18 @@ class AclHibernateDao : AclDao<HibernateSession> {
         val normalizedPath = path.normalize()
         val parents = normalizedPath.parents().map { it.normalize() } + listOf(normalizedPath)
 
-        return session.criteria<PermissionEntry> {
-            anyOf(
-                *(parents.map { parent ->
-                    (entity[PermissionEntry::key][PermissionEntry.Key::username] equal username) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::path] equal parent) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal permission)
-                }.toTypedArray())
-            )
-        }.list().isNotEmpty()
+        return session
+            .criteria<PermissionEntry> {
+                anyOf(
+                    *(parents.map { parent ->
+                        (entity[PermissionEntry::key][PermissionEntry.Key::username] equal username) and
+                                (entity[PermissionEntry::key][PermissionEntry.Key::path] equal parent) and
+                                (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal permission)
+                    }.toTypedArray())
+                )
+            }
+            .list()
+            .isNotEmpty()
     }
 
     override fun listAcl(session: HibernateSession, paths: List<String>): Map<String, List<UserWithPermissions>> {
@@ -102,8 +100,32 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }.executeUpdate()
     }
 
-    override fun handleFilesMoved(session: HibernateSession, path: String) {
-        TODO("not implemented")
+    override fun handleFilesMoved(session: HibernateSession, oldPath: String, newPath: String) {
+        // The first query will update all children
+        session.createNativeQuery(
+            """
+            update permissions
+            set path = concat(:newPath, substr(path, :startIdx))
+            where path like :oldPathLike
+        """.trimIndent()
+        ).also {
+            it.setParameter("newPath", newPath)
+            it.setParameter("oldPathLike", "$newPath/%")
+
+            // add one for the forward-slash and another for offsetting substr
+            it.setParameter("startIdx", newPath.length + 2)
+        }.executeUpdate()
+
+        // The second will update just the root
+        session.updateCriteria<PermissionEntry>(
+            setProperties = {
+                criteria.set(entity[PermissionEntry::key][PermissionEntry.Key::path], newPath)
+            },
+
+            where = {
+                entity[PermissionEntry::key][PermissionEntry.Key::path] equal oldPath
+            }
+        ).executeUpdate()
     }
 
     override fun handleFilesDeleted(session: HibernateSession, path: String) {
@@ -112,5 +134,20 @@ class AclHibernateDao : AclDao<HibernateSession> {
             (entity[PermissionEntry::key][PermissionEntry.Key::path] equal normalizedPath) or
                     (entity[PermissionEntry::key][PermissionEntry.Key::path] like "$normalizedPath/%")
         }.executeUpdate()
+    }
+
+    override fun dumpAllForDebugging(session: HibernateSession): Map<String, List<UserWithPermissions>> {
+        return session
+            .criteria<PermissionEntry> { literal(true).toPredicate() }
+            .list()
+            .groupBy { it.key.path }
+            .mapValues { (_, entries) ->
+                entries
+                    .groupBy { it.key.username }
+                    .map { (username, permissions) ->
+                        UserWithPermissions(username, permissions.map { it.key.permission }.toSet())
+                    }
+            }
+            .toMap()
     }
 }
