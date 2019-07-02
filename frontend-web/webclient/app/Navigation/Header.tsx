@@ -123,7 +123,7 @@ const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems={"center"} ml="15px">
             <Icon name={"logoEsc"} size={"38px"} />
-            <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
+            <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text><Text ml={"4px"} mt={-7} style={{verticalAlign: "top"}} color="red" fontSize={17}>BETA</Text>
         </Flex>
     </Link>
 );
