@@ -88,7 +88,7 @@ function Header(props: HeaderProps) {
                         </Flex>
                     </Link>
                 </Flex>
-                <Flex ml="-17px" mr="-17px" pl="15px" onClick={Cloud.logout}>
+                <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
@@ -131,7 +131,6 @@ const Logo = () => (
 const Login = () => (
     <Icon name="user" />
 );
-
 
 const SearchInput = styled(Flex)`
     min-width: 250px;
