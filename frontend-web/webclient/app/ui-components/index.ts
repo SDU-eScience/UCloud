@@ -47,6 +47,8 @@ export { default as UIGlobalStyle } from "./GlobalStyle"
 export { default as ActionButton } from "./ActionButton";
 export { default as ExternalLink } from "./ExternalLink";
 export { default as Markdown } from "./Markdown";
+export { SelectableTextWrapper, SelectableText } from "./SelectableText";
+
 
 export { default as RBox } from "./RBox"
 

@@ -28,6 +28,7 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import {prettierString} from "UtilityFunctions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
+import {SelectableTextWrapper, SelectableText} from "ui-components";
 
 function Search(props: SearchProps) {
     React.useEffect(() => {
@@ -174,9 +175,9 @@ function Search(props: SearchProps) {
         <MainContainer
             header={
                 <React.Fragment>
-                    <SearchOptions>
+                    <SelectableTextWrapper>
                         {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index}/>)}
-                    </SearchOptions>
+                    </SelectableTextWrapper>
                     <Spacer left={null} right={<Pagination.EntriesPerPageSelector
                         onChange={itemsPerPage => fetchAll(props.search, itemsPerPage)}
                         content={`${prettierString(priority)} per page`}
@@ -190,24 +191,6 @@ function Search(props: SearchProps) {
         />
     )
 }
-
-// FIXME: Move to own file and rename.
-export const SearchOptions = styled(Flex)`
-    border-bottom: 1px solid ${({theme}) => theme.colors.lightGray};
-    cursor: pointer;
-`;
-
-SearchOptions.defaultProps = {
-    theme
-};
-
-export const SelectableText = styled(Text) <{selected: boolean}>`
-    border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
-`;
-
-SelectableText.defaultProps = {
-    theme
-};
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
