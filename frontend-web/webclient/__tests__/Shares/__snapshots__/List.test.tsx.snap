@@ -29,22 +29,6 @@ exports[`Shares List Shares component 1`] = `
   cursor: auto;
 }
 
-.c1 {
-  cursor: auto;
-  padding-top: 14px;
-  padding-bottom: 14px;
-  padding-left: 82px;
-  padding-right: 14px;
-  width: 100%;
-  height: 55px;
-  background-color: #fff;
-  position: absolute;
-  top: 48px;
-  left: 0;
-  position: fixed;
-  z-index: 50;
-}
-
 .c2 {
   cursor: inherit;
   display: -webkit-box;
@@ -64,6 +48,22 @@ exports[`Shares List Shares component 1`] = `
 .c4 {
   cursor: pointer;
   margin-right: 1em;
+}
+
+.c1 {
+  cursor: auto;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 82px;
+  padding-right: 14px;
+  width: 100%;
+  height: 55px;
+  background-color: #fff;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  position: fixed;
+  z-index: 50;
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
