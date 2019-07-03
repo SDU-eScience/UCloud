@@ -46,8 +46,6 @@ import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
 import kotlin.streams.toList
 
-const val LINUX_FS_USER_UID = 11042
-
 class LinuxFS(
     fsRoot: File,
     private val aclService: AclService<*>

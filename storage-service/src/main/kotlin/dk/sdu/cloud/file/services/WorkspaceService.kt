@@ -4,11 +4,11 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.file.api.WorkspaceMount
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.Chown
-import dk.sdu.cloud.file.services.linuxfs.LINUX_FS_USER_UID
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.listAndClose
 import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions

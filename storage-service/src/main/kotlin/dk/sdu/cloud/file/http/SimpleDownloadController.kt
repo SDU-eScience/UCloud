@@ -177,8 +177,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
             }
         }
 
-        implement(FileDescriptions.bulkDownload)
-        {
+        implement(FileDescriptions.bulkDownload) {
             val filesDownloaded = ArrayList<String?>()
             audit(BulkFileAudit(filesDownloaded, request))
 
