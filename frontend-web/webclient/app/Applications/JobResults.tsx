@@ -1,10 +1,10 @@
 import * as React from "react";
-import {capitalized, inDevEnvironment} from "UtilityFunctions"
+import {capitalized, inDevEnvironment, errorMessageOrDefault} from "UtilityFunctions"
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import {ContainerForText, Box, Input, InputGroup, Label} from "ui-components";
+import {ContainerForText, Box, Input, InputGroup, Label, Checkbox, Button} from "ui-components";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
-import {setLoading, fetchAnalyses} from "./Redux/AnalysesActions";
+import {setLoading, fetchAnalyses, checkAnalysis, checkAllAnalyses, AnalysesActions} from "./Redux/AnalysesActions";
 import {AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis, AppState} from ".";
 import {Dispatch} from "redux";
 import {Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
@@ -23,11 +23,25 @@ import {TextSpan} from "ui-components/Text";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {prettierString} from "UtilityFunctions";
+import styled from "styled-components";
+import {MasterCheckbox, addStandardDialog} from "UtilityComponents";
+import {inCancelableState, cancelJobDialog, cancelJob} from "Utilities/ApplicationUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {SnackType} from "Snackbar/Snackbars";
 
 interface FetchJobsOptions {
     itemsPerPage?: number
     pageNumber?: number
 }
+
+/* FIXME: Almost identical to similar one in FilesTable.tsx */
+const JobResultsHeaderCell = styled(TableHeaderCell)`
+    background-color: ${({theme}) => theme.colors.white};
+    top: 96px; //topmenu + header size
+    z-index: 10;
+    position: sticky;
+`;
 
 function JobResults(props: AnalysesProps & {history: History}) {
 
@@ -46,21 +60,31 @@ function JobResults(props: AnalysesProps & {history: History}) {
         const pageNumber = opts.pageNumber !== undefined ? opts.pageNumber : page.pageNumber;
         setLoading(true);
         props.fetchJobs(itemsPerPage, pageNumber);
+        props.setRefresh(() => props.fetchJobs(itemsPerPage, pageNumber));
     }
 
     const {page, loading, history, responsive} = props;
+    const selectedAnalyses = page.items.filter(it => it.checked);
+    const cancelableAnalyses = selectedAnalyses.filter(it => inCancelableState(it.state));
+
     const hide = responsive.lessThan.lg;
+    const masterCheckboxChecked = selectedAnalyses.length === page.items.length && page.items.length > 0;
+    const masterCheckbox = <MasterCheckbox
+        checked={masterCheckboxChecked}
+        onClick={checked => props.checkAllAnalyses(checked)}
+    />;
     const content = <List
         customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
         loading={loading}
         pageRenderer={page =>
             <ContainerForText>
                 <Table>
-                    <Header hide={hide} />
+                    <Header hide={hide} masterCheckbox={masterCheckbox} />
                     <TableBody>
                         {page.items.map((a, i) =>
                             <Row
                                 hide={hide}
+                                checkAnalysis={props.checkAnalysis}
                                 to={() => history.push(`/applications/results/${a.jobId}`)}
                                 analysis={a}
                                 key={i}
@@ -119,7 +143,8 @@ function JobResults(props: AnalysesProps & {history: History}) {
                 />
             </InputGroup>
         </Box>
-    </Box>)
+        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
+    </Box>);
 
     return (<MainContainer
         header={
@@ -141,25 +166,63 @@ function JobResults(props: AnalysesProps & {history: History}) {
     />);
 }
 
-const Header = ({hide}: {hide: boolean}) => (
+const AnalysisOperations = ({cancelableAnalyses, onFinished}: {cancelableAnalyses: Analysis[], onFinished: () => void}) =>
+    cancelableAnalyses.length === 0 ? null : (
+        <Button fullWidth color="red" onClick={() => cancelJobDialog({
+            jobCount: cancelableAnalyses.length,
+            jobId: cancelableAnalyses[0].jobId,
+            onConfirm: async () => {
+                try {
+                    await Promise.all(cancelableAnalyses.map(a => cancelJob(Cloud, a.jobId)));
+                    snackbarStore.addSnack({type: SnackType.Success, message: "Jobs cancelled"});
+                } catch (e) {
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"))
+                } finally {
+                    onFinished();
+                }
+            }
+        })}>
+            Cancel selected ({cancelableAnalyses.length}) jobs
+    </Button>
+    );
+
+const Header = ({hide, masterCheckbox}: {hide: boolean, masterCheckbox: JSX.Element}) => (
     <TableHeader>
         <TableRow>
-            <TableHeaderCell textAlign="left">State</TableHeaderCell>
-            <TableHeaderCell textAlign="left">Application</TableHeaderCell>
-            {hide ? null : <TableHeaderCell textAlign="left">Started at</TableHeaderCell>}
-            <TableHeaderCell textAlign="left">Last update</TableHeaderCell>
+            {inDevEnvironment() ? <JobResultsHeaderCell width="4%" textAlign="center">
+                {masterCheckbox}
+            </JobResultsHeaderCell> : null}
+            <JobResultsHeaderCell textAlign="left">State</JobResultsHeaderCell>
+            <JobResultsHeaderCell textAlign="left">Application</JobResultsHeaderCell>
+            {hide ? null : <JobResultsHeaderCell textAlign="left">Started at</JobResultsHeaderCell>}
+            <JobResultsHeaderCell textAlign="left">Last update</JobResultsHeaderCell>
         </TableRow>
     </TableHeader>
 );
 
-const Row = ({analysis, to, hide}: {analysis: Analysis, to: () => void, hide: boolean}) => {
-    const metadata: ApplicationMetadata = analysis.metadata;
+interface RowProps {
+    hide: boolean
+    analysis: Analysis
+    to: () => void
+    checkAnalysis: (jobId: string, checked: boolean) => void
+}
+const Row = ({analysis, to, hide, checkAnalysis}: RowProps) => {
+    const metadata = analysis.metadata;
     return (
-        <TableRow cursor="pointer" onClick={() => to()}>
-            <TableCell><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}</TableCell>
-            <TableCell>{metadata.title} v{metadata.version}</TableCell>
-            {hide ? null : <TableCell>{moment(analysis.createdAt).calendar()}</TableCell>}
-            <TableCell>{moment(analysis.modifiedAt).calendar()}</TableCell>
+        <TableRow cursor={"pointer"}>
+            {inDevEnvironment() ? <TableCell textAlign="center">
+                <Box><Label>
+                    <Checkbox
+                        checked={analysis.checked}
+                        onClick={(e: {target: {checked: boolean}}) => checkAnalysis(analysis.jobId, e.target.checked)}
+                    />
+                </Label></Box>
+            </TableCell> : null}
+            <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
+            </TableCell>
+            <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
+            {hide ? null : <TableCell onClick={to}>{moment(analysis.createdAt).calendar()}</TableCell>}
+            <TableCell onClick={to}>{moment(analysis.modifiedAt).calendar()}</TableCell>
         </TableRow>)
 };
 
@@ -170,8 +233,13 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     onInit: () => {
         dispatch(setActivePage(SidebarPages.Runs));
         dispatch(updatePageTitle("Runs"))
-    }
+    },
+    checkAnalysis: (jobId, checked) => dispatch(checkAnalysis(jobId, checked)),
+    checkAllAnalyses: checked => dispatch(checkAllAnalyses(checked))
 });
 
-const mapStateToProps = ({analyses, responsive}: ReduxObject): AnalysesStateProps => ({...analyses, responsive: responsive!});
+const mapStateToProps = ({analyses, responsive}: ReduxObject): AnalysesStateProps => ({
+    ...analyses,
+    responsive: responsive!
+});
 export default connect(mapStateToProps, mapDispatchToProps)(JobResults);

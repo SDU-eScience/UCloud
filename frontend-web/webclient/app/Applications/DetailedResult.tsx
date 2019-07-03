@@ -12,7 +12,7 @@ import {DetailedResultProps, DetailedResultState, StdElement, DetailedResultOper
 import {File, SortBy, SortOrder} from "Files";
 import {allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath} from "Utilities/FileUtilities";
 import {favoriteFileFromPage} from "Utilities/FileUtilities";
-import {hpcJobQuery, cancelJobQuery, cancelJobDialog} from "Utilities/ApplicationUtilities";
+import {hpcJobQuery, cancelJobQuery, cancelJobDialog, inCancelableState, cancelJob} from "Utilities/ApplicationUtilities";
 import {Dispatch} from "redux";
 import {fetchPage, setLoading, receivePage} from "Applications/Redux/DetailedResultActions";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
@@ -349,17 +349,14 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         return <ExternalLink href={this.state.webLink}><Button color="green">Go to web interface</Button></ExternalLink>
     }
 
-    private async cancelJob() {
+    private cancelJob() {
         cancelJobDialog({
             jobId: this.jobId,
-            onConfirm: () => {
+            onConfirm: async () => {
                 try {
-                    this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, {jobId: this.jobId}));
+                    await cancelJob(Cloud, this.jobId)
                 } catch (e) {
-                    snackbarStore.addSnack({
-                        type: SnackType.Failure,
-                        message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
-                    });
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"));
                 }
             }
         });
@@ -445,10 +442,6 @@ const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, curren
         </Step>
     );
 };
-
-function inCancelableState(state: AppState) {
-    return state === AppState.VALIDATED || state === AppState.PREPARED || state === AppState.SCHEDULED || state === AppState.RUNNING;
-}
 
 const Stream = styled.pre`
     height: 500px;

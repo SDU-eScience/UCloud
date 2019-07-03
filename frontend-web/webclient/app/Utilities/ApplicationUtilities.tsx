@@ -1,9 +1,9 @@
-import { removeTrailingSlash } from "UtilityFunctions";
-import { ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter } from "Applications";
+import {removeTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
+import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState} from "Applications";
 import Cloud from "Authentication/lib";
-import { Page } from "Types";
-import { expandHomeFolder } from "./FileUtilities";
-import { addStandardDialog } from "UtilityComponents";
+import {Page} from "Types";
+import {expandHomeFolder} from "./FileUtilities";
+import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 
@@ -23,24 +23,26 @@ export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
 export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
-interface HPCApplicationsSearchQuery { query: string, page: number, itemsPerPage: number }
-export const hpcApplicationsSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
+interface HPCApplicationsSearchQuery {query: string, page: number, itemsPerPage: number}
+export const hpcApplicationsSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
     `/hpc/apps/search?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
-export const hpcApplicationsTagSearchQuery = ({ query, page, itemsPerPage }: HPCApplicationsSearchQuery): string =>
+export const hpcApplicationsTagSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
     `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const cancelJobQuery = `hpc/jobs`;
 
-
-export const cancelJobDialog = ({ jobId, onConfirm }: { jobId: string, onConfirm: () => void }): void =>
+export const cancelJobDialog = ({jobId, onConfirm, jobCount = 1}: {jobCount?: number, jobId: string, onConfirm: () => void}): void =>
     addStandardDialog({
-        title: "Cancel job?",
-        message: `Cancel job: ${jobId}?`,
+        title: `Cancel job${jobCount > 1 ? "s" : ""}?`,
+        message: jobCount === 1 ? `Cancel job: ${jobId}?` : "Cancel jobs?",
         cancelText: "No",
-        confirmText: "Cancel job",
+        confirmText: `Cancel job${jobCount > 1 ? "s" : ""}`,
         onConfirm
     });
+
+export const cancelJob = (cloud: Cloud, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
+    cloud.delete(cancelJobQuery, {jobId});
 
 interface FavoriteApplicationFromPage {
     name: string
@@ -53,29 +55,31 @@ interface FavoriteApplicationFromPage {
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = async ({ name, version, page, cloud}: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
+export const favoriteApplicationFromPage = async ({name, version, page, cloud}: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     try {
         await cloud.post(hpcFavoriteApp(name, version));
         a.favorite = !a.favorite;
-    } catch {
-        snackbarStore.addSnack({ message: `An error ocurred favoriting ${name}`, type: SnackType.Failure });
+    } catch (e) {
+        snackbarStore.addFailure(errorMessageOrDefault(e, `An error ocurred favoriting ${name}`));
     }
     return page;
 };
 
-type StringMap = { [k: string]: string }
-interface AllowedParameterKey { name: string, type: ParameterTypes }
+
+
+type StringMap = {[k: string]: string}
+interface AllowedParameterKey {name: string, type: ParameterTypes}
 interface ExtractParameters {
     parameters: StringMap
     allowedParameterKeys: AllowedParameterKey[]
     siteVersion: number
 }
 
-export const extractParameters = ({ parameters, allowedParameterKeys, siteVersion }: ExtractParameters): StringMap => {
+export const extractParameters = ({parameters, allowedParameterKeys, siteVersion}: ExtractParameters): StringMap => {
     let extractedParameters = {};
     if (siteVersion === 1) {
-        allowedParameterKeys.forEach(({ name, type }) => {
+        allowedParameterKeys.forEach(({name, type}) => {
             if (parameters[name] !== undefined) {
                 if (compareType(type, parameters[name])) {
                     extractedParameters[name] = parameters[name];
@@ -86,7 +90,7 @@ export const extractParameters = ({ parameters, allowedParameterKeys, siteVersio
     return extractedParameters;
 }
 
-export const isFileOrDirectoryParam = ({ type }: { type: string }) => type === "input_file" || type === "input_directory";
+export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
 
 
 const compareType = (type: ParameterTypes, parameter: string): boolean => {
@@ -106,7 +110,7 @@ const compareType = (type: ParameterTypes, parameter: string): boolean => {
 };
 
 interface ExtractedParameters {
-    [key: string]: string | number | boolean | { source: string, destination: string }
+    [key: string]: string | number | boolean | {source: string, destination: string}
 }
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
@@ -117,9 +121,9 @@ interface ExtractParametersFromMap {
     cloud: Cloud
 }
 
-export function extractParametersFromMap({ map, appParameters, cloud }: ExtractParametersFromMap): ExtractedParameters {
+export function extractParametersFromMap({map, appParameters, cloud}: ExtractParametersFromMap): ExtractedParameters {
     const extracted: ExtractedParameters = {};
-    map.forEach(({ current }, key) => {
+    map.forEach(({current}, key) => {
         const parameter = appParameters.find(it => it.name === key);
         if (!current) return;
         if (!current.value || !current.checkValidity()) return;
@@ -157,3 +161,9 @@ export function extractParametersFromMap({ map, appParameters, cloud }: ExtractP
     });
     return extracted;
 }
+
+export const inCancelableState = (state: AppState) =>
+    state === AppState.VALIDATED ||
+    state === AppState.PREPARED ||
+    state === AppState.SCHEDULED ||
+    state === AppState.RUNNING;

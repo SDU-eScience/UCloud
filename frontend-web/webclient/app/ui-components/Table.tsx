@@ -31,7 +31,7 @@ export const TableBody = styled.tbody``;
 export const TableCell = styled.td<TextAlignProps>`
     border: 0px;
     border-spacing: 0;
-    ${textAlign};
+    ${textAlign}
 `;
 
 const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) => highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;

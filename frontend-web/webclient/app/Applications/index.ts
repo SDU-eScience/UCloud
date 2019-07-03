@@ -8,6 +8,7 @@ import { ParameterValues } from "Utilities/ApplicationUtilities";
 import { SetStatusLoading } from "Navigation/Redux/StatusActions";
 
 export interface Analysis {
+    checked?: boolean
     status: string
     state: AppState
     jobId: string
@@ -33,6 +34,8 @@ export interface AnalysesOperations {
     fetchJobs: (itemsPerPage: number, pageNumber: number) => void
     onInit: () => void
     setRefresh: (refresh?: () => void) => void
+    checkAnalysis: (jobId: string, checked: boolean) => void
+    checkAllAnalyses: (checked: boolean) => void
 }
 
 export interface AnalysesState {

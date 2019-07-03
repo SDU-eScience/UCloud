@@ -1,13 +1,13 @@
 import * as React from "react";
-import {File, FileOperation, PredicatedOperation} from "Files";
+import {File, FileOperation} from "Files";
 import {Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader} from "ui-components/Table";
-import {FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps} from "Files";
+import {FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, FileOptionsProps, FilenameAndIconsProps} from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate, Tooltip} from "ui-components";
 import * as UF from "UtilityFunctions"
 import {Arrow, FileIcon} from "UtilityComponents";
 import {TextSpan} from "ui-components/Text";
-import {clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, toFileText, filePreviewPage, replaceHomeFolder, getParentPath} from "Utilities/FileUtilities";
+import {clearTrash, isDirectory, fileTablePage, getFilenameFromPath, toFileText, replaceHomeFolder, getParentPath} from "Utilities/FileUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
 import {KeyCode, ReduxObject, SensitivityLevelMap, ResponsiveReduxObject} from "DefaultObjects";
@@ -15,6 +15,7 @@ import styled from "styled-components";
 import {SpaceProps} from "styled-system";
 import {connect} from "react-redux";
 import Theme from "ui-components/theme";
+import {Operation, PredicatedOperation} from "Types";
 
 const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, onDropdownSelect, sortingColumns,
@@ -347,7 +348,7 @@ function FilenameAndIcons({file, size = 38, onRenameFile = () => null, onCheckFi
             {file.beingRenamed ? renameBox : fileBox}
         </Flex>
     </TableCell>
-};
+}
 
 export const FileOptions = ({files, fileOperations}: FileOptionsProps) => files.length ? (
     <Box mb="13px" color="textBlack">
@@ -362,9 +363,9 @@ export const FileOperations = ({files, fileOperations, As, ...props}: FileOperat
         {fileOperations.map((fileOp: FileOperation, i: number) => {
             let operation = fileOp;
             if ("predicate" in operation)
-                operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
+                operation = (fileOp as PredicatedOperation<File>).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
             return !operation.disabled(files, Cloud) ? (
-                <As cursor="pointer" key={i} color={operation.color} alignItems="center" onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
+                <As cursor="pointer" key={i} color={operation.color} alignItems="center" onClick={() => (operation as Operation<File>).onClick(files, Cloud)} {...props}>
                     {operation.icon ? <Icon size={16} mr="1em" name={operation.icon} /> : null}
                     <span>{operation.text}</span>
                 </As>
@@ -375,6 +376,6 @@ export const FileOperations = ({files, fileOperations, As, ...props}: FileOperat
 type FilesTableStateProps = {responsive: ResponsiveReduxObject}
 const mapStateToProps = ({responsive}: ReduxObject): FilesTableStateProps => ({
     responsive: responsive!
-})
+});
 
 export default connect<FilesTableStateProps>(mapStateToProps)(FilesTable);

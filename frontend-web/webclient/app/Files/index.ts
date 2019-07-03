@@ -1,4 +1,4 @@
-import {Page, ClearRefresh} from "Types";
+import {Page, ClearRefresh, Operation, PredicatedOperation} from "Types";
 import Cloud from "Authentication/lib";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
@@ -237,9 +237,7 @@ export interface SortByDropdownProps {
     isSortedBy: boolean
 }
 
-export type PredicatedOperation = {predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation}
-export type Operation = {text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon?: string, color?: string}
-export type FileOperation = Operation | PredicatedOperation
+export type FileOperation = Operation<File> | PredicatedOperation<File>
 
 export interface ContextButtonsProps {
     createFolder: () => void
