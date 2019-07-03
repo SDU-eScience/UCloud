@@ -71,6 +71,22 @@ object StandardCLib {
             CLibrary.INSTANCE.removexattr(path, name)
         }
     }
+
+    fun setfsuid(uid: Int): Int {
+        return if (!Platform.isLinux()) {
+            0
+        } else {
+            CLibrary.INSTANCE.setfsuid(uid)
+        }
+    }
+
+    fun setfsgid(uid: Int): Int {
+        return if (!Platform.isLinux()) {
+            0
+        } else {
+            CLibrary.INSTANCE.setfsgid(uid)
+        }
+    }
 }
 
 class NativeException(val statusCode: Int) : RuntimeException("Native exception, code: $statusCode")

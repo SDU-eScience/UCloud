@@ -53,20 +53,6 @@ class ListAtPathTests {
         )
     }
 
-    @Ignore
-    @Test
-    fun `missing permissions`() {
-        withKtorTest(
-            setup = { configureServerWithFileController() },
-
-            test = {
-                // TODO FIXME This test will not work on OSX. User also doesn't exist
-                val response = engine.listDir("/home/user1", user = "user2")
-                assertEquals(HttpStatusCode.Unauthorized, response.status())
-            }
-        )
-    }
-
     @Test
     fun `list with partial attributes and sort by sensitivity`() {
         withKtorTest(

@@ -12,6 +12,8 @@ interface CLibrary : Library {
     fun setxattr(path: String, name: String, value: ByteArray, size: Int, position: Int): Int
     fun listxattr(path: String, destination: ByteArray, length: Int): Int
     fun removexattr(path: String, name: String): Int
+    fun setfsuid(uid: Int): Int
+    fun setfsgid(uid: Int): Int
 
     companion object {
         val INSTANCE =

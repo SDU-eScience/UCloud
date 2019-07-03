@@ -37,20 +37,6 @@ class CreateDirectoryTests {
         )
     }
 
-    @Ignore
-    @Test
-    fun `make directory with missing permissions`() {
-        withKtorTest(
-            setup = { configureServerWithFileController() },
-
-            test = {
-                val response = engine.makeDir("/home/newdir")
-                assertEquals(HttpStatusCode.Forbidden, response.status())
-
-            }
-        )
-    }
-
     @Test
     fun `test if directories are created recursively`() {
         withKtorTest(

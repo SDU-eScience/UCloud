@@ -7,10 +7,13 @@ import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.WorkspaceMount
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
+import dk.sdu.cloud.file.services.linuxfs.Chown
+import dk.sdu.cloud.file.services.linuxfs.LINUX_FS_USER_UID
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.listAndClose
 import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
@@ -186,9 +189,11 @@ class WorkspaceService(
             return resolvedDestination
         }
 
-        outputWorkspace.listAndClose()
+        val filesWithMounts = outputWorkspace.listAndClose()
             .asSequence()
             .mapNotNull { path ->
+                // Filter out files which should not be copied and associate a mount to them (if one exists)
+                // We do not copy symlinks and will not move files if the mount does not allow for merges.
                 if (Files.isSymbolicLink(path)) return@mapNotNull null
 
                 val existingMount = run {
@@ -210,51 +215,77 @@ class WorkspaceService(
                     null
                 }
             }
-            .forEach { (currentFile, mount) ->
-                log.debug("Transferring file: $currentFile")
+            .toList()
 
-                try {
-                    // We start the transfer by removing all symbolic links (backed by hard-linked read-only files)
-                    // and fixing permissions of files we need to transfer.
+        // Check if we have permissions and write them into the map. We will check for each file if it is okay to
+        // transfer. That way we will still allow files we have permissions for.
+        val hasWritePermissionsToPath = HashMap<String, Boolean>()
 
-                    Files.walk(currentFile).forEach { child ->
-                        if (Files.isSymbolicLink(child)) {
-                            Files.deleteIfExists(child)
-                        } else {
-                            TODO("Deal with UIDs")
-                            Files.setPosixFilePermissions(
-                                child, setOf(
-                                    PosixFilePermission.OWNER_WRITE,
-                                    PosixFilePermission.OWNER_READ,
-                                    PosixFilePermission.OWNER_EXECUTE,
-                                    PosixFilePermission.GROUP_WRITE,
-                                    PosixFilePermission.GROUP_READ,
-                                    PosixFilePermission.GROUP_EXECUTE
-                                )
-                            )
-                        }
-                    }
+        run {
+            // Check if we are allowed to write to all the mounts we wish to
+            val allMountsWeWillWriteTo = filesWithMounts.mapNotNull { it.second }
 
-                    // TODO FIXME We need to check permissions here!
-                    // We will put the file in the mount (if one exists) otherwise it will go in the default destination
-                    if (mount == null) {
-                        // The file is then transferred to the new system and recorded for later use
-                        transferFile(currentFile, defaultDestinationDir)
-                    } else {
-                        val destinationDir = File(translateAndCheckFile(fsRoot, mount.source)).toPath()
-                        runCatching {
-                            Files.createDirectories(destinationDir) // Ensure that directory exists
-                        }
-
-                        currentFile.listAndClose().forEach { child ->
-                            transferFile(child, destinationDir, relativeTo = currentFile)
-                        }
-                    }
-                } catch (ex: Throwable) {
-                    log.info("Failed to transfer $currentFile. ${ex.message}")
-                    log.debug(ex.stackTraceToString())
-                }
+            allMountsWeWillWriteTo.forEach {
+                hasWritePermissionsToPath[it.source] =
+                    aclService.hasPermission(it.source, manifest.username, AccessRight.WRITE)
             }
+        }
+
+        run {
+            // Check if we are allowed to write to defaultDestinationDir
+            hasWritePermissionsToPath[destination] =
+                aclService.hasPermission(destination, manifest.username, AccessRight.WRITE)
+        }
+
+
+        filesWithMounts.forEach { (currentFile, mount) ->
+            log.debug("Transferring file: $currentFile")
+
+            try {
+                // We start the transfer by removing all symbolic links (backed by hard-linked read-only files)
+                // and fixing permissions of files we need to transfer.
+
+                Files.walk(currentFile).forEach { child ->
+                    if (Files.isSymbolicLink(child)) {
+                        Files.deleteIfExists(child)
+                    } else {
+                        Chown.setOwner(child, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+                        Files.setPosixFilePermissions(
+                            child, setOf(
+                                PosixFilePermission.OWNER_WRITE,
+                                PosixFilePermission.OWNER_READ,
+                                PosixFilePermission.OWNER_EXECUTE,
+                                PosixFilePermission.GROUP_WRITE,
+                                PosixFilePermission.GROUP_READ,
+                                PosixFilePermission.GROUP_EXECUTE
+                            )
+                        )
+                    }
+                }
+
+                // We will put the file in the mount (if one exists) otherwise it will go in the default destination
+                if (mount == null) {
+                    if (hasWritePermissionsToPath[destination] != true) throw FSException.PermissionException()
+
+                    // The file is then transferred to the new system and recorded for later use
+                    transferFile(currentFile, defaultDestinationDir)
+                } else {
+                    if (hasWritePermissionsToPath[mount.source] != true) throw FSException.PermissionException()
+
+                    val destinationDir = File(translateAndCheckFile(fsRoot, mount.source)).toPath()
+                    runCatching {
+                        Files.createDirectories(destinationDir) // Ensure that directory exists
+                    }
+
+                    currentFile.listAndClose().forEach { child ->
+                        transferFile(child, destinationDir, relativeTo = currentFile)
+                    }
+                }
+            } catch (ex: Throwable) {
+                log.info("Failed to transfer $currentFile. ${ex.message}")
+                log.debug(ex.stackTraceToString())
+            }
+        }
 
         log.debug("Transferred ${transferred.size} files")
         transferred.forEach { path ->
@@ -317,7 +348,15 @@ class WorkspaceService(
             Files.createDirectories(outputDestinationPath)
 
             file.listAndClose().forEach {
-                transferFileNoAccessCheck(inputWorkspace, outputWorkspace, symLinkPath, it, rootPath, initialDestination, readOnly)
+                transferFileNoAccessCheck(
+                    inputWorkspace,
+                    outputWorkspace,
+                    symLinkPath,
+                    it,
+                    rootPath,
+                    initialDestination,
+                    readOnly
+                )
             }
         } else {
             val resolvedFile =
