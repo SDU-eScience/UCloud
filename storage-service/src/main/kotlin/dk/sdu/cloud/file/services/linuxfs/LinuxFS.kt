@@ -1,12 +1,31 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.api.AccessEntry
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.components
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.services.FSACLEntity
+import dk.sdu.cloud.file.services.FSResult
+import dk.sdu.cloud.file.services.FileAttribute
+import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.XATTR_BIRTH
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
-import dk.sdu.cloud.file.util.*
+import dk.sdu.cloud.file.util.CappedInputStream
+import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
+import dk.sdu.cloud.file.util.toCreatedEvent
+import dk.sdu.cloud.file.util.toDeletedEvent
+import dk.sdu.cloud.file.util.toMovedEvent
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -14,7 +33,15 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.file.*
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.Files
+import java.nio.file.InvalidPathException
+import java.nio.file.LinkOption
+import java.nio.file.NoSuchFileException
+import java.nio.file.OpenOption
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
@@ -25,6 +52,11 @@ class LinuxFS(
     private val aclService: AclService<*>
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
     private val fsRoot = fsRoot.normalize().absoluteFile
+
+    // This function exists out of this class to avoid a circular dependency between ACLService and LinuxFS.
+    // LinuxFS depends on ACLService for ACLs and ACLService depends on being able to fully normalize paths (this
+    // includes removing all symlinks).
+    private val realPathFunction = linuxFSRealPathSupplier(fsRoot)
 
     override suspend fun copy(
         ctx: LinuxFSRunner,
@@ -724,6 +756,7 @@ class LinuxFS(
         entity: FSACLEntity,
         rights: Set<AccessRight>
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE) // TODO Shouldn't this be owner?
         aclService.updatePermissions(path, entity.user, rights)
         return FSResult(0, Unit)
     }
@@ -733,8 +766,17 @@ class LinuxFS(
         path: String,
         entity: FSACLEntity
     ): FSResult<Unit> = runAndRethrowNIOExceptions {
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE) // TODO Shouldn't this be owner?
         aclService.revokePermission(path, entity.user)
         return FSResult(0, Unit)
+    }
+
+    override suspend fun realPath(ctx: LinuxFSRunner, path: String): FSResult<String> {
+        // We don't require any permissions to resolve what the real path is. This might be problematic but is
+        // currently required in order to avoid infinite recursion. The ACL service depends on this function in order
+        // to function.
+
+        return FSResult(0, realPathFunction(path) ?: throw FSException.NotFound())
     }
 
     override suspend fun checkPermissions(ctx: LinuxFSRunner, path: String, requireWrite: Boolean): FSResult<Boolean> =
@@ -746,7 +788,7 @@ class LinuxFS(
         }
 
     private fun String.toCloudPath(): String {
-        return ("/" + substringAfter(fsRoot.absolutePath).removePrefix("/")).normalize()
+        return linuxFSToCloudPath(fsRoot, this)
     }
 
     private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
@@ -774,6 +816,17 @@ class LinuxFS(
             PosixFilePermission.OTHERS_EXECUTE
         )
     }
+}
+
+fun linuxFSRealPathSupplier(fsRoot: File): (String) -> String? = f@{ path: String ->
+    linuxFSToCloudPath(
+        fsRoot,
+        (StandardCLib.realPath(translateAndCheckFile(fsRoot, path)) ?: return@f null)
+    )
+}
+
+private fun linuxFSToCloudPath(fsRoot: File, path: String): String {
+    return ("/" + path.substringAfter(fsRoot.absolutePath).removePrefix("/")).normalize()
 }
 
 fun translateAndCheckFile(fsRoot: File, internalPath: String, isDirectory: Boolean = false): String {

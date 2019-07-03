@@ -8,6 +8,7 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
@@ -60,7 +61,7 @@ class UnixSymlinkTest {
                 LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
             )
         }
-        val aclService = AclService(db, AclHibernateDao(), homeFolderService)
+        val aclService = AclService(db, AclHibernateDao(), homeFolderService, { it.normalize() })
         cephFs = LinuxFS(fsRoot, aclService)
         owner = SERVICE_USER
     }

@@ -71,7 +71,7 @@ class DiffTest {
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
         val homeFolderService = HomeFolderService(ClientMock.authenticatedClient)
-        val aclService = AclService(db, AclHibernateDao(), homeFolderService)
+        val aclService = AclService(db, AclHibernateDao(), homeFolderService, { it.normalize() })
         val cephFs = LinuxFS(root, aclService)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()

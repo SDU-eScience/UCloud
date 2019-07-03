@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.BackgroundJobController
@@ -41,6 +40,7 @@ import dk.sdu.cloud.file.services.background.BackgroundStreams
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.file.services.linuxfs.linuxFSRealPathSupplier
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
@@ -79,14 +79,15 @@ class Server(
         val uidLookupService =
             if (useFakeUsers) DevelopmentUIDLookupService("admin@dev") else AuthUIDLookupService(client)
 
-        // Authorization
-        val homeFolderService = HomeFolderService(client)
-        val aclDao = AclHibernateDao()
-        val newAclService = AclService(micro.hibernateDatabase, aclDao, homeFolderService)
-
         // FS root
         val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }
             ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+
+        // Authorization
+        val homeFolderService = HomeFolderService(client)
+        val aclDao = AclHibernateDao()
+        val newAclService =
+            AclService(micro.hibernateDatabase, aclDao, homeFolderService, linuxFSRealPathSupplier(fsRootFile))
 
         // Low level FS
         val processRunner = LinuxFSRunnerFactory()

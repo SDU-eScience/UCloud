@@ -5,6 +5,7 @@ import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parents
 import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.linuxfs.CLibrary
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -32,7 +33,8 @@ import dk.sdu.cloud.service.db.withTransaction
 class AclService<Session>(
     private val db: DBSessionFactory<Session>,
     private val dao: AclDao<Session>,
-    private val homeFolderService: HomeFolderService
+    private val homeFolderService: HomeFolderService,
+    private val pathNormalizer: (String) -> String?
 ) {
     suspend fun updatePermissions(path: String, username: String, permissions: Set<AccessRight>) {
         val normalizedPath = path.normalize()
@@ -46,7 +48,7 @@ class AclService<Session>(
     suspend fun hasPermission(path: String, username: String, permission: AccessRight): Boolean {
         if (username == SERVICE_USER) return true
 
-        val normalizedPath = path.normalize()
+        val normalizedPath = pathNormalizer(path) ?: return false
         val homeFolder = homeFolderService.findHomeFolder(username).normalize()
         log.debug("Checking permissions for $username at $path with home folder $homeFolder")
         if (path == homeFolder || path.startsWith("$homeFolder/")) {

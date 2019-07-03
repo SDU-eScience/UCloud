@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.UIDLookupService
@@ -50,7 +51,7 @@ fun linuxFSWithRelaxedMocks(
             LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
         )
     }
-    val aclService = AclService(db, AclHibernateDao(), homeFolderService)
+    val aclService = AclService(db, AclHibernateDao(), homeFolderService, { it.normalize() })
     return Pair(
         commandRunner,
         LinuxFS(

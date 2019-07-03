@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.services.acl.AccessRights
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
@@ -30,7 +31,7 @@ class WorkspaceTest {
         micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        aclService = AclService(micro.hibernateDatabase, AclHibernateDao(), MockedHomeFolderService)
+        aclService = AclService(micro.hibernateDatabase, AclHibernateDao(), MockedHomeFolderService, { it.normalize() })
         val fsRoot = createDummyFS()
         val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath)
 

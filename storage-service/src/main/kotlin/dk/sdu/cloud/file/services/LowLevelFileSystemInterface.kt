@@ -279,4 +279,9 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     ): FSResult<Unit>
 
     suspend fun checkPermissions(ctx: Ctx, path: String, requireWrite: Boolean): FSResult<Boolean>
+
+    suspend fun realPath(
+        ctx: Ctx,
+        path: String
+    ): FSResult<String>
 }

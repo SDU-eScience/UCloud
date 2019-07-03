@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
@@ -31,7 +32,7 @@ class UnixUploadTest {
         val db = micro.hibernateDatabase
         micro.install(HibernateFeature)
         val homeFolderService = HomeFolderService(ClientMock.authenticatedClient)
-        val aclService = AclService(db, AclHibernateDao(), homeFolderService)
+        val aclService = AclService(db, AclHibernateDao(), homeFolderService, { it.normalize() })
         val cephFs = LinuxFS(fsRoot, aclService)
         val owner = SERVICE_USER
 
