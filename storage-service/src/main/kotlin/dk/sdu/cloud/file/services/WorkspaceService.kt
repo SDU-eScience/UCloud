@@ -223,11 +223,11 @@ class WorkspaceService(
 
         run {
             // Check if we are allowed to write to all the mounts we wish to
-            val allMountsWeWillWriteTo = filesWithMounts.mapNotNull { it.second }
+            val allMountsWeWillWriteTo = filesWithMounts.mapNotNull { it.second?.source }.toSet()
 
             allMountsWeWillWriteTo.forEach {
-                hasWritePermissionsToPath[it.source] =
-                    aclService.hasPermission(it.source, manifest.username, AccessRight.WRITE)
+                hasWritePermissionsToPath[it] =
+                    aclService.hasPermission(it, manifest.username, AccessRight.WRITE)
             }
         }
 
