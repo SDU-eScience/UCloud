@@ -1,11 +1,10 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import com.sun.jna.LastErrorException
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -47,8 +46,10 @@ class LinuxFSRunner(
             if (thread == null) {
                 isRunning = true
                 thread = NativeThread(THREAD_PREFIX + user + "-" + UUID.randomUUID().toString()) {
-                    StandardCLib.setfsgid(uid)
-                    StandardCLib.setfsuid(uid)
+                    if (user != SERVICE_USER) {
+                        StandardCLib.setfsgid(uid)
+                        StandardCLib.setfsuid(uid)
+                    }
 
                     while (isRunning) {
                         val (_, nextJob) = queue.poll(1, TimeUnit.SECONDS) ?: continue

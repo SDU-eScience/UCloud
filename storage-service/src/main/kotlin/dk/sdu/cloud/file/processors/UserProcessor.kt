@@ -12,6 +12,7 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -51,7 +52,11 @@ class UserProcessor<FSCtx : CommandRunner>(
                         }
 
                         runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
-                            coreFs.createSymbolicLink(ctx, homeDirectory(projectName), homeDirectory(event.userId))
+                            try {
+                                coreFs.createSymbolicLink(ctx, homeDirectory(projectName), homeDirectory(event.userId))
+                            } catch (ex: FSException.AlreadyExists) {
+                                // Ignored
+                            }
                         }
                     }
 

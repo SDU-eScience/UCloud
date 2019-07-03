@@ -63,12 +63,12 @@ class LinuxFS(
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        val systemFrom = File(translateAndCheckFile(from))
+        val systemTo = File(translateAndCheckFile(to))
         aclService.requirePermission(from, ctx.user, AccessRight.READ)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
         val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
-        val systemFrom = File(translateAndCheckFile(from))
-        val systemTo = File(translateAndCheckFile(to))
         Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
         FSResult(
             0,
@@ -90,12 +90,13 @@ class LinuxFS(
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.Moved>> = ctx.submit {
+        val systemFrom = File(translateAndCheckFile(from))
+        val systemTo = File(translateAndCheckFile(to))
+
         aclService.requirePermission(from, ctx.user, AccessRight.READ)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
         val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
-        val systemFrom = File(translateAndCheckFile(from))
-        val systemTo = File(translateAndCheckFile(to))
 
         // We need to record some information from before the move
         val fromStat = stat(
@@ -168,19 +169,13 @@ class LinuxFS(
         val file = File(translateAndCheckFile(directory))
         val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
-        // TODO Maybe this works
-        // TODO Maybe this works
-        // TODO Maybe this works
-        // TODO Maybe this works
-        // TODO Maybe this works
-        // TODO Maybe this works
         FSResult(
             0,
             stat(
                 ctx,
                 (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).toList(),
                 mode,
-                HashMap<String, String>(),
+                HashMap(),
                 hasPerformedPermissionCheck = true
             ).filterNotNull()
         )
@@ -285,7 +280,7 @@ class LinuxFS(
                     }
 
                     if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
-                    if (FileAttribute.PATH in mode || FileAttribute.OWNER in mode) { // owner requires path
+                    if (FileAttribute.PATH in mode) {
                         val realParent = run {
                             val parent = systemFile.parent
                             val cached = pathCache[parent]
@@ -363,9 +358,8 @@ class LinuxFS(
                 }
 
                 val realOwner = if (FileAttribute.OWNER in mode || FileAttribute.CREATOR in mode) {
-                    val realPath = systemFile.path.toCloudPath()
-
-                    log.debug("realPath is $realPath")
+                    val toCloudPath = systemFile.absolutePath.toCloudPath()
+                    val realPath = realPathFunction(toCloudPath) ?: toCloudPath
 
                     val components = realPath.components()
                     if (components.isEmpty()) {
@@ -480,6 +474,8 @@ class LinuxFS(
         path: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        log.debug("${ctx.user} is attempting to open $path")
+        val systemFile = File(translateAndCheckFile(path))
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         if (ctx.outputStream == null) {
@@ -492,7 +488,6 @@ class LinuxFS(
                 options.add(StandardOpenOption.CREATE)
             }
 
-            val systemFile = File(translateAndCheckFile(path))
             try {
                 val systemPath = systemFile.toPath()
                 ctx.outputStream = Channels.newOutputStream(
@@ -575,9 +570,9 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         path: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
+        val systemFile = File(translateAndCheckFile(path))
         aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
 
-        val systemFile = File(translateAndCheckFile(path))
         Files.createDirectory(systemFile.toPath(), PosixFilePermissions.asFileAttribute(DEFAULT_DIRECTORY_MODE))
 
         FSResult(
@@ -669,11 +664,12 @@ class LinuxFS(
 
     override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> =
         ctx.submit {
+            val systemFile = File(translateAndCheckFile(path))
             aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
             FSResult(
                 0,
-                stat(ctx, File(translateAndCheckFile(path)), mode, HashMap(), hasPerformedPermissionCheck = true)
+                stat(ctx, systemFile, mode, HashMap(), hasPerformedPermissionCheck = true)
             )
         }
 
@@ -788,15 +784,20 @@ class LinuxFS(
     }
 }
 
-fun linuxFSRealPathSupplier(fsRoot: File): (String) -> String? = f@{ path: String ->
-    linuxFSToCloudPath(
-        fsRoot,
-        (StandardCLib.realPath(translateAndCheckFile(fsRoot, path)) ?: return@f null)
-    )
+fun linuxFSRealPathSupplier(fsRoot: File): (String) -> String = f@{ path: String ->
+    val systemFile = translateAndCheckFile(fsRoot, path)
+
+    val realPath = if (File(systemFile).exists()) {
+        StandardCLib.realPath(systemFile) ?: StandardCLib.realPath(systemFile.parent()) ?: throw FSException.NotFound()
+    } else {
+        StandardCLib.realPath(systemFile.parent()) ?: throw FSException.NotFound()
+    }
+
+    linuxFSToCloudPath(fsRoot, realPath)
 }
 
 private fun linuxFSToCloudPath(fsRoot: File, path: String): String {
-    return ("/" + path.substringAfter(fsRoot.absolutePath).removePrefix("/")).normalize()
+    return ("/" + path.substringAfter(fsRoot.normalize().absolutePath).removePrefix("/")).normalize()
 }
 
 fun translateAndCheckFile(fsRoot: File, internalPath: String, isDirectory: Boolean = false): String {

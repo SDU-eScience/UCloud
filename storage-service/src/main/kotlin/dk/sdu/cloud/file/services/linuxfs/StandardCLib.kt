@@ -76,7 +76,7 @@ object StandardCLib {
         return if (!Platform.isLinux()) {
             0
         } else {
-            CLibrary.INSTANCE.setfsuid(uid)
+            CLibrary.INSTANCE.setfsuid(uid.toLong())
         }
     }
 
@@ -84,7 +84,7 @@ object StandardCLib {
         return if (!Platform.isLinux()) {
             0
         } else {
-            CLibrary.INSTANCE.setfsgid(uid)
+            CLibrary.INSTANCE.setfsgid(uid.toLong())
         }
     }
 }

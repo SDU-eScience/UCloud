@@ -316,4 +316,20 @@ class AclTest {
         assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.WRITE))
         assertFalse(aclService.hasPermission(sharedFolder, notUser, AccessRight.READ))
     }
+
+    @Test
+    fun `test merging of acls`() = runBlocking {
+        val username = "user"
+        val sharedFolder = "/home/$username/shared"
+        val notUser = "notUser"
+
+        aclService.updatePermissions(sharedFolder, notUser, AccessRights.READ_WRITE)
+
+        assertThatInstance(
+            aclService.listAcl(listOf(sharedFolder)),
+            matcher = {
+                it.size == 1
+            }
+        )
+    }
 }
