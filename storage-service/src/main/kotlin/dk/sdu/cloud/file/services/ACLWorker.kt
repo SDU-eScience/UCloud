@@ -17,14 +17,13 @@ class ACLWorker(
     private val backgroundExecutor: BackgroundExecutor<*>
 ) {
     fun registerWorkers() {
-        backgroundExecutor.addWorker(REQUEST_TYPE) { _, message ->
+        backgroundExecutor.addWorker(REQUEST_TYPE) { _, message, user ->
             runBlocking {
-
                 val parsed = defaultMapper.readValue<UpdateRequest>(message)
                 val (request) = parsed
                 log.debug("Executing ACL update request: $request")
 
-                if (!aclService.isOwner(request.path, TODO("Username"))) {
+                if (!aclService.isOwner(request.path, user)) {
                     return@runBlocking BackgroundResponse(HttpStatusCode.Forbidden, Unit)
                 }
 
