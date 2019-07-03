@@ -2,40 +2,44 @@ package dk.sdu.cloud.file.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.UpdateAclRequest
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.background.BackgroundResponse
-import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.runBlocking
 
 private data class UpdateRequest(val request: UpdateAclRequest)
 
-class ACLWorker<Ctx : FSUserContext>(
-    private val fsCommandRunnerFactory: FSCommandRunnerFactory<Ctx>,
-    private val fs: LowLevelFileSystemInterface<Ctx>,
+class ACLWorker(
+    private val aclService: AclService<*>,
     private val backgroundExecutor: BackgroundExecutor<*>
 ) {
     fun registerWorkers() {
         backgroundExecutor.addWorker(REQUEST_TYPE) { _, message ->
-            fsCommandRunnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
+            runBlocking {
+
                 val parsed = defaultMapper.readValue<UpdateRequest>(message)
                 val (request) = parsed
                 log.debug("Executing ACL update request: $request")
+
+                if (!aclService.isOwner(request.path, TODO("Username"))) {
+                    return@runBlocking BackgroundResponse(HttpStatusCode.Forbidden, Unit)
+                }
 
                 request.changes.forEach { change ->
                     val entity = FSACLEntity(change.entity)
 
                     if (change.revoke) {
-                        fs.removeACLEntry(ctx, request.path, entity).unwrap()
+                        aclService.revokePermission(request.path, entity.user)
                     } else {
-                        fs.createACLEntry(ctx, request.path, entity, change.rights).unwrap()
+                        aclService.updatePermissions(request.path, entity.user, change.rights)
                     }
                 }
-
-                BackgroundResponse(HttpStatusCode.OK, Unit)
             }
+
+            BackgroundResponse(HttpStatusCode.OK, Unit)
         }
     }
 

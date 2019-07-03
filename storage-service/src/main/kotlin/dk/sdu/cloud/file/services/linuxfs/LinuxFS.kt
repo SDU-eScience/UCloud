@@ -750,27 +750,6 @@ class LinuxFS(
         )
     }
 
-    override suspend fun createACLEntry(
-        ctx: LinuxFSRunner,
-        path: String,
-        entity: FSACLEntity,
-        rights: Set<AccessRight>
-    ): FSResult<Unit> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(path, ctx.user, AccessRight.WRITE) // TODO Shouldn't this be owner?
-        aclService.updatePermissions(path, entity.user, rights)
-        return FSResult(0, Unit)
-    }
-
-    override suspend fun removeACLEntry(
-        ctx: LinuxFSRunner,
-        path: String,
-        entity: FSACLEntity
-    ): FSResult<Unit> = runAndRethrowNIOExceptions {
-        aclService.requirePermission(path, ctx.user, AccessRight.WRITE) // TODO Shouldn't this be owner?
-        aclService.revokePermission(path, entity.user)
-        return FSResult(0, Unit)
-    }
-
     override suspend fun realPath(ctx: LinuxFSRunner, path: String): FSResult<String> {
         // We don't require any permissions to resolve what the real path is. This might be problematic but is
         // currently required in order to avoid infinite recursion. The ACL service depends on this function in order
@@ -778,14 +757,6 @@ class LinuxFS(
 
         return FSResult(0, realPathFunction(path) ?: throw FSException.NotFound())
     }
-
-    override suspend fun checkPermissions(ctx: LinuxFSRunner, path: String, requireWrite: Boolean): FSResult<Boolean> =
-        runAndRethrowNIOExceptions {
-            return FSResult(
-                0,
-                aclService.hasPermission(path, ctx.user, if (requireWrite) AccessRight.WRITE else AccessRight.READ)
-            )
-        }
 
     private fun String.toCloudPath(): String {
         return linuxFSToCloudPath(fsRoot, this)

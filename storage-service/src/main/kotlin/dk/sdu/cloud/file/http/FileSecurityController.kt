@@ -14,7 +14,7 @@ import io.ktor.http.HttpStatusCode
 class FileSecurityController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
-    private val aclWorker: ACLWorker<Ctx>,
+    private val aclWorker: ACLWorker,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {

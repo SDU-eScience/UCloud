@@ -14,6 +14,7 @@ import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.relativize
 import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
@@ -172,14 +173,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         mode: Set<FileAttribute>
     ): List<FileRow> {
         return fs.listDirectory(ctx, path, mode).unwrap()
-    }
-
-    suspend fun checkPermissions(
-        ctx: Ctx,
-        path: String,
-        requireWrite: Boolean
-    ): Boolean {
-        return fs.checkPermissions(ctx, path, requireWrite).unwrap()
     }
 
     suspend fun tree(

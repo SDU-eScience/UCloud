@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.util.FSException
 import java.io.InputStream
@@ -252,33 +251,6 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         targetPath: String,
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-
-    /**
-     * Creates an entry in the ACL for [path].
-     *
-     * @throws FSException.PermissionException
-     * @throws FSException.NotFound
-     */
-    suspend fun createACLEntry(
-        ctx: Ctx,
-        path: String,
-        entity: FSACLEntity,
-        rights: Set<AccessRight>
-    ): FSResult<Unit>
-
-    /**
-     * Deletes an entry in the ACL for [path].
-     *
-     * @throws FSException.PermissionException
-     * @throws FSException.NotFound
-     */
-    suspend fun removeACLEntry(
-        ctx: Ctx,
-        path: String,
-        entity: FSACLEntity
-    ): FSResult<Unit>
-
-    suspend fun checkPermissions(ctx: Ctx, path: String, requireWrite: Boolean): FSResult<Boolean>
 
     suspend fun realPath(
         ctx: Ctx,

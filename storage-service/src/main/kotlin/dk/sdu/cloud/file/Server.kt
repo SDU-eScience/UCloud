@@ -101,7 +101,7 @@ class Server(
         }
 
         // Metadata services
-        val aclService = ACLWorker(processRunner, fs, bgExecutor).also { it.registerWorkers() }
+        val aclService = ACLWorker(newAclService, bgExecutor).also { it.registerWorkers() }
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
 
         // High level FS
@@ -112,7 +112,7 @@ class Server(
 
         // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(coreFileSystem)
-        val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
+        val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer, newAclService)
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
         val workspaceService = WorkspaceService(fsRootFile, fileScanner, uidLookupService, newAclService)
 

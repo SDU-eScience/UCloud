@@ -5,7 +5,6 @@ import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parents
 import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.linuxfs.CLibrary
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -45,15 +44,24 @@ class AclService<Session>(
         }
     }
 
+    private suspend fun internalIsOwner(normalizedPath: String, username: String): Boolean {
+        val homeFolder = homeFolderService.findHomeFolder(username).normalize()
+        if (normalizedPath == homeFolder || normalizedPath.startsWith("$homeFolder/")) {
+            return true
+        }
+
+        return false
+    }
+
+    suspend fun isOwner(path: String, username: String): Boolean {
+        return internalIsOwner(pathNormalizer(path) ?: return false, username)
+    }
+
     suspend fun hasPermission(path: String, username: String, permission: AccessRight): Boolean {
         if (username == SERVICE_USER) return true
 
         val normalizedPath = pathNormalizer(path) ?: return false
-        val homeFolder = homeFolderService.findHomeFolder(username).normalize()
-        log.debug("Checking permissions for $username at $path with home folder $homeFolder")
-        if (path == homeFolder || path.startsWith("$homeFolder/")) {
-            return true
-        }
+        if (internalIsOwner(normalizedPath, username)) return true
 
         return db.withTransaction {
             dao.hasPermission(it, normalizedPath, username, permission)
