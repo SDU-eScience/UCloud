@@ -2,9 +2,6 @@ package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.server.HttpCall
-import dk.sdu.cloud.calls.server.IngoingCallFilter
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.BackgroundJobController
@@ -19,10 +16,8 @@ import dk.sdu.cloud.file.http.WorkspaceController
 import dk.sdu.cloud.file.processors.StorageProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLWorker
-import dk.sdu.cloud.file.services.AuthUIDLookupService
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FileSensitivityService
@@ -74,11 +69,6 @@ class Server(
         val bgExecutor =
             BackgroundExecutor(micro.hibernateDatabase, bgDao, BackgroundStreams("storage"), micro.eventStreamService)
 
-        // Authentication
-        val useFakeUsers = micro.developmentModeEnabled && !micro.commandLineArguments.contains("--real-users")
-        val uidLookupService =
-            if (useFakeUsers) DevelopmentUIDLookupService("admin@dev") else AuthUIDLookupService(client)
-
         // FS root
         val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }
             ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
@@ -114,7 +104,7 @@ class Server(
         val fileLookupService = FileLookupService(coreFileSystem)
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer, newAclService)
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
-        val workspaceService = WorkspaceService(fsRootFile, fileScanner, uidLookupService, newAclService)
+        val workspaceService = WorkspaceService(fsRootFile, fileScanner, newAclService)
 
         // RPC services
         val wsService = WSFileSessionService(processRunner)
@@ -127,7 +117,6 @@ class Server(
 
         UserProcessor(
             streams,
-            uidLookupService,
             fileScanner,
             processRunner,
             coreFileSystem
@@ -140,13 +129,6 @@ class Server(
 
         // HTTP
         with(micro.server) {
-            attachFilter(IngoingCallFilter.afterParsing(HttpCall) { _, _ ->
-                val principalOrNull = runCatching { securityPrincipal }.getOrNull()
-                if (principalOrNull != null) {
-                    uidLookupService.storeMapping(principalOrNull.username, principalOrNull.uid)
-                }
-            })
-
             configureControllers(
                 ActionController(
                     commandRunnerForCalls,

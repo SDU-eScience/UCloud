@@ -22,7 +22,6 @@ import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.file.util.mkdir
-import dk.sdu.cloud.file.util.simpleStorageUserDao
 import dk.sdu.cloud.file.util.touch
 import org.junit.Ignore
 import org.junit.Test
@@ -34,7 +33,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class UnixSymlinkTest {
-    lateinit var userDao: UIDLookupService
     lateinit var fsRoot: File
     lateinit var factory: LinuxFSRunnerFactory
     lateinit var cephFs: LinuxFS
@@ -42,7 +40,6 @@ class UnixSymlinkTest {
 
     @BeforeTest
     fun init() {
-        userDao = simpleStorageUserDao()
         fsRoot = Files.createTempDirectory("ceph-fs").toFile().apply {
             mkdir("home") {
                 mkdir("user") {

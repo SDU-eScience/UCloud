@@ -6,9 +6,7 @@ import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.Chown
@@ -19,7 +17,6 @@ import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
-import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import java.io.File
 import java.nio.file.Files
@@ -28,18 +25,11 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-fun simpleStorageUserDao(): UIDLookupService {
-    return DevelopmentUIDLookupService(TestUsers.user.username)
-}
-
-fun storageUserDaoWithFixedAnswer(answer: String): UIDLookupService {
-    return DevelopmentUIDLookupService(answer)
-}
+data class LinuxTestFS(val runner: LinuxFSRunnerFactory, val fs: LinuxFS, val aclService: AclService<*>)
 
 fun linuxFSWithRelaxedMocks(
-    fsRoot: String,
-    userDao: UIDLookupService = simpleStorageUserDao()
-): Pair<LinuxFSRunnerFactory, LinuxFS> {
+    fsRoot: String
+): LinuxTestFS {
     Chown.isDevMode = true
     val commandRunner = LinuxFSRunnerFactory()
     val micro = initializeMicro()
@@ -52,12 +42,13 @@ fun linuxFSWithRelaxedMocks(
         )
     }
     val aclService = AclService(db, AclHibernateDao(), homeFolderService, { it.normalize() })
-    return Pair(
+    return LinuxTestFS(
         commandRunner,
         LinuxFS(
             File(fsRoot),
             aclService
-        )
+        ),
+        aclService
     )
 }
 

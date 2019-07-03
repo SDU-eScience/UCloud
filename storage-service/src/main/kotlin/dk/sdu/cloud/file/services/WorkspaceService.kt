@@ -7,7 +7,6 @@ import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.WorkspaceMount
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
-import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.listAndClose
 import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
@@ -40,8 +39,6 @@ private data class WorkspaceManifest(
 class WorkspaceService(
     fsRoot: File,
     private val fileScanner: FileScanner<*>,
-
-    private val userDao: StorageUserDao<Long>,
 
     private val aclService: AclService<*>
 ) {
@@ -123,8 +120,6 @@ class WorkspaceService(
         if (!Files.exists(workspace)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         val manifest = readManifest(workspace)
-        val uid =
-            userDao.findStorageUser(manifest.username) ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
         val matchers = fileGlobs.map { FileSystems.getDefault().getPathMatcher("glob:$it") }
         val defaultDestinationDir = File(translateAndCheckFile(fsRoot, destination)).toPath()
@@ -226,7 +221,7 @@ class WorkspaceService(
                         if (Files.isSymbolicLink(child)) {
                             Files.deleteIfExists(child)
                         } else {
-                            Chown.setOwner(child, uid.toInt(), uid.toInt())
+                            TODO("Deal with UIDs")
                             Files.setPosixFilePermissions(
                                 child, setOf(
                                     PosixFilePermission.OWNER_WRITE,

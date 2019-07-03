@@ -9,7 +9,6 @@ import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.createDummyFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
-import dk.sdu.cloud.file.util.simpleStorageUserDao
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -47,7 +46,7 @@ class WorkspaceTest {
             eventProducer
         )
 
-        workspaceService = WorkspaceService(fsRoot, fileScanner, simpleStorageUserDao(), aclService)
+        workspaceService = WorkspaceService(fsRoot, fileScanner, aclService)
     }
 
     @Test

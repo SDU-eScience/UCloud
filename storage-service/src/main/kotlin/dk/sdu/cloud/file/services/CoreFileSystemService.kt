@@ -2,8 +2,6 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
@@ -13,8 +11,6 @@ import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.relativize
-import dk.sdu.cloud.file.api.sensitivityLevel
-import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
@@ -22,7 +18,6 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
-import kotlinx.coroutines.runBlocking
 import java.io.InputStream
 import java.io.OutputStream
 

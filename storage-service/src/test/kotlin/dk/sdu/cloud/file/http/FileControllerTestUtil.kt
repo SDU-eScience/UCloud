@@ -17,7 +17,6 @@ import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
@@ -33,7 +32,6 @@ import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
 import dk.sdu.cloud.file.util.createDummyFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
-import dk.sdu.cloud.file.util.simpleStorageUserDao
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.server.testing.TestApplicationEngine
@@ -57,24 +55,19 @@ data class FileControllerContext(
     val lookupService: FileLookupService<LinuxFSRunner>
 )
 
-object TestContext {
-    lateinit var micro: Micro
-}
-
 fun KtorApplicationTestSetupContext.configureServerWithFileController(
     fsRootInitializer: () -> File = { createDummyFS() },
-    userDao: UIDLookupService = simpleStorageUserDao(),
     additional: (FileControllerContext) -> List<Controller> = { emptyList() }
 ): List<Controller> {
     BackgroundScope.reset()
 
     val fsRoot = fsRootInitializer()
-    val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
+    val (runner, fs, aclService) = linuxFSWithRelaxedMocks(fsRoot.absolutePath)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val fileSensitivityService = FileSensitivityService(fs, eventProducer)
     val coreFs = CoreFileSystemService(fs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
-    val aclService = ACLWorker(runner, fs, mockk(relaxed = true))
+    val aclWorker = ACLWorker(aclService, mockk(relaxed = true))
     val homeFolderService = mockk<HomeFolderService>()
     val callRunner = CommandRunnerFactoryForCalls(runner, WSFileSessionService(runner))
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }
@@ -108,7 +101,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
             FileSecurityController(
                 callRunner,
                 coreFs,
-                aclService,
+                aclWorker,
                 sensitivityService
             )
         )
@@ -201,34 +194,6 @@ fun TestApplicationEngine.delete(
     )
 }
 
-fun TestApplicationEngine.createFavorite(
-    path: String,
-    user: String = "user1",
-    role: Role = Role.USER
-): TestApplicationResponse {
-    return call(
-        HttpMethod.Post,
-        "/api/files/favorite",
-        params = mapOf("path" to path),
-        user = user,
-        role = role
-    )
-}
-
-fun TestApplicationEngine.deleteFavorite(
-    path: String,
-    user: String = "user1",
-    role: Role = Role.USER
-): TestApplicationResponse {
-    return call(
-        HttpMethod.Delete,
-        "/api/files/favorite",
-        params = mapOf("path" to path),
-        user = user,
-        role = role
-    )
-}
-
 fun TestApplicationEngine.listDir(
     path: String,
     user: String = "user1",
@@ -281,20 +246,6 @@ fun TestApplicationEngine.lookupFileInDirectory(
     )
 }
 
-fun TestApplicationEngine.sync(
-    path: String,
-    user: String = "user1",
-    role: Role = Role.USER
-): TestApplicationResponse {
-    return call(
-        HttpMethod.Post,
-        "/api/files/sync",
-        rawBody = """{ "path": "$path" }""",
-        user = user,
-        role = role
-    )
-}
-
 fun TestApplicationEngine.copy(
     path: String,
     newPath: String,
@@ -306,22 +257,6 @@ fun TestApplicationEngine.copy(
         HttpMethod.Post,
         "/api/files/copy",
         params = mapOf("path" to path, "newPath" to newPath, "policy" to conflictPolicy.toString()),
-        user = user,
-        role = role
-    )
-}
-
-fun TestApplicationEngine.annotate(
-    path: String,
-    annotation: String,
-    proxyUser: String,
-    user: String = "user1",
-    role: Role = Role.USER
-): TestApplicationResponse {
-    return call(
-        HttpMethod.Post,
-        "/api/files/annotate",
-        rawBody = """{ "path": "$path", "annotatedWith": "$annotation", "proxyUser": "$proxyUser" }""",
         user = user,
         role = role
     )

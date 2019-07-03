@@ -16,7 +16,6 @@ import dk.sdu.cloud.service.test.*
 import dk.sdu.cloud.file.util.createFS
 import dk.sdu.cloud.file.util.inode
 import dk.sdu.cloud.file.util.mkdir
-import dk.sdu.cloud.file.util.storageUserDaoWithFixedAnswer
 import dk.sdu.cloud.file.util.timestamps
 import dk.sdu.cloud.file.util.touch
 import io.mockk.coEvery
@@ -36,7 +35,6 @@ private const val FILE_OWNER = "file creator"
 class DiffTest {
     private data class TestingContext<Ctx : FSUserContext>(
         val fsRoot: File,
-        val userDao: UIDLookupService,
         val fs: LowLevelFileSystemInterface<Ctx>,
         val mockedEventProducer: StorageEventProducer,
         val coreFs: CoreFileSystemService<Ctx>,
@@ -64,7 +62,6 @@ class DiffTest {
         builder: File.() -> Unit
     ): TestingContext<LinuxFSRunner> {
         EventServiceMock.reset()
-        val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
         val commandRunnerFactory = LinuxFSRunnerFactory()
         val micro = initializeMicro()
@@ -76,13 +73,12 @@ class DiffTest {
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         val coreFs = CoreFileSystemService(cephFs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
-        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
+        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer, aclService)
 
         BackgroundScope.reset()
 
         return TestingContext(
             root,
-            userDao,
             cephFs,
             eventProducer,
             coreFs,
@@ -522,7 +518,7 @@ class DiffTest {
         coEvery { commandRunnerFactory.invoke(any()) } returns ctx
         coEvery { coreFs.statOrNull(any(), any(), any()) } throws FSException.CriticalException("Mock")
 
-        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
+        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer, mockk(relaxed = true))
 
         assertFailsWith(FSException.CriticalException::class) {
             runBlocking { indexingService.runDiffOnRoots(mapOf("/" to emptyList())) }
@@ -548,7 +544,7 @@ class DiffTest {
 
         coEvery { coreFs.listDirectory(any(), any(), any()) } throws FSException.CriticalException("Mock")
 
-        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
+        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer, mockk(relaxed = true))
 
         val (shouldContinue, job) = runBlocking { indexingService.runDiffOnRoots(mapOf("/" to emptyList())) }
         assertTrue(shouldContinue["/"]!!)

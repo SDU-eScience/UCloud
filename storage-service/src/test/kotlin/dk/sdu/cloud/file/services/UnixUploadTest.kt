@@ -14,7 +14,6 @@ import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.file.util.simpleStorageUserDao
 import org.junit.Ignore
 import org.junit.Test
 import java.nio.file.Files
@@ -24,7 +23,6 @@ class UnixUploadTest {
     @Ignore
     @Test
     fun `test storage events for new file`() {
-        val userDao = simpleStorageUserDao()
         val fsRoot = Files.createTempDirectory("ceph-fs").toFile()
         val factory = LinuxFSRunnerFactory()
 

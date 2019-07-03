@@ -11,7 +11,6 @@ import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FSResult
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
