@@ -1,46 +1,47 @@
 import * as React from "react";
-import { connect } from "react-redux";
+import {connect} from "react-redux";
 import Installed from "Applications/Installed";
-import { SearchOptions, SelectableText } from "Search/Search";
-import { prettierString } from "UtilityFunctions";
+import {prettierString} from "UtilityFunctions";
 import FavoriteFiles from "./FavoriteFiles";
-import { Dispatch } from "redux";
-import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
-import { ReduxObject } from "DefaultObjects";
-import { setFavoritesShown } from "./Redux/FavoritesActions";
-import { SidebarPages } from "ui-components/Sidebar";
-import { History } from "history";
+import {Dispatch} from "redux";
+import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
+import {ReduxObject} from "DefaultObjects";
+import {setFavoritesShown} from "./Redux/FavoritesActions";
+import {SidebarPages} from "ui-components/Sidebar";
+import {History} from "history";
+import {SelectableText, SelectableTextWrapper} from "ui-components";
 
 export enum FavoriteType {
     FILES = "FILES",
     APPLICATIONS = "APPLICATIONS"
 }
 
-const Favorites = (props: FavoritesStateProps & FavoritesOperations & { history: History }) => {
+const Favorites = (props: FavoritesStateProps & FavoritesOperations & {history: History}) => {
     React.useEffect(() => {
         props.setPageTitle();
         props.setActivePage(SidebarPages.Favorites);
         return () => props.setActivePage(SidebarPages.None)
     }, []);
 
-    const { shown, setShown } = props;
-    const header = (<SearchOptions>
+    const {shown, setShown} = props;
+    const header = (<SelectableTextWrapper>
         {Object.keys(FavoriteType).map((it: FavoriteType) =>
             <SelectableText cursor="pointer" key={it} onClick={() => setShown(it)} mr="1em" selected={it === shown}>
                 {prettierString(it)}
             </SelectableText>
         )}
-    </SearchOptions>);
+    </SelectableTextWrapper>);
     if (shown === FavoriteType.FILES) {
         return (<FavoriteFiles header={header} history={props.history} />);
-    } else {
+    } else if (shown === FavoriteType.APPLICATIONS) {
         return (<Installed header={header} />)
     }
-}
+    return null;
+};
 
-interface FavoritesStateProps { shown: FavoriteType }
+interface FavoritesStateProps {shown: FavoriteType}
 
-const mapStateToProps = (state: ReduxObject): FavoritesStateProps => ({ shown: state.favorites.shown })
+const mapStateToProps = ({favorites}: ReduxObject): FavoritesStateProps => ({shown: favorites.shown});
 
 interface FavoritesOperations {
     setPageTitle: () => void

@@ -4,7 +4,7 @@ import Icon, { IconName } from "ui-components/Icon";
 import { ThemeColor, colors } from "ui-components/theme";
 import { SpaceProps } from "styled-system";
 
-export const JobStateIcon: React.StatelessComponent<{ state: AppState, size?: number | string, color?: ThemeColor } & SpaceProps> = (props) => {
+export const JobStateIcon: React.FunctionComponent<{ state: AppState, size?: number | string, color?: ThemeColor } & SpaceProps> = (props) => {
     let iconName: IconName;
     let defaultColor: ThemeColor = "iconColor";
 

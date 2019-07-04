@@ -14,11 +14,10 @@ class DirectorySizeService(
         username: String,
         causedById: String? = null
     ): Long {
-        val parentPaths = paths.map { File(it).parent }
-        val result= QueryDescriptions.statistics.call(
+        val result = QueryDescriptions.statistics.call(
             StatisticsRequest(
                 query = FileQuery(
-                    roots = parentPaths,
+                    roots = paths,
                     owner = AllOf.with(username)
                 ),
                 size = NumericStatisticsRequest(

@@ -1,22 +1,21 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { defaultErrorHandler } from "UtilityFunctions";
-import { UserSettingsFields, UserSettingsState } from ".";
-import { TwoFactorSetup } from "./TwoFactorSetup";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {defaultErrorHandler} from "UtilityFunctions";
+import {UserSettingsFields, UserSettingsState} from ".";
+import {TwoFactorSetup} from "./TwoFactorSetup";
 import * as Heading from "ui-components/Heading";
-import { MainContainer } from "MainContainer/MainContainer";
-import { Flex, Box, Icon, Input, Button, Label } from "ui-components";
-import { connect } from "react-redux";
-import { Dispatch } from "redux";
-import { setActivePage, SetStatusLoading, setLoading } from "Navigation/Redux/StatusActions";
-import { SidebarPages } from "ui-components/Sidebar";
-import { SnackType, AddSnackOperation } from "Snackbar/Snackbars";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
-import { ReduxObject } from "DefaultObjects";
+import {MainContainer} from "MainContainer/MainContainer";
+import {Flex, Box, Icon, Input, Button, Label} from "ui-components";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {setActivePage, SetStatusLoading, setLoading} from "Navigation/Redux/StatusActions";
+import {SidebarPages} from "ui-components/Sidebar";
+import {SnackType} from "Snackbar/Snackbars";
+import {ReduxObject} from "DefaultObjects";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
-class UserSettings extends React.Component<UserSettingsOperations & { headerLoading: boolean }, UserSettingsState> {
-
+class UserSettings extends React.Component<UserSettingsOperations & {headerLoading: boolean}, UserSettingsState> {
     public state = this.initialState();
 
     private initialState(): UserSettingsState {
@@ -31,11 +30,10 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
     }
 
     private updateField(field: UserSettingsFields, value: string | boolean): void {
-        const state = { ...this.state }
-        state[field] = value;
+        const state = {...this.state}
         state.error = false;
         state.repeatPasswordError = false;
-        this.setState(() => state);
+        this.setState({...state, [field]: value});
     }
 
     private async validateAndSubmit(e: React.SyntheticEvent): Promise<void> {
@@ -59,19 +57,22 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
             repeatPasswordError = true;
         }
 
-        this.setState(() => ({ error, repeatPasswordError }));
+        this.setState(() => ({error, repeatPasswordError}));
 
         if (!error) {
             try {
-                await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/password", { currentPassword, newPassword }, "")).promise;
+                await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/password", {
+                    currentPassword,
+                    newPassword
+                }, "", true)).promise;
 
-                this.props.addSnack({ message: "Password successfully changed", type: SnackType.Success });
+                snackbarStore.addSnack({message: "Password successfully changed", type: SnackType.Success});
                 this.setState(() => this.initialState());
 
             } catch (e) {
-                let status = defaultErrorHandler(e, this.props.addSnack);
-                this.setState(() => ({ error: true }));
-            };
+                let status = defaultErrorHandler(e);
+                this.setState(() => ({error: true}));
+            }
         }
     }
 
@@ -81,7 +82,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
             currentPassword,
             newPassword,
             repeatedPassword,
-            
+
         } = this.state;
 
         const passwordUser = Cloud.principalType === "password";
@@ -101,7 +102,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                                                 value={currentPassword}
                                                 type="password"
                                                 placeholder={"Current password"}
-                                                onChange={({ target: { value } }) => this.updateField("currentPassword", value)}
+                                                onChange={({target: {value}}) => this.updateField("currentPassword", value)}
                                             />
                                             {error && !currentPassword ? <Icon name="warning" color="red" /> : null}
                                         </Label>
@@ -112,7 +113,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                                             <Input
                                                 value={newPassword}
                                                 type="password"
-                                                onChange={({ target: { value } }) => this.updateField("newPassword", value)}
+                                                onChange={({target: {value}}) => this.updateField("newPassword", value)}
                                                 placeholder="New password"
                                             />
                                             {error && !newPassword ? <Icon name="warning" color="red" /> : null}
@@ -124,7 +125,7 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                                             <Input
                                                 value={repeatedPassword}
                                                 type="password"
-                                                onChange={({ target: { value } }) => this.updateField("repeatedPassword", value)}
+                                                onChange={({target: {value}}) => this.updateField("repeatedPassword", value)}
                                                 placeholder="Repeat password"
                                             />
                                             {error && !repeatedPassword ? <Icon name="warning" color="red" /> : null}
@@ -138,7 +139,8 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
                                         Change password
                                     </Button>
                                 </form> : null}
-                                <TwoFactorSetup loading={this.props.headerLoading} addSnack={this.props.addSnack} setLoading={this.props.setLoading} />
+                                <TwoFactorSetup loading={this.props.headerLoading}
+                                    setLoading={this.props.setLoading} />
                             </>
                         }
                     />
@@ -148,18 +150,17 @@ class UserSettings extends React.Component<UserSettingsOperations & { headerLoad
     }
 }
 
-interface UserSettingsOperations extends AddSnackOperation, SetStatusLoading {
+interface UserSettingsOperations extends SetStatusLoading {
     setActivePage: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
-    addSnack: snack => dispatch(addSnack(snack)),
     setLoading: loading => dispatch(setLoading(loading))
 });
 
-const mapStateToProps = ({ status }: ReduxObject): { headerLoading: boolean } => ({
+const mapStateToProps = ({status}: ReduxObject): {headerLoading: boolean} => ({
     headerLoading: status.loading
-})
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(UserSettings);

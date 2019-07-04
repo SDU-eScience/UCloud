@@ -1,37 +1,86 @@
-# SDUCloud front-end `frontend-web`
+# SDUCloud Frontend
 
-This service provides a web interface to access the the logged in user's data, and functionality for manipulation of said data.
+SDUCloud uses a web application as frontend for its users.
 
-### Prerequisites
+This repository contains the frontend components used in SDUCloud, logic for contacting backend services and a test suite.
 
-1. npm
-2. IntelliJ IDEA (for running authentication service)
+## Code Structure
 
-## Setup
+Of notable npm-packages, the frontend uses the `React`-frameworks, along with the `Redux` library for handling data<sup>\*</sup>, and the `Styled-Components` library for styling of components. Addtionally, the application uses the React-Router for navigation, `jest` for testing. The project is written in `TypeScript`.
 
-The `front-end/web` service is currently deployed at `https://cloud.sdu.dk` that handles logging in to the system. The `front-end/webclient` currently proxies to the live server.
+Each category (category meaning e.g. Files, Applications, Dashboard, Activity), groups components by their association, i.e. every component referring to a category, will be found in the corresponding folder. Additionally, if a component has a reducer, it will be placed in a folder named `Redux`, along with the associated reducer actions, using the naming convention `<ComponentName>Reducer` and `<ComponentName>Actions`
 
-As for running the `front-end/webclient` application, navigate to the folder of the application and run `npm install`.
+Data is retrieved from the backend by contacting the corresponding backend-services in charge of the data.
 
-## How to Run
+<sup>\*</sup> Some components use local state, if the contents are obsolete the moment the component is unmounted, e.g. forms.
 
-The front-end requires running two services, specifically `front-end/web` and `front-end/webclient`. As expressed in _setup_, the `front-end/web` is deployed, and usually only the `front-end/webclient` will need to be run. This is done by navigating to the folder of the `webclient` application and running the command `npm run start`, which will expose a development enviroment of the application at `localhost:9000/app/dashboard`.
+## Application Architecture
 
-## Using the Site
+![Frontend Diagram](./webclient/wiki/FrontEndDiagram.png)
 
-After logging in to the site, the user will initially be presented with the dashboard. This provides an overview of a favorite files subset, 10 most recently used files and results of jobs that the user is associated with.
+**Figure**: The application will on startup instantiate the Redux-store, which is then used for every connected component. Every component, that does not solely rely on local state, connects to the store and gets its state from there. When a component is mounted, updated or a user interaction happens, the current component can contact the backend using the CloudObject instance. When the backend responds with data, an action is created and sent to the reducer. A new state is then derived, and sent to the component, providing the component with its new state.
 
-The sidebar, if present, depending on the size of the device, will show Dashboard, Files, Applications, Publishing, and Shares. 
+## Running
 
-The files component provides access to the user's files. Navigation is done by clicking on folders or clicking on a breadcrumb path. For any file, with few exceptions<sup>†</sup>, consisting of moving, renaming, copying, sharing, and deleting a folder or file. A file will also have a detailed breakdown of its info which can be accessed by clicking the Properties link for a file. Additionally, a user can create a folder in the currently accessed folder.
+To run the project run the following commands, in the directory `./webclient/`:
 
-The Applications options contains two nested options, the first of which is Run, which will show a list of available applications, consisting of name and version. Clicking on the Run-button will transfer the user to a form where one can enter actual parameters to use for running the given application. Running the application will then lead to a page providing detailed info on the current job, showing the result of stdout and stderr, if available.
+- `npm install`
+- `npm run start`
 
-The second option is results, which will show a list of the results of the jobs associated with the user. Clicking on the job id will show a detailed report of the specific job, as mentioned previously.
+When the terminal outputs `Compiled successfully.`, the project is available at `http://localhost:9000/app`.
 
-Publishing provides tools for publishing to Zenodo. Publications will list an overview of publishings, with the possiblity of a more details for a specific upload, by clicking on the "Show More"-button. If the files for the publication have successfully been uploaded to Zenodo, "Finish publication at Zendodo" will transfer the user to Zendodo to finish the publication. 
+`npm install` will only be necessary to run on subsequent runs, if the package.json file has been updated since the last
+time.
 
-The Publish option allows the user to upload a series of files to Zenodo from SDUCloud, by selecting them and supplying a name for the publication. 
+## Additional npm Commands
 
+Additional npm commands are:
 
-<sup>†</sup> - the folders named Uploads, Jobs and Favorites has some functionality disallowed, as the user is not allowed to move, rename or delete the given folder.
+- `npm run clean` will delete the contents of the `./webclient/dist/` (if present).
+- `npm run prepare-icons` will generate React components for icons defined in `./webclient/app/ui-components/components/`
+
+## Testing
+
+The front-end contains a test suite, implemented using Jest.
+
+To run the test suite, use the command: `npm run test`.
+
+The test files is located in the [tests](./webclient/__tests__/) folder.
+
+## Security
+
+Logging in to the site is done through Wayf on the production version, or with username/password combination on the development version, both as described in [auth-service](../auth-service#authenticating-with-sducloud).
+
+The [SDUCloud object](#sducloud-object) will validate the every new JWT-token received from the backend when refreshing. This is done throught the structure of the JWT, not the actual contents of the JWT.
+
+On invalid token, the site will redirect to the login screen.
+
+On token expiration, the frontend will try to refresh the token. Failing that, the currently held tokens are cleared, and the user is redirected to the login page.
+
+### Roles
+
+A logged in user can either be a `USER` or an `ADMIN`. The `USER` role only has access to a subset of the available sidebar options that the `ADMIN` role has, e.g. User Creation.
+
+## Notable custom code
+
+### SDUCloud object
+
+The project utilizes JSON Web Tokens, which contain information regarding the (if any) currently logged in user.
+
+To abstract away from this when contacting the backend, the codebase includes the `SDUCloud`-object, that has an instance exported for use, which contains the relevant HTTP operations (e.g. GET, PUT, POST, DELETE).
+
+This means contacting a Files-service with a `get`-operation would be done as shown below:
+
+```typescript
+try {
+    const { request, response } = Cloud.get<File[]>("files-service/operation");
+} catch (e) {
+    /* Error handling */
+}
+```
+
+Here, the request in the deconstruction of the object is the XMLHttpRequest made, and response is the result, which must match the type defined in the generic (defaults to `any`).
+
+The `e` in the event of a failing promise, matches the structure of `{ request, response }` but lacks type safety.
+
+Calls made to the backend are prefixed with `api/` followed by the service called, followed by the operation.

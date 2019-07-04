@@ -1,13 +1,10 @@
 package dk.sdu.cloud.accounting.compute.services
 
-import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.SimpleDuration
 
 const val SECONDS_MS = 1000L
 const val MINUTES_MS = SECONDS_MS * 60
 const val HOURS_MS = MINUTES_MS * 60
-
-fun SimpleDuration.toMillis(): Long =
-    (seconds * SECONDS_MS) + (minutes * MINUTES_MS) + (hours * HOURS_MS)
 
 fun Long.toSimpleDuration(): SimpleDuration {
     var remaining = this

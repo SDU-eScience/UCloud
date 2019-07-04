@@ -65,7 +65,11 @@ class KafkaStreamService(
         threads.forEach { it.isRunning.set(false) }
     }
 
-    override fun <V : Any> subscribe(stream: EventStream<V>, consumer: EventConsumer<V>) {
+    override fun <V : Any> subscribe(
+        stream: EventStream<V>,
+        consumer: EventConsumer<V>,
+        rescheduleIdleJobsAfterMs: Long
+    ) {
         if (started) {
             throw IllegalStateException("Cannot subscribe after start() has been called!")
         }

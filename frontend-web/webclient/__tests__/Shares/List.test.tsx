@@ -1,28 +1,25 @@
 import * as React from "react";
 import List from "../../app/Shares/List";
-import { create } from "react-test-renderer";
-import { Provider } from "react-redux";
-import { configureStore } from "../../app/Utilities/ReduxUtilities";
-import { initFiles, initShares, initObject } from "../../app/DefaultObjects";
-import shares from "../../app/Shares/Redux/SharesReducer"
-import { MemoryRouter } from "react-router";
-import { configure, shallow, mount } from "enzyme"
+import {create} from "react-test-renderer";
+import {MemoryRouter} from "react-router";
+import {configure} from "enzyme"
 import * as Adapter from "enzyme-adapter-react-16";
-import { shares as mock_shares } from "../mock/Shares";
-import { createResponsiveStateReducer, responsiveStoreEnhancer } from "redux-responsive";
-import theme, { responsiveBP } from "../../app/ui-components/theme";
-import { ThemeProvider } from "styled-components";
+import theme, {responsiveBP} from "../../app/ui-components/theme";
+import {ThemeProvider} from "styled-components";
 import "jest-styled-components";
+import {configureStore} from "../../app/Utilities/ReduxUtilities";
+import {initResponsive} from "../../app/DefaultObjects";
+import {createResponsiveStateReducer} from "redux-responsive";
+import {Provider} from "react-redux";
 
-configure({ adapter: new Adapter() });
+configure({adapter: new Adapter()});
 
-
-const store = configureStore({ shares: initShares() }, {
-    shares,
+const store = configureStore({responsive: initResponsive()}, {
     responsive: createResponsiveStateReducer(
         responsiveBP,
-        { infinity: "xxl" }),
-}, responsiveStoreEnhancer);
+        {infinity: "xxl"}
+    )
+});
 
 describe("Shares List", () => {
     test("Shares component", () => {
@@ -30,24 +27,9 @@ describe("Shares List", () => {
             <Provider store={store}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <List />
+                        <List/>
                     </MemoryRouter>
                 </ThemeProvider>
-            </Provider >)).toMatchSnapshot();
-    });
-
-    test.skip("Shares component with shares", () => {
-        let sharesListWrapper = shallow(
-            <Provider store={store}>
-                <MemoryRouter>
-                    <List />
-                </MemoryRouter>
-            </Provider >);
-        console.warn(mock_shares.items);
-        sharesListWrapper = sharesListWrapper.update();
-        console.error(sharesListWrapper.find(List).dive().state());
-        sharesListWrapper.find(List).dive().setState(() => ({ shares: mock_shares.items }));
-        console.error(sharesListWrapper.find(List).dive().state());
-        expect(sharesListWrapper.html()).toMatchSnapshot();
+            </Provider>)).toMatchSnapshot();
     });
 });

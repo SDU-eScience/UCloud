@@ -1,15 +1,15 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import { Provider } from "react-redux";
-import { BrowserRouter } from "react-router-dom";
+import {Provider} from "react-redux";
+import {BrowserRouter} from "react-router-dom";
 import fileInfo from "Files/Redux/FileInfoReducer";
-import { theme, UIGlobalStyle } from "ui-components";
-import { createGlobalStyle, ThemeProvider } from "styled-components";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { initObject } from "DefaultObjects";
+import {theme, UIGlobalStyle} from "ui-components";
+import {createGlobalStyle, ThemeProvider} from "styled-components";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {initObject} from "DefaultObjects";
 import Core from "Core";
 import avatar from "UserSettings/Redux/AvataaarReducer";
-import header, { USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH } from "Navigation/Redux/HeaderReducer";
+import header, {USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH} from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
 import status from "Navigation/Redux/StatusReducer";
 import applications from "Applications/Redux/BrowseReducer";
@@ -24,20 +24,18 @@ import detailedResult from "Applications/Redux/DetailedResultReducer";
 import simpleSearch from "Search/Redux/SearchReducer";
 import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
-import detailedProjectSearch from "Project/Redux/ProjectSearchReducer";
 import filePreview from "Files/Redux/FilePreviewReducer";
-import shares from "Shares/Redux/SharesReducer";
 import * as AppRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
-import * as SnackbarRedux from "Snackbar/Redux";
+import snackbar from "Snackbar/Redux/SnackbarsReducer";
 import * as FavoritesRedux from "Favorites/Redux";
-import { configureStore } from "Utilities/ReduxUtilities";
-import { responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-responsive';
-import { responsiveBP } from "ui-components/theme";
-import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
-import { findAvatar } from "UserSettings/Redux/AvataaarActions";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
-import { Snack } from "Snackbar/Snackbars";
+import {configureStore} from "Utilities/ReduxUtilities";
+import {responsiveStoreEnhancer, createResponsiveStateReducer} from 'redux-responsive';
+import {responsiveBP, invertedColors} from "ui-components/theme";
+import {findAvatar} from "UserSettings/Redux/AvataaarActions";
+import Header from "Navigation/Header";
+import {isLightThemeStored, setSiteTheme} from "UtilityFunctions";
+import * as ProjectRedux from "Project/Redux";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
@@ -55,30 +53,36 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     simpleSearch,
     detailedFileSearch,
     detailedApplicationSearch,
-    detailedProjectSearch,
     fileInfo,
     filePreview,
     ...AppRedux.reducers,
     ...AccountingRedux.reducers,
     ...FavoritesRedux.reducers,
-    ...SnackbarRedux.reducers,
+    snackbar,
     avatar,
-    shares,
+    loading,
+    project: ProjectRedux.reducer,
     responsive: createResponsiveStateReducer(
         responsiveBP,
-        { infinity: "xxl" }),
+        {infinity: "xxl"}),
 }, responsiveStoreEnhancer);
 
-export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
-    store.dispatch({ type })
+function loading(state = false, action): boolean {
+    switch (action.type) {
+        case "LOADING_START":
+            return true;
+        case "LOADING_END":
+            return false;
+        default:
+            return state;
+    }
 }
 
-export function GLOBAL_addSnack(snack: Snack) {
-    store.dispatch(addSnack(snack))
+export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
+    store.dispatch({type})
 }
 
 export async function onLogin() {
-    store.dispatch(await fetchLoginStatus());
     store.dispatch(await findAvatar());
 }
 
@@ -86,16 +90,29 @@ const GlobalStyle = createGlobalStyle`
   ${() => UIGlobalStyle}
 `;
 
-ReactDOM.render(
-    <Provider store={store}>
-        <ThemeProvider theme={theme}>
+Cloud.initializeStore(store);
+
+function App({children}) {
+    const [isLightTheme, setTheme] = React.useState(isLightThemeStored());
+    const setAndStoreTheme = (isLight: boolean) => (setSiteTheme(isLight), setTheme(isLight));
+    return (
+        <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <>
                 <GlobalStyle />
                 <BrowserRouter basename="app">
-                    <Core />
+                    <Header toggleTheme={() => isLightTheme ? setAndStoreTheme(false) : setAndStoreTheme(true)} />
+                    {children}
                 </BrowserRouter>
             </>
         </ThemeProvider>
+    )
+}
+
+ReactDOM.render(
+    <Provider store={store}>
+        <App>
+            <Core />
+        </App>
     </Provider>,
     document.getElementById("app")
 );

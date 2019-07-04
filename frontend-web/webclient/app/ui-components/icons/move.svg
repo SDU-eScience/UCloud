@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
-    <g transform="matrix(1,0,0,1,-396,-488)">
-        <g id="move" transform="matrix(1.5,0,0,1.5,-423.681,-58.7463)">
-            <g transform="matrix(0.666667,0,0,0.666667,202.454,132.498)">
-                <path d="M516,366L519,366L519,369L520.5,369L520.5,372L518.244,372C517.011,371.991 516.002,370.975 516,369.743L516,366ZM520.5,351L519,351L519,356L516,356L516,350.258C516,349.001 517.005,348 518.244,348L520.5,348L520.5,351Z" style="fill:rgb(131,147,167);"/>
+    <g transform="matrix(1,0,0,1,-620.001,-748)">
+        <g id="move-no-comp" serif:id="move no comp" transform="matrix(1.5,0,0,1.5,-175.666,325.325)">
+            <g transform="matrix(0.666667,0,0,0.666667,117.111,-216.883)">
+                <path d="M635.001,748L641.758,748C642.982,748 644.002,749.011 644.002,750.258L644.002,769.743C644.002,770.968 643.047,771.95 641.758,772L628.246,772C627.013,771.991 626.003,770.975 626.002,769.743L626.002,762L629.002,762L629.002,769L641.002,769L641.002,751L635.001,751L635.001,748Z" style="fill:rgb(131,147,167);"/>
             </g>
-            <g transform="matrix(1,0,0,1,538.454,356.498)">
-                <path d="M24,9.505L24,22.495C24,23.333 23.33,24 22.504,24L13.496,24C12.674,23.994 12.001,23.317 12,22.495L12,9.505C12,8.667 12.67,8 13.496,8L22.504,8C23.32,8 24,8.674 24,9.505ZM14,10L14,22L22,22L22,10L14,10ZM12,13.333L12,20L14,20L14,13.333L12,13.333Z" style="fill:rgb(83,101,125);"/>
-            </g>
-            <g transform="matrix(1,0,0,1,537.954,356.418)">
+            <g transform="matrix(1,0,0,1,520.611,269.038)">
                 <path d="M20.5,16.746L15.833,12.746L15.833,15.413L9.833,15.413L9.833,18.079L15.833,18.079L15.833,20.746L20.5,16.746Z" style="fill:rgb(83,101,125);"/>
             </g>
         </g>

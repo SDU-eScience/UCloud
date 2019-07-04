@@ -12,13 +12,15 @@ import dk.sdu.cloud.file.api.MultiPartUploadAudit
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.UploadRequestAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
+import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -88,9 +90,23 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             )
 
             commandRunnerFactory.withContext(owner) { ctx ->
+                log.debug("writing")
+
+                val ingoingRequest = request.file.asIngoing()
                 val location = fs.write(ctx, request.location, policy) {
-                    request.file.asIngoing().channel.copyTo(this)
+                    ingoingRequest.channel.copyTo(this)
                 }
+
+                //handles cancellation of uploads
+                if (ingoingRequest.length != null) {
+                    val stat = fs.statOrNull(ctx, location, setOf(FileAttribute.SIZE))
+                    if (ingoingRequest.length != stat?.size) {
+                        fs.delete(ctx, location)
+                        throw FSException.BadRequest("File upload aborted")
+                    }
+                }
+
+                log.debug("done writing")
 
                 if (sensitivity != null) {
                     sensitivityService.setSensitivityLevel(ctx, location, sensitivity, owner)

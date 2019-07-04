@@ -1,24 +1,28 @@
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: storage-service-deployment
   labels:
     app: storage-service
+  name: storage-service-deployment
+  namespace: default
 spec:
-  replicas: 3
   selector:
     matchLabels:
       app: storage-service
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
   template:
     metadata:
       labels:
         app: storage-service
     spec:
+      affinity: {}
       containers:
-      - name: storage-service
-        image: registry.cloud.sdu.dk/sdu-cloud/storage-service:0.6.5
-        command:
+      - command:
         - /opt/service/bin/service
         - --config-dir
         - /etc/psql
@@ -26,6 +30,16 @@ spec:
         - /etc/service-config
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/storage-config
+        env:
+        - name: JAVA_OPTS
+          value: -server
+        image: registry.cloud.sdu.dk/sdu-cloud/storage-service:2.0.5
+        imagePullPolicy: IfNotPresent
+        name: storage-service-deployment
         volumeMounts:
         - mountPath: /etc/psql
           name: psql-secrets
@@ -33,21 +47,30 @@ spec:
           name: refresh-token
         - mountPath: /mnt/cephfs
           name: cephfs
-
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/storage-config
+          name: storage-config
       volumes:
       - name: psql-secrets
         secret:
+          defaultMode: 420
           optional: false
           secretName: storage-psql
       - name: refresh-token
         secret:
+          defaultMode: 420
           optional: false
           secretName: storage-refresh-token
       - name: cephfs
         persistentVolumeClaim:
           claimName: cephfs
-
-      imagePullSecrets:
-        - name: esci-docker
-
-
+      - configMap:
+          defaultMode: 420
+          name: token-validation
+        name: token-validation
+      - configMap:
+          defaultMode: 256
+          name: storage-config
+          optional: false
+        name: storage-config

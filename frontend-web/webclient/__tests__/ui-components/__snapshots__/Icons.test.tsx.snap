@@ -130,16 +130,14 @@ Array [
       viewBox="0 0 24 24"
       width={24}
     >
-      <g>
-        <path
-          d="M22.24 6.491H1.754C.79 6.491 0 7.407 0 8.525v13.44C0 23.086.79 24 1.754 24h20.491C23.21 24 24 23.084 24 21.966V8.526c-.005-1.12-.795-2.035-1.76-2.035zm-1.345-1.623H3.1c-.385 0-.7-.365-.7-.811 0-.446.315-.812.7-.812h17.796c.385 0 .7.366.7.812 0 .446-.315.811-.7.811zm-1.54-3.245H4.64c-.35 0-.64-.336-.64-.742V.74c0-.405.29-.741.64-.741h14.717c.35 0 .64.336.64.742V.88c0 .406-.29.742-.64.742z"
-          fillRule="nonzero"
-        />
-        <path
-          d="M8 10.567c0-.208.118-.387.326-.491a.704.704 0 0 1 .65.004l8.703 4.432c.205.104.321.28.321.487 0 .205-.116.384-.321.488l-8.702 4.432a.717.717 0 0 1-.65.004C8.117 19.819 8 19.64 8 19.43v-8.864z"
-          fill={null}
-        />
-      </g>
+      <path
+        d="M22.24 6.491H1.754C.79 6.491 0 7.407 0 8.525v13.44C0 23.086.79 24 1.754 24h20.491C23.21 24 24 23.084 24 21.966V8.526c-.005-1.12-.795-2.035-1.76-2.035zm-1.345-1.623H3.1c-.385 0-.7-.365-.7-.811 0-.446.315-.812.7-.812h17.796c.385 0 .7.366.7.812 0 .446-.315.811-.7.811zm-1.54-3.245H4.64c-.35 0-.64-.336-.64-.742V.74c0-.405.29-.741.64-.741h14.717c.35 0 .64.336.64.742V.88c0 .406-.29.742-.64.742z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M8 10.567c0-.208.118-.387.326-.491a.704.704 0 0 1 .65.004l8.703 4.432c.205.104.321.28.321.487 0 .205-.116.384-.321.488l-8.702 4.432a.717.717 0 0 1-.65.004C8.117 19.819 8 19.64 8 19.43v-8.864z"
+        fill={null}
+      />
     </svg>
     , 
   </span>,
@@ -508,6 +506,35 @@ Array [
 
 <span>
     <span>
+      cloudTryingItsBest
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 400 200"
+      width={24}
+    >
+      <path
+        d="M304 100c16.39 0 42.93-4.04 49.21 16 1.91 6.11 1.79 12.68 1.79 19 22.02.5 28 25.33 18.2 38.99-6.31 8.8-16.17 9.99-26.2 10.01H60c-6.43-.01-14.47-.59-20-4.13-11.06-7.09-13.82-24.01-6.87-34.87 2.4-3.74 5.79-6.69 9.87-8.47 4.09-1.78 7.21-1.17 8.98-3.84 1.47-2.22.99-8.85 1.02-11.69.05-3.67.59-8.46 1.52-12C59.3 90.75 78.18 92 93 92c0-8.11-.64-20.55 2.13-28 7.11-19.13 33.51-14.97 49.87-15 12.15-.02 11.83-4.32 22-10.13 7.29-4.16 16.77-7.39 25-9.06 20.97-4.26 46.45-2.52 66 6.5 10.11 4.66 13.98 9.28 18 11.39 6.67 3.51 16.35.57 23.87 12.3 5.66 8.85 4.13 29.23 4.13 40z"
+        fill="currentcolor"
+        stroke="#000"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
       copy
     </span>
     : 
@@ -522,14 +549,11 @@ Array [
       width={24}
     >
       <path
-        d="M0 16h3v5h1.5v3H2.244A2.271 2.271 0 0 1 0 21.743V16zM4.5 3H3v5H0V2.258A2.245 2.245 0 0 1 2.244 0H4.5v3z"
+        d="M21.757 0A2.26 2.26 0 0 1 24 2.257v19.485c0 1.226-.955 2.208-2.244 2.258H8.245A2.271 2.271 0 0 1 6 21.742V17h3v4h12V3H11V0h10.756z"
         fill={null}
       />
       <path
-        d="M24 2.258v19.485a2.244 2.244 0 0 1-2.244 2.258H8.244A2.27 2.27 0 0 1 6 21.743V2.258A2.244 2.244 0 0 1 8.244.001h13.512A2.26 2.26 0 0 1 24 2.258zM9 3.001v18h12V3H9zM6 4.5v15h3v-15H6z"
-      />
-      <path
-        d="M6 10.5H1.5v3H6V18h3v-4.5h4.5v-3H9V6H6v4.5z"
+        d="M4.875 5.25H0v3.5h4.875V14h3.25V8.75H13v-3.5H8.125V0h-3.25v5.25z"
       />
     </svg>
     , 
@@ -591,11 +615,11 @@ Array [
       width={24}
     >
       <path
-        d="M5.098 13.761l.013 2.753c-1.915-.006-3.74-1.262-4.582-3.047-.674-1.425-.703-3.147-.095-4.608.481-1.153 1.339-2.134 2.418-2.724 0 0 .085-.327.176-.582.541-1.52 1.892-2.724 3.451-2.956.399-.059.805-.057 1.204.003C9.098.978 11.15.02 13.27 0h.106c3.28.03 6.384 2.381 7.276 5.772.03.114.067.278.067.278 2.114.868 3.52 3.302 3.246 5.663-.296 2.559-2.47 4.773-5.052 4.801l-.019-2.753c1.355-.014 2.53-1.412 2.435-2.864-.074-1.133-.906-2.197-2.004-2.41l-.996-.186-.113-1.054c-.269-2.378-2.303-4.375-4.648-4.49a4.736 4.736 0 0 0-.178-.004l-.08-.001c-1.563.01-3.094.827-4.007 2.16l-.631.935c-.724-.303-1.454-.728-2.162-.425-.628.268-1.067.95-1.088 1.664l-.018 1.01c-.675.223-1.37.389-1.896.915-.686.685-1.008 1.746-.771 2.714.27 1.102 1.241 2.024 2.361 2.036z"
+        d="M9 21h12V3H11V0h10.757A2.261 2.261 0 0 1 24 2.26v19.485A2.245 2.245 0 0 1 21.757 24H8.245A2.271 2.271 0 0 1 6 21.744V18h3v3z"
         fill={null}
       />
       <path
-        d="M12 17.5l6-7.5H6l6 7.5zM1.002 21h22v3h-22z"
+        d="M6 16l6-7H7.998V0H4v9H0l6 7z"
       />
     </svg>
     , 
@@ -751,12 +775,48 @@ Array [
       fill="currentcolor"
       fillRule="evenodd"
       height={24}
-      viewBox="0 0 24 22"
+      viewBox="0 0 25 23"
       width={24}
     >
       <path
-        d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-        fillRule="nonzero"
+        d="M0 1.5A1.503 1.503 0 0 1 1.5 0H9l3 4h10.5A1.5 1.5 0 0 1 24 5.5V8H0V1.5z"
+        fill={null}
+      />
+      <path
+        d="M0 7.5A1.5 1.5 0 0 1 1.5 6h21A1.5 1.5 0 0 1 24 7.5l.001 13.5a1.002 1.002 0 0 1-1 1H1a1 1 0 0 1-1-1V7.5z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      ftFolderAlt
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 23"
+      width={24}
+    >
+      <path
+        d="M0 4.5A1.5 1.5 0 0 1 1.5 3h21A1.5 1.5 0 0 1 24 4.5l.001 3.5h-24V4.5z"
+        fill={null}
+      />
+      <path
+        d="M0 1.5A1.503 1.503 0 0 1 1.5 0H9l3 6h10.501a1.5 1.5 0 0 1 1.5 1.5V21a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V1.5z"
       />
     </svg>
     , 
@@ -781,17 +841,19 @@ Array [
       fill="currentcolor"
       fillRule="evenodd"
       height={24}
-      viewBox="0 0 24 22"
+      viewBox="0 0 25 23"
       width={24}
     >
       <path
-        d="M0 21.312c0 .379.27.688.6.688h22.8c.33 0 .6-.31.6-.688v-16.5c0-.378-.27-.687-.6-.687H10.8L7.2 0H.6C.27 0 0 .31 0 .687v20.625z"
-        fillRule="nonzero"
+        d="M0 1.5A1.503 1.503 0 0 1 1.5 0H9l3 4h10.5A1.5 1.5 0 0 1 24 5.5V8H0V1.5z"
+        fill={null}
       />
       <path
-        d="M9.455 15.01l-2.354-2.6L5 14.546l4.454 4.455 9.546-9.546-2.1-2.145-7.446 7.7z"
+        d="M0 7.5A1.5 1.5 0 0 1 1.5 6h21A1.5 1.5 0 0 1 24 7.5l.001 13.5a1.002 1.002 0 0 1-1 1H1a1 1 0 0 1-1-1V7.5z"
+      />
+      <path
+        d="M12 8l5.196 3v6L12 20l-5.196-3v-6L12 8z"
         fill={null}
-        fillRule="nonzero"
       />
     </svg>
     , 
@@ -1063,6 +1125,1170 @@ Array [
 
 <span>
     <span>
+      logoCloud
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      strokeLinecap="round"
+      viewBox="0 0 2303 1592"
+      width={24}
+    >
+      <g
+        transform="matrix(1 0 0 1 -3326.345 -9939.357)"
+      >
+        <path
+          d="M4260.64 10192.9c408.01-502.67 970.59-49.4 870.14 365.4 849.47 156.7 402.84 1249.7-270.63 855.9-153.84 94.6-245.32 96.5-423 45.1-1069.34 187.4-1397.47-510.4-740.96-792.9-15.92-105.7 34.43-569.1 564.45-473.5z"
+          fill="url(#logo_cloud_svg___Linear1)"
+        />
+        <clipPath
+          id="logo_cloud_svg__a"
+        >
+          <path
+            d="M4260.64 10192.9c408.01-502.67 970.59-49.4 870.14 365.4 849.47 156.7 402.84 1249.7-270.63 855.9-153.84 94.6-245.32 96.5-423 45.1-1069.34 187.4-1397.47-510.4-740.96-792.9-15.92-105.7 34.43-569.1 564.45-473.5z"
+          />
+        </clipPath>
+        <g
+          clipPath="url(#logo_cloud_svg__a)"
+        >
+          <path
+            d="M4196.59 7489.24l-102.29 472.45-460.29-265.75 562.58-206.7z"
+            fill="url(#logo_cloud_svg___Linear3)"
+            transform="translate(-429.175 3495.19)"
+          />
+          <path
+            d="M3940.87 7105.39l255.72 383.85-562.58 206.7 306.86-590.55z"
+            fill="url(#logo_cloud_svg___Linear4)"
+            transform="translate(-429.175 3495.19)"
+          />
+          <path
+            d="M4452.3 7400.66l-255.71 88.58-255.72-383.85 511.43 295.27z"
+            fill="url(#logo_cloud_svg___Linear5)"
+            transform="translate(-429.175 3495.19)"
+          />
+          <path
+            d="M4452.3 7991.21l-255.71-501.97-102.29 472.45 358 29.52z"
+            fill="url(#logo_cloud_svg___Linear6)"
+            transform="translate(-429.175 3495.19)"
+          />
+          <path
+            d="M4452.3 7400.66l-255.71 88.58 255.71 501.97v-590.55z"
+            fill="url(#logo_cloud_svg___Linear7)"
+            transform="translate(-429.175 3495.19)"
+          />
+          <path
+            d="M3634.01 7695.94l306.86-590.55-511.43 295.27 204.57 295.28z"
+            fill="url(#logo_cloud_svg___Linear8)"
+            transform="rotate(120 3228.757 9614.923)"
+          />
+          <path
+            d="M3429.44 7991.21l204.57-295.27-204.57-295.28v590.55z"
+            fill="url(#logo_cloud_svg___Linear9)"
+            transform="rotate(120 3228.757 9614.923)"
+          />
+          <path
+            d="M3940.87 8286.49l-306.86-590.55-204.57 295.27 511.43 295.28z"
+            fill="url(#logo_cloud_svg___Linear10)"
+            transform="rotate(120 3228.757 9614.923)"
+          />
+          <path
+            d="M3940.87 8286.49l153.43-324.8-460.29-265.75 306.86 590.55z"
+            fill="url(#logo_cloud_svg___Linear11)"
+            transform="rotate(120 3228.757 9614.923)"
+          />
+          <path
+            d="M4452.3 7991.21l-358-29.52-153.43 324.8 511.43-295.28z"
+            fill="url(#logo_cloud_svg___Linear12)"
+            transform="rotate(120 3228.757 9614.923)"
+          />
+          <path
+            d="M4196.59 7489.24l-102.29 472.45-460.29-265.75 562.58-206.7z"
+            fill="url(#logo_cloud_svg___Linear13)"
+            transform="rotate(120 3228.757 9614.923)"
+          />
+          <path
+            d="M3940.87 7105.39l255.72 383.85-562.58 206.7 306.86-590.55z"
+            fill="url(#logo_cloud_svg___Linear14)"
+            transform="rotate(120 3228.757 9614.923)"
+          />
+          <path
+            d="M4452.3 7991.21l-255.71-501.97-102.29 472.45 358 29.52z"
+            fill="url(#logo_cloud_svg___Linear15)"
+            transform="rotate(120 3228.757 9614.923)"
+          />
+          <path
+            d="M4196.59 7489.24l-102.29 472.45-460.29-265.75 562.58-206.7z"
+            fill="url(#logo_cloud_svg___Linear16)"
+            transform="rotate(-120 5758.123 8976.88)"
+          />
+          <path
+            d="M3940.87 7105.39l255.72 383.85-562.58 206.7 306.86-590.55z"
+            fill="url(#logo_cloud_svg___Linear17)"
+            transform="rotate(-120 5758.123 8976.88)"
+          />
+          <path
+            d="M4452.3 7400.66l-255.71 88.58-255.72-383.85 511.43 295.27z"
+            fill="url(#logo_cloud_svg___Linear18)"
+            transform="rotate(-120 5758.123 8976.88)"
+          />
+          <path
+            d="M4452.3 7991.21l-255.71-501.97-102.29 472.45 358 29.52z"
+            fill="url(#logo_cloud_svg___Linear19)"
+            transform="rotate(-120 5758.123 8976.88)"
+          />
+          <path
+            d="M4452.3 7400.66l-255.71 88.58 255.71 501.97v-590.55z"
+            fill="url(#logo_cloud_svg___Linear20)"
+            transform="rotate(-120 5758.123 8976.88)"
+          />
+          <path
+            d="M3429.44 7991.21l204.57-295.27-204.57-295.28v590.55z"
+            fill="url(#logo_cloud_svg___Linear21)"
+            transform="rotate(60 2233.655 9957.683)"
+          />
+          <path
+            d="M3940.87 8286.49l-306.86-590.55-204.57 295.27 511.43 295.28z"
+            fill="url(#logo_cloud_svg___Linear22)"
+            transform="rotate(60 2233.655 9957.683)"
+          />
+          <path
+            d="M3940.87 8286.49l153.43-324.8-460.29-265.75 306.86 590.55z"
+            fill="url(#logo_cloud_svg___Linear23)"
+            transform="rotate(60 2233.655 9957.683)"
+          />
+          <path
+            d="M4452.3 7991.21l-358-29.52-153.43 324.8 511.43-295.28z"
+            fill="url(#logo_cloud_svg___Linear24)"
+            transform="rotate(60 2233.655 9957.683)"
+          />
+          <path
+            d="M4196.59 7489.24l-102.29 472.45-460.29-265.75 562.58-206.7z"
+            fill="url(#logo_cloud_svg___Linear25)"
+            transform="rotate(60 2233.655 9957.683)"
+          />
+          <path
+            d="M4452.3 7991.21l-255.71-501.97-102.29 472.45 358 29.52z"
+            fill="url(#logo_cloud_svg___Linear26)"
+            transform="rotate(60 2233.655 9957.683)"
+          />
+          <path
+            d="M4452.3 7400.66l-255.71 88.58 255.71 501.97v-590.55z"
+            fill="url(#logo_cloud_svg___Linear27)"
+            transform="rotate(60 2233.655 9957.683)"
+          />
+          <path
+            d="M3634.01 7695.94l306.86-590.55-511.43 295.27 204.57 295.28z"
+            fill="url(#logo_cloud_svg___Linear28)"
+            transform="rotate(-60 6241.772 8929.38)"
+          />
+          <path
+            d="M3429.44 7991.21l204.57-295.27-204.57-295.28v590.55z"
+            fill="url(#logo_cloud_svg___Linear29)"
+            transform="rotate(-60 6241.772 8929.38)"
+          />
+          <path
+            d="M3940.87 8286.49l-306.86-590.55-204.57 295.27 511.43 295.28z"
+            fill="url(#logo_cloud_svg___Linear30)"
+            transform="rotate(-60 6241.772 8929.38)"
+          />
+          <path
+            d="M3940.87 8286.49l153.43-324.8-460.29-265.75 306.86 590.55z"
+            fill="url(#logo_cloud_svg___Linear31)"
+            transform="rotate(-60 6241.772 8929.38)"
+          />
+          <path
+            d="M4452.3 7991.21l-358-29.52-153.43 324.8 511.43-295.28z"
+            fill="url(#logo_cloud_svg___Linear32)"
+            transform="rotate(-60 6241.772 8929.38)"
+          />
+          <path
+            d="M4196.59 7489.24l-102.29 472.45-460.29-265.75 562.58-206.7z"
+            fill="url(#logo_cloud_svg___Linear33)"
+            transform="rotate(-60 6241.772 8929.38)"
+          />
+          <path
+            d="M3940.87 7105.39l255.72 383.85-562.58 206.7 306.86-590.55z"
+            fill="url(#logo_cloud_svg___Linear34)"
+            transform="rotate(-60 6241.772 8929.38)"
+          />
+          <path
+            d="M4452.3 7991.21l-255.71-501.97-102.29 472.45 358 29.52z"
+            fill="url(#logo_cloud_svg___Linear35)"
+            transform="rotate(-60 6241.772 8929.38)"
+          />
+        </g>
+        <path
+          d="M4260.64 10192.9c408.01-502.67 970.59-49.4 870.14 365.4 849.47 156.7 402.84 1249.7-270.63 855.9-153.84 94.6-245.32 96.5-423 45.1-1069.34 187.4-1397.47-510.4-740.96-792.9-15.92-105.7 34.43-569.1 564.45-473.5z"
+          fill="none"
+          stroke="#fff"
+          strokeWidth={50}
+        />
+      </g>
+      <defs>
+        <linearGradient
+          gradientTransform="matrix(2235.08 0 0 1533.9 3358.27 10738.3)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear1"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#0081d5"
+          />
+          <stop
+            offset={1}
+            stopColor="#3039e9"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-90 5968.835 1925.675) scale(343.498)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear3"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#5494ec"
+          />
+          <stop
+            offset={0.46}
+            stopColor="#2366c4"
+          />
+          <stop
+            offset={1}
+            stopColor="#1559b9"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(455.028) rotate(-67.007 16.79 2.07)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear4"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#1e71e6"
+          />
+          <stop
+            offset={1}
+            stopColor="#10448d"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(460.207) rotate(27.597 -27.414 25.698)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear5"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124ea2"
+          />
+          <stop
+            offset={1}
+            stopColor="#4086ea"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-356.846) rotate(69.89 9.809 -19.82)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear6"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#dbe8fb"
+          />
+          <stop
+            offset={1}
+            stopColor="#1763cd"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-530.3906) rotate(86.711 3.725 -11.811)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear7"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#0e3e80"
+          />
+          <stop
+            offset={1}
+            stopColor="#2475e7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-17.467 25780.093 -7698.299) scale(374.554)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear8"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#a1c4f5"
+          />
+          <stop
+            offset={1}
+            stopColor="#2a79e7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(163.849) rotate(-13.76 204.771 -63.999)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear9"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#649dee"
+          />
+          <stop
+            offset={1}
+            stopColor="#b8d3f7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-137.158 3523.525 3336.152) scale(383.627)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear10"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124fa3"
+          />
+          <stop
+            offset={1}
+            stopColor="#1764d1"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(278.2815) rotate(-3.202 522.325 -229.105)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear11"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124fa3"
+          />
+          <stop
+            offset={0.58}
+            stopColor="#1b5ab1"
+          />
+          <stop
+            offset={0.8}
+            stopColor="#2e71ce"
+          />
+          <stop
+            offset={1}
+            stopColor="#4087ea"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-27.959 18409.282 -3961.098) scale(503.97)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear12"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#2f7ce8"
+          />
+          <stop
+            offset={1}
+            stopColor="#a7c7f5"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-90 5968.835 1925.675) scale(343.498)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear13"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#5494ec"
+          />
+          <stop
+            offset={0.46}
+            stopColor="#2366c4"
+          />
+          <stop
+            offset={1}
+            stopColor="#1559b9"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(455.028) rotate(-67.007 16.79 2.07)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear14"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#1e71e6"
+          />
+          <stop
+            offset={1}
+            stopColor="#10448d"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-356.846) rotate(69.89 9.809 -19.82)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear15"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#dbe8fb"
+          />
+          <stop
+            offset={1}
+            stopColor="#1763cd"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-90 5968.835 1925.675) scale(343.498)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear16"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#5494ec"
+          />
+          <stop
+            offset={0.46}
+            stopColor="#2366c4"
+          />
+          <stop
+            offset={1}
+            stopColor="#1559b9"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(455.028) rotate(-67.007 16.79 2.07)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear17"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#1e71e6"
+          />
+          <stop
+            offset={1}
+            stopColor="#10448d"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(460.207) rotate(27.597 -27.414 25.698)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear18"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124ea2"
+          />
+          <stop
+            offset={1}
+            stopColor="#4086ea"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-356.846) rotate(69.89 9.809 -19.82)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear19"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#dbe8fb"
+          />
+          <stop
+            offset={1}
+            stopColor="#1763cd"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-530.3906) rotate(86.711 3.725 -11.811)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear20"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#0e3e80"
+          />
+          <stop
+            offset={1}
+            stopColor="#2475e7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(163.849) rotate(-13.76 204.771 -63.999)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear21"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#649dee"
+          />
+          <stop
+            offset={1}
+            stopColor="#b8d3f7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-137.158 3523.525 3336.152) scale(383.627)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear22"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124fa3"
+          />
+          <stop
+            offset={1}
+            stopColor="#1764d1"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(278.2815) rotate(-3.202 522.325 -229.105)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear23"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124fa3"
+          />
+          <stop
+            offset={0.58}
+            stopColor="#1b5ab1"
+          />
+          <stop
+            offset={0.8}
+            stopColor="#2e71ce"
+          />
+          <stop
+            offset={1}
+            stopColor="#4087ea"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-27.959 18409.282 -3961.098) scale(503.97)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear24"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#2f7ce8"
+          />
+          <stop
+            offset={1}
+            stopColor="#a7c7f5"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-90 5968.835 1925.675) scale(343.498)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear25"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#5494ec"
+          />
+          <stop
+            offset={0.46}
+            stopColor="#2366c4"
+          />
+          <stop
+            offset={1}
+            stopColor="#1559b9"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-356.846) rotate(69.89 9.809 -19.82)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear26"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#dbe8fb"
+          />
+          <stop
+            offset={1}
+            stopColor="#1763cd"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-530.3906) rotate(86.711 3.725 -11.811)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear27"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#0e3e80"
+          />
+          <stop
+            offset={1}
+            stopColor="#2475e7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-17.467 25780.093 -7698.299) scale(374.554)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear28"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#a1c4f5"
+          />
+          <stop
+            offset={1}
+            stopColor="#2a79e7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(163.849) rotate(-13.76 204.771 -63.999)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear29"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#649dee"
+          />
+          <stop
+            offset={1}
+            stopColor="#b8d3f7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-137.158 3523.525 3336.152) scale(383.627)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear30"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124fa3"
+          />
+          <stop
+            offset={1}
+            stopColor="#1764d1"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(278.2815) rotate(-3.202 522.325 -229.105)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear31"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124fa3"
+          />
+          <stop
+            offset={0.58}
+            stopColor="#1b5ab1"
+          />
+          <stop
+            offset={0.8}
+            stopColor="#2e71ce"
+          />
+          <stop
+            offset={1}
+            stopColor="#4087ea"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-27.959 18409.282 -3961.098) scale(503.97)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear32"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#2f7ce8"
+          />
+          <stop
+            offset={1}
+            stopColor="#a7c7f5"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-90 5968.835 1925.675) scale(343.498)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear33"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#5494ec"
+          />
+          <stop
+            offset={0.46}
+            stopColor="#2366c4"
+          />
+          <stop
+            offset={1}
+            stopColor="#1559b9"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(455.028) rotate(-67.007 16.79 2.07)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear34"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#1e71e6"
+          />
+          <stop
+            offset={1}
+            stopColor="#10448d"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-356.846) rotate(69.89 9.809 -19.82)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_cloud_svg___Linear35"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#dbe8fb"
+          />
+          <stop
+            offset={1}
+            stopColor="#1763cd"
+          />
+        </linearGradient>
+      </defs>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      logoEsc
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      strokeLinecap="round"
+      viewBox="0 0 1276 1458"
+      width={24}
+    >
+      <path
+        d="M3634.01 7695.94l306.86-590.55-511.43 295.27 204.57 295.28z"
+        fill="url(#logo_esc_svg___Linear1)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M3429.44 7991.21l204.57-295.27-204.57-295.28v590.55z"
+        fill="url(#logo_esc_svg___Linear2)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M3940.87 8286.49l-306.86-590.55-204.57 295.27 511.43 295.28z"
+        fill="url(#logo_esc_svg___Linear3)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M3940.87 8286.49l153.43-324.8-460.29-265.75 306.86 590.55z"
+        fill="url(#logo_esc_svg___Linear4)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M4452.3 7991.21l-358-29.52-153.43 324.8 511.43-295.28z"
+        fill="url(#logo_esc_svg___Linear5)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M4196.59 7489.24l-102.29 472.45-460.29-265.75 562.58-206.7z"
+        fill="url(#logo_esc_svg___Linear6)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M3940.87 7105.39l255.72 383.85-562.58 206.7 306.86-590.55z"
+        fill="url(#logo_esc_svg___Linear7)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M4452.3 7400.66l-255.71 88.58-255.72-383.85 511.43 295.27z"
+        fill="url(#logo_esc_svg___Linear8)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M4452.3 7991.21l-255.71-501.97-102.29 472.45 358 29.52z"
+        fill="url(#logo_esc_svg___Linear9)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <path
+        d="M4452.3 7400.66l-255.71 88.58 255.71 501.97v-590.55z"
+        fill="url(#logo_esc_svg___Linear10)"
+        transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+      />
+      <g
+        stroke="#fff"
+      >
+        <path
+          d="M3582.87 7725.47l358-708.67-588.15 339.57 230.15 369.1zm-230.15 310.03l588.15 339.57-358-649.6-230.15 310.03zm588.15-1018.7l-358 708.67 664.86-265.75-306.86-442.92z"
+          fill="none"
+          strokeOpacity={0.4}
+          strokeWidth={25}
+          transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+        />
+        <path
+          d="M3352.72 8035.5l230.15-310.03-230.15-369.1v679.13zm741.58-14.76l153.43-561.02-664.86 265.75 511.43 295.27z"
+          fill="none"
+          strokeOpacity={0.4}
+          strokeWidth={25}
+          transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+        />
+        <path
+          d="M3582.87 7725.47l511.43 295.27-153.43 354.33-358-649.6zm358-708.67l306.86 442.92 281.29-103.35-588.15-339.57zm588.15 1018.7l-281.29-575.78-153.43 561.02 434.72 14.76z"
+          fill="none"
+          strokeOpacity={0.4}
+          strokeWidth={25}
+          transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+        />
+        <path
+          d="M3940.87 8375.07l153.43-354.33 434.72 14.76-588.15 339.57zm588.15-1018.7v679.13l-281.29-575.78 281.29-103.35z"
+          fill="none"
+          strokeOpacity={0.4}
+          strokeWidth={25}
+          transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+        />
+        <path
+          d="M3940.87 7016.8l588.15 339.57v679.13l-588.15 339.57-588.15-339.57v-679.13l588.15-339.57z"
+          fill="none"
+          strokeOpacity={0.4}
+          strokeWidth={25}
+          transform="matrix(1 0 0 1 -3303.051 -6967.127)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.31}
+          transform="matrix(1.61658 0 0 1.61658 -5732.917 -11341.288)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.31}
+          transform="matrix(1.61658 0 0 1.61658 -5144.767 -10322.588)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.31}
+          transform="matrix(1.61658 0 0 1.61658 -5732.917 -9983.018)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.31}
+          transform="matrix(1.61658 0 0 1.61658 -6321.056 -10322.588)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.31}
+          transform="matrix(1.61658 0 0 1.61658 -6321.056 -11001.718)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.31}
+          transform="matrix(1.61658 0 0 1.61658 -5144.767 -11001.718)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.02}
+          transform="matrix(2.07846 0 0 2.07846 -7246.265 -14152.938)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.02}
+          transform="matrix(2.07846 0 0 2.07846 -7399.695 -13591.908)"
+        />
+        <circle
+          cx={3940.87}
+          cy={7046.33}
+          fill="#fcfcfc"
+          r={25.572}
+          strokeOpacity={0.569}
+          strokeWidth={10.02}
+          transform="matrix(2.07846 0 0 2.07846 -7911.124 -13887.188)"
+        />
+      </g>
+      <defs>
+        <linearGradient
+          gradientTransform="rotate(-17.467 25780.093 -7698.299) scale(374.554)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear1"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#a1c4f5"
+          />
+          <stop
+            offset={1}
+            stopColor="#2a79e7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(163.849) rotate(-13.76 204.771 -63.999)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear2"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#649dee"
+          />
+          <stop
+            offset={1}
+            stopColor="#b8d3f7"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-137.158 3523.525 3336.152) scale(383.627)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear3"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124fa3"
+          />
+          <stop
+            offset={1}
+            stopColor="#1764d1"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(278.2815) rotate(-3.202 522.325 -229.105)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear4"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124fa3"
+          />
+          <stop
+            offset={0.58}
+            stopColor="#1b5ab1"
+          />
+          <stop
+            offset={0.8}
+            stopColor="#2e71ce"
+          />
+          <stop
+            offset={1}
+            stopColor="#4087ea"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-27.959 18409.282 -3961.098) scale(503.97)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear5"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#2f7ce8"
+          />
+          <stop
+            offset={1}
+            stopColor="#a7c7f5"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="rotate(-90 5968.835 1925.675) scale(343.498)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear6"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#5494ec"
+          />
+          <stop
+            offset={0.46}
+            stopColor="#2366c4"
+          />
+          <stop
+            offset={1}
+            stopColor="#1559b9"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(455.028) rotate(-67.007 16.79 2.07)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear7"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#1e71e6"
+          />
+          <stop
+            offset={1}
+            stopColor="#10448d"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(460.207) rotate(27.597 -27.414 25.698)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear8"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#124ea2"
+          />
+          <stop
+            offset={1}
+            stopColor="#4086ea"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-356.846) rotate(69.89 9.809 -19.82)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear9"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#dbe8fb"
+          />
+          <stop
+            offset={1}
+            stopColor="#1763cd"
+          />
+        </linearGradient>
+        <linearGradient
+          gradientTransform="scale(-530.3906) rotate(86.711 3.725 -11.811)"
+          gradientUnits="userSpaceOnUse"
+          id="logo_esc_svg___Linear10"
+          x2={1}
+        >
+          <stop
+            offset={0}
+            stopColor="#0e3e80"
+          />
+          <stop
+            offset={1}
+            stopColor="#2475e7"
+          />
+        </linearGradient>
+      </defs>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      logoSdu
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 48 13"
+      width={24}
+    >
+      <path
+        d="M0 11.197c1.13 1.038 2.497 1.65 3.973 1.65 1.98 0 3.724-1.35 3.724-3.298 0-3.706-5.075-3.158-5.075-4.933 0-.848.896-1.194 1.697-1.194.723 0 1.46.314 1.9.723L7.32 2.574c-1.036-.77-2.074-1.037-3.19-1.037-1.821 0-3.628 1.13-3.628 3.095 0 3.508 5.074 2.764 5.074 4.949 0 .8-.66 1.38-1.603 1.38-1.004 0-1.962-.518-2.591-1.208L0 11.197zm16.806-4.004c0-1.328-.76-3.614-3.613-3.614h-1.57v7.227h1.57c2.852 0 3.613-2.285 3.613-3.613m2.12 0c0 .417-.05 5.498-5.969 5.498H9.502V1.694h3.455c5.92 0 5.97 5.081 5.97 5.499m11.15-5.499h-2.12v6.52c0 2.706-2.295 2.748-2.591 2.748-.296 0-2.591-.042-2.591-2.75l-.001-6.518h-2.12v6.362c0 3.41 2.24 4.792 4.712 4.792 2.472 0 4.712-1.383 4.712-4.792V1.694zM43.283 0c-4.4.958-6.092 3.278-6.092 4.994C41.787 4.44 41.225 1.556 43.282 0M48 7.783c-.935.226-2.743.505-3.948.505-2.487 0-3.042-1.419-3.165-2.032-.971-.22-2.571-.104-3.341.072.759.166 1.208.754 1.344 1.837.09-.032.47-.156.864-.156.844 0 1.559.973 1.559 2.051 0 1.596-.896 2.779-1.762 2.779-.59 0-.774-.288-.974-.288-.199 0-.36.297-.927.297-.882 0-1.853-1.307-1.853-2.794 0-.685.368-2.056 1.823-2.056.372 0 .56.098.606.124-.025-.75-.564-1.425-1.535-1.425-.826 0-2.83.796-4.28 2.023l-.43-.601c1.364-1.023 4.294-2.488 7.689-2.488.47 0 .896.034 1.254.093.164-.437.677-1.285 2.19-1.285 2.375 0 4.127 2.019 4.886 3.344"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
       logout
     </span>
     : 
@@ -1106,17 +2332,47 @@ Array [
       fill="currentcolor"
       fillRule="evenodd"
       height={24}
-      viewBox="0 0 24 24"
+      viewBox="0 0 24 21"
       width={24}
     >
       <path
-        d="M.004 12.86l6.86 2.573L7.718 24l4.286-6 6 6 6-24-24 12.86z"
-        fillRule="nonzero"
+        d="M8.978 19.12l5.017-5.335-4.493-.035-.524 5.37z"
+        fill="#798aa0"
       />
       <path
-        d="M17.018 20.129l-4.783-4.817L18.864 6l-10.46 7.95-3.963-1.43 16.788-9.012-4.211 16.62z"
+        d="M.585 8.69a.916.916 0 0 0 .042 1.727l7.966 2.654 9.692 7.238a1 1 0 0 0 1.576-.587l4.111-18.697a.844.844 0 0 0-1.129-.968L.585 8.69z"
+      />
+      <path
+        d="M6.391 12.337l12.78-8.124a.237.237 0 0 1 .288.375c-3.382 3.11-9.957 9.162-9.957 9.162l-.437 5.17a.34.34 0 0 1-.663.07l-2.01-6.653z"
         fill={null}
-        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      moon
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 500 500"
+      width={24}
+    >
+      <path
+        d="M325 120l7.55 17c7.13 17.96 11.32 37.69 11.45 57v18c-.05 9.88-2.7 23.34-5.13 33-12.99 51.73-50.14 96.26-100.87 114.31-20.48 7.29-32.78 7.85-54 7.69-17.92-.13-23.2-4.09-34-5 7.5 9.99 28.31 21.24 40 26.28 50.9 21.96 111.71 13.47 155-20.95 57.14-45.42 71.79-129.46 35.85-192.33-9.43-16.48-22.71-32.35-37.85-43.87-5.35-4.07-11.58-9.09-18-11.13z"
+        stroke="#000"
       />
     </svg>
     , 
@@ -1145,14 +2401,44 @@ Array [
       width={24}
     >
       <path
-        d="M0 18h3v3h1.5v3H2.244A2.271 2.271 0 0 1 0 21.745V18zM4.5 3H3v5H0V2.26A2.245 2.245 0 0 1 2.244 0H4.5v3z"
+        d="M15 0h6.758a2.261 2.261 0 0 1 2.244 2.259v19.485c0 1.225-.955 2.207-2.244 2.257H8.246a2.27 2.27 0 0 1-2.244-2.257V14h3v7h12V3H15V0z"
         fill={null}
       />
       <path
-        d="M24 2.258v19.485a2.244 2.244 0 0 1-2.244 2.258H8.244A2.27 2.27 0 0 1 6 21.743V2.258A2.244 2.244 0 0 1 8.244.001h13.512A2.26 2.26 0 0 1 24 2.258zM9 3.001v18h12V3H9zM6 8v10h3V8H6z"
+        d="M16 6.001l-7.001-6v4h-9v4h9v4l7-6z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      newFolder
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 25"
+      width={24}
+    >
+      <path
+        d="M.005 23.025L.002 23V1.5a1.504 1.504 0 0 1 1.5-1.5h7.5l3 4h10.5a1.503 1.503 0 0 1 1.5 1.5V23a1 1 0 0 1-1 1h-22 10v-3h10V7h-11l-3-4h-4v10H.006v10.025z"
+        fill={null}
       />
       <path
-        d="M18 13l-7-6v4H2v4h9v4l7-6z"
+        d="M4.875 15.25H0v3.5h4.875V24h3.25v-5.25H13v-3.5H8.125V10h-3.25v5.25z"
       />
     </svg>
     , 
@@ -1547,18 +2833,18 @@ Array [
       viewBox="0 0 24 24"
       width={24}
     >
-      <g>
-        <path
-          d="M4.5 24H2.244A2.27 2.27 0 0 1 0 21.744V2.258A2.244 2.244 0 0 1 2.244.001H4.5v3H3v18h1.5v3z"
-          fill={null}
-        />
-        <path
-          d="M21.755 24H8.244A2.272 2.272 0 0 1 6 21.744V2.258A2.244 2.244 0 0 1 8.244.001h13.511A2.26 2.26 0 0 1 24 2.258v19.485c0 1.223-.951 2.202-2.245 2.258zM21 21V3H9v18h12z"
-        />
-        <path
-          d="M19.846 17.594h-2.502l-.725-2.33h-2.995l-.718 2.33h-2.372l3.575-11.61h2.139l3.598 11.61zm-3.166-3.89L15.1 8.61l-1.517 5.093h3.097z"
-        />
-      </g>
+      <path
+        d="M6.002 19v2.743c0 1.225.955 2.207 2.244 2.257h13.512a2.271 2.271 0 0 0 2.244-2.257V2.258A2.245 2.245 0 0 0 21.758 0H8.246a2.261 2.261 0 0 0-2.244 2.258V5h3V3h12v18h-12v-2h-3z"
+      />
+      <path
+        d="M.236 7.15a.752.752 0 0 1 0-1.088l1.828-1.828a.752.752 0 0 1 1.089 0l1.439 1.439-2.917 2.916L.236 7.15z"
+        fill={null}
+        fillRule="nonzero"
+      />
+      <path
+        d="M14.002 15.083V18h-2.916L2.492 9.406 5.408 6.49l8.594 8.593z"
+        fillRule="nonzero"
+      />
     </svg>
     , 
   </span>,
@@ -1645,18 +2931,49 @@ Array [
       viewBox="0 0 24 24"
       width={24}
     >
-      <g>
-        <path
-          d="M0 19h3v2h1.5v3H2.244A2.271 2.271 0 0 1 0 21.743V19zM4.5 3H3v8H0V2.258A2.245 2.245 0 0 1 2.244 0H4.5v3z"
-          fill={null}
-        />
-        <path
-          d="M6 7V2.257A2.245 2.245 0 0 1 8.242 0h13.512A2.26 2.26 0 0 1 24 2.257v19.485c0 1.223-.95 2.203-2.244 2.258H8.243A2.271 2.271 0 0 1 6 21.742V16h3v5h12V3H9v4H6z"
-        />
-        <path
-          d="M19 10.996l-7 6v-4h-1c-3.18 0-7.046 1.93-9 4 .207-3.97 4.715-8 9-8h1v-4l7 6z"
-        />
-      </g>
+      <path
+        d="M6 5V2.258A2.245 2.245 0 0 1 8.246 0h13.512A2.261 2.261 0 0 1 24 2.258v19.485c0 1.225-.956 2.207-2.244 2.257H8.245A2.27 2.27 0 0 1 6 21.743V19h3v2h12V3H9v2H6z"
+        fill={null}
+      />
+      <path
+        d="M16 12.001l-7 6v-4H8c-3.18 0-6.046 1.93-8 4 .207-3.97 3.715-8 8-8h1v-4l7 6z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      shareMenu
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M0 19h3v2h1.5v3H2.244A2.271 2.271 0 0 1 0 21.743V19zM4.5 3H3v8H0V2.258A2.245 2.245 0 0 1 2.244 0H4.5v3z"
+        fill={null}
+      />
+      <path
+        d="M6 7V2.257A2.245 2.245 0 0 1 8.242 0h13.512A2.26 2.26 0 0 1 24 2.257v19.485c0 1.223-.95 2.203-2.244 2.258H8.243A2.271 2.271 0 0 1 6 21.742V16h3v5h12V3H9v4H6z"
+      />
+      <path
+        d="M19 10.996l-7 6v-4h-1c-3.18 0-7.046 1.93-9 4 .207-3.97 4.715-8 9-8h1v-4l7 6z"
+      />
     </svg>
     , 
   </span>,
@@ -1758,6 +3075,37 @@ Array [
 
 <span>
     <span>
+      sun
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 10 10"
+      width={24}
+    >
+      <circle
+        cx={5}
+        cy={5}
+        r={3}
+        stroke="#000"
+        strokeWidth={0}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
       tags
     </span>
     : 
@@ -1836,15 +3184,15 @@ Array [
       fill="currentcolor"
       fillRule="evenodd"
       height={24}
-      viewBox="0 0 24 24"
+      viewBox="0 0 25 24"
       width={24}
     >
       <path
-        d="M5.098 13.761l.012 2.753c-1.914-.006-3.739-1.262-4.582-3.047-.673-1.425-.702-3.147-.094-4.608.481-1.153 1.339-2.134 2.417-2.724 0 0 .086-.327.176-.582C3.57 4.033 4.92 2.83 6.48 2.597c.399-.059.805-.057 1.203.003C9.097.978 11.151.02 13.27 0h.106c3.281.03 6.384 2.381 7.276 5.772.03.114.068.278.068.278 2.114.868 3.52 3.302 3.246 5.663-.296 2.559-2.47 4.773-5.052 4.801l-.02-2.753c1.355-.014 2.53-1.412 2.436-2.864-.075-1.133-.906-2.197-2.005-2.41L18.33 8.3l-.113-1.054c-.27-2.378-2.303-4.375-4.649-4.49a4.736 4.736 0 0 0-.177-.004l-.08-.001c-1.563.01-3.095.827-4.007 2.16l-.632.935c-.724-.303-1.454-.728-2.162-.425-.628.268-1.066.95-1.087 1.664l-.018 1.01c-.675.223-1.37.389-1.896.915-.686.685-1.008 1.746-.771 2.714.27 1.102 1.241 2.024 2.36 2.036z"
+        d="M9.001 21h12V3h-10V0h10.756a2.261 2.261 0 0 1 2.244 2.259v19.485A2.245 2.245 0 0 1 21.757 24H8.245a2.271 2.271 0 0 1-2.244-2.257V18h3v3z"
         fill={null}
       />
       <path
-        d="M11.999 9.999l-6 7.5h12l-6-7.5zM1.002 21h22v3h-22z"
+        d="M6 .001l-6 7h4v9h4v-9h4l-6-7z"
       />
     </svg>
     , 
@@ -1946,11 +3294,11 @@ Array [
       width={24}
     >
       <path
-        d="M10 0L0 4.04v6.546C0 16.641 4.37 22.626 10 24c5.629-1.375 10-7.36 10-13.414V4.041L10 0z"
+        d="M10 0L0 4.041v6.545C0 16.641 4.371 22.625 10 24c5.629-1.375 10-7.359 10-13.414V4.041L10 0zm0 3l7.5 3.031v4.909c0 4.541-3.278 9.029-7.5 10.06-4.222-1.031-7.5-5.519-7.5-10.06V6.031L10 3z"
         fillRule="nonzero"
       />
       <path
-        d="M7.955 13.896l-2.355-2.6-2.1 2.136 4.455 4.454L17.5 8.341l-2.1-2.145-7.445 7.7z"
+        d="M8.5 13.498l-1.85-2.042L5 13.134l3.5 3.5 7.5-7.5-1.65-1.686-5.85 6.05z"
         fill={null}
         fillRule="nonzero"
       />

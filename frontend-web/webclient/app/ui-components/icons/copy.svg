@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
-    <g transform="matrix(1,0,0,1,-428,-488)">
-        <g id="copy" transform="matrix(1.5,0,0,1.5,-367.668,65.3246)">
-            <g transform="matrix(0.666667,0,0,0.666667,186.445,49.7836)">
-                <path d="M516,364L519,364L519,369L520.5,369L520.5,372L518.244,372C517.011,371.991 516.002,370.975 516,369.743L516,364ZM520.5,351L519,351L519,356L516,356L516,350.258C516,349.001 517.005,348 518.244,348L520.5,348L520.5,351Z" style="fill:rgb(131,147,167);"/>
+    <g transform="matrix(1,0,0,1,-620.001,-720)">
+        <g id="copy-no-comp" serif:id="copy no comp" transform="matrix(1.5,0,0,1.5,-175.666,297.324)">
+            <g transform="matrix(0.666667,0,0,0.666667,117.111,-198.216)">
+                <path d="M641.757,720C642.981,720 644.001,721.011 644.001,722.257L644.001,741.742C644.001,742.968 643.046,743.95 641.757,744L628.245,744C627.012,743.991 626.003,742.975 626.001,741.742L626.001,737L629.001,737L629.001,741L641.001,741L641.001,723L631.001,723L631.001,720L641.757,720Z" style="fill:rgb(131,147,167);"/>
             </g>
-            <g transform="matrix(1,0,0,1,522.445,274.784)">
-                <path d="M24,8.505L24,21.495C24,22.333 23.33,23 22.504,23L13.496,23C12.674,22.994 12.001,22.317 12,21.495L12,8.505C12,7.667 12.67,7 13.496,7L22.504,7C23.32,7 24,7.674 24,8.505ZM14,9L14,21L22,21L22,9L14,9ZM12,10L12,20L14,20L14,10L12,10Z" style="fill:rgb(83,101,125);"/>
-            </g>
-            <g transform="matrix(1,0,0,1,522.445,274.784)">
+            <g transform="matrix(1.08333,0,0,1.16667,520.695,268.95)">
                 <path d="M12,14L9,14L9,16L12,16L12,19L14,19L14,16L17,16L17,14L14,14L14,11L12,11L12,14Z" style="fill:rgb(83,101,125);"/>
             </g>
         </g>

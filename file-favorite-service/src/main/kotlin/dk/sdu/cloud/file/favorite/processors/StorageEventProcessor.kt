@@ -4,6 +4,7 @@ import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 
 class StorageEventProcessor(
@@ -18,8 +19,8 @@ class StorageEventProcessor(
             ) { batch ->
 
                 val eventBatch = batch.asSequence()
-                    .filter { event -> event is StorageEvent.Deleted }
-                    .map { it.id }
+                    .filterIsInstance<StorageEvent.Deleted>()
+                    .map { it.file.fileId }
                     .toSet()
 
                 fileFavoriteService.deleteById(eventBatch)

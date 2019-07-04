@@ -100,20 +100,17 @@ interface MicroFeatureFactory<Feature : MicroFeature, Config> {
     fun create(config: Config): Feature
 }
 
-fun Micro.installDefaultFeatures(
-    kafkaConfig: KafkaFeatureConfiguration = KafkaFeatureConfiguration(),
-    kafkaTopicConfig: KafkaTopicFeatureConfiguration = KafkaTopicFeatureConfiguration()
-) {
+fun Micro.installDefaultFeatures() {
+    install(DeinitFeature)
     install(ScriptFeature)
     install(ConfigurationFeature)
     install(ServiceDiscoveryOverrides)
+    install(ServiceInstanceFeature)
     install(DevelopmentOverrides)
     install(KtorServerProviderFeature)
-    install(KafkaFeature, kafkaConfig)
-    install(KafkaTopicFeature, kafkaTopicConfig)
+    install(RedisFeature)
     install(ClientFeature)
     install(TokenValidationFeature)
-    install(ServiceInstanceFeature)
     install(ServerFeature)
 }
 

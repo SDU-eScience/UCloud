@@ -36,7 +36,12 @@ module.exports = {
                 use: "file-loader?limit=10000"
             }, {
                 test: /\.(png|jpg|gif)$/,
-                use: "url-loader?limit=10000"
+                use: [{
+                    loader: "url-loader",
+                    options: {
+                        limit: 10000
+                    }
+                }]
             }
         ]
     },
@@ -58,7 +63,8 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: 'app/index.html',
             baseUrl: baseHref,
-            hash: true
+            hash: true,
+            favicon: "app/Assets/images/favicon.png"
         }),
         new MiniCSSExtractPlugin("[name].[hash:6].css"),
         // Allows overriding inferred information.

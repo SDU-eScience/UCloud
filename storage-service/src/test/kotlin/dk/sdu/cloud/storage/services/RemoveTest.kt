@@ -2,13 +2,17 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.storage.util.createDummyFS
 import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
@@ -24,7 +28,8 @@ class RemoveTest {
         emitter: StorageEventProducer = mockk(relaxed = true)
     ): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root)
-        return Pair(runner, CoreFileSystemService(fs, emitter))
+        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
+        return Pair(runner, CoreFileSystemService(fs, emitter, fileSensitivityService, ClientMock.authenticatedClient))
     }
 
     @Test
@@ -49,10 +54,10 @@ class RemoveTest {
 
             val events = EventServiceMock.messagesForTopic(StorageEvents.events)
 
-            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" }
-            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" }
-            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" }
-            events.any { it is StorageEvent.Deleted && it.path == "/home/user1/folder" }
+            events.any { it is StorageEvent.Deleted && it.file.path == "/home/user1/folder/a" }
+            events.any { it is StorageEvent.Deleted && it.file.path == "/home/user1/folder/b" }
+            events.any { it is StorageEvent.Deleted && it.file.path == "/home/user1/folder/c" }
+            events.any { it is StorageEvent.Deleted && it.file.path == "/home/user1/folder" }
         } finally {
             BackgroundScope.stop()
         }

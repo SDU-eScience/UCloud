@@ -173,7 +173,7 @@ class TokenService<DBSession>(
         log.debug("Looking up user")
         val user = db.withTransaction {
             userDao.findByIdOrNull(it, token.principal.username)
-        } ?: throw ExtensionException.InternalError("Could not find user in database")
+        } ?: throw ExtensionException.InternalError("Could not find user in database (${token.principal.username}")
 
         val tokenTemplate = AccessTokenContents(
             user = user,

@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgChrono = props => (
+const SvgChrono = (props: any) => (
   <svg
     viewBox="0 0 21 24"
     fillRule="evenodd"

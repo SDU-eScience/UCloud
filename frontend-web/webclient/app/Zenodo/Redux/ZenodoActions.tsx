@@ -1,13 +1,17 @@
-import { Cloud } from "Authentication/SDUCloudObject";
+import {Cloud} from "Authentication/SDUCloudObject";
 import {
     RECEIVE_PUBLICATIONS,
     RECEIVE_ZENODO_LOGIN_STATUS,
     SET_ZENODO_LOADING,
     SET_ZENODO_ERROR
 } from "./ZenodoReducer";
-import { SetLoadingAction, ReceivePage, Page, Error } from "Types";
-import { Publication } from "..";
-import { PayloadAction } from "Types";
+import {SetLoadingAction, ReceivePage, Page, Error} from "Types";
+import {Publication} from "..";
+import {PayloadAction} from "Types";
+import {Action} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {SnackType} from "Snackbar/Snackbars";
 
 /**
  * Fetches publications by the user
@@ -18,25 +22,40 @@ import { PayloadAction } from "Types";
 
 export type ZenodoActions = LoginStatusProps | SetLoadingAction<typeof SET_ZENODO_LOADING> | ReceivePublicationsAction | Error<typeof SET_ZENODO_ERROR>;
 
-export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePublicationsAction | Error<typeof SET_ZENODO_ERROR>> =>
-    Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) =>
-        receivePublications(response)
-    ).catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching zenodo publications"));
+export const fetchPublications = async (page: number, itemsPerPage: number): Promise<ReceivePublicationsAction | Action<typeof SET_ZENODO_ERROR>> => {
+    try {
+        const {response} = await Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`);
+        return receivePublications(response);
+    } catch (e) {
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching zenodo publications"));
+        return setErrorMessage();
+    }
+}
 
-export const setErrorMessage = (type: typeof SET_ZENODO_ERROR, error?: string): Error<typeof SET_ZENODO_ERROR> => ({
-    type,
-    payload: { error }
+export const setErrorMessage = (): Action<typeof SET_ZENODO_ERROR> => ({
+    type: SET_ZENODO_ERROR
 });
 
-export const fetchLoginStatus = () =>
-    Cloud.get("/zenodo/status")
-        .then(({ response }) => receiveLoginStatus(response.connected))
-        .catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching Zenodo log-in status"));
+/**
+ * Contacts a backend to see if the user is logged in to Zenodo.
+ */
+export async function fetchLoginStatus() {
+    try {
+        const {response} = await Cloud.get("/zenodo/status");
+        return receiveLoginStatus(response.connected)
+    } catch (e) {
+        snackbarStore.addSnack({
+            message: "An error occurred fetching Zenodo log-in status",
+            type: SnackType.Failure
+        })
+        return setErrorMessage();
+    }
+}
 
-interface LoginStatusProps extends PayloadAction<typeof RECEIVE_ZENODO_LOGIN_STATUS, { connected: boolean }> { }
+interface LoginStatusProps extends PayloadAction<typeof RECEIVE_ZENODO_LOGIN_STATUS, {connected: boolean}> {}
 export const receiveLoginStatus = (connected: boolean): LoginStatusProps => ({
     type: RECEIVE_ZENODO_LOGIN_STATUS,
-    payload: { connected }
+    payload: {connected}
 });
 
 
@@ -48,7 +67,7 @@ type ReceivePublicationsAction = ReceivePage<typeof RECEIVE_PUBLICATIONS, Public
  */
 const receivePublications = (page: Page<Publication>): ReceivePublicationsAction => ({
     type: RECEIVE_PUBLICATIONS,
-    payload: { page }
+    payload: {page}
 });
 
 /**
@@ -57,5 +76,5 @@ const receivePublications = (page: Page<Publication>): ReceivePublicationsAction
  */
 export const setZenodoLoading = (loading: boolean): SetLoadingAction<typeof SET_ZENODO_LOADING> => ({
     type: SET_ZENODO_LOADING,
-    payload: { loading }
+    payload: {loading}
 });

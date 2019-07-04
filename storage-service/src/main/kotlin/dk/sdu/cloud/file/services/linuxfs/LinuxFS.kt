@@ -1,10 +1,30 @@
 package dk.sdu.cloud.file.services.linuxfs
 
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.file.api.AccessEntry
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.services.FSACLEntity
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FSResult
+import dk.sdu.cloud.file.services.FileAttribute
+import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.XATTR_BIRTH
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
+import dk.sdu.cloud.file.util.toCreatedEvent
+import dk.sdu.cloud.file.util.toDeletedEvent
+import dk.sdu.cloud.file.util.toMovedEvent
+import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -12,10 +32,23 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.file.*
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.Files
+import java.nio.file.InvalidPathException
+import java.nio.file.LinkOption
+import java.nio.file.NoSuchFileException
+import java.nio.file.OpenOption
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.HashSet
 import kotlin.streams.toList
 import kotlin.system.measureNanoTime
 
@@ -44,10 +77,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, systemTo, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                    ctx.user
-                )
+                stat(ctx, systemTo, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
             )
         )
     }
@@ -82,7 +112,7 @@ class LinuxFS(
         Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
 
         // We compare this information with after the move to get the correct old path.
-        val toStat = stat(ctx, systemTo, MOVED_ATTRIBUTES, HashMap())
+        val toStat = stat(ctx, systemTo, STORAGE_EVENT_MODE, HashMap())
         val basePath = toStat.path.removePrefix(toStat.path).removePrefix("/")
         val oldPath = if (fromStat.fileType == FileType.DIRECTORY) {
             joinPath(fromStat.path, basePath)
@@ -90,25 +120,15 @@ class LinuxFS(
             fromStat.path
         }
 
-        fun movedFromRow(row: FileRow): StorageEvent.Moved {
-            return StorageEvent.Moved(
-                id = row.inode,
-                path = row.path,
-                owner = row.owner,
-                creator = row.creator,
-                timestamp = System.currentTimeMillis(),
-                oldPath = oldPath
-            )
-        }
-
         val rows = if (fromStat.fileType == FileType.DIRECTORY) {
             // We need to emit events for every single file below this root.
+            // TODO copyCausedBy
             val cache = HashMap<String, String>()
             Files.walk(systemTo.toPath()).map {
-                movedFromRow(stat(ctx, it.toFile(), MOVED_ATTRIBUTES, cache))
+                stat(ctx, it.toFile(), STORAGE_EVENT_MODE, cache).toMovedEvent(oldPath, copyCausedBy = true)
             }.toList()
         } else {
-            listOf(movedFromRow(toStat))
+            listOf(toStat.toMovedEvent(oldPath, copyCausedBy = true))
         }
 
         FSResult(0, rows)
@@ -356,18 +376,9 @@ class LinuxFS(
 
         fun delete(path: Path) {
             try {
-                val stat = stat(ctx, path.toFile(), DELETED_ATTRIBUTES, cache)
+                val stat = stat(ctx, path.toFile(), STORAGE_EVENT_MODE, cache)
                 Files.delete(path)
-                deletedRows.add(
-                    StorageEvent.Deleted(
-                        stat.inode,
-                        stat.path,
-                        stat.creator,
-                        System.currentTimeMillis(),
-                        stat.owner,
-                        ctx.user
-                    )
-                )
+                deletedRows.add(stat.toDeletedEvent(true))
             } catch (ex: NoSuchFileException) {
                 log.debug("File at $path does not exists any more. Ignoring this error.")
             }
@@ -380,8 +391,8 @@ class LinuxFS(
             }
 
             if (Files.isDirectory(path)) {
-                Files.list(path).forEach {
-                    traverseAndDelete(it)
+                path.toFile().listFiles().forEach {
+                    traverseAndDelete(it.toPath())
                 }
             }
 
@@ -425,10 +436,7 @@ class LinuxFS(
             FSResult(
                 0,
                 listOf(
-                    createdOrModifiedFromRow(
-                        stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                        ctx.user
-                    )
+                    stat(ctx, systemFile, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
                 )
             )
         } else {
@@ -463,10 +471,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, file, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                    ctx.user
-                )
+                stat(ctx, file, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
             )
         )
     }
@@ -502,10 +507,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                    ctx.user
-                )
+                stat(ctx, systemFile, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
             )
         )
     }
@@ -650,10 +652,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, systemLink, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap(), followLink = false),
-                    ctx.user
-                )
+                stat(ctx, systemLink, STORAGE_EVENT_MODE, HashMap(), followLink = false).toCreatedEvent(true)
             )
         )
     }
@@ -664,7 +663,8 @@ class LinuxFS(
         entity: FSACLEntity,
         rights: Set<AccessRight>,
         defaultList: Boolean,
-        recursive: Boolean
+        recursive: Boolean,
+        transferOwnershipTo: String?
     ): FSResult<Unit> = ctx.submit {
         ctx.requireContext()
 
@@ -676,12 +676,23 @@ class LinuxFS(
         val rootFile = File(translateAndCheckFile(path))
         if (!rootFile.isDirectory && defaultList) return@submit FSResult(0, Unit) // Files don't have a default list
 
+        fun transferOwnership(path: Path) {
+            if (transferOwnershipTo != null) {
+                runBlocking {
+                    internalChown(ctx, transferOwnershipTo, path).unwrap()
+                }
+            }
+        }
+
         if (recursive) {
             Files.walk(rootFile.toPath()).forEach {
+                transferOwnership(it)
+
                 if (!Files.isDirectory(it) && defaultList) return@forEach // Files don't have a default list
                 ACL.addEntry(it.toFile().absolutePath, uid.toInt(), backwardsCompatibleRights, defaultList)
             }
         } else {
+            transferOwnership(rootFile.toPath())
             ACL.addEntry(rootFile.absolutePath, uid.toInt(), backwardsCompatibleRights, defaultList)
         }
 
@@ -693,15 +704,29 @@ class LinuxFS(
         path: String,
         entity: FSACLEntity,
         defaultList: Boolean,
-        recursive: Boolean
+        recursive: Boolean,
+        transferOwnershipTo: String?
     ): FSResult<Unit> = ctx.submit {
         ctx.requireContext()
 
         if (entity !is FSACLEntity.User) throw FSException.BadRequest()
         val uid = runBlocking { userDao.findStorageUser(entity.user) } ?: throw FSException.BadRequest()
 
+        fun transferOwnership(path: Path) {
+            if (transferOwnershipTo != null) {
+                runBlocking {
+                    internalChown(ctx, transferOwnershipTo, path).unwrap()
+                }
+            }
+        }
+
         Files.walk(File(translateAndCheckFile(path)).toPath()).forEach {
-            ACL.removeEntry(it.toFile().absolutePath, uid.toInt(), defaultList)
+            transferOwnership(it)
+
+            if (!Files.isDirectory(it) && defaultList) return@forEach // Files don't have a default list
+            val absPath = it.toFile().absolutePath
+            log.debug("removing acl entry from $absPath")
+            ACL.removeEntry(absPath, uid.toInt(), defaultList)
         }
         FSResult(0, Unit)
     }
@@ -734,43 +759,90 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                createdOrModifiedFromRow(
-                    stat(ctx, systemFile, CREATED_OR_MODIFIED_ATTRIBUTES, HashMap()),
-                    ctx.user
-                )
+                stat(ctx, systemFile, STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
             )
         )
     }
 
+    override suspend fun chown(
+        ctx: LinuxFSRunner,
+        path: String,
+        owner: String
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+        if (ctx.user != SERVICE_USER) throw FSException.PermissionException()
+
+        return ctx.submit {
+            ctx.requireContext()
+            val systemPath = File(translateAndCheckFile(path)).toPath()
+            internalChown(ctx, owner, systemPath)
+        }
+    }
+
+    override suspend fun checkPermissions(ctx: LinuxFSRunner, path: String, requireWrite: Boolean): FSResult<Boolean> =
+        ctx.submit {
+            ctx.requireContext()
+            // Note: We cannot use Files.isReadable/Files.isWritable since it does not respect the current fsuid/fsgid
+
+            val internalFile = File(translateAndCheckFile(path))
+            val internalPath = internalFile.toPath()
+
+            try {
+                val attributes = Files.readAttributes(internalPath, BasicFileAttributes::class.java)
+                if (attributes.isDirectory) {
+                    if (requireWrite) {
+                        // TODO FIXME This appears to be really slow sometimes
+                        val resolve = internalPath.resolve("./.temporary_${UUID.randomUUID()}")
+                        val openOptions = hashSetOf<OpenOption>(
+                            StandardOpenOption.READ,
+                            StandardOpenOption.WRITE,
+                            StandardOpenOption.CREATE_NEW,
+                            StandardOpenOption.DELETE_ON_CLOSE
+                        )
+                        Files.newByteChannel(resolve, openOptions).close()
+                        Files.deleteIfExists(resolve)
+                    } else {
+                        internalPath.toFile().list()
+                    }
+                } else if (attributes.isRegularFile) {
+                    val openOptions = hashSetOf<OpenOption>(StandardOpenOption.READ)
+                    if (requireWrite) openOptions += StandardOpenOption.WRITE
+
+                    Files.newByteChannel(internalPath, openOptions).close()
+                } else {
+                    throw FSException.CriticalException("Invalid file type")
+                }
+
+                FSResult(0, true)
+            } catch (ex: Throwable) {
+                if (ex is FSException.CriticalException) {
+                    throw ex
+                }
+
+                FSResult(0, false)
+            }
+        }
+
+    private fun internalChown(
+        ctx: LinuxFSRunner,
+        owner: String,
+        systemPath: Path
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+        val uid = runBlocking {
+            userDao.findStorageUser(owner)
+        } ?: throw FSException.BadRequest()
+
+        Chown.setOwner(systemPath, uid.toInt(), uid.toInt())
+
+        return FSResult(
+            0,
+            listOf(
+                stat(ctx, systemPath.toFile(), STORAGE_EVENT_MODE, HashMap()).toCreatedEvent(true)
+            )
+        )
+    }
 
     private fun String.toCloudPath(): String {
         return ("/" + substringAfter(fsRoot.absolutePath).removePrefix("/")).normalize()
-    }
-
-    private fun createdOrModifiedFromRow(it: FileRow, eventCausedBy: String?): StorageEvent.CreatedOrRefreshed {
-        return StorageEvent.CreatedOrRefreshed(
-            id = it.inode,
-            path = it.path,
-            owner = it.owner,
-            creator = it.creator,
-            timestamp = it.timestamps.modified,
-
-            fileType = it.fileType,
-
-            fileTimestamps = it.timestamps,
-            size = it.size,
-
-            isLink = it.isLink,
-            linkTarget = if (it.isLink) it.linkTarget else null,
-            linkTargetId = if (it.isLink) it.linkInode else null,
-
-            sensitivityLevel = it.sensitivityLevel,
-
-            eventCausedBy = eventCausedBy,
-
-            annotations = emptySet(),
-            checksum = FileChecksum("", "")
-        )
     }
 
     private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
@@ -780,40 +852,6 @@ class LinuxFS(
     companion object : Loggable {
         override val log = logger()
         const val PATH_MAX = 1024
-
-        @Suppress("ObjectPropertyNaming")
-        private val CREATED_OR_MODIFIED_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.INODE,
-            FileAttribute.PATH,
-            FileAttribute.TIMESTAMPS,
-            FileAttribute.CREATOR,
-            FileAttribute.OWNER,
-            FileAttribute.SIZE,
-            FileAttribute.IS_LINK,
-            FileAttribute.LINK_TARGET,
-            FileAttribute.LINK_INODE,
-            FileAttribute.SENSITIVITY
-        )
-
-        @Suppress("ObjectPropertyNaming")
-        private val MOVED_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.INODE,
-            FileAttribute.PATH,
-            FileAttribute.CREATOR,
-            FileAttribute.OWNER
-        )
-
-        @Suppress("ObjectPropertyNaming")
-        private val DELETED_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.INODE,
-            FileAttribute.CREATOR,
-            FileAttribute.OWNER,
-            FileAttribute.GROUP,
-            FileAttribute.PATH
-        )
 
         val DEFAULT_FILE_MODE = setOf(
             PosixFilePermission.OWNER_READ,

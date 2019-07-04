@@ -6,23 +6,23 @@ import Flex from "./Flex";
 import Box from "./Box";
 import Icon from "./Icon";
 import Button from "./Button";
+import { TextSpan } from "./Text";
 import * as Heading from "ui-components/Heading";
 import ClickableDropdown from "./ClickableDropdown";
 import { useEffect, useRef, useState } from "react";
 import Radio from "./Radio";
 import Label from "./Label";
 import { connect } from "react-redux";
-import { Dispatch } from "redux";
-import { addSnack } from "Snackbar/Redux/SnackbarsActions";
-import { AddSnackOperation, SnackType } from "Snackbar/Snackbars";
+import { SnackType } from "Snackbar/Snackbars";
 import { errorMessageOrDefault } from "UtilityFunctions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
     BUG = "BUG"
 }
 
-function Support(props: AddSnackOperation) {
+function Support() {
     const textArea = useRef<HTMLTextAreaElement>(null);
     const supportBox = useRef<HTMLTextAreaElement>(null);
     const [loading, setLoading] = useState(false);
@@ -48,10 +48,10 @@ function Support(props: AddSnackOperation) {
                 text.value = "";
                 setVisible(false);
                 setLoading(false);
-                props.addSnack({ message: "Support ticket submitted!", type: SnackType.Success });
+                snackbarStore.addSnack({ message: "Support ticket submitted!", type: SnackType.Success });
             } catch (e) {
-                props.addSnack({ message: errorMessageOrDefault(e, "An error occured"), type: SnackType.Failure });
-            };
+                snackbarStore.addSnack({ message: errorMessageOrDefault(e, "An error occured"), type: SnackType.Failure });
+            }
         }
     }
 
@@ -87,21 +87,17 @@ function Support(props: AddSnackOperation) {
                         Bug
                     </Label>
                 </Flex>
-                {type === "SUGGESTION" ? <p>Describe you suggestion and we will look into it.</p> :
+                {type === SupportType.SUGGESTION ? <p>Describe your suggestion and we will look into it.</p> :
                     <p>Describe your problem below and we will investigate it.</p>}
                 <form onSubmit={e => onSubmit(e)}>
                     <TextArea width="100%" ref={textArea} rows={6} />
                     <Button mt="0.4em" fullWidth type="submit" disabled={loading}>
-                        <Icon name="mail" size="1em" mr=".5em" color="lightGray" color2="white" />
-                        Send
+                        <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
+                        <TextSpan fontSize={2}>Send</TextSpan> 
                     </Button>
                 </form>
             </Box>
         </ClickableDropdown>);
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): AddSnackOperation => ({
-    addSnack: snack => dispatch(addSnack(snack))
-});
-
-export default connect(null, mapDispatchToProps)(Support);
+export default connect(null, null)(Support);

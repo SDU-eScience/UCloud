@@ -2,7 +2,7 @@ package dk.sdu.cloud.accounting.compute.services
 
 import dk.sdu.cloud.accounting.api.ContextQuery
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
-import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page

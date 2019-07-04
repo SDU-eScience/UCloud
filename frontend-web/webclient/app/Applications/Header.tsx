@@ -9,7 +9,7 @@ const HeaderStyle = styled(Heading.h1)`
     }
 `;
 
-export const Header: React.StatelessComponent<{ name: string, version: string }> = props => (
+export const Header: React.FunctionComponent<{ name: string, version: string }> = props => (
     <HeaderStyle>
         {props.name}
         <small>v. {props.version}</small>

@@ -2,6 +2,7 @@ package dk.sdu.cloud.indexing.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.indexing.utils.elasticFile
 import dk.sdu.cloud.indexing.utils.eventMatStorFile
 import dk.sdu.cloud.indexing.utils.fileQuery

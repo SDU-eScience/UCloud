@@ -1,11 +1,23 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.background.BackgroundScope
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FSUserContext
+import dk.sdu.cloud.file.services.FileAttribute
+import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
@@ -19,31 +31,36 @@ import kotlin.test.assertEquals
 class CopyTest {
     val user = "user"
 
-    data class TestContext(
+    data class TestContext<Ctx : FSUserContext>(
         val runner: LinuxFSRunnerFactory,
-        val fs: LowLevelFileSystemInterface<LinuxFSRunner>,
-        val coreFs: CoreFileSystemService<LinuxFSRunner>,
-        val sensitivityService: FileSensitivityService<LinuxFSRunner>,
-        val lookupService: FileLookupService<LinuxFSRunner>
+        val fs: LowLevelFileSystemInterface<Ctx>,
+        val coreFs: CoreFileSystemService<Ctx>,
+        val lookupService: FileLookupService<Ctx>,
+        val sensitivityService: FileSensitivityService<Ctx>
     )
 
-    private fun initTest(root: File): TestContext {
+    private fun initTest(root: File): TestContext<FSUserContext> {
         BackgroundScope.init()
 
         val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath)
         val storageEventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val sensitivityService =
             FileSensitivityService(fs, storageEventProducer)
-        val coreFs = CoreFileSystemService(fs, storageEventProducer)
+        val coreFs = CoreFileSystemService(fs, storageEventProducer, sensitivityService, ClientMock.authenticatedClient)
         val fileLookupService = FileLookupService(coreFs)
 
-        return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService)
+        return TestContext(runner, fs, coreFs, fileLookupService, sensitivityService) as TestContext<FSUserContext>
     }
 
     private fun createRoot(): File = Files.createTempDirectory("sensitivity-test").toFile()
 
     @Test
     fun `test copying a folder`() {
+
+        ClientMock.mockCallSuccess(
+            NotificationDescriptions.create,
+            FindByLongId(1)
+        )
         val root = createRoot()
         with(initTest(root)) {
             root.mkdir("home") {
@@ -60,7 +77,7 @@ class CopyTest {
             }
 
             runner.withBlockingContext(user) { ctx ->
-                coreFs.copy(ctx, "/home/user/folder", "/home/user/folder2", WriteConflictPolicy.REJECT)
+                coreFs.copy(ctx, "/home/user/folder", "/home/user/folder2", SensitivityLevel.PRIVATE, WriteConflictPolicy.REJECT)
                 val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
                 val listing =
                     coreFs.listDirectory(ctx, "/home/user/folder2", mode)
@@ -80,6 +97,11 @@ class CopyTest {
 
     @Test
     fun `test copying a folder (rename)`() {
+        ClientMock.mockCallSuccess(
+            NotificationDescriptions.create,
+            FindByLongId(1)
+        )
+
         val root = createRoot()
         with(initTest(root)) {
             root.mkdir("home") {
@@ -96,7 +118,7 @@ class CopyTest {
             }
 
             runner.withBlockingContext(user) { ctx ->
-                coreFs.copy(ctx, "/home/user/folder", "/home/user/folder", WriteConflictPolicy.RENAME)
+                coreFs.copy(ctx, "/home/user/folder", "/home/user/folder", SensitivityLevel.PRIVATE , WriteConflictPolicy.RENAME)
                 val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
 
                 val rootListing = coreFs.listDirectory(ctx, "/home/user", mode)

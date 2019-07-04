@@ -2,6 +2,9 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
@@ -56,13 +59,11 @@ class UnixSymlinkTest {
 
             val symlinkCreated = cephFs.createSymbolicLink(ctx, targetPath, linkPath).value.single()
 
-            assertFalse(fileCreated.isLink)
-            assertEquals(FileType.FILE, fileCreated.fileType)
-            assertEquals(targetPath, fileCreated.path)
+            assertFalse(fileCreated.file.link)
+            assertEquals(FileType.FILE, fileCreated.file.fileType)
+            assertEquals(targetPath, fileCreated.file.path)
 
-            assertTrue(symlinkCreated.isLink)
-            assertEquals(fileCreated.id, symlinkCreated.linkTargetId)
-            assertEquals(targetPath, symlinkCreated.linkTarget)
+            assertTrue(symlinkCreated.file.link)
         }
     }
 

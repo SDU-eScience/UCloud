@@ -1,0 +1,40 @@
+group 'dk.sdu.cloud'
+version '0.1.4.Migrate3'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
+
+buildscript {
+    ext.serviceCommonVersion = "1.5.1"
+    ext.authApiVersion = "1.21.0"
+    ext.appStoreApiVersion = "0.3.0"
+    ext.fileApiVersion = "2.0.1"
+    ext.appFsVersion = "0.1.0"
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:auth-api:$authApiVersion"
+    compile "dk.sdu.cloud:app-store-api:$appStoreApiVersion"
+    compile "dk.sdu.cloud:file-api:${fileApiVersion}"
+    compile "dk.sdu.cloud:app-fs-api:$appFsVersion"
+    compile 'com.vladmihalcea:hibernate-types-52:2.4.1'
+    compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
+
+    testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
+}
+
+sduCloud.createTasksForApiJar(
+        "app.orchestrator",
+        [
+                "dk.sdu.cloud:app-store-api:$appStoreApiVersion",
+                "dk.sdu.cloud:file-api:$fileApiVersion",
+                "dk.sdu.cloud:app-fs-api:$appFsVersion"
+        ]
+)

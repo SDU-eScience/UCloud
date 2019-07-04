@@ -1,14 +1,35 @@
-import swal from "sweetalert2";
-import { SensitivityLevel } from "DefaultObjects";
+import {SensitivityLevel} from "DefaultObjects";
 import Cloud from "Authentication/lib";
-import { SortBy, SortOrder, File, Acl, FileType } from "Files";
-import { dateToString } from "Utilities/DateUtilities";
-import { getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
-import { HTTP_STATUS_CODES } from "Utilities/XHRUtils";
-import { SnackType, AddSnackOperation, Snack } from "Snackbar/Snackbars";
+import {Cloud as currentCloud} from "Authentication/SDUCloudObject";
+import {SortBy, SortOrder, File, Acl, FileType} from "Files";
+import {dateToString} from "Utilities/DateUtilities";
+import {getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory} from "Utilities/FileUtilities";
+import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
+import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 /**
- * Lowercases the string and capitalizes the first letter of the string
+ * Sets theme based in input. Either "light" or "dark".
+ * @param {boolean} isLightTheme Signifies if the currently selected theme is "light".
+ */
+
+export const setSiteTheme = (isLightTheme: boolean): void => {
+    const lightTheme = isLightTheme ? "light" : "dark";
+    window.localStorage.setItem("theme", lightTheme);
+}
+
+/**
+ * Returns whether or not the value "light", "dark" or null is stored. 
+ * @returns {boolean} True if "light" or null is stored, otherwise "dark".
+ * */
+export const isLightThemeStored = (): boolean => {
+    const theme = window.localStorage.getItem("theme");
+    if (theme === "dark") return false;
+    else return true;
+}
+
+/**
+ * Capitalizes the input string
  * @param str string to be lowercased and capitalized
  * @return {string}
  */
@@ -21,81 +42,13 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  */
 export const getOwnerFromAcls = (acls?: Acl[]): string => {
     if (acls === undefined) return "N/A";
-    if (acls.length > 0) {
+    const filteredAcl = acls.filter(it => it.entity !== currentCloud.activeUsername);
+    if (filteredAcl.length > 0) {
         return `${acls.length} members`;
     } else {
         return "Only You";
     }
 };
-
-export function overwriteSwal() {
-    return swal({
-        allowEscapeKey: true,
-        allowOutsideClick: true,
-        showCancelButton: true,
-        title: "Warning",
-        type: "warning",
-        text: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
-        cancelButtonText: "Continue",
-        confirmButtonText: "Cancel Upload"
-    });
-}
-
-export function shareSwal() {
-    return swal({
-        title: "Share",
-        input: "text",
-        html: `<div>
-                <input name="access" type="radio" value="read" id="read"/>
-                <label for="read">Can View</label>
-                <span style="margin-left:20px" />
-                <input name="access" type="radio" value="read_edit" id="read_edit"/>
-                <label for="read_edit">Can View and Edit</label>
-            </div>`,
-        showCloseButton: true,
-        showCancelButton: true,
-        inputPlaceholder: "Enter username...",
-        focusConfirm: false,
-        inputValidator: (value: string) => {
-            if (!value) return "Username missing";
-            if (!(elementValue("read") || elementValue("read_edit"))) return "Select at least one access right";
-            return null;
-        }
-
-    });
-}
-
-export function sensitivitySwal() {
-    return swal({
-        title: "Change Sensitivity",
-        input: "select",
-        inputOptions: {
-            "INHERIT": "Inherit",
-            "PRIVATE": "Private",
-            "CONFIDENTIAL": "Confidential",
-            "SENSITIVE": "Sensitive"
-        },
-        showCloseButton: true,
-        showCancelButton: true,
-        focusConfirm: false,
-        inputValidator: (value: string) => {
-            return null;
-        }
-    });
-}
-
-export const elementValue = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
-export const selectValue = (id: string): string => (document.getElementById(id) as HTMLSelectElement).value;
-
-export const inputSwal = (inputName: string) => ({
-    title: "Share",
-    input: "text",
-    showCloseButton: true,
-    showCancelButton: true,
-    inputPlaceholder: `Enter ${inputName}...`,
-    focusConfirm: false,
-    inputValidator: (value: string) => (!value && `${capitalized(inputName)} missing`)
-});
 
 export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     switch (sortBy) {
@@ -111,7 +64,7 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
             return sizeToString(file.size!);
         case SortBy.ACL:
             if (file.acl !== null)
-                return getOwnerFromAcls(file.acl)
+                return getOwnerFromAcls(file.acl);
             else
                 return "";
         case SortBy.SENSITIVITY_LEVEL:
@@ -122,7 +75,7 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
 export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy): ("arrowUp" | "arrowDown" | undefined) => {
     if (sortBy === name) {
         return sortOrder === SortOrder.DESCENDING ? "arrowDown" : "arrowUp";
-    };
+    }
     return undefined;
 };
 
@@ -207,7 +160,7 @@ export const extensionType = (ext: string): ExtensionType => {
         default:
             return null;
     }
-}
+};
 
 export interface FtIconProps {
     type: FileType;
@@ -215,8 +168,8 @@ export interface FtIconProps {
 }
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FtIconProps => {
-    let icon: FtIconProps = { type: "FILE" };
-    if (isDirectory({ fileType: type })) {
+    let icon: FtIconProps = {type: "FILE"};
+    if (isDirectory({fileType: type})) {
         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
         switch (homeFolderReplaced) {
             case "Home/Jobs":
@@ -244,48 +197,54 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
 };
 
 
-interface CreateProject extends AddSnackOperation {
+interface CreateProject {
     filePath: string
     cloud: Cloud
     navigate: (path: string) => void
 }
-// FIXME Remove navigation when backend support comes.
-export const createProject = ({ filePath, cloud, navigate, addSnack }: CreateProject) => {
-    cloud.put("/projects", { fsRoot: filePath }).then(() => {
-        redirectToProject({ path: filePath, cloud, navigate, remainingTries: 5, addSnack });
-    }).catch(() => addSnack({ message: `An error occurred creating project ${filePath}`, type: SnackType.Failure }));
-}
 
-interface RedirectToProject extends AddSnackOperation {
+// FIXME Remove navigation when backend support comes.
+export const createProject = ({filePath, cloud, navigate}: CreateProject) => {
+    cloud.put("/projects", {fsRoot: filePath}).then(() => {
+        redirectToProject({path: filePath, cloud, navigate, remainingTries: 5});
+    }).catch(() => snackbarStore.addSnack({
+        message: `An error occurred creating project ${filePath}`,
+        type: SnackType.Failure
+    }));
+};
+
+interface RedirectToProject {
     path: string
     cloud: Cloud
     navigate: (path: string) => void
     remainingTries: number
 }
 
-const redirectToProject = ({ path, cloud, navigate, remainingTries, addSnack }: RedirectToProject) => {
+const redirectToProject = ({path, cloud, navigate, remainingTries}: RedirectToProject) => {
     cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(() => navigate(path)).catch(_ => {
-        if (remainingTries > 0) 
-            setTimeout(() => redirectToProject({ path, cloud, navigate, remainingTries: remainingTries - 1, addSnack }), 400);
-        else
-            addSnack({ message: `Project ${path} is being created.`, type: SnackType.Success });
+        if (remainingTries > 0) {
+            setTimeout(() => redirectToProject({path, cloud, navigate, remainingTries: remainingTries - 1}), 400);
+        } else {
+            snackbarStore.addSnack({message: `Project ${path} is being created.`, type: SnackType.Success});
+        }
     });
 };
 
 /**
- * 
+ *
  * @param params: { status, min, max } (both inclusive)
  */
-export const inRange = ({ status, min, max }: { status: number, min: number, max: number }): boolean =>
+export const inRange = ({status, min, max}: {status: number, min: number, max: number}): boolean =>
     status >= min && status <= max;
-export const inSuccessRange = (status: number): boolean => inRange({ status, min: 200, max: 299 });
+export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 export const addTrailingSlash = (path: string) => {
     if (!path) return path;
     else return path.endsWith("/") ? path : `${path}/`;
-}
+};
+
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
-export const is5xxStatusCode = (status: number) => inRange({ status, min: 500, max: 599 });
+export const is5xxStatusCode = (status: number) => inRange({status, min: 500, max: 599});
 export const blankOrUndefined = (value?: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
 
 export const ifPresent = (f: any, handler: (f: any) => void) => {
@@ -294,15 +253,17 @@ export const ifPresent = (f: any, handler: (f: any) => void) => {
 
 // FIXME The frontend can't handle downloading multiple files currently. When fixed, remove === 1 check.
 export const downloadAllowed = (files: File[]) =>
-    files.length === 1 && files.every(f => f.sensitivityLevel !== "SENSITIVE")
+    files.length === 1 && files.every(f => f.sensitivityLevel !== "SENSITIVE");
 
 /**
  * Capizalises the input string and replaces _ (underscores) with whitespace.
- * @param str 
+ * @param str
  */
-export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ")
+export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ");
 
-export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }, addSnack: (snack: Snack) => void): number {
+export function defaultErrorHandler(
+    error: {request: XMLHttpRequest, response: any}
+): number {
     let request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
     let why: string | null = null;
@@ -326,7 +287,7 @@ export function defaultErrorHandler(error: { request: XMLHttpRequest, response: 
             }
         }
 
-        addSnack({ message: why, type: SnackType.Failure });
+        snackbarStore.addSnack({message: why, type: SnackType.Failure});
         return request.status;
     }
     return 500;
@@ -383,27 +344,31 @@ export function humanReadableNumber(
         .replace(regex, '$&' + sectionDelim);
 }
 
-interface CopyToClipboard extends AddSnackOperation {
+interface CopyToClipboard {
     value: string | undefined
     message: string
 }
 
-export function copyToClipboard({ value, message, addSnack }: CopyToClipboard) {
+export function copyToClipboard({value, message}: CopyToClipboard) {
     const input = document.createElement("input");
     input.value = value || "";
     document.body.appendChild(input);
     input.select();
     document.execCommand("copy");
     document.body.removeChild(input);
-    addSnack({ message, type: SnackType.Success });
+    snackbarStore.addSnack({message, type: SnackType.Success});
 }
 
-export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any } | { status: number, response: string }, defaultMessage: string): string {
-    if ("status" in err) {
-        return err.response;
-    } else {
-        if (err.response.why) return err.response.why;
-        return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
+export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: any} | {status: number, response: string}, defaultMessage: string): string {
+    try {
+        if ("status" in err) {
+            return err.response;
+        } else {
+            if (err.response.why) return err.response.why;
+            return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
+        }
+    } catch {
+        return defaultMessage;
     }
 }
 

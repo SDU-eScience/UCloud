@@ -1,5 +1,0 @@
-[app-service](../../index.md) / [dk.sdu.cloud.app.api](../index.md) / [FollowStdStreamsResponse](index.md) / [&lt;init&gt;](./-init-.md)
-
-# &lt;init&gt;
-
-`FollowStdStreamsResponse(stdout: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, stdoutNextLine: `[`Int`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/index.html)`, stderr: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, stderrNextLine: `[`Int`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/index.html)`, application: `[`NameAndVersion`](../-name-and-version/index.md)`, state: `[`AppState`](../-app-state/index.md)`, status: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, complete: `[`Boolean`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html)`, id: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`)`

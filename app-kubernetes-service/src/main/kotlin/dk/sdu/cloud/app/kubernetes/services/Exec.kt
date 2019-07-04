@@ -49,7 +49,8 @@ fun PodResource<Pod, DoneablePod>.execWithDefaultListener(
     command: List<String>,
     attachStdout: Boolean = true,
     attachStderr: Boolean = false,
-    attachStdin: Boolean = false
+    attachStdin: Boolean = false,
+    container: String? = null
 ): RemoteProcess {
     // I don't have a clue on how you are supposed to call this API.
     lateinit var watch: ExecWatch
@@ -84,6 +85,7 @@ fun PodResource<Pod, DoneablePod>.execWithDefaultListener(
     }
 
     execable
+        .inContainer(container)
         .usingListener(object : ExecListener {
             override fun onOpen(response: Response?) {
                 println("Open!")

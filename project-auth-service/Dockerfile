@@ -28,7 +28,7 @@ WORKDIR /usr/src/app
 FROM build-dependencies as build-production-ready
 
 # The name of the service. Used to identify the executable
-ENV SERVICE_NAME=project.auth-service
+ENV SERVICE_NAME=project-auth-service
 
 # Copy application code into /usr/src/app
 COPY . /usr/src/app/

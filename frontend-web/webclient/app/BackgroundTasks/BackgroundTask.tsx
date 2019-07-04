@@ -1,17 +1,16 @@
 import * as React from "react";
-import { Icon, Button } from "ui-components";
+import {Button, Icon} from "ui-components";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { connect } from "react-redux";
-import { ReduxObject } from "DefaultObjects";
-import { Upload } from "Uploader";
-import { Dispatch } from "redux";
-import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
+import {connect} from "react-redux";
+import {ReduxObject} from "DefaultObjects";
+import {Upload} from "Uploader";
+import {Dispatch} from "redux";
+import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 
-const BackgroundTasks = (props: { activeUploads: number, uploads: Upload[], showUploader: () => void }) => {
+const BackgroundTasks = (props: {activeUploads: number, uploads: Upload[], showUploader: () => void}) => {
     const uploadsCount = props.activeUploads;
-    const totalTasks = uploadsCount;
-    if (totalTasks === 0) return null;
+    if (uploadsCount === 0) return null;
     const uploads = props.uploads.length > 0 ? (
         <>
             <Button color="green"
@@ -32,7 +31,7 @@ const BackgroundTasks = (props: { activeUploads: number, uploads: Upload[], show
             {uploads}
         </ClickableDropdown>
     )
-}
+};
 
 const TasksIconBase = styled(Icon)`
     animation: spin 8s linear infinite;
@@ -44,7 +43,7 @@ const TasksIconBase = styled(Icon)`
     }
 `;
 
-const mapStateToProps = ({ uploader }: ReduxObject) => ({
+const mapStateToProps = ({uploader}: ReduxObject) => ({
     uploads: uploader.uploads,
     activeUploads: uploader.uploads.filter(it => it.uploadXHR &&
         it.uploadXHR.readyState > XMLHttpRequest.UNSENT && it.uploadXHR.readyState < XMLHttpRequest.DONE).length
@@ -54,6 +53,6 @@ const mapDispatchToProps = (dispatch: Dispatch) => ({
     showUploader: () => dispatch(setUploaderVisible(true))
 });
 
-const TasksIcon = () => <TasksIconBase name="notchedCircle" />
+const TasksIcon = () => <TasksIconBase name="notchedCircle" />;
 
 export default connect(mapStateToProps, mapDispatchToProps)(BackgroundTasks);

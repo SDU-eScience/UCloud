@@ -1,6 +1,5 @@
 package dk.sdu.cloud.indexing.utils
 
-import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.Timestamps
@@ -45,10 +44,8 @@ val elasticFile = ElasticIndexedFile(
     FileType.FILE,
     22,
     Timestamps(12345678, 1234567, 12345678),
-    FileChecksum("SHA", "checksumForFile"),
     false,
-    SensitivityLevel.CONFIDENTIAL,
-    setOf("P")
+    SensitivityLevel.CONFIDENTIAL
 )
 
 val eventMatStorFile = elasticFile.toMaterializedFile()

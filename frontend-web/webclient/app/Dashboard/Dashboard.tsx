@@ -1,38 +1,49 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject"
-import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
-import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
-import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
-import { connect } from "react-redux";
+import {Cloud} from "Authentication/SDUCloudObject"
+import {
+    favoriteFile,
+    getParentPath,
+    getFilenameFromPath,
+    replaceHomeFolder,
+    isDirectory
+} from "Utilities/FileUtilities";
+import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
+import {
+    setAllLoading,
+    fetchFavorites,
+    fetchRecentAnalyses,
+    fetchRecentFiles,
+    receiveFavorites
+} from "./Redux/DashboardActions";
+import {connect} from "react-redux";
 import * as moment from "moment";
-import { FileIcon } from "UtilityComponents";
-import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
-import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
-import { Notification, NotificationEntry } from "Notifications";
-import { Analysis, AppState } from "Applications";
-import { File } from "Files";
-import { Dispatch } from "redux";
-import { ReduxObject } from "DefaultObjects";
-import { Error, Box, Flex, Card, Text, Link, Icon } from "ui-components";
-import { EllipsedText } from "ui-components/Text"
+import {FileIcon} from "UtilityComponents";
+import {DashboardProps, DashboardOperations, DashboardStateProps} from ".";
+import {Notification, NotificationEntry} from "Notifications";
+import {Analysis, AppState} from "Applications";
+import {File} from "Files";
+import {Dispatch} from "redux";
+import {ReduxObject} from "DefaultObjects";
+import {Box, Flex, Card, Text, Link, Icon} from "ui-components";
+import {EllipsedText} from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
-import { GridCardGroup } from "ui-components/Grid";
-import { TextSpan } from "ui-components/Text";
-import { fileTablePage } from "Utilities/FileUtilities";
-import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
-import { History } from "history";
+import {GridCardGroup} from "ui-components/Grid";
+import {TextSpan} from "ui-components/Text";
+import {fileTablePage} from "Utilities/FileUtilities";
+import {notificationRead, readAllNotifications} from "Notifications/Redux/NotificationsActions";
+import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
-import { MainContainer } from "MainContainer/MainContainer";
-import { fetchUsage } from "Accounting/Redux/AccountingActions";
-import { SidebarPages } from "ui-components/Sidebar";
-import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
+import {MainContainer} from "MainContainer/MainContainer";
+import {fetchUsage} from "Accounting/Redux/AccountingActions";
+import {SidebarPages} from "ui-components/Sidebar";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 
-const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
-    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+const DashboardCard: React.FunctionComponent<{title: string, isLoading: boolean}> = ({title, isLoading, children}) => (
+    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{overflow: "hidden"}}>
+        <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
         <Box px={3} py={1}>
@@ -43,20 +54,16 @@ const DashboardCard = ({ title, isLoading, children }: { title: string, isLoadin
     </Card>
 );
 
-class Dashboard extends React.Component<DashboardProps & { history: History }> {
-    constructor(props: Readonly<DashboardProps & { history: History }>) {
-        super(props);
-        props.updatePageTitle();
-        props.setActivePage();
-    }
+function Dashboard(props: DashboardProps & {history: History}) {
 
-    componentDidMount() {
-        this.reload(true);
-        this.props.setRefresh(() => this.reload(true));
-    }
+    React.useEffect(() => {
+        props.onInit();
+        reload(true);
+        props.setRefresh(() => reload(true));
+        return () => props.setRefresh();
+    }, []);
 
-    private reload(loading: boolean) {
-        const { props } = this;
+    function reload(loading: boolean) {
         props.setAllLoading(loading)
         props.fetchFavorites();
         props.fetchRecentFiles();
@@ -64,74 +71,66 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         props.fetchUsage();
     }
 
-    private onNotificationAction = (notification: Notification) => {
+    const onNotificationAction = (notification: Notification) => {
         // FIXME: Not DRY, reused
         switch (notification.type) {
             case "APP_COMPLETE":
-                this.props.history.push(`/applications/results/${notification.meta.jobId}`);
+                props.history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
             case "SHARE_REQUEST":
-                this.props.history.push("/shares");
+                props.history.push("/shares");
                 break;
         }
     };
 
-    public componentWillUnmount() {
-        this.props.setRefresh();
-    }
-
-    private favoriteOrUnfavorite = (file: File) => {
+    const favoriteOrUnfavorite = (file: File) => {
         favoriteFile(file, Cloud);
-        this.props.receiveFavorites(this.props.favoriteFiles.filter(f => f.favorited));
+        props.receiveFavorites(favoriteFiles.filter(f => f.favorited));
     };
 
-    render() {
-        const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
-            analysesLoading, errors, ...props } = this.props;
-        favoriteFiles.forEach(f => f.favorited = true);
-        const main = (
-            <>
-                <Error error={errors.join(" ")} clearError={props.errorDismiss} />
-                <GridCardGroup minmax={290}>
-                    <DashboardFavoriteFiles
-                        files={favoriteFiles}
-                        isLoading={favoriteLoading}
-                        favorite={file => this.favoriteOrUnfavorite(file)}
-                    />
+    const {favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading, analysesLoading} = props;
+    favoriteFiles.forEach(f => f.favorited = true);
+    const main = (
+        <>
+            <GridCardGroup minmax={290}>
+                <DashboardFavoriteFiles
+                    files={favoriteFiles}
+                    isLoading={favoriteLoading}
+                    favorite={file => favoriteOrUnfavorite(file)}
+                />
 
-                    <DashboardRecentFiles
-                        files={recentFiles}
-                        isLoading={recentLoading}
-                    />
+                <DashboardRecentFiles
+                    files={recentFiles}
+                    isLoading={recentLoading}
+                />
 
-                    <DashboardAnalyses
-                        analyses={recentAnalyses}
-                        isLoading={analysesLoading}
-                    />
+                <DashboardAnalyses
+                    analyses={recentAnalyses}
+                    isLoading={analysesLoading}
+                />
 
-                    <DashboardNotifications
-                        onNotificationAction={this.onNotificationAction}
-                        notifications={notifications}
-                        readAll={() => props.readAll()}
-                    />
+                <DashboardNotifications
+                    onNotificationAction={onNotificationAction}
+                    notifications={notifications}
+                    readAll={() => props.readAll()}
+                />
 
-                    <DashboardCard title={"Storage Used"} isLoading={false}>
-                        <Accounting.Usage resource={"storage"} subResource={"bytesUsed"} />
-                    </DashboardCard>
+                <DashboardCard title={"Storage Used"} isLoading={false}>
+                    <Accounting.Usage resource={"storage"} subResource={"bytesUsed"} />
+                </DashboardCard>
 
-                    <DashboardCard title={"Compute Time Used"} isLoading={false}>
-                        <Accounting.Usage resource={"compute"} subResource={"timeUsed"} />
-                    </DashboardCard>
-                </GridCardGroup>
-            </>
-        );
+                <DashboardCard title={"Compute Time Used"} isLoading={false}>
+                    <Accounting.Usage resource={"compute"} subResource={"timeUsed"} />
+                </DashboardCard>
+            </GridCardGroup>
+        </>
+    );
 
-        return (<MainContainer main={main} />);
-    }
+    return (<MainContainer main={main} />);
 }
 
 
-const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: (file: File) => void }) => (
+const DashboardFavoriteFiles = ({files, isLoading, favorite}: {files: File[], isLoading: boolean, favorite: (file: File) => void}) => (
     <DashboardCard title="Favorite Files" isLoading={isLoading}>
         {files.length || isLoading ? null : (<Heading.h6>No favorites found</Heading.h6>)}
         <List>
@@ -145,7 +144,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
     </DashboardCard>
 );
 
-const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean, pixelsWide: number }) => {
+const ListFileContent = ({file, link, pixelsWide}: {file: File, link: boolean, pixelsWide: number}) => {
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     return (
         <Flex alignItems="center">
@@ -159,12 +158,12 @@ const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean
     );
 };
 
-const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
+const DashboardRecentFiles = ({files, isLoading}: {files: File[], isLoading: boolean}) => (
     <DashboardCard title="Recently Used Files" isLoading={isLoading}>
         {files.length || isLoading ? null : (<Heading.h6>No recent files found</Heading.h6>)}
         <List>
             {files.map((file, i) => (
-                <Flex alignItems="center" key={i} pt="0.5em" pb="0.3em">
+                <Flex key={i} alignItems="center" pt="0.5em" pb="0.3em">
                     <ListFileContent file={file} link={file.link} pixelsWide={130} />
                     <Box ml="auto" />
                     <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt!)).fromNow()}</Text>
@@ -174,7 +173,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
     </DashboardCard>
 );
 
-const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
+const DashboardAnalyses = ({analyses, isLoading}: {analyses: Analysis[], isLoading: boolean}) => (
     <DashboardCard title="Recent Jobs" isLoading={isLoading}>
         {isLoading || analyses.length ? null : (<Heading.h6>No results found</Heading.h6>)}
         <List>
@@ -182,12 +181,12 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
                 <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
                     <Icon name={statusToIconName(analysis.state)}
                         color={statusToColor(analysis.state)}
-                        size="1.5em"
+                        size="1.2em"
                         pr="0.3em"
                     />
-                    <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.metadata.title}</TextSpan></Link>
+                    <Link to={`/applications/results/${analysis.jobId}`}><EllipsedText width={130} fontSize={2}>{analysis.metadata.title}</EllipsedText></Link>
                     <Box ml="auto" />
-                    <TextSpan fontSize={2}>{UF.prettierString(analysis.state)}</TextSpan>
+                    <Text fontSize={1} color="grey">{moment(new Date(analysis.modifiedAt!)).fromNow()}</Text>
                 </Flex>
             )}
         </List>
@@ -200,9 +199,9 @@ interface DashboardNotificationProps {
     readAll: () => void
 }
 
-const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
-    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3}>
+const DashboardNotifications = ({notifications, readAll, onNotificationAction}: DashboardNotificationProps) => (
+    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{overflow: "hidden"}}>
+        <Flex bg="lightGray" color="darkGray" px={3} py={2}>
             <Heading.h4>Recent Notifications</Heading.h4>
             <Box ml="auto" />
             <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
@@ -238,8 +237,10 @@ const statusToIconName = (status: AppState) => {
 const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" : "green";
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
-    errorDismiss: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
-    updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
+    onInit: () => {
+        dispatch(updatePageTitle("Dashboard"));
+        dispatch(setActivePage(SidebarPages.None));
+    },
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
@@ -250,7 +251,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
     // FIXME: Make action instead (favoriteFile)
     receiveFavorites: files => dispatch(receiveFavorites(files)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))

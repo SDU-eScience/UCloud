@@ -16,11 +16,15 @@ exports[`Error component Error with error and dismiss button 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
 }
 
 .c3 {
   cursor: inherit;
-  font-size: 16px;
+  font-size: 14px;
   color: red;
 }
 
@@ -34,6 +38,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
 }
 
 .c0 {
+  cursor: auto;
   padding: 1em 1em 1em 1em;
   height: auto;
   color: #000;
@@ -46,6 +51,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
 <div
   className="c0"
   color="black"
+  cursor="auto"
   height="auto"
 >
   <div
@@ -60,7 +66,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
         className="c3"
         color="red"
         cursor="inherit"
-        fontSize={2}
+        fontSize={1}
       >
         This is an error
       </div>
@@ -75,10 +81,10 @@ exports[`Error component Error with error and dismiss button 1`] = `
         cursor="inherit"
         fill="currentcolor"
         fillRule="evenodd"
-        height={24}
+        height="1em"
         onClick={[Function]}
         viewBox="0 0 25 24"
-        width={24}
+        width="1em"
       >
         <path
           d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
@@ -101,15 +107,20 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
 }
 
 .c3 {
   cursor: inherit;
-  font-size: 16px;
+  font-size: 14px;
   color: red;
 }
 
 .c0 {
+  cursor: auto;
   padding: 1em 1em 1em 1em;
   height: auto;
   color: #000;
@@ -122,6 +133,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
 <div
   className="c0"
   color="black"
+  cursor="auto"
   height="auto"
 >
   <div
@@ -136,7 +148,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
         className="c3"
         color="red"
         cursor="inherit"
-        fontSize={2}
+        fontSize={1}
       >
         This is an error
       </div>

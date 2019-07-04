@@ -52,13 +52,13 @@ const Box = styled.div<BoxProps>`
   ${maxHeight} 
   ${color} 
   ${textAlign};
-`
+`;
 
 Box.displayName = "Box";
 
 Box.defaultProps = {
   theme,
   cursor: "auto"
-}
+};
 
 export default Box;

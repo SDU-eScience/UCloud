@@ -5,6 +5,7 @@ import theme from "./theme"
 
 import styled from "styled-components"
 import { Relative, Flex } from "ui-components";
+import { SpaceProps } from "styled-system";
 
 const arrowShadow = (props: { top?: boolean }) => props.top ?
   { 'box-shadow': '-9.66px 9.66px 8px 0 rgba(0,0,0,0.04), -4px 4px 4px 0 rgba(0,0,0,0.08)' } :
@@ -51,7 +52,7 @@ const tooltipAlign = (props: { right: boolean, center: boolean }) =>
       ? { left: '50%', width: 'auto', transform: 'translateX(-50%)' }
       : null
 
-interface TooltipContentProps extends BoxProps {
+interface TooltipContentProps extends BoxProps, SpaceProps {
   bg?: any
 };
 
@@ -79,16 +80,17 @@ const TooltipContent = styled(Box) <TooltipContentProps>`
   }
 `
 
-interface Tooltip {
-  children: React.ReactNode
+interface Tooltip extends SpaceProps {
+  children: any
+  trigger: any
   bg: string
   color: string
-  bottom: boolean
-  top: boolean
-  center: boolean
-  left: boolean
-  right: boolean
-  zIndex: number | string
+  bottom?: string
+  top?: string
+  center?: string
+  left?: string
+  right?: string
+  zIndex?: number
 }
 
 const defaultProps = {
@@ -99,18 +101,16 @@ const defaultProps = {
   zIndex: 9999
 }
 
-const Tooltip = ({ children, ...props }) => {
-  return (
-    <VisibleOnHover>
-      <Flex>{props.trigger}</Flex>
-      <Relative zIndex={props.zIndex}>
-        <TooltipContent p={2} mb={3} mt={2} {...props}>
-          {children}
-        </TooltipContent>
-      </Relative>
-    </VisibleOnHover>
-  )
-}
+const Tooltip = ({ children, zIndex, ...props }: Tooltip) => (
+  <VisibleOnHover>
+    <Flex>{props.trigger}</Flex>
+    <Relative zIndex={zIndex}>
+      <TooltipContent p={2} mb={3} mt={2} {...props}>
+        {children}
+      </TooltipContent>
+    </Relative>
+  </VisibleOnHover>
+)
 
 const VisibleOnHover = styled(Box)`
   & > ${Flex}:hover + ${Relative} > ${TooltipContent} {

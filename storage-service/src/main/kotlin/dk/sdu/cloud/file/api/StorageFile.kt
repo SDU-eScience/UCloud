@@ -22,6 +22,11 @@ interface StorageFile {
     @get:JsonProperty("fileType")
     val fileTypeOrNull: FileType?
 
+    /**
+     * The canonical path of the file
+     *
+     * Because SDUCloud doesn't support hard links we are guaranteed that each file has exactly one canonical path.
+     */
     @get:JsonProperty("path")
     val pathOrNull: String?
 
@@ -31,6 +36,9 @@ interface StorageFile {
     @get:JsonProperty("modifiedAt")
     val modifiedAtOrNull: Long?
 
+    /**
+     * The SDUCloud username of the creator of this file
+     */
     @get:JsonProperty("ownerName")
     val ownerNameOrNull: String?
 
@@ -53,11 +61,26 @@ interface StorageFile {
     @Deprecated("no longer in use")
     val annotationsOrNull: Set<String>?
 
+    /**
+     * The unique ID of the file
+     *
+     * The ID is guaranteed to be unique for an entire file system. Across (potential) federation it is not guaranteed
+     * to be unique.
+     *
+     * The ID is an opaque identifier, and its contents is entirely implementation dependant. For the CephFS
+     * implementation this identifier corresponds to the inode of the file.
+     */
     @get:JsonProperty("fileId")
     val fileIdOrNull: String?
 
+    /**
+     * The SDUCloud username of the creator of this file
+     */
     @get:JsonProperty("creator")
     val creatorOrNull: String?
+
+    @get:JsonProperty("canonicalPath")
+    val canonicalPathOrNull: String?
 }
 
 val StorageFile.fileType: FileType
@@ -100,6 +123,9 @@ val StorageFile.fileId: String
 val StorageFile.creator: String
     get() = creatorOrNull!!
 
+val StorageFile.canonicalPath: String
+    get() = canonicalPathOrNull!!
+
 data class StorageFileImpl(
     override val fileTypeOrNull: FileType?,
     override val pathOrNull: String?,
@@ -113,7 +139,8 @@ data class StorageFileImpl(
     override val annotationsOrNull: Set<String>? = emptySet(),
     override val fileIdOrNull: String?,
     override val creatorOrNull: String?,
-    override val ownSensitivityLevelOrNull: SensitivityLevel?
+    override val ownSensitivityLevelOrNull: SensitivityLevel?,
+    override val canonicalPathOrNull: String? = pathOrNull
 ) : StorageFile
 
 fun StorageFile(
@@ -129,22 +156,24 @@ fun StorageFile(
     annotations: Set<String> = emptySet(),
     fileId: String = "",
     creator: String = ownerName,
-    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE
+    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE,
+    canonicalPath: String? = path
 ): StorageFileImpl {
     return StorageFileImpl(
-        fileType,
-        path,
-        createdAt,
-        modifiedAt,
-        ownerName,
-        size,
-        acl,
-        sensitivityLevel,
-        link,
-        annotations,
-        fileId,
-        creator,
-        ownSensitivityLevel
+        fileTypeOrNull = fileType,
+        pathOrNull = path,
+        createdAtOrNull = createdAt,
+        modifiedAtOrNull = modifiedAt,
+        ownerNameOrNull = ownerName,
+        sizeOrNull = size,
+        aclOrNull = acl,
+        sensitivityLevelOrNull = sensitivityLevel,
+        linkOrNull = link,
+        annotationsOrNull = annotations,
+        fileIdOrNull = fileId,
+        creatorOrNull = creator,
+        ownSensitivityLevelOrNull = ownSensitivityLevel,
+        canonicalPathOrNull = canonicalPath
     )
 }
 

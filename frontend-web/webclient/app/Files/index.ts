@@ -1,12 +1,10 @@
-import { Page, ClearRefresh } from "Types";
+import {Page, ClearRefresh, Operation, PredicatedOperation} from "Types";
 import Cloud from "Authentication/lib";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
-import { Activity } from "Activity";
-import { ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
-import { Times } from "./Redux/DetailedFileSearchActions";
-import { RouterLocationProps } from "Utilities/URIUtilities";
-import { AddSnackOperation } from "Snackbar/Snackbars";
+import {ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
+import {Times} from "./Redux/DetailedFileSearchActions";
+import {RouterLocationProps} from "Utilities/URIUtilities";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -39,7 +37,7 @@ export interface Acl {
     group: boolean
 }
 
-// FIXME: SortBy is subset of 
+// FIXME: SortBy is subset of {FileResource}
 export enum SortBy {
     FILE_TYPE = "fileType",
     PATH = "path",
@@ -68,11 +66,6 @@ export enum FileResource {
 
 export type FilesProps = FilesStateProps & FilesOperations & RouterLocationProps;
 
-export interface MockedTableProps {
-    onCreateFolder: (a: number, c: number) => void
-    creatingFolder: boolean
-}
-
 export interface FilesStateProps {
     path: string
     page: Page<File>
@@ -99,7 +92,7 @@ export interface FilesStateProps {
     responsive?: ResponsiveReduxObject
 }
 
-export interface FilesOperations extends ClearRefresh, AddSnackOperation {
+export interface FilesOperations extends ClearRefresh {
     onInit: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
@@ -124,7 +117,7 @@ export interface FileSelectorProps {
     allowUpload?: boolean
     inputRef?: React.RefObject<HTMLInputElement>
     showError?: boolean
-    onFileSelect: (file: { path: string }) => void
+    onFileSelect: (file: {path: string}) => void
     path: string
     defaultValue?: string
     isRequired?: boolean
@@ -147,6 +140,7 @@ export interface FileSelectorState {
 
 export interface FilesTableProps {
     onNavigationClick?: (path: string) => void
+    canNavigateFiles?: boolean
     sortOrder: SortOrder
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     sortingColumns: SortBy[]
@@ -165,11 +159,6 @@ export interface FilesTableProps {
     notStickyHeader?: boolean
 }
 
-export interface CreateFolderProps {
-    creatingNewFolder: boolean
-    onCreateFolder: (key: number, name: string) => void
-}
-
 export interface FilesTableHeaderProps {
     toSortingIcon?: (s: SortBy) => "arrowUp" | "arrowDown" | undefined
     sortFiles?: (sortOrder: SortOrder, sortBy: SortBy) => void
@@ -185,6 +174,7 @@ export interface FilesTableHeaderProps {
 
 export interface FilenameAndIconsProps {
     size?: number | string
+    canNavigateFiles: boolean
     file: File
     hasCheckbox: boolean
     onRenameFile?: (key: number, file: File, name: string) => void
@@ -226,13 +216,6 @@ export interface FileSelectorBodyProps {
     omitRelativeFolders: boolean
 }
 
-export interface FileListProps {
-    files: File[]
-    setSelectedFile: Function
-    fetchFiles: Function
-    canSelectFolders: boolean
-}
-
 export interface MoveCopyOperations {
     showFileSelector: (show: boolean) => void
     setDisallowedPaths: (paths: string[]) => void
@@ -254,14 +237,7 @@ export interface SortByDropdownProps {
     isSortedBy: boolean
 }
 
-export interface MobileButtonsProps {
-    file: File
-    fileOperations: FileOperation[]
-}
-
-export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon?: string, color?: string }
-export type FileOperation = Operation | PredicatedOperation
+export type FileOperation = Operation<File> | PredicatedOperation<File>
 
 export interface ContextButtonsProps {
     createFolder: () => void
@@ -285,7 +261,6 @@ export interface DetailedFileSearchOperations {
     fetchPage: (request: AdvancedSearchRequest, callback?: () => void) => void
     setLoading: (loading: boolean) => void
     setTimes: (times: Times) => void
-    setError: (error?: string) => void
 }
 
 export type DetailedFileSearchStateProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
@@ -308,14 +283,7 @@ export interface DetailedFileSearchReduxState {
     loading: boolean
 }
 
-export interface DetailedProjectSearch {
-    hidden: boolean
-    projectName: string
-    error?: string
-    loading: boolean
-}
-
-export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalidPath: boolean }
+export type ContextBarProps = ContextButtonsProps & FileOptionsProps & {invalidPath: boolean}
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
@@ -325,16 +293,12 @@ export interface ResponsiveTableColumnProps extends SortByDropdownProps {
     notSticky?: boolean
 }
 
-export interface FileInfoState {
-    activity: Page<Activity>
-}
-
 export type AdvancedSearchRequest = {
     fileName?: string
     extensions?: String[]
     fileTypes: [FileType?, FileType?]
-    createdAt?: { after?: number, before?: number }
-    modifiedAt?: { after?: number, before?: number }
+    createdAt?: {after?: number, before?: number}
+    modifiedAt?: {after?: number, before?: number}
     sensitivity?: SensitivityLevel[]
     itemsPerPage?: number
     page?: number

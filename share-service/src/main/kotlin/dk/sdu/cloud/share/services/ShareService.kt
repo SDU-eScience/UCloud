@@ -1,77 +1,93 @@
 package dk.sdu.cloud.share.services
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.AuthDescriptions
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersRequest
-import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.IngoingCallResponse
-import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
-import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.server.requiredAuthScope
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStreamContainer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.BackgroundJobs
 import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.UpdateAclRequest
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.indexing.api.LookupDescriptions
-import dk.sdu.cloud.indexing.api.ReverseLookupRequest
-import dk.sdu.cloud.notification.api.CreateNotification
-import dk.sdu.cloud.notification.api.Notification
-import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.share.api.CreateShareRequest
-import dk.sdu.cloud.share.api.MinimalShare
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.ShareId
 import dk.sdu.cloud.share.api.ShareState
-import dk.sdu.cloud.share.api.SharesByPath
+import dk.sdu.cloud.share.api.Shares
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlin.math.max
 
 class ShareService<DBSession>(
-    private val serviceCloud: AuthenticatedClient,
+    private val serviceClient: AuthenticatedClient,
     private val db: DBSessionFactory<DBSession>,
     private val shareDao: ShareDAO<DBSession>,
-    private val userCloudFactory: (refreshToken: String) -> AuthenticatedClient,
+    private val userClientFactory: (refreshToken: String) -> AuthenticatedClient,
+    private val eventStreamService: EventStreamService,
     private val devMode: Boolean = false
 ) {
+    private val workQueue = eventStreamService.createProducer(ShareACLJobStream.stream)
+
+    // Work queue. Add handlers here and place function near the correct workflow. It makes it easier to read the code.
+    fun initializeJobQueue() {
+        eventStreamService.subscribe(ShareACLJobStream.stream, EventConsumer.Immediate { job ->
+            val share = try {
+                db.withTransaction { shareDao.findById(it, AuthRequirements(), job.shareId) }
+            } catch (ex: ShareException.NotFound) {
+                log.info("Could not find share in $job")
+                return@Immediate
+            }
+
+            when (job) {
+                is ShareJob.ReadyToAccept -> handleReadyToAccept(share, job)
+                is ShareJob.Accepting -> handleAccepting(share, job)
+                is ShareJob.Updating -> handleUpdating(share, job)
+                is ShareJob.Deleting -> handleDeleting(share, job)
+                is ShareJob.Failing -> handleFailing(share, job)
+            }
+        })
+    }
+
+    // Share creation
     suspend fun create(
         user: String,
-        share: CreateShareRequest,
+        share: Shares.Create.Request,
         userToken: String,
         userCloud: AuthenticatedClient
     ): ShareId {
         log.debug("Creating share for $user $share")
         lateinit var fileId: String
-        lateinit var ownerToken: String
 
-        // Verify request
         coroutineScope {
             log.debug("Verifying file exists")
             val statJob = async {
                 FileDescriptions.stat
-                    .call(FindByPath(share.path), userCloud)
+                    .call(StatRequest(share.path), userCloud)
                     .orNull()
             }
 
@@ -79,254 +95,220 @@ class ShareService<DBSession>(
             val lookupJob = launch {
                 val lookup = UserDescriptions.lookupUsers.call(
                     LookupUsersRequest(listOf(share.sharedWith)),
-                    serviceCloud
+                    serviceClient
                 ).orRethrowAs { throw ShareException.InternalError("Could not look up user") }
-
-                log.debug("Lookup success!")
-
                 lookup.results[share.sharedWith]
                     ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+                if (lookup.results[share.sharedWith]?.role == Role.SERVICE) {
+                    throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+                }
             }
 
+            // Join tasks
+            lookupJob.join()
             val file = statJob.await() ?: throw ShareException.NotFound()
+
+            // Verify results. We allow invalid shares in dev mode.
             if (!devMode && (file.ownerName != user || file.link)) {
                 throw ShareException.NotAllowed()
             }
 
             fileId = file.fileId
-            log.debug("File exists")
-            lookupJob.join()
-            log.debug("User exists")
         }
 
-        // Acquire token for owner
-        // TODO If DB is failing we should delete this token
-        coroutineScope {
-            log.debug("Creating token for user")
-            val extendJob = async {
-                AuthDescriptions.tokenExtension.call(
-                    TokenExtensionRequest(
-                        userToken,
-                        listOf(
-                            FileDescriptions.updateAcl.requiredAuthScope
-                        ).map { it.toString() },
-                        1000L * 60,
-                        allowRefreshes = true
-                    ),
-                    serviceCloud
-                ).orThrow()
-            }
-
-            ownerToken = extendJob.await().refreshToken
-                ?: throw ShareException.InternalError("Bad response from token extension. refreshToken == null")
-        }
-
-        // Save internal state
-        log.debug("Saving internal state...")
-        val result = db.withTransaction {
-            shareDao.create(
-                it,
-                user,
-                share.sharedWith,
-                share.path,
-                share.rights,
-                fileId,
-                ownerToken
+        val ownerToken = createToken(
+            serviceClient, userToken, listOf(
+                FileDescriptions.updateAcl.requiredAuthScope,
+                BackgroundJobs.query.requiredAuthScope
             )
-        }
+        )
 
-        // Notify recipient
-        log.debug("Sending notification...")
-        coroutineScope {
-            launch {
-                NotificationDescriptions.create.call(
-                    CreateNotification(
-                        user = share.sharedWith,
-                        notification = Notification(
-                            type = "SHARE_REQUEST",
-                            message = "$user has shared a file with you",
-
-                            meta = mapOf(
-                                "shareId" to result,
-                                "path" to share.path,
-                                "rights" to share.rights
-                            )
-                        )
-                    ),
-                    serviceCloud
+        try {
+            val result = db.withTransaction { session ->
+                shareDao.create(
+                    session,
+                    owner = user,
+                    sharedWith = share.sharedWith,
+                    path = share.path,
+                    initialRights = share.rights,
+                    fileId = fileId,
+                    ownerToken = ownerToken
                 )
             }
-        }
 
-        log.debug("File share request sent!")
-        return result
+            aSendCreatedNotification(serviceClient, result, user, share)
+            return result
+        } catch (ex: Throwable) {
+            revokeToken(serviceClient, ownerToken)
+            throw ex
+        }
     }
 
-    fun list(
+    // Share accepts
+    suspend fun acceptShare(
         user: String,
-        state: ShareState? = null,
-        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-    ): Page<SharesByPath> {
-        val page = db.withTransaction {
-            shareDao.list(
-                it,
-                AuthRequirements(user, ShareRole.PARTICIPANT),
-                state = state,
-                paging = paging
+        shareId: ShareId,
+        userToken: String,
+        createLink: Boolean = true
+    ) {
+        val auth = AuthRequirements(user, ShareRole.RECIPIENT)
+
+        val existingShare = db.withTransaction { session ->
+            shareDao.findById(session, auth, shareId)
+        }
+
+        if (existingShare.state != ShareState.REQUEST_SENT) {
+            throw RPCException("Share has already been accepted.", HttpStatusCode.BadRequest)
+        }
+
+        val tokenExtension = createToken(
+            serviceClient, userToken, listOf(
+                FileDescriptions.stat.requiredAuthScope,
+                FileDescriptions.createLink.requiredAuthScope,
+                FileDescriptions.deleteFile.requiredAuthScope
+            )
+        )
+
+        db.withTransaction { session ->
+            shareDao.updateShare(
+                session,
+                auth,
+                shareId,
+                state = ShareState.UPDATING,
+                recipientToken = tokenExtension
             )
         }
 
-        return Page(
-            page.groupCount,
-            paging.itemsPerPage,
-            paging.page,
-            page.allSharesForPage.groupByPath(user)
+        workQueue.produce(ShareJob.ReadyToAccept(shareId, createLink))
+    }
+
+    private suspend fun handleReadyToAccept(share: InternalShare, job: ShareJob.ReadyToAccept) {
+        try {
+            workQueue.produce(
+                ShareJob.Accepting(
+                    updateFSPermissions(share),
+                    share.id,
+                    job.createLink
+                )
+            )
+        } catch (ex: Throwable) {
+            workQueue.produce(ShareJob.Failing(share.id))
+        }
+    }
+
+    private suspend fun handleAccepting(share: InternalShare, job: ShareJob.Accepting) {
+        awaitUpdateACL(
+            share,
+            job,
+
+            onSuccess = {
+                val userCloud = userClientFactory(share.recipientToken!!)
+
+                try {
+                    val createdLink = if (job.createLink) {
+                        FileDescriptions.createLink.call(
+                            CreateLinkRequest(
+                                linkPath = defaultLinkToShare(share, serviceClient),
+                                linkTargetPath = share.path
+                            ),
+                            userCloud
+                        ).orThrow()
+                    } else null
+
+                    db.withTransaction { session ->
+                        shareDao.updateShare(
+                            session,
+                            AuthRequirements(),
+                            job.shareId,
+                            state = ShareState.ACCEPTED,
+                            linkId = createdLink?.fileId
+                        )
+                    }
+                } catch (ex: Exception) {
+                    workQueue.produce(ShareJob.Failing(share.id))
+                }
+            },
+
+            onFailure = {
+                markShareAsFailed(share)
+            }
         )
     }
 
-    fun findSharesForPath(
-        user: String,
-        path: String
-    ): SharesByPath {
-        return db.withTransaction { shareDao.findAllByPath(it, AuthRequirements(user), path) }
-            .groupByPath(user)
-            .single()
-    }
-
-    private fun List<InternalShare>.groupByPath(user: String): List<SharesByPath> {
-        val byPath = groupBy { it.path }
-        return byPath.map { (path, sharesForPath) ->
-            val owner = sharesForPath.first().owner
-            val sharedByMe = owner == user
-
-            SharesByPath(path, owner, sharedByMe, sharesForPath.map {
-                MinimalShare(it.id, it.sharedWith, it.rights, it.state)
-            })
-        }
-    }
-
+    // Share updates
     suspend fun updateRights(
         user: String,
         shareId: ShareId,
         newRights: Set<AccessRight>
     ) {
+        val auth = AuthRequirements(user, ShareRole.OWNER)
         val existingShare = db.withTransaction {
-            shareDao.updateShare(it, AuthRequirements(user, ShareRole.OWNER), shareId, rights = newRights)
+            shareDao.findById(it, auth, shareId)
         }
 
-        if (existingShare.state == ShareState.ACCEPTED) {
-            updateFSPermissions(existingShare, newRights, userCloudFactory(existingShare.ownerToken)).orThrow()
-        }
-    }
+        when (existingShare.state) {
+            ShareState.REQUEST_SENT -> {
+                db.withTransaction { shareDao.updateShare(it, auth, shareId, rights = newRights) }
+            }
 
-    suspend fun acceptShare(
-        user: String,
-        shareId: ShareId,
-        userToken: String,
-        userCloud: AuthenticatedClient,
-        createLink: Boolean = true
-    ) {
-        val auth = AuthRequirements(user, ShareRole.RECIPIENT)
-        val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
-
-        try {
-            coroutineScope {
-                val updateCall = async {
-                    val ownerCloud = userCloudFactory(existingShare.ownerToken)
-                    updateFSPermissions(existingShare, existingShare.rights, ownerCloud).orThrow()
-                }
-
-                val extendCall = async {
-                    AuthDescriptions.tokenExtension.call(
-                        TokenExtensionRequest(
-                            userToken,
-                            listOf(
-                                FileDescriptions.stat.requiredAuthScope,
-                                FileDescriptions.createLink.requiredAuthScope,
-                                FileDescriptions.deleteFile.requiredAuthScope
-                            ).map { it.toString() },
-                            expiresIn = 1000L * 60,
-                            allowRefreshes = true
-                        ),
-                        serviceCloud
-                    ).orThrow()
-                }
-
-                val createdLink = if (createLink) {
-                    val linkCall = async {
-                        FileDescriptions.createLink.call(
-                            CreateLinkRequest(
-                                linkPath = defaultLinkToShare(existingShare),
-                                linkTargetPath = existingShare.path
-                            ),
-                            userCloud
-                        ).orThrow()
-                    }
-                    val createdLink = linkCall.await()
-                    updateCall.await()
-
-                    createdLink
-                } else null
-
-                val tokenExtension = extendCall.await().refreshToken
-                    ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
-
-                db.withTransaction { session ->
+            ShareState.ACCEPTED -> {
+                db.withTransaction {
                     shareDao.updateShare(
-                        session,
+                        it,
                         auth,
                         shareId,
-                        recipientToken = tokenExtension,
-                        state = ShareState.ACCEPTED,
-                        linkId = createdLink?.fileId
+                        state = ShareState.UPDATING
                     )
                 }
-            }
-        } catch (ex: Exception) {
-            runBlocking {
-                log.debug("Attempting cleanup")
-                //Attempt revoke of permissions
-                val refreshedExistingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
-                val ownerCloud = userCloudFactory(existingShare.ownerToken)
-                val response = FileDescriptions.updateAcl.call(
-                    UpdateAclRequest(
-                        refreshedExistingShare.path,
-                        true,
-                        listOf(
-                            ACLEntryRequest(
-                                refreshedExistingShare.sharedWith,
-                                emptySet(),
-                                revoke = true,
-                                isUser = true
-                            )
+
+                try {
+                    workQueue.produce(
+                        ShareJob.Updating(
+                            updateFSPermissions(
+                                existingShare,
+                                newRights = newRights
+                            ),
+                            shareId,
+                            newRights
                         )
-                    ),
-                    ownerCloud
-                )
-                log.debug("result of attempt: $response")
-                val pathToLink = findShareLink(refreshedExistingShare)
-                //Attempt to remove link if exists
-                if (pathToLink != null) {
-                    FileDescriptions.deleteFile.call(DeleteFileRequest(pathToLink), userCloud)
+                    )
+                } catch (ex: Throwable) {
+                    workQueue.produce(ShareJob.Failing(shareId))
                 }
-                log.debug("Cleanup complete")
             }
-            throw ex
+
+            ShareState.FAILURE, ShareState.UPDATING -> {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }
         }
     }
 
-    private suspend fun defaultLinkToShare(share: InternalShare): String {
-        val homeFolder = FileDescriptions.findHomeFolder.call(
-            FindHomeFolderRequest(share.sharedWith),
-            serviceCloud
-        ).orThrow().path
-        return joinPath(homeFolder, share.path.fileName())
+    private suspend fun handleUpdating(share: InternalShare, job: ShareJob.Updating) {
+        awaitUpdateACL(
+            share,
+            job,
+
+            onSuccess = {
+                db.withTransaction {
+                    shareDao.updateShare(
+                        it,
+                        AuthRequirements(),
+                        job.shareId,
+                        rights = job.newRights,
+                        state = ShareState.ACCEPTED
+                    )
+                }
+            },
+
+            onFailure = {
+                // Fail hard. We don't trust that it is capable of correctly restoring permissions.
+                workQueue.produce(ShareJob.Failing(job.shareId))
+            }
+        )
     }
 
-    suspend fun deleteShare(
-        user: String,
-        shareId: ShareId
-    ) {
+    // Share deletions
+    suspend fun deleteShare(user: String, shareId: ShareId) {
         val existingShare = db.withTransaction { dbSession ->
             shareDao.findById(dbSession, AuthRequirements(user, ShareRole.PARTICIPANT), shareId)
         }
@@ -334,176 +316,144 @@ class ShareService<DBSession>(
         deleteShare(existingShare)
     }
 
-    private suspend fun deleteShare(
-        existingShare: InternalShare
-    ) {
+    suspend fun deleteShare(existingShare: InternalShare) {
         log.debug("Deleting share $existingShare")
-        val ownerCloud = userCloudFactory(existingShare.ownerToken)
+        if (existingShare.state == ShareState.UPDATING) {
+            throw ShareException.BadRequest("Cannot delete share while it is updating!")
+        }
 
-        if (existingShare.state == ShareState.ACCEPTED) {
-            // Revoke permissions and remove link
-            coroutineScope {
-                val updateCall = async {
-                    // This is allowed to fail under certain conditions, such as not existing.
-                    FileDescriptions.updateAcl.call(
-                        UpdateAclRequest(
-                            existingShare.path,
-                            true,
-                            listOf(
-                                ACLEntryRequest(
-                                    existingShare.sharedWith,
-                                    emptySet(),
-                                    revoke = true,
-                                    isUser = true
-                                )
-                            )
-                        ),
-                        ownerCloud
-                    ).throwIfInternal()
-                }
-
-                val linkPath = findShareLink(existingShare)
-                if (linkPath != null) {
-                    log.debug("linkPath found $linkPath")
-                    val recipientCloud = existingShare.recipientToken?.let { userCloudFactory(it) }
-                        ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
-
-                    val stat = FileDescriptions.stat.call(FindByPath(linkPath), recipientCloud).throwIfInternal()
-                    if (stat.orNull()?.link == true) {
-                        log.debug("Found link!")
-                        val deleteLinkCall =
-                            launch {
-                                // We choose not to throw if the call fails
-                                FileDescriptions.deleteFile.call(
-                                    DeleteFileRequest(linkPath),
-                                    recipientCloud
-                                )
-                            }
-
-                        deleteLinkCall.join()
+        if (existingShare.state == ShareState.FAILURE) {
+            invalidateShare(existingShare)
+            db.withTransaction { dbSession ->
+                shareDao.deleteShare(dbSession, AuthRequirements(null), existingShare.id)
+            }
+        } else {
+            try {
+                workQueue.produce(
+                    ShareJob.Deleting(
+                        updateFSPermissions(existingShare, revoke = true),
+                        existingShare.id
+                    )
+                )
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    invalidateShare(existingShare)
+                    db.withTransaction { dbSession ->
+                        shareDao.deleteShare(dbSession, AuthRequirements(null), existingShare.id)
                     }
+                    return
+                } else {
+                    throw ex
                 }
+            }
 
-                updateCall.join()
+            try {
+                db.withTransaction {
+                    shareDao.updateShare(it, AuthRequirements(), existingShare.id, state = ShareState.UPDATING)
+                }
+            } catch (ignored: ShareException.NotFound) {
+                // Ignored
+            }
+        }
+    }
+
+    private suspend fun handleDeleting(share: InternalShare, job: ShareJob.Deleting) {
+        awaitUpdateACL(
+            share,
+            job,
+            onSuccess = {
+                invalidateShare(share)
+                db.withTransaction { dbSession ->
+                    shareDao.deleteShare(dbSession, AuthRequirements(null), share.id)
+                }
+            },
+
+            onFailure = {
+                // Do nothing. Leave the share in a state where it can be revoked by the user (again).
+            }
+        )
+    }
+
+    private suspend fun handleFailing(share: InternalShare, job: ShareJob.Failing) {
+        try {
+            delay(job.failureCount * 1000L)
+            try {
+                val jobId = updateFSPermissions(share, revoke = true)
+                if (job.failureCount > 100) log.warn("Failure count > 100 $job")
+
+                awaitUpdateACL(
+                    share,
+                    jobId,
+
+                    onSuccess = { markShareAsFailed(share) },
+                    onFailure = { workQueue.produce(ShareJob.Failing(job.shareId, job.failureCount + 1)) }
+                )
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    markShareAsFailed(share)
+                } else {
+                    throw ex
+                }
+            }
+        } catch (ex: Throwable) {
+            workQueue.produce(ShareJob.Failing(job.shareId, failureCount = job.failureCount + 1))
+        }
+    }
+
+    // Utility Code
+    private suspend fun invalidateShare(share: InternalShare) {
+        if (!share.recipientToken.isNullOrEmpty()) {
+            val linkPath = findShareLink(share, serviceClient)
+
+            if (linkPath != null) {
+                log.debug("linkPath found $linkPath")
+                val recipientCloud = userClientFactory(share.recipientToken)
+
+                val stat =
+                    FileDescriptions.stat.call(StatRequest(linkPath), recipientCloud).throwIfInternal()
+
+                if (stat.orNull()?.link == true) {
+                    log.debug("Found link!")
+                    // We choose not to throw if the call fails
+                    FileDescriptions.deleteFile.call(
+                        DeleteFileRequest(linkPath),
+                        recipientCloud
+                    )
+                }
             }
         }
 
         // Revoke tokens
         coroutineScope {
-            val ownerTokenRevoke = launch {
-                AuthDescriptions.logout.call(
-                    Unit,
-                    serviceCloud.withoutAuthentication().bearerAuth(existingShare.ownerToken)
-                )
-            }
-
-            val recipientTokenRevoke = if (existingShare.recipientToken != null) {
-                launch {
-                    AuthDescriptions.logout.call(
-                        Unit,
-                        serviceCloud.withoutAuthentication().bearerAuth(existingShare.recipientToken)
-                    )
-                }
-            } else {
-                null
-            }
-
-            ownerTokenRevoke.join()
-            recipientTokenRevoke?.join()
+            listOf(
+                launch { revokeToken(serviceClient, share.ownerToken) },
+                launch { revokeToken(serviceClient, share.recipientToken) }
+            ).joinAll()
         }
-
-        // TODO Maybe do this async in Kafka?
-        // Do this last to ensure that share isn't deleted before FS permissions are fixed.
-        // If we want more guarantees we would some additional steps, but this will do for now.
-        db.withTransaction { dbSession ->
-            shareDao.deleteShare(dbSession, AuthRequirements(null), existingShare.id)
-        }
-
-        log.debug("Share deleted $existingShare")
     }
 
-    suspend fun handleFilesDeletedOrInvalidated(events: List<StorageEvent>) {
-        if (events.isEmpty()) return
-        log.debug("Handling deleted or invalidated events $events")
+    private suspend fun markShareAsFailed(share: InternalShare) {
+        // Changes to ACL should be rolled back automatically.
+        invalidateShare(share)
 
-        lateinit var deletedShares: List<InternalShare>
         db.withTransaction { session ->
-            deletedShares =
-                shareDao.findAllByFileIds(session, events.map { it.id }, includeShares = true, includeLinks = false)
+            shareDao.updateShare(
+                session,
+                AuthRequirements(),
+                share.id,
+                ownerToken = "",
+                recipientToken = "",
+                state = ShareState.FAILURE
+            )
         }
-
-        coroutineScope {
-            // TODO Performance, we could bundle these by file ID and bulk updateAcl
-            // TODO Confirm file was deleted, in this case we can skip the updateAcl call
-            val deletedShareJobs = deletedShares.map { launch { deleteShare(it) } }
-
-            // TODO Performance. This is not even slightly optimized for bulk.
-            // The DB transfers are not in a single transaction (because we can't).
-            // We cannot update multiple ACLs either.
-
-            deletedShareJobs.joinAll()
-        }
-    }
-
-    suspend fun handleFilesMoved(events: List<StorageEvent.Moved>) {
-        if (events.isEmpty()) return
-        log.debug("Handling moved events: $events")
-
-        // We update shares first, just to be more efficient. We will retry later (due to Kafka) if updating links
-        // fail hard.
-        val shares = db.withTransaction { session ->
-            shareDao.onFilesMoved(session, events)
-        }
-
-        coroutineScope {
-            shares.mapNotNull { share ->
-                val recipientCloud = share.recipientToken?.let(userCloudFactory) ?: return@mapNotNull null
-
-                launch {
-                    log.debug("Handling moved event for share: $share")
-
-                    val path = findShareLink(share)
-                    if (path != null) {
-                        log.debug("Share path is $path")
-                        val stat = FileDescriptions.stat.call(
-                            FindByPath(path),
-                            recipientCloud
-                        ).throwIfInternal()
-
-                        val isLink = stat.orNull()?.fileType == FileType.LINK
-                        log.debug("Found link? $isLink")
-                        if (isLink) {
-                            FileDescriptions.deleteFile.call(
-                                DeleteFileRequest(path),
-                                recipientCloud
-                            ).throwIfInternal()
-                            log.debug("File deleted")
-                        }
-                    }
-
-                    log.debug("Creating link for $share")
-                    val createdLink = FileDescriptions.createLink.call(
-                        CreateLinkRequest(
-                            linkPath = defaultLinkToShare(share),
-                            linkTargetPath = share.path
-                        ),
-                        recipientCloud
-                    ).orThrow()
-
-                    db.withTransaction { session ->
-                        shareDao.updateShare(session, AuthRequirements(null), share.id, linkId = createdLink.fileId)
-                    }
-                    log.debug("$share updated from moved event")
-                }
-            }
-        }.joinAll()
     }
 
     private suspend fun updateFSPermissions(
         existingShare: InternalShare,
-        newRights: Set<AccessRight>,
-        userCloud: AuthenticatedClient
-    ): IngoingCallResponse<Unit, CommonErrorMessage> {
+        revoke: Boolean = false,
+        newRights: Set<AccessRight> = existingShare.rights
+    ): String {
+        val userCloud = userClientFactory(existingShare.ownerToken)
         return FileDescriptions.updateAcl.call(
             UpdateAclRequest(
                 existingShare.path,
@@ -512,26 +462,114 @@ class ShareService<DBSession>(
                     ACLEntryRequest(
                         existingShare.sharedWith,
                         newRights,
-                        isUser = true
+                        isUser = true,
+                        revoke = revoke
                     )
                 )
             ), userCloud
-        )
+        ).orThrow().id
     }
 
-    private suspend fun findShareLink(
-        existingShare: InternalShare
-    ): String? {
-        val linkId = existingShare.linkId ?: return null
-        val result = LookupDescriptions.reverseLookup.call(
-            ReverseLookupRequest(linkId),
-            serviceCloud
-        ).orNull() ?: return null
+    private suspend fun <E> awaitUpdateACL(
+        share: InternalShare,
+        job: E,
+        onSuccess: suspend (result: BackgroundJobs.Query.Response) -> Unit,
+        onFailure: suspend (result: BackgroundJobs.Query.Response) -> Unit
+    ) where E : ShareJob, E : UpdateACLJob {
+        awaitUpdateACL(share, job.updateAclJobId, onSuccess, onFailure)
+    }
 
-        return result.canonicalPath.firstOrNull()
+    private suspend fun awaitUpdateACL(
+        share: InternalShare,
+        updateAclJobId: String,
+        onSuccess: suspend (result: BackgroundJobs.Query.Response) -> Unit,
+        onFailure: suspend (result: BackgroundJobs.Query.Response) -> Unit
+    ) {
+        var currentDelay = 0L
+        fun increaseAndGetDelay(): Long {
+            currentDelay = max(5_000, currentDelay + 100)
+            return currentDelay
+        }
+
+        while (true) {
+            try {
+                val userClient = userClientFactory(share.ownerToken)
+
+                val backgroundResult =
+                    BackgroundJobs.query.call(BackgroundJobs.Query.Request(updateAclJobId), userClient).orThrow()
+
+                if (backgroundResult.statusCode > 0) {
+                    try {
+                        if (backgroundResult.statusCode < 300) {
+                            onSuccess(backgroundResult)
+                        } else {
+                            onFailure(backgroundResult)
+                        }
+                    } finally {
+                        break
+                    }
+                } else {
+                    delay(increaseAndGetDelay())
+                }
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                delay(increaseAndGetDelay())
+            }
+        }
     }
 
     companion object : Loggable {
         override val log = logger()
     }
+}
+
+private object ShareACLJobStream : EventStreamContainer() {
+    val stream = stream<ShareJob>("share-acl-jobs", { it.shareId.toString() })
+}
+
+private interface UpdateACLJob {
+    val updateAclJobId: String
+}
+
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = ShareJob.ReadyToAccept::class, name = "readyToAccept"),
+    JsonSubTypes.Type(value = ShareJob.Accepting::class, name = "accepting"),
+    JsonSubTypes.Type(value = ShareJob.Updating::class, name = "updating"),
+    JsonSubTypes.Type(value = ShareJob.Failing::class, name = "failing"),
+    JsonSubTypes.Type(value = ShareJob.Deleting::class, name = "deleting")
+)
+private sealed class ShareJob {
+    abstract val shareId: ShareId
+
+    data class ReadyToAccept(
+        override val shareId: ShareId,
+        val createLink: Boolean
+    ) : ShareJob()
+
+    data class Accepting(
+        override val updateAclJobId: String,
+        override val shareId: ShareId,
+        val createLink: Boolean
+    ) : ShareJob(), UpdateACLJob
+
+    data class Updating(
+        override val updateAclJobId: String,
+        override val shareId: ShareId,
+        val newRights: Set<AccessRight>
+    ) : ShareJob(), UpdateACLJob
+
+    data class Deleting(
+        override val updateAclJobId: String,
+        override val shareId: ShareId
+    ) : ShareJob(), UpdateACLJob
+
+    data class Failing(
+        override val shareId: ShareId,
+        val failureCount: Int = 0
+    ) : ShareJob()
 }

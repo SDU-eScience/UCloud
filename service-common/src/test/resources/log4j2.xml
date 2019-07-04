@@ -43,5 +43,8 @@
         <Logger name="dk.sdu.cloud.events" level="trace" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="io.lettuce" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

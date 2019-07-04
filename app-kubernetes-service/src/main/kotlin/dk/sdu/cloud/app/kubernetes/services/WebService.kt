@@ -1,8 +1,8 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.api.QueryInternalWebParametersResponse
-import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
@@ -36,10 +36,10 @@ import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
 import io.ktor.websocket.webSocket
 import kotlinx.coroutines.io.ByteReadChannel
+import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
 private const val SDU_CLOUD_REFRESH_TOKEN = "refreshToken"
-private const val APP_REFRESH_TOKEN = "appRefreshToken"
 
 class WebService(
     private val authenticationService: AuthenticationService,
@@ -50,9 +50,19 @@ class WebService(
      */
     private val performAuthentication: Boolean,
     private val prefix: String = "app-",
-    private val domain: String = "cloud.sdu.dk"
+    private val domain: String = "cloud.sdu.dk",
+    private val cookieName: String = "appRefreshToken"
 ) {
-    private val client = HttpClient(OkHttp)
+    private val client = HttpClient(OkHttp) {
+        engine {
+            config {
+                // NOTE(Dan): Anything which takes more than 15 minutes is definitely broken.
+                // I do not believe we should increase this to fix other peoples broken software.
+                readTimeout(15, TimeUnit.MINUTES)
+                writeTimeout(15, TimeUnit.MINUTES)
+            }
+        }
+    }
 
     private val jobIdToJob = HashMap<String, VerifiedJob>()
 
@@ -84,7 +94,7 @@ class WebService(
                 }
 
                 call.response.cookies.append(
-                    name = APP_REFRESH_TOKEN,
+                    name = cookieName,
                     value = ingoingToken,
                     secure = call.request.origin.scheme == "https",
                     httpOnly = true,
@@ -115,7 +125,7 @@ class WebService(
 
                     val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
                         // Remove authentication tokens
-                        remove(APP_REFRESH_TOKEN)
+                        remove(cookieName)
                         remove(SDU_CLOUD_REFRESH_TOKEN)
                     }
 
@@ -152,7 +162,7 @@ class WebService(
             return false
         }
 
-        val token = call.request.cookies[APP_REFRESH_TOKEN] ?: run {
+        val token = call.request.cookies[cookieName] ?: run {
             call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
             return false
         }
@@ -176,7 +186,7 @@ class WebService(
         val method = call.request.httpMethod
         val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
             // Remove authentication tokens
-            remove(APP_REFRESH_TOKEN)
+            remove(cookieName)
             remove(SDU_CLOUD_REFRESH_TOKEN)
         }
 

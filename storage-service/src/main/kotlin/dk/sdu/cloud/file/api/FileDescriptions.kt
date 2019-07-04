@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.RPCException
@@ -38,7 +39,8 @@ data class CreateLinkRequest(
 data class UpdateAclRequest(
     val path: String,
     val recurse: Boolean,
-    val changes: List<ACLEntryRequest>
+    val changes: List<ACLEntryRequest>,
+    val automaticRollback: Boolean? = null
 ) {
     init {
         if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
@@ -170,7 +172,8 @@ enum class StorageFileAttribute {
     ownSensitivityLevel,
     link,
     fileId,
-    creator
+    creator,
+    canonicalPath
 }
 
 data class ListDirectoryRequest(
@@ -248,7 +251,30 @@ sealed class LongRunningResponse<T> {
     ) : LongRunningResponse<T>()
 }
 
-data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>)
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = KnowledgeMode.List::class, name = "list"),
+    JsonSubTypes.Type(value = KnowledgeMode.Permission::class, name = "permission")
+)
+sealed class KnowledgeMode {
+    /**
+     * Ensures that the user can list the file. Concretely this means that we must be able to list the file in the
+     * parent directory.
+     */
+    class List : KnowledgeMode()
+
+    /**
+     * Ensures that the user has specific permissions on the file. If [requireWrite] is true read+write permissions
+     * are required otherwise only read permissions are required. No permissions on the parent directory is required.
+     */
+    class Permission(val requireWrite: Boolean) : KnowledgeMode()
+}
+
+data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>, val mode: KnowledgeMode? = null)
 data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
 data class DeliverMaterializedFileSystemAudit(val roots: List<String>)
@@ -572,7 +598,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
+    val updateAcl = call<UpdateAclRequest, FindByStringId, CommonErrorMessage>("updateAcl") {
         audit<BulkFileAudit<UpdateAclRequest>>()
 
         auth {

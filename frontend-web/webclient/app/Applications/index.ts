@@ -5,10 +5,10 @@ import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
 import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 import { ParameterValues } from "Utilities/ApplicationUtilities";
-import { AddSnackOperation } from "Snackbar/Snackbars";
 import { SetStatusLoading } from "Navigation/Redux/StatusActions";
 
 export interface Analysis {
+    checked?: boolean
     status: string
     state: AppState
     jobId: string
@@ -30,21 +30,21 @@ export interface AnalysesStateProps {
 }
 
 export interface AnalysesOperations {
-    onErrorDismiss: () => void
     setLoading: (loading: boolean) => void
     fetchJobs: (itemsPerPage: number, pageNumber: number) => void
     onInit: () => void
     setRefresh: (refresh?: () => void) => void
+    checkAnalysis: (jobId: string, checked: boolean) => void
+    checkAllAnalyses: (checked: boolean) => void
 }
 
 export interface AnalysesState {
 }
 
-export interface DetailedResultOperations extends AddSnackOperation {
+export interface DetailedResultOperations {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    detailedResultError: (error: string) => void
     fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
     setRefresh: (refresh?: () => void) => void
 }
@@ -73,12 +73,13 @@ interface ApplicationTool {
         container: string
         defaultNumberOfNodes: number
         defaultTasksPerNode: number
-        defaultMaxTime: MaxTime
+        defaultAllocationTime: MaxTime
         requiredModules: string[]
         authors: string[]
         title: string
         description: string
         backend: string
+        license: string
     }
 }
 
@@ -168,7 +169,6 @@ export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
     initialSubmit: boolean
-    error?: string
     application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
@@ -177,7 +177,7 @@ export interface RunAppState {
     mountedFolders: RefReadPair[]
 }
 
-export interface RunOperations extends AddSnackOperation, SetStatusLoading {
+export interface RunOperations extends SetStatusLoading {
     updatePageTitle: () => void
 }
 
@@ -289,7 +289,6 @@ export interface DetailedApplicationSearchReduxState {
 export interface DetailedApplicationOperations {
     setAppName: (n: string) => void
     setVersionName: (v: string) => void
-    setError: (err?: string) => void
     fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void
     fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void
 }
@@ -350,12 +349,13 @@ interface ToolDescription {
     container: string
     defaultNumberOfNodes: number
     defaultTasksPerNode: number
-    defaultMaxTime: MaxTime
+    defaultTimeAllocation: MaxTime
     requiredModules: string[]
     authors: string[]
     title: string
     description: string
     backend: string
+    license: string
 }
 
 export interface WithAppMetadata {
@@ -369,3 +369,5 @@ export interface WithAppInvocation {
 export interface WithAppFavorite {
     favorite: boolean
 }
+
+export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata

@@ -6,10 +6,13 @@ metadata:
   namespace: default
 rules:
 - apiGroups: [""] # "" indicates the core API group
-  resources: ["pods", "pods/log", "pods/portforward"]
+  resources: ["pods", "pods/log", "pods/portforward", "pods/exec"]
   verbs: ["*"]
 - apiGroups: ["batch", "extensions"]
   resources: ["jobs"]
+  verbs: ["*"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
   verbs: ["*"]
 
 ---

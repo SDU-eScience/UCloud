@@ -7,13 +7,13 @@ mainClassName = "dk.sdu.cloud.zenodo.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.8/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = '1.1.10'
+    ext.serviceCommonVersion = "1.4.0-REDIS.2"
 }
 
 dependencies {
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile "dk.sdu.cloud:auth-api:1.19.1"
-    compile "dk.sdu.cloud:file-api:1.2.8"
+    compile "dk.sdu.cloud:file-api:1.8.0-REDIS.0"
     compile 'org.asynchttpclient:async-http-client:2.6.0'
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }

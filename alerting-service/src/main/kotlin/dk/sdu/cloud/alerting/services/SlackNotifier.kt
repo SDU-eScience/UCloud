@@ -48,6 +48,7 @@ class SlackNotifier(
                 runCatching { log.warn(postResult.receive()) }
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
+            return
         }
     }
 

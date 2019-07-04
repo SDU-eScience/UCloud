@@ -239,26 +239,6 @@ test("Download disallowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
 
-test("shareSwal", () => {
-    const swal: any = UF.shareSwal();
-    expect(JSON.parse(JSON.stringify(swal.params))).toEqual(JSON.parse(JSON.stringify({
-        title: "Share",
-        input: "text",
-        html: `<div>
-                <input name="access" type="radio" value="read" id="read"/>
-                <label for="read">Can View</label>
-                <span style="margin-left:20px" />
-                <input name="access" type="radio" value="read_edit" id="read_edit"/>
-                <label for="read_edit">Can View and Edit</label>
-            </div>`,
-        showCloseButton: true,
-        showCancelButton: true,
-        inputPlaceholder: "Enter username...",
-        focusConfirm: false,
-        inputValidator: () => undefined
-    })));
-});
-
 describe("Get sorting icon", () => {
     test("Matching sortBy, up", () =>
         expect(UF.getSortingIcon(SortBy.ACL, SortOrder.ASCENDING, SortBy.ACL)).toBe("arrowUp")
@@ -312,7 +292,7 @@ describe("If Present", () => {
 
 describe("defaultErrorHandler", () => {
     test.skip("Todo", () =>
-        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined }, () => undefined)).toBe(0)
+        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined })).toBe(0)
     );
 });
 

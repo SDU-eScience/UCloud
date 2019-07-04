@@ -41,6 +41,10 @@ class ServerFeature : MicroFeature {
             server.attachRequestInterceptor(IngoingHttpInterceptor(engine, server))
             server.attachRequestInterceptor(IngoingWebSocketInterceptor(engine, server))
         }
+
+        ctx.featureOrNull(DeinitFeature)?.addHandler {
+            server.stop()
+        }
     }
 
     companion object Feature : MicroFeatureFactory<ServerFeature, Unit>, Loggable {

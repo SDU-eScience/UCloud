@@ -8,6 +8,7 @@ import dk.sdu.cloud.file.services.linuxfs.ACL
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.linuxfs.listAndClose
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -24,7 +25,6 @@ import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
 import java.util.*
-import kotlin.streams.asSequence
 
 data class CreatedWorkspace(val workspaceId: String, val failures: List<WorkspaceMount>)
 
@@ -101,7 +101,7 @@ class WorkspaceService(
                         if (readOnly) Files.createDirectories(inputDestinationPath)
                         Files.createDirectories(outputDestinationPath)
 
-                        Files.list(file).forEach {
+                        file.listAndClose().forEach {
                             transferFile(it, rootPath, initialDestination, readOnly)
                         }
                     } else {
@@ -175,7 +175,7 @@ class WorkspaceService(
             if (Files.isDirectory(sourceFile)) {
                 val targetIsDir = Files.isDirectory(resolvedDestination)
                 if (targetIsDir) {
-                    Files.list(sourceFile).forEach { child ->
+                    sourceFile.listAndClose().forEach { child ->
                         transferFile(child, destinationDir, relativeTo)
                     }
                 } else {
@@ -232,7 +232,7 @@ class WorkspaceService(
             return resolvedDestination
         }
 
-        Files.list(outputWorkspace)
+        outputWorkspace.listAndClose()
             .asSequence()
             .mapNotNull { path ->
                 if (Files.isSymbolicLink(path)) return@mapNotNull null
@@ -291,7 +291,7 @@ class WorkspaceService(
                             Files.createDirectories(destinationDir) // Ensure that directory exists
                         }
 
-                        Files.list(currentFile).forEach { child ->
+                        currentFile.listAndClose().forEach { child ->
                             transferFile(child, destinationDir, relativeTo = currentFile)
                         }
                     }

@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="100%" height="100%" viewBox="0 0 24 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
-    <g transform="matrix(1,0,0,1,-616,-489)">
-        <g id="Folder" transform="matrix(0.6,0,0,0.6875,616,489.688)">
-            <path d="M0,30C0,30.55 0.45,31 1,31L39,31C39.55,31 40,30.55 40,30L40,6C40,5.45 39.55,5 39,5L18,5L12,-1L1,-1C0.45,-1 0,-0.55 0,0L0,30Z" style="fill:rgb(83,101,125);fill-rule:nonzero;"/>
+<svg width="100%" height="100%" viewBox="0 0 25 23" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-680,-517)">
+        <g id="Folder" transform="matrix(1,0,0,1,-12.0006,24)">
+            <g transform="matrix(1,0,0,1,12.0006,-23)">
+                <path d="M680,517.5C680,517.102 680.158,516.721 680.439,516.439C680.721,516.158 681.102,516 681.5,516C684.06,516 689,516 689,516L692,520C692,520 699.281,520 702.5,520C702.898,520 703.28,520.158 703.561,520.439C703.842,520.721 704,521.102 704,521.5C704,522.635 704,524 704,524L680,524C680,524 680,519.816 680,517.5Z" style="fill:rgb(131,147,167);"/>
+            </g>
+            <g transform="matrix(1,0,0,1,12.0006,-23)">
+                <path d="M680,523.5C680,522.672 680.672,522 681.5,522C685.809,522 698.191,522 702.5,522C703.328,522 704,522.672 704,523.5C704,526.732 704,534.279 704.001,537C704.001,537.265 703.895,537.52 703.708,537.707C703.52,537.895 703.266,538 703.001,538C699.096,538 684.904,538 681,538C680.448,538 680,537.552 680,537C680,534.279 680,526.732 680,523.5Z" style="fill:rgb(83,101,125);"/>
+            </g>
         </g>
     </g>
 </svg>

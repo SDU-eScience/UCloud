@@ -6,6 +6,8 @@ import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 
 private typealias SEventTransformer = (StorageEvent) -> List<ActivityEvent>?
@@ -50,8 +52,8 @@ class StorageEventProcessor<DBSession>(
             ActivityEvent.Updated(
                 username = causedBy,
                 timestamp = event.timestamp,
-                fileId = event.id,
-                originalFilePath = event.path
+                fileId = event.file.fileId,
+                originalFilePath = event.file.path
             )
         )
     }
@@ -63,9 +65,9 @@ class StorageEventProcessor<DBSession>(
         return listOf(
             ActivityEvent.Deleted(
                 timestamp = event.timestamp,
-                fileId = event.id,
+                fileId = event.file.fileId,
                 username = causedBy,
-                originalFilePath = event.path
+                originalFilePath = event.file.path
             )
         )
     }

@@ -4,12 +4,11 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
-import dk.sdu.cloud.kafka.MappedEventProducer
+import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
@@ -47,9 +46,7 @@ fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.
 private fun configureZenodoServer(
     zenodoRpcService: ZenodoRPCService = ZenodoRPCService(true, mockk(relaxed = true)),
     publicationService: PublicationService<*> = mockk(relaxed = true),
-    eventEmitter: MappedEventProducer<String, ZenodoPublishCommand> = mockk(
-        relaxed = true
-    )
+    eventEmitter: EventProducer<ZenodoPublishCommand> = mockk(relaxed = true)
 ): List<Controller> {
     return listOf(
         @Suppress("UNCHECKED_CAST")

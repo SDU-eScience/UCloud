@@ -7,21 +7,23 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.share.api.FindByShareId
-import dk.sdu.cloud.share.api.ShareDescriptions
+import dk.sdu.cloud.share.api.Shares
+import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
 import io.ktor.application.call
 
 class ShareController(
     private val shareService: ShareService<*>,
+    private val shareQueryService: ShareQueryService<*>,
     private val serviceClient: AuthenticatedClient
 ) : Controller {
     private val clientAndBackend = serviceClient.withoutAuthentication()
 
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(ShareDescriptions.create) {
+        implement(Shares.create) {
             val bearer = (ctx as HttpCall).call.request.bearer!!
             val id = shareService.create(
                 ctx.securityPrincipal.username,
@@ -30,23 +32,22 @@ class ShareController(
                 clientAndBackend.bearerAuth(bearer)
             )
 
-            ok(FindByShareId(id))
+            ok(Shares.Create.Response(id))
         }
 
-        implement(ShareDescriptions.accept) {
+        implement(Shares.accept) {
             val bearer = (ctx as HttpCall).call.request.bearer!!
             shareService.acceptShare(
                 ctx.securityPrincipal.username,
                 request.id,
                 bearer,
-                clientAndBackend.bearerAuth(bearer),
                 request.createLink ?: true
             )
 
             ok(Unit)
         }
 
-        implement(ShareDescriptions.revoke) {
+        implement(Shares.revoke) {
             shareService.deleteShare(
                 ctx.securityPrincipal.username,
                 request.id
@@ -55,7 +56,7 @@ class ShareController(
             ok(Unit)
         }
 
-        implement(ShareDescriptions.update) {
+        implement(Shares.update) {
             shareService.updateRights(
                 ctx.securityPrincipal.username,
                 request.id,
@@ -65,21 +66,22 @@ class ShareController(
             ok(Unit)
         }
 
-        implement(ShareDescriptions.list) {
+        implement(Shares.list) {
             ok(
-                shareService.list(
+                shareQueryService.list(
                     ctx.securityPrincipal.username,
-                    request.state,
+                    request.sharedByMe,
                     request.normalize()
                 )
             )
         }
 
-        implement(ShareDescriptions.findByPath) {
+        implement(Shares.findByPath) {
             ok(
-                shareService.findSharesForPath(
+                shareQueryService.findSharesForPath(
                     ctx.securityPrincipal.username,
-                    request.path
+                    request.path,
+                    ctx.bearer!!
                 )
             )
         }

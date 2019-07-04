@@ -1,5 +1,5 @@
-import { NotificationsReduxObject, initNotifications } from "DefaultObjects";
-import { NotificationActions } from "./NotificationsActions";
+import {NotificationsReduxObject, initNotifications} from "DefaultObjects";
+import {NotificationActions} from "./NotificationsActions";
 
 export const RECEIVE_SINGLE_NOTIFICATION = "RECEIVE_SINGLE_NOTIFICATION";
 export const RECEIVE_NOTIFICATIONS = "RECEIVE_NOTIFICATIONS";
@@ -9,19 +9,22 @@ export const SET_NOTIFICATIONS_ERROR = "SET_NOTIFICATIONS_ERROR";
 export const NOTIFICATIONS_ERROR = "NOTIFICATIONS_ERROR";
 export const READ_ALL = "READ_ALL";
 
-const Notifications = (state: NotificationsReduxObject = initNotifications(), action: NotificationActions): NotificationsReduxObject => {
+const Notifications = (
+    state: NotificationsReduxObject = initNotifications(),
+    action: NotificationActions
+): NotificationsReduxObject => {
     switch (action.type) {
         case SET_REDIRECT:
         case RECEIVE_NOTIFICATIONS: {
-            return { ...state, ...action.payload };
+            return {...state, ...action.payload};
         }
         case RECEIVE_SINGLE_NOTIFICATION: {
-            return { ...state, items: [action.payload.item].concat(state.items) };
+            return {...state, items: [action.payload.item].concat(state.items)};
         }
         case NOTIFICATION_READ: {
             return {
                 ...state,
-                items: state.items.map(n =>  {
+                items: state.items.map(n => {
                     if (n.id === action.payload.id) n.read = true;
                     return n;
                 })
@@ -37,7 +40,6 @@ const Notifications = (state: NotificationsReduxObject = initNotifications(), ac
             }
         }
         case NOTIFICATIONS_ERROR:
-            return { ...state, ...action.payload  }
         default: {
             return state;
         }

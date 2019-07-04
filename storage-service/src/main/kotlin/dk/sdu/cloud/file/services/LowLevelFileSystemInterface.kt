@@ -279,7 +279,8 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         entity: FSACLEntity,
         rights: Set<AccessRight>,
         defaultList: Boolean = false,
-        recursive: Boolean = false
+        recursive: Boolean = false,
+        transferOwnershipTo: String? = null
     ): FSResult<Unit>
 
     /**
@@ -293,7 +294,8 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         path: String,
         entity: FSACLEntity,
         defaultList: Boolean = false,
-        recursive: Boolean = false
+        recursive: Boolean = false,
+        transferOwnershipTo: String? = null
     ): FSResult<Unit>
 
     /**
@@ -309,4 +311,12 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         group: Set<AccessRight>,
         other: Set<AccessRight>
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
+
+    suspend fun chown(
+        ctx: Ctx,
+        path: String,
+        owner: String
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
+
+    suspend fun checkPermissions(ctx: Ctx, path: String, requireWrite: Boolean): FSResult<Boolean>
 }

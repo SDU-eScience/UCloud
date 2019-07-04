@@ -21,8 +21,7 @@ test("silencer", () => { });
 describe("File Operations", () => {
     test("No file operations", () =>
         expect(allFileOperations({
-            setLoading: () => undefined,
-            addSnack: () => undefined
+            setLoading: () => undefined
         })).toEqual([])
     );
 })

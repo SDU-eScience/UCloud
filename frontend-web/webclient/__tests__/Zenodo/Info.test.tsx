@@ -4,14 +4,15 @@ import * as React from "react";
 import { MemoryRouter } from "react-router";
 import { Provider } from "react-redux";
 import { configureStore } from "../../app/Utilities/ReduxUtilities";
-import { initObject } from "../../app/DefaultObjects";
+import { initObject, initZenodo } from "../../app/DefaultObjects";
 import zenodo from "../../app/Zenodo/Redux/ZenodoReducer";
 import theme, { responsiveBP } from "../../app/ui-components/theme";
 import "jest-styled-components";
 import { createResponsiveStateReducer, responsiveStoreEnhancer } from "redux-responsive";
 import { ThemeProvider } from "styled-components";
 
-const store = configureStore(initObject("Cloud.homeFolder"), {
+/*  */
+const store = configureStore({ zenodo: initZenodo() }, {
     zenodo,
     responsive: createResponsiveStateReducer(
         responsiveBP,

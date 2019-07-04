@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-echo "New create_service script has been placed in 'infrastructure/scripts'."
-echo "Please add it to your PATH. The new script requires kscript to be
-installed. See https://github.com/holgerbrandl/kscript"
-echo "This script will be removed in the future"
-
-./infrastructure/scripts/create_service.kts $@
-

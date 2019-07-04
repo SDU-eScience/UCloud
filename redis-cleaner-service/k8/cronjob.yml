@@ -1,0 +1,52 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: redis-cleaner
+spec:
+  schedule: "0 3 * * 0"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+
+          containers:
+          - name: redis-cleaner
+            image: registry.cloud.sdu.dk/sdu-cloud/redis-cleaner-service:0.1.1
+            command:
+            - /opt/service/bin/service
+            - --config-dir
+            - /etc/refresh-token
+            - --config-dir
+            - /etc/token-validation
+            - --config-dir
+            - /etc/psql
+            volumeMounts:
+            - mountPath: /etc/refresh-token
+              name: refresh-token
+            - mountPath: /etc/token-validation
+              name: token-validation
+            - mountPath: /etc/psql
+              name: redis-cleaner-psql
+            env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+          volumes:
+            - name: refresh-token
+              secret:
+                optional: false
+                secretName: redis-cleaner-refresh-token
+            - name: token-validation
+              configMap:
+                name: token-validation
+            - name: redis-cleaner-psql
+              secret:
+                optional: false
+                secretName: redis-cleaner-psql
+
+          imagePullSecrets:
+            - name: esci-docker

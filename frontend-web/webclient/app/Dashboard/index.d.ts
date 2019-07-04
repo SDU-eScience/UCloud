@@ -5,7 +5,6 @@ import { Notification } from "Notifications"
 export interface DashboardProps extends DashboardOperations, DashboardStateProps { }
 
 export interface DashboardStateProps {
-    // Redux store props
     favoriteFiles: File[]
     recentFiles: File[]
     recentAnalyses: Analysis[]
@@ -14,15 +13,11 @@ export interface DashboardStateProps {
     analysesLoading: boolean
     recentLoading: boolean
     favoriteFilesLength?: number
-    errors: string[]
 }
 
 export interface DashboardOperations {
-    // Redux operations
-    setActivePage: () => void
-    errorDismiss: () => void
+    onInit: () => void
     receiveFavorites: (files: File[]) => void
-    updatePageTitle: () => void
     setAllLoading: (loading: boolean) => void
     fetchUsage: () => void
     fetchFavorites: () => void

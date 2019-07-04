@@ -8,7 +8,7 @@ import { LoadableContent } from "LoadableContent";
 import * as API from "./api";
 import { Page, ClearRefresh } from "Types";
 import { resourceName, emptyResourceState } from "./Redux/AccountingObject";
-import { LoadingMainContainer } from "MainContainer/MainContainer";
+import { LoadableMainContainer } from "MainContainer/MainContainer";
 import { Chart, Breakdown } from "Accounting";
 import * as Heading from "ui-components/Heading";
 import { ContainerForText, Box } from "ui-components";
@@ -45,7 +45,7 @@ class DetailedPage extends React.Component<DetailedPageProps> {
     componentWillUnmount = () => this.props.clearRefresh();
 
     render() {
-        return <LoadingMainContainer
+        return <LoadableMainContainer
             loadable={this.props.chart}
             main={this.renderMain()}
             header={this.renderHeader()}
@@ -79,7 +79,6 @@ class DetailedPage extends React.Component<DetailedPageProps> {
             pageRenderer={p => <Breakdown events={p.items} />}
             page={events.content || emptyPage}
             loading={events.loading}
-            errorMessage={events.error ? events.error.errorMessage : undefined}
             onPageChanged={(newPage, page) => this.props.fetchEvents(page.itemsPerPage, newPage)}
         />
     }

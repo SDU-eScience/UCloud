@@ -60,9 +60,8 @@ export const colorScheme = (props: { theme: Theme, color: ThemeColor}) => {
       color: props.theme.colors.text
     }
   }
-  return (
-    badgeColors[props.color]
-  )
+  const color = badgeColors[props.color];
+  return color || badgeColors["white"];
 }
 
 const StampBase = styled.div<StampProps>`
@@ -94,7 +93,7 @@ StampBase.defaultProps = {
   py: 0,
   mr: "4px",
   theme,
-  color: "black",
+  color: "gray",
   fontSize: 0,
   fullWidth: false
 }

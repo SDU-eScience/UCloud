@@ -7,13 +7,23 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
+import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.FileSecurityController
 import dk.sdu.cloud.file.http.LookupController
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.background.BackgroundScope
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.StorageEventProducer
+import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.WSFileSessionService
+import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
@@ -22,6 +32,7 @@ import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
@@ -30,7 +41,11 @@ import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.simpleStorageUserDao
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.server.testing.*
+import io.ktor.server.testing.TestApplicationEngine
+import io.ktor.server.testing.TestApplicationRequest
+import io.ktor.server.testing.TestApplicationResponse
+import io.ktor.server.testing.handleRequest
+import io.ktor.server.testing.setBody
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.io.File
@@ -61,9 +76,10 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     val fsRoot = fsRootInitializer()
     val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
-    val coreFs = CoreFileSystemService(fs, eventProducer)
+    val fileSensitivityService = FileSensitivityService(fs, eventProducer)
+    val coreFs = CoreFileSystemService(fs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
-    val aclService = ACLService(fs)
+    val aclService = ACLService(runner, fs, mockk(relaxed = true))
     val homeFolderService = mockk<HomeFolderService>()
     val callRunner = CommandRunnerFactoryForCalls(runner, WSFileSessionService(runner))
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }
@@ -221,12 +237,28 @@ fun TestApplicationEngine.deleteFavorite(
 fun TestApplicationEngine.listDir(
     path: String,
     user: String = "user1",
-    role: Role = Role.USER
+    role: Role = Role.USER,
+    attributes: Set<StorageFileAttribute>? = null,
+    sortBy: FileSortBy? = null
 ): TestApplicationResponse {
     return call(
         HttpMethod.Get,
         "/api/files",
-        params = mapOf("path" to path),
+        params = run {
+            val attribMap = if (attributes != null) {
+                mapOf("attributes" to attributes.joinToString(",") { it.name })
+            } else {
+                emptyMap()
+            }
+
+            val sortByMap = if (sortBy != null) {
+                mapOf("sortBy" to sortBy.name)
+            } else {
+                emptyMap()
+            }
+
+            mapOf("path" to path) + attribMap + sortByMap
+        },
         user = user,
         role = role
     )

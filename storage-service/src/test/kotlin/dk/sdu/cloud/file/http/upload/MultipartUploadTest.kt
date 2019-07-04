@@ -6,15 +6,18 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.files.TestContext
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.sendRequest
@@ -22,7 +25,13 @@ import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.storage.util.createDummyFSInRoot
 import dk.sdu.cloud.storage.util.createFS
 import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
-import io.ktor.http.*
+import io.ktor.http.ContentDisposition
+import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.append
 import io.ktor.http.content.PartData
 import io.ktor.server.testing.setBody
 import io.mockk.coEvery
@@ -52,7 +61,9 @@ class MultipartUploadTest {
         TestContext.micro = micro
         val storageEventProducer =
             StorageEventProducer(micro.eventStreamService.createProducer(StorageEvents.events), {})
-        val coreFs = CoreFileSystemService(fs, storageEventProducer)
+        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
+        val coreFs =
+            CoreFileSystemService(fs, storageEventProducer, fileSensitivityService, ClientMock.authenticatedClient)
 
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
         val controller = MultiPartUploadController(

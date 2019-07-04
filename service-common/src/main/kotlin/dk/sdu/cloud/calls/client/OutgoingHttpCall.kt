@@ -34,6 +34,8 @@ import io.ktor.http.withCharset
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import java.net.ConnectException
 import java.net.URLEncoder
+import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 import kotlin.reflect.KClass
 import kotlin.reflect.full.companionObjectInstance
@@ -53,6 +55,13 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
 
     private val httpClient = HttpClient(OkHttp) {
+        engine {
+            config {
+                readTimeout(5, TimeUnit.MINUTES)
+                writeTimeout(5, TimeUnit.MINUTES)
+            }
+        }
+
         install(JsonFeature) {
             serializer = JacksonSerializer()
         }
@@ -106,12 +115,12 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                 method = http.method
                 body = http.serializeBody(request, call)
                 http.serializeHeaders(request, call).forEach { (name, value) ->
-                    header(name, value)
+                    header(name, Base64.getEncoder().encodeToString(value.toByteArray(Charsets.UTF_8)))
                 }
 
                 if (request is HttpClientConverter.OutgoingCustomHeaders) {
                     request.clientAddCustomHeaders(call).forEach { (key, value) ->
-                        header(key, value)
+                        header(key, Base64.getEncoder().encodeToString(value.toByteArray(Charsets.UTF_8)))
                     }
                 }
 

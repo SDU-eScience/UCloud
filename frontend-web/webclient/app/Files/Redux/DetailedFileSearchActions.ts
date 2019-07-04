@@ -63,6 +63,7 @@ export const setFilesSearchLoading = (loading: boolean): SetFilesSearchLoading =
     payload: { loading }
 });
 
+/* FIXME: REWRITE!!! */
 export const fetchFiles = (request: AdvancedSearchRequest): Promise<ReceiveFilesSearchFiles | SetError> =>
     Cloud.post<Page<File>>(advancedFileSearch, request)
         .then(it => receivePage(it.response))

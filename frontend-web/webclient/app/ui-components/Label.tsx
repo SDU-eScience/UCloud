@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { space, fontSize, fontWeight, color, FontStyleProps, SpaceProps, ColorProps, FontWeightProps, FontSizeProps } from 'styled-system';
+import { space, fontSize, fontWeight, color, FontStyleProps, SpaceProps, ColorProps, FontWeightProps, FontSizeProps, WidthProps, width } from 'styled-system';
 import theme from './theme';
 
 const nowrap = (props: { nowrap?: boolean }): { whiteSpace: "nowrap" } | null =>
@@ -22,22 +22,22 @@ const accessiblyHide = (props: { hidden?: boolean }): accessiblyHide =>
   } : null;
 
 export type LabelProps =
-  SpaceProps & FontSizeProps & FontStyleProps & ColorProps & FontWeightProps
+  SpaceProps & FontSizeProps & FontStyleProps & ColorProps & FontWeightProps & WidthProps
   & { nowrap?: boolean, hidden?: boolean };
 
 const Label = styled("label") <LabelProps>`
   font-size: 10px;
   letter-spacing: 0.2px;
   display: block;
-  width: 100%;
   margin: 0;
 
   ${space} ${fontSize} ${color} ${fontWeight};
-  ${nowrap}
+  ${nowrap} ${width}
   ${accessiblyHide}
 `;
 
 Label.defaultProps = {
+  width: "100%",
   fontSize: 1,
   fontWeight: "bold",
   color: "black",

@@ -8,6 +8,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
@@ -96,17 +97,7 @@ class ActionController<Ctx : FSUserContext>(
 
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
-                val targetPath = coreFs.copy(it, request.path, request.newPath, request.policy ?: WriteConflictPolicy.OVERWRITE)
-                val newSensitivity = fileLookupService.stat(it, targetPath).sensitivityLevel
-                if (stat.sensitivityLevel != newSensitivity) {
-                    sensitivityService.setSensitivityLevel(
-                        it,
-                        targetPath,
-                        stat.sensitivityLevel,
-                        ctx.securityPrincipal.username
-                    )
-                }
-
+                coreFs.copy(it, request.path, request.newPath, stat.sensitivityLevel, request.policy ?: WriteConflictPolicy.OVERWRITE)
                 audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
@@ -122,7 +113,7 @@ class ActionController<Ctx : FSUserContext>(
 
             commandRunnerFactory.withCtx(this) { ctx ->
                 val created = coreFs.createSymbolicLink(ctx, request.linkTargetPath, request.linkPath)
-                val result = fileLookupService.stat(ctx, created.path)
+                val result = fileLookupService.stat(ctx, created.file.path)
                 audit(SingleFileAudit(result.fileId, request))
                 ok(result)
             }

@@ -6,7 +6,6 @@ import { createResponsiveStateReducer } from "redux-responsive";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { CONTEXT_SWITCH, USER_LOGOUT, USER_LOGIN } from "Navigation/Redux/HeaderReducer";
 
-
 export function configureStore(initialObject: Partial<ReduxObject>, reducers, enhancers?): Store<ReduxObject, AnyAction> {
     const combinedReducers = combineReducers<ReduxObject, AnyAction>(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {

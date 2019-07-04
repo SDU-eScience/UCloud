@@ -1,18 +1,18 @@
 import * as React from "react";
-import { ActivityGroup } from "Activity";
+import {ActivityGroup} from "Activity";
 import * as Module from "Activity";
 import * as moment from "moment";
-import { getFilenameFromPath, replaceHomeFolder } from "Utilities/FileUtilities";
-import { fileInfoPage } from "Utilities/FileUtilities";
-import Icon, { IconName } from "ui-components/Icon";
-import { Flex, Text, Link, Box } from "ui-components";
-import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } from "ui-components/Table";
-import { Cloud } from "Authentication/SDUCloudObject";
+import {getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
+import {fileInfoPage} from "Utilities/FileUtilities";
+import Icon, {IconName} from "ui-components/Icon";
+import {Flex, Text, Box} from "ui-components";
+import Table, {TableRow, TableCell, TableBody, TableHeader, TableHeaderCell} from "ui-components/Table";
+import {Cloud} from "Authentication/SDUCloudObject";
 import styled from "styled-components";
-import { Link as ReactRouterLink } from "react-router-dom";
-import { colors } from "ui-components/theme";
+import {Link as ReactRouterLink} from "react-router-dom";
+import {colors} from "ui-components/theme";
 
-export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: React.RefObject<any> }> {
+export class ActivityFeedFrame extends React.PureComponent<{containerRef?: React.RefObject<any>}> {
     render() {
         return <Table>
             <TableHeader>
@@ -30,19 +30,19 @@ export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: Reac
 
 }
 
-export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) => (
+export const ActivityFeed = ({activity}: {activity: Module.Activity[]}) => (
     <ActivityFeedFrame>
         {groupActivity(activity).map((a, i) => <ActivityFeedItem key={i} activity={a} />)}
     </ActivityFeedFrame>
 );
 
 // Performance note: Don't use styled components here.
-const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props => (
+const ActivityEvent: React.FunctionComponent<{event: Module.Activity}> = props => (
     <div>
         <b>
             <ReactRouterLink to={fileInfoPage(props.event.originalFilePath)}>
                 <div className="ellipsis">
-                    {getFilenameFromPath(props.event.originalFilePath)}
+                    <Text color="black">{getFilenameFromPath(props.event.originalFilePath)}</Text>
                 </div>
             </ReactRouterLink>
         </b>
@@ -52,7 +52,7 @@ const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props
 );
 
 // Performance note: Don't use styled components here.
-const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props => {
+const OperationText: React.FunctionComponent<{event: Module.Activity}> = props => {
     switch (props.event.type) {
         case Module.ActivityType.MOVED: {
             return <span>
@@ -60,8 +60,8 @@ const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props
                 {" "}
                 <b>
                     <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
-                        <div className="ellipsis">
-                            {replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}
+                    <div className="ellipsis">
+                            <Text color="black">{replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}</Text>
                         </div>
                     </ReactRouterLink>
                 </b>
@@ -83,8 +83,8 @@ const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props
     }
 };
 
-export const ActivityFeedSpacer = (props: { height: number }) => (
-    <tr style={{ height: `${props.height}px` }} />
+export const ActivityFeedSpacer = (props: {height: number}) => (
+    <tr style={{height: `${props.height}px`}} />
 )
 
 interface ActivityFeedProps {
@@ -97,7 +97,7 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
     }
 
     render() {
-        const { activity } = this.props;
+        const {activity} = this.props;
         return <TFRow>
             <TableCell>
                 <Text fontSize={1} color="text">
@@ -147,17 +147,17 @@ interface EventIconAndColor {
 const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
     switch (operation) {
         case Module.ActivityType.FAVORITE:
-            return { icon: "starFilled" };
+            return {icon: "starFilled"};
         case Module.ActivityType.DOWNLOAD:
-            return { icon: "download" };
+            return {icon: "download"};
         case Module.ActivityType.UPDATED:
-            return { icon: "refresh" };
+            return {icon: "refresh"};
         case Module.ActivityType.DELETED:
-            return { icon: "close" };
+            return {icon: "close"};
         case Module.ActivityType.MOVED:
-            return { icon: "move" };
+            return {icon: "move"};
         default:
-            return { icon: "ellipsis" };
+            return {icon: "ellipsis"};
     }
 }
 

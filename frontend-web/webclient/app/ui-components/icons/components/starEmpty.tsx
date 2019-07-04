@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgStarEmpty = props => (
+const SvgStarEmpty = (props: any) => (
   <svg
     viewBox="0 0 24 23"
     fillRule="evenodd"

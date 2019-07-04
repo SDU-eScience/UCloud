@@ -1,27 +1,54 @@
 package dk.sdu.cloud.file.util
 
-import dk.sdu.cloud.file.api.FileChecksum
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 
-fun FileRow.toCreatedEvent(copyCausedBy: Boolean = false) = StorageEvent.CreatedOrRefreshed(
-    id = inode,
-    path = path,
-    creator = creator,
-    owner = owner,
-    timestamp = timestamps.created,
-    fileType = fileType,
-    fileTimestamps = timestamps,
-    size = size,
-    isLink = isLink,
-    linkTarget = if (isLink) linkTarget else null,
-    linkTargetId = if (isLink) linkInode else null,
-    sensitivityLevel = sensitivityLevel,
+fun FileRow.toCreatedEvent(copyCausedBy: Boolean = false): StorageEvent.CreatedOrRefreshed =
+    StorageEvent.CreatedOrRefreshed(
+        file = toStorageFileForEvent(),
+        timestamp = System.currentTimeMillis(),
+        eventCausedBy = if (copyCausedBy) creator else null
+    )
 
-    annotations = emptySet(),
-    checksum = FileChecksum("", ""),
-    eventCausedBy = if (copyCausedBy) creator else null
+fun FileRow.toDeletedEvent(copyCausedBy: Boolean = false): StorageEvent.Deleted =
+    StorageEvent.Deleted(
+        file = toStorageFileForEvent(),
+        timestamp = System.currentTimeMillis(),
+        eventCausedBy = if (copyCausedBy) creator else null
+    )
+
+fun FileRow.toSensitivityEvent(eventCausedBy: String?): StorageEvent.SensitivityUpdated =
+    StorageEvent.SensitivityUpdated(
+        file = toStorageFileForEvent(),
+        timestamp = System.currentTimeMillis(),
+        eventCausedBy = eventCausedBy
+    )
+
+fun FileRow.toMovedEvent(oldPath: String, copyCausedBy: Boolean = false): StorageEvent.Moved =
+    StorageEvent.Moved(
+        oldPath,
+        file = toStorageFileForEvent(),
+        timestamp = System.currentTimeMillis(),
+        eventCausedBy = if (copyCausedBy) creator else null
+    )
+
+private fun FileRow.toStorageFileForEvent(): StorageFile = StorageFile(
+    fileType = fileType,
+    path = path,
+    createdAt = timestamps.created,
+    modifiedAt = timestamps.modified,
+    ownerName = owner,
+    creator = creator,
+    size = size,
+    acl = shares,
+    sensitivityLevel = sensitivityLevel ?: SensitivityLevel.PRIVATE,
+    link = isLink,
+    fileId = inode,
+    ownSensitivityLevel = sensitivityLevel,
+    canonicalPath = path
 )
 
 /**
@@ -29,14 +56,14 @@ fun FileRow.toCreatedEvent(copyCausedBy: Boolean = false) = StorageEvent.Created
  */
 val STORAGE_EVENT_MODE = setOf(
     FileAttribute.FILE_TYPE,
-    FileAttribute.INODE,
     FileAttribute.PATH,
     FileAttribute.TIMESTAMPS,
+    FileAttribute.OWNER,
     FileAttribute.CREATOR,
     FileAttribute.SIZE,
-    FileAttribute.IS_LINK,
-    FileAttribute.LINK_TARGET,
-    FileAttribute.LINK_INODE,
+    FileAttribute.SHARES,
     FileAttribute.SENSITIVITY,
-    FileAttribute.OWNER
+    FileAttribute.IS_LINK,
+    FileAttribute.INODE,
+    FileAttribute.SENSITIVITY
 )

@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.creator
@@ -11,15 +12,15 @@ import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent
+import dk.sdu.cloud.file.util.toMovedEvent
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.util.UUID
-import kotlin.collections.ArrayList
 import kotlin.collections.component1
 import kotlin.collections.component2
 
@@ -31,21 +32,20 @@ class IndexingService<Ctx : FSUserContext>(
     private val fs: CoreFileSystemService<Ctx>,
     private val storageEventProducer: StorageEventProducer
 ) {
-    suspend fun verifyKnowledge(ctx: Ctx, files: List<String>): List<Boolean> {
-        val parents = files.asSequence().map { it.parent() }.toSet()
-        val knowledgeByParent = parents.map { it to hasReadInDirectory(ctx, it) }.toMap()
-        return files.map { knowledgeByParent[it.parent()]!! }
-    }
+    suspend fun verifyKnowledge(
+        ctx: Ctx,
+        files: List<String>,
+        mode: KnowledgeMode = KnowledgeMode.List()
+    ): List<Boolean> {
+        return when (mode) {
+            is KnowledgeMode.List -> {
+                val parents = files.asSequence().map { it.parent() }.toSet()
+                val knowledgeByParent = parents.map { it to fs.checkPermissions(ctx, it, requireWrite = false) }.toMap()
+                files.map { knowledgeByParent[it.parent()]!! }
+            }
 
-    private suspend fun hasReadInDirectory(ctx: Ctx, directoryPath: String): Boolean {
-        return try {
-            // TODO We don't actually have to list anything in the directory. Would be faster without
-            fs.listDirectory(ctx, directoryPath, setOf(FileAttribute.INODE))
-            true
-        } catch (ex: FSException) {
-            when (ex) {
-                is FSException.PermissionException, is FSException.NotFound -> false
-                else -> throw ex
+            is KnowledgeMode.Permission -> {
+                files.map { fs.checkPermissions(ctx, it, mode.requireWrite) }
             }
         }
     }
@@ -86,7 +86,6 @@ class IndexingService<Ctx : FSUserContext>(
             throw ex
         }
 
-        BackgroundScope.reset()
         val job = BackgroundScope.launch {
             try {
                 rootToReference.map { (root, reference) ->
@@ -126,10 +125,7 @@ class IndexingService<Ctx : FSUserContext>(
             fs.listDirectory(ctx, directoryPath, STORAGE_EVENT_MODE)
         } catch (ex: FSException.NotFound) {
             val invalidatedEvent = StorageEvent.Invalidated(
-                id = "invalid-id-" + UUID.randomUUID().toString(),
                 path = directoryPath,
-                owner = SERVICE_USER,
-                creator = SERVICE_USER,
                 timestamp = System.currentTimeMillis()
             )
 
@@ -153,10 +149,7 @@ class IndexingService<Ctx : FSUserContext>(
         log.debug("The following files were deleted: ${deletedFiles.values.map { it.path }}")
         eventCollector.addAll(deletedFiles.map {
             StorageEvent.Invalidated(
-                id = it.value.fileId,
                 path = it.value.path,
-                creator = it.value.ownerName,
-                owner = it.value.ownerName,
                 timestamp = System.currentTimeMillis()
             )
         })
@@ -193,14 +186,7 @@ class IndexingService<Ctx : FSUserContext>(
                 if (referenceFile.path != realFile.path) {
                     log.debug("Path difference for ${realFile.path}")
                     events.add(
-                        StorageEvent.Moved(
-                            id = realFile.inode,
-                            path = realFile.path,
-                            owner = realFile.owner,
-                            creator = realFile.creator,
-                            timestamp = realFile.timestamps.modified,
-                            oldPath = referenceFile.path
-                        )
+                        realFile.toMovedEvent(referenceFile.path)
                     )
 
                     if (realFile.fileType == FileType.DIRECTORY) {
@@ -211,10 +197,7 @@ class IndexingService<Ctx : FSUserContext>(
                         // out of sync.
                         events.add(
                             StorageEvent.Invalidated(
-                                id = realFile.inode,
                                 path = referenceFile.path,
-                                owner = realFile.owner,
-                                creator = realFile.creator,
                                 timestamp = realFile.timestamps.modified
                             )
                         )

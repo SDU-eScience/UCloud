@@ -1,30 +1,42 @@
-import { Cloud } from "Authentication/SDUCloudObject";
-import { inSuccessRange } from "UtilityFunctions";
-import { STATUS_CODES } from "http";
-import { Sensitivity } from "DefaultObjects";
-import { Snack, SnackType } from "Snackbar/Snackbars";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {inSuccessRange} from "UtilityFunctions";
+import {STATUS_CODES} from "http";
+import {Sensitivity} from "DefaultObjects";
+import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const timeBetweenUpdates = 150;
 
+// https://stackoverflow.com/a/30106551
+function b64EncodeUnicode(str) {
+    // first we use encodeURIComponent to get percent-encoded UTF-8,
+    // then we convert the percent encodings into raw bytes which
+    // can be fed into btoa.
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+        function toSolidBytes(match, p1) {
+            return String.fromCharCode(parseInt('0x' + p1));
+        }));
+}
 
 interface UploadArgs {
     location: string
     file: File
     sensitivity: Sensitivity
     policy: UploadPolicy
-    addSnack: (snack: Snack) => void
     onProgress?: (e: ProgressEvent) => void,
     onError?: (error: string) => void
 }
-export const multipartUpload = async ({
-    location,
-    file,
-    sensitivity,
-    policy,
-    onProgress,
-    onError,
-    addSnack
-}: UploadArgs): Promise<XMLHttpRequest> => {
+
+export const multipartUpload = async (
+    {
+        location,
+        file,
+        sensitivity,
+        policy,
+        onProgress,
+        onError
+    }: UploadArgs
+): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
 
     let request = new XMLHttpRequest();
@@ -32,9 +44,9 @@ export const multipartUpload = async ({
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                addSnack({ message: statusToError(request.status), type: SnackType.Failure })
+                snackbarStore.addSnack({message: statusToError(request.status), type: SnackType.Failure})
         }
-    }
+    };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     let nextProgressUpdate = new Date().getTime();
     request.upload.onprogress = (e: ProgressEvent) => {
@@ -47,22 +59,23 @@ export const multipartUpload = async ({
         }
     };
     request.responseType = "text";
-    request.setRequestHeader("Upload-Location", location);
-    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", sensitivity);
-    request.setRequestHeader("Upload-Policy", policy);
+    request.setRequestHeader("Upload-Location", b64EncodeUnicode(location));
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", b64EncodeUnicode(sensitivity));
+    request.setRequestHeader("Upload-Policy", b64EncodeUnicode(policy));
     request.send(file);
     return request;
-}
+};
 
-export const bulkUpload = async ({
-    location,
-    file,
-    sensitivity,
-    policy,
-    onProgress,
-    onError,
-    addSnack
-}: UploadArgs): Promise<XMLHttpRequest> => {
+export const bulkUpload = async (
+    {
+        location,
+        file,
+        sensitivity,
+        policy,
+        onProgress,
+        onError
+    }: UploadArgs
+): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = formatFromFileName(file.name);
 
@@ -71,8 +84,8 @@ export const bulkUpload = async ({
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                addSnack({ message: statusToError(request.status), type: SnackType.Failure })
-    }
+                snackbarStore.addSnack({message: statusToError(request.status), type: SnackType.Failure})
+    };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     let nextProgressUpdate = new Date().getTime();
     request.upload.onprogress = (e: ProgressEvent) => {
@@ -85,14 +98,14 @@ export const bulkUpload = async ({
         }
     };
     request.responseType = "text";
-    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", sensitivity);
-    request.setRequestHeader("Upload-Policy", policy);
-    request.setRequestHeader("Upload-Location", location);
-    request.setRequestHeader("Upload-Format", format);
-    request.setRequestHeader("Upload-Name", file.name);
+    if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", b64EncodeUnicode(sensitivity));
+    request.setRequestHeader("Upload-Policy", b64EncodeUnicode(policy));
+    request.setRequestHeader("Upload-Location", b64EncodeUnicode(location));
+    request.setRequestHeader("Upload-Format", b64EncodeUnicode(format));
+    request.setRequestHeader("Upload-Name", b64EncodeUnicode(file.name));
     request.send(file);
     return request;
-}
+};
 
 function statusToError(status: number) {
     switch (STATUS_CODES[status]) {

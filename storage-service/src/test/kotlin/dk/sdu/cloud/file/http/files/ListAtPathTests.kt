@@ -2,9 +2,12 @@ package dk.sdu.cloud.file.http.files
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.StorageFileAttribute
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
 import org.junit.Ignore
@@ -60,6 +63,30 @@ class ListAtPathTests {
                 // TODO FIXME This test will not work on OSX. User also doesn't exist
                 val response = engine.listDir("/home/user1", user = "user2")
                 assertEquals(HttpStatusCode.Unauthorized, response.status())
+            }
+        )
+    }
+
+    @Test
+    fun `list with partial attributes and sort by sensitivity`() {
+        withKtorTest(
+            setup = { configureServerWithFileController() },
+
+            test = {
+                val status = engine.listDir(
+                    "/home/user1",
+                    user = "user1",
+                    role = Role.USER,
+                    attributes = setOf(
+                        StorageFileAttribute.fileId,
+                        StorageFileAttribute.link,
+                        StorageFileAttribute.modifiedAt,
+                        StorageFileAttribute.size
+                    ),
+                    sortBy = FileSortBy.SENSITIVITY
+                )
+
+                assertEquals(HttpStatusCode.OK, status.status())
             }
         )
     }

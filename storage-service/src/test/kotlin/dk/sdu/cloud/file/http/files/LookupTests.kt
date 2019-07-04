@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.storage.util.mkdir
@@ -17,7 +18,6 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import dk.sdu.cloud.file.api.*
 
 class LookupTests {
     private val mapper = jacksonObjectMapper()
@@ -48,7 +48,7 @@ class LookupTests {
             setup = { configureServerWithFileController(fsRootInitializer = { fsForLookup() }) },
 
             test = {
-                repeat(100) { engine.testLookupOfFile(it) }
+                repeat(1) { engine.testLookupOfFile(it) }
             }
         )
     }
@@ -76,7 +76,9 @@ class LookupTests {
             lookupFileInDirectory(path, itemsPerPage, FileSortBy.PATH, SortOrder.ASCENDING)
         assertEquals(HttpStatusCode.OK, response.status())
 
-        val page = mapper.readValue<Page<StorageFile>>(response.content!!)
+        val content = response.content!!
+        println(content)
+        val page = mapper.readValue<Page<StorageFile>>(content)
         assertTrue(page.items.any { it.path == path }, "Could not find file. Expected it at $path")
         assertEquals(expectedPage, page.pageNumber, "Expected item $item to be in page $expectedPage")
         assertEquals(itemsPerPage, page.itemsPerPage, "Expected itemsPerPage to match $itemsPerPage")

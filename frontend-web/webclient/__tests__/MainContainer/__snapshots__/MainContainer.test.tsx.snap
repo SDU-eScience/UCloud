@@ -8,12 +8,17 @@ exports[`Main container Main container with header 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c2 {
   cursor: auto;
   padding-top: 96px;
   padding-right: 14px;
+}
+
+.c3 {
+  cursor: auto;
 }
 
 .c1 {
@@ -68,6 +73,7 @@ exports[`Main container Main container with header 1`] = `
   >
     <div
       className="c3"
+      cursor="auto"
     />
     <div />
   </div>
@@ -82,12 +88,21 @@ exports[`Main container Main container with sidebar 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c3 {
   cursor: auto;
   padding-top: 14px;
   padding-right: 240px;
+}
+
+.c4 {
+  cursor: auto;
+}
+
+.c1 {
+  cursor: auto;
 }
 
 .c2 {
@@ -147,6 +162,7 @@ exports[`Main container Main container with sidebar 1`] = `
 >
   <div
     className="c1"
+    cursor="auto"
   >
     <div
       className="c2"
@@ -163,6 +179,7 @@ exports[`Main container Main container with sidebar 1`] = `
   >
     <div
       className="c4"
+      cursor="auto"
     >
       <div />
     </div>
@@ -179,12 +196,17 @@ exports[`Main container Only main container 1`] = `
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
+  background-color: #fff;
 }
 
 .c1 {
   cursor: auto;
   padding-top: 14px;
   padding-right: 14px;
+}
+
+.c2 {
+  cursor: auto;
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
@@ -215,6 +237,7 @@ exports[`Main container Only main container 1`] = `
   >
     <div
       className="c2"
+      cursor="auto"
     />
     <div />
   </div>

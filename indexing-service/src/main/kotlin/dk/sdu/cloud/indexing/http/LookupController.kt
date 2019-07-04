@@ -1,6 +1,7 @@
 package dk.sdu.cloud.indexing.http
 
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupFilesResponse
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse

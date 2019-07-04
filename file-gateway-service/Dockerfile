@@ -29,7 +29,7 @@ WORKDIR /usr/src/app
 FROM build-dependencies as build-production-ready
 
 # The name of the service. Used to identify the executable
-ENV SERVICE_NAME=file.gateway-service
+ENV SERVICE_NAME=file-gateway-service
 
 # Copy application code into /usr/src/app
 COPY . /usr/src/app/
@@ -59,6 +59,7 @@ ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
     PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
 
 RUN apk add --no-cache openjdk8-jre
+RUN apk add --no-cache nss
 
 COPY --from=build-production-ready /opt/service/ /opt/service/
 

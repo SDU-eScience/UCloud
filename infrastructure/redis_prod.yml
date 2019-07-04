@@ -1,0 +1,87 @@
+image:
+  registry: docker.io
+  repository: bitnami/redis
+  tag: 5.0.5
+  pullPolicy: IfNotPresent
+
+securityContext:
+  enabled: true
+  fsGroup: 1001
+  runAsUser: 1001
+
+cluster:
+  enabled: true
+  slaveCount: 3
+
+sentinel:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+serviceAccount:
+  create: false
+
+rbac:
+  create: false
+
+usePassword: false
+
+## Persist data to a persistent volume
+persistence:
+  enabled: true
+  storageClass: rbd
+  size: 5000Gi
+
+# Redis port
+redisPort: 6379
+
+##
+## Redis Master parameters
+##
+master:
+  disableCommands:
+   - FLUSHDB
+   - FLUSHALL
+
+  resources:
+    requests:
+      memory: 8192Mi
+      cpu: 8000m
+
+  persistence:
+    enabled: true
+    storageClass: rbd
+    accessModes:
+    - ReadWriteOnce
+    size: 5000Gi
+
+slave:
+  disableCommands:
+  - FLUSHDB
+  - FLUSHALL
+
+  resources:
+    requests:
+      memory: 4096Mi
+      cpu: 4000m
+
+  persistence:
+    enabled: true
+    storageClass: rbd
+    accessModes:
+    - ReadWriteOnce
+    size: 5000Gi
+
+metrics:
+  enabled: true
+
+## Redis config file
+## ref: https://redis.io/topics/config
+##
+configmap: |-
+  # Enable AOF https://redis.io/topics/persistence#append-only-file
+  appendonly yes
+  # Disable RDB persistence, AOF persistence already enabled.
+  save ""
+

@@ -5,15 +5,18 @@ import { File } from "Files";
 import { errorMessageOrDefault } from "UtilityFunctions";
 import { RECEIVE_FAVORITES, SET_ERROR_MESSAGE, SET_FAVORITES_LOADING, SET_FAVORITES_SHOWN, CHECK_ALL_FAVORITES, CHECK_FAVORITE } from "./FavoritesReducer";
 import { FavoriteType } from "Favorites/Favorites";
+import {Action} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 export type FavoriteActions = ReceiveFavorites | SetLoading | SetError | SetFavoritesShown | CheckFile | CheckAllFiles;
 
 export const fetchFavorites = async (pageNumber: number, itemsPerPage: number): Promise<ReceiveFavorites | SetError> => {
     try {
-        const res = await Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage));
-        return receiveFavorites(res.response);
+        const {response} = await Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage));
+        return receiveFavorites(response);
     } catch (e) {
-        return setErrorMessage(errorMessageOrDefault(e, "An error occurred"));
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching favorites"));
+        return setErrorMessage();
     }
 }
 
@@ -24,10 +27,9 @@ export const receiveFavorites = (page: Page<File>): ReceiveFavorites => ({
     payload: { page }
 });
 
-type SetError = Error<typeof SET_ERROR_MESSAGE>
-const setErrorMessage = (error?: string): SetError => ({
-    type: SET_ERROR_MESSAGE,
-    payload: { error }
+type SetError = Action<typeof SET_ERROR_MESSAGE>
+const setErrorMessage = (): SetError => ({
+    type: SET_ERROR_MESSAGE
 });
 
 type SetLoading = SetLoadingAction<typeof SET_FAVORITES_LOADING>

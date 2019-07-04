@@ -1,12 +1,12 @@
 import * as React from "react";
 import Markdown from "ui-components/Markdown"
-import { Absolute, Icon, Flex, RatingBadge, Text } from "ui-components";
+import {Absolute, Icon, Flex, RatingBadge, Text} from "ui-components";
 import Box from "ui-components/Box";
 import Link from "ui-components/Link";
-import { EllipsedText } from "ui-components/Text";
+import {EllipsedText} from "ui-components/Text";
 import * as Pages from "./Pages";
-import { WithAppMetadata } from ".";
-import styled, { css } from "styled-components";
+import {WithAppMetadata} from ".";
+import styled, {css} from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"
 
@@ -73,7 +73,7 @@ export const ApplicationCardContainer = styled.div`
 `;
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const { metadata } = props.app;
+    const {metadata} = props.app;
     return (
         <AppCardBase to={props.linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <Box mr={16} >
@@ -120,7 +120,7 @@ export const AppCard = styled(Link)`
 
     padding: 10px;
     width: 100%;
-    min-width: 350px;
+    min-width: 400px;
     height: 128px;
     display: flex;
     flex-direction: column;
@@ -128,15 +128,16 @@ export const AppCard = styled(Link)`
     border-radius: ${props => props.theme.radius};
     position: relative;
     overflow: hidden;
-    box-shadow: ${({ theme }) => theme.shadows["sm"]};
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
     //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
     will-change: transform;
 
     &:hover {
-        transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
         transform: scale(1.02);
+        box-shadow: ${({theme}) => theme.shadows["md"]};
     }
 
     // Background
@@ -149,12 +150,12 @@ export const AppCard = styled(Link)`
         top: 0;
         left: 0;
         z-index: -1;
-        background-color: #ebeff3;
+        background-color: ${props => props.theme.colors.appCard};
         background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
         background-repeat: repeat;
         transform: rotate(15deg) translate(0,-60%);
         transform-origin: 0 0;
-        }
+    }
 
     &:after {
         content: "";
@@ -176,22 +177,22 @@ export const AppCard = styled(Link)`
     }
 `;
 
-const Tag = ({ label }: { label: string }) => (
-    <RatingBadge mr={"3px"} bg={"darkGray"}><Heading.h6>{label}</Heading.h6></RatingBadge>
-)
+const Tag = ({label}: {label: string}) => (
+    <RatingBadge mr="3px" bg="darkGray"><Heading.h6>{label}</Heading.h6></RatingBadge>
+);
 
 const appColors = theme.appColors;
 
 const nColors = appColors.length;
 
-const bgGradients = appColors.map(x => ({ color1: x[0], color2: x[2] }));
+const bgGradients = appColors.map(x => ({color1: x[0], color2: x[2]}));
 
-const AppBg_triangle = ({ color1, color2 }: { color1: string, color2: string }) => (
-    <svg height={"128px"} viewBox="0 0 72 128" >
-        <path d="M0,128h72v-72z" fill={"url(#appbg_svg___" + color1 + "_" + color2} />
+const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}) => (
+    <svg height="128px" viewBox="0 0 72 128">
+        <path d="M0,128h72v-72z" fill={`url(#appbg_svg___${color1}_${color2}`} />
         <defs>
             <linearGradient
-                id={"appbg_svg___" + color1 + "_" + color2}
+                id={`appbg_svg___${color1}_${color2}`}
                 x1={72} x2={0} y1={128 - 72} y2={128}
                 // x1={21} x2={72} y1={77} y2={128}
                 gradientUnits="userSpaceOnUse"
@@ -203,23 +204,7 @@ const AppBg_triangle = ({ color1, color2 }: { color1: string, color2: string }) 
     </svg>
 );
 
-const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
-    <svg height={"128px"} viewBox="0 0 100 128" >
-        <path d="M 25,0 h 75 v 128 h -100 z" fill={"url(#appbg_svg___" + color1 + "_" + color2} />
-        <defs>
-            <linearGradient
-                id={"appbg_svg___" + color1 + "_" + color2}
-                x1={25} x2={100} y1={0} y2={128}
-                gradientUnits="userSpaceOnUse"
-            >
-                <stop offset={0} stopColor={color1} />
-                <stop offset={1} stopColor={color2} />
-            </linearGradient>
-        </defs>
-    </svg>
-);
-
-export const AppLogoRaw = ({ rot, color1Offset, color2Offset, appC, size }: { color1Offset: number, color2Offset: number, appC: number, rot: number, size: string }) => {
+export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color1Offset: number, color2Offset: number, appC: number, rot: number, size: string}) => {
     const c1 = [color1Offset % 3, (color1Offset + 1) % 3, (color1Offset + 2) % 3];
     const c2 = [color2Offset % 3, (color2Offset + 1) % 3, (color2Offset + 2) % 3];
     const centerC = nColors - 1;
@@ -241,9 +226,9 @@ export const AppLogoRaw = ({ rot, color1Offset, color2Offset, appC, size }: { co
             clipRule="evenodd"
         >
             <defs>
-                <path id="hex_to___" d={"M-" + r1 + " 0H-1L-0.5 " + s32 + "H0.5L" + (0.5 * r1) + " " + (s32 * r1) + "H-" + (0.5 * r1) + "Z"} />
+                <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${(s32 * r1)}H-${(0.5 * r1)}Z`} />
                 <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fill-opacity=".55" />
-                <path id="hex_th___" d={"M-" + r3 + " 0L-" + (0.5 * r3) + " " + (s32 * r3) + "H" + (0.5 * r3) + "L" + r3 + " 0L" + (0.5 * r3) + " -" + (s32 * r3) + "H-" + (0.5 * r3) + "Z"} />
+                <path id="hex_th___" d={`M-${r3} 0L-${(0.5 * r3)} ${(s32 * r3)}H${(0.5 * r3)}L${r3} 0L${(0.5 * r3)} -${(s32 * r3)}H-${(0.5 * r3)}Z`} />
             </defs>
             <g transform={`rotate(${rot} 0 0)`} >
                 <use xlinkHref="#hex_th___" fill="#fff" />
@@ -257,7 +242,7 @@ export const AppLogoRaw = ({ rot, color1Offset, color2Offset, appC, size }: { co
         </svg>
     );
 }
-export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
+export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
     const i1 = (hash >>> 30) & 3;
     const i2 = (hash >>> 20) & 3;
     const rot = [0, 15, 30];
@@ -268,8 +253,8 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
 }
 
 
-const AppRibbonContainer = styled(Absolute) <{ favorite?: boolean }>`
-    ${({ favorite }) => favorite ? null : css`transform: translate(0,-30px)`};
+const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
+    ${({favorite}) => favorite ? null : css`transform: translate(0,-30px)`};
     transition: transform ease 0.1s;
     will-change: transform;
 
@@ -303,9 +288,9 @@ const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
 `
 
-export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
+export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({app, onFavorite, isFavorite, linkToRun}: ApplicationCardProps) => {
     const hash = hashF(app.metadata.title);
-    const { metadata } = app;
+    const {metadata} = app;
     const appC = appColor(hash);
     return (
         <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)} hoverColor={null}>

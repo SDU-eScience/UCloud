@@ -7,7 +7,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation, FileResource } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
-import { Input, Icon, Button, Flex, Box } from "ui-components";
+import { Input, Icon, Button, Flex, Box, SelectableText, SelectableTextWrapper } from "ui-components";
 import * as ReactModal from "react-modal";
 import { Spacer } from "ui-components/Spacer";
 import FilesTable from "./FilesTable";
@@ -16,7 +16,6 @@ import { addTrailingSlash, errorMessageOrDefault } from "UtilityFunctions";
 import styled from "styled-components";
 import { Refresh } from "Navigation/Header";
 import { Page } from "Types";
-import { SelectableText, SearchOptions } from "Search/Search";
 import { InputLabel } from "ui-components/Input";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
@@ -52,7 +51,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     itemsPerPage,
                     SortOrder.DESCENDING,
                     onlyAllowFolders ? SortBy.FILE_TYPE : SortBy.PATH,
-                    [FileResource.PATH, FileResource.FILE_TYPE, FileResource.SENSITIVITY_LEVEL]
+                    [FileResource.PATH, FileResource.FILE_ID, FileResource.FILE_TYPE, FileResource.SENSITIVITY_LEVEL]
                 ))).promise;
             this.setState(() => ({
                 page: response,
@@ -92,7 +91,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         const inputRefValueOrNull = this.props.inputRef && this.props.inputRef.current && this.props.inputRef.current.value;
         const inputValue = inputRefValueOrNull || replaceHomeFolder(path, Cloud.homeFolder);
         return (
-            <Flex>
+            <Flex backgroundColor="white">
                 <FileSelectorInput
                     defaultValue={this.props.defaultValue}
                     showError={this.props.showError && this.props.isRequired}
@@ -135,7 +134,8 @@ const FileSelectorModalStyle = {
     content: {
         top: "80px",
         left: "25%",
-        right: "25%"
+        right: "25%",
+        background: ""
     }
 };
 
@@ -157,7 +157,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             onAfterOpen={() => fetchFiles({})}
             style={FileSelectorModalStyle}
         >
-            <SearchOptions>
+            <SelectableTextWrapper>
                 <SelectableText
                     cursor="pointer"
                     mr="1em"
@@ -173,7 +173,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
 
                 <Box mr="auto" />
                 <Icon name="close" onClick={props.onHide} />
-            </SearchOptions>
+            </SelectableTextWrapper>
 
             <Spacer
                 height={"3em"}
@@ -194,8 +194,6 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             />
 
             <PaginationList
-                errorMessage={props.errorMessage}
-                onErrorDismiss={props.onErrorDismiss}
                 pageRenderer={page =>
                     <FileSelectorBody
                         omitRelativeFolders={props.isFavorites}
@@ -233,13 +231,13 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
             text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
             disabled: (files: File[], cloud: SDUCloud) => false
         })
-    }
-    else {
+    } else {
         ops.push({
             text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
             disabled: (files: File[], cloud: SDUCloud) => isDirectory(files[0])
         })
     }
+
     return (
         <FilesTable
             notStickyHeader

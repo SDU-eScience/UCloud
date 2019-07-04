@@ -20,7 +20,7 @@ data class RecentFilesResponse(
 )
 
 data class DirectorySizesRequest(
-    val fileIds: List<String>
+    val paths: List<String>
 )
 
 data class DirectorySizesResponse(
@@ -72,7 +72,7 @@ object FileStatsDescriptions : CallDescriptionContainer("files.stats") {
         }
 
         http {
-            method = HttpMethod.Get
+            method = HttpMethod.Post
 
             path {
                 using(baseContext)

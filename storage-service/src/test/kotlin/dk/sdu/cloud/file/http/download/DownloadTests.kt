@@ -11,7 +11,12 @@ import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.test.*
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.TokenValidationMock
+import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode

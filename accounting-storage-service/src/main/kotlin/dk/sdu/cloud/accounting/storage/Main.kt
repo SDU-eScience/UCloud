@@ -4,6 +4,8 @@ import dk.sdu.cloud.accounting.storage.api.AccountingStorageServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ScriptFeature
+import dk.sdu.cloud.micro.ScriptHandlerResult
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.install

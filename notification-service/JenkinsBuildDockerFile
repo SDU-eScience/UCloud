@@ -1,0 +1,41 @@
+def initialize() {
+    try {
+        stage("Dockerizing") {
+            container('docker') {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "archiva",
+                        usernameVariable: "ESCIENCE_MVN_USER",
+                        passwordVariable: "ESCIENCE_MVN_PASSWORD"
+                    ),
+                    string(credentialsId: "Repository", variable: "Repository")
+                ]) {
+                    String versionString = sh(script: '''grep "version '.*'" notification-service/build.gradle''', returnStdout: true)
+                    String name = sh(script: '''grep "rootProject" notification-service/settings.gradle | cut -c 21- | rev | cut -f 2 -d "'" | rev''', returnStdout: true).trim()
+                    println("Version: $versionString Name: $name")
+                    dash = versionString.indexOf("-")
+                    if (dash == -1) {
+                        dash = versionString.length()-2
+                    }
+                    String version = versionString.substring(versionString.indexOf("'")+1, dash)
+                    sh """
+                        cd notification-service 
+                        docker build \
+                        --target production \
+                        --build-arg GRADLE_PROPS="eScienceCloudRepository=${Repository}\n eScienceCloudUser=${ESCIENCE_MVN_USER}\n eScienceCloudPassword=${ESCIENCE_MVN_PASSWORD}" \
+                        --build-arg SERVICE_NAME="${name}" \
+                        -t "${name}:${version}" \
+                        .
+                    """
+                    println("Build Done")
+                }
+            }
+        }
+    } catch (e) {
+        echo "Docker failed"
+        return 'FAILURE'
+    }
+    return 'SUCCESS'
+}
+
+return this

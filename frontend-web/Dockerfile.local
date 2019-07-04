@@ -1,0 +1,10 @@
+FROM alpine:3.8 as production
+
+RUN apk add --no-cache openjdk8
+RUN apk add --no-cache nss
+RUN mkdir -p /opt/
+
+COPY ./webclient/dist /var/www/
+COPY ./webserver/build/service/ /opt/service
+
+CMD ["/opt/service/bin/service", "--config-dir", "/etc/service"]

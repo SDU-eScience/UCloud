@@ -1,19 +1,20 @@
 import * as React from "react";
 import styled from "styled-components";
-import Box, { BoxProps } from "./Box";
-import theme from "./theme";
-import { borderRadius, 
-         BorderProps, 
-         BorderRadiusProps, 
-         BorderColorProps, 
-         HeightProps, 
-         height,
-         boxShadow,
-         BoxShadowProps,         
-        } from "styled-system";
+import Box, {BoxProps} from "./Box";
+import theme, {Theme} from "./theme";
+import {
+  borderRadius,
+  BorderProps,
+  BorderRadiusProps,
+  BorderColorProps,
+  HeightProps,
+  height,
+  boxShadow,
+  BoxShadowProps,
+} from "styled-system";
 import Icon from "./Icon";
 
-const boxBorder = props => ({
+const boxBorder = (props: {theme: Theme, borderWidth: number | string, borderColor: string}) => ({
   border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
 });
 
@@ -36,10 +37,8 @@ export const CardGroup = styled.div`
   display: flex;
   flex-wrap: wrap;
   flex-grow: 0;
-  margin: -5px -5px -5px -5px;
 
   & > * {
-    margin: 5px 5px 5px 5px;
     flex-shrink: 0;
   }
 `;

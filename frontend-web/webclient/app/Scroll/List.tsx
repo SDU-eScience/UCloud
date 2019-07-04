@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ScrollResult, ScrollRequest, ScrollSize } from "./Types";
-import { Error, Flex, Button } from "ui-components";
+import { Flex, Button } from "ui-components";
 import * as Heading from "ui-components/Heading";
 
 interface ListProps<Item, OffsetType> {
@@ -15,10 +15,7 @@ interface ListProps<Item, OffsetType> {
     // Loading
     loading: boolean
 
-    // Error handling
-    errorMessage?: string | (() => React.ReactNode)
     customEmptyPage?: React.ReactNode
-    onErrorDismiss?: () => void
 }
 
 interface ListState {
@@ -43,12 +40,12 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         return this.props.scrollSize || 50;
     }
 
-    constructor(props) {
+    constructor(props: ListProps<Item, OffsetType>) {
         super(props);
         this.state = {};
     }
 
-     public shouldComponentUpdate(nextProps, nextState) {
+     public shouldComponentUpdate(nextProps: ListProps<Item, OffsetType>, nextState: ListState) {
         const result = this.state !== nextState || this.props !== nextProps;
         return result;
     }
@@ -92,7 +89,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         }
     }
 
-    public UNSAFE_componentWillMount() {
+    public componentDidMount() {
         this.eventListener = e => {
             if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 200) {
                 this.requestMore(false);
@@ -180,21 +177,9 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
 
     render() {
         return <>
-            {this.renderError()}
             {this.renderBody()}
             {this.renderLoadingButton()}
         </>;
-    }
-
-    private renderError(): React.ReactNode {
-        const { props } = this;
-        if (typeof props.errorMessage == "string") {
-            return <Error clearError={props.onErrorDismiss} error={props.errorMessage} />;
-        } else if (typeof props.errorMessage == "function") {
-            return props.errorMessage();
-        } else {
-            return null;
-        }
     }
 
     private renderBody(): React.ReactNode {

@@ -3,10 +3,22 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.services.CommandRunner
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FileScanner
+import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
-import dk.sdu.cloud.storage.util.*
+import dk.sdu.cloud.storage.util.createDummyFSInRoot
+import dk.sdu.cloud.storage.util.createFS
+import dk.sdu.cloud.storage.util.linuxFSWithRelaxedMocks
+import dk.sdu.cloud.storage.util.mkdir
+import dk.sdu.cloud.storage.util.touch
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -31,7 +43,8 @@ class ExternalFileServiceTest {
     fun createService(root: String): TestContext<LinuxFSRunner> {
         EventServiceMock.reset()
         val (runner, fs) = linuxFSWithRelaxedMocks(root)
-        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
+        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
+        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true), fileSensitivityService, ClientMock.authenticatedClient)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
 
         return TestContext(
@@ -56,8 +69,8 @@ class ExternalFileServiceTest {
             runBlocking { service.scanFilesCreatedExternally("/home/$fileName") }
             assertEquals(1, collectedEvents.size)
             val fileCreatedEvent = collectedEvents.first() as StorageEvent.CreatedOrRefreshed
-            assertEquals("/home/$fileName", fileCreatedEvent.path)
-            assertEquals(FileType.FILE, fileCreatedEvent.fileType)
+            assertEquals("/home/$fileName", fileCreatedEvent.file.path)
+            assertEquals(FileType.FILE, fileCreatedEvent.file.fileType)
         }
     }
 
@@ -74,8 +87,8 @@ class ExternalFileServiceTest {
             runBlocking { service.scanFilesCreatedExternally("/home/$fileName") }
             assertEquals(1, collectedEvents.size)
             val fileCreatedEvent = collectedEvents.first() as StorageEvent.CreatedOrRefreshed
-            assertEquals("/home/$fileName", fileCreatedEvent.path)
-            assertEquals(FileType.DIRECTORY, fileCreatedEvent.fileType)
+            assertEquals("/home/$fileName", fileCreatedEvent.file.path)
+            assertEquals(FileType.DIRECTORY, fileCreatedEvent.file.fileType)
         }
     }
 
@@ -98,13 +111,13 @@ class ExternalFileServiceTest {
             assertEquals(files.size + 1, collectedEvents.size)
             assertEquals(files.size + 1, createdEvents.size)
 
-            val dirEvent = createdEvents.find { it.path.contains(dirName) }!!
-            assertEquals("/home/$dirName", dirEvent.path)
-            assertEquals(FileType.DIRECTORY, dirEvent.fileType)
+            val dirEvent = createdEvents.find { it.file.path.contains(dirName) }!!
+            assertEquals("/home/$dirName", dirEvent.file.path)
+            assertEquals(FileType.DIRECTORY, dirEvent.file.fileType)
 
             files.forEach { file ->
-                val fileEvent = createdEvents.find { it.path == "/home/$dirName/$file" }!!
-                assertEquals(FileType.FILE, fileEvent.fileType)
+                val fileEvent = createdEvents.find { it.file.path == "/home/$dirName/$file" }!!
+                assertEquals(FileType.FILE, fileEvent.file.fileType)
             }
         }
     }
@@ -127,14 +140,14 @@ class ExternalFileServiceTest {
             assertEquals(3, collectedEvents.size)
             assertEquals(3, createdEvents.size)
 
-            val dirA = createdEvents.find { it.path == "/home/a" }!!
-            assertEquals(FileType.DIRECTORY, dirA.fileType)
+            val dirA = createdEvents.find { it.file.path == "/home/a" }!!
+            assertEquals(FileType.DIRECTORY, dirA.file.fileType)
 
-            val dirB = createdEvents.find { it.path == "/home/a/b" }!!
-            assertEquals(FileType.DIRECTORY, dirB.fileType)
+            val dirB = createdEvents.find { it.file.path == "/home/a/b" }!!
+            assertEquals(FileType.DIRECTORY, dirB.file.fileType)
 
-            val fileC = createdEvents.find { it.path == "/home/a/b/c" }!!
-            assertEquals(FileType.FILE, fileC.fileType)
+            val fileC = createdEvents.find { it.file.path == "/home/a/b/c" }!!
+            assertEquals(FileType.FILE, fileC.file.fileType)
         }
     }
 
