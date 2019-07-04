@@ -6,17 +6,9 @@ import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.StorageFileImpl
-import dk.sdu.cloud.file.api.acl
 import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.createdAt
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.modifiedAt
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.api.sensitivityLevel
-import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -55,47 +47,28 @@ class FileLookupService<Ctx : FSUserContext>(
         path: String,
         sortBy: FileSortBy,
         order: SortOrder,
-        attributes: List<StorageFileAttribute>
-    ): List<StorageFile> {
+        attributes: List<StorageFileAttribute>,
+        pagination: NormalizedPaginationRequest? = null
+    ): Page<StorageFile> {
         val nativeAttributes = translateToNativeAttributes(attributes, sortBy)
 
         val cache = HashMap<String, SensitivityLevel>()
-        val allResults = coreFs.listDirectory(
-            ctx, path,
-            nativeAttributes
-        ).mapNotNull {
+
+        return coreFs.listDirectorySorted(ctx, path, nativeAttributes, sortBy, order, pagination).mapItemsNotNull {
             readStorageFile(ctx, it, cache, nativeAttributes.toList())
         }
-
-        return allResults.let { results ->
-            val naturalComparator: Comparator<StorageFile> = when (sortBy) {
-                FileSortBy.ACL -> Comparator.comparingInt { it.acl?.size ?: 0 }
-                FileSortBy.CREATED_AT -> Comparator.comparingLong { it.createdAt }
-                FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.modifiedAt }
-
-                FileSortBy.TYPE -> Comparator.comparing<StorageFile, String> {
-                    it.fileType.name
-                }.thenComparing(Comparator.comparing<StorageFile, String> {
-                    it.path.fileName().toLowerCase()
-                })
-
-                FileSortBy.PATH -> Comparator.comparing<StorageFile, String> {
-                    it.path.fileName().toLowerCase()
-                }
-                FileSortBy.SIZE -> Comparator.comparingLong { it.size }
-                FileSortBy.SENSITIVITY -> Comparator.comparing<StorageFile, String> {
-                    it.sensitivityLevel.name.toLowerCase()
-                }
-            }
-
-            val comparator = when (order) {
-                SortOrder.ASCENDING -> naturalComparator
-                SortOrder.DESCENDING -> naturalComparator.reversed()
-            }
-
-            results.sortedWith(comparator)
-        }
     }
+
+    inline fun <T, R> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
+        val newItems = items.mapNotNull(mapper)
+        return Page(
+            itemsInTotal,
+            itemsPerPage,
+            pageNumber,
+            newItems
+        )
+    }
+
 
     private fun translateToNativeAttributes(
         attributes: List<StorageFileAttribute>,

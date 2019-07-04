@@ -2,8 +2,10 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
@@ -18,6 +20,8 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -168,6 +172,24 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         mode: Set<FileAttribute>
     ): List<FileRow> {
         return fs.listDirectory(ctx, path, mode).unwrap()
+    }
+
+    suspend fun listDirectorySorted(
+        ctx: Ctx,
+        path: String,
+        mode: Set<FileAttribute>,
+        sortBy: FileSortBy,
+        order: SortOrder,
+        paginationRequest: NormalizedPaginationRequest? = null
+    ): Page<FileRow> {
+        return fs.listDirectoryPaginated(
+            ctx,
+            path,
+            mode,
+            sortBy,
+            paginationRequest,
+            order
+        ).unwrap()
     }
 
     suspend fun tree(
