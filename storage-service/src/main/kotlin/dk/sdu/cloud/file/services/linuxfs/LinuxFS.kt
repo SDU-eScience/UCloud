@@ -3,11 +3,14 @@ package dk.sdu.cloud.file.services.linuxfs
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.components
+import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
@@ -19,6 +22,7 @@ import dk.sdu.cloud.file.services.XATTR_BIRTH
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
+import dk.sdu.cloud.file.services.mergeWith
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
@@ -26,6 +30,8 @@ import dk.sdu.cloud.file.util.toCreatedEvent
 import dk.sdu.cloud.file.util.toDeletedEvent
 import dk.sdu.cloud.file.util.toMovedEvent
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.InputStream
@@ -44,6 +50,7 @@ import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
+import kotlin.math.min
 import kotlin.streams.toList
 
 class LinuxFS(
@@ -159,26 +166,140 @@ class LinuxFS(
         FSResult(0, rows)
     }
 
-    override suspend fun listDirectory(
+    override suspend fun listDirectoryPaginated(
         ctx: LinuxFSRunner,
         directory: String,
-        mode: Set<FileAttribute>
-    ): FSResult<List<FileRow>> = ctx.submit {
+        mode: Set<FileAttribute>,
+        sortBy: FileSortBy?,
+        paginationRequest: NormalizedPaginationRequest?,
+        order: SortOrder?
+    ): FSResult<Page<FileRow>> = ctx.submit {
         aclService.requirePermission(directory, ctx.user, AccessRight.READ)
 
-        val file = File(translateAndCheckFile(directory))
-        val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
+        val systemFiles = run {
+            val file = File(translateAndCheckFile(directory))
+            val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
-        FSResult(
-            0,
-            stat(
+            (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).toList()
+        }
+
+        val min = if (paginationRequest == null) 0 else paginationRequest.itemsPerPage * paginationRequest.page
+        val max =
+            if (paginationRequest == null) systemFiles.size
+            else min(systemFiles.size, min + paginationRequest.itemsPerPage)
+
+        val page = if (sortBy != null && order != null) {
+            // We must sort our files. We do this in two lookups!
+
+            // The first lookup will retrieve just the path (this is cheap) and the attribute we need
+            // (this might not be).
+
+            // In the second lookup we use only the relevant files. We do this by performing the sorting after the
+            // first step and gathering a list of files to be included in the result.
+
+            val sortingAttribute = when (sortBy) {
+                FileSortBy.TYPE -> FileAttribute.FILE_TYPE
+                FileSortBy.PATH -> FileAttribute.PATH
+                FileSortBy.CREATED_AT, FileSortBy.MODIFIED_AT -> FileAttribute.TIMESTAMPS
+                FileSortBy.SIZE -> FileAttribute.SIZE
+                FileSortBy.ACL -> FileAttribute.SHARES
+                FileSortBy.SENSITIVITY -> FileAttribute.SENSITIVITY
+                null -> FileAttribute.PATH
+            }
+
+            val pathCache = HashMap<String, String>()
+
+            val statsForSorting = stat(
                 ctx,
-                (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).toList(),
+                systemFiles,
+                setOf(FileAttribute.PATH, sortingAttribute),
+                pathCache,
+                hasPerformedPermissionCheck = true
+            ).filterNotNull()
+
+            val comparator = comparatorForFileRows(sortBy, order)
+
+            val relevantFileRows = statsForSorting.sortedWith(comparator).subList(min, max)
+
+            // Time for the second lookup. We will retrieve all attributes we don't already know about and merge them
+            // with first lookup.
+            val relevantFiles = relevantFileRows.map { File(translateAndCheckFile(it.path)) }
+
+            val desiredMode = mode - setOf(sortingAttribute) + setOf(FileAttribute.PATH)
+
+            val statsForRelevantRows = stat(
+                ctx,
+                relevantFiles,
+                desiredMode,
+                pathCache,
+                hasPerformedPermissionCheck = true
+            ).filterNotNull().associateBy { it.path }
+
+            val items = relevantFileRows.mapNotNull { rowWithSortingInfo ->
+                val rowWithFullInfo = statsForRelevantRows[rowWithSortingInfo.path] ?: return@mapNotNull null
+                rowWithSortingInfo.mergeWith(rowWithFullInfo)
+            }
+
+            Page(
+                systemFiles.size,
+                paginationRequest?.itemsPerPage ?: items.size,
+                paginationRequest?.page ?: 0,
+                items
+            )
+        } else {
+            val items = stat(
+                ctx,
+                systemFiles,
                 mode,
                 HashMap(),
                 hasPerformedPermissionCheck = true
-            ).filterNotNull()
-        )
+            ).filterNotNull().subList(min, max)
+
+            Page(
+                items.size,
+                paginationRequest?.itemsPerPage ?: items.size,
+                paginationRequest?.page ?: 0,
+                items
+            )
+        }
+
+        FSResult(0, page)
+    }
+
+    private fun comparatorForFileRows(
+        sortBy: FileSortBy,
+        order: SortOrder
+    ): Comparator<FileRow> {
+        val naturalComparator: Comparator<FileRow> = when (sortBy) {
+            FileSortBy.ACL -> Comparator.comparingInt { it.shares.size }
+
+            FileSortBy.CREATED_AT -> Comparator.comparingLong { it.timestamps.created }
+
+            FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.timestamps.modified }
+
+            FileSortBy.TYPE -> Comparator.comparing<FileRow, String> {
+                it.fileType.name
+            }.thenComparing(Comparator.comparing<FileRow, String> {
+                it.path.fileName().toLowerCase()
+            })
+
+            FileSortBy.PATH -> Comparator.comparing<FileRow, String> {
+                it.path.fileName().toLowerCase()
+            }
+
+            FileSortBy.SIZE -> Comparator.comparingLong { it.size }
+
+            // TODO This should be resolved before sorting
+            FileSortBy.SENSITIVITY -> Comparator.comparing<FileRow, String> {
+                (it.sensitivityLevel?.name?.toLowerCase()) ?: "inherit"
+            }
+        }
+
+        val comparator = when (order) {
+            SortOrder.ASCENDING -> naturalComparator
+            SortOrder.DESCENDING -> naturalComparator.reversed()
+        }
+        return comparator
     }
 
     private suspend fun stat(

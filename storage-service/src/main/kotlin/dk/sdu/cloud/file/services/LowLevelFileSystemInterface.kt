@@ -1,7 +1,11 @@
 package dk.sdu.cloud.file.services
 
+import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -61,11 +65,30 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
      * @throws FSException.PermissionException
      * @throws FSException.NotFound If the file at [directory] does not exist.
      */
+    suspend fun listDirectoryPaginated(
+        ctx: Ctx,
+        directory: String,
+        mode: Set<FileAttribute>,
+        sortBy: FileSortBy? = null,
+        paginationRequest: NormalizedPaginationRequest? = null,
+        order: SortOrder? = null
+    ): FSResult<Page<FileRow>>
+
     suspend fun listDirectory(
         ctx: Ctx,
         directory: String,
-        mode: Set<FileAttribute>
-    ): FSResult<List<FileRow>>
+        mode: Set<FileAttribute>,
+        sortBy: FileSortBy? = null,
+        paginationRequest: NormalizedPaginationRequest? = null
+    ): FSResult<List<FileRow>> {
+        val res = listDirectoryPaginated(ctx, directory, mode, sortBy, paginationRequest)
+        if (res.statusCode != 0) {
+            return FSResult(res.statusCode, null)
+        }
+
+        return FSResult(0, res.value.items)
+    }
+
 
     /**
      * Deletes the file at [path] and all of its children recursively.

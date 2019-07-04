@@ -59,8 +59,42 @@ class FileRow(
                 "_owner=$_owner\n" +
                 ")"
     }
+}
 
+fun FileRow.mergeWith(other: FileRow): FileRow {
+    val _fileType: FileType? = this._fileType ?: other._fileType
+    val _isLink: Boolean? = this._isLink ?: other._isLink
+    val _linkTarget: String? = this._linkTarget ?: other._linkTarget
+    val _unixMode: Int? = this._unixMode ?: other._unixMode
+    val _creator: String? = this._creator ?: other._creator
+    val _group: String? = this._group ?: other._group
+    val _timestamps: Timestamps? = this._timestamps ?: other._timestamps
+    val _path: String? = this._path ?: other._path
+    val _rawPath: String? = this._rawPath ?: other._rawPath
+    val _inode: String? = this._inode ?: other._inode
+    val _size: Long? = this._size ?: other._size
+    val _shares: List<AccessEntry>? = this._shares ?: other._shares
+    val _sensitivityLevel: SensitivityLevel? = this._sensitivityLevel ?: other._sensitivityLevel
+    val _linkInode: String? = this._linkInode ?: other._linkInode
+    val _owner: String? = this._owner ?: other._owner
 
+    return FileRow(
+        _fileType,
+        _isLink,
+        _linkTarget,
+        _unixMode,
+        _creator,
+        _group,
+        _timestamps,
+        _path,
+        _rawPath,
+        _inode,
+        _size,
+        _shares,
+        _sensitivityLevel,
+        _linkInode,
+        _owner
+    )
 }
 
 
