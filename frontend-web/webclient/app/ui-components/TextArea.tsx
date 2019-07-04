@@ -12,6 +12,8 @@ export const TextArea = styled.textarea<{ width?: string | number }>`
     &:focus {
         outline: none;
     }
-`
+`;
+
+TextArea.displayName = "TextArea";
 
 export default TextArea;

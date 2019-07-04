@@ -230,7 +230,7 @@ export default class SDUCloud {
     /**
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
-    async delete<T = any>(path: string, body: object, context = this.apiContext,
+    async delete<T = void>(path: string, body: object, context = this.apiContext,
                           disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "DELETE", path, body, context, disallowProjects});
     }

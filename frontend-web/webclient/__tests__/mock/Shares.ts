@@ -1,5 +1,5 @@
-import { SharesByPath, ShareState } from "Shares";
-import { Page, AccessRight } from "Types";
+import { SharesByPath, ShareState } from "../../app/Shares";
+import { Page, AccessRight } from "../../app/Types";
 
 export const shares: Page<SharesByPath> = {
     itemsInTotal: 1,
@@ -13,7 +13,7 @@ export const shares: Page<SharesByPath> = {
             shares: [{
                 id: "3",
                 sharedWith: "user3@test.dk",
-                rights: [AccessRight.WRITE, AccessRight.EXECUTE],
+                rights: [AccessRight.WRITE],
                 state: ShareState.ACCEPTED
             }]
         }],

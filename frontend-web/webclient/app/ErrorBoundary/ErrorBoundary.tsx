@@ -46,7 +46,12 @@ export class ErrorBoundary extends React.Component<{}, {hasError: boolean, error
             return (<MainContainer main={<Box maxWidth="435px" width="100%">
                 <Box>An error occurred. Would you like to submit an error report?</Box>
                 <Box mb="0.5em"><TextArea placeholder="Please enter any information regarding the action you performed that caused an error" rows={5} width="100%" ref={this.ref} /></Box>
-                <Button mr="1em" onClick={this.submitError} color="blue">Submit</Button><Button onClick={ErrorBoundary.redirectToDashboard}>Go to dashboard</Button>
+                <Button mr="1em" onClick={this.submitError} color="blue">Submit</Button>
+                <Button onClick={ErrorBoundary.redirectToDashboard}>Go to dashboard</Button>
+
+                <Box pt="10px">We support Chrome, Edge, Firefox and Safari.
+                Outdated browsers can in some cases cause issues.
+                Please keep your browser updated.</Box>
             </Box>} />)
         }
 

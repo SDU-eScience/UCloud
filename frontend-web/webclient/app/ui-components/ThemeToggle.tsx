@@ -1,8 +1,9 @@
 import styled from "styled-components";
 import * as React from "react";
 import Relative from "./Relative";
+import {inDevEnvironment} from "UtilityFunctions";
 
-/*
+/*!
 
     The MIT License (MIT)
 
@@ -30,6 +31,7 @@ interface ThemeToggleProps {
 }
 export function ThemeToggler({isLightTheme}: {isLightTheme: boolean}) {
     const [active, setActive] = React.useState<boolean>(isLightTheme);
+    if (!inDevEnvironment()) return null;
     return (
         <Relative top="10px" left="82px">
             <Wrapper size={1} onClick={() => setActive(!active)} active={active}>

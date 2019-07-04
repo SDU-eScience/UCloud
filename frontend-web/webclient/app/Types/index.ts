@@ -1,5 +1,6 @@
-import { Action } from "redux";
+import {Action} from "redux";
 import {emptyPage} from "DefaultObjects";
+import Cloud from "Authentication/lib"
 
 export interface SidebarOption {
     name: string
@@ -43,8 +44,7 @@ export function arrayToPage<T>(items: T[], itemsPerPage: number = 50, page: numb
 
 export enum AccessRight {
     READ = "READ",
-    WRITE = "WRITE",
-    EXECUTE = "EXECUTE"
+    WRITE = "WRITE"
 }
 
 export class AccessRights {
@@ -61,11 +61,24 @@ export interface ClearRefresh {
     clearRefresh: () => void
 }
 
-export type SetLoadingAction<T> = PayloadAction<T, { loading: boolean }>
-export type Error<T> = PayloadAction<T, { error?: string, statusCode?: number }>
-export type ReceivePage<T1, T2> = PayloadAction<T1, { page: Page<T2> }>
-export interface PayloadAction<T1, T2> extends Action<T1> { payload: T2 }
+export type SetLoadingAction<T> = PayloadAction<T, {loading: boolean}>
+export type Error<T> = PayloadAction<T, {error?: string, statusCode?: number}>
+export type ReceivePage<T1, T2> = PayloadAction<T1, {page: Page<T2>}>
+export interface PayloadAction<T1, T2> extends Action<T1> {payload: T2}
 
 export interface Dictionary<V> {
     [key: string]: V
+}
+
+export interface PredicatedOperation<T> {
+    predicate: (listItems: T[], cloud: Cloud) => boolean
+    onTrue: Operation<T>
+    onFalse: Operation<T>
+}
+export type Operation<T> = {
+    text: string
+    onClick: (listItems: T[], cloud: Cloud) => void
+    disabled: (listItems: T[], cloud: Cloud) => boolean
+    icon?: string
+    color?: string
 }

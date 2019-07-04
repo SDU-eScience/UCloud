@@ -10,6 +10,8 @@ export const ArrowUp = styled.div`
     border-bottom: 5px solid rgba(235, 239, 243, 1);
 `;
 
+ArrowUp.displayName = "ArrowUp";
+
 export const HiddenArrowUp = styled(ArrowUp)`
     display: none;
 `;

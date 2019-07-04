@@ -15,9 +15,8 @@ import RBox from "./RBox";
 import {ReduxObject} from "DefaultObjects"
 import {connect} from 'react-redux'
 import {FlexCProps} from "./Flex";
-import {inDevEnvironment, copyToClipboard, isLightThemeStored} from "UtilityFunctions";
+import {inDevEnvironment, copyToClipboard} from "UtilityFunctions";
 import {ContextSwitcher} from "Project/ContextSwitcher";
-import {ThemeToggler} from "./ThemeToggle";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
     justify-content: left;
@@ -152,8 +151,8 @@ function enumToLabel(value: SidebarPages): string {
             return "Favorites";
         case SidebarPages.AppStore:
             return "Apps";
-        case SidebarPages.MyResults:
-            return "My Results";
+        case SidebarPages.Runs:
+            return "Runs";
         case SidebarPages.Publish:
             return "Publish";
         case SidebarPages.Activity:
@@ -191,7 +190,7 @@ export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarM
             {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "starFilled", label: "Favorites", to: "/favorites"},
             {icon: "appStore", label: "Apps", to: "/applications/"},
-            {icon: "results", label: "My Results", to: "/applications/results/"}
+            {icon: "results", label: "Runs", to: "/applications/results/"}
         ], predicate: () => Cloud.isLoggedIn
     },
     auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Cloud.isLoggedIn},
@@ -275,7 +274,7 @@ export const enum SidebarPages {
     Shares,
     Favorites,
     AppStore,
-    MyResults,
+    Runs,
     Publish,
     Activity,
     Admin,

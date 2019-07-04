@@ -122,7 +122,7 @@ export const LoginPage = (props: {history: History, initialState?: any}) => {
     }
     return (<>
         <Absolute top="43px" left="80px"><Box width="200px"><Icon color="white" name="logoSdu" size="20vw" /></Box></Absolute>
-        <BGLogo image={bg1} bottom="0px" height="50%" width="100%"> </BGLogo>
+        <BGLogo image={bg1} bottom="0px" height="50%" width="100%"/>
         <BackgroundImage image={bg2} >
             <Flex alignItems={"top"} justifyContent={"center"} width={"100vw"} height={"100vh"} pt="20vh">
                 <Box width="315px">

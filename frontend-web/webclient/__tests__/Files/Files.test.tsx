@@ -5,7 +5,7 @@ import { updateFiles } from "../../app/Files/Redux/FilesActions";
 import Files from "../../app/Files/Files";
 import FilesTable, { FileOperations } from "../../app/Files/FilesTable";
 import { setLoading } from "../../app/Files/Redux/FilesActions"
-import { SortOrder, SortBy, Operation, PredicatedOperation, File } from "../../app/Files";
+import { SortOrder, SortBy, File } from "../../app/Files";
 import { mockFiles_SensitivityConfidential } from "../mock/Files"
 import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
@@ -15,9 +15,8 @@ import { allFileOperations } from "../../app/Utilities/FileUtilities";
 import { configureStore, responsive } from "../../app/Utilities/ReduxUtilities";
 import { initFiles } from "../../app/DefaultObjects";
 import { mount } from "enzyme";
-import { Page } from "../../app/Types";
+import { Page, Operation, PredicatedOperation } from "../../app/Types";
 import "jest-styled-components";
-import { Button } from "react-native";
 // import * as Adapter from "enzyme-adapter-react-16";
 // 
 // configure({ adapter: new Adapter() });
@@ -117,10 +116,10 @@ describe("Files-component", () => {
 });
 
 const getOperationFrom = (node: Renderer.ReactTestRenderer, operation: string) =>
-    node.root.findAllByType(FileOperations)[0].props.fileOperations.find((it: Operation) => it.text === operation);
+    node.root.findAllByType(FileOperations)[0].props.fileOperations.find((it: Operation<File>) => it.text === operation);
 
 const getPredicatedOperationFrom = (node: Renderer.ReactTestRenderer, operation: string, onTrue: boolean) =>
-    node.root.findAllByType(FileOperations)[0].props.fileOperations.filter(it => it.onTrue).find((it: PredicatedOperation) => it[onTrue ? "onTrue" : "onFalse"].text === operation);
+    node.root.findAllByType(FileOperations)[0].props.fileOperations.filter(it => it.onTrue).find((it: PredicatedOperation<File>) => it[onTrue ? "onTrue" : "onFalse"].text === operation);
 
 describe("FilesTable Operations being mounted", () => {
     // Non-predicated operations
@@ -135,8 +134,8 @@ describe("FilesTable Operations being mounted", () => {
                         />
                     </MemoryRouter>
                 </Provider>)
-            const op: Operation = getOperationFrom(node, operation);
-            const toMatch = (fileOperations.filter((it: Operation) => it.text === operation)[0] as Operation);
+            const op: Operation<File> = getOperationFrom(node, operation);
+            const toMatch = (fileOperations.filter((it: Operation<File>) => it.text === operation)[0] as Operation<File>);
             // FIXME Currently needed due to dynamic nature of tests;
             expect(JSON.parse(JSON.stringify(op))).toEqual(JSON.parse(JSON.stringify(toMatch)));
         }));
@@ -173,7 +172,7 @@ describe("FilesTable Operations being mounted", () => {
                 />
             </MemoryRouter>);
         const operation = getPredicatedOperationFrom(table, operationName, false);
-        expect(operation).toBe(fileOperations.filter((it: PredicatedOperation) => it.onTrue).find((it: PredicatedOperation) => it["onFalse"].text === operationName));
+        expect(operation).toBe(fileOperations.filter((it: PredicatedOperation<File>) => it.onTrue).find((it: PredicatedOperation<File>) => it["onFalse"].text === operationName));
     });
 
     test.skip("Edit Project", () => {
@@ -193,7 +192,7 @@ describe("FilesTable Operations being mounted", () => {
                 />
             </MemoryRouter>);
         const operation = getPredicatedOperationFrom(table, operationName, true);
-        expect(operation).toBe(fileOperations.filter((it: PredicatedOperation) => it.onTrue).find((it: Operation) => it["onTrue"].text === operationName));
+        expect(operation).toBe(fileOperations.filter((it: PredicatedOperation<File>) => it.onTrue).find((it: Operation<File>) => it["onTrue"].text === operationName));
     });
 });
 

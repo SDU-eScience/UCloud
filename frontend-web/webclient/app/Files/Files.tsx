@@ -302,7 +302,6 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
                     dispatch(noAcls);
                 }
             }
-
         };
         fetch();
         dispatch(setRefreshFunction(fetch));

@@ -69,4 +69,6 @@ const Progress = ({ color, percent, active, label }: Progress) => (
     </>
 );
 
+ProgressBase.displayName = "ProgressBase";
+
 export default Progress;

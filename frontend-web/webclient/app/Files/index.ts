@@ -1,4 +1,4 @@
-import {Page, ClearRefresh} from "Types";
+import {Page, ClearRefresh, Operation, PredicatedOperation} from "Types";
 import Cloud from "Authentication/lib";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
@@ -140,6 +140,7 @@ export interface FileSelectorState {
 
 export interface FilesTableProps {
     onNavigationClick?: (path: string) => void
+    canNavigateFiles?: boolean
     sortOrder: SortOrder
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     sortingColumns: SortBy[]
@@ -173,6 +174,7 @@ export interface FilesTableHeaderProps {
 
 export interface FilenameAndIconsProps {
     size?: number | string
+    canNavigateFiles: boolean
     file: File
     hasCheckbox: boolean
     onRenameFile?: (key: number, file: File, name: string) => void
@@ -235,9 +237,7 @@ export interface SortByDropdownProps {
     isSortedBy: boolean
 }
 
-export type PredicatedOperation = {predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation}
-export type Operation = {text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon?: string, color?: string}
-export type FileOperation = Operation | PredicatedOperation
+export type FileOperation = Operation<File> | PredicatedOperation<File>
 
 export interface ContextButtonsProps {
     createFolder: () => void

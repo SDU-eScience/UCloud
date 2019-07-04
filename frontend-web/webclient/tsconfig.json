@@ -9,7 +9,7 @@
         "allowUnreachableCode": false,
         "module": "esnext",
         "lib": [
-            "esnext",
+            "es2018",
             "dom"
         ],
         "target": "es2015",

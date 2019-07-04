@@ -27,4 +27,6 @@ RatingBadge.defaultProps = {
   theme: theme
 };
 
+RatingBadge.displayName = "RatingBadge";
+
 export default RatingBadge;

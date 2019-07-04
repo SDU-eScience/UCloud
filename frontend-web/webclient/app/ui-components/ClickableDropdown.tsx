@@ -23,7 +23,7 @@ type ClickableDropdownProps = {
     overflow?: string
     colorOnHover?: boolean
     squareTop?: boolean
-    onChange?: (key: string) => void
+    onChange?: (value: string) => void
 }
 
 class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {

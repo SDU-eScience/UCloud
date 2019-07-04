@@ -15,4 +15,6 @@ const VerticalButtonGroup = styled(Flex)`
     }
 `;
 
+VerticalButtonGroup.displayName = "VerticalButtonGroup";
+
 export default VerticalButtonGroup;

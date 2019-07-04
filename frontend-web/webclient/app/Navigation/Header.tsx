@@ -7,7 +7,7 @@ import Avatar from "avataaars";
 import {History} from "history";
 import {HeaderStateToProps} from "Navigation";
 import {ReduxObject, KeyCode, HeaderSearchType} from "DefaultObjects";
-import {Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide, Divider} from "ui-components";
+import {Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide, Divider, SelectableText, SelectableTextWrapper} from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -20,7 +20,6 @@ import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {inDevEnvironment, prettierString, isLightThemeStored} from "UtilityFunctions";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
 import {TextSpan} from "ui-components/Text";
-import {SearchOptions, SelectableText} from "Search/Search";
 import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
@@ -88,7 +87,7 @@ function Header(props: HeaderProps) {
                         </Flex>
                     </Link>
                 </Flex>
-                <Flex ml="-17px" mr="-17px" pl="15px" onClick={Cloud.logout}>
+                <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
@@ -124,6 +123,7 @@ const Logo = () => (
         <Flex alignItems={"center"} ml="15px">
             <Icon name={"logoEsc"} size={"38px"} />
             <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
+            <Text ml={"4px"} mt={-7} style={{verticalAlign: "top", fontWeight: 700}} color="red" fontSize={17}>BETA</Text>
         </Flex>
     </Link>
 );
@@ -131,7 +131,6 @@ const Logo = () => (
 const Login = () => (
     <Icon name="user" />
 );
-
 
 const SearchInput = styled(Flex)`
     min-width: 250px;
@@ -212,7 +211,7 @@ const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) =
                         <Icon name="chevronDown" size="15px" />
                     </Absolute>
                 }>
-                <SearchOptions>
+                <SelectableTextWrapper>
                     <Box ml="auto" />
                     {allowedSearchTypes.map(it =>
                         <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
@@ -221,7 +220,7 @@ const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) =
                         </SelectableText>
                     )}
                     <Box mr="auto" />
-                </SearchOptions>
+                </SelectableTextWrapper>
                 {searchType === "files" ?
                     <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide /> :
 

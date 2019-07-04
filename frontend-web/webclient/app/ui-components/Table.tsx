@@ -20,6 +20,8 @@ export const Table = styled.table<WidthProps & MinWidthProps & BackgroundColorPr
     ${width} ${minWidth}
 `;
 
+Table.displayName = "Table";
+
 Table.defaultProps = {
     backgroundColor: "white",
     width: "100%",
@@ -28,11 +30,15 @@ Table.defaultProps = {
 
 export const TableBody = styled.tbody``;
 
+TableBody.displayName = "TableBody";
+
 export const TableCell = styled.td<TextAlignProps>`
     border: 0px;
     border-spacing: 0;
-    ${textAlign};
+    ${textAlign}
 `;
+
+TableCell.displayName = "TableCell";
 
 const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) => highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
 
@@ -53,11 +59,15 @@ TableRow.defaultProps = {
     cursor: "auto"
 }
 
+TableRow.displayName = "TableRow";
+
 export const TableHeader = styled.thead`
     background-color: ${({theme}) => theme.colors.white};
     padding-top: 11px;
     padding-bottom: 11px;
 `;
+
+TableHeader.displayName = "TableHeader";
 
 export const TableHeaderCell = styled.th<TextAlignProps & WidthProps>`
     border-spacing: 0;
@@ -65,5 +75,7 @@ export const TableHeaderCell = styled.th<TextAlignProps & WidthProps>`
     ${textAlign};
     ${width} ${minWidth}
 `;
+
+TableHeaderCell.displayName =  "TableHeaderCell";
 
 export default Table;
