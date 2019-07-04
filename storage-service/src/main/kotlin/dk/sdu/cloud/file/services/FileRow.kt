@@ -97,11 +97,3 @@ fun FileRow.mergeWith(other: FileRow): FileRow {
     )
 }
 
-
-fun Set<FileAttribute>.asBitSet(): Long {
-    var result = 0L
-    for (item in this) {
-        result = result or item.value
-    }
-    return result
-}

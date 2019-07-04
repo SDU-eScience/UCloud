@@ -323,8 +323,16 @@ class LinuxFS(
         followLink: Boolean = false
     ): List<FileRow?> {
         val shareLookup = if (FileAttribute.SHARES in mode) {
-            val paths = systemFiles.map { it.path.toCloudPath() }
-            aclService.listAcl(paths)
+            val parents = systemFiles.map { it.parent }.toSet()
+            if (parents.size == 1) {
+                aclService.listAclsForChildrenOf(
+                    parents.first().toCloudPath().normalize(),
+                    systemFiles.map { it.path.toCloudPath() }
+                )
+            } else {
+                val paths = systemFiles.map { it.path.toCloudPath() }
+                aclService.listAcl(paths)
+            }
         } else {
             emptyMap()
         }

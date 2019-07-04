@@ -2,8 +2,15 @@ package dk.sdu.cloud.file.services.acl
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.parents
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.deleteCriteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.updateCriteria
 import java.io.Serializable
 import javax.persistence.Column
 import javax.persistence.Embeddable
@@ -16,6 +23,8 @@ import javax.persistence.Table
 @Entity
 @Table(name = "permissions")
 data class PermissionEntry(
+    var parent: String,
+
     @get:EmbeddedId
     var key: Key
 ) {
@@ -36,7 +45,8 @@ class AclHibernateDao : AclDao<HibernateSession> {
         username: String,
         permissions: Set<AccessRight>
     ) {
-        val entries = permissions.map { PermissionEntry(PermissionEntry.Key(path, username, it)) }
+        val entries =
+            permissions.map { PermissionEntry(path.parent().normalize(), PermissionEntry.Key(path, username, it)) }
         entries.forEach { session.saveOrUpdate(it) }
 
         session.deleteCriteria<PermissionEntry> {
@@ -92,6 +102,26 @@ class AclHibernateDao : AclDao<HibernateSession> {
             .toMap()
     }
 
+    override fun listAclsForChildrenOf(
+        session: HibernateSession,
+        path: String
+    ): Map<String, List<UserWithPermissions>> {
+        return session
+            .criteria<PermissionEntry> {
+                entity[PermissionEntry::parent] equal path
+            }
+            .list()
+            .groupBy { it.key.path }
+            .mapValues { (_, entries) ->
+                entries
+                    .groupBy { it.key.username }
+                    .map { (username, permissions) ->
+                        UserWithPermissions(username, permissions.map { it.key.permission }.toSet())
+                    }
+            }
+            .toMap()
+    }
+
     override fun revokePermission(session: HibernateSession, path: String, username: String) {
         val normalizedPath = path.normalize()
         session.deleteCriteria<PermissionEntry> {
@@ -102,15 +132,24 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
     override fun handleFilesMoved(session: HibernateSession, oldPath: String, newPath: String) {
         // The first query will update all children
+        // I am not good with sql queries, but this will correctly update the parent property
         session.createNativeQuery(
             """
             update permissions
-            set path = concat(:newPath, substr(path, :startIdx))
+            set 
+                path = concat(:newPath, substr(path, :startIdx)),
+                parent = substring(
+                    concat(:newPath, substr(path, :startIdx)), 
+                    0, 
+                    length(concat(:newPath, substr(path, :startIdx))) - 
+                        position('/' in reverse(concat(:newPath, substr(path, :startIdx)))) + 1
+                ) 
             where path like :oldPathLike
         """.trimIndent()
         ).also {
             it.setParameter("newPath", newPath)
             it.setParameter("oldPathLike", "$newPath/%")
+            it.setParameter("newParent", newPath.parent().normalize())
 
             // add one for the forward-slash and another for offsetting substr
             it.setParameter("startIdx", newPath.length + 2)
@@ -120,6 +159,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         session.updateCriteria<PermissionEntry>(
             setProperties = {
                 criteria.set(entity[PermissionEntry::key][PermissionEntry.Key::path], newPath)
+                criteria.set(entity[PermissionEntry::parent], newPath.parent().normalize())
             },
 
             where = {

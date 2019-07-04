@@ -332,4 +332,24 @@ class AclTest {
             }
         )
     }
+
+    @Test
+    fun `test merging of acls specialized`() = runBlocking {
+        val username = "user"
+        val sharedFolder = "/home/$username/shared"
+        val notUser = "notUser"
+
+        val child1 = "$sharedFolder/child"
+        val child2 = "$sharedFolder/child2"
+
+        aclService.updatePermissions(sharedFolder, notUser, AccessRights.READ_ONLY)
+        aclService.updatePermissions(child1, notUser, AccessRights.READ_WRITE)
+
+        val instance =
+            aclService.listAclsForChildrenOf(sharedFolder, listOf(child1, child2))
+        assertThatInstance(instance, matcher = { it.size == 2 })
+
+        assertThatInstance(instance[child1]!!) { it.single().permissions == AccessRights.READ_WRITE}
+        assertThatInstance(instance[child2]!!) { it.single().permissions == AccessRights.READ_ONLY}
+    }
 }
