@@ -35,3 +35,5 @@ export const DatePicker = styled(ReactDatePicker)<InputProps>`
     ${borders} ${space};
 
 `;
+
+DatePicker.displayName = "DatePicker";

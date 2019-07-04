@@ -20,4 +20,6 @@ SelectableText.defaultProps = {
     theme
 };
 
+SelectableText.displayName = "SelectableText";
+
 export { SelectableTextWrapper, SelectableText };

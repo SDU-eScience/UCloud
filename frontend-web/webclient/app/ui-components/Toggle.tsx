@@ -9,7 +9,9 @@ const ToggleLabel = styled(Label) <{ scale: number }>`
     display: inline-block;
     width: ${props => 30 * props.scale}px;
     height: ${props => 17 * props.scale}px;
-`
+`;
+
+ToggleLabel.displayName = "ToggleLabel";
 
 const RoundSlider = styled.span<{ scale: number }>`
     position: absolute;
@@ -35,7 +37,9 @@ const RoundSlider = styled.span<{ scale: number }>`
         transition: .4s;
         border-radius: 50%;
     }
-`
+`;
+
+RoundSlider.displayName = "RoundSlider";
 
 const ToggleInput = styled(HiddenInputField) <{ scale: number }>`
     &:checked + ${RoundSlider} {
@@ -52,6 +56,8 @@ const ToggleInput = styled(HiddenInputField) <{ scale: number }>`
         transform: translateX(${props => props.scale * 13}px);
     }
 `;
+
+ToggleInput.displayName = "ToggleInput";
 
 interface ToggleProps { checked?: boolean, onChange: () => void, scale?: number }
 export const Toggle = ({ checked, onChange, scale = 1 }: ToggleProps) => (

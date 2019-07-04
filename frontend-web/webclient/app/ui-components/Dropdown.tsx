@@ -77,6 +77,8 @@ DropdownContent.defaultProps = {
     visible: false
 }
 
+Dropdown.displayName = "Dropdown";
+
 interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps {
     hover?: boolean
     width?: string | number

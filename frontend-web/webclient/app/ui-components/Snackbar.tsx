@@ -33,3 +33,5 @@ export const /* Admiral */ Snackbar = styled(Box) <{ visible: boolean }>`
 
     ${visibility}
 `;
+
+Snackbar.displayName = "Snackbar";
