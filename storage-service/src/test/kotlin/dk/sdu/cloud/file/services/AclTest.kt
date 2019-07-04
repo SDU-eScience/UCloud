@@ -9,6 +9,7 @@ import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
@@ -24,6 +25,10 @@ class AclTest {
         micro = initializeMicro()
         micro.install(HibernateFeature)
         aclService = AclService(micro.hibernateDatabase, AclHibernateDao(), MockedHomeFolderService, { it.normalize() })
+
+        micro.hibernateDatabase.withTransaction {
+            it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;").executeUpdate()
+        }
     }
 
     @Test
@@ -33,7 +38,9 @@ class AclTest {
         val notUser = "notUser"
 
 
-        assertThatPropertyEquals(aclService.listAcl(listOf(userHome)), { it.size }, 0)
+        val instance = aclService.listAcl(listOf(userHome))
+        assertThatPropertyEquals(instance, { it.size }, 1)
+        assertThatPropertyEquals(instance[userHome], { it!!.size }, 0)
 
         assertTrue(aclService.hasPermission(userHome, username, AccessRight.WRITE))
         assertTrue(aclService.hasPermission(userHome, username, AccessRight.READ))
@@ -109,7 +116,8 @@ class AclTest {
         assertFalse(aclService.hasPermission(userHome, notUser, AccessRight.READ))
 
         val list = aclService.listAcl(listOf(userHome))
-        assertThatPropertyEquals(list, { it.size }, 0)
+        assertThatPropertyEquals(list, { it.size }, 1)
+        assertThatInstance(list[userHome]!!) { it.isEmpty() }
     }
 
     @Test
@@ -215,10 +223,12 @@ class AclTest {
         assertTrue(aclService.hasPermission(folderB, notUser, AccessRight.READ))
 
         val listA = aclService.listAcl(listOf(folderA))
-        assertThatPropertyEquals(listA, { it.size }, 0)
+        assertThatPropertyEquals(listA, { it.size }, 1)
+        assertThatPropertyEquals(listA[folderA], { it!!.size }, 0)
 
         val listB = aclService.listAcl(listOf(folderB))
         assertThatPropertyEquals(listB, { it.size }, 1)
+        assertThatPropertyEquals(listB[folderB], { it!!.size }, 1)
     }
 
     @Test

@@ -78,26 +78,24 @@ class AclService<Session>(
         paths: List<String>
     ): Map<String, List<UserWithPermissions>> {
         val normalizedPaths = paths.mapNotNull { it to (pathNormalizer(it) ?: return@mapNotNull null) }
-        log.debug("NormalizedPaths: $normalizedPaths")
 
-        val allParents = normalizedPaths.flatMap { it.second.parents() }.map { it.normalize() }.toSet()
+        return db.withTransaction { session ->
+            normalizedPaths.chunked(200).flatMap { normalizedChunk ->
+                val allParents = normalizedChunk.flatMap { it.second.parents() }.map { it.normalize() }.toSet()
 
-        log.debug("Gathering ACLs from: $allParents")
+                val res = dao.listAcl(session, normalizedChunk.map { it.second } + allParents)
 
-        val res = db.withTransaction {
-            dao.listAcl(it, normalizedPaths.map { it.second } + allParents)
-        }
+                normalizedChunk.map { (originalPath, path) ->
+                    val acl = res[path] ?: emptyList()
+                    val aclEntriesFromParents = path.parents().flatMap { res[it.normalize()] ?: emptyList() }
+                    val unmergedAcl = acl + aclEntriesFromParents
 
-        log.debug("Result is $res")
-
-        return normalizedPaths.map { (originalPath, path) ->
-            val acl = res[path] ?: emptyList()
-            val aclEntriesFromParents = path.parents().flatMap { res[it.normalize()] ?: emptyList() }
-
-            originalPath to (acl + aclEntriesFromParents)
-        }.toMap().also {
-            log.debug("Merged result is: $it")
-        }
+                    originalPath to unmergedAcl.groupBy { it.username }.map { (username, entries) ->
+                        UserWithPermissions(username, entries.flatMap { it.permissions }.toSet())
+                    }
+                }
+            }
+        }.toMap()
     }
 
     suspend fun listAclsForChildrenOf(

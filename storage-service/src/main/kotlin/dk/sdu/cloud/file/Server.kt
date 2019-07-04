@@ -36,7 +36,9 @@ import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.linuxfs.linuxFSRealPathSupplier
+import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -45,6 +47,8 @@ import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.H2_DIALECT
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
@@ -58,6 +62,8 @@ class Server(
     override val log: Logger = logger()
 
     override fun start() = runBlocking {
+        supportReverseInH2(micro)
+
         val streams = micro.eventStreamService
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
@@ -186,6 +192,21 @@ class Server(
         }
 
         startServices()
+    }
+
+    private fun supportReverseInH2(micro: Micro) {
+        val config =
+            micro.configuration.requestChunkAtOrNull<HibernateFeature.Feature.Config>(*HibernateFeature.CONFIG_PATH)
+                ?: return
+
+        if (config.dialect == H2_DIALECT) {
+            // Add database 'polyfill' for postgres reverse function.
+            micro.hibernateDatabase.withTransaction { session ->
+                session.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ " +
+                        "String reverse(String s) { return new StringBuilder(s).reverse().toString(); } " +
+                        "\$\$;").executeUpdate()
+            }
+        }
     }
 
     override fun stop() {

@@ -149,7 +149,6 @@ class AclHibernateDao : AclDao<HibernateSession> {
         ).also {
             it.setParameter("newPath", newPath)
             it.setParameter("oldPathLike", "$newPath/%")
-            it.setParameter("newParent", newPath.parent().normalize())
 
             // add one for the forward-slash and another for offsetting substr
             it.setParameter("startIdx", newPath.length + 2)
