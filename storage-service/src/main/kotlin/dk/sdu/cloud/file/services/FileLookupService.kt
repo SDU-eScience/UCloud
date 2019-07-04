@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -39,7 +40,7 @@ class FileLookupService<Ctx : FSUserContext>(
         order: SortOrder = SortOrder.ASCENDING,
         attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList()
     ): Page<StorageFile> {
-        return listDirectorySorted(ctx, path, sortBy, order, attributes).paginate(pagination)
+        return listDirectorySorted(ctx, path, sortBy, order, attributes, pagination)
     }
 
     private suspend fun listDirectorySorted(
@@ -59,7 +60,7 @@ class FileLookupService<Ctx : FSUserContext>(
         }
     }
 
-    inline fun <T, R> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
+    private inline fun <T, R : Any> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
         val newItems = items.mapNotNull(mapper)
         return Page(
             itemsInTotal,
@@ -68,7 +69,6 @@ class FileLookupService<Ctx : FSUserContext>(
             newItems
         )
     }
-
 
     private fun translateToNativeAttributes(
         attributes: List<StorageFileAttribute>,
@@ -206,7 +206,7 @@ class FileLookupService<Ctx : FSUserContext>(
     ): Page<StorageFile> {
         val normalizedItemsPerPage = NormalizedPaginationRequest(itemsPerPage, 0).itemsPerPage
 
-        val allFiles = listDirectorySorted(ctx, path.parent(), sortBy, order, attributes)
+        val allFiles = listDirectorySorted(ctx, path.parent(), sortBy, order, attributes).items
         val index = allFiles.indexOfFirst { it.path.normalize() == path.normalize() }
         if (index == -1) throw FSException.NotFound()
 
