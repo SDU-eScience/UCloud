@@ -17,6 +17,7 @@ class ACLWorker(
     private val backgroundExecutor: BackgroundExecutor<*>
 ) {
     fun registerWorkers() {
+        // TODO This should be done in bulk instead. We don't need to open and close connections all the time.
         backgroundExecutor.addWorker(REQUEST_TYPE) { _, message, user ->
             runBlocking {
                 val parsed = defaultMapper.readValue<UpdateRequest>(message)
