@@ -854,6 +854,7 @@ class LinuxFS(
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         aclService.requirePermission(linkPath.parent(), ctx.user, AccessRight.WRITE)
+        aclService.requirePermission(targetPath, ctx.user, AccessRight.READ)
 
         val systemLink = File(translateAndCheckFile(linkPath))
         val systemTarget = File(translateAndCheckFile(targetPath))

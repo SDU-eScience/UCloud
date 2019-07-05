@@ -97,8 +97,11 @@ class ProcessingService<Session>(
         }
 
         coroutineScope {
-            // TODO Performance, we could bundle these by file ID and bulk updateAcl
-            // TODO Confirm file was deleted, in this case we can skip the updateAcl call
+            // TODO We don't need to call updateAcl or anything like this. We just need to delete symlinks at the
+            //  recipient.
+            //
+            // Or even better. We don't use symlinks at all. This would solve so many problems.
+
             val deletedShareJobs = deletedShares.map {
                 launch {
                     var attempts = 0
@@ -112,10 +115,6 @@ class ProcessingService<Session>(
                     }
                 }
             }
-
-            // TODO Performance. This is not even slightly optimized for bulk.
-            // The DB transfers are not in a single transaction (because we can't).
-            // We cannot update multiple ACLs either.
 
             deletedShareJobs.joinAll()
         }
