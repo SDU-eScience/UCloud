@@ -210,70 +210,70 @@ fun File.keepReadingChannel(
 ): ByteReadChannel {
     val file = RandomAccessFile(this@keepReadingChannel, "r")
     return CoroutineScope(coroutineContext).writer(coroutineContext, autoFlush = true) {
-        try {
-            file.use {
-                val fileChannel: FileChannel = file.channel
-                if (length != null) {
-                    channel.writeSuspendSession {
-                        var read = 0L
-                        while (read < length) {
-                            val buffer = request(1)
-                            if (buffer == null) {
-                                channel.flush()
-                                tryAwait(1)
-                                continue
-                            }
-
-                            val rc = fileChannel.read(buffer)
-                            if (rc == -1) {
-                                delay(10)
-                                written(0)
-                                continue
-                            } else {
-                                read += rc
-                            }
-                            written(rc)
+    try {
+        file.use {
+            val fileChannel: FileChannel = file.channel
+            if (length != null) {
+                channel.writeSuspendSession {
+                    var read = 0L
+                    while (read < length) {
+                        val buffer = request(1)
+                        if (buffer == null) {
+                            channel.flush()
+                            tryAwait(1)
+                            continue
                         }
-                        flush()
-                    }
-                } else if (readState != null) {
-                    channel.writeSuspendSession {
-                        var read = 0L
-                        while (true) {
-                            val buffer = request(1)
-                            if (buffer == null) {
-                                channel.flush()
-                                tryAwait(1)
-                                continue
-                            }
 
-                            val rc = fileChannel.read(buffer)
-                            if (rc == -1) {
-                                delay(10)
-                                written(0)
-                                if (readState.isDone && readState.read == read) {
-                                    println("produced: ${readState.read}, consumed: $read")
-                                    break
-                                }
-                                if (readState.isDone && readState.read < read ) {
-                                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                                }
-                                continue
-                            } else {
-                                read += rc
-                            }
-                            written(rc)
+                        val rc = fileChannel.read(buffer)
+                        if (rc == -1) {
+                            delay(10)
+                            written(0)
+                            continue
+                        } else {
+                            read += rc
                         }
-                        flush()
+                        written(rc)
                     }
-                } else {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    flush()
                 }
+            } else if (readState != null) {
+                channel.writeSuspendSession {
+                    var read = 0L
+                    while (true) {
+                        val buffer = request(1)
+                        if (buffer == null) {
+                            channel.flush()
+                            tryAwait(1)
+                            continue
+                        }
+
+                        val rc = fileChannel.read(buffer)
+                        if (rc == -1) {
+                            delay(10)
+                            written(0)
+                            if (readState.isDone && readState.read == read) {
+                                println("produced: ${readState.read}, consumed: $read")
+                                break
+                            }
+                            if (readState.isDone && readState.read < read ) {
+                                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                            }
+                            continue
+                        } else {
+                            read += rc
+                        }
+                        written(rc)
+                    }
+                    flush()
+                }
+            } else {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
-        } finally {
-            delete()
         }
-    }.channel
+    } finally {
+        delete()
+    }
+}.channel
 }
 
 suspend fun producer(fileChannel: FileChannel, byteReadChannel: ByteReadChannel, readState: WebService.Communication) {
