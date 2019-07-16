@@ -8,6 +8,9 @@ const BreadCrumbsBase = styled.ul<{divider?: string}>`
     padding-right: 10px;
     margin: 0;
     list-style: none;
+    max-width: 85%;
+    height: 85px;
+    overflow-y: scroll;
 
     & li {
         display: inline;
@@ -17,7 +20,7 @@ const BreadCrumbsBase = styled.ul<{divider?: string}>`
     & li + li:before {
         padding: 8px;
         color: ${({theme}) => theme.colors.black};
-        content: "${props => props.divider}";
+        content: "${({divider}) => divider}";
     }
 
     & li span {
@@ -50,8 +53,8 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map((path, index) => (
         <li key={index}>
-            <span onClick={() => navigate(path.actualPath)}>
-                {path.local}
+            <span title={path.local} onClick={() => navigate(path.actualPath)}>
+                {`${path.local.slice(0, 20).trim()}${path.local.length > 20 ? "..." : ""}`}
             </span>
         </li>
     ));
@@ -59,8 +62,8 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
     return (
         <BreadCrumbsBase divider="/">
             {breadcrumbs}
-            <li>
-                {activePathsMapping.local}
+            <li title={activePathsMapping.local}>
+                {`${activePathsMapping.local.slice(0, 20).trim()}${activePathsMapping.local.length > 20 ? "..." : ""}`}
             </li>
         </BreadCrumbsBase>
     );
