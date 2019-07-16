@@ -9,6 +9,7 @@ import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.serviceInstance
 import dk.sdu.cloud.notification.http.NotificationController
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
+import dk.sdu.cloud.notification.services.NotificationService
 import dk.sdu.cloud.notification.services.SubscriptionHibernateDao
 import dk.sdu.cloud.notification.services.SubscriptionService
 import dk.sdu.cloud.service.CommonServer
@@ -20,6 +21,7 @@ import org.slf4j.Logger
 class Server(override val micro: Micro) : CommonServer {
     override val log: Logger = logger()
     private lateinit var subscriptionService: SubscriptionService<HibernateSession>
+    private lateinit var notificationService: NotificationService<HibernateSession>
 
     override fun start() {
         val db = micro.hibernateDatabase
@@ -35,13 +37,15 @@ class Server(override val micro: Micro) : CommonServer {
         }
         val wsClient = micro.authenticator.authenticateClient(OutgoingWSCall)
         subscriptionService = SubscriptionService(localhost, wsClient, micro.hibernateDatabase, SubscriptionHibernateDao())
+        notificationService = NotificationService(db, notificationDao, subscriptionService)
+
         log.info("Core services constructed!")
+
 
         with(micro.server) {
             configureControllers(
                 NotificationController(
-                    db,
-                    notificationDao,
+                    notificationService,
                     subscriptionService
                 )
             )
