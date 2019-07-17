@@ -3,6 +3,8 @@ package dk.sdu.cloud.app.store.rpc
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
+import dk.sdu.cloud.app.store.api.CreateTagRequest
+import dk.sdu.cloud.app.store.api.DeleteTagRequest
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
@@ -18,7 +20,9 @@ import dk.sdu.cloud.service.test.*
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -389,6 +393,47 @@ class AppTest {
                     path = "/api/hpc/apps/",
                     user = TestUsers.admin
                 ).assertStatus(HttpStatusCode.BadRequest)
+            }
+        )
+    }
+
+    @Test
+    fun `createTag deleteTag test`() {
+        withKtorTest(
+            setup = {
+                val appDao = mockk<ApplicationHibernateDAO>()
+                every { appDao.createTags(any(), any(), any(), any()) } just runs
+                every { appDao.deleteTags(any(), any(), any(), any()) } just runs
+                micro.install(HibernateFeature)
+                configureAppServer(appDao)
+            },
+
+            test = {
+                val createRequest = sendJson(
+                    method = HttpMethod.Post,
+                    path = "/api/hpc/apps/createTag",
+                    user = TestUsers.admin,
+                    request = CreateTagRequest(
+                        listOf("tag1", "tag2"),
+                        "applicationName",
+                        "2.2"
+                    )
+                )
+
+                createRequest.assertSuccess()
+
+                val deleteRequest = sendJson(
+                    method = HttpMethod.Post,
+                    path = "/api/hpc/apps/deleteTag",
+                    user = TestUsers.admin,
+                    request = DeleteTagRequest(
+                        listOf("tag1", "tag2"),
+                        "applicationName",
+                        "2.2"
+                    )
+                )
+
+                deleteRequest.assertSuccess()
             }
         )
     }

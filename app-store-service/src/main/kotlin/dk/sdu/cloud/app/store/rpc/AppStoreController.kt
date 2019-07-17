@@ -95,6 +95,16 @@ class AppStoreController<DBSession>(
                 ok(Unit)
             }
         }
+
+        implement(AppStore.createTag) {
+            appStore.createTags(request.tags, request.applicationName, request.applicationVersion)
+            ok(Unit)
+        }
+
+        implement(AppStore.removeTag) {
+            appStore.deleteTags(request.tags, request.applicationName, request.applicationVersion)
+            ok(Unit)
+        }
     }
 
     companion object : Loggable {

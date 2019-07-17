@@ -1,13 +1,21 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.app.store.util.*
+import dk.sdu.cloud.app.store.util.normAppDesc
+import dk.sdu.cloud.app.store.util.normToolDesc
+import dk.sdu.cloud.app.store.util.withNameAndVersion
+import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
+import dk.sdu.cloud.app.store.util.withTags
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.withDatabase
+import io.ktor.http.HttpStatusCode
 import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class ApplicationHibernateDaoTest {
     private val user = "user"
@@ -89,7 +97,7 @@ class ApplicationHibernateDaoTest {
         }
     }
 
-    @Test (expected = ApplicationException.NotFound::class)
+    @Test(expected = ApplicationException.NotFound::class)
     fun `test find by name and version user - notfound`() {
         withDatabase { db ->
             db.withTransaction {
@@ -169,33 +177,35 @@ class ApplicationHibernateDaoTest {
                 }
                 //Spacing searches
                 run {
-                    val searchResult = appDAO.search(it, user, "AA   ", NormalizedPaginationRequest(10,0))
+                    val searchResult = appDAO.search(it, user, "AA   ", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
                 run {
-                    val searchResult = appDAO.search(it, user, "   AA", NormalizedPaginationRequest(10,0))
+                    val searchResult = appDAO.search(it, user, "   AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
                 run {
-                    val searchResult = appDAO.search(it, user, "multiple one found AA", NormalizedPaginationRequest(10,0))
-
-                    assertEquals(1, searchResult.itemsInTotal)
-                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
-                }
-
-                run {
-                    val searchResult = appDAO.search(it, user, "   AA  A Extra    spacing   ", NormalizedPaginationRequest(10,0))
+                    val searchResult =
+                        appDAO.search(it, user, "multiple one found AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10,0))
+                    val searchResult =
+                        appDAO.search(it, user, "   AA  A Extra    spacing   ", NormalizedPaginationRequest(10, 0))
+
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
+                }
+
+                run {
+                    val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(2, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
@@ -204,7 +214,7 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "  ", NormalizedPaginationRequest(10,0))
+                    val searchResult = appDAO.search(it, user, "  ", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
@@ -214,7 +224,7 @@ class ApplicationHibernateDaoTest {
                 appDAO.create(it, user, applicationANewVersion)
 
                 run {
-                    val searchResult = appDAO.search(it, user, "AA", NormalizedPaginationRequest(10,0))
+                    val searchResult = appDAO.search(it, user, "AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
@@ -222,7 +232,7 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10,0))
+                    val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(2, searchResult.itemsInTotal)
                     assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
@@ -396,6 +406,75 @@ class ApplicationHibernateDaoTest {
                 val appDAO = ApplicationHibernateDAO(toolDAO)
 
                 appDAO.toggleFavorite(it, user, "App1", "1.4")
+            }
+        }
+    }
+
+    @Test
+    fun `create and delete tags`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+                toolDAO.create(it, user, normToolDesc)
+
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appA = normAppDesc.withNameAndVersion("A", "1").withTags(listOf("A1", "A2"))
+
+                appDAO.create(it, user, appA)
+                run {
+                    val tag1 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A1")
+                    val tag2 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A2")
+                    val nottag = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A3")
+
+                    assertNotNull(tag1)
+                    assertNotNull(tag2)
+                    assertNull(nottag)
+                }
+
+                appDAO.createTags(it, listOf("A3"), appA.metadata.name, appA.metadata.version)
+
+                run {
+                    val tag1 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A1")
+                    val tag2 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A2")
+                    val tag3 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A3")
+
+                    assertNotNull(tag1)
+                    assertNotNull(tag2)
+                    assertNotNull(tag3)
+                }
+
+                appDAO.deleteTags(it, listOf("A1", "A3"), appA.metadata.name, appA.metadata.version)
+                run {
+                    val tag1 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A1")
+                    val tag2 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A2")
+                    val tag3 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A3")
+
+                    assertNull(tag1)
+                    assertNotNull(tag2)
+                    assertNull(tag3)
+                }
+            }
+        }
+    }
+
+    @Test (expected = RPCException::class)
+    fun `create tag for invalid app`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                appDAO.createTags(it, listOf("A3"), "notAnApp", "NotVersion")
+            }
+        }
+    }
+
+    @Test (expected = RPCException::class)
+    fun `delete tag for invalid app`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                appDAO.deleteTags(it, listOf("A3"), "notAnApp", "NotVersion")
             }
         }
     }

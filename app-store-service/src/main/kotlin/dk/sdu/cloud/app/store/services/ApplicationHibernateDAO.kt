@@ -1,11 +1,23 @@
 package dk.sdu.cloud.app.store.services
 
 import com.vladmihalcea.hibernate.type.array.StringArrayType
-import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.Application
+import dk.sdu.cloud.app.store.api.ApplicationMetadata
+import dk.sdu.cloud.app.store.api.ApplicationSummary
+import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.createCriteriaBuilder
+import dk.sdu.cloud.service.db.createQuery
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.paginatedList
+import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import org.hibernate.jpa.TypedParameterValue
@@ -412,7 +424,78 @@ class ApplicationHibernateDAO(
             existingTool.tool.info.version,
             EmbeddedNameAndVersion(description.metadata.name, description.metadata.version)
         )
+
         session.save(entity)
+
+        createTags(
+            session,
+            description.metadata.tags,
+            description.metadata.name,
+            description.metadata.version
+        )
+    }
+
+    override fun createTags(
+        session: HibernateSession,
+        tags: List<String>,
+        applicationName: String,
+        applicationVersion: String
+    ) {
+        internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
+            HttpStatusCode.NotFound,
+            "App not found"
+        )
+        tags.forEach { tag ->
+            val existing = findTag(session, applicationName, applicationVersion, tag)
+
+            if (existing != null) {
+                return@forEach
+            }
+            val entity = TagEntity(
+                applicationName,
+                applicationVersion,
+                tag
+            )
+            session.save(entity)
+        }
+    }
+
+    override fun deleteTags(
+        session: HibernateSession,
+        tags: List<String>,
+        applicationName: String,
+        applicationVersion: String
+    ) {
+        internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
+            HttpStatusCode.NotFound,
+            "App not found"
+        )
+        tags.forEach { tag ->
+            val existing = findTag(
+                session,
+                applicationName,
+                applicationVersion,
+                tag
+            ) ?: return@forEach
+
+            session.delete(existing)
+        }
+    }
+
+    fun findTag(
+        session: HibernateSession,
+        name: String,
+        version: String,
+        tag: String
+    ): TagEntity? {
+        return session
+            .criteria<TagEntity> {
+                allOf(
+                (entity[TagEntity::tag] equal tag) and
+                        (entity[TagEntity::applicationName] equal name) and
+                        (entity[TagEntity::applicationVersion] equal version)
+                )
+            }.uniqueResult()
     }
 
     override fun updateDescription(
