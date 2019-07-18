@@ -298,7 +298,7 @@ class ApplicationHibernateDaoTest {
         }
     }
 
-    @Ignore // Code only works in postgres
+    //@Ignore // Code only works in postgres
     @Test
     fun `tagSearch test`() {
         withDatabase { db ->
@@ -309,8 +309,8 @@ class ApplicationHibernateDaoTest {
                 val appDAO = ApplicationHibernateDAO(toolDAO)
 
                 val commonTag = "common"
-                val appA = normAppDesc.withNameAndVersion("A", "1").withTags(listOf("A1", "A2", commonTag))
-                val appB = normAppDesc.withNameAndVersion("B", "1").withTags(listOf("B1", "B2", commonTag))
+                val appA = normAppDesc.withNameAndVersionAndTitle("A", "1","Atitle").withTags(listOf("A1", "A2", commonTag))
+                val appB = normAppDesc.withNameAndVersionAndTitle("B", "1", "Btitle").withTags(listOf("B1", "B2", commonTag))
 
                 appDAO.create(it, user, appA)
                 appDAO.create(it, user, appB)

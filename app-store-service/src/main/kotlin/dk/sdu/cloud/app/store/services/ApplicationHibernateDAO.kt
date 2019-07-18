@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.store.services
 
-import com.vladmihalcea.hibernate.type.array.StringArrayType
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.ApplicationSummary
@@ -20,8 +19,6 @@ import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
-import org.hibernate.jpa.TypedParameterValue
-import java.math.BigInteger
 import java.util.*
 
 @Suppress("TooManyFunctions") // Does not make sense to split
@@ -99,7 +96,12 @@ class ApplicationHibernateDAO(
             .paginatedList(paging)
             .asSequence()
             .map { it.toModel() }
-            .map { ApplicationSummaryWithFavorite(it.metadata, true) }
+            .map { appSummary ->
+                val allTagsForApplication = session
+                    .criteria<TagEntity> { entity[TagEntity::applicationName] equal appSummary.metadata.name }
+                    .resultList.map { it.tag }
+
+                ApplicationSummaryWithFavorite(appSummary.metadata, true, allTagsForApplication) }
             .toList()
 
         return Page(
@@ -116,60 +118,56 @@ class ApplicationHibernateDAO(
         tags: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val itemsInTotal = session
-            .createNativeQuery(
-                // language=sql
-                """
-                select count(*)
-                from {h-schema}applications a
-                where
-                  jsonb_exists_any(tags, :tags) and
-                  a.created_at in (
-                    select max(created_at)
-                    from {h-schema}applications b
-                    where a.name = b.name
-                    group by a.name
-                  )
-                """.trimIndent()
-            )
-            .apply {
-                setParameter("tags", TypedParameterValue(StringArrayType.INSTANCE, tags.toTypedArray()))
-            }
-            .resultList
-            .single() as BigInteger
+        val applications = session
+            .criteria<TagEntity> {
+                (entity[TagEntity::tag] isInCollection (tags))
+            }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
 
-        val items = session
-            .createNativeQuery<ApplicationEntity>(
-                // language=sql
-                """
-                select *
-                from {h-schema}applications a
-                where
-                  jsonb_exists_any(tags, :tags) and
-                  a.created_at in (
-                    select max(created_at)
-                    from {h-schema}applications b
-                    where a.name = b.name
-                    group by a.name
-                  )
-                order by a.name
-                """.trimIndent(),
-                ApplicationEntity::class.java
-            )
-            .apply {
-                setParameter("tags", TypedParameterValue(StringArrayType.INSTANCE, tags.toTypedArray()))
+        if (applications.isEmpty()) {
+            return preparePageForUser(
+                session,
+                user,
+                Page(
+                    0,
+                    paging.itemsPerPage,
+                    paging.page,
+                    emptyList()
+                )
+            ).mapItems { it.withoutInvocation() }
+        }
 
-                maxResults = paging.itemsPerPage
-                firstResult = paging.page * paging.itemsPerPage
-            }
-            .resultList
+        val itemsInTotal = session.typedQuery<Long>(
+            """
+            select count (A.title)
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where (A.title= B.title)
+                group by title
+            ) and (A.id.name) in (:applications)
+            """.trimIndent()
+        ).setParameter("applications", applications)
+            .uniqueResult()
+            .toInt()
+
+        val items = session.typedQuery<ApplicationEntity>(
+            """
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where (A.title= B.title)
+                group by title
+            ) and (A.id.name) in (:applications)
+            order by A.title
+        """.trimIndent()
+        ).setParameter("applications", applications).paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
         return preparePageForUser(
             session,
             user,
             Page(
-                itemsInTotal.toInt(),
+                itemsInTotal,
                 paging.itemsPerPage,
                 paging.page,
                 items
@@ -491,9 +489,9 @@ class ApplicationHibernateDAO(
         return session
             .criteria<TagEntity> {
                 allOf(
-                (entity[TagEntity::tag] equal tag) and
-                        (entity[TagEntity::applicationName] equal name) and
-                        (entity[TagEntity::applicationVersion] equal version)
+                    (entity[TagEntity::tag] equal tag) and
+                            (entity[TagEntity::applicationName] equal name) and
+                            (entity[TagEntity::applicationVersion] equal version)
                 )
             }.uniqueResult()
     }
@@ -554,13 +552,22 @@ class ApplicationHibernateDAO(
                     fav.applicationName == item.metadata.name &&
                             fav.applicationVersion == item.metadata.version
                 }
+                val allTagsForApplication = session
+                    .criteria<TagEntity> { entity[TagEntity::applicationName] equal item.metadata.name }
+                    .resultList.map { it.tag }
 
-                ApplicationWithFavorite(item.metadata, item.invocation, isFavorite)
+                ApplicationWithFavorite(item.metadata, item.invocation, isFavorite, allTagsForApplication)
             }
 
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         } else {
-            val preparedPageItems = page.items.map { ApplicationWithFavorite(it.metadata, it.invocation, false) }
+            val preparedPageItems = page.items.map { item ->
+                val allTagsForApplication = session
+                    .criteria<TagEntity> { entity[TagEntity::applicationName] equal item.metadata.name }
+                    .resultList.map { it.tag }
+
+                ApplicationWithFavorite(item.metadata, item.invocation, false, allTagsForApplication)
+            }
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         }
     }

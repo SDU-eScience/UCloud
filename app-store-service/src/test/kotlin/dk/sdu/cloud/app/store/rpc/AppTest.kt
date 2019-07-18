@@ -8,7 +8,12 @@ import dk.sdu.cloud.app.store.api.DeleteTagRequest
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
-import dk.sdu.cloud.app.store.util.*
+import dk.sdu.cloud.app.store.util.normAppDesc
+import dk.sdu.cloud.app.store.util.normAppDesc2
+import dk.sdu.cloud.app.store.util.normToolDesc
+import dk.sdu.cloud.app.store.util.withNameAndVersion
+import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
+import dk.sdu.cloud.app.store.util.withTags
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -16,7 +21,13 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.*
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.mockk.every
@@ -152,7 +163,7 @@ class AppTest {
         )
     }
 
-    @Ignore // Code only works for postgresql
+    //@Ignore // Code only works for postgresql
     @Test
     fun `Searchtags test`() {
         withKtorTest(
@@ -166,12 +177,12 @@ class AppTest {
                     appDao.create(
                         it,
                         user,
-                        normAppDesc.copy(metadata = normAppDesc.metadata.copy(tags = listOf("tag1", "tag2")))
+                        normAppDesc.withNameAndVersionAndTitle("name1", "1", "1title").withTags(listOf("tag1", "tag2"))
                     )
                     appDao.create(
                         it,
                         user,
-                        normAppDesc2.copy(metadata = normAppDesc2.metadata.copy(tags = listOf("tag1", "tag2")))
+                        normAppDesc2.withNameAndVersionAndTitle("name2", "2", "2title").withTags(listOf("tag2", "tag3"))
                     )
                 }
                 configureAppServer(appDao)
@@ -295,7 +306,12 @@ class AppTest {
                 val appDao = mockk<ApplicationHibernateDAO>()
 
                 every { appDao.findByNameAndVersionForUser(any(), any(), any(), any()) } answers {
-                    ApplicationWithFavorite(application.metadata, application.invocation, false)
+                    ApplicationWithFavorite(
+                        application.metadata,
+                        application.invocation,
+                        false,
+                        application.metadata.tags
+                    )
                 }
 
                 micro.install(HibernateFeature)
@@ -323,7 +339,12 @@ class AppTest {
                 val appDao = mockk<ApplicationHibernateDAO>()
 
                 every { appDao.findAllByName(any(), any(), any(), any()) } answers {
-                    Page(1, 10, 0, listOf(ApplicationSummaryWithFavorite(application.metadata, true)))
+                    Page(
+                        1,
+                        10,
+                        0,
+                        listOf(ApplicationSummaryWithFavorite(application.metadata, true, application.metadata.tags))
+                    )
                 }
 
                 micro.install(HibernateFeature)
@@ -353,7 +374,12 @@ class AppTest {
                 val appDao = mockk<ApplicationHibernateDAO>()
 
                 every { appDao.listLatestVersion(any(), any(), any()) } answers {
-                    Page(1, 10, 0, listOf(ApplicationSummaryWithFavorite(normAppDesc.metadata, true)))
+                    Page(
+                        1,
+                        10,
+                        0,
+                        listOf(ApplicationSummaryWithFavorite(normAppDesc.metadata, true, normAppDesc.metadata.tags))
+                    )
                 }
 
                 micro.install(HibernateFeature)
