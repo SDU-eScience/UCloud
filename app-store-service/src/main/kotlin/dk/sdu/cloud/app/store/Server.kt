@@ -13,8 +13,12 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.startServices
 import java.io.File
 
 class Server(override val micro: Micro) : CommonServer {
@@ -32,6 +36,32 @@ class Server(override val micro: Micro) : CommonServer {
                 AppStoreController(appStoreService),
                 ToolController(db, toolDAO)
             )
+        }
+
+        if (micro.commandLineArguments.contains("--move")) {
+            log.info("Moving exisiting tags to new table")
+            db.withTransaction { session ->
+                val pageOne = applicationDAO.listLatestVersion(session, null, NormalizedPaginationRequest(100, 0))
+                pageOne.items.forEach { app ->
+                    applicationDAO.createTags(session, app.metadata.tags, app.metadata.name, app.metadata.version)
+                }
+                if (pageOne.pagesInTotal > 1) {
+                    for (i in 1 until pageOne.pagesInTotal) {
+                        val newPage =
+                            applicationDAO.listLatestVersion(session, null, NormalizedPaginationRequest(100, i))
+                        newPage.items.forEach { app ->
+                            applicationDAO.createTags(
+                                session,
+                                app.metadata.tags,
+                                app.metadata.name,
+                                app.metadata.version
+                            )
+                        }
+                    }
+                }
+            }
+            log.info("move complete")
+            return
         }
 
         if (micro.developmentModeEnabled) {
