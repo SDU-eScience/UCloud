@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.api.components
+import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.path
@@ -215,7 +216,10 @@ class FileLookupService<Ctx : FSUserContext>(
         val normalizedItemsPerPage = NormalizedPaginationRequest(itemsPerPage, 0).itemsPerPage
 
         val allFiles = listDirectorySorted(ctx, path.parent(), sortBy, order, attributes).items
-        val index = allFiles.indexOfFirst { it.path.normalize() == path.normalize() }
+        println(allFiles)
+        // The file isn't found because we resolve the symlink in the returned path. We should just look for the file
+        // name?
+        val index = allFiles.indexOfFirst { it.path.fileName() == path.fileName() }
         if (index == -1) throw FSException.NotFound()
 
         val page = index / normalizedItemsPerPage

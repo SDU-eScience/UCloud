@@ -155,7 +155,7 @@ class SymlinkTests {
             test = {
                 createSymlink()
 
-                val userPage = lookup(
+                lookup(
                     LookupFileInDirectoryRequest(
                         pathTo(TestUsers.user, userFile),
                         50,
@@ -163,19 +163,9 @@ class SymlinkTests {
                         FileSortBy.PATH
                     ),
                     TestUsers.user
-                ).parseSuccessful<Page<StorageFile>>()
+                ).assertSuccess()
 
-                assertThatInstance(
-                    userPage.items.find { it.path.contains(userFile) }!!,
-                    "has correct acl",
-                    matcher = { file ->
-                        file.acl!!.any { it.entity == TestUsers.user2.username && it.rights == AccessRights.READ_ONLY }
-                    }
-                )
-
-                println(userPage)
-
-                val user2Page = lookup(
+                lookup(
                     LookupFileInDirectoryRequest(
                         pathTo(TestUsers.user2, "$user2Link/$sharedFile"),
                         50,
@@ -183,17 +173,7 @@ class SymlinkTests {
                         FileSortBy.PATH
                     ),
                     TestUsers.user2
-                ).parseSuccessful<Page<StorageFile>>()
-
-                assertThatInstance(
-                    user2Page.items.find { it.path.contains(user2Link) }!!,
-                    "has correct acl",
-                    matcher = { file ->
-                        file.acl!!.any { it.entity == TestUsers.user2.username && it.rights == AccessRights.READ_ONLY }
-                    }
-                )
-
-                println(user2Page)
+                ).assertSuccess()
             }
         )
     }
