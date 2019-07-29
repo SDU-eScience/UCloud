@@ -2,38 +2,54 @@ package dk.sdu.cloud.file.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
+import dk.sdu.cloud.file.api.StatRequest
+import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFileAttribute
+import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.services.ACLWorker
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
+import dk.sdu.cloud.file.services.background.BackgroundExecutor
+import dk.sdu.cloud.file.services.background.BackgroundJobHibernateDao
+import dk.sdu.cloud.file.services.background.BackgroundScope
+import dk.sdu.cloud.file.services.background.BackgroundStreams
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.file.util.createDummyFS
+import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
+import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.micro.eventStreamService
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
-import dk.sdu.cloud.file.util.createDummyFS
-import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
+import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.TestApplicationResponse
@@ -57,20 +73,31 @@ data class FileControllerContext(
 
 fun KtorApplicationTestSetupContext.configureServerWithFileController(
     fsRootInitializer: () -> File = { createDummyFS() },
+    fileUpdateAclWhitelist: Set<String> = emptySet(),
     additional: (FileControllerContext) -> List<Controller> = { emptyList() }
-): List<Controller> {
+    ): List<Controller> {
     BackgroundScope.reset()
 
     val fsRoot = fsRootInitializer()
     val (runner, fs, aclService) = linuxFSWithRelaxedMocks(fsRoot.absolutePath)
-    val eventProducer = mockk<StorageEventProducer>(relaxed = true)
+    micro.install(HibernateFeature)
+    val eventProducer =
+        StorageEventProducer(micro.eventStreamService.createProducer(StorageEvents.events), { it.printStackTrace() })
     val fileSensitivityService = FileSensitivityService(fs, eventProducer)
     val coreFs = CoreFileSystemService(fs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
-    val aclWorker = ACLWorker(aclService, mockk(relaxed = true))
+    val backgroundExecutor = BackgroundExecutor(
+        micro.hibernateDatabase,
+        BackgroundJobHibernateDao(),
+        BackgroundStreams("storage"),
+        micro.eventStreamService
+    )
+    val aclWorker = ACLWorker(aclService, backgroundExecutor).also { it.registerWorkers() }
     val homeFolderService = mockk<HomeFolderService>()
     val callRunner = CommandRunnerFactoryForCalls(runner, WSFileSessionService(runner))
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }
+
+    backgroundExecutor.init()
 
     val ctx = FileControllerContext(
         client = micro.client,
@@ -102,7 +129,8 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
                 callRunner,
                 coreFs,
                 aclWorker,
-                sensitivityService
+                sensitivityService,
+                fileUpdateAclWhitelist
             )
         )
     }
@@ -153,6 +181,7 @@ fun TestApplicationEngine.move(
     )
 }
 
+@Deprecated("Replaced with new testing strategy")
 fun TestApplicationEngine.stat(
     path: String,
     user: String = "user1",
@@ -292,6 +321,45 @@ fun TestApplicationEngine.findHome(
     )
 }
 
+fun KtorApplicationTestContext.createLink(
+    request: CreateLinkRequest,
+    user: SecurityPrincipal = TestUsers.user
+): TestApplicationCall {
+    return sendJson(
+        HttpMethod.Post,
+        "/api/files/create-link",
+        request,
+        user
+    )
+}
+
+fun KtorApplicationTestContext.updateAcl(
+    request: UpdateAclRequest,
+    user: SecurityPrincipal
+): TestApplicationCall {
+    return sendJson(
+        HttpMethod.Post,
+        "/api/files/update-acl",
+        request,
+        user
+    )
+}
+
+fun KtorApplicationTestContext.stat(
+    request: StatRequest,
+    user: SecurityPrincipal = TestUsers.user
+): TestApplicationCall {
+    return sendRequest(
+        HttpMethod.Get,
+        "/api/files/stat",
+        user,
+        mapOf("path" to request.path) +
+                (if (request.attributes != null) mapOf("attributes" to request.attributes!!) else emptyMap()),
+        configure = {
+            addHeader("X-No-Load", "true")
+        }
+    )
+}
 
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     val token = TokenValidationMock.createTokenForUser(username, role)

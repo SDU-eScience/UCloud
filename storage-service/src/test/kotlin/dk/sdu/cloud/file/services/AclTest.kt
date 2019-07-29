@@ -37,7 +37,6 @@ class AclTest {
         val userHome = "/home/$username"
         val notUser = "notUser"
 
-
         val instance = aclService.listAcl(listOf(userHome))
         assertThatPropertyEquals(instance, { it.size }, 1)
         assertThatPropertyEquals(instance[userHome], { it!!.size }, 0)
