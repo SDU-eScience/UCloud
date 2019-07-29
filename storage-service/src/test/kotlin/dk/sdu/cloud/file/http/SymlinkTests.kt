@@ -3,13 +3,19 @@ package dk.sdu.cloud.file.http
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.CreateLinkRequest
+import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.LookupFileInDirectoryRequest
+import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.acl
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.services.acl.AccessRights
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.assertThatInstance
@@ -21,6 +27,7 @@ import kotlin.test.Test
 
 class SymlinkTests {
     private val userFile = "user-file"
+    private val user2Link = "u2-link"
 
     @Test
     fun `test valid symlink between two home directories`() {
@@ -32,23 +39,7 @@ class SymlinkTests {
                 )
             },
             test = {
-                updateAcl(
-                    UpdateAclRequest(
-                        pathTo(TestUsers.user, userFile),
-                        listOf(ACLEntryRequest(TestUsers.user2.username, AccessRights.READ_ONLY))
-                    ),
-                    TestUsers.user
-                ).assertSuccess()
-
-                Thread.sleep(500) // Not ideal. We should instead wait for the UpdateAclRequest to finish.
-
-                createLink(
-                    CreateLinkRequest(
-                        pathTo(TestUsers.user2, "u2-link"),
-                        pathTo(TestUsers.user, userFile)
-                    ),
-                    TestUsers.user2
-                ).assertSuccess()
+                createSymlink()
 
                 val userFile = stat(
                     StatRequest(pathTo(TestUsers.user, userFile)),
@@ -64,7 +55,7 @@ class SymlinkTests {
                 )
 
                 val user2File = stat(
-                    StatRequest(pathTo(TestUsers.user2, "u2-link")),
+                    StatRequest(pathTo(TestUsers.user2, user2Link)),
                     TestUsers.user2
                 ).parseSuccessful<StorageFile>()
 
@@ -77,6 +68,82 @@ class SymlinkTests {
                 )
             }
         )
+    }
+
+    @Test
+    fun `test file lookup through symlink`() {
+        withKtorTest(
+            setup = {
+                configureServerWithFileController(
+                    fsRootInitializer = { createFs() },
+                    fileUpdateAclWhitelist = setOf(TestUsers.user.username)
+                )
+            },
+
+            test = {
+                createSymlink()
+
+                val userPage = lookup(
+                    LookupFileInDirectoryRequest(
+                        pathTo(TestUsers.user, userFile),
+                        50,
+                        SortOrder.DESCENDING,
+                        FileSortBy.PATH
+                    ),
+                    TestUsers.user
+                ).parseSuccessful<Page<StorageFile>>()
+
+                assertThatInstance(
+                    userPage.items.find { it.path.contains(userFile) }!!,
+                    "has correct acl",
+                    matcher = { file ->
+                        file.acl!!.any { it.entity == TestUsers.user2.username && it.rights == AccessRights.READ_ONLY }
+                    }
+                )
+
+                println(userPage)
+
+                val user2Page = lookup(
+                    LookupFileInDirectoryRequest(
+                        pathTo(TestUsers.user2, user2Link),
+                        50,
+                        SortOrder.DESCENDING,
+                        FileSortBy.PATH
+                    ),
+                    TestUsers.user2
+                ).parseSuccessful<Page<StorageFile>>()
+
+                assertThatInstance(
+                    user2Page.items.find { it.path.contains(user2Link) }!!,
+                    "has correct acl",
+                    matcher = { file ->
+                        file.acl!!.any { it.entity == TestUsers.user2.username && it.rights == AccessRights.READ_ONLY }
+                    }
+                )
+
+                println(user2Page)
+            }
+        )
+    }
+
+    private fun KtorApplicationTestContext.createSymlink() {
+        updateAcl(
+            UpdateAclRequest(
+                pathTo(TestUsers.user, userFile),
+                listOf(ACLEntryRequest(TestUsers.user2.username, AccessRights.READ_ONLY))
+            ),
+            TestUsers.user
+        ).assertSuccess()
+
+        Thread.sleep(500) // Not ideal. We should instead wait for the UpdateAclRequest to finish.
+
+        createLink(
+            CreateLinkRequest(
+                pathTo(TestUsers.user2, user2Link),
+                pathTo(TestUsers.user, userFile)
+            ),
+            TestUsers.user2
+        ).assertSuccess()
     }
 
     private fun createFs(): File {

@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.LookupFileInDirectoryRequest
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageEvents
@@ -359,6 +360,32 @@ fun KtorApplicationTestContext.stat(
             addHeader("X-No-Load", "true")
         }
     )
+}
+
+fun KtorApplicationTestContext.lookup(
+    request: LookupFileInDirectoryRequest,
+    user: SecurityPrincipal = TestUsers.user
+): TestApplicationCall {
+    return sendRequest(
+        HttpMethod.Get,
+        "/api/files/lookup",
+        user,
+        mapOf<String, String?>(
+            "path" to request.path,
+            "itemsPerPage" to request.itemsPerPage.toString(),
+            "sortBy" to request.sortBy.toString(),
+            "order" to request.order.toString(),
+            "attributes" to request.attributes
+        ).removeNullValues(),
+        configure = {
+            addHeader("X-No-Load", "true")
+        }
+    )
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun Map<String, String?>.removeNullValues(): Map<String, String> {
+    return filterValues { it != null } as Map<String, String>
 }
 
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
