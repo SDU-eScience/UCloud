@@ -1,22 +1,22 @@
 import * as React from "react";
-import { List as PaginationList } from "Pagination/List";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { BreadCrumbs } from "ui-components/Breadcrumbs";
-import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath, favoritesQuery } from "Utilities/FileUtilities";
+import {List as PaginationList} from "Pagination/List";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {BreadCrumbs} from "ui-components/Breadcrumbs";
+import {replaceHomeFolder, isDirectory, newMockFolder, resolvePath, favoritesQuery} from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
-import { emptyPage } from "DefaultObjects";
-import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation, FileResource } from ".";
-import { filepathQuery } from "Utilities/FileUtilities";
-import { Input, Icon, Button, Flex, Box, SelectableText, SelectableTextWrapper } from "ui-components";
+import {emptyPage} from "DefaultObjects";
+import {FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation, FileResource} from ".";
+import {filepathQuery} from "Utilities/FileUtilities";
+import {Input, Icon, Button, Flex, Box, SelectableText, SelectableTextWrapper} from "ui-components";
 import * as ReactModal from "react-modal";
-import { Spacer } from "ui-components/Spacer";
+import {Spacer} from "ui-components/Spacer";
 import FilesTable from "./FilesTable";
 import SDUCloud from "Authentication/lib";
-import { addTrailingSlash, errorMessageOrDefault } from "UtilityFunctions";
+import {addTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
 import styled from "styled-components";
-import { Refresh } from "Navigation/Header";
-import { Page } from "Types";
-import { InputLabel } from "ui-components/Input";
+import {Refresh} from "Navigation/Header";
+import {Page} from "Types";
+import {InputLabel} from "ui-components/Input";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -35,16 +35,16 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     componentWillUnmount = () => this.state.promises.cancelPromises();
 
     setSelectedFile = (file: File) => {
-        let fileCopy = { path: file.path };
-        this.setState(() => ({ modalShown: false }));
+        let fileCopy = {path: file.path};
+        this.setState(() => ({modalShown: false}));
         this.props.onFileSelect(fileCopy);
     };
 
     private fetchFiles = async (path: string, pageNumber: number, itemsPerPage: number) => {
-        this.setState(() => ({ loading: true }));
-        const { onlyAllowFolders } = this.props;
+        this.setState(() => ({loading: true}));
+        const {onlyAllowFolders} = this.props;
         try {
-            const { response } = await this.state.promises.makeCancelable(
+            const {response} = await this.state.promises.makeCancelable(
                 Cloud.get(filepathQuery(
                     path,
                     pageNumber,
@@ -60,14 +60,14 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 isFavorites: false
             }));
         } catch (e) {
-            this.setState(() => ({ error: errorMessageOrDefault(e, "An error occurred fetching files") }));
-        } finally { 
-            this.setState(() => ({ loading: false })) 
+            this.setState(() => ({error: errorMessageOrDefault(e, "An error occurred fetching files")}));
+        } finally {
+            this.setState(() => ({loading: false}))
         }
     };
 
     private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
-        this.setState(() => ({ loading: true }));
+        this.setState(() => ({loading: true}));
         try {
             const result = await this.state.promises.makeCancelable(Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage))).promise;
             this.setState(() => ({
@@ -77,14 +77,14 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 path: "Favorites"
             }));
         } catch (e) {
-            this.setState(() => ({ error: errorMessageOrDefault(e, "An error occurred fetching favorites") }));
+            this.setState(() => ({error: errorMessageOrDefault(e, "An error occurred fetching favorites")}));
         } finally {
-            this.setState(() => ({ loading: false }));
+            this.setState(() => ({loading: false}));
         }
     }
 
     render() {
-        const onUpload = () => { if (!this.props.allowUpload) return; };
+        const onUpload = () => {if (!this.props.allowUpload) return;};
         const path = this.props.path ? this.props.path : "";
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={() => this.props.remove!()} />) : null;
@@ -95,13 +95,13 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 <FileSelectorInput
                     defaultValue={this.props.defaultValue}
                     showError={this.props.showError && this.props.isRequired}
-                    ref={this.props.inputRef} 
+                    ref={this.props.inputRef}
                     required={this.props.isRequired}
                     placeholder="No file selected"
                     value={inputValue}
                     rightLabel={!!this.props.unitName}
                     onChange={() => undefined}
-                    onClick={() => this.setState(() => ({ modalShown: true }))}
+                    onClick={() => this.setState(() => ({modalShown: true}))}
                 />
                 {this.props.unitName ? <InputLabel width={this.props.unitWidth || "auto"} rightLabel>{this.props.unitName}</InputLabel> : null}
                 {uploadButton}
@@ -110,9 +110,9 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     isFavorites={this.state.isFavorites}
                     fetchFavorites={(pageNumber, itemsPerPage) => this.fetchFavorites(pageNumber, itemsPerPage)}
                     errorMessage={this.state.error}
-                    onErrorDismiss={() => this.setState(() => ({ error: undefined }))}
+                    onErrorDismiss={() => this.setState(() => ({error: undefined}))}
                     show={this.state.modalShown}
-                    onHide={() => this.setState(() => ({ modalShown: false }))}
+                    onHide={() => this.setState(() => ({modalShown: false}))}
                     path={this.state.path}
                     navigate={this.fetchFiles}
                     page={this.state.page}
@@ -139,8 +139,8 @@ const FileSelectorModalStyle = {
     }
 };
 
-export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => {
-    const fetchFiles = (settings: { path?: string, pageNumber?: number, itemsPerPage?: number }) => {
+export const FileSelectorModal = ({canSelectFolders, ...props}: FileSelectorModalProps) => {
+    const fetchFiles = (settings: {path?: string, pageNumber?: number, itemsPerPage?: number}) => {
         const path = !!settings.path ? settings.path : props.path;
         const pageNumber = settings.pageNumber !== undefined ? settings.pageNumber : props.page.pageNumber;
         const itemsPerPage = settings.itemsPerPage !== undefined ? settings.itemsPerPage : props.page.itemsPerPage;
@@ -162,7 +162,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                     cursor="pointer"
                     mr="1em"
                     selected={!props.isFavorites}
-                    onClick={() => fetchFiles({ path: Cloud.homeFolder, pageNumber: 0 })}
+                    onClick={() => fetchFiles({path: Cloud.homeFolder, pageNumber: 0})}
                 >Browse</SelectableText>
 
                 <SelectableText
@@ -176,14 +176,16 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             </SelectableTextWrapper>
 
             <Spacer
-                height={"3em"}
+                height="3em"
                 alignItems="center"
                 left={
-                    <BreadCrumbs
-                        homeFolder={Cloud.homeFolder}
-                        currentPath={props.path}
-                        navigate={path => fetchFiles({ path })}
-                    />
+                    <Box mt="48px">
+                        <BreadCrumbs
+                            homeFolder={Cloud.homeFolder}
+                            currentPath={props.path}
+                            navigate={path => fetchFiles({path})}
+                        />
+                    </Box>
                 }
                 right={
                     <Refresh
@@ -200,7 +202,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                         canSelectFolders={!!canSelectFolders}
                         {...props}
                         page={page}
-                        fetchFiles={path => fetchFiles({ path })}
+                        fetchFiles={path => fetchFiles({path})}
                     />
                 }
                 loading={props.loading}
@@ -217,9 +219,9 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
     );
 };
 
-const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
+const FileSelectorBody = ({disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props}: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
-    const files = f.filter(({ path }) => !disallowedPaths.some(d => d === path));
+    const files = f.filter(({path}) => !disallowedPaths.some(d => d === path));
     const relativeFolders: File[] = [];
 
     const p = props.path.startsWith("/") ? addTrailingSlash(props.path) : `/${addTrailingSlash(props.path)}`
@@ -253,8 +255,8 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
         />);
 };
 
-interface FileSelectorButton { onClick: () => void }
-const UploadButton = ({ onClick }: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>Upload File</Button>);
-const RemoveButton = ({ onClick }: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>✗</Button>);
+interface FileSelectorButton {onClick: () => void}
+const UploadButton = ({onClick}: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>Upload File</Button>);
+const RemoveButton = ({onClick}: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>✗</Button>);
 
 export default FileSelector;

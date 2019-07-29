@@ -1,6 +1,6 @@
 import * as React from 'react';
 import styled from 'styled-components';
-import {space, fontSize, SpaceProps } from 'styled-system';
+import {space, fontSize, SpaceProps} from 'styled-system';
 
 import theme from './theme';
 import Flex from './Flex';
@@ -10,11 +10,13 @@ const ClickableIcon = styled(Icon)`
   pointer-events: none;
 `;
 
-const left = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
-const right = ({ rightLabel }: { rightLabel?: boolean }) => rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
+const left = ({leftLabel}: {leftLabel?: boolean}) =>
+  leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
+const right = ({rightLabel}: {rightLabel?: boolean}) =>
+  rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 
-const SelectBase = styled.select<{ fontSize?: number | string, leftLabel?: boolean, rightLabel?: boolean, showError?: boolean } & SpaceProps>`
+const SelectBase = styled.select<{fontSize?: number | string, leftLabel?: boolean, rightLabel?: boolean, showError?: boolean} & SpaceProps>`
   appearance: none;
   display: block;
   width: 100%;
