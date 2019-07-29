@@ -4,6 +4,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.LookupFileInDirectoryRequest
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StatRequest
@@ -122,6 +123,45 @@ class SymlinkTests {
                 )
 
                 println(user2Page)
+            }
+        )
+    }
+
+    @Test
+    fun `test listing directory with bad symlink`() {
+        withKtorTest(
+            setup = {
+                configureServerWithFileController(
+                    fsRootInitializer = { createFs() },
+                    fileUpdateAclWhitelist = setOf(TestUsers.user.username)
+                )
+            },
+
+            test = {
+                createSymlink()
+
+                updateAcl(
+                    UpdateAclRequest(
+                        pathTo(TestUsers.user, userFile),
+                        listOf(ACLEntryRequest(TestUsers.user2.username, emptySet(), revoke = true))
+                    ),
+                    TestUsers.user
+                )
+
+                Thread.sleep(500)
+
+                val directoryListing = listDirectory(
+                    ListDirectoryRequest(
+                        pathTo(TestUsers.user2, ""),
+                        null,
+                        null,
+                        null,
+                        null
+                    ),
+                    TestUsers.user2
+                ).parseSuccessful<Page<StorageFile>>()
+
+                println(directoryListing)
             }
         )
     }

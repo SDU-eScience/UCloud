@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.LookupFileInDirectoryRequest
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StatRequest
@@ -224,6 +225,7 @@ fun TestApplicationEngine.delete(
     )
 }
 
+@Deprecated("Replaced with new testing")
 fun TestApplicationEngine.listDir(
     path: String,
     user: String = "user1",
@@ -376,6 +378,28 @@ fun KtorApplicationTestContext.lookup(
             "sortBy" to request.sortBy.toString(),
             "order" to request.order.toString(),
             "attributes" to request.attributes
+        ).removeNullValues(),
+        configure = {
+            addHeader("X-No-Load", "true")
+        }
+    )
+}
+
+fun KtorApplicationTestContext.listDirectory(
+    request: ListDirectoryRequest,
+    user: SecurityPrincipal = TestUsers.user
+): TestApplicationCall {
+    return sendRequest(
+        HttpMethod.Get,
+        "/api/files",
+        user,
+        mapOf<String, String?>(
+            "path" to request.path,
+            "itemsPerPage" to request.itemsPerPage?.toString(),
+            "page" to request.page?.toString(),
+            "order" to request.order?.toString(),
+            "sortBy" to request.sortBy?.toString(),
+            "attributes" to request.attributes?.toString()
         ).removeNullValues(),
         configure = {
             addHeader("X-No-Load", "true")
