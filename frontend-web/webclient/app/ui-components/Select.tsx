@@ -33,7 +33,7 @@ const SelectBase = styled.select<{ fontSize?: number | string, leftLabel?: boole
   ${space} ${fontSize} &:focus {
     outline: none;
     border-color: ${props => props.theme.colors.blue};
-    box-shadow: 0 0 0 1px ${props => props.theme.color.blue};
+    box-shadow: 0 0 0 1px ${props => props.theme.colors.blue};
   }
   ${left}
   ${right}
