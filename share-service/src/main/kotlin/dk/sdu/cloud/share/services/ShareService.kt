@@ -27,6 +27,7 @@ import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.ownerName
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -221,7 +222,8 @@ class ShareService<DBSession>(
                             AuthRequirements(),
                             job.shareId,
                             state = ShareState.ACCEPTED,
-                            linkId = createdLink?.fileId
+                            linkId = createdLink?.fileId,
+                            linkPath = createdLink?.path
                         )
                     }
                 } catch (ex: Exception) {
@@ -403,21 +405,18 @@ class ShareService<DBSession>(
     // Utility Code
     private suspend fun invalidateShare(share: InternalShare) {
         if (!share.recipientToken.isNullOrEmpty()) {
-            val linkPath = findShareLink(share, serviceClient)
+            val recipientClient = userClientFactory(share.recipientToken)
+            val linkStat = findShareLink(share, serviceClient, recipientClient)
 
-            if (linkPath != null) {
-                log.debug("linkPath found $linkPath")
-                val recipientCloud = userClientFactory(share.recipientToken)
+            if (linkStat != null) {
+                log.debug("linkPath found $linkStat")
 
-                val stat =
-                    FileDescriptions.stat.call(StatRequest(linkPath), recipientCloud).throwIfInternal()
-
-                if (stat.orNull()?.link == true) {
+                if (linkStat.link) {
                     log.debug("Found link!")
                     // We choose not to throw if the call fails
                     FileDescriptions.deleteFile.call(
-                        DeleteFileRequest(linkPath),
-                        recipientCloud
+                        DeleteFileRequest(linkStat.path),
+                        recipientClient
                     )
                 }
             }

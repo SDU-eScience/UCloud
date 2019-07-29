@@ -1,9 +1,6 @@
 package dk.sdu.cloud.share.services
 
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileName
@@ -84,6 +81,8 @@ data class ShareEntity(
 
     @Column(name = COL_LINK_FILE_ID)
     var linkId: String? = null,
+
+    var linkPath: String? = null,
 
     @Temporal(TemporalType.TIMESTAMP)
     override var createdAt: Date = Date(System.currentTimeMillis()),
@@ -241,6 +240,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         rights: Set<AccessRight>?,
         path: String?,
         linkId: String?,
+        linkPath: String?,
         ownerToken: String?
     ): InternalShare {
         if (path == null && recipientToken == null && state == null && rights == null && linkId == null) {
@@ -257,6 +257,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         if (state != null) share.state = state
         if (rights != null) share.rights = rights.asInt()
         if (linkId != null) share.linkId = linkId
+        if (linkPath != null) share.linkPath = linkPath
 
         session.save(share)
         return share.toModel()
@@ -365,6 +366,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             ownerToken = ownerToken,
             recipientToken = recipientToken,
             linkId = linkId,
+            linkPath = linkPath,
             createdAt = createdAt.time,
             modifiedAt = modifiedAt.time
         )

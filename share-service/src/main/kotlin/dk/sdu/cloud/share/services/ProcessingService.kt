@@ -2,16 +2,15 @@ package dk.sdu.cloud.share.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.link
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -39,25 +38,21 @@ class ProcessingService<Session>(
 
         coroutineScope {
             shares.mapNotNull { share ->
-                val recipientCloud = share.recipientToken?.let(userCloudFactory) ?: return@mapNotNull null
+                val recipientClient = share.recipientToken?.let(userCloudFactory) ?: return@mapNotNull null
 
                 launch {
                     log.debug("Handling moved event for share: $share")
 
-                    val path = findShareLink(share, serviceClient)
-                    if (path != null) {
-                        log.debug("Share path is $path")
-                        val stat = FileDescriptions.stat.call(
-                            StatRequest(path),
-                            recipientCloud
-                        ).throwIfInternal()
+                    val linkStat = findShareLink(share, serviceClient, recipientClient)
+                    if (linkStat != null) {
+                        log.debug("Share path is $linkStat")
 
-                        val isLink = stat.orNull()?.link ?: false
+                        val isLink = linkStat.link
                         log.debug("Found link? $isLink")
                         if (isLink) {
                             FileDescriptions.deleteFile.call(
-                                DeleteFileRequest(path),
-                                recipientCloud
+                                DeleteFileRequest(linkStat.path),
+                                recipientClient
                             ).throwIfInternal()
                             log.debug("File deleted")
                         }
@@ -69,11 +64,17 @@ class ProcessingService<Session>(
                             linkPath = defaultLinkToShare(share, serviceClient),
                             linkTargetPath = share.path
                         ),
-                        recipientCloud
+                        recipientClient
                     ).orThrow()
 
                     db.withTransaction { session ->
-                        shareDao.updateShare(session, AuthRequirements(null), share.id, linkId = createdLink.fileId)
+                        shareDao.updateShare(
+                            session,
+                            AuthRequirements(null),
+                            share.id,
+                            linkId = createdLink.fileId,
+                            linkPath = createdLink.path
+                        )
                     }
                     log.debug("$share updated from moved event")
                 }

@@ -18,6 +18,7 @@ data class InternalShare(
     val ownerToken: String,
     val recipientToken: String?,
     val linkId: String?,
+    val linkPath: String?,
 
     val createdAt: Long? = null,
     val modifiedAt: Long? = null

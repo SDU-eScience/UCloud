@@ -62,6 +62,7 @@ interface ShareDAO<Session> {
         rights: Set<AccessRight>? = null,
         path: String? = null,
         linkId: String? = null,
+        linkPath: String? = null,
         ownerToken: String? = null
     ): InternalShare
 
