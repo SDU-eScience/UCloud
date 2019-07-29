@@ -1,11 +1,11 @@
 import * as React from "react";
 import {capitalized, inDevEnvironment, errorMessageOrDefault} from "UtilityFunctions"
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import {ContainerForText, Box, Input, InputGroup, Label, Checkbox, Button} from "ui-components";
+import {ContainerForText, Box, InputGroup, Label, Checkbox, Button} from "ui-components";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
-import {setLoading, fetchAnalyses, checkAnalysis, checkAllAnalyses, AnalysesActions} from "./Redux/AnalysesActions";
-import {AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis, AppState} from ".";
+import {setLoading, fetchAnalyses, checkAnalysis, checkAllAnalyses} from "./Redux/AnalysesActions";
+import {AnalysesProps, AnalysesOperations, Analysis, AppState, RunsSortBy, AnalysesStateProps} from ".";
 import {Dispatch} from "redux";
 import {Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -24,15 +24,18 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {prettierString} from "UtilityFunctions";
 import styled from "styled-components";
-import {MasterCheckbox, addStandardDialog} from "UtilityComponents";
+import {MasterCheckbox} from "UtilityComponents";
 import {inCancelableState, cancelJobDialog, cancelJob} from "Utilities/ApplicationUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
+import {SortOrder} from "Files";
 
 interface FetchJobsOptions {
     itemsPerPage?: number
     pageNumber?: number
+    sortBy?: RunsSortBy
+    sortOrder?: SortOrder
 }
 
 /* FIXME: Almost identical to similar one in FilesTable.tsx */
@@ -58,9 +61,11 @@ function JobResults(props: AnalysesProps & {history: History}) {
         const {page, setLoading} = props;
         const itemsPerPage = opts.itemsPerPage !== undefined ? opts.itemsPerPage : page.itemsPerPage;
         const pageNumber = opts.pageNumber !== undefined ? opts.pageNumber : page.pageNumber;
+        const sortOrder = opts.sortOrder !== undefined ? opts.sortOrder : props.sortOrder;
+        const sortBy = opts.sortBy !== undefined ? opts.sortBy : props.sortBy;
         setLoading(true);
-        props.fetchJobs(itemsPerPage, pageNumber);
-        props.setRefresh(() => props.fetchJobs(itemsPerPage, pageNumber));
+        props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy);
+        props.setRefresh(() => props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy));
     }
 
     const {page, loading, history, responsive} = props;
@@ -166,7 +171,12 @@ function JobResults(props: AnalysesProps & {history: History}) {
     />);
 }
 
-const AnalysisOperations = ({cancelableAnalyses, onFinished}: {cancelableAnalyses: Analysis[], onFinished: () => void}) =>
+interface AnalysisOperationsProps {
+    cancelableAnalyses: Analysis[]
+    onFinished: () => void
+}
+
+const AnalysisOperations = ({cancelableAnalyses, onFinished}: AnalysisOperationsProps) =>
     cancelableAnalyses.length === 0 ? null : (
         <Button fullWidth color="red" onClick={() => cancelJobDialog({
             jobCount: cancelableAnalyses.length,
@@ -228,7 +238,8 @@ const Row = ({analysis, to, hide, checkAnalysis}: RowProps) => {
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),
-    fetchJobs: async (itemsPerPage, pageNumber) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
+    fetchJobs: async (itemsPerPage, pageNumber, sortOrder, sortBy) =>
+        dispatch(await fetchAnalyses(itemsPerPage, pageNumber, sortOrder, sortBy)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     onInit: () => {
         dispatch(setActivePage(SidebarPages.Runs));

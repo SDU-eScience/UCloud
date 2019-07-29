@@ -10,7 +10,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
@@ -248,11 +247,27 @@ class JobHibernateDao(
     override suspend fun list(
         session: HibernateSession,
         owner: SecurityPrincipalToken,
-        pagination: NormalizedPaginationRequest
+        pagination: NormalizedPaginationRequest,
+        order: SortOrder,
+        sortBy: JobSortBy,
+        minTimestamp: Long?,
+        maxTimestamp: Long?
     ): Page<VerifiedJobWithAccessToken> {
         return session.paginatedCriteria<JobInformationEntity>(
             pagination,
-            orderBy = { listOf(descending(entity[JobInformationEntity::createdAt])) },
+            orderBy = {
+                val field = when (sortBy) {
+                    JobSortBy.STATE -> JobInformationEntity::state
+                    JobSortBy.APPLICATION -> JobInformationEntity::application
+                    JobSortBy.STARTED_AT -> JobInformationEntity::startedAt
+                    JobSortBy.LAST_UPDATE -> JobInformationEntity::modifiedAt
+                }
+
+                when (order) {
+                    SortOrder.ASCENDING -> listOf(ascending(entity[field]))
+                    SortOrder.DESCENDING -> listOf(descending(entity[field]))
+                }
+            },
             predicate = {
                 val canViewAsOwner = entity[JobInformationEntity::owner] equal owner.realUsername()
 
@@ -269,6 +284,9 @@ class JobHibernateDao(
                             )
                         )
                     }
+
+                // val lowerTime = entity[JobInformationEntity::startedAt] greaterThanEquals Date(minTimestamp ?: 0)
+                // val upperTime = entity[JobInformationEntity::startedAt] lessThanEquals Date(maxTimestamp ?: 0)
 
                 anyOf(
                     canViewAsOwner,

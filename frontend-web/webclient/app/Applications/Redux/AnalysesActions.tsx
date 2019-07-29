@@ -1,10 +1,11 @@
 import {Cloud} from "Authentication/SDUCloudObject";
 import {SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_ERROR, CHECK_ALL_ANALYSES, CHECK_ANALYSIS} from "./AnalysesReducer";
 import {Page, ReceivePage, SetLoadingAction, PayloadAction} from "Types";
-import {Analysis} from "..";
+import {Analysis, RunsSortBy} from "..";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Action} from "redux";
+import {SortOrder} from "Files";
 
 
 export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoading | CheckAnalysis | CheckAllAnalyses;
@@ -13,10 +14,19 @@ export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoa
  * Fetches a page of analyses based on the itemsPerPage and page provided
  * @param {number} itemsPerPage number of items the retrieved page should contain
  * @param {number} page the page number to be retrieved
+ * @param {SortOrder} sortOrder the order the page should be sorted by
+ * @param {RunsSortBy} sortBy the field the analyses should be 
  */
-export const fetchAnalyses = async (itemsPerPage: number, page: number): Promise<ReceiveAnalysesProps | AnalysesError> => {
+export const fetchAnalyses = async (
+    itemsPerPage: number,
+    page: number,
+    sortOrder: SortOrder, 
+    sortBy: RunsSortBy
+): Promise<ReceiveAnalysesProps | AnalysesError> => {
     try {
-        const {response} = await Cloud.get(`/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`);
+        const {response} = await Cloud.get(
+            `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`
+        );
         return receiveAnalyses(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "Retrieval of analyses failed, please try again later."));

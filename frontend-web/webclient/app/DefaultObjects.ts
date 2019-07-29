@@ -1,6 +1,6 @@
 import {SidebarOption, Page} from "Types";
 import {Status} from "Navigation";
-import {Analysis, DetailedApplicationSearchReduxState} from "Applications";
+import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
 import {File, DetailedFileSearchReduxState} from "Files";
 import {SortOrder, SortBy} from "Files";
 import {DashboardStateProps} from "Dashboard";
@@ -139,7 +139,10 @@ export interface FileInfoReduxObject {
     loading: boolean
 }
 
-export type AnalysisReduxObject = ComponentWithPage<Analysis>;
+export interface AnalysisReduxObject extends ComponentWithPage<Analysis> {
+    sortBy: RunsSortBy
+    sortOrder: SortOrder
+}
 
 export interface NotificationsReduxObject {
     redirectTo: string
@@ -323,10 +326,12 @@ export const initSimpleSearch = (): SimpleSearchStateProps => ({
     fileSearch: initFilesDetailedSearch()
 });
 
-export const initAnalyses = (): ComponentWithPage<Analysis> => ({
+export const initAnalyses = (): AnalysisReduxObject => ({
     page: emptyPage,
     loading: false,
-    error: undefined
+    error: undefined,
+    sortBy: RunsSortBy.startedAt,
+    sortOrder: SortOrder.ASCENDING
 });
 
 export const initZenodo = (): ZenodoReduxObject => ({
