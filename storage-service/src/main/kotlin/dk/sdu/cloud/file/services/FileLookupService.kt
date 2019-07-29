@@ -179,7 +179,15 @@ class FileLookupService<Ctx : FSUserContext>(
             aclOrNull = row._shares,
             sensitivityLevelOrNull = run {
                 if (FileAttribute.SENSITIVITY in attributes) {
-                    if (row.isLink) lookupInheritedSensitivity(ctx, row.path, cache)
+                    if (row.isLink) {
+                        try {
+                            lookupInheritedSensitivity(ctx, row.path, cache)
+                        } catch (ex: FSException.PermissionException) {
+                            // This might fail since the link could point to a target we do not have permissions for.
+                            // In this case we will simply return no sensitivity information about it.
+                            row.sensitivityLevel ?: SensitivityLevel.PRIVATE
+                        }
+                    }
                     else row.sensitivityLevel ?: lookupInheritedSensitivity(ctx, row.path.parent(), cache)
                 } else {
                     null

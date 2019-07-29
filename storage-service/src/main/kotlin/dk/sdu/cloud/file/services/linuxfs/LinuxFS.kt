@@ -868,7 +868,8 @@ class LinuxFS(
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         aclService.requirePermission(linkPath.parent(), ctx.user, AccessRight.WRITE)
-        aclService.requirePermission(targetPath, ctx.user, AccessRight.READ)
+        // We do not require read permissions at the read target. All other calls will deny an attempt to use this
+        // link regardless.
 
         val systemLink = File(translateAndCheckFile(linkPath))
         val systemTarget = File(translateAndCheckFile(targetPath))

@@ -150,6 +150,8 @@ class SymlinkTests {
 
                 Thread.sleep(500)
 
+                repeat(50) { println() }
+
                 val directoryListing = listDirectory(
                     ListDirectoryRequest(
                         pathTo(TestUsers.user2, ""),
