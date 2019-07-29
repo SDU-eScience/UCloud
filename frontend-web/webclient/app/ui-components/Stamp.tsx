@@ -1,5 +1,5 @@
 import styled from "styled-components"
-import { themeGet, space, fontSize, SpaceProps } from 'styled-system'
+import { space, fontSize, SpaceProps } from 'styled-system'
 import theme, { ThemeColor, Theme } from "./theme"
 import * as React from "react";
 import { Icon, Text } from ".";
@@ -71,7 +71,7 @@ const StampBase = styled.div<StampProps>`
   min-height: 24px;
   ${fullWidth}
   font-weight: 600;
-  letter-spacing: ${themeGet('letterSpacings.caps')};
+  letter-spacing: ${({theme}) => theme.letterSpacings.caps};
   border-radius: 4px;
   border-width: 1px;
   border-style: solid;

@@ -1,5 +1,5 @@
 import styled, { keyframes } from "styled-components";
-import { themeGet, space, color, SpaceProps } from "styled-system";
+import { space, color, SpaceProps } from "styled-system";
 import theme, { ThemeColor, Theme } from "./theme";
 
 export const colorScheme = (props: { theme: Theme, bg?: ThemeColor, color?: ThemeColor }) => {
@@ -60,7 +60,7 @@ const Badge = styled.div<SpaceProps & { color?: ThemeColor, bg?: ThemeColor }>`
   font-size: ${props => props.theme.fontSizes[0]}px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: ${themeGet("letterSpacings.caps")};
+  letter-spacing: ${({theme}) => theme.letterSpacings.caps};
   ${space} ${colorScheme} ${color};
 `
 

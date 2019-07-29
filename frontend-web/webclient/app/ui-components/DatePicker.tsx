@@ -1,7 +1,7 @@
 import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import styled from "styled-components";
-import { themeGet, borders, space } from "styled-system";
+import { borders, space } from "styled-system";
 import { InputProps } from "./Input";
 
 export const DatePicker = styled(ReactDatePicker)<InputProps>`
@@ -10,12 +10,12 @@ export const DatePicker = styled(ReactDatePicker)<InputProps>`
     width: 100%;
     font-family: inherit;
     color: inherit;
-    font-size: ${themeGet("fontSizes.1")}px;
+    font-size: ${({theme}) => theme.fontSizes[1]}px;
     background-color: transparent;
-    border-radius: ${themeGet("radius")};
+    border-radius: ${({theme}) => theme.radius};
     border-width: 0px;
     border-style: solid;
-    border-color: ${themeGet("colors.borderGray")};
+    border-color: ${({theme}) => theme.colors.borderGray};
   
     padding-top: 14px;
     padding-bottom: 14px;
@@ -25,7 +25,7 @@ export const DatePicker = styled(ReactDatePicker)<InputProps>`
     margin: 0;
   
     ::placeholder {
-      color: ${themeGet("colors.gray")};
+      color: ${({theme}) => theme.colors.gray};
     }
   
     ::-ms-clear {
