@@ -1,3 +1,5 @@
+@file:Suppress("BlockingMethodInNonBlockingContext")
+
 package dk.sdu.cloud.file.services.linuxfs
 
 import dk.sdu.cloud.file.SERVICE_USER
@@ -20,6 +22,7 @@ import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.XATTR_BIRTH
 import dk.sdu.cloud.file.services.acl.AclService
+import dk.sdu.cloud.file.services.acl.UserWithPermissions
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
 import dk.sdu.cloud.file.services.mergeWith
@@ -295,11 +298,10 @@ class LinuxFS(
             }
         }
 
-        val comparator = when (order) {
+        return when (order) {
             SortOrder.ASCENDING -> naturalComparator
             SortOrder.DESCENDING -> naturalComparator.reversed()
         }
-        return comparator
     }
 
     private suspend fun stat(
@@ -322,20 +324,48 @@ class LinuxFS(
         hasPerformedPermissionCheck: Boolean,
         followLink: Boolean = false
     ): List<FileRow?> {
+        fun realPathWithCache(path: String): String {
+            val cached = pathCache[path]
+            return if (cached != null) {
+                cached
+            } else {
+                val result = StandardCLib.realPath(path) ?: path
+                pathCache[path] = result
+                result
+            }
+        }
+
+        // The 'shareLookup' contains a mapping between cloud paths and their ACL
         val shareLookup = if (FileAttribute.SHARES in mode) {
-            val parents = systemFiles.map { it.parent }.toSet()
+            // We need to resolve all symlinks for this to work.
+            val realPaths = systemFiles.map { realPathWithCache(it.path).toCloudPath() }
+            val parents = realPaths.map { it.parent().normalize() }.toSet()
+
+            fun Map<String, List<UserWithPermissions>>.normalizeMap(): Map<String, List<UserWithPermissions>> {
+                // The returned map from aclService will contain the resolved paths. We need to reverse map them such
+                // that they match the input paths.
+                val reverseMap = realPaths.zip(systemFiles).map { (realPath, systemFile) ->
+                    realPath to systemFile.path.toCloudPath()
+                }.toMap()
+
+                return map { reverseMap.getValue(it.key) to it.value }.toMap()
+            }
+
+            // We optimize in the case that we only have a single unique parent. This makes it quite a bit more
+            // efficient.
             if (parents.size == 1) {
                 aclService.listAclsForChildrenOf(
-                    parents.first().toCloudPath().normalize(),
-                    systemFiles.map { it.path.toCloudPath() }
-                )
+                    parents.first(),
+                    realPaths
+                ).normalizeMap()
             } else {
-                val paths = systemFiles.map { it.path.toCloudPath() }
-                aclService.listAcl(paths)
+                aclService.listAcl(realPaths).normalizeMap()
             }
         } else {
             emptyMap()
         }
+
+        log.debug("Result of shareLookup is $shareLookup")
 
         return systemFiles.map { systemFile ->
             try {
@@ -410,18 +440,7 @@ class LinuxFS(
 
                     if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
                     if (FileAttribute.PATH in mode) {
-                        val realParent = run {
-                            val parent = systemFile.parent
-                            val cached = pathCache[parent]
-                            if (cached != null) {
-                                cached
-                            } else {
-                                val result = StandardCLib.realPath(parent) ?: parent
-                                pathCache[parent] = result
-                                result
-                            }
-                        }
-
+                        val realParent = realPathWithCache(systemFile.parent)
                         path = joinPath(realParent, systemFile.name).toCloudPath()
                     }
 
@@ -476,10 +495,10 @@ class LinuxFS(
                                     "0"
                                 }
 
-                                if (targetExists) {
-                                    linkTarget = readSymbolicLink?.toFile()?.absolutePath?.toCloudPath()
+                                linkTarget = if (targetExists) {
+                                    readSymbolicLink?.toFile()?.absolutePath?.toCloudPath()
                                 } else {
-                                    linkTarget = "/"
+                                    "/"
                                 }
                             }
                         }
@@ -488,18 +507,15 @@ class LinuxFS(
 
                 val realOwner = if (FileAttribute.OWNER in mode || FileAttribute.CREATOR in mode) {
                     val toCloudPath = systemFile.absolutePath.toCloudPath()
-                    val realPath = realPathFunction(toCloudPath) ?: toCloudPath
+                    val realPath = realPathFunction(toCloudPath)
 
                     val components = realPath.components()
-                    if (components.isEmpty()) {
-                        SERVICE_USER
-                    } else if (components.first() != "home") {
-                        SERVICE_USER
-                    } else if (components.size < 2) {
-                        SERVICE_USER
-                    } else {
-                        // TODO This won't work for projects (?)
-                        components[1]
+                    when {
+                        components.isEmpty() -> SERVICE_USER
+                        components.first() != "home" -> SERVICE_USER
+                        components.size < 2 -> SERVICE_USER
+                        else -> // TODO This won't work for projects (?)
+                            components[1]
                     }
                 } else {
                     null
@@ -838,9 +854,7 @@ class LinuxFS(
         }
 
         try {
-            runBlocking {
-                consumer(convertedToStream)
-            }
+            consumer(convertedToStream)
         } finally {
             convertedToStream.close()
             ctx.inputSystemFile = null
@@ -880,7 +894,7 @@ class LinuxFS(
         // currently required in order to avoid infinite recursion. The ACL service depends on this function in order
         // to function.
 
-        return FSResult(0, realPathFunction(path) ?: throw FSException.NotFound())
+        return FSResult(0, realPathFunction(path))
     }
 
     private fun String.toCloudPath(): String {
