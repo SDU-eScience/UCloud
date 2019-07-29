@@ -72,7 +72,7 @@ class SymlinkTests {
     }
 
     @Test
-    fun `test file lookup through symlink`() {
+    fun `test file lookup to symlink`() {
         withKtorTest(
             setup = {
                 configureServerWithFileController(
@@ -107,6 +107,77 @@ class SymlinkTests {
                 val user2Page = lookup(
                     LookupFileInDirectoryRequest(
                         pathTo(TestUsers.user2, user2Link),
+                        50,
+                        SortOrder.DESCENDING,
+                        FileSortBy.PATH
+                    ),
+                    TestUsers.user2
+                ).parseSuccessful<Page<StorageFile>>()
+
+                assertThatInstance(
+                    user2Page.items.find { it.path.contains(user2Link) }!!,
+                    "has correct acl",
+                    matcher = { file ->
+                        file.acl!!.any { it.entity == TestUsers.user2.username && it.rights == AccessRights.READ_ONLY }
+                    }
+                )
+
+                println(user2Page)
+            }
+        )
+    }
+
+    @Test
+    fun `test file lookup through symlink`() {
+        val sharedFile = "a"
+        withKtorTest(
+            setup = {
+                configureServerWithFileController(
+                    fsRootInitializer = {
+                        Files.createTempDirectory("test").toFile().apply {
+                            mkdir("home") {
+                                mkdir(TestUsers.user.username) {
+                                    mkdir(userFile) {
+                                        touch(sharedFile)
+                                    }
+                                }
+
+                                mkdir(TestUsers.user2.username) {
+
+                                }
+                            }
+                        }
+                    },
+                    fileUpdateAclWhitelist = setOf(TestUsers.user.username)
+                )
+            },
+
+            test = {
+                createSymlink()
+
+                val userPage = lookup(
+                    LookupFileInDirectoryRequest(
+                        pathTo(TestUsers.user, userFile),
+                        50,
+                        SortOrder.DESCENDING,
+                        FileSortBy.PATH
+                    ),
+                    TestUsers.user
+                ).parseSuccessful<Page<StorageFile>>()
+
+                assertThatInstance(
+                    userPage.items.find { it.path.contains(userFile) }!!,
+                    "has correct acl",
+                    matcher = { file ->
+                        file.acl!!.any { it.entity == TestUsers.user2.username && it.rights == AccessRights.READ_ONLY }
+                    }
+                )
+
+                println(userPage)
+
+                val user2Page = lookup(
+                    LookupFileInDirectoryRequest(
+                        pathTo(TestUsers.user2, "$user2Link/$sharedFile"),
                         50,
                         SortOrder.DESCENDING,
                         FileSortBy.PATH
