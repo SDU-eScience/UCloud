@@ -29,7 +29,6 @@ import {EllipsedText} from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {GridCardGroup} from "ui-components/Grid";
-import {TextSpan} from "ui-components/Text";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {notificationRead, readAllNotifications} from "Notifications/Redux/NotificationsActions";
 import {History} from "history";

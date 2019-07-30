@@ -31,7 +31,7 @@ import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ErrorBoundary} from "ErrorBoundary/ErrorBoundary";
 import Dialog from "Dialog/Dialog";
-import { History } from "history";
+import {History} from "history";
 import ProjectList from "Project/List";
 import ProjectCreate from "Project/Create";
 import ProjectView from "Project/View";
@@ -51,11 +51,11 @@ const Core = () => (
                 <Route exact path="/login/wayf" component={Wayf} />
                 <Route exact path="/" component={requireAuth(Dashboard)} />
                 <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
-                
+
                 <Route exact path="/files/info" component={requireAuth(FileInfo)} />
                 <Route exact path="/files/preview" component={requireAuth(FilePreview)} />
                 <Route exact path="/files" component={requireAuth(Files)} />
-                
+
                 <Route exact path="/favorites" component={requireAuth(Favorites)} />
                 <Route exact path="/activity" component={requireAuth(Activity)} />
                 <Route exact path="/status" component={requireAuth(Status)} />
@@ -90,7 +90,10 @@ const Core = () => (
 );
 
 const requireAuth = Delegate => props => {
-    if (!Cloud.isLoggedIn) props.history.push("/login");
+    if (!Cloud.isLoggedIn) {
+        props.history.push("/login");
+        return null;
+    };
     return <Delegate {...props} />;
 };
 
