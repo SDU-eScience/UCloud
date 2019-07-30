@@ -177,7 +177,7 @@ class LinuxFS(
             val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
             (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).toList()
-        }
+        }.filter { !Files.isSymbolicLink(it.toPath()) }
 
         val min = if (paginationRequest == null) 0 else paginationRequest.itemsPerPage * paginationRequest.page
         val max =
@@ -296,10 +296,9 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         systemFile: File,
         mode: Set<FileAttribute>,
-        hasPerformedPermissionCheck: Boolean,
-        followLink: Boolean = false
+        hasPerformedPermissionCheck: Boolean
     ): FileRow {
-        return stat(ctx, listOf(systemFile), mode, hasPerformedPermissionCheck, followLink).first()
+        return stat(ctx, listOf(systemFile), mode, hasPerformedPermissionCheck).first()
             ?: throw FSException.NotFound()
     }
 
@@ -307,8 +306,7 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         systemFiles: List<File>,
         mode: Set<FileAttribute>,
-        hasPerformedPermissionCheck: Boolean,
-        followLink: Boolean = false
+        hasPerformedPermissionCheck: Boolean
     ): List<FileRow?> {
         // The 'shareLookup' contains a mapping between cloud paths and their ACL
         val shareLookup = if (FileAttribute.SHARES in mode) {
@@ -328,13 +326,7 @@ class LinuxFS(
             emptyMap()
         }
 
-        log.debug("Result of shareLookup is $shareLookup")
-
         return systemFiles.map { systemFile ->
-            val capturedIsLink = Files.isSymbolicLink(systemFile.toPath())
-            // TODO This should just remove it silently?
-            if (capturedIsLink) throw FSException.CriticalException("$systemFile is a symbolic link")
-
             try {
                 if (!hasPerformedPermissionCheck) {
                     aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AccessRight.READ)
@@ -355,7 +347,7 @@ class LinuxFS(
                     throw FSException.BadRequest()
                 }
 
-                val linkOpts = if (!followLink) arrayOf(LinkOption.NOFOLLOW_LINKS) else emptyArray()
+                val linkOpts = arrayOf(LinkOption.NOFOLLOW_LINKS)
 
                 run {
                     // UNIX file attributes
@@ -409,11 +401,7 @@ class LinuxFS(
                         if (FileAttribute.SIZE in mode) size = basicAttributes.getValue("size") as Long
 
                         if (FileAttribute.FILE_TYPE in mode) {
-                            val isDirectory = if (capturedIsLink) {
-                                Files.isDirectory(systemPath)
-                            } else {
-                                basicAttributes.getValue("isDirectory") as Boolean
-                            }
+                            val isDirectory = basicAttributes.getValue("isDirectory") as Boolean
 
                             fileType = if (isDirectory) {
                                 FileType.DIRECTORY
@@ -460,7 +448,7 @@ class LinuxFS(
                 }
 
                 if (FileAttribute.SENSITIVITY in mode) {
-                    // Old setup would ignore errors. This is required for createLink to work
+                    // Old setup would ignore errors.
                     sensitivityLevel =
                         runCatching {
                             getExtendedAttributeInternal(
@@ -632,7 +620,9 @@ class LinuxFS(
             0,
             Files.walk(systemFile.toPath())
                 .toList()
-                .map {
+                .mapNotNull {
+                    if (Files.isSymbolicLink(it)) return@mapNotNull null
+
                     stat(ctx, it.toFile(), mode, hasPerformedPermissionCheck = true)
                 }
         )
