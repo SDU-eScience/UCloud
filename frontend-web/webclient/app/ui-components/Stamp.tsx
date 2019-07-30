@@ -1,13 +1,13 @@
 import styled from "styled-components"
-import { themeGet, space, fontSize, SpaceProps } from 'styled-system'
-import theme, { ThemeColor, Theme } from "./theme"
+import {space, fontSize, SpaceProps} from 'styled-system'
+import theme, {ThemeColor, Theme} from "./theme"
 import * as React from "react";
-import { Icon, Text } from ".";
-import { IconName } from "./Icon";
+import {Icon, Text} from ".";
+import {IconName} from "./Icon";
 
-const fullWidth = ({ fullWidth }: { fullWidth?: boolean }) => fullWidth ? { width: "100%" } : null;
+const fullWidth = ({fullWidth}: {fullWidth?: boolean}) => fullWidth ? {width: "100%"} : null;
 
-export const colorScheme = (props: { theme: Theme, color: ThemeColor}) => {
+export const colorScheme = (props: {theme: Theme, color: ThemeColor}) => {
   const badgeColors = {
     white: {
       backgroundColor: props.theme.colors.black,
@@ -71,7 +71,7 @@ const StampBase = styled.div<StampProps>`
   min-height: 24px;
   ${fullWidth}
   font-weight: 600;
-  letter-spacing: ${themeGet('letterSpacings.caps')};
+  letter-spacing: ${theme.letterSpacings.caps};
   border-radius: 4px;
   border-width: 1px;
   border-style: solid;
@@ -98,7 +98,7 @@ StampBase.defaultProps = {
   fullWidth: false
 }
 
-const Stamp = (props: StampProps & { icon?: IconName, onClick?: () => void, text: string }) => (
+const Stamp = (props: StampProps & {icon?: IconName, onClick?: () => void, text: string}) => (
   <StampBase {...props}>
     {props.icon ? <Icon name={props.icon} size={12} /> : null}
     <Text ml="4px" mr="6px">{props.text}</Text>
@@ -106,5 +106,5 @@ const Stamp = (props: StampProps & { icon?: IconName, onClick?: () => void, text
   </StampBase>
 );
 
-export { StampBase as OldStamp };
+export {StampBase as OldStamp};
 export default Stamp;

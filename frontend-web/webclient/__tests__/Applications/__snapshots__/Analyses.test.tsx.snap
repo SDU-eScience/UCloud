@@ -41,8 +41,8 @@ exports[`Analyses component Mount component 1`] = `
 .c9 {
   cursor: pointer;
   margin-left: -17px;
-  margin-right: -17px;
   padding-left: 17px;
+  margin-right: -17px;
 }
 
 .c12 {
@@ -313,8 +313,8 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 .c9 {
   cursor: pointer;
   margin-left: -17px;
-  margin-right: -17px;
   padding-left: 17px;
+  margin-right: -17px;
 }
 
 .c7 {
