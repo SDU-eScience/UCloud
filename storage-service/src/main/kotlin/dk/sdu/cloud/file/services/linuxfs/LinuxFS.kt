@@ -202,7 +202,7 @@ class LinuxFS(
 
             val sortingAttribute = when (sortBy) {
                 FileSortBy.TYPE -> FileAttribute.FILE_TYPE
-                FileSortBy.PATH -> FileAttribute.PATH
+                FileSortBy.PATH -> FileAttribute.RAW_PATH
                 FileSortBy.CREATED_AT, FileSortBy.MODIFIED_AT -> FileAttribute.TIMESTAMPS
                 FileSortBy.SIZE -> FileAttribute.SIZE
                 FileSortBy.ACL -> FileAttribute.SHARES
@@ -215,7 +215,7 @@ class LinuxFS(
             val statsForSorting = stat(
                 ctx,
                 systemFiles,
-                setOf(FileAttribute.PATH, sortingAttribute),
+                setOf(FileAttribute.RAW_PATH, sortingAttribute),
                 pathCache,
                 hasPerformedPermissionCheck = true
             ).filterNotNull()
@@ -226,9 +226,9 @@ class LinuxFS(
 
             // Time for the second lookup. We will retrieve all attributes we don't already know about and merge them
             // with first lookup.
-            val relevantFiles = relevantFileRows.map { File(translateAndCheckFile(it.path)) }
+            val relevantFiles = relevantFileRows.map { File(translateAndCheckFile(it.rawPath)) }
 
-            val desiredMode = mode - setOf(sortingAttribute) + setOf(FileAttribute.PATH)
+            val desiredMode = mode - setOf(sortingAttribute) + setOf(FileAttribute.RAW_PATH)
 
             val statsForRelevantRows = stat(
                 ctx,
@@ -236,10 +236,10 @@ class LinuxFS(
                 desiredMode,
                 pathCache,
                 hasPerformedPermissionCheck = true
-            ).filterNotNull().associateBy { it.path }
+            ).filterNotNull().associateBy { it.rawPath }
 
             val items = relevantFileRows.mapNotNull { rowWithSortingInfo ->
-                val rowWithFullInfo = statsForRelevantRows[rowWithSortingInfo.path] ?: return@mapNotNull null
+                val rowWithFullInfo = statsForRelevantRows[rowWithSortingInfo.rawPath] ?: return@mapNotNull null
                 rowWithSortingInfo.mergeWith(rowWithFullInfo)
             }
 
@@ -283,11 +283,11 @@ class LinuxFS(
             FileSortBy.TYPE -> Comparator.comparing<FileRow, String> {
                 it.fileType.name
             }.thenComparing(Comparator.comparing<FileRow, String> {
-                it.path.fileName().toLowerCase()
+                it.rawPath.fileName().toLowerCase()
             })
 
             FileSortBy.PATH -> Comparator.comparing<FileRow, String> {
-                it.path.fileName().toLowerCase()
+                it.rawPath.fileName().toLowerCase()
             }
 
             FileSortBy.SIZE -> Comparator.comparingLong { it.size }
