@@ -263,20 +263,4 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         path: String,
         mode: Set<FileAttribute>
     ): FSResult<FileRow>
-
-    /**
-     * Creates a symbolic link at [linkPath] pointing to [targetPath].
-     *
-     * @throws FSException.PermissionException
-     */
-    suspend fun createSymbolicLink(
-        ctx: Ctx,
-        targetPath: String,
-        linkPath: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-
-    suspend fun realPath(
-        ctx: Ctx,
-        path: String
-    ): FSResult<String>
 }

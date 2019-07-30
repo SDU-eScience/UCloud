@@ -568,30 +568,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val createLink = call<
-            CreateLinkRequest,
-            StorageFile,
-            CommonErrorMessage>("createLink") {
-        audit<SingleFileAudit<CreateLinkRequest>>()
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        websocket(wsBaseContext)
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"create-link"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
     val reclassify = call<
             ReclassifyRequest,
             Unit,

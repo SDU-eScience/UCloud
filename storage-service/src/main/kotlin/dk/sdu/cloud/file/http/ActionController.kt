@@ -109,15 +109,5 @@ class ActionController<Ctx : FSUserContext>(
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
-
-        implement(FileDescriptions.createLink) {
-            audit(SingleFileAudit(null, request))
-
-            commandRunnerFactory.withCtx(this) { ctx ->
-                val created = coreFs.createSymbolicLink(ctx, request.linkTargetPath, request.linkPath)
-                audit(SingleFileAudit(created.file.fileId, request))
-                ok(created.file)
-            }
-        }
     }
 }

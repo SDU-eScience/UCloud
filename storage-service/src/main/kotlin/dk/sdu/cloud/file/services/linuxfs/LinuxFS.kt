@@ -862,42 +862,6 @@ class LinuxFS(
         }
     }
 
-    override suspend fun createSymbolicLink(
-        ctx: LinuxFSRunner,
-        targetPath: String,
-        linkPath: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
-        aclService.requirePermission(linkPath.parent(), ctx.user, AccessRight.WRITE)
-        // We do not require read permissions at the read target. All other calls will deny an attempt to use this
-        // link regardless.
-
-        val systemLink = File(translateAndCheckFile(linkPath))
-        val systemTarget = File(translateAndCheckFile(targetPath))
-        Files.createSymbolicLink(systemLink.toPath(), systemTarget.toPath())
-
-        FSResult(
-            0,
-            listOf(
-                stat(
-                    ctx,
-                    systemLink,
-                    STORAGE_EVENT_MODE,
-                    HashMap(),
-                    followLink = false,
-                    hasPerformedPermissionCheck = true
-                ).toCreatedEvent(true)
-            )
-        )
-    }
-
-    override suspend fun realPath(ctx: LinuxFSRunner, path: String): FSResult<String> {
-        // We don't require any permissions to resolve what the real path is. This might be problematic but is
-        // currently required in order to avoid infinite recursion. The ACL service depends on this function in order
-        // to function.
-
-        return FSResult(0, realPathFunction(path))
-    }
-
     private fun String.toCloudPath(): String {
         return linuxFSToCloudPath(fsRoot, this)
     }
@@ -947,10 +911,16 @@ private fun linuxFSToCloudPath(fsRoot: File, path: String): String {
 
 fun translateAndCheckFile(fsRoot: File, internalPath: String, isDirectory: Boolean = false): String {
     val userRoot = File(fsRoot, "home").absolutePath.normalize().removeSuffix("/") + "/"
-    val path = File(fsRoot, internalPath)
+    val systemFile = File(fsRoot, internalPath)
+    val path = systemFile
         .normalize()
         .absolutePath
         .let { it + (if (isDirectory) "/" else "") }
+
+    if (Files.isSymbolicLink(systemFile.toPath())) {
+        // We do not allow symlinks. Delete them if we detect them.
+        systemFile.delete()
+    }
 
     if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) {
         throw FSException.BadRequest("path is not in user-root")

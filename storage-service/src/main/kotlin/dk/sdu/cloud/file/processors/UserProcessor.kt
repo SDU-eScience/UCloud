@@ -51,13 +51,8 @@ class UserProcessor<FSCtx : CommandRunner>(
                             createHomeFolder("$projectName#PI", projectName)
                         }
 
-                        runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
-                            try {
-                                coreFs.createSymbolicLink(ctx, homeDirectory(projectName), homeDirectory(event.userId))
-                            } catch (ex: FSException.AlreadyExists) {
-                                // Ignored
-                            }
-                        }
+                        // TODO We used to create a symbolic link here. This might still be doable. It shouldn't
+                        //  be needed though. We should just query the home folder.
                     }
 
                     else -> log.debug("Not creating a home folder for ${event.userCreated}")

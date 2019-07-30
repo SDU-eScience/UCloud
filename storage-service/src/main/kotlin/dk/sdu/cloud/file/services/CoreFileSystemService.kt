@@ -256,17 +256,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    suspend fun createSymbolicLink(
-        ctx: Ctx,
-        targetPath: String,
-        linkPath: String
-    ): StorageEvent.CreatedOrRefreshed {
-        // TODO Automatic renaming... Not a good idea
-        val linkRenamedPath = findFreeNameForNewFile(ctx, linkPath)
-        val filesCreated = fs.createSymbolicLink(ctx, targetPath, linkRenamedPath).emitAll()
-        return filesCreated.single()
-    }
-
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
     private suspend fun findFreeNameForNewFile(ctx: Ctx, desiredPath: String): String {
         fun findFileNameNoExtension(fileName: String): String {

@@ -147,35 +147,5 @@ class DownloadTests {
             }
         )
     }
-
-    @Test
-    fun `test download with dead symlink`() {
-        val user = TestUsers.user
-        val linkPath = "/home/${user.username}/deadlink"
-        withKtorTest(
-            setup = {
-                configureWithDownloadController {
-                    it.runner.withBlockingContext(user.username) { ctx ->
-                        val path = "/home/${user.username}/notfound"
-                        it.coreFs.write(ctx, path, WriteConflictPolicy.OVERWRITE) { write(42) }
-                        it.coreFs.createSymbolicLink(ctx, path, linkPath)
-                        it.coreFs.delete(ctx, path)
-                    }
-                }
-            },
-
-            test = {
-                val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
-                val response =
-                    sendRequest(
-                        HttpMethod.Get,
-                        "/api/files/download?path=$linkPath&token=$token",
-                        TestUsers.user
-                    ).response
-
-                assertEquals(HttpStatusCode.NotFound, response.status())
-            }
-        )
-    }
 }
 
