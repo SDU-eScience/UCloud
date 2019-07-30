@@ -18,6 +18,8 @@ import org.hibernate.annotations.Type
 import org.slf4j.Logger
 import java.util.*
 import javax.persistence.*
+import javax.persistence.criteria.Predicate
+import kotlin.collections.ArrayList
 
 @Entity
 @Table(name = "job_information")
@@ -285,18 +287,23 @@ class JobHibernateDao(
                         )
                     }
 
-                // val lowerTime = entity[JobInformationEntity::startedAt] greaterThanEquals Date(minTimestamp ?: 0)
-                // val upperTime = entity[JobInformationEntity::startedAt] lessThanEquals Date(maxTimestamp ?: 0)
-
-                anyOf(
-                    canViewAsOwner,
-                    canViewAsPartOfProject
+                val lowerTime = entity[JobInformationEntity::createdAt] greaterThanEquals Date(minTimestamp ?: 0)
+                val upperTime = entity[JobInformationEntity::createdAt] lessThanEquals Date(maxTimestamp ?: Long.MAX_VALUE)
+                val matchesLowerFilter = literal(minTimestamp == null).toPredicate() or (isNotNull(entity[JobInformationEntity::createdAt]) and lowerTime)
+                val matchesUpperFilter = literal(maxTimestamp == null).toPredicate() or (isNotNull(entity[JobInformationEntity::createdAt]) and upperTime)
+                allOf(
+                    matchesLowerFilter,
+                    matchesUpperFilter,
+                    anyOf(
+                        canViewAsOwner,
+                        canViewAsPartOfProject
+                    )
                 )
             }
         ).mapItems { it.toModel() }
     }
 
-       private suspend fun JobInformationEntity.toModel(
+    private suspend fun JobInformationEntity.toModel(
         resolveTool: Boolean = false
     ): VerifiedJobWithAccessToken {
         val withoutTool = VerifiedJobWithAccessToken(

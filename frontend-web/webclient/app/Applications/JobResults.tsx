@@ -127,7 +127,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
             options={appStates.filter(it => it.value != currentStateFilter)}
         />
         <Box mb={16} mt={16}>
-            <Label>App started after</Label>
+            <Label>Job created after</Label>
             <InputGroup>
                 <DatePicker
                     placeholderText="Don't filter"
@@ -138,7 +138,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
             </InputGroup>
         </Box>
         <Box mb={16}>
-            <Label>App started before</Label>
+            <Label>Job created before</Label>
             <InputGroup>
                 <DatePicker
                     placeholderText="Don't filter"
