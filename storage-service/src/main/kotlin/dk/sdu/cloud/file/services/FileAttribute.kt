@@ -7,21 +7,6 @@ enum class FileAttribute(val value: Long) {
     FILE_TYPE(1 shl 0),
 
     /**
-     * A flag which determines if this file is a boolean
-     */
-    IS_LINK(1 shl 1),
-
-    /**
-     * The link target
-     */
-    LINK_TARGET(1 shl 2),
-
-    /**
-     * inode (ID) of the link target
-     */
-    LINK_INODE(1 shl 3),
-
-    /**
      * Unix mode
      */
     UNIX_MODE(1 shl 4),
@@ -45,11 +30,6 @@ enum class FileAttribute(val value: Long) {
      * The canonical path
      */
     PATH(1 shl 8),
-
-    /**
-     * The path used to get to the file (not canonical)
-     */
-    RAW_PATH(1 shl 9),
 
     /**
      * The file ID (inode)

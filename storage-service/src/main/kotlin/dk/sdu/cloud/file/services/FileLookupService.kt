@@ -80,7 +80,7 @@ class FileLookupService<Ctx : FSUserContext>(
             result.addAll(
                 when (attrib) {
                     StorageFileAttribute.fileType -> listOf(FileAttribute.FILE_TYPE)
-                    StorageFileAttribute.path -> listOf(FileAttribute.RAW_PATH)
+                    StorageFileAttribute.path -> listOf(FileAttribute.PATH)
                     StorageFileAttribute.createdAt -> listOf(FileAttribute.TIMESTAMPS)
                     StorageFileAttribute.modifiedAt -> listOf(FileAttribute.TIMESTAMPS)
                     StorageFileAttribute.ownerName -> listOf(FileAttribute.OWNER, FileAttribute.CREATOR)
@@ -88,12 +88,9 @@ class FileLookupService<Ctx : FSUserContext>(
                     StorageFileAttribute.acl -> listOf(FileAttribute.SHARES)
                     StorageFileAttribute.sensitivityLevel -> listOf(
                         FileAttribute.SENSITIVITY,
-                        FileAttribute.IS_LINK,
-                        FileAttribute.LINK_TARGET,
                         FileAttribute.PATH
                     )
                     StorageFileAttribute.ownSensitivityLevel -> listOf(FileAttribute.SENSITIVITY)
-                    StorageFileAttribute.link -> listOf(FileAttribute.IS_LINK)
                     StorageFileAttribute.fileId -> listOf(FileAttribute.INODE)
                     StorageFileAttribute.creator -> listOf(FileAttribute.CREATOR)
                     StorageFileAttribute.canonicalPath -> listOf(FileAttribute.PATH)
@@ -103,8 +100,8 @@ class FileLookupService<Ctx : FSUserContext>(
 
         result.addAll(
             when (sortBy) {
-                FileSortBy.TYPE -> listOf(FileAttribute.FILE_TYPE, FileAttribute.RAW_PATH)
-                FileSortBy.PATH -> listOf(FileAttribute.RAW_PATH)
+                FileSortBy.TYPE -> listOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
+                FileSortBy.PATH -> listOf(FileAttribute.PATH)
                 FileSortBy.CREATED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.MODIFIED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.SIZE -> listOf(FileAttribute.SIZE)
@@ -136,17 +133,11 @@ class FileLookupService<Ctx : FSUserContext>(
                     realPath,
                     setOf(
                         FileAttribute.PATH,
-                        FileAttribute.SENSITIVITY,
-                        FileAttribute.IS_LINK,
-                        FileAttribute.LINK_TARGET
+                        FileAttribute.SENSITIVITY
                     )
                 )
-                if (stat.isLink) {
-                    log.info("linkTarget is ${stat.linkTarget}")
-                    lookupInheritedSensitivity(ctx, stat.linkTarget, cache)
-                } else {
-                    stat.sensitivityLevel ?: lookupInheritedSensitivity(ctx, stat.path.parent(), cache)
-                }
+
+                stat.sensitivityLevel ?: lookupInheritedSensitivity(ctx, stat.path.parent(), cache)
             }
         }
 
@@ -172,7 +163,7 @@ class FileLookupService<Ctx : FSUserContext>(
 
         return StorageFileImpl(
             fileTypeOrNull = row._fileType,
-            pathOrNull = row._rawPath,
+            pathOrNull = row._path,
             createdAtOrNull = row._timestamps?.created,
             modifiedAtOrNull = row._timestamps?.modified,
             ownerNameOrNull = owner,
@@ -180,28 +171,14 @@ class FileLookupService<Ctx : FSUserContext>(
             aclOrNull = row._shares,
             sensitivityLevelOrNull = run {
                 if (FileAttribute.SENSITIVITY in attributes) {
-                    if (row.isLink) {
-                        try {
-                            lookupInheritedSensitivity(ctx, row.path, cache)
-                        } catch (ex: FSException.PermissionException) {
-                            // This might fail since the link could point to a target we do not have permissions for.
-                            // In this case we will simply return no sensitivity information about it.
-                            row.sensitivityLevel ?: SensitivityLevel.PRIVATE
-                        }
-                    }
-                    else row.sensitivityLevel ?: lookupInheritedSensitivity(ctx, row.path.parent(), cache)
+                    row.sensitivityLevel ?: lookupInheritedSensitivity(ctx, row.path.parent(), cache)
                 } else {
                     null
                 }
             },
             ownSensitivityLevelOrNull = row._sensitivityLevel,
-            linkOrNull = row._isLink,
             fileIdOrNull = row._inode,
-            creatorOrNull = creator,
-            canonicalPathOrNull = run {
-                if (row.isLink) row._linkTarget
-                else row._rawPath
-            }
+            creatorOrNull = creator
         )
     }
 

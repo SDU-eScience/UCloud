@@ -22,7 +22,6 @@ import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.XATTR_BIRTH
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.acl.UserWithPermissions
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
 import dk.sdu.cloud.file.services.mergeWith
@@ -87,7 +86,6 @@ class LinuxFS(
                     ctx,
                     systemTo,
                     STORAGE_EVENT_MODE,
-                    HashMap(),
                     hasPerformedPermissionCheck = true
                 ).toCreatedEvent(true)
             )
@@ -113,7 +111,6 @@ class LinuxFS(
             ctx,
             systemFrom,
             setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.FILE_TYPE),
-            HashMap(),
             hasPerformedPermissionCheck = true
         )
 
@@ -123,7 +120,6 @@ class LinuxFS(
                     ctx,
                     systemTo,
                     setOf(FileAttribute.FILE_TYPE),
-                    HashMap(),
                     hasPerformedPermissionCheck = true
                 )
             }.getOrNull()?.fileType
@@ -139,7 +135,6 @@ class LinuxFS(
             ctx,
             systemTo,
             STORAGE_EVENT_MODE,
-            HashMap(),
             hasPerformedPermissionCheck = true
         )
         val basePath = toStat.path.removePrefix(toStat.path).removePrefix("/")
@@ -152,13 +147,11 @@ class LinuxFS(
         val rows = if (fromStat.fileType == FileType.DIRECTORY) {
             // We need to emit events for every single file below this root.
             // TODO copyCausedBy
-            val cache = HashMap<String, String>()
             Files.walk(systemTo.toPath()).toList().map {
                 stat(
                     ctx,
                     it.toFile(),
                     STORAGE_EVENT_MODE,
-                    cache,
                     hasPerformedPermissionCheck = true
                 ).toMovedEvent(oldPath, copyCausedBy = true)
             }
@@ -202,7 +195,7 @@ class LinuxFS(
 
             val sortingAttribute = when (sortBy) {
                 FileSortBy.TYPE -> FileAttribute.FILE_TYPE
-                FileSortBy.PATH -> FileAttribute.RAW_PATH
+                FileSortBy.PATH -> FileAttribute.PATH
                 FileSortBy.CREATED_AT, FileSortBy.MODIFIED_AT -> FileAttribute.TIMESTAMPS
                 FileSortBy.SIZE -> FileAttribute.SIZE
                 FileSortBy.ACL -> FileAttribute.SHARES
@@ -210,13 +203,10 @@ class LinuxFS(
                 null -> FileAttribute.PATH
             }
 
-            val pathCache = HashMap<String, String>()
-
             val statsForSorting = stat(
                 ctx,
                 systemFiles,
-                setOf(FileAttribute.RAW_PATH, sortingAttribute),
-                pathCache,
+                setOf(FileAttribute.PATH, sortingAttribute),
                 hasPerformedPermissionCheck = true
             ).filterNotNull()
 
@@ -226,20 +216,19 @@ class LinuxFS(
 
             // Time for the second lookup. We will retrieve all attributes we don't already know about and merge them
             // with first lookup.
-            val relevantFiles = relevantFileRows.map { File(translateAndCheckFile(it.rawPath)) }
+            val relevantFiles = relevantFileRows.map { File(translateAndCheckFile(it.path)) }
 
-            val desiredMode = mode - setOf(sortingAttribute) + setOf(FileAttribute.RAW_PATH)
+            val desiredMode = mode - setOf(sortingAttribute) + setOf(FileAttribute.PATH)
 
             val statsForRelevantRows = stat(
                 ctx,
                 relevantFiles,
                 desiredMode,
-                pathCache,
                 hasPerformedPermissionCheck = true
-            ).filterNotNull().associateBy { it.rawPath }
+            ).filterNotNull().associateBy { it.path }
 
             val items = relevantFileRows.mapNotNull { rowWithSortingInfo ->
-                val rowWithFullInfo = statsForRelevantRows[rowWithSortingInfo.rawPath] ?: return@mapNotNull null
+                val rowWithFullInfo = statsForRelevantRows[rowWithSortingInfo.path] ?: return@mapNotNull null
                 rowWithSortingInfo.mergeWith(rowWithFullInfo)
             }
 
@@ -254,7 +243,6 @@ class LinuxFS(
                 ctx,
                 systemFiles,
                 mode,
-                HashMap(),
                 hasPerformedPermissionCheck = true
             ).filterNotNull().subList(min, max)
 
@@ -283,11 +271,11 @@ class LinuxFS(
             FileSortBy.TYPE -> Comparator.comparing<FileRow, String> {
                 it.fileType.name
             }.thenComparing(Comparator.comparing<FileRow, String> {
-                it.rawPath.fileName().toLowerCase()
+                it.path.fileName().toLowerCase()
             })
 
             FileSortBy.PATH -> Comparator.comparing<FileRow, String> {
-                it.rawPath.fileName().toLowerCase()
+                it.path.fileName().toLowerCase()
             }
 
             FileSortBy.SIZE -> Comparator.comparingLong { it.size }
@@ -308,11 +296,10 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         systemFile: File,
         mode: Set<FileAttribute>,
-        pathCache: MutableMap<String, String>,
         hasPerformedPermissionCheck: Boolean,
         followLink: Boolean = false
     ): FileRow {
-        return stat(ctx, listOf(systemFile), mode, pathCache, hasPerformedPermissionCheck, followLink).first()
+        return stat(ctx, listOf(systemFile), mode, hasPerformedPermissionCheck, followLink).first()
             ?: throw FSException.NotFound()
     }
 
@@ -320,46 +307,22 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         systemFiles: List<File>,
         mode: Set<FileAttribute>,
-        pathCache: MutableMap<String, String>,
         hasPerformedPermissionCheck: Boolean,
         followLink: Boolean = false
     ): List<FileRow?> {
-        fun realPathWithCache(path: String): String {
-            val cached = pathCache[path]
-            return if (cached != null) {
-                cached
-            } else {
-                val result = StandardCLib.realPath(path) ?: path
-                pathCache[path] = result
-                result
-            }
-        }
-
         // The 'shareLookup' contains a mapping between cloud paths and their ACL
         val shareLookup = if (FileAttribute.SHARES in mode) {
-            // We need to resolve all symlinks for this to work.
-            val realPaths = systemFiles.map { realPathWithCache(it.path).toCloudPath() }
-            val parents = realPaths.map { it.parent().normalize() }.toSet()
-
-            fun Map<String, List<UserWithPermissions>>.normalizeMap(): Map<String, List<UserWithPermissions>> {
-                // The returned map from aclService will contain the resolved paths. We need to reverse map them such
-                // that they match the input paths.
-                val reverseMap = realPaths.zip(systemFiles).map { (realPath, systemFile) ->
-                    realPath to systemFile.path.toCloudPath()
-                }.toMap()
-
-                return map { reverseMap.getValue(it.key) to it.value }.toMap()
-            }
+            val parents = systemFiles.map { it.path.toCloudPath().parent().normalize() }
 
             // We optimize in the case that we only have a single unique parent. This makes it quite a bit more
             // efficient.
             if (parents.size == 1) {
                 aclService.listAclsForChildrenOf(
                     parents.first(),
-                    realPaths
-                ).normalizeMap()
+                    parents
+                )
             } else {
-                aclService.listAcl(realPaths).normalizeMap()
+                aclService.listAcl(systemFiles.map { it.path.toCloudPath().normalize() })
             }
         } else {
             emptyMap()
@@ -368,23 +331,23 @@ class LinuxFS(
         log.debug("Result of shareLookup is $shareLookup")
 
         return systemFiles.map { systemFile ->
+            val capturedIsLink = Files.isSymbolicLink(systemFile.toPath())
+            // TODO This should just remove it silently?
+            if (capturedIsLink) throw FSException.CriticalException("$systemFile is a symbolic link")
+
             try {
                 if (!hasPerformedPermissionCheck) {
                     aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AccessRight.READ)
                 }
 
                 var fileType: FileType? = null
-                var isLink: Boolean? = null
-                var linkTarget: String? = null
                 var unixMode: Int? = null
                 var timestamps: Timestamps? = null
                 var path: String? = null
-                var rawPath: String? = null
                 var inode: String? = null
                 var size: Long? = null
                 var shares: List<AccessEntry>? = null
                 var sensitivityLevel: SensitivityLevel? = null
-                var linkInode: String? = null
 
                 val systemPath = try {
                     systemFile.toPath()
@@ -438,16 +401,10 @@ class LinuxFS(
                         }
                     }
 
-                    if (FileAttribute.RAW_PATH in mode) rawPath = systemFile.absolutePath.toCloudPath()
-                    if (FileAttribute.PATH in mode) {
-                        val realParent = realPathWithCache(systemFile.parent)
-                        path = joinPath(realParent, systemFile.name).toCloudPath()
-                    }
+                    if (FileAttribute.PATH in mode) path = systemFile.absolutePath.toCloudPath()
 
                     if (basicAttributes != null) {
                         // We need to always ask if this file is a link to correctly resolve target file type.
-                        val capturedIsLink = Files.isSymbolicLink(systemFile.toPath())
-                        isLink = capturedIsLink
 
                         if (FileAttribute.SIZE in mode) size = basicAttributes.getValue("size") as Long
 
@@ -482,25 +439,6 @@ class LinuxFS(
                                 creationTime,
                                 lastModified.toMillis()
                             )
-                        }
-
-                        if (FileAttribute.IS_LINK in mode || FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode) {
-                            if (capturedIsLink && (FileAttribute.LINK_TARGET in mode || FileAttribute.LINK_INODE in mode)) {
-                                val readSymbolicLink = Files.readSymbolicLink(systemPath)
-                                var targetExists = true
-                                linkInode = try {
-                                    Files.readAttributes(readSymbolicLink, "unix:ino")["ino"].toString()
-                                } catch (ex: NoSuchFileException) {
-                                    targetExists = false
-                                    "0"
-                                }
-
-                                linkTarget = if (targetExists) {
-                                    readSymbolicLink?.toFile()?.absolutePath?.toCloudPath()
-                                } else {
-                                    "/"
-                                }
-                            }
                         }
                     }
                 }
@@ -541,19 +479,15 @@ class LinuxFS(
 
                 FileRow(
                     fileType,
-                    isLink,
-                    linkTarget,
                     unixMode,
                     realOwner,
                     "",
                     timestamps,
                     path,
-                    rawPath,
                     inode,
                     size,
                     shares,
                     sensitivityLevel,
-                    linkInode,
                     realOwner
                 )
             } catch (ex: NoSuchFileException) {
@@ -569,12 +503,9 @@ class LinuxFS(
 
             val systemFile = File(translateAndCheckFile(path))
             val deletedRows = ArrayList<StorageEvent.Deleted>()
-            val cache = HashMap<String, String>()
-
-
 
             if (!Files.exists(systemFile.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FSException.NotFound()
-            traverseAndDelete(ctx, systemFile.toPath(), cache, deletedRows)
+            traverseAndDelete(ctx, systemFile.toPath(), deletedRows)
 
             FSResult(0, deletedRows.toList())
         }
@@ -582,11 +513,10 @@ class LinuxFS(
     private suspend fun delete(
         ctx: LinuxFSRunner,
         path: Path,
-        cache: HashMap<String, String>,
         deletedRows: ArrayList<StorageEvent.Deleted>
     ) {
         try {
-            val stat = stat(ctx, path.toFile(), STORAGE_EVENT_MODE, cache, hasPerformedPermissionCheck = true)
+            val stat = stat(ctx, path.toFile(), STORAGE_EVENT_MODE, hasPerformedPermissionCheck = true)
             Files.delete(path)
             deletedRows.add(stat.toDeletedEvent(true))
         } catch (ex: NoSuchFileException) {
@@ -597,21 +527,20 @@ class LinuxFS(
     private suspend fun traverseAndDelete(
         ctx: LinuxFSRunner,
         path: Path,
-        cache: HashMap<String, String>,
         deletedRows: ArrayList<StorageEvent.Deleted>
     ) {
         if (Files.isSymbolicLink(path)) {
-            delete(ctx, path, cache, deletedRows)
+            delete(ctx, path, deletedRows)
             return
         }
 
         if (Files.isDirectory(path)) {
             path.toFile().listFiles()?.forEach {
-                traverseAndDelete(ctx, it.toPath(), cache, deletedRows)
+                traverseAndDelete(ctx, it.toPath(), deletedRows)
             }
         }
 
-        delete(ctx, path, cache, deletedRows)
+        delete(ctx, path, deletedRows)
     }
 
     override suspend fun openForWriting(
@@ -650,7 +579,6 @@ class LinuxFS(
                         ctx,
                         systemFile,
                         STORAGE_EVENT_MODE,
-                        HashMap(),
                         hasPerformedPermissionCheck = true
                     ).toCreatedEvent(true)
                 )
@@ -687,7 +615,7 @@ class LinuxFS(
         FSResult(
             0,
             listOf(
-                stat(ctx, file, STORAGE_EVENT_MODE, HashMap(), hasPerformedPermissionCheck = false).toCreatedEvent(true)
+                stat(ctx, file, STORAGE_EVENT_MODE, hasPerformedPermissionCheck = false).toCreatedEvent(true)
             )
         )
     }
@@ -700,13 +628,12 @@ class LinuxFS(
         aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
         val systemFile = File(translateAndCheckFile(path))
-        val cache = HashMap<String, String>()
         FSResult(
             0,
             Files.walk(systemFile.toPath())
                 .toList()
                 .map {
-                    stat(ctx, it.toFile(), mode, cache, hasPerformedPermissionCheck = true)
+                    stat(ctx, it.toFile(), mode, hasPerformedPermissionCheck = true)
                 }
         )
     }
@@ -727,7 +654,6 @@ class LinuxFS(
                     ctx,
                     systemFile,
                     STORAGE_EVENT_MODE,
-                    HashMap(),
                     hasPerformedPermissionCheck = true
                 ).toCreatedEvent(true)
             )
@@ -814,7 +740,7 @@ class LinuxFS(
 
             FSResult(
                 0,
-                stat(ctx, systemFile, mode, HashMap(), hasPerformedPermissionCheck = true)
+                stat(ctx, systemFile, mode, hasPerformedPermissionCheck = true)
             )
         }
 

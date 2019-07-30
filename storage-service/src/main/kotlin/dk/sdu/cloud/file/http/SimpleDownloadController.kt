@@ -78,24 +78,10 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                         FileAttribute.PATH,
                         FileAttribute.INODE,
                         FileAttribute.SIZE,
-                        FileAttribute.FILE_TYPE,
-                        FileAttribute.IS_LINK,
-                        FileAttribute.LINK_TARGET
+                        FileAttribute.FILE_TYPE
                     )
 
-                    stat = run {
-                        val stat = fs.stat(ctx, request.path, mode)
-
-                        if (stat.isLink) {
-                            // If the link is dead the linkTarget will be equal to "/"
-                            if (stat.linkTarget == "/") throw FSException.NotFound()
-
-                            fs.stat(ctx, stat.linkTarget, mode)
-                        } else {
-                            stat
-                        }
-                    }
-
+                    stat = fs.stat(ctx, request.path, mode)
                     filesDownloaded.add(stat.inode)
                 }
 

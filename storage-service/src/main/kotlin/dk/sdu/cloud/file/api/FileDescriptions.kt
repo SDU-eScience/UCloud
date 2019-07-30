@@ -168,7 +168,6 @@ enum class StorageFileAttribute {
     acl,
     sensitivityLevel,
     ownSensitivityLevel,
-    link,
     fileId,
     creator,
     canonicalPath

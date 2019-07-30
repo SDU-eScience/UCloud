@@ -324,18 +324,6 @@ fun TestApplicationEngine.findHome(
     )
 }
 
-fun KtorApplicationTestContext.createLink(
-    request: CreateLinkRequest,
-    user: SecurityPrincipal = TestUsers.user
-): TestApplicationCall {
-    return sendJson(
-        HttpMethod.Post,
-        "/api/files/create-link",
-        request,
-        user
-    )
-}
-
 fun KtorApplicationTestContext.updateAcl(
     request: UpdateAclRequest,
     user: SecurityPrincipal

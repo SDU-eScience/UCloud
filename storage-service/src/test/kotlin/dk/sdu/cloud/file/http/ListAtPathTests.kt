@@ -65,7 +65,6 @@ class ListAtPathTests {
                     role = Role.USER,
                     attributes = setOf(
                         StorageFileAttribute.fileId,
-                        StorageFileAttribute.link,
                         StorageFileAttribute.modifiedAt,
                         StorageFileAttribute.size
                     ),

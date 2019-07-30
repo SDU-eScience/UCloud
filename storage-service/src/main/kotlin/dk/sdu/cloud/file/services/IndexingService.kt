@@ -88,8 +88,8 @@ class IndexingService<Ctx : FSUserContext>(
         val shouldContinue = try {
             roots.map { root ->
                 val isValid = fs
-                    .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE, FileAttribute.IS_LINK))
-                    ?.takeIf { it.fileType == FileType.DIRECTORY && !it.isLink } != null
+                    .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE))
+                    ?.takeIf { it.fileType == FileType.DIRECTORY } != null
 
                 root to isValid
             }.toMap()

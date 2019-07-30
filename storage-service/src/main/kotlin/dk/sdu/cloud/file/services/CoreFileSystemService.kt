@@ -114,8 +114,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
             fs.makeDirectory(ctx, newRoot).emitAll()
 
-            tree(ctx, from, setOf(FileAttribute.RAW_PATH)).forEach { currentFile ->
-                val currentPath = currentFile.rawPath.normalize()
+            tree(ctx, from, setOf(FileAttribute.PATH)).forEach { currentFile ->
+                val currentPath = currentFile.path.normalize()
                 retryWithCatch(
                     retryDelayInMs = 0L,
                     exceptionFilter = { it is FSException.AlreadyExists },

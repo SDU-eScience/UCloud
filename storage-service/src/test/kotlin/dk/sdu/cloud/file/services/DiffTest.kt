@@ -30,8 +30,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-private const val FILE_OWNER = "file creator"
-
 class DiffTest {
     private data class TestingContext<Ctx : FSUserContext>(
         val fsRoot: File,
@@ -503,7 +501,6 @@ class DiffTest {
                         assertCorrectEvents(EventServiceMock.recordedEvents.map { it.value })
                     }
                 }
-
             }
         )
     }
@@ -539,7 +536,6 @@ class DiffTest {
 
         val directory = mockk<FileRow>()
         coEvery { directory.fileType } returns FileType.DIRECTORY
-        coEvery { directory.isLink } returns false
         coEvery { coreFs.statOrNull(any(), any(), any()) } returns directory
 
         coEvery { coreFs.listDirectory(any(), any(), any()) } throws FSException.CriticalException("Mock")
