@@ -179,11 +179,13 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                 height={"3em"}
                 alignItems="center"
                 left={
-                    <BreadCrumbs
-                        homeFolder={Cloud.homeFolder}
-                        currentPath={props.path}
-                        navigate={path => fetchFiles({ path })}
-                    />
+                    <Box mt="48px">
+                        <BreadCrumbs
+                            homeFolder={Cloud.homeFolder}
+                            currentPath={props.path}
+                            navigate={path => fetchFiles({path})}
+                        />
+                    </Box>
                 }
                 right={
                     <Refresh
