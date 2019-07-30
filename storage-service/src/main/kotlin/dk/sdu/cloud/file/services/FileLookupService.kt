@@ -218,7 +218,7 @@ class FileLookupService<Ctx : FSUserContext>(
         val allFiles = listDirectorySorted(ctx, path.parent(), sortBy, order, attributes).items
         println(allFiles)
         // The file isn't found because we resolve the symlink in the returned path. We should just look for the file
-        // name?
+        // name
         val index = allFiles.indexOfFirst { it.path.fileName() == path.fileName() }
         if (index == -1) throw FSException.NotFound()
 

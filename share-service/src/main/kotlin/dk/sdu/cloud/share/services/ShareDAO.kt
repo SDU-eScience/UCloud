@@ -88,6 +88,8 @@ interface ShareDAO<Session> {
         session: Session,
         shareIds: List<Long>
     )
+
+    fun listAll(session: Session): Sequence<InternalShare>
 }
 
 data class ListSharesResponse(

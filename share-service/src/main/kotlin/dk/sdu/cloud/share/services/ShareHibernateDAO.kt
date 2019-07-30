@@ -21,6 +21,7 @@ import dk.sdu.cloud.service.db.deleteCriteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.share.api.ShareState
+import org.hibernate.ScrollMode
 import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
@@ -299,6 +300,15 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
 
     override fun deleteAllByShareId(session: HibernateSession, shareIds: List<Long>) {
         session.deleteCriteria<ShareEntity> { entity[ShareEntity::id] isInCollection shareIds }.executeUpdate()
+    }
+
+    override fun listAll(session: HibernateSession): Sequence<InternalShare> = sequence {
+        session.createQuery("from ShareEntity").scroll(ScrollMode.FORWARD_ONLY).use { iterator ->
+             while (iterator.next()) {
+                 val entity = iterator.get(0) as? ShareEntity ?: break
+                 yield(entity.toModel())
+             }
+        }
     }
 
     private fun internalFindAllByFileId(
