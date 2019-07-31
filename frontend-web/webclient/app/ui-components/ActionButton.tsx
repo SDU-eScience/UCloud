@@ -12,4 +12,6 @@ export const ActionButton: React.FunctionComponent<{ loadable: LoadableContent }
     </Box>;
 };
 
+ActionButton.displayName = "ActionButton"
+
 export default ActionButton;

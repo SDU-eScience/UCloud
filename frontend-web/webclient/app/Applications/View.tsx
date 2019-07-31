@@ -128,7 +128,7 @@ const AppHeaderDetails = styled.div`
 
 export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boolean}> = props => {
     const isSlim = props.slim === true;
-    const size = isSlim ? "32px" : "128px";
+    const size = isSlim ? "32px" : "128px"; 
     return (
         <AppHeaderBase>
             <Box mr={16} >
@@ -143,7 +143,9 @@ export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boole
                         <Heading.h2>{props.application.metadata.title}</Heading.h2>
                         <Heading.h3>v{props.application.metadata.version}</Heading.h3>
                         <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
+                        <Heading.h6>
                         <Tags tags={props.application.metadata.tags} />
+                        </Heading.h6>
                     </>
                 }
             </AppHeaderDetails>
@@ -219,12 +221,16 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<WithApp
 );
 
 const TagStyle = styled(Link)`
+    background-color: ${({theme}) => theme.colors.darkGray};
+    color: #ebeff3;
+    &:hover { color: #ebeff3;}
     text-decoration: none;
-    padding: 6px;
-    margin-right: 3px;
-    border: 1px solid ${props => props.theme.colors.gray};
-    border-radius: 5px;
+    text-transform: Uppercase;
+    padding: 0px 10px 0px 10px;
+    margin-right: 4px;
+    border-radius: 3px;
 `;
+
 
 const TagBase = styled.div`
     display: flex;
@@ -238,7 +244,7 @@ function Tags({tags}: {tags: string[]}) {
         <TagBase>
             {
                 tags.slice(0, 5).map(tag => (
-                    <TagStyle to={Pages.browseByTag(tag)}>{tag}</TagStyle>
+                    <TagStyle to={Pages.browseByTag(tag)}>{tag}</TagStyle> 
                 ))
             }
         </TagBase>

@@ -5,12 +5,11 @@ import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Type
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
 import {fileInfoPage, getFilenameFromPath} from "Utilities/FileUtilities";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
-import {Box, Card, Flex, Icon, Text} from "ui-components";
+import {Box, Card, Flex, Icon, Text, SelectableText, SelectableTextWrapper} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {FileIcon, addStandardDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
-import {SearchOptions, SelectableText} from "Search/Search";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {UserAvatar} from "Navigation/Header";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -34,6 +33,7 @@ import {listShares, findShare, createShare, acceptShare, revokeShare, updateShar
 import {loadingAction} from "Loading";
 import * as Pagination from "Pagination";
 import Link from "ui-components/Link";
+import {PaginationButtons} from "Pagination";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
@@ -113,8 +113,31 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         return <UserAvatar avatar={avatar} mr={"10px"} />;
     };
 
+    const GroupedShareCardWrapper = (props: {shareByPath: SharesByPath}) => {
+        const [page, setPage] = useState(0);
+        const pageSize = 5;
+        return (<GroupedShareCard onUpdate={refresh} groupedShare={props.shareByPath} key={props.shareByPath.path}>
+            {props.shareByPath.shares.slice(pageSize * page, pageSize * page + pageSize).map(share =>
+                <ShareRow
+                    key={share.id}
+                    sharedBy={props.shareByPath.sharedBy}
+                    onUpdate={refresh}
+                    share={share}
+                    sharedByMe={sharedByMe}
+                >
+                    <AvatarComponent username={sharedByMe ? share.sharedWith : props.shareByPath.sharedBy} />
+                </ShareRow>
+            )}
+            <PaginationButtons
+                totalPages={Math.floor(props.shareByPath.shares.length / pageSize)}
+                currentPage={page}
+                toPage={page => setPage(page)}
+            />
+        </GroupedShareCard>)
+    }
+
     const header = props.byPath !== undefined ? null : (
-        <SearchOptions>
+        <SelectableTextWrapper>
             <SelectableText
                 mr="1em"
                 cursor="pointer"
@@ -132,7 +155,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
             >
                 Shared by Me
             </SelectableText>
-        </SearchOptions>
+        </SelectableTextWrapper>
     );
 
     const shares = page.data.items.filter(it => it.sharedByMe == sharedByMe || props.byPath !== undefined);
@@ -151,13 +174,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 shares.length === 0 ?
                     <NoShares sharedByMe={sharedByMe} /> :
                     shares.map(it =>
-                        <GroupedShareCard onUpdate={refresh} groupedShare={it} key={it.path}>
-                            {it.shares.map(share =>
-                                <ShareRow key={share.id} sharedBy={it.sharedBy} onUpdate={refresh} share={share} sharedByMe={sharedByMe}>
-                                    <AvatarComponent username={sharedByMe ? share.sharedWith : it.sharedBy} />
-                                </ShareRow>
-                            )}
-                        </GroupedShareCard>
+                        <GroupedShareCardWrapper shareByPath={it} />
                     )
             }
         </>
@@ -248,7 +265,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                                     sharePermissionsToText(newShareRights)
                                 }
                             >
-                                <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT} />
+                                <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)}
+                                    text={CAN_VIEW_TEXT} />
                                 <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
                                     text={CAN_EDIT_TEXT} />
                             </ClickableDropdown>
@@ -273,7 +291,7 @@ const ShareRow: React.FunctionComponent<{
     share: Share,
     sharedByMe: boolean,
     sharedBy: string,
-    onUpdate: () => void    
+    onUpdate: () => void
 }> = ({share, sharedByMe, onUpdate, sharedBy, ...props}) => {
     const [isLoading, sendCommand] = useAsyncCommand();
 

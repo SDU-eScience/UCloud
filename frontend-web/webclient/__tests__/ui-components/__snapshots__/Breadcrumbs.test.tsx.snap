@@ -6,6 +6,9 @@ exports[`Breadcrumbs Build breadcrumbs 1`] = `
   padding-right: 10px;
   margin: 0;
   list-style: none;
+  max-width: 85%;
+  height: 85px;
+  overflow-y: scroll;
 }
 
 .c0 li {
@@ -38,11 +41,14 @@ exports[`Breadcrumbs Build breadcrumbs 1`] = `
   <li>
     <span
       onClick={[Function]}
+      title="Home"
     >
       Home
     </span>
   </li>
-  <li>
+  <li
+    title="folder1"
+  >
     folder1
   </li>
 </ul>

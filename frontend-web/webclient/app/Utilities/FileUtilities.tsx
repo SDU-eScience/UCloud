@@ -1,7 +1,7 @@
 import {Cloud} from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import {File, MoveCopyOperations, Operation, SortOrder, SortBy, FileType, FileOperation, FileResource} from "Files";
-import {Page} from "Types";
+import {File, MoveCopyOperations, SortOrder, SortBy, FileType, FileOperation, FileResource} from "Files";
+import {Page, Operation} from "Types";
 import {History} from "history";
 import * as UF from "UtilityFunctions";
 import {SensitivityLevelMap} from "DefaultObjects";
@@ -140,7 +140,7 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
     return page;
 };
 
-export type AccessRight = "READ" | "WRITE" | "EXECUTE";
+export type AccessRight = "READ" | "WRITE";
 
 function hasAccess(accessRight: AccessRight, file: File) {
     const username = Cloud.activeUsername;
@@ -185,7 +185,7 @@ interface StateLessOperations {
 /**
  * @returns Stateless operations for files
  */
-export const StateLessOperations = ({setLoading, onSensitivityChange}: StateLessOperations): Operation[] => [
+export const StateLessOperations = ({setLoading, onSensitivityChange}: StateLessOperations): Operation<File>[] => [
     {
         text: "Share",
         onClick: (files: File[], cloud: SDUCloud) => shareFiles({files, cloud}),
@@ -245,7 +245,7 @@ interface FileSelectorOperations {
 /**
  * @returns Move and Copy operations for files
  */
-export const FileSelectorOperations = ({fileSelectorOperations, setLoading}: FileSelectorOperations): Operation[] => [
+export const FileSelectorOperations = ({fileSelectorOperations, setLoading}: FileSelectorOperations): Operation<File>[] => [
     {
         text: "Copy",
         onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({
@@ -286,7 +286,7 @@ interface ExtractionOperation {
  *
  * @param onFinished called when extraction is completed successfully.
  */
-export const ExtractionOperation = ({onFinished}: ExtractionOperation): Operation[] => [
+export const ExtractionOperation = ({onFinished}: ExtractionOperation): Operation<File>[] => [
     {
         text: "Extract archive",
         onClick: (files, cloud) => extractArchive({files, cloud, onFinished}),
@@ -307,7 +307,7 @@ interface MoveFileToTrashOperation {
  * @param onMoved To be called on completed deletion of files
  * @returns the Delete operation in an array
  */
-export const MoveFileToTrashOperation = ({onMoved, setLoading}: MoveFileToTrashOperation): Operation[] => [
+export const MoveFileToTrashOperation = ({onMoved, setLoading}: MoveFileToTrashOperation): Operation<File>[] => [
     {
         text: "Move to Trash",
         onClick: (files, cloud) => moveToTrash({files, cloud, setLoading, callback: onMoved}),
@@ -324,7 +324,7 @@ export const MoveFileToTrashOperation = ({onMoved, setLoading}: MoveFileToTrashO
     }
 ];
 
-export const ClearTrashOperations = (toHome: () => void): Operation[] => [{
+export const ClearTrashOperations = (toHome: () => void): Operation<File>[] => [{
     text: "Clear Trash",
     onClick: (files, cloud) => clearTrash({cloud, callback: toHome}),
     disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),

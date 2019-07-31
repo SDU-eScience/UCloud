@@ -66,6 +66,7 @@ function FavoriteFiles(props: FavoriteFilesProps) {
                         onFavoriteFile={async files => 
                             (await favoriteFileAsync(files[0], Cloud), fetchFileFavorites(pageNumber, itemsPerPage))
                         }
+                        canNavigateFiles
                         fileOperations={fileOperations}
                         files={page.items}
                         sortBy={SortBy.PATH}

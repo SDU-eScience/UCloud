@@ -1,6 +1,6 @@
 import * as React from 'react';
 import styled from 'styled-components';
-import { space, fontSize, themeGet, SpaceProps } from 'styled-system';
+import {space, fontSize, SpaceProps} from 'styled-system';
 
 import theme from './theme';
 import Flex from './Flex';
@@ -10,30 +10,32 @@ const ClickableIcon = styled(Icon)`
   pointer-events: none;
 `;
 
-const left = ({ leftLabel }: { leftLabel?: boolean }) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
-const right = ({ rightLabel }: { rightLabel?: boolean }) => rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
+const left = ({leftLabel}: {leftLabel?: boolean}) =>
+  leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
+const right = ({rightLabel}: {rightLabel?: boolean}) =>
+  rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 
-const SelectBase = styled.select<{ fontSize?: number | string, leftLabel?: boolean, rightLabel?: boolean, showError?: boolean } & SpaceProps>`
+const SelectBase = styled.select<{fontSize?: number | string, leftLabel?: boolean, rightLabel?: boolean, showError?: boolean} & SpaceProps>`
   appearance: none;
   display: block;
   width: 100%;
   font-family: inherit;
   color: inherit;
 
-  ${({ showError, theme }) => showError ? `&:invalid {
+  ${({showError, theme}) => showError ? `&:invalid {
     background-color: ${theme.colors.lightRed};
   }` : null}
 
   background-color: transparent;
-  border-radius: ${themeGet('radius')};
+  border-radius: ${theme.radius};
   border-width: 1px;
   border-style: solid;
-  border-color: ${themeGet('colors.borderGray')};
+  border-color: ${({theme}) => theme.colors.borderGray};
   ${space} ${fontSize} &:focus {
     outline: none;
-    border-color: ${themeGet('colors.blue')};
-    box-shadow: 0 0 0 1px ${themeGet('colors.blue')};
+    border-color: ${({theme}) => theme.colors.blue};
+    box-shadow: 0 0 0 1px ${({theme}) => theme.colors.blue};
   }
   ${left}
   ${right}

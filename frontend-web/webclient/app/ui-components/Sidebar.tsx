@@ -151,8 +151,8 @@ function enumToLabel(value: SidebarPages): string {
             return "Favorites";
         case SidebarPages.AppStore:
             return "Apps";
-        case SidebarPages.MyResults:
-            return "My Results";
+        case SidebarPages.Runs:
+            return "Runs";
         case SidebarPages.Publish:
             return "Publish";
         case SidebarPages.Activity:
@@ -190,7 +190,7 @@ export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarM
             {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "starFilled", label: "Favorites", to: "/favorites"},
             {icon: "appStore", label: "Apps", to: "/applications/"},
-            {icon: "results", label: "My Results", to: "/applications/results/"}
+            {icon: "results", label: "Runs", to: "/applications/results/"}
         ], predicate: () => Cloud.isLoggedIn
     },
     auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Cloud.isLoggedIn},
@@ -248,7 +248,6 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                         {`Click to copy "${Cloud.username}" to clipboard`}
                     </Tooltip>
                 </SidebarTextLabel> : null}
-
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
                 <SidebarTextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1}
                     space=".5em">
@@ -275,7 +274,7 @@ export const enum SidebarPages {
     Shares,
     Favorites,
     AppStore,
-    MyResults,
+    Runs,
     Publish,
     Activity,
     Admin,

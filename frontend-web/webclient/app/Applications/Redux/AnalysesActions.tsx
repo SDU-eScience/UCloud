@@ -1,13 +1,13 @@
 import {Cloud} from "Authentication/SDUCloudObject";
-import {SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_ERROR} from "./AnalysesReducer";
-import {Page, ReceivePage, SetLoadingAction} from "Types";
+import {SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_ERROR, CHECK_ALL_ANALYSES, CHECK_ANALYSIS} from "./AnalysesReducer";
+import {Page, ReceivePage, SetLoadingAction, PayloadAction} from "Types";
 import {Analysis} from "..";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Action} from "redux";
 
 
-export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoading;
+export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoading | CheckAnalysis | CheckAllAnalyses;
 
 /**
  * Fetches a page of analyses based on the itemsPerPage and page provided
@@ -53,3 +53,20 @@ export const setLoading = (loading: boolean): AnalysesLoading => ({
     type: SET_ANALYSES_LOADING,
     payload: {loading}
 });
+
+type CheckAllAnalyses = PayloadAction<typeof CHECK_ALL_ANALYSES, {checked: boolean}>
+export const checkAllAnalyses = (checked: boolean) => ({
+    type: CHECK_ALL_ANALYSES,
+    payload: {
+        checked
+    }
+});
+
+type CheckAnalysis = PayloadAction<typeof CHECK_ANALYSIS, {jobId: string, checked: boolean}>
+export const checkAnalysis = (jobId: string, checked: boolean) => ({
+    type: CHECK_ANALYSIS,
+    payload: {
+        jobId,
+        checked
+    }
+})

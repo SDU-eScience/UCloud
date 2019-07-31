@@ -7,7 +7,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation, FileResource } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
-import { Input, Icon, Button, Flex, Box } from "ui-components";
+import { Input, Icon, Button, Flex, Box, SelectableText, SelectableTextWrapper } from "ui-components";
 import * as ReactModal from "react-modal";
 import { Spacer } from "ui-components/Spacer";
 import FilesTable from "./FilesTable";
@@ -16,7 +16,6 @@ import { addTrailingSlash, errorMessageOrDefault } from "UtilityFunctions";
 import styled from "styled-components";
 import { Refresh } from "Navigation/Header";
 import { Page } from "Types";
-import { SelectableText, SearchOptions } from "Search/Search";
 import { InputLabel } from "ui-components/Input";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
@@ -158,7 +157,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             onAfterOpen={() => fetchFiles({})}
             style={FileSelectorModalStyle}
         >
-            <SearchOptions>
+            <SelectableTextWrapper>
                 <SelectableText
                     cursor="pointer"
                     mr="1em"
@@ -174,17 +173,19 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
 
                 <Box mr="auto" />
                 <Icon name="close" onClick={props.onHide} />
-            </SearchOptions>
+            </SelectableTextWrapper>
 
             <Spacer
                 height={"3em"}
                 alignItems="center"
                 left={
-                    <BreadCrumbs
-                        homeFolder={Cloud.homeFolder}
-                        currentPath={props.path}
-                        navigate={path => fetchFiles({ path })}
-                    />
+                    <Box mt="48px">
+                        <BreadCrumbs
+                            homeFolder={Cloud.homeFolder}
+                            currentPath={props.path}
+                            navigate={path => fetchFiles({path})}
+                        />
+                    </Box>
                 }
                 right={
                     <Refresh

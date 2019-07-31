@@ -41,8 +41,7 @@ export enum AnalysesStatusMap {
 export enum RightsNameMap {
     "NONE" = "None",
     "READ" = "Read",
-    "READ_WRITE" = "Read/Write",
-    "EXECUTE" = "Execute"
+    "READ_WRITE" = "Read/Write"
 }
 
 export enum SensitivityLevel {

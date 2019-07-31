@@ -8,11 +8,18 @@ import {List as PaginationList} from "Pagination";
 import {connect} from "react-redux";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
 import {ReduxObject, DetailedResultReduxObject, emptyPage} from "DefaultObjects";
-import {DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations, AppState, WithAppInvocation} from ".";
+import {
+    DetailedResultProps,
+    DetailedResultState,
+    StdElement,
+    DetailedResultOperations,
+    AppState,
+    WithAppInvocation
+} from ".";
 import {File, SortBy, SortOrder} from "Files";
 import {allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath} from "Utilities/FileUtilities";
 import {favoriteFileFromPage} from "Utilities/FileUtilities";
-import {hpcJobQuery, cancelJobQuery, cancelJobDialog} from "Utilities/ApplicationUtilities";
+import {hpcJobQuery, cancelJobDialog, inCancelableState, cancelJob} from "Utilities/ApplicationUtilities";
 import {Dispatch} from "redux";
 import {fetchPage, setLoading, receivePage} from "Applications/Redux/DetailedResultActions";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
@@ -30,10 +37,13 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
+import {Spacer} from "ui-components/Spacer";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
 `;
+
+Panel.displayName = "Panel";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -141,7 +151,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
             } else if (this.state.appType === "WEB" && !this.state.webLink) {
                 this.props.setLoading(false);
-                const {response} = await this.state.promises.makeCancelable(Cloud.get(`/hpc/jobs/query-web/${this.jobId}`)).promise;
+                const {response} = await this.state.promises.makeCancelable(
+                    Cloud.get(`/hpc/jobs/query-web/${this.jobId}`)
+                ).promise;
                 this.setState(() => ({webLink: response.path}));
             }
         }
@@ -196,7 +208,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
         this.setState(() => ({fsLoading: true}))
         try {
-            const {response} = await this.state.promises.makeCancelable(Cloud.get(favoritesQuery(pageNumber, itemsPerPage))).promise;
+            const {response} = await this.state.promises.makeCancelable(
+                Cloud.get(favoritesQuery(pageNumber, itemsPerPage))
+            ).promise;
             this.setState(() => ({
                 fsIsFavorite: true,
                 fsPath: "Favorites",
@@ -209,7 +223,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         }
     }
 
-    private readonly favoriteFile = async (file: File) => this.props.receivePage(await favoriteFileFromPage(this.props.page, [file], Cloud));
+    private readonly favoriteFile = async (file: File) => this.props.receivePage(
+        await favoriteFileFromPage(this.props.page, [file], Cloud)
+    );
 
     private renderProgressPanel = () => (
         <Panel>
@@ -249,7 +265,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 domEntries.push(
                     <Box key={AppState.SUCCESS} pt="0.8em" pb="0.8em">
                         Application has completed successfully.
-                        Click <Link to={fileTablePage(this.state.outputFolder!!)}>here</Link> to go to the output.
+                        Click <Link to={fileTablePage(this.state.outputFolder!)}>here</Link> to go to the output.
                     </Box>
                 );
                 break;
@@ -276,8 +292,17 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     &nbsp;
                     <Dropdown>
                         <Icon name="info" color="white" color2="black" size="1em" />
-                        <DropdownContent width="400px" visible colorOnHover={false} color="white" backgroundColor="black">
-                            <TextSpan fontSize={1}>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</TextSpan>
+                        <DropdownContent
+                            width="400px"
+                            visible
+                            colorOnHover={false}
+                            color="white"
+                            backgroundColor="black"
+                        >
+                            <TextSpan fontSize={1}>
+                                Streams are collected
+                                 from <code>stdout</code> and <code>stderr</code> of your application.
+                            </TextSpan>
                         </DropdownContent>
                     </Dropdown>
                 </Heading.h4>
@@ -330,7 +355,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     show={state.fsShown}
                     onHide={() => this.setState(() => ({fsShown: false}))}
                     path={state.fsPath}
-                    fetchFiles={(path, pageNumber, itemsPerPage) => this.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
+                    fetchFiles={(path, pageNumber, itemsPerPage) =>
+                        this.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
                     loading={state.fsLoading}
                     errorMessage={state.fsError}
                     onErrorDismiss={() => this.setState(() => ({fsError: undefined}))}
@@ -345,21 +371,19 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private renderWebLink() {
-        if (this.state.appState !== AppState.RUNNING || this.state.appType !== "WEB" || !this.state.webLink) return null;
+        if (this.state.appState !== AppState.RUNNING || this.state.appType !== "WEB" || !this.state.webLink)
+            return null;
         return <ExternalLink href={this.state.webLink}><Button color="green">Go to web interface</Button></ExternalLink>
     }
 
-    private async cancelJob() {
+    private cancelJob() {
         cancelJobDialog({
             jobId: this.jobId,
-            onConfirm: () => {
+            onConfirm: async () => {
                 try {
-                    this.state.promises.makeCancelable(Cloud.delete(cancelJobQuery, {jobId: this.jobId}));
+                    await cancelJob(Cloud, this.jobId)
                 } catch (e) {
-                    snackbarStore.addSnack({
-                        type: SnackType.Failure,
-                        message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
-                    });
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"));
                 }
             }
         });
@@ -372,7 +396,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     private async fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): Promise<void> {
         try {
-            const r = await this.state.promises.makeCancelable(Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))).promise;
+            const r = await this.state.promises.makeCancelable(
+                Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))
+            ).promise;
             this.setState(() => ({fsPage: r.response, fsPath: resolvePath(path), fsIsFavorite: false}))
         } catch (e) {
             this.setState(() => ({fsError: errorMessageOrDefault(e, "An error occurred fetching files")}));
@@ -386,8 +412,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     {this.renderProgressPanel()}
                     {this.renderInfoPanel()}
                     {this.renderFilePanel()}
-                    {this.renderWebLink()}
-                    {this.renderCancelButton()}
+                    <Spacer left={this.renderWebLink()} right={this.renderCancelButton()}/>
                     {this.renderStreamPanel()}
                 </ContainerForText> : <LoadingIcon size={24} />}
         />
@@ -431,7 +456,9 @@ const stateToTitle = (state: AppState): string => {
     }
 }
 
-const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, currentState: AppState}> = ({stateToDisplay, currentState}) => {
+const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, currentState: AppState}> = ({
+    stateToDisplay, currentState
+}) => {
     const active = stateToDisplay === currentState;
     const complete = isStateComplete(stateToDisplay, currentState);
     const failed = currentState === AppState.FAILURE;
@@ -446,14 +473,12 @@ const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, curren
     );
 };
 
-function inCancelableState(state: AppState) {
-    return state === AppState.VALIDATED || state === AppState.PREPARED || state === AppState.SCHEDULED || state === AppState.RUNNING;
-}
-
 const Stream = styled.pre`
     height: 500px;
     overflow: auto;
 `;
+
+Stream.displayName = "Stream";
 
 const mapStateToProps = ({detailedResult}: ReduxObject): DetailedResultReduxObject & {favoriteCount: number} => ({
     ...detailedResult,
@@ -471,4 +496,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
-export default connect<DetailedResultReduxObject, DetailedResultOperations>(mapStateToProps, mapDispatchToProps)(DetailedResult);
+export default connect(mapStateToProps, mapDispatchToProps)(DetailedResult);

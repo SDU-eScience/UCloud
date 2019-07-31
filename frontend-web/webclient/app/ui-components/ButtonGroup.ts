@@ -23,4 +23,6 @@ const ButtonGroup = styled(Flex)`
     }
 `;
 
+ButtonGroup.displayName = "ButtonGroup";
+
 export default ButtonGroup;

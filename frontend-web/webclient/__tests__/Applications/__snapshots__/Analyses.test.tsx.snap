@@ -41,8 +41,8 @@ exports[`Analyses component Mount component 1`] = `
 .c9 {
   cursor: pointer;
   margin-left: -17px;
-  margin-right: -17px;
   padding-left: 17px;
+  margin-right: -17px;
 }
 
 .c12 {
@@ -313,8 +313,8 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 .c9 {
   cursor: pointer;
   margin-left: -17px;
-  margin-right: -17px;
   padding-left: 17px;
+  margin-right: -17px;
 }
 
 .c7 {
@@ -454,6 +454,11 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   border-spacing: 0;
   border: 0px;
   text-align: left;
+  background-color: #fff;
+  top: 96px;
+  z-index: 10;
+  position: -webkit-sticky;
+  position: sticky;
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
@@ -621,10 +626,10 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             <tr
               className="c18"
               cursor="pointer"
-              onClick={[Function]}
             >
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 <svg
                   className="c21"
@@ -648,6 +653,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 
                  v
@@ -655,11 +661,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 28/08/2018
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 30/08/2018
               </td>
@@ -667,10 +675,10 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             <tr
               className="c18"
               cursor="pointer"
-              onClick={[Function]}
             >
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 <svg
                   className="c21"
@@ -694,6 +702,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 
                  v
@@ -701,11 +710,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 29/08/2018
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 30/08/2018
               </td>
@@ -713,10 +724,10 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             <tr
               className="c18"
               cursor="pointer"
-              onClick={[Function]}
             >
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 <svg
                   className="c21"
@@ -740,6 +751,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 
                  v
@@ -747,11 +759,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 30/08/2018
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 30/08/2018
               </td>
@@ -759,10 +773,10 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             <tr
               className="c18"
               cursor="pointer"
-              onClick={[Function]}
             >
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 <svg
                   className="c22"
@@ -786,6 +800,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 
                  v
@@ -793,11 +808,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 03/09/2018
               </td>
               <td
                 className="c19 c20"
+                onClick={[Function]}
               >
                 03/09/2018
               </td>
