@@ -11,7 +11,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamContainer
@@ -19,15 +18,12 @@ import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.BackgroundJobs
-import dk.sdu.cloud.file.api.CreateLinkRequest
-import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.ownerName
-import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -110,7 +106,7 @@ class ShareService<DBSession>(
             val file = statJob.await() ?: throw ShareException.NotFound()
 
             // Verify results. We allow invalid shares in dev mode.
-            if (!devMode && (file.ownerName != user || file.link)) {
+            if (!devMode && file.ownerName != user) {
                 throw ShareException.NotAllowed()
             }
 
@@ -165,7 +161,6 @@ class ShareService<DBSession>(
         val tokenExtension = createToken(
             serviceClient, userToken, listOf(
                 FileDescriptions.stat.requiredAuthScope,
-                FileDescriptions.createLink.requiredAuthScope,
                 FileDescriptions.deleteFile.requiredAuthScope
             )
         )
@@ -206,24 +201,12 @@ class ShareService<DBSession>(
                 val userCloud = userClientFactory(share.recipientToken!!)
 
                 try {
-                    val createdLink = if (job.createLink) {
-                        FileDescriptions.createLink.call(
-                            CreateLinkRequest(
-                                linkPath = defaultLinkToShare(share, serviceClient),
-                                linkTargetPath = share.path
-                            ),
-                            userCloud
-                        ).orThrow()
-                    } else null
-
                     db.withTransaction { session ->
                         shareDao.updateShare(
                             session,
                             AuthRequirements(),
                             job.shareId,
-                            state = ShareState.ACCEPTED,
-                            linkId = createdLink?.fileId,
-                            linkPath = createdLink?.path
+                            state = ShareState.ACCEPTED
                         )
                     }
                 } catch (ex: Exception) {
@@ -404,24 +387,6 @@ class ShareService<DBSession>(
 
     // Utility Code
     private suspend fun invalidateShare(share: InternalShare) {
-        if (!share.recipientToken.isNullOrEmpty()) {
-            val recipientClient = userClientFactory(share.recipientToken)
-            val linkStat = findShareLink(share, serviceClient, recipientClient)
-
-            if (linkStat != null) {
-                log.debug("linkPath found $linkStat")
-
-                if (linkStat.link) {
-                    log.debug("Found link!")
-                    // We choose not to throw if the call fails
-                    FileDescriptions.deleteFile.call(
-                        DeleteFileRequest(linkStat.path),
-                        recipientClient
-                    )
-                }
-            }
-        }
-
         // Revoke tokens
         coroutineScope {
             listOf(
@@ -456,12 +421,10 @@ class ShareService<DBSession>(
         return FileDescriptions.updateAcl.call(
             UpdateAclRequest(
                 existingShare.path,
-                true,
                 listOf(
                     ACLEntryRequest(
                         existingShare.sharedWith,
                         newRights,
-                        isUser = true,
                         revoke = revoke
                     )
                 )

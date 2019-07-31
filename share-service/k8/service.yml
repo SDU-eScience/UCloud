@@ -14,6 +14,19 @@ metadata:
       service: share:8080
       rewrite: ""
 
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: share_list_files
+      prefix: ^/api/shares/list-files$
+      prefix_regex: true
+      rewrite: ""
+      service: share:8080
+      method: GET
+      precedence: 10
+      headers:
+        x-no-load: true
+
 spec:
   clusterIP: None
   type: ClusterIP

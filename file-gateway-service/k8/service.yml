@@ -40,6 +40,18 @@ metadata:
       rewrite: ""
       precedence: 9
 
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: share_file_list_gw
+      prefix: ^/api/shares/list-files$
+      prefix_regex: true
+      rewrite: ""
+      service: file-gateway:8080
+      timeout_ms: 30000
+      method: GET
+      precedence: 9
+
 spec:
   clusterIP: None
   type: ClusterIP

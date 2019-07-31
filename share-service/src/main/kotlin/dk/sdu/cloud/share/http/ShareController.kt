@@ -85,6 +85,15 @@ class ShareController(
                 )
             )
         }
+
+        implement(Shares.listFiles) {
+            ok(
+                shareQueryService.listFiles(
+                    ctx.securityPrincipal.username,
+                    request.normalize()
+                )
+            )
+        }
     }
 
     companion object : Loggable {

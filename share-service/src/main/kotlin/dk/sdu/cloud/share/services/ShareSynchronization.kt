@@ -30,7 +30,6 @@ class ShareSynchronization<DBSession>(
                     val result = FileDescriptions.updateAcl.call(
                         UpdateAclRequest(
                             share.path,
-                            true,
                             listOf(ACLEntryRequest(share.sharedWith, share.rights)),
                             automaticRollback = false
                         ),

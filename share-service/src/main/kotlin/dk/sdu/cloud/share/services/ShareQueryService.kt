@@ -1,9 +1,5 @@
 package dk.sdu.cloud.share.services
 
-import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
@@ -11,8 +7,10 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StatRequest
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.canonicalPath
-import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -20,8 +18,6 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.share.api.MinimalShare
 import dk.sdu.cloud.share.api.SharesByPath
 import kotlinx.coroutines.runBlocking
-
-private const val ONE_MINUTE = 60*1000L
 
 class ShareQueryService<Session>(
     private val db: DBSessionFactory<Session>,
@@ -70,6 +66,26 @@ class ShareQueryService<Session>(
             .single()
     }
 
+    suspend fun listFiles(
+        user: String,
+        paging: NormalizedPaginationRequest
+    ): Page<StorageFile> {
+        val page = db.withTransaction { dao.listSharedToMe(it, user, paging) }
+        val fileIds = page.items.map { it.fileId }
+
+        val lookupResponse = LookupDescriptions.reverseLookupFiles.call(
+            ReverseLookupFilesRequest(fileIds),
+            client
+        ).orThrow()
+
+        return Page(
+            page.itemsInTotal,
+            page.itemsPerPage,
+            page.pageNumber,
+            lookupResponse.files.filterNotNull()
+        )
+    }
+
     private fun List<InternalShare>.groupByPath(user: String): List<SharesByPath> {
         val byPath = groupBy { it.path }
         return byPath.map { (path, sharesForPath) ->
@@ -81,5 +97,4 @@ class ShareQueryService<Session>(
             })
         }
     }
-
 }

@@ -2,11 +2,7 @@ package dk.sdu.cloud.file.util
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSResult
-import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
@@ -45,7 +41,6 @@ private const val NO_DATA = 61
 
 // Observed on OSX. Code doesn't really makes sense [DIRECTORY_NOT_EMPTY] would make more sense.
 private const val OBJECT_IS_REMOTE = 66
-
 
 fun throwExceptionBasedOnStatus(status: Int, cause: Throwable? = null): Nothing {
     when (status.absoluteValue) {
