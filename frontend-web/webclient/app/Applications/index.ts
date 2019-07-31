@@ -132,7 +132,7 @@ export interface DetailedResultState {
     fsPath: string
     fsPage: Page<File>
     fsDisallowedPaths: string[]
-    fsCallback: Function
+    fsCallback: (file: File) => void
     fsIsFavorite: boolean
     outputFolder?: string
     appType?: ApplicationType
