@@ -19,6 +19,7 @@ import {ReduxObject} from "DefaultObjects";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
+import {FileInputSelector} from "Files/FileInputSelector";
 
 interface ZenodoPublishState {
     files: string[]
@@ -151,7 +152,7 @@ const FileSelections = ({files, handleFileSelection, removeFile}: {files: string
     <>
         {files.map((file, index) =>
             (<Box mb="0.3em" key={file}>
-                <FileSelector
+                <FileInputSelector
                     key={index}
                     isRequired={files.length === 1}
                     path={file}

@@ -10,6 +10,7 @@ import * as Fuse from "fuse.js";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {replaceHomeFolder, resolvePath} from "Utilities/FileUtilities";
 import {addTrailingSlash} from "UtilityFunctions";
+import {FileInputSelector} from "Files/FileInputSelector";
 
 
 interface ParameterProps {
@@ -71,7 +72,7 @@ interface InputFileParameterProps extends ParameterProps {
 
 const InputFileParameter = (props: InputFileParameterProps) => (
     <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
-        <FileSelector
+        <FileInputSelector
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}
             path={props.parameterRef.current && props.parameterRef.current.value || ""}
@@ -85,7 +86,7 @@ const InputFileParameter = (props: InputFileParameterProps) => (
 
 export const InputDirectoryParameter = (props: InputFileParameterProps) => (
     <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
-        <FileSelector
+        <FileInputSelector
             defaultValue={props.defaultValue}
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}

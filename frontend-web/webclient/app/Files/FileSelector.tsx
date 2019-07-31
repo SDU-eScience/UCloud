@@ -1,22 +1,43 @@
 import * as React from "react";
-import { List as PaginationList } from "Pagination/List";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { BreadCrumbs } from "ui-components/Breadcrumbs";
-import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath, favoritesQuery } from "Utilities/FileUtilities";
+import {List as PaginationList} from "Pagination/List";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {BreadCrumbs} from "ui-components/Breadcrumbs";
+import {
+    favoritesQuery,
+    filepathQuery,
+    isDirectory,
+    newMockFolder,
+    resolvePath
+} from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
-import { emptyPage } from "DefaultObjects";
-import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation, FileResource } from ".";
-import { filepathQuery } from "Utilities/FileUtilities";
-import { Input, Icon, Button, Flex, Box, SelectableText, SelectableTextWrapper } from "ui-components";
+import {emptyPage} from "DefaultObjects";
+import {
+    File,
+    FileOperation,
+    FileResource,
+    FileSelectorProps,
+    FileSource,
+    SortBy,
+    SortOrder
+} from ".";
+import {Box, Button, Flex, Icon, Input, SelectableText, SelectableTextWrapper} from "ui-components";
 import * as ReactModal from "react-modal";
-import { Spacer } from "ui-components/Spacer";
+import {Spacer} from "ui-components/Spacer";
 import FilesTable from "./FilesTable";
 import SDUCloud from "Authentication/lib";
-import { addTrailingSlash, errorMessageOrDefault } from "UtilityFunctions";
+import {addTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
 import styled from "styled-components";
-import { Refresh } from "Navigation/Header";
-import { Page } from "Types";
-import { InputLabel } from "ui-components/Input";
+import {Refresh} from "Navigation/Header";
+import {Page} from "Types";
+
+interface FileSelectorState {
+    promises: PromiseKeeper
+    path: string
+    error?: string
+    loading: boolean
+    page: Page<File>
+    fileSource: FileSource
+}
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -27,108 +48,93 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             loading: false,
             error: undefined,
             page: emptyPage,
-            modalShown: false,
-            isFavorites: false
+            fileSource: FileSource.HOME
         };
     }
 
     componentWillUnmount = () => this.state.promises.cancelPromises();
 
-    setSelectedFile = (file: File) => {
-        let fileCopy = { path: file.path };
-        this.setState(() => ({ modalShown: false }));
-        this.props.onFileSelect(fileCopy);
+    setSelectedFile = (file: File | null) => {
+        if (file === null) {
+            this.props.onFileSelect(null);
+        } else {
+            let fileCopy = {path: file.path};
+            this.props.onFileSelect(fileCopy);
+        }
     };
 
-    private fetchFiles = async (path: string, pageNumber: number, itemsPerPage: number) => {
-        this.setState(() => ({ loading: true }));
-        const { onlyAllowFolders } = this.props;
+    private fetchFiles = async (source: FileSource, path: string, pageNumber: number, itemsPerPage: number) => {
+        this.setState(() => ({loading: true}));
+        const {onlyAllowFolders} = this.props;
+
         try {
-            const { response } = await this.state.promises.makeCancelable(
-                Cloud.get(filepathQuery(
-                    path,
-                    pageNumber,
-                    itemsPerPage,
-                    SortOrder.DESCENDING,
-                    onlyAllowFolders ? SortBy.FILE_TYPE : SortBy.PATH,
-                    [FileResource.PATH, FileResource.FILE_ID, FileResource.FILE_TYPE, FileResource.SENSITIVITY_LEVEL]
-                ))).promise;
+            let filePageFuture: Promise<Page<File>>;
+
+            switch (source) {
+                case FileSource.HOME:
+                    filePageFuture = this.state.promises.makeCancelable(
+                        Cloud.get<Page<File>>(filepathQuery(
+                            path,
+                            pageNumber,
+                            itemsPerPage,
+                            SortOrder.DESCENDING,
+                            onlyAllowFolders ? SortBy.FILE_TYPE : SortBy.PATH,
+                            [FileResource.PATH, FileResource.FILE_ID, FileResource.FILE_TYPE, FileResource.SENSITIVITY_LEVEL]
+                        ))).promise.then(it => it.response);
+                    break;
+
+                case FileSource.FAVORITES:
+                    filePageFuture = this.state.promises.makeCancelable(
+                        Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage))
+                    ).promise.then(it => it.response);
+                    break;
+
+                case FileSource.SHARES:
+                    throw "Not yet implemented";
+
+                default:
+                    throw "Unknown file source";
+            }
+
+            let page = await filePageFuture;
             this.setState(() => ({
-                page: response,
+                page,
                 path: resolvePath(path),
                 error: undefined,
-                isFavorites: false
+                fileSource: source
             }));
         } catch (e) {
-            this.setState(() => ({ error: errorMessageOrDefault(e, "An error occurred fetching files") }));
-        } finally { 
-            this.setState(() => ({ loading: false })) 
+            this.setState(() => ({error: errorMessageOrDefault(e, "An error occurred fetching files")}));
+        } finally {
+            this.setState(() => ({loading: false}))
         }
     };
 
-    private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
-        this.setState(() => ({ loading: true }));
-        try {
-            const result = await this.state.promises.makeCancelable(Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage))).promise;
-            this.setState(() => ({
-                page: result.response,
-                error: undefined,
-                isFavorites: true,
-                path: "Favorites"
-            }));
-        } catch (e) {
-            this.setState(() => ({ error: errorMessageOrDefault(e, "An error occurred fetching favorites") }));
-        } finally {
-            this.setState(() => ({ loading: false }));
-        }
-    }
-
     render() {
-        const onUpload = () => { if (!this.props.allowUpload) return; };
-        const path = this.props.path ? this.props.path : "";
-        const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
-        const removeButton = this.props.remove ? (<RemoveButton onClick={() => this.props.remove!()} />) : null;
-        const inputRefValueOrNull = this.props.inputRef && this.props.inputRef.current && this.props.inputRef.current.value;
-        const inputValue = inputRefValueOrNull || replaceHomeFolder(path, Cloud.homeFolder);
         return (
             <Flex backgroundColor="white">
-                <FileSelectorInput
-                    defaultValue={this.props.defaultValue}
-                    showError={this.props.showError && this.props.isRequired}
-                    ref={this.props.inputRef} 
-                    required={this.props.isRequired}
-                    placeholder="No file selected"
-                    value={inputValue}
-                    rightLabel={!!this.props.unitName}
-                    onChange={() => undefined}
-                    onClick={() => this.setState(() => ({ modalShown: true }))}
-                />
-                {this.props.unitName ? <InputLabel width={this.props.unitWidth || "auto"} rightLabel>{this.props.unitName}</InputLabel> : null}
-                {uploadButton}
-                {removeButton}
+                {this.props.trigger}
+
                 <FileSelectorModal
-                    isFavorites={this.state.isFavorites}
-                    fetchFavorites={(pageNumber, itemsPerPage) => this.fetchFavorites(pageNumber, itemsPerPage)}
+                    fileSource={this.state.fileSource}
                     errorMessage={this.state.error}
-                    onErrorDismiss={() => this.setState(() => ({ error: undefined }))}
-                    show={this.state.modalShown}
-                    onHide={() => this.setState(() => ({ modalShown: false }))}
+                    onErrorDismiss={() => this.setState(() => ({error: undefined}))}
+                    show={this.props.visible}
+                    onHide={() => this.setSelectedFile(null)}
                     path={this.state.path}
-                    navigate={this.fetchFiles}
+                    navigate={(path, pageNumber, itemsPerPage) => this.fetchFiles(this.state.fileSource, path, pageNumber, itemsPerPage)}
                     page={this.state.page}
                     loading={this.state.loading}
                     setSelectedFile={this.setSelectedFile}
                     fetchFiles={this.fetchFiles}
                     canSelectFolders={this.props.canSelectFolders}
                     onlyAllowFolders={this.props.onlyAllowFolders}
+                    disallowedPaths={this.props.disallowedPaths}
                 />
-            </Flex>)
+            </Flex>
+        )
     }
 }
-
-const FileSelectorInput = styled(Input)`
-    cursor: pointer;
-`;
 
 const FileSelectorModalStyle = {
     content: {
@@ -139,14 +145,40 @@ const FileSelectorModalStyle = {
     }
 };
 
-export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => {
-    const fetchFiles = (settings: { path?: string, pageNumber?: number, itemsPerPage?: number }) => {
+interface FileSelectorModalProps {
+    show: boolean
+    loading: boolean
+    path: string
+    onHide: () => void
+    page: Page<File>
+    setSelectedFile: Function
+    fetchFiles: (source: FileSource, path: string, pageNumber: number, itemsPerPage: number) => void
+    disallowedPaths?: string[]
+    onlyAllowFolders?: boolean
+    canSelectFolders?: boolean
+    fileSource: FileSource
+    errorMessage?: string
+    onErrorDismiss?: () => void
+    navigate?: (path: string, pageNumber: number, itemsPerPage: number) => void
+}
+
+const FileSelectorModal = ({canSelectFolders, ...props}: FileSelectorModalProps) => {
+    const fetchFiles = (settings: { source: FileSource, path?: string, pageNumber?: number, itemsPerPage?: number }) => {
         const path = !!settings.path ? settings.path : props.path;
         const pageNumber = settings.pageNumber !== undefined ? settings.pageNumber : props.page.pageNumber;
         const itemsPerPage = settings.itemsPerPage !== undefined ? settings.itemsPerPage : props.page.itemsPerPage;
 
-        props.fetchFiles(path, pageNumber, itemsPerPage);
+        props.fetchFiles(settings.source, path, pageNumber, itemsPerPage);
     };
+
+    const FileSourceTab = (tabProps: { source: FileSource, text: string }) => (
+        <SelectableText
+            cursor="pointer"
+            mr="1em"
+            selected={tabProps.source == props.fileSource}
+            onClick={() => fetchFiles({source: tabProps.source, path: Cloud.homeFolder, pageNumber: 0})}
+        >{tabProps.text}</SelectableText>
+    );
 
     return (
         <ReactModal
@@ -154,25 +186,16 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             shouldCloseOnEsc
             ariaHideApp={false}
             onRequestClose={props.onHide}
-            onAfterOpen={() => fetchFiles({})}
+            onAfterOpen={() => fetchFiles({source: FileSource.HOME})}
             style={FileSelectorModalStyle}
         >
             <SelectableTextWrapper>
-                <SelectableText
-                    cursor="pointer"
-                    mr="1em"
-                    selected={!props.isFavorites}
-                    onClick={() => fetchFiles({ path: Cloud.homeFolder, pageNumber: 0 })}
-                >Browse</SelectableText>
+                <FileSourceTab source={FileSource.HOME} text={"Browse"}/>
+                <FileSourceTab source={FileSource.FAVORITES} text={"Favorites"}/>
+                <FileSourceTab source={FileSource.SHARES} text={"Shares"}/>
 
-                <SelectableText
-                    cursor="pointer"
-                    onClick={() => props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage)}
-                    selected={props.isFavorites}
-                >Favorites</SelectableText>
-
-                <Box mr="auto" />
-                <Icon name="close" onClick={props.onHide} />
+                <Box mr="auto"/>
+                <Icon name="close" onClick={props.onHide}/>
             </SelectableTextWrapper>
 
             <Spacer
@@ -183,14 +206,14 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                         <BreadCrumbs
                             homeFolder={Cloud.homeFolder}
                             currentPath={props.path}
-                            navigate={path => fetchFiles({path})}
+                            navigate={path => fetchFiles({source: FileSource.HOME, path})}
                         />
                     </Box>
                 }
                 right={
                     <Refresh
                         spin={props.loading}
-                        onClick={() => fetchFiles({})}
+                        onClick={() => fetchFiles({source: props.fileSource})}
                     />
                 }
             />
@@ -198,33 +221,43 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             <PaginationList
                 pageRenderer={page =>
                     <FileSelectorBody
-                        omitRelativeFolders={props.isFavorites}
+                        omitRelativeFolders={props.fileSource != FileSource.HOME}
                         canSelectFolders={!!canSelectFolders}
                         {...props}
                         page={page}
-                        fetchFiles={path => fetchFiles({ path })}
+                        fetchFiles={path => fetchFiles({source: FileSource.HOME, path})}
                     />
                 }
                 loading={props.loading}
                 page={props.page}
                 onPageChanged={pageNumber => {
-                    if (props.isFavorites) {
-                        props.fetchFavorites(pageNumber, props.page.itemsPerPage);
-                    } else {
-                        fetchFiles({});
-                    }
+                    fetchFiles({source: props.fileSource, itemsPerPage: props.page.itemsPerPage, pageNumber})
                 }}
             />
         </ReactModal>
     );
 };
 
-const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
+interface FileSelectorBodyProps {
+    entriesPerPageSelector?: React.ReactNode
+    disallowedPaths?: string[]
+    onlyAllowFolders?: boolean
+    creatingFolder?: boolean
+    canSelectFolders: boolean
+    page: Page<File>
+    fetchFiles: (path: string) => void
+    setSelectedFile: Function
+    createFolder?: () => void
+    path: string
+    omitRelativeFolders: boolean
+}
+
+const FileSelectorBody = ({disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props}: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
-    const files = f.filter(({ path }) => !disallowedPaths.some(d => d === path));
+    const files = f.filter(({path}) => !disallowedPaths.some(d => d === path));
     const relativeFolders: File[] = [];
 
-    const p = props.path.startsWith("/") ? addTrailingSlash(props.path) : `/${addTrailingSlash(props.path)}`
+    const p = props.path.startsWith("/") ? addTrailingSlash(props.path) : `/${addTrailingSlash(props.path)}`;
     if (p !== Cloud.homeFolder && !props.omitRelativeFolders) relativeFolders.push(newMockFolder(`${addTrailingSlash(props.path)}..`, false));
     if (canSelectFolders && !props.omitRelativeFolders) relativeFolders.push(newMockFolder(`${addTrailingSlash(props.path)}/.`, false));
     const ops: FileOperation[] = [];
@@ -254,9 +287,5 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
             fileOperations={ops}
         />);
 };
-
-interface FileSelectorButton { onClick: () => void }
-const UploadButton = ({ onClick }: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>Upload File</Button>);
-const RemoveButton = ({ onClick }: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>✗</Button>);
 
 export default FileSelector;

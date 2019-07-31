@@ -8,7 +8,6 @@ import * as UF from "UtilityFunctions";
 import {KeyCode, ReduxObject} from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import {FileSelectorModal} from "./FileSelector";
 import {MasterCheckbox} from "UtilityComponents";
 import {FilesProps, FilesStateProps, FilesOperations, File, FileOperation, FileResource as FR, FileResource} from ".";
 import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -28,6 +27,7 @@ import {setFileSelectorLoading} from "./Redux/FilesActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import * as React from "react";
+import FileSelector from "Files/FileSelector";
 
 function Files(props: Readonly<FilesProps>) {
 
@@ -187,20 +187,15 @@ function Files(props: Readonly<FilesProps>) {
             </Box> : null
     );
     const additional = (
-        <FileSelectorModal
-            isFavorites={props.fileSelectorIsFavorites}
-            fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
-            fetchFavorites={(pageNumber, itemsPerPage) => props.fetchFileSelectorFavorites(pageNumber, itemsPerPage)}
-            show={props.fileSelectorShown}
-            onHide={() => showFileSelector(false)}
-            path={props.fileSelectorPath}
-            loading={props.fileSelectorLoading}
-            errorMessage={props.fileSelectorError}
-            onErrorDismiss={props.onFileSelectorErrorDismiss}
+        <FileSelector
+            trigger={null}
+            onFileSelect={file => {
+                if (file !== null) props.fileSelectorCallback(file);
+                showFileSelector(false);
+            }}
             onlyAllowFolders
             canSelectFolders
-            page={props.fileSelectorPage}
-            setSelectedFile={props.fileSelectorCallback}
+            visible={props.fileSelectorShown}
             disallowedPaths={props.disallowedPaths}
         />
     );

@@ -29,7 +29,6 @@ import styled from "styled-components";
 import {TextSpan} from "ui-components/Text";
 import Icon from "ui-components/Icon";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {FileSelectorModal} from "Files/FileSelector";
 import {Page} from "Types";
 import * as Heading from "ui-components/Heading";
 import {JobStateIcon} from "./JobStateIcon";
@@ -38,6 +37,8 @@ import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {Spacer} from "ui-components/Spacer";
+import {FileInputSelector} from "Files/FileInputSelector";
+import FileSelector from "Files/FileSelector";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -349,22 +350,14 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
                 />
-                <FileSelectorModal
-                    isFavorites={this.state.fsIsFavorite}
-                    fetchFavorites={(pageNumber, itemsPerPage) => this.fetchFavorites(pageNumber, itemsPerPage)}
-                    show={state.fsShown}
-                    onHide={() => this.setState(() => ({fsShown: false}))}
-                    path={state.fsPath}
-                    fetchFiles={(path, pageNumber, itemsPerPage) =>
-                        this.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
-                    loading={state.fsLoading}
-                    errorMessage={state.fsError}
-                    onErrorDismiss={() => this.setState(() => ({fsError: undefined}))}
+
+                <FileSelector
+                    visible={state.fsShown}
+                    onFileSelect={file => state.fsCallback(file)}
                     onlyAllowFolders
                     canSelectFolders
-                    page={state.fsPage}
-                    setSelectedFile={state.fsCallback}
                     disallowedPaths={state.fsDisallowedPaths}
+                    trigger={null}
                 />
             </Panel>
         );
