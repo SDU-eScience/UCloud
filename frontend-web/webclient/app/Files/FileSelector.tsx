@@ -29,6 +29,9 @@ import {addTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
 import styled from "styled-components";
 import {Refresh} from "Navigation/Header";
 import {Page} from "Types";
+import {useState} from "react";
+import {APICallParameters, useCloudAPI} from "Authentication/DataHook";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 interface FileSelectorState {
     promises: PromiseKeeper
@@ -90,7 +93,10 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     break;
 
                 case FileSource.SHARES:
-                    throw "Not yet implemented";
+                    filePageFuture = this.state.promises.makeCancelable(
+                        Cloud.get<Page<File>>(buildQueryString("/shares/list-files", {page: pageNumber, itemsPerPage}))
+                    ).promise.then(it => it.response);
+                    break;
 
                 default:
                     throw "Unknown file source";
