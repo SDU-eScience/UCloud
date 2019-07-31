@@ -175,6 +175,13 @@ export interface RunAppState {
     favorite: boolean
     favoriteLoading: boolean
     mountedFolders: RefReadPair[]
+
+    // TODO: Not necessary in the long run
+    fsPage: Page<File>
+    fsShown: boolean
+    fsPath: string
+    fsIsFavorites: boolean
+    fsLoading: boolean
 }
 
 export interface RunOperations extends SetStatusLoading {

@@ -33,14 +33,17 @@ import {
 } from "Utilities/ApplicationUtilities";
 import {AppHeader} from "./View";
 import * as Heading from "ui-components/Heading";
-import {checkIfFileExists, expandHomeFolder, fetchFileContent, statFileQuery} from "Utilities/FileUtilities";
+import {checkIfFileExists, expandHomeFolder, fetchFileContent, statFileQuery, filepathQuery, favoritesQuery} from "Utilities/FileUtilities";
 import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import FileSelector from "Files/FileSelector";
+import {FileSelectorModal} from "Files/FileSelector";
 import {addStandardDialog} from "UtilityComponents";
 import {File as CloudFile} from "Files";
+import {dialogStore} from "Dialog/DialogStore";
+import {Page} from "Types";
+import {emptyPage} from "DefaultObjects";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -65,6 +68,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             },
             favorite: false,
             favoriteLoading: false,
+
+            // TODO: Rewrite with new FS approach
+            fsPage: emptyPage,
+            fsShown: false,
+            fsIsFavorites: false,
+            fsLoading: false,
+            fsPath: Cloud.homeFolder
         };
     };
 
@@ -76,6 +86,28 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 
     public componentWillUnmount = () => this.state.promises.cancelPromises();
+
+    private fetchFiles = async (path: string, page: number, itemsPerPage: number) => {
+        try {
+            this.setState({fsLoading: true});
+            const r = await Cloud.get<Page<CloudFile>>(filepathQuery(path, page, itemsPerPage));
+            this.setState(() => ({fsPage: r.response, fsLoading: false, fsIsFavorites: false, fsPath: path}));
+            this.setState({fsLoading: false});
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error ocurred fetching files"));
+        }
+    }
+
+    private fetchFavorites = async (page: number, itemsPerPage: number) => {
+        try {
+            this.setState({fsLoading: true});
+            const r = await Cloud.get<Page<CloudFile>>(favoritesQuery(page, itemsPerPage));
+            this.setState(() => ({fsPage: r.response, fsLoading: false, fsIsFavorites: true}));
+            this.setState({fsLoading: false});
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error ocurred fetching files"));
+        }
+    }
 
     private onJobSchedulingParamsChange = (field: string | number, value: number, timeField: string) => {
         const {schedulingOptions} = this.state;
@@ -217,7 +249,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             ).promise;
             const app = response;
             const toolDescription = app.invocation.tool.tool.description;
-            const parameterValues = new Map();
+            const parameterValues = new Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>();
 
             app.invocation.parameters.forEach(it => {
                 if (Object.values(ParameterTypes).includes(it.type)) {
@@ -355,7 +387,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private async fetchAndImportParameters(file: {path: string}) {
+    private fetchAndImportParameters = async (file: {path: string}) => {
         const fileStat = await Cloud.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
@@ -429,24 +461,17 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     })}>
                     Export parameters
                 </OutlineButton>
-                <OutlineButton fullWidth color="darkGreen" as="label">
+                <OutlineButton
+                    onClick={() => importParameterDialog(
+                        file => this.importParameters(file),
+                        () => this.setState(() => ({fsShown: true}))
+                    )}
+                    fullWidth
+                    color="darkGreen"
+                    as="label"
+                >
                     Import parameters
-                    <HiddenInputField
-                        type="file"
-                        onChange={e => {
-                            if (e.target.files) {
-                                const file = e.target.files[0];
-                                if (file.size > 10_000_000)
-                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                                else
-                                    this.importParameters(file);
-                            }
-                        }} />
                 </OutlineButton>
-                <FileSelector
-                    onFileSelect={file => this.onFileSelection(file)}
-                    path={"Select from files"}
-                />
                 <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                     {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
                 </Button>
@@ -458,12 +483,25 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             </VerticalButtonGroup>
         );
 
+        const additional = <FileSelectorModal
+            fetchFiles={this.fetchFiles}
+            fetchFavorites={this.fetchFavorites}
+            path={this.state.fsPath}
+            isFavorites={this.state.fsIsFavorites}
+            loading={this.state.fsLoading}
+            onHide={() => this.setState(() => this.setState({fsShown: false}))}
+            page={this.state.fsPage}
+            show={this.state.fsShown}
+            setSelectedFile={file => (this.setState({fsShown: false}), this.onFileSelection(file))}
+        />
+
         return (
             <MainContainer
                 header={header}
                 headerSize={64}
                 main={main}
                 sidebar={sidebar}
+                additional={additional}
             />
         )
     }
@@ -730,7 +768,7 @@ function exportParameters({application, schedulingOptions, parameterValues, moun
         },
         parameters: values,
         mountedFolders: mountedFolders.map(it =>
-                ({ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
+            ({ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
         numberOfNodes: jobInfo.numberOfNodes,
         tasksPerNode: jobInfo.tasksPerNode,
         maxTime: jobInfo.maxTime,
@@ -749,3 +787,32 @@ const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
 });
 
 export default connect(null, mapDispatchToProps)(Run);
+
+
+export function importParameterDialog(importParameters: (file: File) => void, showFileSelector: () => void) {
+    dialogStore.addDialog(<Box>
+        <Box>
+            <Button fullWidth as="label">
+                Upload file
+                <HiddenInputField
+                    type="file"
+                    onChange={e => {
+                        if (e.target.files) {
+                            const file = e.target.files[0];
+                            if (file.size > 10_000_000)
+                                snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                            else
+                                importParameters(file);
+                            dialogStore.popDialog();
+                        }
+                    }} />
+            </Button>
+            <Button mt="6px" fullWidth onClick={() => (dialogStore.popDialog(), showFileSelector())}>
+                Select file from SDUCloud
+            </Button>
+        </Box>
+        <Flex mt="20px">
+            <Button onClick={() => dialogStore.popDialog()} color="red" mr="5px">Cancel</Button>
+        </Flex>
+    </Box>)
+}
