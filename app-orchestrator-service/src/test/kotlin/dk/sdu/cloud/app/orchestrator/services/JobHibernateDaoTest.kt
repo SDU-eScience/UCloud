@@ -358,8 +358,8 @@ class JobHibernateDaoTest {
 
     private suspend fun creationRangeListing(
         session: HibernateSession,
-        min: Long? = 0,
-        max: Long? = Long.MAX_VALUE
+        min: Long?,
+        max: Long?
     ): Page<VerifiedJobWithAccessToken> {
         return jobHibDao.list(
             session,
