@@ -13,7 +13,7 @@ import {
     inTrashDir,
     isArchiveExtension,
     isFixedFolder,
-    moveToTrash,
+    moveToTrash, newMockFolder,
     replaceHomeFolder,
     shareFiles, startRenamingFiles,
     updateSensitivity
@@ -24,7 +24,7 @@ import {AccessRight} from "Types";
 
 export interface FileOperationCallback {
     invokeCommand: (params: APICallParameters) => void
-    injectFiles: (files: File[]) => void
+    requestFolderCreation: () => void
     requestReload: () => void
     startRenaming: (file: File) => void
 }
@@ -51,7 +51,7 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "New Folder",
-        onClick: () => 42,
+        onClick: (_, cb) => cb.requestFolderCreation(),
         disabled: () => false,
         color: "blue",
         outline: true,

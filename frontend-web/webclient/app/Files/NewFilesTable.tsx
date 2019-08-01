@@ -169,7 +169,11 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                 props.onReloadRequested();
             }
         },
-        injectFiles: files => setInjectedViaState(files),
+        requestFolderCreation: () => {
+            let fileId = "newFolderId";
+            setInjectedViaState([newMockFolder(`${props.path!}/newFolder`, true, fileId)]);
+            setFileBeingRenamed(fileId);
+        },
         startRenaming: file => setFileBeingRenamed(file.fileId!)
     };
 
@@ -198,6 +202,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
     const onRenameFile = (key: number, file: File, name: string) => {
         if (key === KeyCode.ESC) {
+            setInjectedViaState([]);
             setFileBeingRenamed(null);
         } else if (key === KeyCode.ENTER) {
             const file = allFiles.find(f => f.fileId == fileBeingRenamed);
@@ -467,8 +472,8 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             {icon}
 
             <Input
-                placeholder={getFilenameFromPath(props.file.path)}
-                defaultValue={getFilenameFromPath(props.file.path)}
+                placeholder={props.file.isMockFolder ? "" : getFilenameFromPath(props.file.path)}
+                defaultValue={props.file.isMockFolder ? "" : getFilenameFromPath(props.file.path)}
                 p="0"
                 noBorder
                 maxLength={1024}

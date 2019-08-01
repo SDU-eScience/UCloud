@@ -461,11 +461,11 @@ export const statFileQuery = (path: string): string => `/files/stat?path=${encod
 export const favoritesQuery = (page: number = 0, itemsPerPage: number = 25): string =>
     `/files/favorite?page=${page}&itemsPerPage=${itemsPerPage}`;
 
-export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
+export const newMockFolder = (path: string = "", beingRenamed: boolean = true, fileId: string = ""): File => ({
     fileType: "DIRECTORY",
     path,
     creator: "Creator",
-    fileId: "",
+    fileId,
     ownSensitivityLevel: null,
     createdAt: new Date().getTime(),
     modifiedAt: new Date().getTime(),
