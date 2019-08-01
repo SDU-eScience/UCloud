@@ -21,7 +21,7 @@ import {
     createFolder,
     getFilenameFromPath, getParentPath,
     isDirectory,
-    isInvalidPathName, moveFile,
+    isInvalidPathName, moveFile, newMockFolder,
     replaceHomeFolder
 } from "Utilities/FileUtilities";
 import BaseLink from "ui-components/BaseLink";
@@ -33,10 +33,13 @@ import {useEffect, useState} from "react";
 interface NewFilesTableProps {
     page?: Page<File>
     path?: string
-    embedded?: boolean
     onFileNavigation: (file: File) => void
+    embedded?: boolean
+
     fileOperations?: FileOperation[]
     onReloadRequested?: () => void
+
+    injectedFiles?: File[]
 }
 
 export interface ListDirectoryRequest {
@@ -94,6 +97,8 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
     const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(getSortingColumns());
 
+    const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
+
     // TODO Some of these callbacks should use "useCallback"?
     // TODO Two phase load.
     const [page, setPageParams, pageParams] = useCloudAPI<Page<File>>(listDirectory({
@@ -104,6 +109,9 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
         order: SortOrder.ASCENDING,
         attrs: []
     }), emptyPage);
+
+    const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.data.items);
+
 
     const pageParameters: ListDirectoryRequest = pageParams.parameters!;
 
@@ -150,13 +158,15 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
         requestReload: () => {
             setFileBeingRenamed(null);
             setCheckedFiles(new Set());
+            setInjectedViaState([]);
+
             if (props.path !== undefined) {
                 setPageParams(listDirectory(pageParameters));
             } else if (props.onReloadRequested !== undefined) {
                 props.onReloadRequested();
             }
         },
-        injectFiles: files => 42, // TODO
+        injectFiles: files => setInjectedViaState(files),
         startRenaming: file => setFileBeingRenamed(file.fileId!)
     };
 
@@ -181,15 +191,15 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
         setCheckedFiles(checked);
     };
 
-    const isMasterChecked = page.data.items.length > 0 && page.data.items.every(f => checkedFiles.has(f.fileId!));
+    const isMasterChecked = allFiles.length > 0 && allFiles.every(f => checkedFiles.has(f.fileId!));
 
     const onRenameFile = (key: number, file: File, name: string) => {
         if (key === KeyCode.ESC) {
             setFileBeingRenamed(null);
         } else if (key === KeyCode.ENTER) {
-            const file = page.data.items.find(f => f.fileId == fileBeingRenamed);
+            const file = allFiles.find(f => f.fileId == fileBeingRenamed);
             if (file === undefined) return;
-            const fileNames = page.data.items.map(file => getFilenameFromPath(file.path));
+            const fileNames = allFiles.map(file => getFilenameFromPath(file.path));
             if (isInvalidPathName({path: name, filePaths: fileNames})) return;
 
             const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
@@ -226,7 +236,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                                 <Label>
                                     <Checkbox
                                         data-tag="masterCheckbox"
-                                        onClick={e => setChecked(page.data.items, !isMasterChecked)}
+                                        onClick={e => setChecked(allFiles, !isMasterChecked)}
                                         checked={isMasterChecked}
                                         onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
                                     />
@@ -294,7 +304,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
         </TableHeader>
 
         <TableBody>
-            {page.data.items.map(file => (
+            {allFiles.map(file => (
                 <TableRow highlighted={file.isChecked} key={file.fileId!} data-tag={"fileRow"}>
                     <TableCell>
                         <Flex flexDirection="row" alignItems="center" mx="9px">
