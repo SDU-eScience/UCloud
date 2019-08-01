@@ -38,8 +38,7 @@ const FilesTable = ({
                 sortFiles={sortFiles}
                 sortBy={sortBy}
                 customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal this is lenght=1
-            >
-            </FilesTableHeader>
+            />
             <TableBody>
                 {files.map(file => (
                     <TableRow highlighted={file.isChecked} key={file.fileId!} data-tag={"fileRow"}>
@@ -69,7 +68,7 @@ const FilesTable = ({
             </TableBody>
         </Table >
     );
-}
+};
 
 interface FileOperationWrapper {files: File[], fileOperations: FileOperation[]}
 const FileOperationsWrapper = ({files, fileOperations}: FileOperationWrapper) => fileOperations.length > 1 ?
@@ -117,7 +116,7 @@ const ResponsiveTableColumn = ({
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
 
-const FilesTableHeader = ({
+const FilesTableHeader: React.FunctionComponent<FilesTableHeaderProps> = ({
     toSortingIcon = () => undefined,
     sortFiles = () => null,
     sortOrder,
@@ -128,7 +127,7 @@ const FilesTableHeader = ({
     customEntriesWidth,
     notStickyHeader,
     children
-}: FilesTableHeaderProps) => (
+}) => (
         <TableHeader>
             <TableRow>
                 <FileTableHeaderCell notSticky={notStickyHeader} textAlign="left" width="99%">
@@ -233,10 +232,6 @@ const PredicatedFavorite = ({predicate, item, onClick}) => predicate ? (
     />
 ) : null;
 
-
-interface Groupicon {isProject: boolean}
-const GroupIcon = ({isProject}: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
-
 const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
     type IconDef = {color: string, text: string, shortText: string};
     let def: IconDef;
@@ -249,10 +244,10 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
             def = {color: "#ff0004", text: "Sensitive", shortText: "S"};
             break;
         case SensitivityLevelMap.PRIVATE:
-            def = {color: Theme.colors.midGray, text: "Private", shortText: "P"}
+            def = {color: Theme.colors.midGray, text: "Private", shortText: "P"};
             break;
         default:
-            def = {color: Theme.colors.midGray, text: "", shortText: ""}
+            def = {color: Theme.colors.midGray, text: "", shortText: ""};
             break;
     }
 

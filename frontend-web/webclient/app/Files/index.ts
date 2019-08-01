@@ -159,7 +159,6 @@ export interface FilesTableHeaderProps {
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
     customEntriesWidth?: string
     notStickyHeader?: boolean
-    children: React.ReactNode
 }
 
 export interface FilenameAndIconsProps {
@@ -172,10 +171,6 @@ export interface FilenameAndIconsProps {
     onFavoriteFile?: (files: File[]) => void
     onNavigationClick?: (path: string) => void
 }
-
-
-
-
 
 export interface MoveCopyOperations {
     showFileSelector: (show: boolean) => void

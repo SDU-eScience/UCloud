@@ -21,7 +21,7 @@ function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`
 }
 
-enum CopyOrMove {
+export enum CopyOrMove {
     Move,
     Copy
 }
@@ -680,7 +680,7 @@ interface UpdateSensitivity {
     onSensitivityChange?: () => void
 }
 
-async function updateSensitivity({files, cloud, onSensitivityChange}: UpdateSensitivity) {
+export async function updateSensitivity({files, cloud, onSensitivityChange}: UpdateSensitivity) {
     const input = await sensitivityDialog();
     if ("cancelled" in input) return;
     try {
@@ -895,4 +895,4 @@ export async function createFolder({path, cloud, onSuccess}: CreateFolder): Prom
     }
 }
 
-const inTrashDir = (path: string, cloud: SDUCloud): boolean => getParentPath(path) === cloud.trashFolder;
+export const inTrashDir = (path: string, cloud: SDUCloud): boolean => getParentPath(path) === cloud.trashFolder;

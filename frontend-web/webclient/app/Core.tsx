@@ -35,6 +35,7 @@ import {History} from "history";
 import ProjectList from "Project/List";
 import ProjectCreate from "Project/Create";
 import ProjectView from "Project/View";
+import {NewFilesTable, NewFilesTableDemo} from "Files/NewFilesTable";
 
 const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -82,6 +83,8 @@ const Core = () => (
                 <Route exact path="/projects" component={requireAuth(ProjectList)} />
                 <Route exact path="/projects/create" component={requireAuth(ProjectCreate)} />
                 <Route exact path="/projects/view/:id" component={requireAuth(ProjectView)} />
+
+                <Route exact path={"/files/test"} component={NewFilesTableDemo} />
 
                 <Route component={NotFound} />
             </Switch>

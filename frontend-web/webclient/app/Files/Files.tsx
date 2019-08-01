@@ -124,7 +124,6 @@ function Files(props: Readonly<FilesProps>) {
         props.rightSortingColumn as unknown as FileResource
     ];
 
-
     const {
         page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
         rightSortingColumn, showFileSelector
