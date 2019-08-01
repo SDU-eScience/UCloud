@@ -169,6 +169,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                 props.onReloadRequested();
             }
         },
+        requestFileUpload: () => 42, // TODO
         requestFolderCreation: () => {
             let fileId = "newFolderId";
             setInjectedViaState([newMockFolder(`${props.path!}/newFolder`, true, fileId)]);

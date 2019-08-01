@@ -26,6 +26,7 @@ export interface FileOperationCallback {
     invokeCommand: (params: APICallParameters) => void
     requestFolderCreation: () => void
     requestReload: () => void
+    requestFileUpload: () => void
     startRenaming: (file: File) => void
 }
 
@@ -40,6 +41,7 @@ export interface FileOperation {
 }
 
 // TODO We do not currently show loading status for any of these!
+// TODO Empty trash!
 
 export const defaultFileOperations: FileOperation[] = [
     {
@@ -48,6 +50,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: () => false,
         color: "blue",
         currentDirectoryMode: true
+        // TODO Should not work in trash
     },
     {
         text: "New Folder",
@@ -56,6 +59,7 @@ export const defaultFileOperations: FileOperation[] = [
         color: "blue",
         outline: true,
         currentDirectoryMode: true
+        // TODO Should not work in trash
     },
     {
         text: "Share",
