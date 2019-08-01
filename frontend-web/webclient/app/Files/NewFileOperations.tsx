@@ -36,7 +36,7 @@ export interface FileOperation {
     icon?: string
     color?: string
     outline?: boolean
-    directoryMode?: boolean
+    currentDirectoryMode?: boolean
 }
 
 // TODO We do not currently show loading status for any of these!
@@ -47,7 +47,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: () => 42,
         disabled: () => false,
         color: "blue",
-        directoryMode: true
+        currentDirectoryMode: true
     },
     {
         text: "New Folder",
@@ -55,7 +55,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: () => false,
         color: "blue",
         outline: true,
-        directoryMode: true
+        currentDirectoryMode: true
     },
     {
         text: "Share",

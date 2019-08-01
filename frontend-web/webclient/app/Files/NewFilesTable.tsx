@@ -585,8 +585,8 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
     return <>
         {fileOperations.map((fileOp: FileOperation, i: number) => {
             if (fileOp.disabled(files)) return null;
-            if (fileOp.directoryMode === true && props.directory === undefined) return null;
-            if (fileOp.directoryMode !== true && files.length === 0) return null;
+            if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
+            if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
 
             let As: typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
             if (fileOperations.length === 1) {
@@ -594,7 +594,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
             } else if (props.inDropdown === true) {
                 As = Box;
             } else {
-                if (fileOp.directoryMode === true) {
+                if (fileOp.currentDirectoryMode === true) {
                     if (fileOp.outline === true) {
                         As = OutlineButton;
                     } else {
@@ -611,7 +611,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
                 color={fileOp.color}
                 alignItems="center"
                 onClick={() => {
-                    if (fileOp.directoryMode === true) {
+                    if (fileOp.currentDirectoryMode === true) {
                         fileOp.onClick([props.directory!], props.callback);
                     } else {
                         fileOp.onClick(files, props.callback);
