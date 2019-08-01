@@ -33,7 +33,8 @@ enum class JobSortBy {
     STATE,
     APPLICATION,
     STARTED_AT,
-    LAST_UPDATE
+    LAST_UPDATE,
+    CREATED_AT
 }
 
 /**

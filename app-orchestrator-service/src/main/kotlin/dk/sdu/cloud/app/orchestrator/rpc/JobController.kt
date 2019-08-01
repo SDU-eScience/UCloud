@@ -56,7 +56,7 @@ class JobController<DBSession>(
                     ctx.securityToken,
                     request.normalize(),
                     request.order ?: SortOrder.DESCENDING,
-                    request.sortBy ?: JobSortBy.STARTED_AT,
+                    request.sortBy ?: JobSortBy.CREATED_AT,
                     request.minTimeStamp,
                     request.maxTimeStamp
                 )

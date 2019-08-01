@@ -263,6 +263,7 @@ class JobHibernateDao(
                     JobSortBy.APPLICATION -> JobInformationEntity::application
                     JobSortBy.STARTED_AT -> JobInformationEntity::startedAt
                     JobSortBy.LAST_UPDATE -> JobInformationEntity::modifiedAt
+                    JobSortBy.CREATED_AT -> JobInformationEntity::createdAt
                 }
 
                 when (order) {
