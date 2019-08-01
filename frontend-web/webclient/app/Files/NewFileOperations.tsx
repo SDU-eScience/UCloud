@@ -35,11 +35,28 @@ export interface FileOperation {
     disabled: (selectedFiles: File[]) => boolean
     icon?: string
     color?: string
+    outline?: boolean
+    directoryMode?: boolean
 }
 
 // TODO We do not currently show loading status for any of these!
 
 export const defaultFileOperations: FileOperation[] = [
+    {
+        text: "Upload Files",
+        onClick: () => 42,
+        disabled: () => false,
+        color: "blue",
+        directoryMode: true
+    },
+    {
+        text: "New Folder",
+        onClick: () => 42,
+        disabled: () => false,
+        color: "blue",
+        outline: true,
+        directoryMode: true
+    },
     {
         text: "Share",
         onClick: (files) => shareFiles({files, cloud: Cloud}),
