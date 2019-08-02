@@ -154,23 +154,6 @@ function JobResults(props: AnalysesProps & {history: History}) {
     const startOfYesterday = yesterday.getTime() - yesterday.getMilliseconds();
     const startOfWeek = getStartOfWeek(new Date()).getTime();
 
-    function filterDropdown() {
-        return (<ClickableDropdown
-            chevron
-            trigger={filter.text == "a" ? filter.text : filter.text}
-            onChange={value => (setFilter({text: prettierString(filter.value), value}), fetchJobs({
-                itemsPerPage,
-                pageNumber,
-                sortBy,
-                sortOrder,
-                filter: value == "Don't filter" ? undefined : value as AppState
-            }))}
-            options={appStates.filter(it => it.value != filter.value)}
-        />
-        );
-    }
-
-
     const sidebar = (<Box pt={48}>
         <Heading.h3>
             Quick Filters
@@ -183,7 +166,18 @@ function JobResults(props: AnalysesProps & {history: History}) {
         <Box onClick={fetchJobsInRange(null, null)}><TextSpan>No filter</TextSpan></Box>
         <Heading.h3 mt={16}>Active Filters</Heading.h3>
         <Label>Filter by app state</Label>
-        {filterDropdown()}
+        <ClickableDropdown
+            chevron
+            trigger={filter.text}
+            onChange={value => (setFilter({text: prettierString(value), value}), fetchJobs({
+                itemsPerPage,
+                pageNumber,
+                sortBy,
+                sortOrder,
+                filter: value == "Don't filter" ? undefined : value as AppState
+            }))}
+            options={appStates.filter(it => it.value != filter.value)}
+        />
         <Box mb={16} mt={16}>
             <Label>Job created after</Label>
             <InputGroup>
