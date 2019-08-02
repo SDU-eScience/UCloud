@@ -3,8 +3,8 @@ package dk.sdu.cloud.app.store.rpc
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
-import dk.sdu.cloud.app.store.api.CreateTagRequest
-import dk.sdu.cloud.app.store.api.DeleteTagRequest
+import dk.sdu.cloud.app.store.api.CreateTagsRequest
+import dk.sdu.cloud.app.store.api.DeleteTagsRequest
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
@@ -428,8 +428,8 @@ class AppTest {
         withKtorTest(
             setup = {
                 val appDao = mockk<ApplicationHibernateDAO>()
-                every { appDao.createTags(any(), any(), any(), any()) } just runs
-                every { appDao.deleteTags(any(), any(), any(), any()) } just runs
+                every { appDao.createTags(any(), any(), any(), any(), any()) } just runs
+                every { appDao.deleteTags(any(), any(), any(), any(), any()) } just runs
                 micro.install(HibernateFeature)
                 configureAppServer(appDao)
             },
@@ -439,7 +439,7 @@ class AppTest {
                     method = HttpMethod.Post,
                     path = "/api/hpc/apps/createTag",
                     user = TestUsers.admin,
-                    request = CreateTagRequest(
+                    request = CreateTagsRequest(
                         listOf("tag1", "tag2"),
                         "applicationName",
                         "2.2"
@@ -452,7 +452,7 @@ class AppTest {
                     method = HttpMethod.Post,
                     path = "/api/hpc/apps/deleteTag",
                     user = TestUsers.admin,
-                    request = DeleteTagRequest(
+                    request = DeleteTagsRequest(
                         listOf("tag1", "tag2"),
                         "applicationName",
                         "2.2"

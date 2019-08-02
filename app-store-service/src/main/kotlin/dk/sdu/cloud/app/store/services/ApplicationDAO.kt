@@ -75,14 +75,16 @@ interface ApplicationDAO<Session> {
         session: Session,
         tags: List<String>,
         applicationName: String,
-        applicationVersion: String
+        applicationVersion: String,
+        user: String
     )
 
     fun deleteTags(
         session: Session,
         tags: List<String>,
         applicationName: String,
-        applicationVersion: String
+        applicationVersion: String,
+        user: String
     )
 
     fun updateDescription(

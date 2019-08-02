@@ -5,16 +5,17 @@ import Box from "ui-components/Box";
 import Link from "ui-components/Link";
 import {EllipsedText} from "ui-components/Text";
 import * as Pages from "./Pages";
-import {WithAppMetadata} from ".";
+import {FullAppInfo, WithAppMetadata} from ".";
 import styled, {css} from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void
-    app: WithAppMetadata
+    app: FullAppInfo
     isFavorite?: boolean
     linkToRun?: boolean
+    tags: string[]
 }
 
 const AppCardActionsBase = styled.div``;
@@ -322,7 +323,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
             </Flex>
             <Box mt="auto" />
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
-                {app.metadata.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
+                {app.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </AppCard>
     );

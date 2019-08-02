@@ -82,7 +82,7 @@ class ApplicationHibernateDAO(
             criteria.select(count(entity))
         }.createQuery(session).uniqueResult()
 
-        val items = session.typedQuery<ApplicationEntity>(
+        val itemsWithoutTags = session.typedQuery<ApplicationEntity>(
             """
                 select application
                 from FavoriteApplicationEntity as fav, ApplicationEntity as application
@@ -96,13 +96,17 @@ class ApplicationHibernateDAO(
             .paginatedList(paging)
             .asSequence()
             .map { it.toModel() }
-            .map { appSummary ->
-                val allTagsForApplication = session
-                    .criteria<TagEntity> { entity[TagEntity::applicationName] equal appSummary.metadata.name }
-                    .resultList.map { it.tag }
-
-                ApplicationSummaryWithFavorite(appSummary.metadata, true, allTagsForApplication) }
             .toList()
+
+        val apps = itemsWithoutTags.map { it.metadata.name }
+        val allTags = session
+            .criteria<TagEntity> { entity[TagEntity::applicationName] isInCollection (apps) }
+            .resultList
+        val items = itemsWithoutTags.map { appSummary ->
+            val allTagsForApplication = allTags.filter { it.applicationName == appSummary.metadata.name }.map { it.tag }
+            ApplicationSummaryWithFavorite(appSummary.metadata, true, allTagsForApplication)
+        }
+
 
         return Page(
             itemsInTotal.toInt(),
@@ -429,7 +433,8 @@ class ApplicationHibernateDAO(
             session,
             description.metadata.tags,
             description.metadata.name,
-            description.metadata.version
+            description.metadata.version,
+            user
         )
     }
 
@@ -437,12 +442,17 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         tags: List<String>,
         applicationName: String,
-        applicationVersion: String
+        applicationVersion: String,
+        user: String
     ) {
-        internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
-            HttpStatusCode.NotFound,
-            "App not found"
-        )
+        val application =
+            internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
+                HttpStatusCode.NotFound,
+                "App not found"
+            )
+        if (application.owner != user) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not owner of application")
+        }
         tags.forEach { tag ->
             val existing = findTag(session, applicationName, applicationVersion, tag)
 
@@ -462,12 +472,17 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         tags: List<String>,
         applicationName: String,
-        applicationVersion: String
+        applicationVersion: String,
+        user: String
     ) {
-        internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
-            HttpStatusCode.NotFound,
-            "App not found"
-        )
+        val application =
+            internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
+                HttpStatusCode.NotFound,
+                "App not found"
+            )
+        if (application.owner != user) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not owner of application")
+        }
         tags.forEach { tag ->
             val existing = findTag(
                 session,
@@ -547,14 +562,19 @@ class ApplicationHibernateDAO(
                 .criteria<FavoriteApplicationEntity> { entity[FavoriteApplicationEntity::user] equal user }
                 .list()
 
+            val allApplicationsOnPage = page.items.map { it.metadata.name }
+            val allTagsForApplicationsOnPage = session
+                .criteria<TagEntity> { entity[TagEntity::applicationName] isInCollection (allApplicationsOnPage) }
+                .resultList
+
+
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
                     fav.applicationName == item.metadata.name &&
                             fav.applicationVersion == item.metadata.version
                 }
-                val allTagsForApplication = session
-                    .criteria<TagEntity> { entity[TagEntity::applicationName] equal item.metadata.name }
-                    .resultList.map { it.tag }
+                val allTagsForApplication =
+                    allTagsForApplicationsOnPage.filter { item.metadata.name == it.applicationName }.map { it.tag }
 
                 ApplicationWithFavorite(item.metadata, item.invocation, isFavorite, allTagsForApplication)
             }

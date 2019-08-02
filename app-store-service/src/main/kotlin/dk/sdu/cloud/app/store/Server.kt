@@ -38,32 +38,6 @@ class Server(override val micro: Micro) : CommonServer {
             )
         }
 
-        if (micro.commandLineArguments.contains("--move")) {
-            log.info("Moving exisiting tags to new table")
-            db.withTransaction { session ->
-                val pageOne = applicationDAO.listLatestVersion(session, null, NormalizedPaginationRequest(100, 0))
-                pageOne.items.forEach { app ->
-                    applicationDAO.createTags(session, app.metadata.tags, app.metadata.name, app.metadata.version)
-                }
-                if (pageOne.pagesInTotal > 1) {
-                    for (i in 1 until pageOne.pagesInTotal) {
-                        val newPage =
-                            applicationDAO.listLatestVersion(session, null, NormalizedPaginationRequest(100, i))
-                        newPage.items.forEach { app ->
-                            applicationDAO.createTags(
-                                session,
-                                app.metadata.tags,
-                                app.metadata.name,
-                                app.metadata.version
-                            )
-                        }
-                    }
-                }
-            }
-            log.info("move complete")
-            return
-        }
-
         if (micro.developmentModeEnabled) {
             val listOfApps = db.withTransaction {
                 applicationDAO.listLatestVersion(it, null, NormalizedPaginationRequest(null, null))

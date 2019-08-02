@@ -431,7 +431,7 @@ class ApplicationHibernateDaoTest {
                     assertNull(nottag)
                 }
 
-                appDAO.createTags(it, listOf("A3"), appA.metadata.name, appA.metadata.version)
+                appDAO.createTags(it, listOf("A3"), appA.metadata.name, appA.metadata.version, user)
 
                 run {
                     val tag1 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A1")
@@ -443,7 +443,7 @@ class ApplicationHibernateDaoTest {
                     assertNotNull(tag3)
                 }
 
-                appDAO.deleteTags(it, listOf("A1", "A3"), appA.metadata.name, appA.metadata.version)
+                appDAO.deleteTags(it, listOf("A1", "A3"), appA.metadata.name, appA.metadata.version, user)
                 run {
                     val tag1 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A1")
                     val tag2 = appDAO.findTag(it, appA.metadata.name, appA.metadata.version, "A2")
@@ -463,7 +463,7 @@ class ApplicationHibernateDaoTest {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val appDAO = ApplicationHibernateDAO(toolDAO)
-                appDAO.createTags(it, listOf("A3"), "notAnApp", "NotVersion")
+                appDAO.createTags(it, listOf("A3"), "notAnApp", "NotVersion", "user")
             }
         }
     }
@@ -474,7 +474,7 @@ class ApplicationHibernateDaoTest {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val appDAO = ApplicationHibernateDAO(toolDAO)
-                appDAO.deleteTags(it, listOf("A3"), "notAnApp", "NotVersion")
+                appDAO.deleteTags(it, listOf("A3"), "notAnApp", "NotVersion", "user")
             }
         }
     }

@@ -17,9 +17,12 @@ import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
+import dk.sdu.cloud.service.test.setJobSubmitParam
+import dk.sdu.cloud.service.test.setJobSubmitid
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.setBody
 import io.mockk.coEvery
 import io.mockk.just
@@ -31,9 +34,9 @@ import kotlin.test.assertEquals
 
 class AppKubernetesControllerTest {
 
-    val podService = mockk<PodService>()
-    val vncService = mockk<VncService>()
-    val webService = mockk<WebService>()
+    private val podService = mockk<PodService>()
+    private val vncService = mockk<VncService>()
+    private val webService = mockk<WebService>()
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         listOf(AppKubernetesController(podService, vncService, webService))
@@ -49,9 +52,8 @@ class AppKubernetesControllerTest {
                     path = "/api/app/compute/kubernetes/submit",
                     user = TestUsers.admin,
                     configure = {
-                        addHeader("JobSubmit-Id", Base64.getEncoder().encodeToString("jobId".toByteArray()))
-                        addHeader("JobSubmit-Parameter", Base64.getEncoder().encodeToString("Parameter".toByteArray()))
-
+                        setJobSubmitid()
+                        setJobSubmitParam()
                         setBody(byteArrayOf(1, 2, 3, 4))
                     }
                 )

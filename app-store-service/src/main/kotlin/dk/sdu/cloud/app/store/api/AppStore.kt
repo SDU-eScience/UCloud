@@ -37,13 +37,13 @@ data class AppSearchRequest(
     override val page: Int?
 ) : WithPaginationRequest
 
-data class CreateTagRequest(
+data class CreateTagsRequest(
     val tags: List<String>,
     val applicationName: String,
     val applicationVersion: String
 )
 
-typealias DeleteTagRequest = CreateTagRequest
+typealias DeleteTagsRequest = CreateTagsRequest
 
 object AppStore : CallDescriptionContainer("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
@@ -198,7 +198,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     }
 
-    val createTag = call<CreateTagRequest, Unit, CommonErrorMessage>("createTag") {
+    val createTag = call<CreateTagsRequest, Unit, CommonErrorMessage>("createTag") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
@@ -216,7 +216,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     }
 
-    val removeTag = call<DeleteTagRequest, Unit, CommonErrorMessage>("removeTag") {
+    val removeTag = call<DeleteTagsRequest, Unit, CommonErrorMessage>("removeTag") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
