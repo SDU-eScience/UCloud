@@ -469,7 +469,7 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true, f
     ownSensitivityLevel: null,
     createdAt: new Date().getTime(),
     modifiedAt: new Date().getTime(),
-    ownerName: "",
+    ownerName: Cloud.activeUsername ? Cloud.activeUsername : "",
     size: 0,
     acl: [],
     favorited: false,

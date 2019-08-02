@@ -1,4 +1,5 @@
 import * as React from "react";
+import {useEffect, useState} from "react";
 import {File, FileResource, SortBy, SortOrder} from "Files/index";
 import * as UF from "UtilityFunctions"
 import {APICallParameters, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
@@ -19,16 +20,18 @@ import Checkbox from "ui-components/Checkbox";
 import {Button, Icon, Input, Label, OutlineButton, Tooltip, Truncate} from "ui-components";
 import {
     createFolder,
-    getFilenameFromPath, getParentPath,
+    getFilenameFromPath,
+    getParentPath,
     isDirectory,
-    isInvalidPathName, moveFile, newMockFolder,
+    isInvalidPathName,
+    moveFile,
+    newMockFolder,
     replaceHomeFolder
 } from "Utilities/FileUtilities";
 import BaseLink from "ui-components/BaseLink";
 import Theme from "ui-components/theme";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/NewFileOperations";
 import {SpaceProps} from "styled-system";
-import {useEffect, useState} from "react";
 import * as Heading from "ui-components/Heading";
 import * as Pagination from "Pagination";
 import {Spacer} from "ui-components/Spacer";
@@ -82,17 +85,113 @@ const invertSortOrder = (order: SortOrder): SortOrder => {
     }
 };
 
-export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props => {
-    if (props.page !== undefined && props.path !== undefined) {
-        throw Error("FilesTable contain both page and path properties, these are mutually exclusive.");
+interface InternalFileTableAPI {
+    page: Page<File>;
+    error: string | undefined;
+    loading: boolean;
+    setSorting: ((sortBy: SortBy, order: SortOrder, column?: number) => void);
+    sortingIconFor: ((other: SortBy) => "arrowUp" | "arrowDown" | undefined);
+    reload: () => void;
+    sortBy: SortBy;
+    order: SortOrder;
+}
+
+function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTableAPI {
+    let api: InternalFileTableAPI;
+
+    let parametersInitial: APICallParameters<ListDirectoryRequest>;
+
+    if (props.page !== undefined) {
+        parametersInitial = {noop: true};
+    } else {
+        parametersInitial = listDirectory({
+            path: props.path!,
+            itemsPerPage: 25,
+            page: 0,
+            sortBy: SortBy.PATH,
+            order: SortOrder.ASCENDING,
+            attrs: []
+        });
     }
 
+    const [cloudPage, setPageParams, pageParams] = useCloudAPI<Page<File>>(parametersInitial, emptyPage);
+
+    useEffect(() => {
+        if (props.page === undefined) {
+            setPageParams(listDirectory({...pageParams.parameters, path: props.path!}));
+        }
+    }, [props.path, props.page]);
+
+    if (props.page !== undefined) {
+        api = {
+            page: props.page!,
+            loading: false,
+            error: undefined,
+            setSorting: () => 0,
+            sortingIconFor: () => undefined,
+            sortBy: SortBy.PATH,
+            order: SortOrder.ASCENDING,
+            reload: () => {
+                if (props.onReloadRequested) props.onReloadRequested();
+            }
+        }
+    } else {
+        // TODO Some of these callbacks should use "useCallback"?
+        // TODO Two phase load.
+
+        const page = cloudPage.data;
+        const error = cloudPage.error ? cloudPage.error.why : undefined;
+        const loading = cloudPage.loading;
+
+        const pageParameters: ListDirectoryRequest = pageParams.parameters!;
+
+        const setSorting = (sortBy: SortBy, order: SortOrder, column?: number) => {
+            if (column !== undefined) {
+                setSortingColumnAt(sortBy, column as 0 | 1);
+
+                const newColumns: [SortBy, SortBy] = [sortByColumns[0], sortByColumns[1]];
+                newColumns[column] = sortBy;
+                setSortByColumns(newColumns);
+            }
+
+            setPageParams(
+                listDirectory({
+                    ...pageParameters,
+                    sortBy,
+                    order,
+                    page: 0
+                })
+            );
+        };
+
+        const sortingIconFor = (other: SortBy): "arrowUp" | "arrowDown" | undefined => {
+            if (other === pageParameters.sortBy) {
+                if (pageParameters.order === SortOrder.ASCENDING) {
+                    return "arrowUp";
+                } else {
+                    return "arrowDown";
+                }
+            }
+
+            return undefined;
+        };
+
+        const reload = () => setPageParams(listDirectory(pageParameters));
+        const sortBy = pageParameters.sortBy;
+        const order = pageParameters.order;
+
+        api = {page, error, loading, setSorting, sortingIconFor, reload, sortBy, order};
+    }
+    return api;
+}
+
+export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props => {
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
     }
 
-    if (props.page !== undefined) {
-        throw Error("Not yet implemented");
+    if (props.page !== undefined && props.path === undefined && props.embedded !== true) {
+        throw Error("page is not currently supported in non-embedded mode without a path");
     }
 
     const isEmbedded = props.embedded !== false;
@@ -104,57 +203,13 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
 
-    // TODO Some of these callbacks should use "useCallback"?
-    // TODO Two phase load.
-    const [page, setPageParams, pageParams] = useCloudAPI<Page<File>>(listDirectory({
-        path: props.path!,
-        itemsPerPage: 25,
-        page: 0,
-        sortBy: SortBy.PATH,
-        order: SortOrder.ASCENDING,
-        attrs: []
-    }), emptyPage);
+    let {page, error, loading, setSorting, sortingIconFor, reload, sortBy, order} =
+        apiForComponent(props, sortByColumns, setSortByColumns);
 
-    const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.data.items);
-    const pageParameters: ListDirectoryRequest = pageParams.parameters!;
-
-    useEffect(() => {
-        setPageParams(listDirectory({...pageParameters, path: props.path!}));
-    }, [props.path]);
-
-    const setSorting = (sortBy: SortBy, order: SortOrder, column?: number) => {
-        if (!sortingSupported) return;
-        if (column !== undefined) {
-            setSortingColumnAt(sortBy, column as 0 | 1);
-
-            const newColumns: [SortBy, SortBy] = [sortByColumns[0], sortByColumns[1]];
-            newColumns[column] = sortBy;
-            setSortByColumns(newColumns);
-        }
-
-        setPageParams(
-            listDirectory({
-                ...pageParameters,
-                sortBy,
-                order,
-                page: 0
-            })
-        );
-    };
+    const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items);
+    console.log(allFiles);
 
     const [commandState, invokeCommand] = useAsyncCommand();
-
-    const sortingIconFor = (other: SortBy): "arrowUp" | "arrowDown" | undefined => {
-        if (other === pageParameters.sortBy) {
-            if (pageParameters.order === SortOrder.ASCENDING) {
-                return "arrowUp";
-            } else {
-                return "arrowDown";
-            }
-        }
-
-        return undefined;
-    };
 
     const callbacks: FileOperationCallback = {
         invokeCommand,
@@ -162,17 +217,13 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
             setFileBeingRenamed(null);
             setCheckedFiles(new Set());
             setInjectedViaState([]);
-
-            if (props.path !== undefined) {
-                setPageParams(listDirectory(pageParameters));
-            } else if (props.onReloadRequested !== undefined) {
-                props.onReloadRequested();
-            }
+            reload();
         },
         requestFileUpload: () => 42, // TODO
         requestFolderCreation: () => {
+            if (props.path === undefined) return;
             let fileId = "newFolderId";
-            setInjectedViaState([newMockFolder(`${props.path!}/newFolder`, true, fileId)]);
+            setInjectedViaState([newMockFolder(`${props.path}/newFolder`, true, fileId)]);
             setFileBeingRenamed(fileId);
         },
         startRenaming: file => setFileBeingRenamed(file.fileId!)
@@ -237,7 +288,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
             <Spacer
                 left={
                     <BreadCrumbs
-                        currentPath={props.path!}
+                        currentPath={props.path ? props.path : ""}
                         navigate={path => props.onFileNavigation(path)}
                         homeFolder={Cloud.homeFolder}/>
                 }
@@ -260,7 +311,8 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                             files={allFiles.filter(f => f.fileId && checkedFiles.has(f.fileId))}
                             fileOperations={fileOperations}
                             callback={callbacks}
-                            directory={newMockFolder(props.path!)}
+                            // Don't pass a directory if the page is set. This should indicate that the path is fake.
+                            directory={props.page !== undefined ? undefined : newMockFolder(props.path ? props.path : "")}
                         />
                     </SidebarContent>
                 </VerticalButtonGroup>
@@ -269,9 +321,9 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
         main={
             <Pagination.List
-                loading={page.loading}
-                customEmptyPage={!page.error ? <Heading.h3>No files in current folder</Heading.h3> : <Box/>}
-                page={page.data}
+                loading={loading}
+                customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : <Box/>}
+                page={page}
                 onPageChanged={(a, b) => 42} // TODO
                 pageRenderer={() =>
                     <Table>
@@ -281,7 +333,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                                     <Flex
                                         backgroundColor="white"
                                         alignItems="center"
-                                        onClick={() => setSorting(SortBy.PATH, invertSortOrder(pageParameters.order))}
+                                        onClick={() => setSorting(SortBy.PATH, invertSortOrder(order))}
                                     >
                                         <Box mx="9px" onClick={e => e.stopPropagation()}>
                                             {isEmbedded ? null :
@@ -303,39 +355,40 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                                     <Flex backgroundColor="white"/>
                                 </FileTableHeaderCell>
 
+                                {/* Sorting columns (in header) */}
                                 {sortByColumns.filter(it => it != null).map((column, i) => {
-                                    const isSortedBy = pageParameters.sortBy === column;
+                                    const isSortedBy = sortBy === column;
 
                                     return <FileTableHeaderCell notSticky={isEmbedded} width="10rem">
                                         <Flex backgroundColor="white" alignItems="center" cursor="pointer"
                                               justifyContent="left">
                                             <Box
-                                                onClick={() => setSorting(column, invertSortOrder(pageParameters.order), i)}>
+                                                onClick={() => setSorting(column, invertSortOrder(order), i)}>
                                                 <Arrow name={sortingIconFor(column)}/>
                                             </Box>
                                             {!sortingSupported ?
-                                                <>UF.sortByToPrettierString(column)</>
+                                                <>{UF.sortByToPrettierString(column)}</>
                                                 :
                                                 <ClickableDropdown
                                                     trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
                                                     chevron>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
-                                                         hidden={pageParameters.order === SortOrder.ASCENDING && isSortedBy}
+                                                         hidden={order === SortOrder.ASCENDING && isSortedBy}
                                                          onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
                                                     >
                                                         {UF.prettierString(SortOrder.ASCENDING)}
                                                     </Box>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
                                                          onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                         hidden={pageParameters.order === SortOrder.DESCENDING && isSortedBy}
+                                                         hidden={order === SortOrder.DESCENDING && isSortedBy}
                                                     >
                                                         {UF.prettierString(SortOrder.DESCENDING)}
                                                     </Box>
                                                     <Divider ml="-16px" mr="-16px"/>
                                                     {Object.values(SortBy).map((sortByKey: SortBy, j) => (
                                                         <Box ml="-16px" mr="-16px" pl="15px" key={j}
-                                                             onClick={() => setSorting(sortByKey, pageParameters.order, i)}
-                                                             hidden={sortByKey === pageParameters.sortBy || sortByKey === SortBy.PATH}
+                                                             onClick={() => setSorting(sortByKey, order, i)}
+                                                             hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
                                                         >
                                                             {UF.sortByToPrettierString(sortByKey)}
                                                         </Box>
@@ -346,6 +399,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                                     </FileTableHeaderCell>
                                 })}
 
+                                {/* Options cell (adds a bit of spacing and hosts options in rows) */}
                                 <FileTableHeaderCell
                                     notSticky={isEmbedded}
 
@@ -361,6 +415,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                             {allFiles.map(file => (
                                 <TableRow highlighted={file.isChecked} key={file.fileId!} data-tag={"fileRow"}>
                                     <TableCell>
+                                        {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
                                         <Flex flexDirection="row" alignItems="center" mx="9px">
                                             {isEmbedded ? null :
                                                 <Box>
@@ -380,14 +435,17 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                                     </TableCell>
 
                                     <TableCell>
+                                        {/* Sensitivity icon */}
                                         <SensitivityIcon sensitivity={file.sensitivityLevel}/>
                                     </TableCell>
 
                                     {sortByColumns.filter(it => it != null).map((sC, i) => (
+                                        // Sorting columns
                                         <TableCell key={i}>{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                                     ))}
 
                                     <TableCell textAlign="center">
+                                        {/* Options cell */}
                                         {
                                             checkedFiles.size > 0 ? null :
                                                 fileOperations.length > 1 ?
@@ -655,9 +713,27 @@ function setSortingColumnAt(column: SortBy, columnIndex: 0 | 1) {
 
 export const NewFilesTableDemo: React.FunctionComponent = props => {
     const [path, setPath] = useState(Cloud.homeFolder);
+    let page: Page<File> | undefined = undefined;
+    if (path === `${Cloud.homeFolder}Shares`) {
+        page = {
+            items: [newMockFolder(`${Cloud.homeFolder}/Fake`, true, "f1")],
+            pageNumber: 10,
+            pagesInTotal: 20,
+            itemsPerPage: 10,
+            itemsInTotal: 200
+        };
+    }
+
+    let injectedFiles: File[] = [];
+    if (path === Cloud.homeFolder) {
+        injectedFiles = [newMockFolder(Cloud.homeFolder + "Shares", true, "shares")];
+    }
+
     return <NewFilesTable
         embedded={false}
         path={path}
+        injectedFiles={injectedFiles}
+        page={page}
         onFileNavigation={path => {
             console.log("Navigating to ", path);
             setPath(path);
