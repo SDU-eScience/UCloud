@@ -39,6 +39,7 @@ interface FetchJobsOptions {
     sortOrder?: SortOrder
     minTimestamp?: number
     maxTimestamp?: number
+    filter?: AppState
 }
 
 /* FIXME: Almost identical to similar one in FilesTable.tsx */
@@ -69,9 +70,10 @@ function JobResults(props: AnalysesProps & {history: History}) {
         const sortBy = opts.sortBy != null ? opts.sortBy : props.sortBy;
         const minTimestamp = opts.minTimestamp != null ? opts.minTimestamp : undefined;
         const maxTimestamp = opts.maxTimestamp != null ? opts.maxTimestamp : undefined;
+        const filter = opts.filter != null ? opts.filter : undefined;
         setLoading(true);
-        props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp);
-        props.setRefresh(() => props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp));
+        props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter);
+        props.setRefresh(() => props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter));
     }
 
     const {page, loading, history, responsive} = props;
@@ -125,7 +127,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         onPageChanged={pageNumber => fetchJobs({pageNumber})}
     />;
 
-    const [currentStateFilter, setFilter] = React.useState({text: "Don't Filter", value: ""});
+    const [filter, setFilter] = React.useState({text: "Don't filter", value: "Don't filter"});
     const [firstDate, setFirstDate] = React.useState<Date | null>(null);
     const [secondDate, setSecondDate] = React.useState<Date | null>(null);
 
@@ -152,6 +154,23 @@ function JobResults(props: AnalysesProps & {history: History}) {
     const startOfYesterday = yesterday.getTime() - yesterday.getMilliseconds();
     const startOfWeek = getStartOfWeek(new Date()).getTime();
 
+    function filterDropdown() {
+        return (<ClickableDropdown
+            chevron
+            trigger={filter.text == "a" ? filter.text : filter.text}
+            onChange={value => (setFilter({text: prettierString(filter.value), value}), fetchJobs({
+                itemsPerPage,
+                pageNumber,
+                sortBy,
+                sortOrder,
+                filter: value == "Don't filter" ? undefined : value as AppState
+            }))}
+            options={appStates.filter(it => it.value != filter.value)}
+        />
+        );
+    }
+
+
     const sidebar = (<Box pt={48}>
         <Heading.h3>
             Quick Filters
@@ -162,14 +181,9 @@ function JobResults(props: AnalysesProps & {history: History}) {
         </Box>
         <Box onClick={fetchJobsInRange(new Date(startOfWeek), null)}><TextSpan>This week</TextSpan></Box>
         <Box onClick={fetchJobsInRange(null, null)}><TextSpan>No filter</TextSpan></Box>
-        {/* <Heading.h3 mt={16}>Active Filters</Heading.h3>
+        <Heading.h3 mt={16}>Active Filters</Heading.h3>
         <Label>Filter by app state</Label>
-        <ClickableDropdown
-            chevron
-            trigger={<TextSpan>{prettierString(currentStateFilter)}</TextSpan>}
-            onChange={setFilter}
-            options={appStates.filter(it => it.value != currentStateFilter)}
-        /> */}
+        {filterDropdown()}
         <Box mb={16} mt={16}>
             <Label>Job created after</Label>
             <InputGroup>
@@ -312,8 +326,8 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),
-    fetchJobs: async (itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp) =>
-        dispatch(await fetchAnalyses(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp)),
+    fetchJobs: async (itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter) =>
+        dispatch(await fetchAnalyses(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     onInit: () => {
         dispatch(setActivePage(SidebarPages.Runs));

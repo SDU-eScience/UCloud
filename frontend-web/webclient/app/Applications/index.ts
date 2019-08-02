@@ -25,7 +25,7 @@ export type AnalysesProps = AnalysesStateProps & AnalysesOperations;
 
 export interface AnalysesOperations {
     setLoading: (loading: boolean) => void
-    fetchJobs: (itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: RunsSortBy, minTimestamp?: number, maxTimestamp?: number) => void
+    fetchJobs: (itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: RunsSortBy, minTimestamp?: number, maxTimestamp?: number, filter?: AppState) => void
     onInit: () => void
     setRefresh: (refresh?: () => void) => void
     checkAnalysis: (jobId: string, checked: boolean) => void

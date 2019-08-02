@@ -1,12 +1,13 @@
 import {Cloud} from "Authentication/SDUCloudObject";
 import {SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_ERROR, CHECK_ALL_ANALYSES, CHECK_ANALYSIS} from "./AnalysesReducer";
-import {Page, ReceivePage, SetLoadingAction, PayloadAction} from "Types";
+import {Page, SetLoadingAction, PayloadAction} from "Types";
 import {Analysis, RunsSortBy} from "..";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Action} from "redux";
 import {SortOrder} from "Files";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
+import {AppState} from "Applications";
 
 
 export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoading | CheckAnalysis | CheckAllAnalyses;
@@ -24,11 +25,12 @@ export const fetchAnalyses = async (
     sortOrder: SortOrder, 
     sortBy: RunsSortBy,
     minTimestamp?: number,
-    maxTimestamp?: number
+    maxTimestamp?: number,
+    filter?: AppState
 ): Promise<ReceiveAnalysesProps | AnalysesError> => {
     try {
         const {response} = await Cloud.get(
-            hpcJobsQuery(itemsPerPage, page, sortOrder, sortBy, minTimestamp, maxTimestamp)
+            hpcJobsQuery(itemsPerPage, page, sortOrder, sortBy, minTimestamp, maxTimestamp, filter)
         );
         return receiveAnalyses(response, sortBy, sortOrder);
     } catch (e) {
