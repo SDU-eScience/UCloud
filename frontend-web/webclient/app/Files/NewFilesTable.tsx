@@ -51,9 +51,12 @@ interface NewFilesTableProps {
     onReloadRequested?: () => void
 
     injectedFiles?: File[]
+    fileFilter?: (file: File) => boolean
 
     onLoadingState?: (loading: boolean) => void
     refreshHook?: (shouldRegister: boolean, fn?: () => void) => void
+
+    numberOfColumns?: number
 }
 
 export interface ListDirectoryRequest {
@@ -202,6 +205,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
     const isEmbedded = props.embedded !== false;
     const sortingSupported = props.path !== undefined;
+    const numberOfColumns = props.numberOfColumns !== undefined ? props.numberOfColumns : 2;
 
     const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
@@ -212,8 +216,9 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
     let {page, error, pageLoading, setSorting, sortingIconFor, reload, sortBy, order} =
         apiForComponent(props, sortByColumns, setSortByColumns);
 
-    const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items);
-    console.log(allFiles);
+    const fileFilter = props.fileFilter ? props.fileFilter : () => true;
+    const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
+        .filter(fileFilter);
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
     const [workLoading, workError, invokeWork] = useAsyncWork();
@@ -378,6 +383,8 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
                                 {/* Sorting columns (in header) */}
                                 {sortByColumns.filter(it => it != null).map((column, i) => {
+                                    if (i >= numberOfColumns) return null;
+
                                     const isSortedBy = sortBy === column;
 
                                     return <FileTableHeaderCell notSticky={isEmbedded} width="10rem">
@@ -460,10 +467,11 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                                         <SensitivityIcon sensitivity={file.sensitivityLevel}/>
                                     </TableCell>
 
-                                    {sortByColumns.filter(it => it != null).map((sC, i) => (
+                                    {sortByColumns.filter(it => it != null).map((sC, i) => {
+                                        if (i >= numberOfColumns) return null;
                                         // Sorting columns
-                                        <TableCell key={i}>{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
-                                    ))}
+                                        return <TableCell key={i}>{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
+                                    })}
 
                                     <TableCell textAlign="center">
                                         {/* Options cell */}
@@ -665,6 +673,7 @@ interface FileOperations extends SpaceProps {
 }
 
 const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
+    console.log("fileOps?", fileOperations);
     if (fileOperations.length === 0) return null;
 
     return <>
