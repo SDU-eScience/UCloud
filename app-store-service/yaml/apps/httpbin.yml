@@ -1,0 +1,29 @@
+---
+application: v1
+
+title: HttpBin
+name: HttpBin
+version: 1.0.1
+
+tool:
+  name: httpbin
+  version: 1.0.0
+
+authors:
+- Kenneth Reitz
+
+description:
+  Test Http requests
+
+invocation:
+  - "gunicorn"
+  - "-b"
+  - "0.0.0.0:80"
+  - "httpbin:app"
+  - "-k"
+  - "gevent"
+
+applicationType: WEB
+
+web:
+  port: 80

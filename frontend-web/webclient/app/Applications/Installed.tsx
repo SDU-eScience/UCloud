@@ -4,7 +4,7 @@ import {Dispatch} from "redux";
 import {ReduxObject} from "DefaultObjects";
 import {updatePageTitle, StatusActions} from "Navigation/Redux/StatusActions";
 import {setPrioritizedSearch, HeaderActions, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {WithAppMetadata, WithAppFavorite} from "Applications";
+import {WithAppMetadata, WithAppFavorite, WithAllAppTags, FullAppInfo} from "Applications";
 import {Page} from "Types";
 import * as Pagination from "Pagination";
 import {ApplicationCard} from "./Card";
@@ -63,7 +63,7 @@ function Installed(props: InstalledProps & {header: any}) {
         }
     }
 
-    const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
+    const page = props.applications.content as Page<FullAppInfo>;
     const itemsPerPage = !!page ? page.itemsPerPage : 25;
     const main = (
         <>
@@ -93,14 +93,14 @@ function Installed(props: InstalledProps & {header: any}) {
 }
 
 interface InstalledPageProps {
-    page: Page<WithAppMetadata & WithAppFavorite>
+    page: Page<FullAppInfo>
     onFavorite: (name: string, version: string) => void
 }
 
 const InstalledPage: React.FunctionComponent<InstalledPageProps> = props => (
     <GridCardGroup>
         {props.page.items.map((it, idx) => (
-            <ApplicationCard onFavorite={props.onFavorite} app={it} key={idx} isFavorite={it.favorite} linkToRun />)
+            <ApplicationCard onFavorite={props.onFavorite} app={it} key={idx} isFavorite={it.favorite} linkToRun tags={it.tags} />)
         )}
     </GridCardGroup>
 );
