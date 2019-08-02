@@ -372,4 +372,10 @@ export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: a
     }
 }
 
+export function delay(ms: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), ms);
+    });
+}
+
 export const inDevEnvironment = () => process.env.NODE_ENV === "development";

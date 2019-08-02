@@ -3,12 +3,11 @@ import {File} from "Files/index";
 import * as UF from "UtilityFunctions";
 import {
     allFilesHasAccessRight,
-    batchDeleteFiles,
     CopyOrMove,
     copyOrMoveFiles,
     downloadFiles,
     extractArchive,
-    fileInfoPage,
+    fileInfoPage, getFilenameFromPath,
     getParentPath,
     inTrashDir,
     isArchiveExtension,
@@ -21,9 +20,14 @@ import {
 import {Cloud} from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
 import {AccessRight} from "Types";
+import {delay} from "UtilityFunctions";
+import {addStandardDialog} from "UtilityComponents";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {SnackType} from "Snackbar/Snackbars";
 
 export interface FileOperationCallback {
     invokeCommand: (params: APICallParameters) => void
+    invokeAsyncWork: (fn: () => Promise<void>) => void
     requestFolderCreation: () => void
     requestReload: () => void
     requestFileUpload: () => void
@@ -65,15 +69,13 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Share",
         onClick: (files) => shareFiles({files, cloud: Cloud}),
         disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files),
-        icon: "share",
-        color: undefined
+        icon: "share"
     },
     {
         text: "Download",
         onClick: files => downloadFiles(files, () => 42, Cloud),
         disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files),
-        icon: "download",
-        color: undefined
+        icon: "download"
     },
     {
         text: "Sensitivity",
@@ -81,8 +83,7 @@ export const defaultFileOperations: FileOperation[] = [
             updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()})
         },
         disabled: files => false,
-        icon: "verified",
-        color: undefined
+        icon: "verified"
     },
     {
         text: "Copy Path",
@@ -91,8 +92,7 @@ export const defaultFileOperations: FileOperation[] = [
             message: `${replaceHomeFolder(files[0].path, Cloud.homeFolder)} copied to clipboard`
         }),
         disabled: files => !UF.inDevEnvironment() || files.length !== 1,
-        icon: "chat",
-        color: undefined
+        icon: "chat"
     },
     {
         text: "Move to Trash",
@@ -106,12 +106,32 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Delete Files",
-        onClick: (files, cb) => batchDeleteFiles({
-            files,
-            cloud: Cloud,
-            setLoading: () => 42,
-            callback: () => cb.requestReload()
-        }),
+        onClick: (files, cb) => {
+            const paths = files.map(f => f.path);
+            const message = paths.length > 1 ? `Delete ${paths.length} files?` :
+                `Delete file ${getFilenameFromPath(paths[0])}`;
+
+            addStandardDialog({
+                title: "Delete files",
+                message,
+                confirmText: "Delete files",
+                onConfirm: () => {
+                    cb.invokeAsyncWork(async () => {
+                        const promises: { status?: number, response?: string }[] =
+                            await Promise.all(paths.map(path => Cloud.delete("/files", {path}))).then(it => it).catch(it => it);
+                        const failures = promises.filter(it => it.status).length;
+                        if (failures > 0) {
+                            snackbarStore.addSnack({
+                                message: promises.filter(it => it.response).map(it => it).join(", "),
+                                type: SnackType.Failure
+                            });
+                        } else {
+                            snackbarStore.addSnack({message: "Files deleted", type: SnackType.Success});
+                        }
+                    });
+                }
+            });
+        },
         disabled: (files) => !files.every(f => getParentPath(f.path) === Cloud.trashFolder),
         icon: "trash",
         color: "red"
@@ -124,17 +144,27 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Extract archive",
-        onClick: (files, cb) => extractArchive({files, cloud: Cloud, onFinished: () => cb.requestReload()}),
+        onClick: (files, cb) => cb.invokeAsyncWork(() =>
+            extractArchive({files, cloud: Cloud, onFinished: () => cb.requestReload()})
+        ),
         disabled: (files) => !files.every(it => isArchiveExtension(it.path)),
-        icon: "open",
-        color: undefined
+        icon: "open"
     },
     {
         text: "Rename",
         onClick: (files, cb) => cb.startRenaming(files[0]),
         disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files),
-        icon: "rename",
-        color: undefined
+        icon: "rename"
+    },
+    {
+        text: "Random Work",
+        onClick: (_, cb) => cb.invokeAsyncWork(async () => {
+            await delay(2000);
+            console.log("Work is done!");
+        }),
+        disabled: () => false,
+        currentDirectoryMode: true,
+        color: "green"
     }
     /*
     {

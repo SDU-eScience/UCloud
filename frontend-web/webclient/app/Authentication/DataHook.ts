@@ -148,3 +148,31 @@ export function useAsyncCommand(): [boolean, (call: APICallParameters) => void] 
     return [isLoading, sendCommand];
 }
 
+export function useAsyncWork(): [boolean, string | undefined, (fn: () => Promise<void>) => void] {
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | undefined>(undefined);
+    const startWork = async (fn: () => Promise<void>) => {
+        setIsLoading(true);
+        try {
+            await fn();
+        } catch (e) {
+            if (!!e.request) {
+                let why = "Internal Server Error";
+                if (!!e.response && e.response.why) {
+                    why = e.response.why;
+                }
+                setError(why);
+            } else if (typeof e === "string") {
+                setError(e);
+            }  else if ("message" in e && typeof e.message === "string") {
+                setError(e.message);
+            } else {
+                setError("Internal error");
+                console.warn(e);
+            }
+        }
+        setIsLoading(false);
+    };
+
+    return [isLoading, error, startWork];
+}

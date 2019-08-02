@@ -606,8 +606,8 @@ interface ExtractArchive {
     onFinished: () => void
 }
 
-export const extractArchive = ({files, cloud, onFinished}: ExtractArchive): void => {
-    files.forEach(async f => {
+export const extractArchive = async ({files, cloud, onFinished}: ExtractArchive) => {
+    for (const f of files) {
         try {
             await cloud.post(extractFilesQuery, {path: f.path});
             snackbarStore.addSnack({message: "File extracted", type: SnackType.Success});
@@ -617,7 +617,7 @@ export const extractArchive = ({files, cloud, onFinished}: ExtractArchive): void
                 type: SnackType.Failure
             });
         }
-    });
+    }
     onFinished();
 };
 

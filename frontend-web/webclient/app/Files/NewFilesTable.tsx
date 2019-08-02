@@ -2,7 +2,7 @@ import * as React from "react";
 import {useEffect, useState} from "react";
 import {File, FileResource, SortBy, SortOrder} from "Files/index";
 import * as UF from "UtilityFunctions"
-import {APICallParameters, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {APICallParameters, useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Page} from "Types";
 import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
@@ -37,6 +37,9 @@ import * as Pagination from "Pagination";
 import {Spacer} from "ui-components/Spacer";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
+import {connect} from "react-redux";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setLoading} from "Navigation/Redux/StatusActions";
 
 interface NewFilesTableProps {
     page?: Page<File>
@@ -48,6 +51,9 @@ interface NewFilesTableProps {
     onReloadRequested?: () => void
 
     injectedFiles?: File[]
+
+    onLoadingState?: (loading: boolean) => void
+    refreshHook?: (shouldRegister: boolean, fn?: () => void) => void
 }
 
 export interface ListDirectoryRequest {
@@ -88,7 +94,7 @@ const invertSortOrder = (order: SortOrder): SortOrder => {
 interface InternalFileTableAPI {
     page: Page<File>;
     error: string | undefined;
-    loading: boolean;
+    pageLoading: boolean;
     setSorting: ((sortBy: SortBy, order: SortOrder, column?: number) => void);
     sortingIconFor: ((other: SortBy) => "arrowUp" | "arrowDown" | undefined);
     reload: () => void;
@@ -125,7 +131,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
     if (props.page !== undefined) {
         api = {
             page: props.page!,
-            loading: false,
+            pageLoading: false,
             error: undefined,
             setSorting: () => 0,
             sortingIconFor: () => undefined,
@@ -180,7 +186,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
         const sortBy = pageParameters.sortBy;
         const order = pageParameters.order;
 
-        api = {page, error, loading, setSorting, sortingIconFor, reload, sortBy, order};
+        api = {page, error, pageLoading: loading, setSorting, sortingIconFor, reload, sortBy, order};
     }
     return api;
 }
@@ -203,16 +209,18 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
 
-    let {page, error, loading, setSorting, sortingIconFor, reload, sortBy, order} =
+    let {page, error, pageLoading, setSorting, sortingIconFor, reload, sortBy, order} =
         apiForComponent(props, sortByColumns, setSortByColumns);
 
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items);
     console.log(allFiles);
 
-    const [commandState, invokeCommand] = useAsyncCommand();
+    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [workLoading, workError, invokeWork] = useAsyncWork();
 
     const callbacks: FileOperationCallback = {
         invokeCommand,
+        invokeAsyncWork: fn => invokeWork(fn),
         requestReload: () => {
             setFileBeingRenamed(null);
             setCheckedFiles(new Set());
@@ -228,6 +236,19 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
         },
         startRenaming: file => setFileBeingRenamed(file.fileId!)
     };
+
+    // Register refresh hook
+    useEffect(() => {
+        if (props.refreshHook === undefined) return;
+        props.refreshHook(true, () => callbacks.requestReload());
+
+        return () => {
+            if (props.refreshHook) props.refreshHook(false);
+        }
+    }, [props.refreshHook]);
+
+    // Loading state
+    if (props.onLoadingState) props.onLoadingState(workLoading || commandLoading || pageLoading);
 
     const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
 
@@ -321,7 +342,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
         main={
             <Pagination.List
-                loading={loading}
+                loading={pageLoading}
                 customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : <Box/>}
                 page={page}
                 onPageChanged={(a, b) => 42} // TODO
@@ -711,7 +732,12 @@ function setSortingColumnAt(column: SortBy, columnIndex: 0 | 1) {
     window.localStorage.setItem(`filesSorting${columnIndex}`, column);
 }
 
-export const NewFilesTableDemo: React.FunctionComponent = props => {
+interface NewFilesTableDemoProps {
+    refreshHook: (register: boolean, fn?: () => void) => void
+    setLoading: (loading: boolean) => void
+}
+
+const NewFilesTableDemo_: React.FunctionComponent<NewFilesTableDemoProps> = props => {
     const [path, setPath] = useState(Cloud.homeFolder);
     let page: Page<File> | undefined = undefined;
     if (path === `${Cloud.homeFolder}Shares`) {
@@ -734,9 +760,22 @@ export const NewFilesTableDemo: React.FunctionComponent = props => {
         path={path}
         injectedFiles={injectedFiles}
         page={page}
+        refreshHook={props.refreshHook}
+        onLoadingState={props.setLoading}
         onFileNavigation={path => {
             console.log("Navigating to ", path);
             setPath(path);
         }}
     />;
 };
+
+export const NewFilesTableDemo = connect(null, dispatch => ({
+    refreshHook: (register, fn) => {
+        if (register) {
+            dispatch(setRefreshFunction(fn));
+        } else {
+            dispatch(setRefreshFunction());
+        }
+    },
+    setLoading: loading => dispatch(setLoading(loading))
+}))(NewFilesTableDemo_);
