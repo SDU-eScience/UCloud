@@ -26,7 +26,6 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 
 export interface FileOperationCallback {
-    invokeCommand: (params: APICallParameters) => void
     invokeAsyncWork: (fn: () => Promise<void>) => void
     requestFolderCreation: () => void
     requestReload: () => void

@@ -26,7 +26,7 @@ import {
     isInvalidPathName,
     moveFile,
     newMockFolder,
-    replaceHomeFolder
+    replaceHomeFolder, resolvePath
 } from "Utilities/FileUtilities";
 import BaseLink from "ui-components/BaseLink";
 import Theme from "ui-components/theme";
@@ -40,6 +40,8 @@ import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {connect} from "react-redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setLoading} from "Navigation/Redux/StatusActions";
+import header from "Navigation/Redux/HeaderReducer";
+import {Refresh} from "Navigation/Header";
 
 interface NewFilesTableProps {
     page?: Page<File>
@@ -195,6 +197,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
 }
 
 export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props => {
+    // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
     }
@@ -203,28 +206,25 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
         throw Error("page is not currently supported in non-embedded mode without a path");
     }
 
-    const isEmbedded = props.embedded !== false;
-    const sortingSupported = props.path !== undefined;
-    const numberOfColumns = props.numberOfColumns !== undefined ? props.numberOfColumns : 2;
-
+    // Hooks
     const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
     const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(getSortingColumns());
-
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
-
-    let {page, error, pageLoading, setSorting, sortingIconFor, reload, sortBy, order} =
-        apiForComponent(props, sortByColumns, setSortByColumns);
-
-    const fileFilter = props.fileFilter ? props.fileFilter : () => true;
-    const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
-        .filter(fileFilter);
-
-    const [commandLoading, invokeCommand] = useAsyncCommand();
     const [workLoading, workError, invokeWork] = useAsyncWork();
 
+    // Register refresh hook
+    useEffect(() => {
+        if (props.refreshHook === undefined) return;
+        props.refreshHook(true, () => callbacks.requestReload());
+
+        return () => {
+            if (props.refreshHook) props.refreshHook(false);
+        }
+    }, [props.refreshHook]);
+
+    // Callbacks for operations
     const callbacks: FileOperationCallback = {
-        invokeCommand,
         invokeAsyncWork: fn => invokeWork(fn),
         requestReload: () => {
             setFileBeingRenamed(null);
@@ -242,21 +242,24 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
         startRenaming: file => setFileBeingRenamed(file.fileId!)
     };
 
-    // Register refresh hook
-    useEffect(() => {
-        if (props.refreshHook === undefined) return;
-        props.refreshHook(true, () => callbacks.requestReload());
+    let {page, error, pageLoading, setSorting, sortingIconFor, reload, sortBy, order} =
+        apiForComponent(props, sortByColumns, setSortByColumns);
 
-        return () => {
-            if (props.refreshHook) props.refreshHook(false);
-        }
-    }, [props.refreshHook]);
+    // Aliases
+    const isEmbedded = props.embedded !== false;
+    const sortingSupported = props.path !== undefined;
+    const numberOfColumns = props.numberOfColumns !== undefined ? props.numberOfColumns : 2;
+    const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
+    const fileFilter = props.fileFilter ? props.fileFilter : () => true;
+    const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
+        .filter(fileFilter);
+    const isMasterChecked = allFiles.length > 0 && allFiles.every(f => checkedFiles.has(f.fileId!));
+    let isAnyLoading = workLoading || pageLoading;
 
     // Loading state
-    if (props.onLoadingState) props.onLoadingState(workLoading || commandLoading || pageLoading);
+    if (props.onLoadingState) props.onLoadingState(isAnyLoading);
 
-    const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
-
+    // Private utility functions
     const setChecked = (updatedFiles: File[], checkStatus?: boolean) => {
         const checked = new Set(checkedFiles);
         if (checkStatus === false) {
@@ -275,8 +278,6 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
         setCheckedFiles(checked);
     };
-
-    const isMasterChecked = allFiles.length > 0 && allFiles.every(f => checkedFiles.has(f.fileId!));
 
     const onRenameFile = (key: number, file: File, name: string) => {
         if (key === KeyCode.ESC) {
@@ -320,11 +321,22 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                 }
 
                 right={
-                    <Pagination.EntriesPerPageSelector
-                        content="Files per page"
-                        entriesPerPage={42} // TODO
-                        onChange={() => 42} // TODO
-                    />
+                    <>
+                        {!isEmbedded ? null :
+                            <Refresh
+                                spin={isAnyLoading}
+                                onClick={() => callbacks.requestReload()}
+                            />
+                        }
+
+                        {isEmbedded ? null :
+                            <Pagination.EntriesPerPageSelector
+                                content="Files per page"
+                                entriesPerPage={42} // TODO
+                                onChange={() => 42} // TODO
+                            />
+                        }
+                    </>
                 }
             />
         }
@@ -458,7 +470,7 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                                             <Box ml="5px" pr="5px"/>
                                             <NameBox file={file} onRenameFile={onRenameFile}
                                                      onNavigate={props.onFileNavigation}
-                                                     invokeCommand={invokeCommand} fileBeingRenamed={fileBeingRenamed}/>
+                                                     fileBeingRenamed={fileBeingRenamed}/>
                                         </Flex>
                                     </TableCell>
 
@@ -470,7 +482,9 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
                                     {sortByColumns.filter(it => it != null).map((sC, i) => {
                                         if (i >= numberOfColumns) return null;
                                         // Sorting columns
-                                        return <TableCell key={i}>{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
+                                        return <TableCell key={i}>
+                                            {sC ? UF.sortingColumnToValue(sC, file) : null}
+                                        </TableCell>
                                     })}
 
                                     <TableCell textAlign="center">
@@ -512,13 +526,18 @@ export const NewFilesTable: React.FunctionComponent<NewFilesTableProps> = props 
 
 interface ShellProps {
     embedded: boolean
-    header: React.ReactNode
-    sidebar: React.ReactNode
-    main: React.ReactNode
+    header: React.ReactChild
+    sidebar: React.ReactChild
+    main: React.ReactChild
 }
 
 const Shell: React.FunctionComponent<ShellProps> = props => {
-    if (props.embedded) return <>{props.main}</>;
+    if (props.embedded) {
+        return <>
+            {props.header}
+            {props.main}
+        </>;
+    }
 
     return <MainContainer
         header={props.header}
@@ -541,7 +560,6 @@ interface NameBoxProps {
     file: File
     onRenameFile: (keycode: number, file: File, value: string) => void
     onNavigate: (path: string) => void
-    invokeCommand: (call: APICallParameters) => void
     fileBeingRenamed: string | null
 }
 
@@ -591,7 +609,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 <Box title={replaceHomeFolder(props.file.path, Cloud.homeFolder)} width="100%">
                     <BaseLink href={"#"} onClick={e => {
                         e.preventDefault();
-                        props.onNavigate(props.file.path);
+                        props.onNavigate(resolvePath(props.file.path));
                     }}>
                         <Flex alignItems="center">
                             {icon}
@@ -673,7 +691,6 @@ interface FileOperations extends SpaceProps {
 }
 
 const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
-    console.log("fileOps?", fileOperations);
     if (fileOperations.length === 0) return null;
 
     return <>

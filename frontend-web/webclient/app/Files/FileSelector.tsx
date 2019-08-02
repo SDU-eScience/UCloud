@@ -32,31 +32,33 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {NewFilesTable} from "Files/NewFilesTable";
 import {useState} from "react";
 
+/*
+           case FileSource.FAVORITES:
+                filePageFuture = this.state.promises.makeCancelable(
+                    Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage))
+                ).promise.then(it => it.response);
+                break;
+
+            case FileSource.SHARES:
+                filePageFuture = this.state.promises.makeCancelable(
+                    Cloud.get<Page<File>>(buildQueryString("/shares/list-files", {page: pageNumber, itemsPerPage}))
+                ).promise.then(it => it.response);
+                break;
+};
+ */
+
+
+
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
-    /*
-               case FileSource.FAVORITES:
-                    filePageFuture = this.state.promises.makeCancelable(
-                        Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage))
-                    ).promise.then(it => it.response);
-                    break;
-
-                case FileSource.SHARES:
-                    filePageFuture = this.state.promises.makeCancelable(
-                        Cloud.get<Page<File>>(buildQueryString("/shares/list-files", {page: pageNumber, itemsPerPage}))
-                    ).promise.then(it => it.response);
-                    break;
-    };
-     */
-
-    const [path, setPath] = useState<string>(Cloud.homeFolder);
+   const [path, setPath] = useState<string>(Cloud.homeFolder);
 
     const injectedFiles: File[] = [];
-    if (path !== Cloud.homeFolder) {
+    if (resolvePath(path) !== resolvePath(Cloud.homeFolder)) {
         injectedFiles.push(newMockFolder(`${addTrailingSlash(path)}..`, false));
     }
     injectedFiles.push(newMockFolder(`${addTrailingSlash(path)}.`, false));
 
-    const canSelectFolders = props.canSelectFolders !== undefined ? props.canSelectFolders : false;
+    const canSelectFolders = !!props.canSelectFolders;
 
     return (
         <Flex backgroundColor="white">

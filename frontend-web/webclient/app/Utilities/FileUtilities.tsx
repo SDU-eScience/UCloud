@@ -420,7 +420,9 @@ export function resolvePath(path: string) {
     const components = path.split("/");
     const result: string[] = [];
     components.forEach(it => {
-        if (it === ".") {
+        if (it === "") {
+            return;
+        } else if (it === ".") {
             return;
         } else if (it === "..") {
             result.pop();
@@ -428,7 +430,7 @@ export function resolvePath(path: string) {
             result.push(it);
         }
     });
-    return result.join("/");
+    return "/" + result.join("/");
 }
 
 const toAttributesString = (attrs: FileResource[]) =>
