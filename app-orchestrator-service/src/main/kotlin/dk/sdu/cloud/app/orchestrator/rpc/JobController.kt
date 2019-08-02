@@ -58,7 +58,8 @@ class JobController<DBSession>(
                     request.order ?: SortOrder.DESCENDING,
                     request.sortBy ?: JobSortBy.CREATED_AT,
                     request.minTimestamp,
-                    request.maxTimestamp
+                    request.maxTimestamp,
+                    request.filter
                 )
             }.mapItems { it.job.toJobWithStatus() }
 

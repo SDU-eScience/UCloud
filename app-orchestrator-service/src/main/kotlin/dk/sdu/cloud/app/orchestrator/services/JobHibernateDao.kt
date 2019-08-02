@@ -253,7 +253,8 @@ class JobHibernateDao(
         order: SortOrder,
         sortBy: JobSortBy,
         minTimestamp: Long?,
-        maxTimestamp: Long?
+        maxTimestamp: Long?,
+        filter: JobState?
     ): Page<VerifiedJobWithAccessToken> {
         return session.paginatedCriteria<JobInformationEntity>(
             pagination,
@@ -291,19 +292,17 @@ class JobHibernateDao(
                 // Time ranges
                 val lowerTime = entity[JobInformationEntity::createdAt] greaterThanEquals Date(minTimestamp ?: 0)
                 val upperTime = entity[JobInformationEntity::createdAt] lessThanEquals Date(maxTimestamp ?: Date().time)
-                val matchesLowerFilter =
-                    literal(minTimestamp == null).toPredicate() or
-                            (isNotNull(entity[JobInformationEntity::createdAt]) and lowerTime)
-                val matchesUpperFilter =
-                    literal(maxTimestamp == null).toPredicate() or
-                            (isNotNull(entity[JobInformationEntity::createdAt]) and upperTime)
+                val matchesLowerFilter = literal(minTimestamp == null).toPredicate() or lowerTime
+                val matchesUpperFilter = literal(maxTimestamp == null).toPredicate() or upperTime
 
                 // AppState filter
-
+                val appState = entity[JobInformationEntity::state] equal (filter ?: JobState.VALIDATED)
+                val appStateFilter = literal(filter == null).toPredicate() or appState
 
                 allOf(
                     matchesLowerFilter,
                     matchesUpperFilter,
+                    appStateFilter,
                     anyOf(
                         canViewAsOwner,
                         canViewAsPartOfProject

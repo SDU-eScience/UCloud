@@ -371,6 +371,77 @@ class JobHibernateDaoTest {
             max
         )
     }
+
+    @Test
+    fun `Add and retrieve apps based on state`() {
+        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
+        coEvery {
+            appDao.findByNameAndVersion(
+                normAppDesc.metadata.name,
+                normAppDesc.metadata.version
+            )
+        } returns normAppDesc
+
+        db.withTransaction {
+            addJob1(it)
+        }
+
+        db.withTransaction {
+            val jobs = fetchAllJobsInPage(it)
+            assertEquals(1, jobs.items.size)
+
+            val jobByFilter = runBlocking {
+                jobHibDao.list(
+                    it,
+                    user.createToken(),
+                    NormalizedPaginationRequest(100, 0),
+                    SortOrder.DESCENDING,
+                    JobSortBy.LAST_UPDATE,
+                    null,
+                    null,
+                    JobState.VALIDATED
+                )
+            }
+            assertEquals(1, jobByFilter.items.size)
+
+            val noJobByFilter = runBlocking {
+                jobHibDao.list(
+                    it,
+                    user.createToken(),
+                    NormalizedPaginationRequest(100, 0),
+                    SortOrder.DESCENDING,
+                    JobSortBy.LAST_UPDATE,
+                    null,
+                    null,
+                    JobState.CANCELING
+                )
+            }
+
+            assertEquals(0, noJobByFilter.items.size)
+        }
+    }
+
+    private fun addJob1(session: HibernateSession) {
+        val firstJob = VerifiedJobWithAccessToken(
+            VerifiedJob(
+                normAppDesc,
+                emptyList(),
+                systemId,
+                user.username,
+                1,
+                1,
+                SimpleDuration(0, 1, 0),
+                VerifiedJobInput(emptyMap()),
+                "abacus",
+                JobState.VALIDATED,
+                "Unknown",
+                archiveInCollection = normAppDesc.metadata.title,
+                uid = 1337L
+            ),
+            "token"
+        )
+        jobHibDao.create(session, firstJob)
+    }
 }
 
 fun SecurityPrincipal.createToken(): SecurityPrincipalToken = SecurityPrincipalToken(
