@@ -330,7 +330,7 @@ export const initAnalyses = (): AnalysisReduxObject => ({
     page: emptyPage,
     loading: false,
     error: undefined,
-    sortBy: RunsSortBy.startedAt,
+    sortBy: RunsSortBy.createdAt,
     sortOrder: SortOrder.ASCENDING
 });
 

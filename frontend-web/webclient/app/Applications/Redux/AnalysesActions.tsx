@@ -6,6 +6,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Action} from "redux";
 import {SortOrder} from "Files";
+import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
 
 
 export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoading | CheckAnalysis | CheckAllAnalyses;
@@ -21,27 +22,29 @@ export const fetchAnalyses = async (
     itemsPerPage: number,
     page: number,
     sortOrder: SortOrder, 
-    sortBy: RunsSortBy
+    sortBy: RunsSortBy,
+    minTimestamp?: number,
+    maxTimestamp?: number
 ): Promise<ReceiveAnalysesProps | AnalysesError> => {
     try {
         const {response} = await Cloud.get(
-            `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`
+            hpcJobsQuery(itemsPerPage, page, sortOrder, sortBy, minTimestamp, maxTimestamp)
         );
-        return receiveAnalyses(response);
+        return receiveAnalyses(response, sortBy, sortOrder);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "Retrieval of analyses failed, please try again later."));
         return setError()
     }
 }
 
-type ReceiveAnalysesProps = ReceivePage<typeof RECEIVE_ANALYSES, Analysis>
+type ReceiveAnalysesProps = PayloadAction<typeof RECEIVE_ANALYSES, { page: Page<Analysis>, sortBy: RunsSortBy, sortOrder: SortOrder}>
 /**
  * Returns an action containing the page retrieved
  * @param {Page<Analysis>} page contains the analyses, pageNumber and items per page
  */
-const receiveAnalyses = (page: Page<Analysis>): ReceiveAnalysesProps => ({
+const receiveAnalyses = (page: Page<Analysis>, sortBy: RunsSortBy, sortOrder: SortOrder): ReceiveAnalysesProps => ({
     type: RECEIVE_ANALYSES,
-    payload: {page}
+    payload: {page, sortBy, sortOrder}
 });
 
 type AnalysesError = Action<typeof SET_ANALYSES_ERROR>

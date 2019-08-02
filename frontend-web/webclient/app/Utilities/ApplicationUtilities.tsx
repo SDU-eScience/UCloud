@@ -1,19 +1,32 @@
 import {removeTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
-import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState} from "Applications";
+import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState, RunsSortBy} from "Applications";
 import Cloud from "Authentication/lib";
 import {Page} from "Types";
 import {expandHomeFolder} from "./FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {SnackType} from "Snackbar/Snackbars";
+import {SortOrder} from "Files";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
 export const hpcJobQuery = (id: string, stdoutLine: number, stderrLine: number, stdoutMaxLines: number = 1000, stderrMaxLines: number = 1000) =>
     `/hpc/jobs/follow/${encodeURIComponent(id)}?stdoutLineStart=${stdoutLine}&stdoutMaxLines=${stdoutMaxLines}&stderrLineStart=${stderrLine}&stderrMaxLines=${stderrMaxLines}`;
 
-export const hpcJobsQuery = (itemsPerPage: number, page: number): string =>
-    `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
+export function hpcJobsQuery(
+    itemsPerPage: number,
+    page: number,
+    sortOrder?: SortOrder,
+    sortBy?: RunsSortBy,
+    minTimestamp?: number,
+    maxTimestamp?: number,
+): string {
+    var query = `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
+    if (sortOrder) query = query.concat(`&sortOrder=${sortOrder}`);
+    if (sortBy) query = query.concat(`&sortBy=${sortBy}`);
+    if (minTimestamp != null) query = query.concat(`&minTimestamp=${minTimestamp}`);
+    if (maxTimestamp != null) query = query.concat(`&maxTimestamp=${maxTimestamp}`);
+    return query;
+}
 
 export const hpcFavoriteApp = (name: string, version: string) => `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 

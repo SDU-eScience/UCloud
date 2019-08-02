@@ -288,6 +288,7 @@ class JobHibernateDao(
                         )
                     }
 
+                // Time ranges
                 val lowerTime = entity[JobInformationEntity::createdAt] greaterThanEquals Date(minTimestamp ?: 0)
                 val upperTime = entity[JobInformationEntity::createdAt] lessThanEquals Date(maxTimestamp ?: Date().time)
                 val matchesLowerFilter =
@@ -296,6 +297,10 @@ class JobHibernateDao(
                 val matchesUpperFilter =
                     literal(maxTimestamp == null).toPredicate() or
                             (isNotNull(entity[JobInformationEntity::createdAt]) and upperTime)
+
+                // AppState filter
+
+
                 allOf(
                     matchesLowerFilter,
                     matchesUpperFilter,

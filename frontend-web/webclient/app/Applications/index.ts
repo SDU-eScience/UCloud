@@ -25,7 +25,7 @@ export type AnalysesProps = AnalysesStateProps & AnalysesOperations;
 
 export interface AnalysesOperations {
     setLoading: (loading: boolean) => void
-    fetchJobs: (itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: RunsSortBy) => void
+    fetchJobs: (itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: RunsSortBy, minTimestamp?: number, maxTimestamp?: number) => void
     onInit: () => void
     setRefresh: (refresh?: () => void) => void
     checkAnalysis: (jobId: string, checked: boolean) => void
@@ -367,5 +367,6 @@ export enum RunsSortBy {
     state = "STATE",
     application = "APPLICATION",
     startedAt = "STARTED_AT",
-    lastUpdate = "LAST_UPDATE"
+    lastUpdate = "LAST_UPDATE",
+    createdAt = "CREATED_AT"
 }

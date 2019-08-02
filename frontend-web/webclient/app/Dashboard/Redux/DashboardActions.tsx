@@ -8,7 +8,7 @@ import {
     DASHBOARD_RECENT_JOBS_ERROR,
     DASHBOARD_RECENT_FILES_ERROR
 } from "./DashboardReducer";
-import {SetLoadingAction, Error} from "Types";
+import {SetLoadingAction} from "Types";
 import {Analysis} from "Applications";
 import {File} from "Files";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
@@ -22,7 +22,10 @@ import {SnackType} from "Snackbar/Snackbars";
 export type DashboardActions = Action<DashboardError> | ReceiveFavoritesProps | ReceiveRecentFilesProps |
     SetLoadingAction<typeof SET_ALL_LOADING> | ReceiveRecentAnalyses;
 
-type DashboardError = typeof DASHBOARD_FAVORITE_ERROR | typeof DASHBOARD_RECENT_JOBS_ERROR | typeof DASHBOARD_RECENT_FILES_ERROR;
+type DashboardError = 
+    typeof DASHBOARD_FAVORITE_ERROR |
+    typeof DASHBOARD_RECENT_JOBS_ERROR |
+    typeof DASHBOARD_RECENT_FILES_ERROR;
 
 /**
  * Sets all dashboard lists as either loading or not loading
