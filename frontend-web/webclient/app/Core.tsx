@@ -35,7 +35,7 @@ import {History} from "history";
 import ProjectList from "Project/List";
 import ProjectCreate from "Project/Create";
 import ProjectView from "Project/View";
-import {NewFilesTable, NewFilesTableDemo} from "Files/NewFilesTable";
+import {LowLevelFilesTable, NewFilesTableDemo} from "Files/LowLevelFilesTable";
 
 const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 

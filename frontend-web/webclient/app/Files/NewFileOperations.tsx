@@ -1,26 +1,24 @@
-import {APICallParameters} from "Authentication/DataHook";
 import {File} from "Files/index";
 import * as UF from "UtilityFunctions";
+import {delay} from "UtilityFunctions";
 import {
     allFilesHasAccessRight,
     CopyOrMove,
-    copyOrMoveFiles,
+    copyOrMoveFilesNew,
     downloadFiles,
     extractArchive,
-    fileInfoPage, getFilenameFromPath,
+    getFilenameFromPath,
     getParentPath,
     inTrashDir,
     isArchiveExtension,
     isFixedFolder,
-    moveToTrash, newMockFolder,
+    moveToTrash,
     replaceHomeFolder,
-    shareFiles, startRenamingFiles,
+    shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
-import SDUCloud from "Authentication/lib";
 import {AccessRight} from "Types";
-import {delay} from "UtilityFunctions";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
@@ -31,6 +29,7 @@ export interface FileOperationCallback {
     requestReload: () => void
     requestFileUpload: () => void
     startRenaming: (file: File) => void
+    requestFileSelector: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>
 }
 
 export interface FileOperation {
@@ -164,37 +163,37 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: () => false,
         currentDirectoryMode: true,
         color: "green"
-    }
-    /*
+    },
     {
         text: "Copy",
-        onClick: (files) => copyOrMoveFiles({
-            operation: CopyOrMove.Copy,
-            files,
-            copyMoveOps: fileSelectorOperations, // This requirement wil disappear later
-            cloud: Cloud,
-            setLoading: () => 42
-        }),
+        onClick: async (files, cb) => {
+            const target = await cb.requestFileSelector(true, true);
+            if (target === null) return;
+            cb.invokeAsyncWork(async () => {
+                try {
+                    await copyOrMoveFilesNew(CopyOrMove.Copy, files, target);
+                } catch (e) {
+                    console.warn(e);
+                }
+            });
+        },
         disabled: (files) => !allFilesHasAccessRight("WRITE", files),
         icon: "copy",
-        color: undefined
     },
     {
         text: "Move",
-        onClick: (files) => copyOrMoveFiles({
-            operation: CopyOrMove.Move,
-            files,
-            copyMoveOps: fileSelectorOperations, // This requirement will disappear later
-            cloud: Cloud,
-            setLoading: () => 42
-        }),
-
-        disabled: (files) =>
-            !allFilesHasAccessRight("WRITE", files) ||
-            files.some(f => isFixedFolder(f.path, Cloud.homeFolder)),
-
+        onClick: async (files, cb) => {
+            const target = await cb.requestFileSelector(true, true);
+            if (target === null) return;
+            cb.invokeAsyncWork(async () => {
+                try {
+                    await copyOrMoveFilesNew(CopyOrMove.Move, files, target);
+                } catch (e) {
+                    console.warn(e);
+                }
+            });
+        },
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files),
         icon: "move",
-        color: undefined
     }
-     */
 ];

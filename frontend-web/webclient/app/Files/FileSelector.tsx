@@ -29,8 +29,8 @@ import {addTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
 import {Refresh} from "Navigation/Header";
 import {Page} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {NewFilesTable} from "Files/NewFilesTable";
 import {useState} from "react";
+import {LowLevelFilesTable} from "Files/LowLevelFilesTable";
 
 /*
            case FileSource.FAVORITES:
@@ -71,7 +71,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                 onRequestClose={() => props.onFileSelect(null)}
                 style={FileSelectorModalStyle}
             >
-                <NewFilesTable
+                <LowLevelFilesTable
                     numberOfColumns={0}
                     fileOperations={[{
                         text: "Select",
@@ -81,6 +81,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             (!canSelectFolders && files[0].fileType === "FILE")
                         ))
                     }]}
+                    fileFilter={file => canSelectFolders || file.fileType === "DIRECTORY"}
                     onFileNavigation={path => setPath(path)}
                     injectedFiles={injectedFiles}
                     path={path}/>
