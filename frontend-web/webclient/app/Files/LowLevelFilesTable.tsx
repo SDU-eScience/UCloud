@@ -42,6 +42,7 @@ import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setLoading} from "Navigation/Redux/StatusActions";
 import {Refresh} from "Navigation/Header";
 import {NewFilesTable} from "Files/NewFilesTable";
+import {defaultVirtualFolders} from "Files/VirtualFilesTable";
 
 export interface LowLevelFilesTableProps {
     page?: Page<File>
@@ -780,27 +781,11 @@ interface NewFilesTableDemoProps {
 
 const NewFilesTableDemo_: React.FunctionComponent<NewFilesTableDemoProps> = props => {
     const [path, setPath] = useState(Cloud.homeFolder);
-    let page: Page<File> | undefined = undefined;
-    if (path === `${Cloud.homeFolder}Shares`) {
-        page = {
-            items: [newMockFolder(`${Cloud.homeFolder}/Fake`, true, "f1")],
-            pageNumber: 10,
-            pagesInTotal: 20,
-            itemsPerPage: 10,
-            itemsInTotal: 200
-        };
-    }
-
-    let injectedFiles: File[] = [];
-    if (path === Cloud.homeFolder) {
-        injectedFiles = [newMockFolder(Cloud.homeFolder + "Shares", true, "shares")];
-    }
 
     return <NewFilesTable
+        {...defaultVirtualFolders()}
         embedded={false}
         path={path}
-        injectedFiles={injectedFiles}
-        page={page}
         refreshHook={props.refreshHook}
         onLoadingState={props.setLoading}
         onFileNavigation={path => {

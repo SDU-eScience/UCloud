@@ -1,7 +1,7 @@
 import * as React from "react";
-import {LowLevelFilesTable, LowLevelFilesTableProps} from "Files/LowLevelFilesTable";
 import FileSelector from "Files/FileSelector";
 import {useCallback, useMemo, useState} from "react";
+import {defaultVirtualFolders, VirtualFilesTable, VirtualFilesTableProps} from "Files/VirtualFilesTable";
 
 interface ResolveHolder<T> {
     resolve: (T) => void
@@ -9,7 +9,7 @@ interface ResolveHolder<T> {
 
 // The files table that most other clients should use as a base. This includes an embedded file selector for copy and
 // move operations.
-export const NewFilesTable: React.FunctionComponent<LowLevelFilesTableProps> = props => {
+export const NewFilesTable: React.FunctionComponent<VirtualFilesTableProps> = props => {
     const [resolve, setResolve] = useState<ResolveHolder<string | null>>({resolve: () => 0});
     const [isVisible, setIsVisible] = useState(false);
     const [allowFolders, setAllowFolders] = useState<boolean>(false);
@@ -30,7 +30,7 @@ export const NewFilesTable: React.FunctionComponent<LowLevelFilesTableProps> = p
     }
 
     const table = useMemo(() => {
-        return <LowLevelFilesTable {...modifiedProps}/>
+        return <VirtualFilesTable {...modifiedProps}/>
     }, [props]);
 
     return <>

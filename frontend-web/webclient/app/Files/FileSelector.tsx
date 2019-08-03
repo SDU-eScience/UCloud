@@ -31,23 +31,7 @@ import {Page} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {useState} from "react";
 import {LowLevelFilesTable} from "Files/LowLevelFilesTable";
-
-/*
-           case FileSource.FAVORITES:
-                filePageFuture = this.state.promises.makeCancelable(
-                    Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage))
-                ).promise.then(it => it.response);
-                break;
-
-            case FileSource.SHARES:
-                filePageFuture = this.state.promises.makeCancelable(
-                    Cloud.get<Page<File>>(buildQueryString("/shares/list-files", {page: pageNumber, itemsPerPage}))
-                ).promise.then(it => it.response);
-                break;
-};
- */
-
-
+import {defaultVirtualFolders, VirtualFilesTable} from "Files/VirtualFilesTable";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
    const [path, setPath] = useState<string>(Cloud.homeFolder);
@@ -71,7 +55,8 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                 onRequestClose={() => props.onFileSelect(null)}
                 style={FileSelectorModalStyle}
             >
-                <LowLevelFilesTable
+                <VirtualFilesTable
+                    {...defaultVirtualFolders()}
                     numberOfColumns={0}
                     fileOperations={[{
                         text: "Select",
