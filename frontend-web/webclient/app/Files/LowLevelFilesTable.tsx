@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {File, FileResource, SortBy, SortOrder} from "Files/index";
 import * as UF from "UtilityFunctions"
 import {APICallParameters, useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {buildQueryString, RouterLocationProps} from "Utilities/URIUtilities";
 import {Page} from "Types";
 import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import styled from "styled-components";
@@ -43,6 +43,7 @@ import {setLoading} from "Navigation/Redux/StatusActions";
 import {Refresh} from "Navigation/Header";
 import {NewFilesTable} from "Files/NewFilesTable";
 import {defaultVirtualFolders} from "Files/VirtualFilesTable";
+import {RouteComponentProps, withRouter} from "react-router";
 
 export interface LowLevelFilesTableProps {
     page?: Page<File>
@@ -212,7 +213,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
     return api;
 }
 
-export const LowLevelFilesTable: React.FunctionComponent<LowLevelFilesTableProps> = props => {
+const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & RouteComponentProps> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -259,7 +260,8 @@ export const LowLevelFilesTable: React.FunctionComponent<LowLevelFilesTableProps
         requestFileSelector: async (allowFolders: boolean, canOnlySelectFolders: boolean) => {
             if (props.requestFileSelector) return await props.requestFileSelector(allowFolders, canOnlySelectFolders);
             return null;
-        }
+        },
+        history: props.history
     };
 
     let {page, error, pageLoading, setSorting, sortingIconFor, reload, sortBy, order, onPageChanged} =
@@ -543,6 +545,8 @@ export const LowLevelFilesTable: React.FunctionComponent<LowLevelFilesTableProps
         }
     />;
 };
+
+export const LowLevelFilesTable = withRouter(LowLevelFilesTable_);
 
 interface ShellProps {
     embedded: boolean

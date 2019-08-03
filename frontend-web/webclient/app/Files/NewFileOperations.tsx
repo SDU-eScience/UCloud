@@ -6,7 +6,7 @@ import {
     CopyOrMove,
     copyOrMoveFilesNew,
     downloadFiles,
-    extractArchive,
+    extractArchive, fileInfoPage,
     getFilenameFromPath,
     getParentPath,
     inTrashDir,
@@ -22,6 +22,7 @@ import {AccessRight} from "Types";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
+import * as H from 'history';
 
 export interface FileOperationCallback {
     invokeAsyncWork: (fn: () => Promise<void>) => void
@@ -30,6 +31,7 @@ export interface FileOperationCallback {
     requestFileUpload: () => void
     startRenaming: (file: File) => void
     requestFileSelector: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>
+    history: H.History
 }
 
 export interface FileOperation {
@@ -138,7 +140,7 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Properties",
-        onClick: (files) => 42, //history.push(fileInfoPage(files[0].path)), // TODO!!!
+        onClick: (files, cb) => cb.history.push(fileInfoPage(files[0].path)),
         disabled: (files) => files.length !== 1,
         icon: "properties", color: "blue"
     },
