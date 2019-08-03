@@ -134,7 +134,11 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
 
     useEffect(() => {
         if (props.page === undefined) {
-            setPageParams(listDirectory({...pageParams.parameters, path: props.path!}));
+            let parameters = pageParams.parameters as ListDirectoryRequest;
+            let newAttrs = {...parameters, path: props.path!};
+            if (props.path !== parameters.path) newAttrs.page = 0;
+
+            setPageParams(listDirectory(newAttrs));
         }
     }, [props.path, props.page]);
 
@@ -711,9 +715,10 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
 
     return <>
         {fileOperations.map((fileOp: FileOperation, i: number) => {
-            if (fileOp.disabled(files)) return null;
             if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
             if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
+            const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
+            if (fileOp.disabled(filesInCallback)) return null;
 
             let As: typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
             if (fileOperations.length === 1) {
@@ -737,13 +742,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
                 key={i}
                 color={fileOp.color}
                 alignItems="center"
-                onClick={() => {
-                    if (fileOp.currentDirectoryMode === true) {
-                        fileOp.onClick([props.directory!], props.callback);
-                    } else {
-                        fileOp.onClick(files, props.callback);
-                    }
-                }}
+                onClick={() => fileOp.onClick(filesInCallback, props.callback)}
                 {...props}
             >
                 {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon}/> : null}

@@ -2,7 +2,7 @@ import {File} from "Files/index";
 import * as UF from "UtilityFunctions";
 import {delay} from "UtilityFunctions";
 import {
-    allFilesHasAccessRight,
+    allFilesHasAccessRight, clearTrash,
     CopyOrMove,
     copyOrMoveFilesNew,
     downloadFiles,
@@ -13,7 +13,7 @@ import {
     isArchiveExtension,
     isFixedFolder,
     moveToTrash,
-    replaceHomeFolder,
+    replaceHomeFolder, resolvePath,
     shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
@@ -42,26 +42,28 @@ export interface FileOperation {
     currentDirectoryMode?: boolean
 }
 
-// TODO We do not currently show loading status for any of these!
-// TODO Empty trash!
-
 export const defaultFileOperations: FileOperation[] = [
     {
         text: "Upload Files",
         onClick: () => 42,
-        disabled: () => false,
+        disabled: dir => resolvePath(dir[0].path) === resolvePath(Cloud.trashFolder),
         color: "blue",
         currentDirectoryMode: true
-        // TODO Should not work in trash
     },
     {
         text: "New Folder",
         onClick: (_, cb) => cb.requestFolderCreation(),
-        disabled: () => false,
+        disabled: dir => resolvePath(dir[0].path) === resolvePath(Cloud.trashFolder),
         color: "blue",
         outline: true,
         currentDirectoryMode: true
-        // TODO Should not work in trash
+    },
+    {
+        text: "Empty Trash",
+        onClick: (_, cb) => clearTrash({cloud: Cloud, callback: () => cb.requestReload()}),
+        disabled: dir => resolvePath(dir[0].path) !== resolvePath(Cloud.trashFolder),
+        color: "red",
+        currentDirectoryMode: true
     },
     {
         text: "Share",
