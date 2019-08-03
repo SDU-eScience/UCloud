@@ -2,7 +2,7 @@ import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {LowLevelFilesTable, LowLevelFilesTableProps} from "Files/LowLevelFilesTable";
 import {Page} from "Types";
-import {favoritesQuery, getParentPath, newMockFolder, resolvePath} from "Utilities/FileUtilities";
+import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {File} from "Files/index";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
@@ -61,7 +61,12 @@ export const VirtualFilesTable: React.FunctionComponent<VirtualFilesTableProps> 
             const resolvedPath = resolvePath(props.path);
             props.fakeFolders
                 .filter(it => resolvePath(getParentPath(resolvePath(it))) === resolvedPath)
-                .forEach(it => base.push(newMockFolder(it, false, `fakeFolder-${it}`)));
+                .forEach(it => base.push(mockFile({
+                    path: it,
+                    fileId: `fakeFolder-${it}`,
+                    tag: MOCK_VIRTUAL,
+                    type: "DIRECTORY"
+                })));
         }
 
         return base;

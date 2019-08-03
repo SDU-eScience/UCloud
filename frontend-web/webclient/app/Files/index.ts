@@ -25,6 +25,9 @@ export interface File {
     favorited: boolean | null
     sensitivityLevel: SensitivityLevelMap | null
     ownSensitivityLevel: SensitivityLevelMap | null
+    mockTag?: string
+
+    // TODO Delete below this line
     isChecked?: boolean
     beingRenamed?: boolean | null
     link: boolean

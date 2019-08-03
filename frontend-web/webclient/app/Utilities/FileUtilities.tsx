@@ -1,14 +1,14 @@
 import {Cloud} from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import {File, MoveCopyOperations, SortOrder, SortBy, FileType, FileOperation, FileResource} from "Files";
-import {Page, Operation} from "Types";
+import {File, FileOperation, FileResource, FileType, MoveCopyOperations, SortBy, SortOrder} from "Files";
+import {Operation, Page} from "Types";
 import {History} from "history";
 import * as UF from "UtilityFunctions";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {unwrap, isError, ErrorMessage} from "./XHRUtils";
+import {ErrorMessage, isError, unwrap} from "./XHRUtils";
 import {UploadPolicy} from "Uploader/api";
 import {SnackType} from "Snackbar/Snackbars";
-import {addStandardDialog, rewritePolicyDialog, shareDialog, sensitivityDialog} from "UtilityComponents";
+import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} from "UtilityComponents";
 import {dialogStore} from "Dialog/DialogStore";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
@@ -523,6 +523,30 @@ export const statFileQuery = (path: string): string => `/files/stat?path=${encod
 export const favoritesQuery = (page: number = 0, itemsPerPage: number = 25): string =>
     `/files/favorite?page=${page}&itemsPerPage=${itemsPerPage}`;
 
+export const MOCK_RENAME_TAG = "rename";
+export const MOCK_VIRTUAL = "virtual";
+export const MOCK_RELATIVE = "relative";
+
+export function mockFile(props: { path: string, type: FileType, fileId?: string, tag?: string }): File {
+    const username = Cloud.activeUsername ? Cloud.activeUsername : "";
+    return {
+        fileType: props.type,
+        path: props.path,
+        creator: username,
+        ownerName: username,
+        createdAt: new Date().getTime(),
+        modifiedAt: new Date().getTime(),
+        size: 0,
+        acl: [],
+        favorited: false,
+        sensitivityLevel: SensitivityLevelMap.PRIVATE,
+        isMockFolder: true,
+        fileId: props.fileId ? props.fileId : "fileId" + new Date(),
+        link: false,
+        ownSensitivityLevel: null,
+        mockTag: props.tag
+    };
+}
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true, fileId: string = ""): File => ({
     fileType: "DIRECTORY",
     path,
@@ -958,3 +982,8 @@ export async function createFolder({path, cloud, onSuccess}: CreateFolder): Prom
 }
 
 export const inTrashDir = (path: string, cloud: SDUCloud): boolean => getParentPath(path) === cloud.trashFolder;
+
+export function isAnyMockFile(files: File[]): boolean {
+    return files.some(it => it.mockTag !== undefined);
+}
+

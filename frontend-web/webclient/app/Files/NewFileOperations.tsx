@@ -9,7 +9,7 @@ import {
     extractArchive, fileInfoPage,
     getFilenameFromPath,
     getParentPath,
-    inTrashDir,
+    inTrashDir, isAnyMockFile,
     isArchiveExtension,
     isFixedFolder,
     moveToTrash,
@@ -70,13 +70,14 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Share",
         onClick: (files) => shareFiles({files, cloud: Cloud}),
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
+            isAnyMockFile(files),
         icon: "share"
     },
     {
         text: "Download",
         onClick: files => downloadFiles(files, () => 42, Cloud),
-        disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files),
+        disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) || isAnyMockFile(files),
         icon: "download"
     },
     {
@@ -84,7 +85,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) => {
             updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()})
         },
-        disabled: files => false,
+        disabled: files => isAnyMockFile(files),
         icon: "verified"
     },
     {
@@ -93,7 +94,7 @@ export const defaultFileOperations: FileOperation[] = [
             value: files[0].path,
             message: `${replaceHomeFolder(files[0].path, Cloud.homeFolder)} copied to clipboard`
         }),
-        disabled: files => !UF.inDevEnvironment() || files.length !== 1,
+        disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files),
         icon: "chat"
     },
     {
@@ -102,7 +103,7 @@ export const defaultFileOperations: FileOperation[] = [
             moveToTrash({files, cloud: Cloud, setLoading: () => 42, callback: () => cb.requestReload()}),
         disabled: (files) => (!allFilesHasAccessRight("WRITE", files) ||
             files.some(f => isFixedFolder(f.path, Cloud.homeFolder)) ||
-            files.every(({path}) => inTrashDir(path, Cloud))),
+            files.every(({path}) => inTrashDir(path, Cloud))) || isAnyMockFile(files),
         icon: "trash",
         color: "red"
     },
@@ -134,14 +135,14 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !files.every(f => getParentPath(f.path) === Cloud.trashFolder),
+        disabled: (files) => !files.every(f => getParentPath(f.path) === Cloud.trashFolder) || isAnyMockFile(files),
         icon: "trash",
         color: "red"
     },
     {
         text: "Properties",
         onClick: (files, cb) => cb.history.push(fileInfoPage(files[0].path)),
-        disabled: (files) => files.length !== 1,
+        disabled: (files) => files.length !== 1 || isAnyMockFile(files),
         icon: "properties", color: "blue"
     },
     {
@@ -149,13 +150,13 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) => cb.invokeAsyncWork(() =>
             extractArchive({files, cloud: Cloud, onFinished: () => cb.requestReload()})
         ),
-        disabled: (files) => !files.every(it => isArchiveExtension(it.path)),
+        disabled: (files) => !files.every(it => isArchiveExtension(it.path)) || isAnyMockFile(files),
         icon: "open"
     },
     {
         text: "Rename",
         onClick: (files, cb) => cb.startRenaming(files[0]),
-        disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files),
+        disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) || isAnyMockFile(files),
         icon: "rename"
     },
     {
@@ -181,7 +182,7 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files),
         icon: "copy",
     },
     {
@@ -197,7 +198,7 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files),
         icon: "move",
     }
 ];

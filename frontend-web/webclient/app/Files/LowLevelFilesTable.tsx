@@ -21,9 +21,9 @@ import {Button, Icon, Input, Label, OutlineButton, Tooltip, Truncate} from "ui-c
 import {
     createFolder,
     getFilenameFromPath,
-    getParentPath,
+    getParentPath, isAnyMockFile,
     isDirectory,
-    isInvalidPathName,
+    isInvalidPathName, MOCK_RENAME_TAG, mockFile,
     moveFile,
     newMockFolder,
     replaceHomeFolder, resolvePath
@@ -253,7 +253,15 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
         requestFolderCreation: () => {
             if (props.path === undefined) return;
             let fileId = "newFolderId";
-            setInjectedViaState([newMockFolder(`${props.path}/newFolder`, true, fileId)]);
+            setInjectedViaState([
+                    mockFile({
+                        path: `${props.path}/newFolder`,
+                        fileId,
+                        tag: MOCK_RENAME_TAG,
+                        type: "DIRECTORY"
+                    })
+                ]
+            );
             setFileBeingRenamed(fileId);
         },
         startRenaming: file => setFileBeingRenamed(file.fileId!),
@@ -275,8 +283,9 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
     const fileFilter = props.fileFilter ? props.fileFilter : () => true;
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
         .filter(fileFilter);
-    const isMasterChecked = allFiles.length > 0 && allFiles.every(f => checkedFiles.has(f.fileId!));
-    let isAnyLoading = workLoading || pageLoading;
+    const isMasterChecked = allFiles.length > 0 && allFiles.every(f => checkedFiles.has(f.fileId!) || f.mockTag !== undefined);
+    const isAnyLoading = workLoading || pageLoading;
+    const checkedFilesWithInfo = allFiles.filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
 
     // Loading state
     if (props.onLoadingState) props.onLoadingState(isAnyLoading);
@@ -312,7 +321,7 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
             if (isInvalidPathName({path: name, filePaths: fileNames})) return;
 
             const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
-            if (file.isMockFolder) {
+            if (file.mockTag === MOCK_RENAME_TAG) {
                 createFolder({
                     path: fullPath,
                     cloud: Cloud,
@@ -368,7 +377,7 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
                 <VerticalButtonGroup>
                     <SidebarContent>
                         <FileOperations
-                            files={allFiles.filter(f => f.fileId && checkedFiles.has(f.fileId))}
+                            files={checkedFilesWithInfo}
                             fileOperations={fileOperations}
                             callback={callbacks}
                             // Don't pass a directory if the page is set. This should indicate that the path is fake.
@@ -483,7 +492,8 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
                                                 <Box>
                                                     <Label>
                                                         <Checkbox
-                                                            checked={checkedFiles.has(file.fileId!)}
+                                                            disabled={file.mockTag !== undefined}
+                                                            checked={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
                                                             onChange={e => e.stopPropagation()}
                                                             onClick={() => setChecked([file])}/>
                                                     </Label>
@@ -512,7 +522,7 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
                                     <TableCell textAlign="center">
                                         {/* Options cell */}
                                         {
-                                            checkedFiles.size > 0 ? null :
+                                            checkedFiles.size > 0 || file.mockTag !== undefined ? null :
                                                 fileOperations.length > 1 ?
                                                     <ClickableDropdown
                                                         width="175px"
@@ -649,15 +659,17 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 </Box>
             </Flex>
 
-            <Icon
-                data-tag="fileFavorite"
-                size="1em" ml=".7em"
-                color={props.file.favorited ? "blue" : "gray"}
-                name={props.file.favorited ? "starFilled" : "starEmpty"}
-                // onClick={() => props.onFavorite(props.file)}
-                // TODO Handle on favorite
-                hoverColor="blue"
-            />
+            {isAnyMockFile([props.file]) ? null :
+                <Icon
+                    data-tag="fileFavorite"
+                    size="1em" ml=".7em"
+                    color={props.file.favorited ? "blue" : "gray"}
+                    name={props.file.favorited ? "starFilled" : "starEmpty"}
+                    // onClick={() => props.onFavorite(props.file)}
+                    // TODO Handle on favorite
+                    hoverColor="blue"
+                />
+            }
         </>;
     }
 };
