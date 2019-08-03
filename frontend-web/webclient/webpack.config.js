@@ -64,7 +64,7 @@ module.exports = {
             template: 'app/index.html',
             baseUrl: baseHref,
             hash: true,
-            favicon: "app/Assets/images/favicon.png"
+            favicon: "app/Assets/Images/favicon.png"
         }),
         new MiniCSSExtractPlugin("[name].[hash:6].css"),
         // Allows overriding inferred information.
