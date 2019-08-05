@@ -189,6 +189,7 @@ const RelativeFlex = styled(Flex)`
     position: relative;
 `;
 
+/* FIXME: Add logic for arrows inside Arrow from SortBys and SortOrder */
 interface Arrow {
     name: "arrowUp" | "arrowDown" | undefined
 }

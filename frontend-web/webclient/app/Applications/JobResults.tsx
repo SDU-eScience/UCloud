@@ -154,6 +154,17 @@ function JobResults(props: AnalysesProps & {history: History}) {
     const startOfYesterday = yesterday.getTime() - yesterday.getMilliseconds();
     const startOfWeek = getStartOfWeek(new Date()).getTime();
 
+    function updateFilterAndFetchJobs(value: string) {
+        setFilter({text: prettierString(value), value});
+        fetchJobs({
+            itemsPerPage,
+            pageNumber,
+            sortBy,
+            sortOrder,
+            filter: value == "Don't filter" ? undefined : value as AppState
+        });
+    }
+
     const sidebar = (<Box pt={48}>
         <Heading.h3>
             Quick Filters
@@ -169,13 +180,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         <ClickableDropdown
             chevron
             trigger={filter.text}
-            onChange={value => (setFilter({text: prettierString(value), value}), fetchJobs({
-                itemsPerPage,
-                pageNumber,
-                sortBy,
-                sortOrder,
-                filter: value == "Don't filter" ? undefined : value as AppState
-            }))}
+            onChange={updateFilterAndFetchJobs}
             options={appStates.filter(it => it.value != filter.value)}
         />
         <Box mb={16} mt={16}>
@@ -270,33 +275,32 @@ interface HeaderProps {
 }
 
 const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProps) => (
-    <TableHeader>
-        <TableRow>
-            {inDevEnvironment() ? <JobResultsHeaderCell width="4%" textAlign="center">
-                {masterCheckbox}
-            </JobResultsHeaderCell> : null}
-            <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.state)}>
-                {/* FIXME: NO DO */}
-                <Arrow name={sortBy === RunsSortBy.state ?
-                    sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
-                State
+        <TableHeader>
+            <TableRow>
+                {inDevEnvironment() ? <JobResultsHeaderCell width="4%" textAlign="center">
+                    {masterCheckbox}
+                </JobResultsHeaderCell> : null}
+                <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.state)}>
+                    <Arrow name={sortBy === RunsSortBy.state ?
+                        sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
+                    State
             </JobResultsHeaderCell>
-            <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.application)}>
-                <Arrow name={sortBy === RunsSortBy.application ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
-                Application
+                <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.application)}>
+                    <Arrow name={sortBy === RunsSortBy.application ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
+                    Application
             </JobResultsHeaderCell>
-            {hide ? null :
-                <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.createdAt)}>
-                    <Arrow name={sortBy === RunsSortBy.createdAt ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
-                    Created at
+                {hide ? null :
+                    <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.createdAt)}>
+                        <Arrow name={sortBy === RunsSortBy.createdAt ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
+                        Created at
                 </JobResultsHeaderCell>}
-            <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
-                <Arrow name={sortBy === RunsSortBy.lastUpdate ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
-                Last update
+                <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
+                    <Arrow name={sortBy === RunsSortBy.lastUpdate ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
+                    Last update
             </JobResultsHeaderCell>
-        </TableRow>
-    </TableHeader>
-);
+            </TableRow>
+        </TableHeader>
+    );
 
 interface RowProps {
     hide: boolean
