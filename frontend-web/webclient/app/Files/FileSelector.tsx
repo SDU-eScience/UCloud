@@ -65,7 +65,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             ))
                         }
                     }]}
-                    fileFilter={file => canSelectFolders || file.fileType === "DIRECTORY"}
+                    fileFilter={file => !props.onlyAllowFolders || file.fileType === "DIRECTORY"}
                     onFileNavigation={path => setPath(path)}
                     injectedFiles={injectedFiles}
                     path={path}/>

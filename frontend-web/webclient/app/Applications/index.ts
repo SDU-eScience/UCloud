@@ -161,6 +161,7 @@ export interface RunAppState {
     favorite: boolean
     favoriteLoading: boolean
     mountedFolders: RefReadPair[]
+    fsShown: boolean
 }
 
 export interface RunOperations extends SetStatusLoading {
