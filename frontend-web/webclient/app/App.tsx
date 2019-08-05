@@ -10,7 +10,6 @@ import {initObject} from "DefaultObjects";
 import Core from "Core";
 import avatar from "UserSettings/Redux/AvataaarReducer";
 import header, {USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH} from "Navigation/Redux/HeaderReducer";
-import files from "Files/Redux/FilesReducer";
 import status from "Navigation/Redux/StatusReducer";
 import applications from "Applications/Redux/BrowseReducer";
 import dashboard from "Dashboard/Redux/DashboardReducer";
@@ -38,7 +37,6 @@ import * as ProjectRedux from "Project/Redux";
 
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
-    files,
     dashboard,
     analyses,
     applications,
@@ -96,9 +94,10 @@ function App({children}) {
     return (
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <>
-                <GlobalStyle />
+                <div>Hello</div>
+                <GlobalStyle/>
                 <BrowserRouter basename="app">
-                    <Header toggleTheme={() => isLightTheme ? setAndStoreTheme(false) : setAndStoreTheme(true)} />
+                    <Header toggleTheme={() => isLightTheme ? setAndStoreTheme(false) : setAndStoreTheme(true)}/>
                     {children}
                 </BrowserRouter>
             </>
@@ -109,7 +108,7 @@ function App({children}) {
 ReactDOM.render(
     <Provider store={store}>
         <App>
-            <Core />
+            <Core/>
         </App>
     </Provider>,
     document.getElementById("app")

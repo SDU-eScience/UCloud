@@ -32,18 +32,6 @@ export enum KeyCode {
 
 export const emptyPage: Page<any> = {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
 
-export enum AnalysesStatusMap {
-    "PENDING",
-    "IN PROGRESS",
-    "COMPLETED"
-}
-
-export enum RightsNameMap {
-    "NONE" = "None",
-    "READ" = "Read",
-    "READ_WRITE" = "Read/Write"
-}
-
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
     "PRIVATE" = "Private",
@@ -58,27 +46,6 @@ export enum SensitivityLevelMap {
     PRIVATE = "PRIVATE",
     CONFIDENTIAL = "CONFIDENTIAL",
     SENSITIVE = "SENSITIVE"
-}
-
-function getFilesSortingColumnOrDefault(columnIndex: 0 | 1): SortBy {
-    const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
-    if (sortingColumn && Object.values(SortBy).includes(sortingColumn)) return sortingColumn as SortBy;
-    switch (columnIndex) {
-        case 0:
-            window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);
-            return SortBy.MODIFIED_AT;
-        case 1:
-            window.localStorage.setItem("filesSorting1", SortBy.SIZE);
-            return SortBy.SIZE;
-    }
-}
-
-function getItemOrDefault<T, T2>(itemName: string, defaultValue: T, en: T2): T {
-    const item = window.localStorage.getItem(itemName);
-    if (item && Object.values(en).includes(item)) {
-        return item as unknown as T;
-    }
-    return defaultValue;
 }
 
 export interface ComponentWithLoadingState {
@@ -113,23 +80,6 @@ export const initResponsive = (): ResponsiveReduxObject => ({
 export interface FilePreviewReduxState {
     file?: File
     error?: string
-}
-
-export interface FilesReduxObject extends ComponentWithPage<File> {
-    sortOrder: SortOrder
-    sortBy: SortBy
-    path: string
-    filesInfoPath: string
-    fileSelectorError?: string
-    sortingColumns: [SortBy, SortBy]
-    fileSelectorLoading: boolean
-    fileSelectorShown: boolean
-    fileSelectorPage: Page<File>
-    fileSelectorPath: string
-    fileSelectorCallback: Function
-    fileSelectorIsFavorites: boolean
-    disallowedPaths: string[]
-    invalidPath: boolean
 }
 
 export interface FileInfoReduxObject {
@@ -190,7 +140,6 @@ export interface UploaderReduxObject {
 
 interface LegacyReducers {
     dashboard?: Reducer<DashboardStateProps>
-    files?: Reducer<FilesReduxObject>
     uploader?: Reducer<UploaderReduxObject>
     status?: Reducer<StatusReduxObject>
     notifications?: Reducer<NotificationsReduxObject>
@@ -206,7 +155,6 @@ export type Reducers = LegacyReducers & ApplicationRedux.Reducers & AccountingRe
 /* FIXME */
 interface LegacyReduxObject {
     dashboard: DashboardStateProps
-    files: FilesReduxObject,
     uploader: UploaderReduxObject
     status: StatusReduxObject,
     notifications: NotificationsReduxObject
@@ -268,7 +216,6 @@ export const initDashboard = (): DashboardStateProps => ({
 export function initObject(homeFolder: string): ReduxObject {
     return {
         dashboard: initDashboard(),
-        files: initFiles(homeFolder),
         status: initStatus(),
         header: initHeader(),
         notifications: initNotifications(),
@@ -343,26 +290,6 @@ export const initUploads = (): UploaderReduxObject => ({
 export const initFileInfo = (): FileInfoReduxObject => ({
     activity: emptyPage,
     loading: false
-});
-
-export const initFiles = (homeFolder: string): FilesReduxObject => ({
-    page: emptyPage,
-    sortOrder: getItemOrDefault("sortOrder", SortOrder.ASCENDING, SortOrder),
-    sortBy: getItemOrDefault("sortBy", SortBy.PATH, SortBy),
-    loading: false,
-    error: undefined,
-    path: "",
-    filesInfoPath: "",
-    sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
-    fileSelectorLoading: false,
-    fileSelectorShown: false,
-    fileSelectorPage: emptyPage,
-    fileSelectorPath: homeFolder,
-    fileSelectorIsFavorites: false,
-    fileSelectorCallback: () => undefined,
-    fileSelectorError: undefined,
-    disallowedPaths: [],
-    invalidPath: false
 });
 
 export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
