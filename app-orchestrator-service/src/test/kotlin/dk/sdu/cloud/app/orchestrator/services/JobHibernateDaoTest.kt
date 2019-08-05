@@ -50,6 +50,21 @@ class JobHibernateDaoTest {
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         jobHibDao = JobHibernateDao(appDao, toolDao, tokenValidation)
+
+        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
+        coEvery {
+            appDao.findByNameAndVersion(
+                normAppDesc.metadata.name,
+                normAppDesc.metadata.version
+            )
+        } returns normAppDesc
+        coEvery { toolDao.findByNameAndVersion("app", "1.2") } returns normTool
+        coEvery {
+            appDao.findByNameAndVersion(
+                "app",
+                "1.2"
+            )
+        } returns normAppDesc
     }
 
     @Test(expected = JobException.NotFound::class)
@@ -68,13 +83,6 @@ class JobHibernateDaoTest {
 
     @Test
     fun `create, find and update jobinfo test`() {
-        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
-        coEvery {
-            appDao.findByNameAndVersion(
-                normAppDesc.metadata.name,
-                normAppDesc.metadata.version
-            )
-        } returns normAppDesc
 
         db.withTransaction(autoFlush = true) {
             val jobWithToken = VerifiedJobWithAccessToken(
@@ -134,21 +142,6 @@ class JobHibernateDaoTest {
 
     @Test
     fun `Add and retrieve jobs based on createdAt, both min and max`() {
-        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
-        coEvery {
-            appDao.findByNameAndVersion(
-                normAppDesc.metadata.name,
-                normAppDesc.metadata.version
-            )
-        } returns normAppDesc
-
-        coEvery { toolDao.findByNameAndVersion("app", "1.2") } returns normTool
-        coEvery {
-            appDao.findByNameAndVersion(
-                "app",
-                "1.2"
-            )
-        } returns normAppDesc
 
         db.withTransaction(autoFlush = true) {
             val firstJob = VerifiedJobWithAccessToken(
@@ -171,9 +164,7 @@ class JobHibernateDaoTest {
             )
             jobHibDao.create(it, firstJob)
 
-            Thread {
-                Thread.sleep(10)
-            }.start()
+            Thread.sleep(10)
 
             val secondJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
@@ -235,21 +226,6 @@ class JobHibernateDaoTest {
 
     @Test
     fun `Add and retrieve jobs based on createdAt, either min or max`() {
-        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
-        coEvery {
-            appDao.findByNameAndVersion(
-                normAppDesc.metadata.name,
-                normAppDesc.metadata.version
-            )
-        } returns normAppDesc
-
-        coEvery { toolDao.findByNameAndVersion("app", "1.2") } returns normTool
-        coEvery {
-            appDao.findByNameAndVersion(
-                "app",
-                "1.2"
-            )
-        } returns normAppDesc
 
         db.withTransaction(autoFlush = true) {
             val firstJob = VerifiedJobWithAccessToken(
@@ -272,9 +248,7 @@ class JobHibernateDaoTest {
             )
             jobHibDao.create(it, firstJob)
 
-            Thread {
-                Thread.sleep(10)
-            }.start()
+            Thread.sleep(10)
 
             val secondJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
@@ -374,13 +348,6 @@ class JobHibernateDaoTest {
 
     @Test
     fun `Add and retrieve apps based on state`() {
-        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
-        coEvery {
-            appDao.findByNameAndVersion(
-                normAppDesc.metadata.name,
-                normAppDesc.metadata.version
-            )
-        } returns normAppDesc
 
         db.withTransaction {
             addJob1(it)
