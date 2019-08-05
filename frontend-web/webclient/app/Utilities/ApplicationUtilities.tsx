@@ -22,7 +22,7 @@ export function hpcJobsQuery(
     filter?: AppState
 ): string {
     var query = `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
-    if (sortOrder) query = query.concat(`&sortOrder=${sortOrder}`);
+    if (sortOrder) query = query.concat(`&order=${sortOrder}`);
     if (sortBy) query = query.concat(`&sortBy=${sortBy}`);
     if (minTimestamp != null) query = query.concat(`&minTimestamp=${minTimestamp}`);
     if (maxTimestamp != null) query = query.concat(`&maxTimestamp=${maxTimestamp}`);

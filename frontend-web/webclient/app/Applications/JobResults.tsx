@@ -43,8 +43,9 @@ interface FetchJobsOptions {
 }
 
 /* FIXME: Almost identical to similar one in FilesTable.tsx */
-const JobResultsHeaderCell = styled(TableHeaderCell)`
+const JobResultsHeaderCell = styled(TableHeaderCell) <{pointer?: boolean}>`
     background-color: ${({theme}) => theme.colors.white};
+    ${({pointer}) => pointer ? "cursor: pointer" : null}
     top: 96px; //topmenu + header size
     z-index: 10;
     position: sticky;
@@ -61,8 +62,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
     }, []);
 
     function fetchJobs(options?: FetchJobsOptions) {
-        const opts = options || {};
-        console.log(opts)
+        const opts = options || {}; 
         const {page, setLoading} = props;
         const itemsPerPage = opts.itemsPerPage != null ? opts.itemsPerPage : page.itemsPerPage;
         const pageNumber = opts.pageNumber != null ? opts.pageNumber : page.pageNumber;
@@ -73,10 +73,14 @@ function JobResults(props: AnalysesProps & {history: History}) {
         const filter = opts.filter != null ? opts.filter : undefined;
         setLoading(true);
         props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter);
-        props.setRefresh(() => props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter));
+        props.setRefresh(() =>
+            props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter)
+        );
     }
 
-    const {page, loading, history, responsive} = props;
+    const {page, loading, history, responsive, sortBy, sortOrder} = props;
+    const {itemsPerPage, pageNumber} = page;
+
     const selectedAnalyses = page.items.filter(it => it.checked);
     const cancelableAnalyses = selectedAnalyses.filter(it => inCancelableState(it.state));
 
@@ -86,6 +90,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         checked={masterCheckboxChecked}
         onClick={checked => props.checkAllAnalyses(checked)}
     />;
+    console.log(sortOrder);
     const content = <List
         customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
         loading={loading}
@@ -100,7 +105,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                         fetchJobs={sortBy => fetchJobs({
                             itemsPerPage,
                             pageNumber,
-                            sortOrder,
+                            sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
                             sortBy
                         })}
                     />
@@ -115,7 +120,8 @@ function JobResults(props: AnalysesProps & {history: History}) {
                                 <Box><Label>
                                     <Checkbox
                                         checked={a.checked}
-                                        onClick={(e: {target: {checked: boolean}}) => checkAnalysis(a.jobId, e.target.checked)}
+                                        onClick={(e: {target: {checked: boolean}}) =>
+                                            checkAnalysis(a.jobId, e.target.checked)}
                                     />
                                 </Label></Box>
                             </Row>)}
@@ -133,9 +139,6 @@ function JobResults(props: AnalysesProps & {history: History}) {
 
     const appStates = Object.keys(AppState).map(it => ({text: prettierString(it), value: it}))
     appStates.push({text: "Don't Filter", value: "Don't filter"});
-
-    const {itemsPerPage, pageNumber} = page;
-    const {sortBy, sortOrder} = props;
 
     function fetchJobsInRange(minDate: Date | null, maxDate: Date | null) {
         return () => fetchJobs({
@@ -169,12 +172,12 @@ function JobResults(props: AnalysesProps & {history: History}) {
         <Heading.h3>
             Quick Filters
         </Heading.h3>
-        <Box onClick={fetchJobsInRange(new Date(now - new Date().getMilliseconds()), null)}><TextSpan>Today</TextSpan></Box>
-        <Box onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday + dayInMillis))}>
+        <Box cursor="pointer" onClick={fetchJobsInRange(new Date(now - new Date().getMilliseconds()), null)}><TextSpan>Today</TextSpan></Box>
+        <Box cursor="pointer" onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday + dayInMillis))}>
             <TextSpan>Yesterday</TextSpan>
         </Box>
-        <Box onClick={fetchJobsInRange(new Date(startOfWeek), null)}><TextSpan>This week</TextSpan></Box>
-        <Box onClick={fetchJobsInRange(null, null)}><TextSpan>No filter</TextSpan></Box>
+        <Box cursor="pointer" onClick={fetchJobsInRange(new Date(startOfWeek), null)}><TextSpan>This week</TextSpan></Box>
+        <Box cursor="pointer" onClick={fetchJobsInRange(null, null)}><TextSpan>No filter</TextSpan></Box>
         <Heading.h3 mt={16}>Active Filters</Heading.h3>
         <Label>Filter by app state</Label>
         <ClickableDropdown
@@ -263,8 +266,7 @@ const AnalysisOperations = ({cancelableAnalyses, onFinished}: AnalysisOperations
             }
         })}>
             Cancel selected ({cancelableAnalyses.length}) jobs
-    </Button>
-    );
+    </Button>);
 
 interface HeaderProps {
     hide: boolean
@@ -275,32 +277,35 @@ interface HeaderProps {
 }
 
 const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProps) => (
-        <TableHeader>
-            <TableRow>
-                {inDevEnvironment() ? <JobResultsHeaderCell width="4%" textAlign="center">
-                    {masterCheckbox}
-                </JobResultsHeaderCell> : null}
-                <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.state)}>
-                    <Arrow name={sortBy === RunsSortBy.state ?
-                        sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
-                    State
+    <TableHeader>
+        <TableRow>
+            <JobResultsHeaderCell width="4%" textAlign="center">
+                {masterCheckbox}
             </JobResultsHeaderCell>
-                <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.application)}>
-                    <Arrow name={sortBy === RunsSortBy.application ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
-                    Application
+            <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.state)}>
+                <Arrow name={sortBy === RunsSortBy.state ?
+                    sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowUp" : undefined} />
+                State
             </JobResultsHeaderCell>
-                {hide ? null :
-                    <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.createdAt)}>
-                        <Arrow name={sortBy === RunsSortBy.createdAt ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
-                        Created at
+            <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.application)}>
+                <Arrow name={sortBy === RunsSortBy.application ?
+                    sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowUp" : undefined} />
+                Application
+            </JobResultsHeaderCell>
+            {hide ? null :
+                <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.createdAt)}>
+                    <Arrow name={sortBy === RunsSortBy.createdAt ?
+                        sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowUp" : undefined} />
+                    Created at
                 </JobResultsHeaderCell>}
-                <JobResultsHeaderCell textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
-                    <Arrow name={sortBy === RunsSortBy.lastUpdate ? sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowDown" : undefined} />
-                    Last update
+            <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
+                <Arrow name={sortBy === RunsSortBy.lastUpdate ?
+                    sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowUp" : undefined} />
+                Last update
             </JobResultsHeaderCell>
-            </TableRow>
-        </TableHeader>
-    );
+        </TableRow>
+    </TableHeader>
+);
 
 interface RowProps {
     hide: boolean
@@ -311,9 +316,9 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
     const metadata = analysis.metadata;
     return (
         <TableRow cursor={"pointer"}>
-            {inDevEnvironment() ? <TableCell textAlign="center">
+            <TableCell textAlign="center">
                 {children}
-            </TableCell> : null}
+            </TableCell>
             <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
