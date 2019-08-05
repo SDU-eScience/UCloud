@@ -94,7 +94,6 @@ function App({children}) {
     return (
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <>
-                <div>Hello</div>
                 <GlobalStyle/>
                 <BrowserRouter basename="app">
                     <Header toggleTheme={() => isLightTheme ? setAndStoreTheme(false) : setAndStoreTheme(true)}/>
