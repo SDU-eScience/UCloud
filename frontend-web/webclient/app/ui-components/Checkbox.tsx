@@ -8,7 +8,7 @@ function Checkbox(props) {
   const { disabled, size } = props;
   return (
     <CheckBoxWrapper disabled={disabled}>
-      <StyledInput type="checkbox" {...props} />
+      <StyledInput type="checkbox" onChange={e => e} {...props} />
       <Icon name="boxChecked" size={size} data-name="checked" />
       <Icon name="boxEmpty" size={size} data-name="empty" />
     </CheckBoxWrapper>
@@ -24,8 +24,7 @@ const CheckBoxWrapper = styled(Box)<CheckBoxWrapper>`
   position: relative;
   vertical-align: middle;
   cursor: pointer;
-  color: ${props =>
-    props.disabled ? props.theme.colors.borderGray : props.theme.colors.gray};
+  color: ${props => props.disabled ? props.theme.colors.borderGray : props.theme.colors.gray};
   svg[data-name="checked"] {
     display: none;
   }

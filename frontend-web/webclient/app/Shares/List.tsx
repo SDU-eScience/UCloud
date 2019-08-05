@@ -174,7 +174,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 shares.length === 0 ?
                     <NoShares sharedByMe={sharedByMe} /> :
                     shares.map(it =>
-                        <GroupedShareCardWrapper shareByPath={it} />
+                        <GroupedShareCardWrapper key={it.path} shareByPath={it} />
                     )
             }
         </>
