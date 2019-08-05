@@ -842,7 +842,9 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
     };
     return <>
         {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`}/>)}
-        {files.length > 0 ? <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box> : null}
+        {files.length === 0 ? null :
+            <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
+        }
         {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`}/>)}
     </>
 };
