@@ -25,7 +25,7 @@ import {
     isAnyMockFile,
     isDirectory,
     isInvalidPathName,
-    mergeFilePages,
+    mergeFilePages, MOCK_RELATIVE,
     MOCK_RENAME_TAG,
     mockFile,
     moveFile,
@@ -560,7 +560,7 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
                                     <TableCell textAlign="center">
                                         {/* Options cell */}
                                         {
-                                            checkedFiles.size > 0 || file.mockTag !== undefined ? null :
+                                            checkedFiles.size > 0 || (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
                                                 fileOperations.length > 1 ?
                                                     <ClickableDropdown
                                                         width="175px"

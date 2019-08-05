@@ -1,36 +1,18 @@
 import * as React from "react";
-import {List as PaginationList} from "Pagination/List";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {BreadCrumbs} from "ui-components/Breadcrumbs";
 import {
-    favoritesQuery,
-    filepathQuery,
-    isDirectory, MOCK_RELATIVE, MOCK_VIRTUAL, mockFile,
-    newMockFolder,
+    MOCK_RELATIVE,
+    mockFile,
     resolvePath
 } from "Utilities/FileUtilities";
-import PromiseKeeper from "PromiseKeeper";
-import {emptyPage} from "DefaultObjects";
 import {
     File,
-    FileOperation,
-    FileResource,
     FileSelectorProps,
-    FileSource,
-    SortBy,
-    SortOrder
 } from ".";
-import {Box, Button, Flex, Icon, Input, SelectableText, SelectableTextWrapper} from "ui-components";
+import {Flex} from "ui-components";
 import * as ReactModal from "react-modal";
-import {Spacer} from "ui-components/Spacer";
-import FilesTable from "./FilesTable";
-import SDUCloud from "Authentication/lib";
-import {addTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
-import {Refresh} from "Navigation/Header";
-import {Page} from "Types";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {addTrailingSlash} from "UtilityFunctions";
 import {useState} from "react";
-import {LowLevelFilesTable} from "Files/LowLevelFilesTable";
 import {defaultVirtualFolders, VirtualFilesTable} from "Files/VirtualFilesTable";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
