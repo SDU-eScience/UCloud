@@ -441,7 +441,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             <Pagination.List
                 loading={pageLoading}
                 customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : <Box>{error}</Box>}
-                page={page}
+                page={{...page, items: allFiles}}
                 onPageChanged={(newPage, currentPage) => onPageChanged(newPage, currentPage.itemsPerPage)}
                 pageRenderer={() =>
                     <Table>
