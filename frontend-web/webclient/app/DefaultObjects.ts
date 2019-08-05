@@ -199,18 +199,9 @@ interface LegacyReducers {
     header?: Reducer<HeaderSearchReduxObject>
     sidebar?: Reducer<SidebarReduxObject>
     activity?: Reducer<ActivityReduxObject>
-    detailedResult?: Reducer<DetailedResultReduxObject>
 }
 
 export type Reducers = LegacyReducers & ApplicationRedux.Reducers & AccountingRedux.Reducers;
-
-export type DetailedResultReduxObject = ComponentWithPage<File>
-
-export const initDetailedResult = (): DetailedResultReduxObject => ({
-    page: emptyPage,
-    loading: false,
-    error: undefined
-});
 
 /* FIXME */
 interface LegacyReduxObject {
@@ -224,7 +215,6 @@ interface LegacyReduxObject {
     header: HeaderSearchReduxObject
     sidebar: SidebarReduxObject
     activity: ActivityReduxObject
-    detailedResult: DetailedResultReduxObject
     simpleSearch: SimpleSearchStateProps
     detailedFileSearch: DetailedFileSearchReduxState
     detailedApplicationSearch: DetailedApplicationSearchReduxState
@@ -287,7 +277,6 @@ export function initObject(homeFolder: string): ReduxObject {
         sidebar: initSidebar(),
         uploader: initUploads(),
         activity: initActivity(),
-        detailedResult: initDetailedResult(),
         simpleSearch: initSimpleSearch(),
         detailedApplicationSearch: initApplicationsAdvancedSearch(),
         detailedFileSearch: initFilesDetailedSearch(),

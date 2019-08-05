@@ -20,7 +20,6 @@ import analyses from "Applications/Redux/AnalysesReducer";
 import notifications from "Notifications/Redux/NotificationsReducer";
 import uploader from "Uploader/Redux/UploaderReducer";
 import activity from "Activity/Redux/ActivityReducer";
-import detailedResult from "Applications/Redux/DetailedResultReducer";
 import simpleSearch from "Search/Redux/SearchReducer";
 import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
@@ -49,7 +48,6 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     sidebar,
     uploader,
     notifications,
-    detailedResult,
     simpleSearch,
     detailedFileSearch,
     detailedApplicationSearch,

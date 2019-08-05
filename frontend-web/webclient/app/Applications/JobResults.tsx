@@ -4,8 +4,8 @@ import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {ContainerForText, Box, Input, InputGroup, Label, Checkbox, Button} from "ui-components";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
-import {setLoading, fetchAnalyses, checkAnalysis, checkAllAnalyses, AnalysesActions} from "./Redux/AnalysesActions";
-import {AnalysesProps, AnalysesOperations, AnalysesStateProps, ApplicationMetadata, Analysis, AppState} from ".";
+import {setLoading, fetchAnalyses, checkAnalysis, checkAllAnalyses} from "./Redux/AnalysesActions";
+import {AnalysesProps, AnalysesOperations, AnalysesStateProps, Analysis, AppState} from ".";
 import {Dispatch} from "redux";
 import {Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -24,7 +24,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {prettierString} from "UtilityFunctions";
 import styled from "styled-components";
-import {MasterCheckbox, addStandardDialog} from "UtilityComponents";
+import {MasterCheckbox} from "UtilityComponents";
 import {inCancelableState, cancelJobDialog, cancelJob} from "Utilities/ApplicationUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -43,7 +43,7 @@ const JobResultsHeaderCell = styled(TableHeaderCell)`
     position: sticky;
 `;
 
-function JobResults(props: AnalysesProps & {history: History}) {
+function JobResults(props: AnalysesProps & { history: History }) {
 
     React.useEffect(() => {
         moment.locale("en-gb");
@@ -79,7 +79,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         pageRenderer={page =>
             <ContainerForText>
                 <Table>
-                    <Header hide={hide} masterCheckbox={masterCheckbox} />
+                    <Header hide={hide} masterCheckbox={masterCheckbox}/>
                     <TableBody>
                         {page.items.map((a, i) =>
                             <Row
@@ -143,7 +143,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                 />
             </InputGroup>
         </Box>
-        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
+        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()}/>
     </Box>);
 
     return (<MainContainer
@@ -166,7 +166,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
     />);
 }
 
-const AnalysisOperations = ({cancelableAnalyses, onFinished}: {cancelableAnalyses: Analysis[], onFinished: () => void}) =>
+const AnalysisOperations = ({cancelableAnalyses, onFinished}: { cancelableAnalyses: Analysis[], onFinished: () => void }) =>
     cancelableAnalyses.length === 0 ? null : (
         <Button fullWidth color="red" onClick={() => cancelJobDialog({
             jobCount: cancelableAnalyses.length,
@@ -183,10 +183,10 @@ const AnalysisOperations = ({cancelableAnalyses, onFinished}: {cancelableAnalyse
             }
         })}>
             Cancel selected ({cancelableAnalyses.length}) jobs
-    </Button>
+        </Button>
     );
 
-const Header = ({hide, masterCheckbox}: {hide: boolean, masterCheckbox: JSX.Element}) => (
+const Header = ({hide, masterCheckbox}: { hide: boolean, masterCheckbox: JSX.Element }) => (
     <TableHeader>
         <TableRow>
             {inDevEnvironment() ? <JobResultsHeaderCell width="4%" textAlign="center">
@@ -206,6 +206,7 @@ interface RowProps {
     to: () => void
     checkAnalysis: (jobId: string, checked: boolean) => void
 }
+
 const Row = ({analysis, to, hide, checkAnalysis}: RowProps) => {
     const metadata = analysis.metadata;
     return (
@@ -214,11 +215,11 @@ const Row = ({analysis, to, hide, checkAnalysis}: RowProps) => {
                 <Box><Label>
                     <Checkbox
                         checked={analysis.checked}
-                        onClick={(e: {target: {checked: boolean}}) => checkAnalysis(analysis.jobId, e.target.checked)}
+                        onClick={(e: { target: { checked: boolean } }) => checkAnalysis(analysis.jobId, e.target.checked)}
                     />
                 </Label></Box>
             </TableCell> : null}
-            <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
+            <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"}/> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
             {hide ? null : <TableCell onClick={to}>{moment(analysis.createdAt).calendar()}</TableCell>}

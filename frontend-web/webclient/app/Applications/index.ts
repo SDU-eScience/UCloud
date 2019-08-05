@@ -1,11 +1,10 @@
-import { File } from "Files";
 import { Page } from "Types";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
-import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 import { ParameterValues } from "Utilities/ApplicationUtilities";
 import { SetStatusLoading } from "Navigation/Redux/StatusActions";
+import {ResponsiveReduxObject} from "DefaultObjects";
 
 export interface Analysis {
     checked?: boolean
@@ -25,8 +24,8 @@ export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { 
 export interface AnalysesStateProps {
     page: Page<Analysis>
     loading: boolean
-    responsive: ResponsiveReduxObject
     error?: string
+    responsive: ResponsiveReduxObject
 }
 
 export interface AnalysesOperations {
@@ -38,18 +37,13 @@ export interface AnalysesOperations {
     checkAllAnalyses: (checked: boolean) => void
 }
 
-export interface AnalysesState {
-}
-
 export interface DetailedResultOperations {
-    receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
     setRefresh: (refresh?: () => void) => void
 }
 
-export interface DetailedResultProps extends DetailedResultReduxObject, DetailedResultOperations {
+export interface DetailedResultProps extends DetailedResultOperations {
     match: match<{ jobId: string }>
     history: History
 }
@@ -126,14 +120,6 @@ export interface DetailedResultState {
     stderrOldTop: number,
     reloadIntervalId: number
     promises: PromiseKeeper
-    fsError?: string
-    fsLoading: boolean
-    fsShown: boolean
-    fsPath: string
-    fsPage: Page<File>
-    fsDisallowedPaths: string[]
-    fsCallback: Function
-    fsIsFavorite: boolean
     outputFolder?: string
     appType?: ApplicationType
     webLink?: string

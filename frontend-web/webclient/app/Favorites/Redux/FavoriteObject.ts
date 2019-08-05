@@ -1,9 +1,7 @@
-import { File } from "Files";
-import { emptyPage, ComponentWithPage } from "DefaultObjects";
-import { FavoriteType } from "Favorites/Favorites";
+import {File} from "Files";
+import {emptyPage, ComponentWithPage} from "DefaultObjects";
 
 export interface Type extends ComponentWithPage<File> {
-    shown: FavoriteType
 }
 
 export interface Wrapper {
@@ -15,6 +13,5 @@ export const init = (): Wrapper => ({
         page: emptyPage,
         loading: false,
         error: undefined,
-        shown: FavoriteType.FILES
     }
-})
+});

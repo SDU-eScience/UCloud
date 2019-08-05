@@ -12,4 +12,4 @@ export function init(): Objects {
 
 export const reducers: Reducers = {
     favorites: FavoritesReducer.default
-}
+};
