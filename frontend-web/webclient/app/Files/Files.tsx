@@ -11,6 +11,7 @@ import {FileTable} from "Files/FileTable";
 import * as React from "react";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {defaultVirtualFolders} from "Files/VirtualFileTable"
+import {defaultFileOperations} from "Files/FileOperations";
 
 interface FilesProps extends RouteComponentProps {
     onInit: () => void
@@ -24,6 +25,7 @@ const Files: React.FunctionComponent<FilesProps> = props => {
 
     return <FileTable
         {...defaultVirtualFolders()}
+        fileOperations={defaultFileOperations.filter(it => it.text !== "View Parent")}
         embedded={false}
         onFileNavigation={path => props.history.push(fileTablePage(path))}
         path={urlPath}

@@ -5,7 +5,7 @@ import {
     CopyOrMove,
     copyOrMoveFilesNew,
     downloadFiles,
-    extractArchive, fileInfoPage,
+    extractArchive, fileInfoPage, fileTablePage,
     getFilenameFromPath,
     getParentPath,
     inTrashDir, isAnyMockFile, isArchiveExtension,
@@ -139,6 +139,14 @@ export const defaultFileOperations: FileOperation[] = [
             extractArchive({files, cloud: Cloud, onFinished: () => cb.requestReload()})
         ),
         disabled: (files) => !files.every(it => isArchiveExtension(it.path)) || isAnyMockFile(files),
+        icon: "open"
+    },
+    {
+        text: "View Parent",
+        onClick: (files, cb) => {
+            cb.history.push(fileTablePage(getParentPath(files[0].path)))
+        },
+        disabled: files => files.length !== 1,
         icon: "open"
     },
     {

@@ -713,17 +713,13 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         return <>
             <Flex data-tag={"fileName"} flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
                 <Box title={replaceHomeFolder(props.file.path, Cloud.homeFolder)} width="100%">
-                    {props.file.fileType === "DIRECTORY" ?
+                    {props.file.fileType !== "DIRECTORY" ? nameComponent :
                         <BaseLink href={"#"} onClick={e => {
                             e.preventDefault();
                             props.onNavigate(resolvePath(props.file.path));
                         }}>
                             {nameComponent}
                         </BaseLink>
-
-                        :
-
-                        nameComponent
                     }
                 </Box>
             </Flex>
