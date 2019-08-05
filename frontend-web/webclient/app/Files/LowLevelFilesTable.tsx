@@ -1,8 +1,8 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {File, FileResource as FR, FileResource, SortBy, SortOrder} from "Files/index";
+import {File, FileResource, SortBy, SortOrder} from "Files/index";
 import * as UF from "UtilityFunctions"
-import {APICallParameters, callAPI, useAsyncWork} from "Authentication/DataHook";
+import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Page} from "Types";
 import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
@@ -69,6 +69,8 @@ export interface LowLevelFilesTableProps {
     requestFileSelector?: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>
 
     numberOfColumns?: number
+
+    asyncWorker?: AsyncWorker
 }
 
 export interface ListDirectoryRequest {
@@ -119,12 +121,17 @@ const twoPhaseLoadFiles = async (
         return result;
     });
 
-    const [phaseOne, phaseTwo] = await Promise.all([
-        promise,
-        callAPI<Page<File>>(listDirectory({...request, attrs: attributes}))
-    ]);
+    try {
+        const [phaseOne, phaseTwo] = await Promise.all([
+            promise,
+            callAPI<Page<File>>(listDirectory({...request, attrs: attributes}))
+        ]);
 
-    callback(mergeFilePages(phaseOne, phaseTwo, attributes));
+        callback(mergeFilePages(phaseOne, phaseTwo, attributes));
+    } catch(e) {
+        callback(emptyPage); // Set empty page to avoid rendering of this folder
+        throw e; // Rethrow to set error status
+    }
 };
 
 interface InternalFileTableAPI {
@@ -152,7 +159,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
     let api: InternalFileTableAPI;
 
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
-    const [pageLoading, pageError, submitPageLoaderJob] = useAsyncWork();
+    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
         ...initialPageParameters,
         path: Cloud.homeFolder
@@ -422,7 +429,7 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
         main={
             <Pagination.List
                 loading={pageLoading}
-                customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : <Box/>}
+                customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : <Box>{error}</Box>}
                 page={page}
                 onPageChanged={(newPage, currentPage) => onPageChanged(newPage, currentPage.itemsPerPage)}
                 pageRenderer={() =>

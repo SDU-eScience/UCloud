@@ -7,6 +7,7 @@ import {File} from "Files/index";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {useAsyncWork} from "Authentication/DataHook";
 
 export interface VirtualFilesTableProps extends LowLevelFilesTableProps, VirtualFolderDefinition {
     // Empty
@@ -20,6 +21,9 @@ export interface VirtualFolderDefinition {
 export const VirtualFilesTable: React.FunctionComponent<VirtualFilesTableProps> = props => {
     const [loadedFakeFolder, setLoadedFakeFolder] = useState<Page<File> | undefined>(undefined);
     const mergedProperties = {...props};
+    const asyncWorker = props.asyncWorker ? props.asyncWorker : useAsyncWork();
+    mergedProperties.asyncWorker = asyncWorker;
+    const [pageLoading, pageError, submitPageLoaderJob] = asyncWorker;
 
     let fakeFolderToUse: string | undefined;
     if (props.fakeFolders !== undefined && props.loadFolder !== undefined) {
@@ -32,7 +36,10 @@ export const VirtualFilesTable: React.FunctionComponent<VirtualFilesTableProps> 
 
         mergedProperties.onPageChanged = (page, itemsPerPage) => {
             if (fakeFolderToUse !== undefined) {
-                props.loadFolder!(fakeFolderToUse, page, itemsPerPage).then(it => setLoadedFakeFolder(it));
+                const capturedFolder = fakeFolderToUse;
+                submitPageLoaderJob(async () => {
+                    setLoadedFakeFolder(await props.loadFolder!(capturedFolder, page, itemsPerPage));
+                });
             } else if (props.onPageChanged !== undefined) {
                 props.onPageChanged(page, itemsPerPage);
             }
@@ -40,7 +47,13 @@ export const VirtualFilesTable: React.FunctionComponent<VirtualFilesTableProps> 
 
         mergedProperties.onReloadRequested = () => {
             if (fakeFolderToUse !== undefined && loadedFakeFolder !== undefined) {
-                props.loadFolder!(fakeFolderToUse, loadedFakeFolder.pageNumber, loadedFakeFolder.itemsPerPage);
+                const capturedFolder = fakeFolderToUse;
+                submitPageLoaderJob(async () => {
+                    setLoadedFakeFolder(
+                        await props.loadFolder!(capturedFolder, loadedFakeFolder.pageNumber,
+                            loadedFakeFolder.itemsPerPage)
+                    );
+                });
             } else if (props.onReloadRequested !== undefined) {
                 props.onReloadRequested();
             }
@@ -49,7 +62,10 @@ export const VirtualFilesTable: React.FunctionComponent<VirtualFilesTableProps> 
 
     useEffect(() => {
         if (fakeFolderToUse !== undefined && props.loadFolder !== undefined) {
-            props.loadFolder(fakeFolderToUse, 0, 25).then(it => setLoadedFakeFolder(it));
+            const capturedFolder = fakeFolderToUse;
+            submitPageLoaderJob(async () => {
+                setLoadedFakeFolder(await props.loadFolder!(capturedFolder, 0, 25));
+            });
         } else {
             setLoadedFakeFolder(undefined);
         }

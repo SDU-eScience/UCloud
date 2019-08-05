@@ -148,10 +148,12 @@ export function useAsyncCommand(): [boolean, (call: APICallParameters) => void] 
     return [isLoading, sendCommand];
 }
 
-export function useAsyncWork(): [boolean, string | undefined, (fn: () => Promise<void>) => void] {
+export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
+export function useAsyncWork(): AsyncWorker {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
     const startWork = async (fn: () => Promise<void>) => {
+        setError(undefined);
         setIsLoading(true);
         try {
             await fn();
