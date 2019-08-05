@@ -861,34 +861,3 @@ function setSortingColumnAt(column: SortBy, columnIndex: 0 | 1) {
     window.localStorage.setItem(`filesSorting${columnIndex}`, column);
 }
 
-interface NewFilesTableDemoProps {
-    refreshHook: (register: boolean, fn?: () => void) => void
-    setLoading: (loading: boolean) => void
-}
-
-const NewFilesTableDemo_: React.FunctionComponent<NewFilesTableDemoProps> = props => {
-    const [path, setPath] = useState(Cloud.homeFolder);
-
-    return <NewFilesTable
-        {...defaultVirtualFolders()}
-        embedded={false}
-        path={path}
-        refreshHook={props.refreshHook}
-        onLoadingState={props.setLoading}
-        onFileNavigation={path => {
-            console.log("Navigating to ", path);
-            setPath(path);
-        }}
-    />;
-};
-
-export const NewFilesTableDemo = connect(null, dispatch => ({
-    refreshHook: (register, fn) => {
-        if (register) {
-            dispatch(setRefreshFunction(fn));
-        } else {
-            dispatch(setRefreshFunction());
-        }
-    },
-    setLoading: loading => dispatch(setLoading(loading))
-}))(NewFilesTableDemo_);
