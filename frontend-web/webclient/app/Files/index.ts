@@ -116,6 +116,7 @@ export interface FilesOperations extends ClearRefresh {
 }
 
 export interface FileSelectorProps {
+    initialPath?: string
     onFileSelect: (file: {path: string} | null) => void
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean

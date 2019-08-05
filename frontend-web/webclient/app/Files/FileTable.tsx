@@ -37,6 +37,7 @@ export const FileTable: React.FunctionComponent<VirtualFileTableProps> = props =
 
     return <>
         <FileSelector
+            initialPath={props.path}
             onFileSelect={handleFileSelect}
             trigger={null}
             canSelectFolders={allowFolders}

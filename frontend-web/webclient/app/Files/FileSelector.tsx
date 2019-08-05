@@ -12,11 +12,14 @@ import {
 import {Flex} from "ui-components";
 import * as ReactModal from "react-modal";
 import {addTrailingSlash} from "UtilityFunctions";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {defaultVirtualFolders, VirtualFileTable} from "Files/VirtualFileTable";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const [path, setPath] = useState<string>(Cloud.homeFolder);
+    useEffect(() => {
+        if (props.initialPath !== undefined) setPath(props.initialPath);
+    }, [props.initialPath]);
 
     const injectedFiles: File[] = [];
     if (resolvePath(path) !== resolvePath(Cloud.homeFolder)) {
