@@ -75,7 +75,7 @@ export interface FilesStateProps {
     fileSelectorShown: boolean
     fileSelectorLoading: boolean
     disallowedPaths: string[]
-    fileSelectorCallback: Function
+    fileSelectorCallback: (file: File) => void
     fileSelectorPath: string
     fileSelectorPage: Page<File>
     fileSelectorIsFavorites: boolean
@@ -102,7 +102,7 @@ export interface FilesOperations extends ClearRefresh {
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy, attrs: FileResource[]) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     fetchFileSelectorFavorites: (pageNumber: number, itemsPerPage: number) => void
-    setFileSelectorCallback: (callback: Function) => void
+    setFileSelectorCallback: (callback: (file: File) => void) => void
     checkFile: (checked: boolean, path: string) => void
     setLoading: (loading: boolean) => void
     updateFiles: (files: Page<File>) => void
@@ -177,7 +177,7 @@ export interface FilenameAndIconsProps {
 export interface MoveCopyOperations {
     showFileSelector: (show: boolean) => void
     setDisallowedPaths: (paths: string[]) => void
-    setFileSelectorCallback: (callback: Function) => void
+    setFileSelectorCallback: (callback: (file: File) => void) => void
     fetchPageFromPath: (path: string) => void
     fetchFilesPage: (path: string) => void
 }

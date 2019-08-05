@@ -38,6 +38,14 @@ private fun TestApplicationRequest.setToken(token: String) {
     addHeader("Authorization", "Bearer $token")
 }
 
+fun TestApplicationRequest.setJobSubmitid(jobId: String = "jobId") {
+    addHeader("JobSubmit-Id", Base64.getEncoder().encodeToString(jobId.toByteArray()))
+}
+
+fun TestApplicationRequest.setJobSubmitParam(parameter: String = "Parameter") {
+    addHeader("JobSubmit-Parameter", Base64.getEncoder().encodeToString(parameter.toByteArray()))
+}
+
 fun KtorApplicationTestContext.sendRequest(
     method: HttpMethod,
     path: String,

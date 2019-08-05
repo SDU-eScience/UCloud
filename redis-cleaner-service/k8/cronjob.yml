@@ -13,7 +13,7 @@ spec:
 
           containers:
           - name: redis-cleaner
-            image: registry.cloud.sdu.dk/sdu-cloud/redis-cleaner-service:0.1.1
+            image: registry.cloud.sdu.dk/sdu-cloud/redis-cleaner-service:0.1.2
             command:
             - /opt/service/bin/service
             - --config-dir

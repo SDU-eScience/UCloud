@@ -1,14 +1,14 @@
 import * as FileActions from "../../../app/Files/Redux/FilesActions";
-import { mockFiles_SensitivityConfidential } from "../../mock/Files";
-import { emptyPage } from "../../../app/DefaultObjects";
-import { SortBy } from "../../../app/Files";
-import { configureStore } from "../../../app/Utilities/ReduxUtilities";
-import { initFiles } from "../../../app/DefaultObjects";
+import {mockFiles_SensitivityConfidential} from "../../mock/Files";
+import {emptyPage} from "../../../app/DefaultObjects";
+import {SortBy, File} from "../../../app/Files";
+import {configureStore} from "../../../app/Utilities/ReduxUtilities";
+import {initFiles} from "../../../app/DefaultObjects";
 import files from "../../../app/Files/Redux/FilesReducer";
 
-const emptyPageStore = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
+const emptyPageStore = configureStore({files: initFiles("/home/user@test.abc/")}, {files});
 
-const nonEmptyPageStore = { ...emptyPageStore };
+const nonEmptyPageStore = {...emptyPageStore};
 nonEmptyPageStore.getState().files.page = mockFiles_SensitivityConfidential;
 
 describe("Check All Files", () => {
@@ -20,7 +20,7 @@ describe("Check All Files", () => {
     test("Check all files in non-empty page", () => {
         const checked = true;
         nonEmptyPageStore.dispatch(FileActions.checkAllFiles(checked));
-        const page = { ...nonEmptyPageStore.getState().files.page }
+        const page = {...nonEmptyPageStore.getState().files.page}
         page.items.forEach(f => f.isChecked = checked);
         expect(nonEmptyPageStore.getState().files.page).toEqual(page);
     });
@@ -29,7 +29,7 @@ describe("Check All Files", () => {
         const checked = true;
         nonEmptyPageStore.dispatch(FileActions.checkAllFiles(checked));
         nonEmptyPageStore.dispatch(FileActions.checkAllFiles(!checked));
-        const page = { ...nonEmptyPageStore.getState().files.page }
+        const page = {...nonEmptyPageStore.getState().files.page}
         page.items.forEach(f => f.isChecked = !checked);
         expect(nonEmptyPageStore.getState().files.page).toEqual(page);
     });
@@ -64,12 +64,12 @@ describe("Setting Error message", () => {
 
 describe("Show FileSelector", () => {
     test("Show file selector", () => {
-        nonEmptyPageStore.dispatch(FileActions.fileSelectorShown(true));
+        nonEmptyPageStore.dispatch<any>(FileActions.fileSelectorShown(true));
         expect(nonEmptyPageStore.getState().files.fileSelectorShown).toBe(true);
     });
 
     test("Hide file selector", () => {
-        nonEmptyPageStore.dispatch(FileActions.fileSelectorShown(false));
+        nonEmptyPageStore.dispatch<any>(FileActions.fileSelectorShown(false));
         expect(nonEmptyPageStore.getState().files.fileSelectorShown).toBe(false);
     });
 });
@@ -98,14 +98,16 @@ describe("File Selector loading", () => {
 
 describe("FileSelector callback", () => {
     test("Set fileselector callback", () => {
-        const callback = () => 42;
+        const callback = (f: File) => 42;
+        const [file] = mockFiles_SensitivityConfidential.items;
         nonEmptyPageStore.dispatch(FileActions.setFileSelectorCallback(callback));
-        expect(nonEmptyPageStore.getState().files.fileSelectorCallback()).toBe(callback());
+        expect(nonEmptyPageStore.getState().files.fileSelectorCallback(file)).toBe(callback(file));
     });
 
     test("Clear fileselector callback", () => {
-        nonEmptyPageStore.dispatch(FileActions.setFileSelectorCallback(() => undefined));
-        expect(nonEmptyPageStore.getState().files.fileSelectorCallback()).toBe(undefined);
+        const [file] = mockFiles_SensitivityConfidential.items;
+        nonEmptyPageStore.dispatch(FileActions.setFileSelectorCallback(f => undefined));
+        expect(nonEmptyPageStore.getState().files.fileSelectorCallback(file)).toBe(undefined);
     });
 });
 

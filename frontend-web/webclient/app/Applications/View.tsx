@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 
-import {WithAppMetadata, WithAppFavorite, WithAppInvocation} from "Applications";
+import {FullAppInfo, WithAppInvocation, WithAppMetadata} from "Applications";
 import {Page} from "Types";
 import {loadingEvent, LoadableContent} from "LoadableContent";
 
@@ -36,7 +36,7 @@ import * as Pages from "./Pages";
 
 interface MainContentProps {
     onFavorite?: () => void
-    application: WithAppMetadata & WithAppFavorite & WithAppInvocation
+    application: FullAppInfo
     favorite?: LoadableContent<void>
 }
 
@@ -48,7 +48,7 @@ interface OperationProps {
 type StateProps = ViewObject.Type;
 
 interface OwnProps {
-    match: any;
+    match: any
 }
 
 type ViewProps = OperationProps & StateProps & OwnProps;
@@ -67,7 +67,7 @@ function View(props: ViewProps) {
             if (appName !== name || appVersion !== version)
                 fetchApp();
         }
-    })
+    });
 
     function fetchApp() {
         const {appName, appVersion} = props.match.params;
@@ -144,7 +144,7 @@ export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boole
                         <Heading.h3>v{props.application.metadata.version}</Heading.h3>
                         <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
                         <Heading.h6>
-                        <Tags tags={props.application.metadata.tags} />
+                        <Tags tags={props.application.tags} />
                         </Heading.h6>
                     </>
                 }
@@ -178,7 +178,7 @@ const AppSection = styled(Box)`
     margin-bottom: 16px;
 `;
 
-function Content(props: MainContentProps & {previousVersions?: Page<WithAppMetadata>}): JSX.Element {
+function Content(props: MainContentProps & {previousVersions?: Page<FullAppInfo>}): JSX.Element {
     return (
         <>
             <AppSection>
@@ -203,7 +203,7 @@ function Content(props: MainContentProps & {previousVersions?: Page<WithAppMetad
     );
 }
 
-const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<WithAppMetadata>}> = props => (
+const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullAppInfo>}> = props => (
     <>
         {!props.previousVersions ? null :
             (!props.previousVersions.items.length ? null :
@@ -211,7 +211,7 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<WithApp
                     <Heading.h4>Others Versions</Heading.h4>
                     <ApplicationCardContainer>
                         {props.previousVersions.items.map((it, idx) => (
-                            <SlimApplicationCard app={it} key={idx} />
+                            <SlimApplicationCard app={it} key={idx} tags={it.tags}/>
                         ))}
                     </ApplicationCardContainer>
                 </div>

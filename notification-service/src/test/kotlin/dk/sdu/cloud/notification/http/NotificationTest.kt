@@ -12,8 +12,11 @@ import dk.sdu.cloud.notification.api.MarkResponse
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
+import dk.sdu.cloud.notification.services.NotificationService
+import dk.sdu.cloud.notification.services.SubscriptionService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
@@ -33,9 +36,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NotificationTest {
+
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         micro.install(HibernateFeature)
-        listOf(NotificationController(micro.hibernateDatabase, NotificationHibernateDAO(), mockk(relaxed = true)))
+        val subscriptionService = mockk<SubscriptionService<HibernateSession>>()
+        val notificationHibernateDAO = NotificationHibernateDAO()
+        val notificationService =
+            NotificationService(
+                micro.hibernateDatabase,
+                notificationHibernateDAO,
+                subscriptionService
+            )
+        listOf(NotificationController(notificationService, subscriptionService))
     }
 
     private fun KtorApplicationTestContext.listPage(user: SecurityPrincipal): Page<Notification> {
@@ -59,17 +71,17 @@ class NotificationTest {
         )
     }
 
+    private val createdNotification = Notification(
+        type = "type",
+        message = "You Got MAIL!!!",
+        meta = mapOf("foo" to 42)
+    )
+
     @Test
     fun `test create, mark, and list`() {
         withKtorTest(
             setup,
             test = {
-                val createdNotification = Notification(
-                    type = "type",
-                    message = "You Got MAIL!!!",
-                    meta = mapOf("foo" to 42)
-                )
-
                 val createdFor = TestUsers.user
                 createNotification(createdNotification, TestUsers.admin, createdFor.username).assertSuccess()
 
@@ -142,12 +154,6 @@ class NotificationTest {
         withKtorTest(
             setup,
             test = {
-                val createdNotification = Notification(
-                    type = "type",
-                    message = "You Got MAIL!!!",
-                    meta = mapOf("foo" to 42)
-                )
-
                 val createdFor = TestUsers.user
                 createNotification(createdNotification, TestUsers.admin, createdFor.username).assertSuccess()
 

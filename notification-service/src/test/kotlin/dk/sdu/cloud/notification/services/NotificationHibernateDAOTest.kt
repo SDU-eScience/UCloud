@@ -15,7 +15,7 @@ private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
     HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = true)).use(closure)
 }
 
-class NotificationDAOTest {
+class NotificationHibernateDAOTest {
     private val user = "user"
     private val notificationInstance = Notification(
         "type",

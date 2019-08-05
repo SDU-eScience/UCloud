@@ -155,7 +155,7 @@ export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
     initialSubmit: boolean
-    application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
+    application?: FullAppInfo
     parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
@@ -356,4 +356,8 @@ export interface WithAppFavorite {
     favorite: boolean
 }
 
-export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata
+export interface WithAllAppTags {
+    tags: string[]
+}
+
+export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata & WithAllAppTags

@@ -55,6 +55,23 @@ class FavoriteApplicationEntity(
     companion object : HibernateEntity<FavoriteApplicationEntity>, WithId<Long>
 }
 
+@Entity
+@Table(name = "application_tags")
+class TagEntity(
+    var applicationName: String,
+
+    var applicationVersion: String,
+
+    @Column(name = "tag")
+    var tag: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
+) {
+    companion object : HibernateEntity<TagEntity>, WithId<Long>
+}
+
 /**
  * Updated in:
  *

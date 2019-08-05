@@ -225,7 +225,8 @@ class Uploader extends React.Component<UploaderProps> {
             transform: "translate(-50%,-50%)",
             minWidth: "20rem",
             width: "80%",
-            maxWidth: "60rem"
+            maxWidth: "60rem",
+            background: ""
         }
     }
 
