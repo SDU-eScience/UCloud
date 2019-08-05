@@ -245,7 +245,7 @@ exports[`Analyses component Mount component 1`] = `
       cursor="inherit"
       fontSize={6}
     >
-      No jobs have been run on this account.
+      No jobs found.
     </h1>
   </div>
 </div>
@@ -326,7 +326,16 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   margin-left: .7em;
 }
 
-.c21 {
+.c18 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: pointer;
+  margin-right: .4em;
+}
+
+.c22 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -336,7 +345,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   color: #c00;
 }
 
-.c22 {
+.c23 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -380,7 +389,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   left: 85px;
 }
 
-.c8 > *:hover:not(.c23) {
+.c8 > *:hover:not(.c24) {
   background-color: rgba(0,0,0,0.05);
 }
 
@@ -417,7 +426,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   background-color: #fff;
 }
 
-.c20 {
+.c21 {
   border: 0px;
   border-spacing: 0;
 }
@@ -426,18 +435,18 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   cursor: auto;
 }
 
-.c16 > .c19 {
+.c16 > .c20 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
-.c18 {
+.c19 {
   cursor: pointer;
 }
 
-.c18 > .c19 {
+.c19 > .c20 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
@@ -600,21 +609,40 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             >
               <th
                 className="c17"
+                onClick={[Function]}
               >
                 State
               </th>
               <th
                 className="c17"
+                onClick={[Function]}
               >
                 Application
               </th>
               <th
                 className="c17"
+                onClick={[Function]}
               >
-                Started at
+                <svg
+                  className="c18"
+                  clipRule="evenodd"
+                  cursor="pointer"
+                  fill="currentcolor"
+                  fillRule="evenodd"
+                  height=".7em"
+                  mr=".4em"
+                  viewBox="0 0 18 24"
+                  width=".7em"
+                >
+                  <path
+                    d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+                  />
+                </svg>
+                Created at
               </th>
               <th
                 className="c17"
+                onClick={[Function]}
               >
                 Last update
               </th>
@@ -624,15 +652,15 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             className=""
           >
             <tr
-              className="c18"
+              className="c19"
               cursor="pointer"
             >
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 <svg
-                  className="c21"
+                  className="c22"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -652,7 +680,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 Failure
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 
@@ -660,28 +688,28 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 28/08/2018
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 30/08/2018
               </td>
             </tr>
             <tr
-              className="c18"
+              className="c19"
               cursor="pointer"
             >
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 <svg
-                  className="c21"
+                  className="c22"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -701,7 +729,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 Failure
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 
@@ -709,28 +737,28 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 29/08/2018
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 30/08/2018
               </td>
             </tr>
             <tr
-              className="c18"
+              className="c19"
               cursor="pointer"
             >
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 <svg
-                  className="c21"
+                  className="c22"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -750,7 +778,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 Failure
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 
@@ -758,28 +786,28 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 30/08/2018
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 30/08/2018
               </td>
             </tr>
             <tr
-              className="c18"
+              className="c19"
               cursor="pointer"
             >
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 <svg
-                  className="c22"
+                  className="c23"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -799,7 +827,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 Success
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 
@@ -807,13 +835,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 03/09/2018
               </td>
               <td
-                className="c19 c20"
+                className="c20 c21"
                 onClick={[Function]}
               >
                 03/09/2018
