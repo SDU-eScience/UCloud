@@ -30,7 +30,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {Spacer} from "ui-components/Spacer";
-import {EmbeddedFileTable} from "Files/NewFilesTable";
+import {EmbeddedFileTable} from "Files/FileTable";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;

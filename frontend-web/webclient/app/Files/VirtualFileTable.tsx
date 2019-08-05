@@ -1,6 +1,5 @@
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
-import {LowLevelFilesTable, LowLevelFilesTableProps} from "Files/LowLevelFilesTable";
 import {Page} from "Types";
 import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {File} from "Files/index";
@@ -8,8 +7,9 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {useAsyncWork} from "Authentication/DataHook";
+import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable";
 
-export interface VirtualFilesTableProps extends LowLevelFilesTableProps, VirtualFolderDefinition {
+export interface VirtualFileTableProps extends LowLevelFileTableProps, VirtualFolderDefinition {
     // Empty
 }
 
@@ -18,7 +18,7 @@ export interface VirtualFolderDefinition {
     loadFolder?: (folder: string, page: number, itemsPerPage: number) => Promise<Page<File>>
 }
 
-export const VirtualFilesTable: React.FunctionComponent<VirtualFilesTableProps> = props => {
+export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = props => {
     const [loadedFakeFolder, setLoadedFakeFolder] = useState<Page<File> | undefined>(undefined);
     const mergedProperties = {...props};
     const asyncWorker = props.asyncWorker ? props.asyncWorker : useAsyncWork();
@@ -88,7 +88,7 @@ export const VirtualFilesTable: React.FunctionComponent<VirtualFilesTableProps> 
         return base;
     }, [props.fakeFolders, props.loadFolder, props.injectedFiles, props.path]);
 
-    return <LowLevelFilesTable {...mergedProperties}/>;
+    return <LowLevelFileTable {...mergedProperties}/>;
 };
 
 export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({

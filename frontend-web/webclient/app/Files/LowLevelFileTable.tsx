@@ -42,16 +42,12 @@ import {Spacer} from "ui-components/Spacer";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {connect} from "react-redux";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setLoading} from "Navigation/Redux/StatusActions";
 import {Refresh} from "Navigation/Header";
-import {NewFilesTable} from "Files/NewFilesTable";
-import {defaultVirtualFolders} from "Files/VirtualFilesTable";
 import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 
-export interface LowLevelFilesTableProps {
+export interface LowLevelFileTableProps {
     page?: Page<File>
     path?: string
     onFileNavigation: (path: string) => void
@@ -251,7 +247,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
     return api;
 }
 
-const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps &
+const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     RouteComponentProps &
     { responsive: ResponsiveReduxObject } &
     { showUploader: (path: string) => void }> = props => {
@@ -616,7 +612,7 @@ const mapStateToProps = ({responsive}: ReduxObject) => {
 const mapDispatchToProps = (dispatch: Dispatch) => ({
     showUploader: (path: string) => dispatch(setUploaderVisible(true, path))
 });
-export const LowLevelFilesTable = connect(mapStateToProps, mapDispatchToProps)(withRouter(LowLevelFilesTable_));
+export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(withRouter(LowLevelFileTable_));
 
 interface ShellProps {
     embedded: boolean

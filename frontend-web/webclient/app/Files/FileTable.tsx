@@ -1,7 +1,7 @@
 import * as React from "react";
 import FileSelector from "Files/FileSelector";
 import {useCallback, useMemo, useState} from "react";
-import {defaultVirtualFolders, VirtualFilesTable, VirtualFilesTableProps} from "Files/VirtualFilesTable";
+import {defaultVirtualFolders, VirtualFileTable, VirtualFileTableProps} from "Files/VirtualFileTable";
 import {RouteComponentProps, withRouter} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 
@@ -11,7 +11,7 @@ interface ResolveHolder<T> {
 
 // The files table that most other clients should use as a base. This includes an embedded file selector for copy and
 // move operations.
-export const NewFilesTable: React.FunctionComponent<VirtualFilesTableProps> = props => {
+export const FileTable: React.FunctionComponent<VirtualFileTableProps> = props => {
     const [resolve, setResolve] = useState<ResolveHolder<string | null>>({resolve: () => 0});
     const [isVisible, setIsVisible] = useState(false);
     const [allowFolders, setAllowFolders] = useState<boolean>(false);
@@ -32,7 +32,7 @@ export const NewFilesTable: React.FunctionComponent<VirtualFilesTableProps> = pr
     }
 
     const table = useMemo(() => {
-        return <VirtualFilesTable {...modifiedProps}/>
+        return <VirtualFileTable {...modifiedProps}/>
     }, [props]);
 
     return <>
@@ -46,14 +46,14 @@ export const NewFilesTable: React.FunctionComponent<VirtualFilesTableProps> = pr
     </>;
 };
 
-const EmbeddedFileTable_: React.FunctionComponent<Omit<VirtualFilesTableProps, "onFileNavigation"> & RouteComponentProps & { includeVirtualFolders?: boolean }> = props => {
-    const mergedProps: VirtualFilesTableProps = {
+const EmbeddedFileTable_: React.FunctionComponent<Omit<VirtualFileTableProps, "onFileNavigation"> & RouteComponentProps & { includeVirtualFolders?: boolean }> = props => {
+    const mergedProps: VirtualFileTableProps = {
         ...props,
         ...(props.includeVirtualFolders !== false ? defaultVirtualFolders() : {}),
         onFileNavigation: path => props.history.push(fileTablePage(path)),
         embedded: true
     };
-    return <NewFilesTable {...mergedProps}/>;
+    return <FileTable {...mergedProps}/>;
 };
 
 export const EmbeddedFileTable = withRouter(EmbeddedFileTable_);

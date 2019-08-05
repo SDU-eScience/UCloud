@@ -23,7 +23,7 @@ import {prettierString} from "UtilityFunctions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {SelectableTextWrapper, SelectableText} from "ui-components";
-import {EmbeddedFileTable, NewFilesTable} from "Files/NewFilesTable";
+import {EmbeddedFileTable, FileTable} from "Files/FileTable"
 
 function Search(props: SearchProps) {
     React.useEffect(() => {

@@ -13,7 +13,7 @@ import {Flex} from "ui-components";
 import * as ReactModal from "react-modal";
 import {addTrailingSlash} from "UtilityFunctions";
 import {useState} from "react";
-import {defaultVirtualFolders, VirtualFilesTable} from "Files/VirtualFilesTable";
+import {defaultVirtualFolders, VirtualFileTable} from "Files/VirtualFileTable";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const [path, setPath] = useState<string>(Cloud.homeFolder);
@@ -48,7 +48,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                 onRequestClose={() => props.onFileSelect(null)}
                 style={FileSelectorModalStyle}
             >
-                <VirtualFilesTable
+                <VirtualFileTable
                     {...defaultVirtualFolders()}
                     numberOfColumns={0}
                     fileOperations={[{

@@ -7,10 +7,10 @@ import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderA
 import {setActivePage, setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {connect} from "react-redux";
-import {NewFilesTable} from "Files/NewFilesTable";
+import {FileTable} from "Files/FileTable";
 import * as React from "react";
 import {fileTablePage} from "Utilities/FileUtilities";
-import {defaultVirtualFolders} from "Files/VirtualFilesTable";
+import {defaultVirtualFolders} from "Files/VirtualFileTable"
 
 interface FilesProps extends RouteComponentProps {
     onInit: () => void
@@ -22,7 +22,7 @@ const Files: React.FunctionComponent<FilesProps> = props => {
     const urlPath = getQueryParamOrElse(props, "path", Cloud.homeFolder);
     useEffect(() => props.onInit(), []);
 
-    return <NewFilesTable
+    return <FileTable
         {...defaultVirtualFolders()}
         embedded={false}
         onFileNavigation={path => props.history.push(fileTablePage(path))}
