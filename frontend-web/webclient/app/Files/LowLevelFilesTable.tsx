@@ -1,9 +1,9 @@
 import * as React from "react";
-import {useEffect, useRef, useState} from "react";
-import {File, FileResource, SortBy, SortOrder} from "Files/index";
+import {useEffect, useState} from "react";
+import {File, FileResource as FR, FileResource, SortBy, SortOrder} from "Files/index";
 import * as UF from "UtilityFunctions"
-import {APICallParameters, useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
-import {buildQueryString, RouterLocationProps} from "Utilities/URIUtilities";
+import {APICallParameters, callAPI, useAsyncWork} from "Authentication/DataHook";
+import {buildQueryString} from "Utilities/URIUtilities";
 import {Page} from "Types";
 import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import styled from "styled-components";
@@ -21,12 +21,17 @@ import {Button, Icon, Input, Label, OutlineButton, Tooltip, Truncate} from "ui-c
 import {
     createFolder,
     getFilenameFromPath,
-    getParentPath, isAnyMockFile,
+    getParentPath,
+    isAnyMockFile,
     isDirectory,
-    isInvalidPathName, MOCK_RENAME_TAG, mockFile,
+    isInvalidPathName,
+    mergeFilePages,
+    MOCK_RENAME_TAG,
+    mockFile,
     moveFile,
     newMockFolder,
-    replaceHomeFolder, resolvePath
+    replaceHomeFolder,
+    resolvePath
 } from "Utilities/FileUtilities";
 import BaseLink from "ui-components/BaseLink";
 import Theme from "ui-components/theme";
@@ -101,6 +106,27 @@ const invertSortOrder = (order: SortOrder): SortOrder => {
     }
 };
 
+const twoPhaseLoadFiles = async (
+    attributes: FileResource[],
+    callback: (page: Page<File>) => void,
+    request: ListDirectoryRequest
+) => {
+    let promise = callAPI<Page<File>>(listDirectory({
+        ...request,
+        attrs: [FileResource.FILE_ID, FileResource.PATH, FileResource.FILE_TYPE]
+    })).then(result => {
+        callback(result);
+        return result;
+    });
+
+    const [phaseOne, phaseTwo] = await Promise.all([
+        promise,
+        callAPI<Page<File>>(listDirectory({...request, attrs: attributes}))
+    ]);
+
+    callback(mergeFilePages(phaseOne, phaseTwo, attributes));
+};
+
 interface InternalFileTableAPI {
     page: Page<File>;
     error: string | undefined;
@@ -113,33 +139,40 @@ interface InternalFileTableAPI {
     onPageChanged: (pageNumber: number, itemsPerPage: number) => void;
 }
 
+const initialPageParameters: ListDirectoryRequest = {
+    itemsPerPage: 25,
+    order: SortOrder.ASCENDING,
+    sortBy: SortBy.PATH,
+    page: 0,
+    attrs: [],
+    path: "TO_BE_REPLACED"
+};
+
 function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTableAPI {
     let api: InternalFileTableAPI;
 
-    let parametersInitial: APICallParameters<ListDirectoryRequest>;
+    const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
+    const [pageLoading, pageError, submitPageLoaderJob] = useAsyncWork();
+    const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>(initialPageParameters);
 
-    if (props.page !== undefined) {
-        parametersInitial = {noop: true};
-    } else {
-        parametersInitial = listDirectory({
-            path: props.path!,
-            itemsPerPage: 25,
-            page: 0,
-            sortBy: SortBy.PATH,
-            order: SortOrder.ASCENDING,
-            attrs: []
+    const loadManaged = (request: ListDirectoryRequest) => {
+        setPageParameters(request);
+        submitPageLoaderJob(async () => {
+            await twoPhaseLoadFiles(
+                [
+                    FileResource.ACL, FileResource.FILE_ID, FileResource.OWNER_NAME, FileResource.FAVORITED,
+                    FileResource.SENSITIVITY_LEVEL
+                ],
+                it => setManagedPage(it),
+                request);
         });
-    }
-
-    const [cloudPage, setPageParams, pageParams] = useCloudAPI<Page<File>>(parametersInitial, emptyPage);
+    };
 
     useEffect(() => {
         if (props.page === undefined) {
-            let parameters = pageParams.parameters as ListDirectoryRequest;
-            let newAttrs = {...parameters, path: props.path!};
-            if (props.path !== parameters.path) newAttrs.page = 0;
-
-            setPageParams(listDirectory(newAttrs));
+            const request = {...pageParameters, path: props.path!};
+            if (props.path !== pageParameters.path) request.page = 0;
+            loadManaged(request);
         }
     }, [props.path, props.page]);
 
@@ -161,13 +194,9 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
         }
     } else {
         // TODO Some of these callbacks should use "useCallback"?
-        // TODO Two phase load.
-
-        const page = cloudPage.data;
-        const error = cloudPage.error ? cloudPage.error.why : undefined;
-        const loading = cloudPage.loading;
-
-        const pageParameters: ListDirectoryRequest = pageParams.parameters!;
+        const page = managedPage;
+        const error = pageError;
+        const loading = pageLoading;
 
         const setSorting = (sortBy: SortBy, order: SortOrder, column?: number) => {
             if (column !== undefined) {
@@ -178,14 +207,12 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
                 setSortByColumns(newColumns);
             }
 
-            setPageParams(
-                listDirectory({
-                    ...pageParameters,
-                    sortBy,
-                    order,
-                    page: 0
-                })
-            );
+            loadManaged({
+                ...pageParameters,
+                sortBy,
+                order,
+                page: 0
+            });
         };
 
         const sortingIconFor = (other: SortBy): "arrowUp" | "arrowDown" | undefined => {
@@ -200,12 +227,12 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
             return undefined;
         };
 
-        const reload = () => setPageParams(listDirectory(pageParameters));
+        const reload = () => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
         const order = pageParameters.order;
 
         const onPageChanged = (pageNumber: number, itemsPerPage: number) => {
-            setPageParams(listDirectory({...pageParameters, page: pageNumber, itemsPerPage: itemsPerPage}));
+            loadManaged({...pageParameters, page: pageNumber, itemsPerPage: itemsPerPage});
         };
 
         api = {page, error, pageLoading: loading, setSorting, sortingIconFor, reload, sortBy, order, onPageChanged};

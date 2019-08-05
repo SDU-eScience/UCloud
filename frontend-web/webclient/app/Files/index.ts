@@ -62,7 +62,6 @@ export enum FileResource {
     ACL = "acl",
     SENSITIVITY_LEVEL = "sensitivityLevel",
     OWN_SENSITIVITY_LEVEL = "ownSensitivityLevel",
-    LINK = "link",
     FILE_ID = "fileId",
     CREATOR = "creator"
 }

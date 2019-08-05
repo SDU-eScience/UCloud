@@ -465,6 +465,64 @@ export function addFileAcls(withoutAcls: Page<File>, withAcls: Page<File>): Page
     return withoutAcls;
 }
 
+export function mergeFilePages(basePage: Page<File>, additionalPage: Page<File>, attributesToCopy: FileResource[]) {
+    const items = basePage.items.map(base => {
+        const additionalFile = additionalPage.items.find(it => it.fileId === base.fileId);
+        if (additionalFile !== undefined) {
+            return mergeFile(base, additionalFile, attributesToCopy);
+        } else {
+            return base;
+        }
+    });
+
+    return {...basePage, items};
+}
+
+export function mergeFile(base: File, additional: File, attributesToCopy: FileResource[]): File {
+    const result: File = {...base};
+    attributesToCopy.forEach(attr => {
+        switch (attr) {
+            case FileResource.FAVORITED:
+                result.favorited = additional.favorited;
+                break;
+            case FileResource.FILE_TYPE:
+                result.fileType = additional.fileType;
+                break;
+            case FileResource.PATH:
+                result.path = additional.path;
+                break;
+            case FileResource.CREATED_AT:
+                result.createdAt = additional.createdAt;
+                break;
+            case FileResource.MODIFIED_AT:
+                result.modifiedAt = additional.modifiedAt;
+                break;
+            case FileResource.OWNER_NAME:
+                result.ownerName = additional.ownerName;
+                break;
+            case FileResource.SIZE:
+                result.size = additional.size;
+                break;
+            case FileResource.ACL:
+                result.acl = additional.acl;
+                break;
+            case FileResource.SENSITIVITY_LEVEL:
+                result.sensitivityLevel = additional.sensitivityLevel;
+                break;
+            case FileResource.OWN_SENSITIVITY_LEVEL:
+                result.ownSensitivityLevel = additional.ownSensitivityLevel;
+                break;
+            case FileResource.FILE_ID:
+                result.fileId = additional.fileId;
+                break;
+            case FileResource.CREATOR:
+                result.creator = additional.creator;
+                break;
+        }
+    });
+    return result;
+}
+
 export function markFileAsChecked(path: string, page: Page<File>) {
     const resolvedPath = resolvePath(path);
     const i = page.items.findIndex(it => it.path === resolvedPath);

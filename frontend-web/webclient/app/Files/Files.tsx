@@ -118,7 +118,6 @@ function Files(props: Readonly<FilesProps>) {
     const baseFRs: FileResource[] = [
         FR.FILE_ID,
         FR.PATH,
-        FR.LINK,
         FR.FILE_TYPE,
         props.leftSortingColumn as unknown as FileResource,
         props.rightSortingColumn as unknown as FileResource
