@@ -1,6 +1,5 @@
 import {File} from "Files/index";
 import * as UF from "UtilityFunctions";
-import {delay} from "UtilityFunctions";
 import {
     allFilesHasAccessRight, clearTrash,
     CopyOrMove,
@@ -68,11 +67,19 @@ export const defaultFileOperations: FileOperation[] = [
         currentDirectoryMode: true
     },
     {
-        text: "Share",
-        onClick: (files) => shareFiles({files, cloud: Cloud}),
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files),
-        icon: "share"
+        text: "Copy Path",
+        onClick: files => UF.copyToClipboard({
+            value: files[0].path,
+            message: `${replaceHomeFolder(files[0].path, Cloud.homeFolder)} copied to clipboard`
+        }),
+        disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files),
+        icon: "chat"
+    },
+    {
+        text: "Rename",
+        onClick: (files, cb) => cb.startRenaming(files[0]),
+        disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) || isAnyMockFile(files),
+        icon: "rename"
     },
     {
         text: "Download",
@@ -89,13 +96,51 @@ export const defaultFileOperations: FileOperation[] = [
         icon: "verified"
     },
     {
-        text: "Copy Path",
-        onClick: files => UF.copyToClipboard({
-            value: files[0].path,
-            message: `${replaceHomeFolder(files[0].path, Cloud.homeFolder)} copied to clipboard`
-        }),
-        disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files),
-        icon: "chat"
+        text: "Share",
+        onClick: (files) => shareFiles({files, cloud: Cloud}),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
+            isAnyMockFile(files),
+        icon: "share"
+    },
+    {
+        text: "Copy",
+        onClick: async (files, cb) => {
+            const target = await cb.requestFileSelector(true, true);
+            if (target === null) return;
+            cb.invokeAsyncWork(async () => {
+                try {
+                    await copyOrMoveFilesNew(CopyOrMove.Copy, files, target);
+                } catch (e) {
+                    console.warn(e);
+                }
+            });
+        },
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files),
+        icon: "copy",
+    },
+    {
+        text: "Move",
+        onClick: async (files, cb) => {
+            const target = await cb.requestFileSelector(true, true);
+            if (target === null) return;
+            cb.invokeAsyncWork(async () => {
+                try {
+                    await copyOrMoveFilesNew(CopyOrMove.Move, files, target);
+                } catch (e) {
+                    console.warn(e);
+                }
+            });
+        },
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files),
+        icon: "move",
+    },
+    {
+        text: "Extract archive",
+        onClick: (files, cb) => cb.invokeAsyncWork(() =>
+            extractArchive({files, cloud: Cloud, onFinished: () => cb.requestReload()})
+        ),
+        disabled: (files) => !files.every(it => isArchiveExtension(it.path)) || isAnyMockFile(files),
+        icon: "open"
     },
     {
         text: "Move to Trash",
@@ -145,60 +190,4 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files) => files.length !== 1 || isAnyMockFile(files),
         icon: "properties", color: "blue"
     },
-    {
-        text: "Extract archive",
-        onClick: (files, cb) => cb.invokeAsyncWork(() =>
-            extractArchive({files, cloud: Cloud, onFinished: () => cb.requestReload()})
-        ),
-        disabled: (files) => !files.every(it => isArchiveExtension(it.path)) || isAnyMockFile(files),
-        icon: "open"
-    },
-    {
-        text: "Rename",
-        onClick: (files, cb) => cb.startRenaming(files[0]),
-        disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) || isAnyMockFile(files),
-        icon: "rename"
-    },
-    {
-        text: "Random Work",
-        onClick: (_, cb) => cb.invokeAsyncWork(async () => {
-            await delay(2000);
-            console.log("Work is done!");
-        }),
-        disabled: () => false,
-        currentDirectoryMode: true,
-        color: "green"
-    },
-    {
-        text: "Copy",
-        onClick: async (files, cb) => {
-            const target = await cb.requestFileSelector(true, true);
-            if (target === null) return;
-            cb.invokeAsyncWork(async () => {
-                try {
-                    await copyOrMoveFilesNew(CopyOrMove.Copy, files, target);
-                } catch (e) {
-                    console.warn(e);
-                }
-            });
-        },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files),
-        icon: "copy",
-    },
-    {
-        text: "Move",
-        onClick: async (files, cb) => {
-            const target = await cb.requestFileSelector(true, true);
-            if (target === null) return;
-            cb.invokeAsyncWork(async () => {
-                try {
-                    await copyOrMoveFilesNew(CopyOrMove.Move, files, target);
-                } catch (e) {
-                    console.warn(e);
-                }
-            });
-        },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files),
-        icon: "move",
-    }
 ];
