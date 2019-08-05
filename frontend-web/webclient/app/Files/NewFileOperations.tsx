@@ -47,7 +47,7 @@ export interface FileOperation {
 export const defaultFileOperations: FileOperation[] = [
     {
         text: "Upload Files",
-        onClick: () => 42,
+        onClick: (_, cb) => cb.requestFileUpload(),
         disabled: dir => resolvePath(dir[0].path) === resolvePath(Cloud.trashFolder),
         color: "blue",
         currentDirectoryMode: true

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {File, FileResource, FilesStateProps, SortBy, SortOrder} from "Files/index";
+import {File, FileResource, SortBy, SortOrder} from "Files/index";
 import * as UF from "UtilityFunctions"
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
@@ -49,6 +49,8 @@ import {Refresh} from "Navigation/Header";
 import {NewFilesTable} from "Files/NewFilesTable";
 import {defaultVirtualFolders} from "Files/VirtualFilesTable";
 import {RouteComponentProps, withRouter} from "react-router";
+import {Dispatch} from "redux";
+import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 
 export interface LowLevelFilesTableProps {
     page?: Page<File>
@@ -250,7 +252,12 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
     return api;
 }
 
-const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & RouteComponentProps & { responsive: ResponsiveReduxObject }> = props => {
+const LowLevelFilesTable_: React.FunctionComponent<
+    LowLevelFilesTableProps &
+    RouteComponentProps &
+    { responsive: ResponsiveReduxObject } &
+    { showUploader: (path: string) => void }
+> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -279,7 +286,10 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
             setInjectedViaState([]);
             reload();
         },
-        requestFileUpload: () => 42, // TODO
+        requestFileUpload: () => {
+            const path = props.path ? props.path : Cloud.homeFolder;
+            props.showUploader(path);
+        },
         requestFolderCreation: () => {
             if (props.path === undefined) return;
             let fileId = "newFolderId";
@@ -601,7 +611,10 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
 const mapStateToProps = ({responsive}: ReduxObject) => {
     return {responsive};
 };
-export const LowLevelFilesTable = connect(mapStateToProps)(withRouter(LowLevelFilesTable_));
+const mapDispatchToProps = (dispatch: Dispatch) => ({
+    showUploader: (path: string) => dispatch(setUploaderVisible(true, path))
+});
+export const LowLevelFilesTable = connect(mapStateToProps, mapDispatchToProps)(withRouter(LowLevelFilesTable_));
 
 interface ShellProps {
     embedded: boolean

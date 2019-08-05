@@ -474,9 +474,9 @@ interface ConflictFile {file?: SDUCloudFile}
 const ConflictFile = ({file}: ConflictFile) => !!file ?
     <Box>File already exists in folder, {sizeToString(file.size!)}</Box> : null;
 
-const mapStateToProps = ({files, uploader}: ReduxObject): UploaderStateProps => ({
+const mapStateToProps = ({uploader}: ReduxObject): UploaderStateProps => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
-    location: files.path,
+    location: uploader.path,
     visible: uploader.visible,
     allowMultiple: true,
     uploads: uploader.uploads,
@@ -488,7 +488,7 @@ const mapStateToProps = ({files, uploader}: ReduxObject): UploaderStateProps => 
 const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploads: uploads => dispatch(setUploads(uploads)),
     setUploaderError: err => dispatch(setUploaderError(err)),
-    setUploaderVisible: visible => dispatch(setUploaderVisible(visible)),
+    setUploaderVisible: visible => dispatch(setUploaderVisible(visible, Cloud.homeFolder)),
     setLoading: loading => dispatch(setLoading(loading)),
 });
 

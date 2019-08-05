@@ -315,7 +315,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     updateFiles: page => dispatch(Actions.updateFiles(page)),
     checkAllFiles: checked => dispatch(Actions.checkAllFiles(checked)),
     setDisallowedPaths: disallowedPaths => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
-    showUploader: () => dispatch(setUploaderVisible(true)),
+    showUploader: () => dispatch(setUploaderVisible(true, "")),
     setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
     clearRefresh: () => dispatch(setRefreshFunction())
 });
