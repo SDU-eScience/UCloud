@@ -100,7 +100,7 @@ function onOnlySuccess({operation, fileCount}: { operation: string, fileCount: n
 
 export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
     try {
-        await cloud.get(statFileQuery(path))
+        await cloud.get(statFileQuery(path));
         return true;
     } catch (e) {
         // FIXME: in the event of other than 404

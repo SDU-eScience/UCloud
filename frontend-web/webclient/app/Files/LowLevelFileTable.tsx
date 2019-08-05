@@ -47,8 +47,6 @@ import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 
-// TODO We need to fix bad ACL computations!
-
 export interface LowLevelFileTableProps {
     page?: Page<File>
     path?: string
