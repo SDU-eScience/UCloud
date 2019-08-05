@@ -90,7 +90,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         checked={masterCheckboxChecked}
         onClick={checked => props.checkAllAnalyses(checked)}
     />;
-    console.log(sortOrder);
+    
     const content = <List
         customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
         loading={loading}
