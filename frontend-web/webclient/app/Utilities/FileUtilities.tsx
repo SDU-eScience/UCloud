@@ -12,11 +12,6 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import {dialogStore} from "Dialog/DialogStore";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
-function initialSetup(operations: MoveCopyOperations) {
-    resetFileSelector(operations);
-    return {failurePaths: [] as string[], applyToAll: false, policy: UploadPolicy.REJECT as UploadPolicy};
-}
-
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`
 }
@@ -33,66 +28,6 @@ interface CopyOrMoveFiles {
     cloud: SDUCloud
     setLoading: () => void
 }
-
-/* This function is way too large */
-export function copyOrMoveFiles({operation, files, copyMoveOps, cloud, setLoading}: CopyOrMoveFiles): void {
-    const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
-    let successes = 0, failures = 0, pathToFetch = "";
-    copyMoveOps.showFileSelector(true);
-    copyMoveOps.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
-    copyMoveOps.setFileSelectorCallback(async (targetPathFolder: File) => {
-        let {failurePaths, applyToAll, policy} = initialSetup(copyMoveOps);
-        for (let i = 0; i < files.length; i++) {
-            let f = files[i];
-            let {exists, allowRewrite, newPathForFile} = await moveCopySetup({
-                targetPath: targetPathFolder.path,
-                path: f.path,
-                cloud
-            });
-            if (exists && !applyToAll) {
-                const result = await rewritePolicyDialog({
-                    path: newPathForFile,
-                    homeFolder: cloud.homeFolder,
-                    filesRemaining: files.length - i
-                });
-                if (result != false) {
-                    allowRewrite = true;
-                    allowRewrite = !!result.policy;
-                    policy = result.policy as UploadPolicy;
-                    if (files.length - i > 1) applyToAll = result.applyToAll;
-                }
-            }
-            if (applyToAll) allowRewrite = true;
-            if ((exists && allowRewrite) || !exists) {
-                try {
-                    const {request} = await cloud.post(copyOrMoveQuery(f.path, newPathForFile, policy))
-                    successes++;
-                    pathToFetch = newPathForFile;
-                    if (request.status === 202) snackbarStore.addSnack({
-                        message: `Operation for ${f.path} is in progress.`,
-                        type: SnackType.Success
-                    })
-                } catch {
-                    failures++;
-                    failurePaths.push(getFilenameFromPath(f.path))
-                }
-            }
-        }
-
-        if (successes) {
-            setLoading();
-            if (policy === UploadPolicy.RENAME) copyMoveOps.fetchFilesPage(getParentPath(pathToFetch));
-            else copyMoveOps.fetchPageFromPath(pathToFetch);
-        }
-
-        if (!failures && successes) {
-            onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: files.length});
-        } else if (failures)
-            snackbarStore.addFailure(
-                `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`
-            );
-    });
-};
 
 export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], targetPathFolder: string) {
     const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
@@ -138,13 +73,6 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
         }
     }
 
-    /*
-    if (successes) {
-        if (policy === UploadPolicy.RENAME) copyMoveOps.fetchFilesPage(getParentPath(pathToFetch));
-        else copyMoveOps.fetchPageFromPath(pathToFetch);
-    }
-     */
-
     if (!failures && successes) {
         onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: files.length});
     } else if (failures) {
@@ -170,18 +98,6 @@ function onOnlySuccess({operation, fileCount}: { operation: string, fileCount: n
     snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
 }
 
-interface ResetFileSelector {
-    showFileSelector: (v: boolean) => void
-    setFileSelectorCallback: (v: any) => void
-    setDisallowedPaths: (array: string[]) => void;
-}
-
-function resetFileSelector(operations: ResetFileSelector): void {
-    operations.showFileSelector(false);
-    operations.setFileSelectorCallback(undefined);
-    operations.setDisallowedPaths([]);
-}
-
 export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
     try {
         await cloud.get(statFileQuery(path))
@@ -190,14 +106,6 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
         // FIXME: in the event of other than 404
         return !(e.request.status === 404);
     }
-};
-
-export const startRenamingFiles = (files: File[], page: Page<File>) => {
-    const paths = files.map(it => it.path);
-    page.items.forEach(file => {
-        if (paths.includes(file.path)) file.beingRenamed = true
-    });
-    return page;
 };
 
 export type AccessRight = "READ" | "WRITE";
@@ -213,257 +121,6 @@ function hasAccess(accessRight: AccessRight, file: File) {
 
 export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) =>
     files.every(f => hasAccess(accessRight, f));
-
-
-interface CreateFileLink {
-    file: File
-    cloud: SDUCloud
-    setLoading: () => void
-    fetchPageFromPath: (p: string) => void
-}
-
-export async function createFileLink({file, cloud, setLoading, fetchPageFromPath}: CreateFileLink) {
-    const fileName = getFilenameFromPath(file.path);
-    const linkPath = file.path.replace(fileName, `Link to ${fileName} `);
-    setLoading();
-    try {
-        await cloud.post("/files/create-link", {
-            linkTargetPath: file.path,
-            linkPath
-        });
-        fetchPageFromPath(linkPath);
-    } catch {
-        snackbarStore.addSnack({message: "An error occurred creating link.", type: SnackType.Failure});
-    }
-}
-
-interface StateLessOperations {
-    setLoading: () => void
-    onSensitivityChange?: () => void
-}
-
-/**
- * @returns Stateless operations for files
- */
-export const StateLessOperations = ({setLoading, onSensitivityChange}: StateLessOperations): Operation<File>[] => [
-    {
-        text: "Share",
-        onClick: (files: File[], cloud: SDUCloud) => shareFiles({files, cloud}),
-        disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files),
-        icon: "share",
-        color: undefined
-    },
-    {
-        text: "Download",
-        onClick: (files: File[], cloud: SDUCloud) => downloadFiles(files, setLoading, cloud),
-        disabled: (files: File[], cloud: SDUCloud) => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files),
-        icon: "download",
-        color: undefined
-    },
-    {
-        text: "Sensitivity",
-        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity({files, cloud, onSensitivityChange}),
-        disabled: (files: File[], cloud: SDUCloud) => false,
-        icon: "verified",
-        color: undefined
-    },
-    {
-        text: "Copy Path",
-        onClick: (files: File[], cloud: SDUCloud) => UF.copyToClipboard({
-            value: files[0].path,
-            message: `${replaceHomeFolder(files[0].path, cloud.homeFolder)} copied to clipboard`
-        }),
-        disabled: (files: File[], cloud: SDUCloud) => !UF.inDevEnvironment() || files.length !== 1,
-        icon: "chat",
-        color: undefined
-    }
-];
-
-interface CreateLinkOperation {
-    fetchPageFromPath: (p: string) => void
-    setLoading: () => void
-}
-
-export const CreateLinkOperation = ({fetchPageFromPath, setLoading}: CreateLinkOperation) => [{
-    text: "Create link",
-    onClick: (files: File[], cloud: SDUCloud) => createFileLink({
-        file: files[0],
-        cloud,
-        setLoading,
-        fetchPageFromPath
-    }),
-    disabled: (files: File[], cloud: SDUCloud) => files.length > 1,
-    icon: "link",
-    color: undefined
-}];
-
-interface FileSelectorOperations {
-    fileSelectorOperations: MoveCopyOperations
-    setLoading: () => void
-}
-
-/**
- * @returns Move and Copy operations for files
- */
-export const FileSelectorOperations = ({fileSelectorOperations, setLoading}: FileSelectorOperations): Operation<File>[] => [
-    {
-        text: "Copy",
-        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({
-            operation: CopyOrMove.Copy,
-            files,
-            copyMoveOps: fileSelectorOperations,
-            cloud,
-            setLoading
-        }),
-        disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files),
-        icon: "copy",
-        color: undefined
-    },
-    {
-        text: "Move",
-        onClick: (files: File[], cloud: SDUCloud) => copyOrMoveFiles({
-            operation: CopyOrMove.Move,
-            files,
-            copyMoveOps: fileSelectorOperations,
-            cloud,
-            setLoading
-        }),
-        disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)),
-        icon: "move",
-        color: undefined
-    }
-];
-
-export const archiveExtensions: string[] = [".tar.gz", ".zip"];
-export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
-
-
-interface ExtractionOperation {
-    onFinished: () => void
-}
-
-/**
- *
- * @param onFinished called when extraction is completed successfully.
- */
-export const ExtractionOperation = ({onFinished}: ExtractionOperation): Operation<File>[] => [
-    {
-        text: "Extract archive",
-        onClick: (files, cloud) => extractArchive({files, cloud, onFinished}),
-        disabled: (files, cloud) => !files.every(it => isArchiveExtension(it.path)),
-        icon: "open",
-        color: undefined
-    }
-];
-
-
-interface MoveFileToTrashOperation {
-    onMoved: () => void
-    setLoading: () => void
-}
-
-/**
- *
- * @param onMoved To be called on completed deletion of files
- * @returns the Delete operation in an array
- */
-export const MoveFileToTrashOperation = ({onMoved, setLoading}: MoveFileToTrashOperation): Operation<File>[] => [
-    {
-        text: "Move to Trash",
-        onClick: (files, cloud) => moveToTrash({files, cloud, setLoading, callback: onMoved}),
-        disabled: (files: File[], cloud: SDUCloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({path}) => inTrashDir(path, cloud))),
-        icon: "trash",
-        color: "red"
-    },
-    {
-        text: "Delete Files",
-        onClick: (files, cloud) => batchDeleteFiles({files, cloud, setLoading, callback: onMoved}),
-        disabled: (files, cloud) => !files.every(f => getParentPath(f.path) === cloud.trashFolder),
-        icon: "trash",
-        color: "red"
-    }
-];
-
-export const ClearTrashOperations = (toHome: () => void): Operation<File>[] => [{
-    text: "Clear Trash",
-    onClick: (files, cloud) => clearTrash({cloud, callback: toHome}),
-    disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
-    icon: "trash",
-    color: "red"
-}];
-
-/**
- * @returns Properties and Project Operations for files.
- */
-export const HistoryFilesOperations = (history: History): FileOperation[] => {
-    const ops: FileOperation[] = [{
-        text: "Properties",
-        onClick: (files: File[], cloud: SDUCloud) => history.push(fileInfoPage(files[0].path)),
-        disabled: (files: File[], cloud: SDUCloud) => files.length !== 1,
-        icon: "properties", color: "blue"
-    }];
-    return ops;
-};
-
-export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
-export const filePreviewPage = (path: string) => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
-export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
-
-
-interface AllFileOperations {
-    stateless?: boolean,
-    fileSelectorOperations?: MoveCopyOperations
-    onDeleted?: () => void
-    onExtracted?: () => void
-    onClearTrash?: () => void
-    onSensitivityChange?: () => void
-    history?: History,
-    setLoading: () => void
-}
-
-export function allFileOperations(
-    {
-        stateless,
-        fileSelectorOperations,
-        onDeleted,
-        onExtracted,
-        onClearTrash,
-        history,
-        setLoading,
-        onSensitivityChange,
-    }: AllFileOperations
-) {
-    const stateLessOperations = stateless ? StateLessOperations({setLoading, onSensitivityChange}) : [];
-    const fileSelectorOps = !!fileSelectorOperations ? FileSelectorOperations({
-        fileSelectorOperations,
-        setLoading
-    }) : [];
-    const deleteOperation = !!onDeleted ? MoveFileToTrashOperation({onMoved: onDeleted, setLoading}) : [];
-    const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
-    const historyOperations = !!history ? HistoryFilesOperations(history) : [];
-    const extractionOperations = !!onExtracted ? ExtractionOperation({onFinished: onExtracted}) : [];
-    return [
-        ...stateLessOperations,
-        ...fileSelectorOps,
-        ...deleteOperation,
-        ...extractionOperations,        // ...clearTrash,
-        ...historyOperations,
-    ];
-}
-
-export function addFileAcls(withoutAcls: Page<File>, withAcls: Page<File>): Page<File> {
-    withoutAcls.items.forEach(file => {
-        const id = file.fileId;
-        const otherFile = withAcls.items.find(it => it.fileId === id);
-        if (otherFile) {
-            file.acl = otherFile.acl;
-            file.favorited = otherFile.favorited;
-            file.ownerName = otherFile.ownerName;
-            file.sensitivityLevel = otherFile.sensitivityLevel;
-        }
-    });
-    return withoutAcls;
-}
 
 export function mergeFilePages(basePage: Page<File>, additionalPage: Page<File>, attributesToCopy: FileResource[]) {
     const items = basePage.items.map(base => {
@@ -521,13 +178,6 @@ export function mergeFile(base: File, additional: File, attributesToCopy: FileRe
         }
     });
     return result;
-}
-
-export function markFileAsChecked(path: string, page: Page<File>) {
-    const resolvedPath = resolvePath(path);
-    const i = page.items.findIndex(it => it.path === resolvedPath);
-    page.items[i].isChecked = true;
-    return page;
 }
 
 /**
@@ -605,24 +255,6 @@ export function mockFile(props: { path: string, type: FileType, fileId?: string,
         mockTag: props.tag
     };
 }
-export const newMockFolder = (path: string = "", beingRenamed: boolean = true, fileId: string = ""): File => ({
-    fileType: "DIRECTORY",
-    path,
-    creator: "Creator",
-    fileId,
-    ownSensitivityLevel: null,
-    createdAt: new Date().getTime(),
-    modifiedAt: new Date().getTime(),
-    ownerName: Cloud.activeUsername ? Cloud.activeUsername : "",
-    size: 0,
-    acl: [],
-    favorited: false,
-    sensitivityLevel: SensitivityLevelMap.PRIVATE,
-    isChecked: false,
-    beingRenamed,
-    link: false,
-    isMockFolder: true
-});
 
 interface IsInvalidPathname {
     path: string
@@ -666,14 +298,6 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
     ].some(it => UF.removeTrailingSlash(it) === filePath)
 };
 
-export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: SDUCloud): Page<File> => {
-    filesToFavorite.forEach(f => {
-        const i = page.items.findIndex(file => file.path === f.path)!;
-        favoriteFile(page.items[i], cloud);
-    });
-    return page;
-};
-
 /**
  * Used to favorite/defavorite a file based on its current state.
  * @param {File} file The single file to be favorited
@@ -685,21 +309,6 @@ export const favoriteFile = async (file: File, cloud: SDUCloud): Promise<File> =
     } catch (e) {
         UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
         throw e;
-    }
-    file.favorited = !file.favorited;
-    return file;
-};
-
-/**
- * Used to favorite/defavorite a file based on its current state.
- * @param {File} file The single file to be favorited
- * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
- */
-export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<File> => {
-    try {
-        await cloud.post(favoriteFileQuery(file.path), {})
-    } catch (e) {
-        UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
     }
     file.favorited = !file.favorited;
     return file;
@@ -726,15 +335,9 @@ export const reclassifyFile = async ({file, sensitivity, cloud}: ReclassifyFile)
     return {...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity};
 };
 
-export const canBeProject = (files: File[], homeFolder: string): boolean =>
-    files.length === 1 && files.every(f => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
-
-export const previewSupportedExtension = (path: string) => false;
-
 export const toFileText = (selectedFiles: File[]): string =>
-    `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`
+    `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`;
 
-export const isLink = (file: File) => file.link;
 export const isDirectory = (file: { fileType: FileType }): boolean => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
 export const expandHomeFolder = (path: string, homeFolder: string): string => {
@@ -765,7 +368,6 @@ export const extractArchive = async ({files, cloud, onFinished}: ExtractArchive)
     }
     onFinished();
 };
-
 
 export const clearTrash = ({cloud, callback}: { cloud: SDUCloud, callback: () => void }) =>
     clearTrashDialog({
@@ -970,39 +572,6 @@ export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) =
     });
 };
 
-interface BatchDeleteFiles {
-    files: File[]
-    cloud: SDUCloud
-    setLoading: () => void
-    callback: () => void
-}
-
-export const batchDeleteFiles = ({files, cloud, setLoading, callback}: BatchDeleteFiles) => {
-    const paths = files.map(f => f.path);
-    const message = paths.length > 1 ? `Delete ${paths.length} files?` :
-        `Delete file ${getFilenameFromPath(paths[0])}`;
-    addStandardDialog({
-        title: "Delete files",
-        message,
-        confirmText: "Delete files",
-        onConfirm: async () => {
-            setLoading();
-            const promises: { status?: number, response?: string }[] =
-                await Promise.all(paths.map(path => cloud.delete("/files", {path}))).then(it => it).catch(it => it);
-            const failures = promises.filter(it => it.status).length;
-            if (failures > 0) {
-                snackbarStore.addSnack({
-                    message: promises.filter(it => it.response).map(it => it).join(", "),
-                    type: SnackType.Failure
-                });
-            } else {
-                snackbarStore.addSnack({message: "Files deleted", type: SnackType.Success});
-            }
-            callback();
-        }
-    });
-};
-
 interface MoveFile {
     oldPath: string
     newPath: string
@@ -1045,4 +614,10 @@ export const inTrashDir = (path: string, cloud: SDUCloud): boolean => getParentP
 export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
+
+export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
+export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
+
+export const archiveExtensions: string[] = [".tar.gz", ".zip"];
+export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 

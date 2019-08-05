@@ -26,10 +26,9 @@ import {
     isDirectory,
     isInvalidPathName,
     mergeFilePages, MOCK_RELATIVE,
-    MOCK_RENAME_TAG,
+    MOCK_RENAME_TAG, MOCK_VIRTUAL,
     mockFile,
     moveFile,
-    newMockFolder,
     replaceHomeFolder,
     resolvePath
 } from "Utilities/FileUtilities";
@@ -252,12 +251,10 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
     return api;
 }
 
-const LowLevelFilesTable_: React.FunctionComponent<
-    LowLevelFilesTableProps &
+const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps &
     RouteComponentProps &
     { responsive: ResponsiveReduxObject } &
-    { showUploader: (path: string) => void }
-> = props => {
+    { showUploader: (path: string) => void }> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -432,7 +429,12 @@ const LowLevelFilesTable_: React.FunctionComponent<
                             fileOperations={fileOperations}
                             callback={callbacks}
                             // Don't pass a directory if the page is set. This should indicate that the path is fake.
-                            directory={props.page !== undefined ? undefined : newMockFolder(props.path ? props.path : "")}
+                            directory={props.page !== undefined ? undefined : mockFile({
+                                path: props.path ? props.path : "",
+                                fileId: "currentDir",
+                                tag: MOCK_RELATIVE,
+                                type: "DIRECTORY"
+                            })}
                         />
                     </SidebarContent>
                 </VerticalButtonGroup>
