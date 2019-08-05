@@ -87,19 +87,19 @@ export const defaultFileOperations: FileOperation[] = [
         icon: "download"
     },
     {
+        text: "Share",
+        onClick: (files) => shareFiles({files, cloud: Cloud}),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
+            isAnyMockFile(files),
+        icon: "share"
+    },
+    {
         text: "Sensitivity",
         onClick: (files, cb) => {
             updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()})
         },
         disabled: files => isAnyMockFile(files),
         icon: "verified"
-    },
-    {
-        text: "Share",
-        onClick: (files) => shareFiles({files, cloud: Cloud}),
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files),
-        icon: "share"
     },
     {
         text: "Copy",

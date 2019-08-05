@@ -803,42 +803,47 @@ interface FileOperations extends SpaceProps {
 const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
     if (fileOperations.length === 0) return null;
 
-    return <>
-        {fileOperations.map((fileOp: FileOperation, i: number) => {
-            if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
-            if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
-            const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
-            if (fileOp.disabled(filesInCallback)) return null;
+    const buttons: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode === true);
+    const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
-            let As: typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
-            if (fileOperations.length === 1) {
-                As = OutlineButton;
-            } else if (props.inDropdown === true) {
-                As = Box;
-            } else {
-                if (fileOp.currentDirectoryMode === true) {
-                    if (fileOp.outline === true) {
-                        As = OutlineButton;
-                    } else {
-                        As = Button;
-                    }
+    const Operation = ({fileOp}: { fileOp: FileOperation }) => {
+        if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
+        if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
+        const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
+        if (fileOp.disabled(filesInCallback)) return null;
+
+        let As: typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
+        if (fileOperations.length === 1) {
+            As = OutlineButton;
+        } else if (props.inDropdown === true) {
+            As = Box;
+        } else {
+            if (fileOp.currentDirectoryMode === true) {
+                if (fileOp.outline === true) {
+                    As = OutlineButton;
                 } else {
-                    As = Flex;
+                    As = Button;
                 }
+            } else {
+                As = Flex;
             }
+        }
 
-            return <As
-                cursor="pointer"
-                key={i}
-                color={fileOp.color}
-                alignItems="center"
-                onClick={() => fileOp.onClick(filesInCallback, props.callback)}
-                {...props}
-            >
-                {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon}/> : null}
-                <span>{fileOp.text}</span>
-            </As>;
-        })}
+        return <As
+            cursor="pointer"
+            color={fileOp.color}
+            alignItems="center"
+            onClick={() => fileOp.onClick(filesInCallback, props.callback)}
+            {...props}
+        >
+            {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon}/> : null}
+            <span>{fileOp.text}</span>
+        </As>;
+    };
+    return <>
+        {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`}/>)}
+        {files.length > 0 ? <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box> : null}
+        {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`}/>)}
     </>
 };
 
