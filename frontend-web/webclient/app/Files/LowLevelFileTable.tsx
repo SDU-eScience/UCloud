@@ -397,7 +397,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
                 right={
                     <>
-                        {!isEmbedded ? null :
+                        {!isEmbedded && props.path ? null :
                             <Refresh
                                 spin={isAnyLoading}
                                 onClick={() => callbacks.requestReload()}
@@ -699,24 +699,32 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             />
         </>;
     } else {
+        let nameComponent = <Flex alignItems="center">
+            {icon}
+
+            <Truncate
+                cursor={canNavigate ? "pointer" : undefined}
+                mr="5px"
+            >
+                {getFilenameFromPath(props.file.path)}
+            </Truncate>
+        </Flex>;
+
         return <>
             <Flex data-tag={"fileName"} flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
                 <Box title={replaceHomeFolder(props.file.path, Cloud.homeFolder)} width="100%">
-                    <BaseLink href={"#"} onClick={e => {
-                        e.preventDefault();
-                        props.onNavigate(resolvePath(props.file.path));
-                    }}>
-                        <Flex alignItems="center">
-                            {icon}
+                    {props.file.fileType === "DIRECTORY" ?
+                        <BaseLink href={"#"} onClick={e => {
+                            e.preventDefault();
+                            props.onNavigate(resolvePath(props.file.path));
+                        }}>
+                            {nameComponent}
+                        </BaseLink>
 
-                            <Truncate
-                                cursor={canNavigate ? "pointer" : undefined}
-                                mr="5px"
-                            >
-                                {getFilenameFromPath(props.file.path)}
-                            </Truncate>
-                        </Flex>
-                    </BaseLink>
+                        :
+
+                        nameComponent
+                    }
                 </Box>
             </Flex>
 
