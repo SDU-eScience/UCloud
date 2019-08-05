@@ -118,8 +118,9 @@ function Search(props: SearchProps) {
             </Hide>
 
             <EmbeddedFileTable
-                page={files}
+                page={files ? files : emptyPage}
                 onReloadRequested={refreshFiles}
+                includeVirtualFolders={false}
             />
         </>
     } else if (priority === "applications") {

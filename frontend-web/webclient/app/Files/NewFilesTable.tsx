@@ -46,11 +46,12 @@ export const NewFilesTable: React.FunctionComponent<VirtualFilesTableProps> = pr
     </>;
 };
 
-const EmbeddedFileTable_: React.FunctionComponent<Omit<VirtualFilesTableProps, "onFileNavigation"> & RouteComponentProps> = props => {
+const EmbeddedFileTable_: React.FunctionComponent<Omit<VirtualFilesTableProps, "onFileNavigation"> & RouteComponentProps & { includeVirtualFolders?: boolean }> = props => {
     const mergedProps: VirtualFilesTableProps = {
         ...props,
-        ...defaultVirtualFolders(),
-        onFileNavigation: path => props.history.push(fileTablePage(path))
+        ...(props.includeVirtualFolders !== false ? defaultVirtualFolders() : {}),
+        onFileNavigation: path => props.history.push(fileTablePage(path)),
+        embedded: true
     };
     return <NewFilesTable {...mergedProps}/>;
 };
