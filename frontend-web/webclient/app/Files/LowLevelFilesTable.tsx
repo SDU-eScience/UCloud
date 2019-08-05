@@ -19,7 +19,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import Checkbox from "ui-components/Checkbox";
 import {Button, Icon, Input, Label, OutlineButton, Tooltip, Truncate} from "ui-components";
 import {
-    createFolder,
+    createFolder, favoriteFile,
     getFilenameFromPath,
     getParentPath,
     isAnyMockFile,
@@ -543,6 +543,7 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
                                             <Box ml="5px" pr="5px"/>
                                             <NameBox file={file} onRenameFile={onRenameFile}
                                                      onNavigate={props.onFileNavigation}
+                                                     callbacks={callbacks}
                                                      fileBeingRenamed={fileBeingRenamed}/>
                                         </Flex>
                                     </TableCell>
@@ -639,9 +640,14 @@ interface NameBoxProps {
     onRenameFile: (keycode: number, file: File, value: string) => void
     onNavigate: (path: string) => void
     fileBeingRenamed: string | null
+    callbacks: FileOperationCallback
 }
 
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
+    const [favorite, setFavorite] = useState<boolean>(props.file.favorited ? props.file.favorited : false);
+    useEffect(() => {
+        setFavorite(props.file.favorited ? props.file.favorited : false);
+    }, [props.file]);
     const canNavigate = isDirectory({fileType: props.file.fileType});
 
     const icon = <Box mr="10px" cursor="inherit">
@@ -707,10 +713,19 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 <Icon
                     data-tag="fileFavorite"
                     size="1em" ml=".7em"
-                    color={props.file.favorited ? "blue" : "gray"}
-                    name={props.file.favorited ? "starFilled" : "starEmpty"}
-                    // onClick={() => props.onFavorite(props.file)}
-                    // TODO Handle on favorite
+                    color={favorite ? "blue" : "gray"}
+                    name={favorite ? "starFilled" : "starEmpty"}
+                    onClick={() => {
+                        props.callbacks.invokeAsyncWork(async () => {
+                            const initialValue = favorite;
+                            setFavorite(!initialValue);
+                            try {
+                                await favoriteFile(props.file, Cloud);
+                            } catch (e) {
+                                setFavorite(initialValue);
+                            }
+                        })
+                    }}
                     hoverColor="blue"
                 />
             }

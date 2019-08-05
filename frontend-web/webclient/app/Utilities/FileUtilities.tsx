@@ -679,11 +679,12 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
  * @param {File} file The single file to be favorited
  * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
  */
-export const favoriteFile = (file: File, cloud: SDUCloud): File => {
+export const favoriteFile = async (file: File, cloud: SDUCloud): Promise<File> => {
     try {
-        cloud.post(favoriteFileQuery(file.path), {})
+        await cloud.post(favoriteFileQuery(file.path), {})
     } catch (e) {
         UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
+        throw e;
     }
     file.favorited = !file.favorited;
     return file;
