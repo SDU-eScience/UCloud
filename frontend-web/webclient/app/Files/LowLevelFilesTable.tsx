@@ -153,7 +153,10 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
 
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
     const [pageLoading, pageError, submitPageLoaderJob] = useAsyncWork();
-    const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>(initialPageParameters);
+    const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
+        ...initialPageParameters,
+        path: Cloud.homeFolder
+    });
 
     const loadManaged = (request: ListDirectoryRequest) => {
         setPageParameters(request);
@@ -257,15 +260,8 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, workError, invokeWork] = useAsyncWork();
 
-    // Register refresh hook
-    useEffect(() => {
-        if (props.refreshHook === undefined) return;
-        props.refreshHook(true, () => callbacks.requestReload());
-
-        return () => {
-            if (props.refreshHook) props.refreshHook(false);
-        }
-    }, [props.refreshHook]);
+    let {page, error, pageLoading, setSorting, sortingIconFor, reload, sortBy, order, onPageChanged} =
+        apiForComponent(props, sortByColumns, setSortByColumns);
 
     // Callbacks for operations
     const callbacks: FileOperationCallback = {
@@ -299,8 +295,16 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
         history: props.history
     };
 
-    let {page, error, pageLoading, setSorting, sortingIconFor, reload, sortBy, order, onPageChanged} =
-        apiForComponent(props, sortByColumns, setSortByColumns);
+    // Register refresh hook
+    if (props.refreshHook !== undefined) {
+        props.refreshHook(true, () => callbacks.requestReload());
+    }
+
+    useEffect(() => {
+        return () => {
+            if (props.refreshHook) props.refreshHook(false);
+        }
+    }, [props.refreshHook]);
 
     // Aliases
     const isEmbedded = props.embedded !== false;
