@@ -34,7 +34,7 @@ import {
 } from "Utilities/FileUtilities";
 import BaseLink from "ui-components/BaseLink";
 import Theme from "ui-components/theme";
-import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/NewFileOperations";
+import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
 import {SpaceProps} from "styled-system";
 import * as Heading from "ui-components/Heading";
 import * as Pagination from "Pagination";
