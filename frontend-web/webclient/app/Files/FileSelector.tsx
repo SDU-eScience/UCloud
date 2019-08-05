@@ -21,6 +21,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
         if (props.initialPath !== undefined) setPath(props.initialPath);
     }, [props.initialPath]);
 
+    let virtualFolders = defaultVirtualFolders();
     const injectedFiles: File[] = [];
     if (resolvePath(path) !== resolvePath(Cloud.homeFolder)) {
         injectedFiles.push(mockFile({
@@ -31,12 +32,15 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
         }));
     }
 
-    injectedFiles.push(mockFile({
-        path: `${addTrailingSlash(path)}.`,
-        fileId: "cwd",
-        type: "DIRECTORY",
-        tag: MOCK_RELATIVE
-    }));
+    const fakeFolders = virtualFolders.fakeFolders ? virtualFolders.fakeFolders : [];
+    if (fakeFolders.every(it => resolvePath(it) !== resolvePath(path))) {
+        injectedFiles.push(mockFile({
+            path: `${addTrailingSlash(path)}.`,
+            fileId: "cwd",
+            type: "DIRECTORY",
+            tag: MOCK_RELATIVE
+        }));
+    }
 
     const canSelectFolders = !!props.canSelectFolders;
 
@@ -52,7 +56,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                 style={FileSelectorModalStyle}
             >
                 <VirtualFileTable
-                    {...defaultVirtualFolders()}
+                    {...virtualFolders}
                     numberOfColumns={0}
                     fileOperations={[{
                         text: "Select",
