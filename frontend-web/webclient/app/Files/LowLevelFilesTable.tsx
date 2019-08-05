@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {File, FileResource, SortBy, SortOrder} from "Files/index";
+import {File, FileResource, FilesStateProps, SortBy, SortOrder} from "Files/index";
 import * as UF from "UtilityFunctions"
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
@@ -13,7 +13,7 @@ import {Arrow, FileIcon} from "UtilityComponents";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {TextSpan} from "ui-components/Text";
 import Divider from "ui-components/Divider";
-import {emptyPage, KeyCode, SensitivityLevelMap} from "DefaultObjects";
+import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {MainContainer} from "MainContainer/MainContainer";
 import Checkbox from "ui-components/Checkbox";
@@ -128,7 +128,7 @@ const twoPhaseLoadFiles = async (
         ]);
 
         callback(mergeFilePages(phaseOne, phaseTwo, attributes));
-    } catch(e) {
+    } catch (e) {
         callback(emptyPage); // Set empty page to avoid rendering of this folder
         throw e; // Rethrow to set error status
     }
@@ -250,7 +250,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
     return api;
 }
 
-const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & RouteComponentProps> = props => {
+const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & RouteComponentProps & { responsive: ResponsiveReduxObject }> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -316,7 +316,10 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
     // Aliases
     const isEmbedded = props.embedded !== false;
     const sortingSupported = props.path !== undefined;
-    const numberOfColumns = props.numberOfColumns !== undefined ? props.numberOfColumns : 2;
+    const numberOfColumnsBasedOnSpace =
+        (props.responsive.greaterThan.lg ? 2 :
+            (props.responsive.greaterThan.md ? 1 : 0));
+    const numberOfColumns = props.numberOfColumns !== undefined ? props.numberOfColumns : numberOfColumnsBasedOnSpace;
     const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
     const fileFilter = props.fileFilter ? props.fileFilter : () => true;
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
@@ -594,7 +597,10 @@ const LowLevelFilesTable_: React.FunctionComponent<LowLevelFilesTableProps & Rou
     />;
 };
 
-export const LowLevelFilesTable = withRouter(LowLevelFilesTable_);
+const mapStateToProps = ({responsive}: ReduxObject) => {
+    return {responsive};
+};
+export const LowLevelFilesTable = connect(mapStateToProps)(withRouter(LowLevelFilesTable_));
 
 interface ShellProps {
     embedded: boolean
