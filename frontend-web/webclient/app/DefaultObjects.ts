@@ -3,7 +3,6 @@ import {Status} from "Navigation";
 import {Analysis, DetailedApplicationSearchReduxState} from "Applications";
 import {File, DetailedFileSearchReduxState} from "Files";
 import {DashboardStateProps} from "Dashboard";
-import {Publication} from "Zenodo";
 import {Notification} from "Notifications";
 import {Upload} from "Uploader";
 import {Activity, ActivityGroup, ActivityFilter} from "Activity";
@@ -95,10 +94,6 @@ export interface NotificationsReduxObject {
     error?: string
 }
 
-export interface ZenodoReduxObject extends ComponentWithPage<Publication> {
-    connected: boolean
-}
-
 export interface StatusReduxObject {
     status: Status
     title: string
@@ -141,7 +136,6 @@ interface LegacyReducers {
     status?: Reducer<StatusReduxObject>
     notifications?: Reducer<NotificationsReduxObject>
     analyses?: Reducer<AnalysisReduxObject>
-    zenodo?: Reducer<ZenodoReduxObject>
     header?: Reducer<HeaderSearchReduxObject>
     sidebar?: Reducer<SidebarReduxObject>
     activity?: Reducer<ActivityReduxObject>
@@ -156,7 +150,6 @@ interface LegacyReduxObject {
     status: StatusReduxObject,
     notifications: NotificationsReduxObject
     analyses: AnalysisReduxObject
-    zenodo: ZenodoReduxObject
     header: HeaderSearchReduxObject
     sidebar: SidebarReduxObject
     activity: ActivityReduxObject
@@ -215,7 +208,6 @@ export function initObject(homeFolder: string): ReduxObject {
         header: initHeader(),
         notifications: initNotifications(),
         analyses: initAnalyses(),
-        zenodo: initZenodo(),
         sidebar: initSidebar(),
         uploader: initUploads(),
         activity: initActivity(),
@@ -256,12 +248,6 @@ export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,
     loading: false,
     error: undefined
-});
-
-export const initZenodo = (): ZenodoReduxObject => ({
-    connected: false,
-    loading: false,
-    page: emptyPage
 });
 
 export const initSidebar = (): SidebarReduxObject => ({

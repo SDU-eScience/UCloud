@@ -8,9 +8,11 @@ import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.canonicalPath
+import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.creator
 import dk.sdu.cloud.file.api.fileId
@@ -90,21 +92,38 @@ class ShareQueryService<Session>(
             client
         ).orThrow()
 
-        val itemsWithAcl = lookupResponse.files.filterNotNull().map { file ->
-            StorageFile(
-                file.fileType,
-                file.path,
-                file.createdAt,
-                file.modifiedAt,
-                file.ownerName,
-                file.size,
-                page.items.find { it.fileId == file.fileId }?.rights?.toAcl(user) ?: emptyList(),
-                file.sensitivityLevel,
-                emptySet(),
-                file.fileId,
-                file.creator,
-                file.ownSensitivityLevel
-            )
+        val itemsWithAcl = lookupResponse.files.mapIndexed { idx, file ->
+            val fileId = fileIds[idx]
+            val acl = page.items[idx].rights.toAcl(user)
+            if (file != null) {
+                StorageFile(
+                    file.fileType,
+                    file.path,
+                    file.createdAt,
+                    file.modifiedAt,
+                    file.ownerName,
+                    file.size,
+                    acl,
+                    file.sensitivityLevel,
+                    emptySet(),
+                    file.fileId,
+                    file.creator,
+                    file.ownSensitivityLevel
+                )
+            } else {
+                val path = page.items[idx].path
+                val owner = path.components().takeIf { it.size >= 2 && it.firstOrNull() == "home" }?.get(1)
+                StorageFile(
+                    FileType.DIRECTORY,
+                    path,
+                    System.currentTimeMillis(),
+                    System.currentTimeMillis(),
+                    owner ?: "Unknown",
+                    0L,
+                    acl,
+                    fileId = fileId
+                )
+            }
         }
 
         return Page(
