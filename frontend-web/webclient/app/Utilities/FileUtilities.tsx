@@ -11,6 +11,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} from "UtilityComponents";
 import {dialogStore} from "Dialog/DialogStore";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {defaultErrorHandler} from "UtilityFunctions";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`
@@ -585,8 +586,8 @@ export async function moveFile({oldPath, newPath, cloud, setLoading, onSuccess}:
     try {
         await cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
         onSuccess();
-    } catch {
-        snackbarStore.addSnack({message: "An error ocurred trying to rename the file.", type: SnackType.Failure});
+    } catch (e) {
+        defaultErrorHandler(e);
     }
 }
 
