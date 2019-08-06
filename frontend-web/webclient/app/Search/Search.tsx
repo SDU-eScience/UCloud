@@ -162,6 +162,7 @@ function Search(props: SearchProps) {
                                 key={`${app.metadata.name}${app.metadata.version}`}
                                 app={app}
                                 isFavorite={app.favorite}
+                                tags={app.tags}
                             />)}
                     </GridCardGroup>
                 }

@@ -31,11 +31,11 @@ const SelectBase = styled.select<{fontSize?: number | string, leftLabel?: boolea
   border-radius: ${theme.radius};
   border-width: 1px;
   border-style: solid;
-  border-color: ${props => props.theme.colors.borderGray};
+  border-color: ${({theme}) => theme.colors.borderGray};
   ${space} ${fontSize} &:focus {
     outline: none;
-    border-color: ${props => props.theme.colors.blue};
-    box-shadow: 0 0 0 1px ${props => props.theme.colors.blue};
+    border-color: ${({theme}) => theme.colors.blue};
+    box-shadow: 0 0 0 1px ${({theme}) => theme.colors.blue};
   }
   ${left}
   ${right}

@@ -133,7 +133,7 @@ export interface DetailedResultState {
     fsPath: string
     fsPage: Page<File>
     fsDisallowedPaths: string[]
-    fsCallback: Function
+    fsCallback: (file: File) => void
     fsIsFavorite: boolean
     outputFolder?: string
     appType?: ApplicationType
@@ -170,12 +170,19 @@ export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
     initialSubmit: boolean
-    application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
+    application?: FullAppInfo
     parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
     favoriteLoading: boolean
     mountedFolders: RefReadPair[]
+
+    // TODO: Not necessary in the long run
+    fsPage: Page<File>
+    fsShown: boolean
+    fsPath: string
+    fsIsFavorites: boolean
+    fsLoading: boolean
 }
 
 export interface RunOperations extends SetStatusLoading {
@@ -371,8 +378,6 @@ export interface WithAppFavorite {
     favorite: boolean
 }
 
-export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata
-
 export enum RunsSortBy {
     state = "STATE",
     application = "APPLICATION",
@@ -380,3 +385,8 @@ export enum RunsSortBy {
     lastUpdate = "LAST_UPDATE",
     createdAt = "CREATED_AT"
 }
+export interface WithAllAppTags {
+    tags: string[]
+}
+
+export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata & WithAllAppTags

@@ -1,4 +1,4 @@
-import { Cloud } from "Authentication/SDUCloudObject";
+import {Cloud} from "Authentication/SDUCloudObject";
 import {
     RECEIVE_FILES,
     UPDATE_FILES,
@@ -17,13 +17,13 @@ import {
     CREATE_FOLDER,
     FILES_INVALID_PATH
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath, favoritesQuery, markFileAsChecked } from "Utilities/FileUtilities";
-import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
-import { SortOrder, SortBy, File, FileResource } from "..";
-import { Action } from "redux";
-import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
-import { errorMessageOrDefault } from "UtilityFunctions";
-import { emptyPage } from "DefaultObjects";
+import {getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath, favoritesQuery, markFileAsChecked} from "Utilities/FileUtilities";
+import {Page, ReceivePage, SetLoadingAction, Error, PayloadAction} from "Types";
+import {SortOrder, SortBy, File, FileResource} from "..";
+import {Action} from "redux";
+import {filepathQuery, fileLookupQuery} from "Utilities/FileUtilities";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {emptyPage} from "DefaultObjects";
 
 export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage<typeof UPDATE_FILES, File> |
     SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
@@ -42,7 +42,7 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 type FetchFiles = Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError | InvalidPathAction>
 export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy, attrs: FileResource[]): FetchFiles => {
     try {
-        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy, attrs));
+        const {response} = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy, attrs));
         return receiveFiles(response, path, order, sortBy)
     } catch (e) {
         const error = errorMessageOrDefault(e, "An error occurred fetching contents of folder.");
@@ -57,7 +57,7 @@ type FilesError = Error<typeof FILES_ERROR>
  */
 export const setErrorMessage = (error?: string): Error<typeof FILES_ERROR> => ({
     type: FILES_ERROR,
-    payload: { error }
+    payload: {error}
 });
 
 /**
@@ -67,7 +67,7 @@ export const setErrorMessage = (error?: string): Error<typeof FILES_ERROR> => ({
 */
 export const updateFiles = (page: Page<File>): ReceivePage<typeof UPDATE_FILES, File> => ({
     type: UPDATE_FILES,
-    payload: { page }
+    payload: {page}
 });
 
 /**
@@ -76,10 +76,10 @@ export const updateFiles = (page: Page<File>): ReceivePage<typeof UPDATE_FILES, 
  */
 export const setLoading = (loading: boolean): SetLoadingAction<typeof SET_FILES_LOADING> => ({
     type: SET_FILES_LOADING,
-    payload: { loading }
+    payload: {loading}
 });
 
-interface UpdatePathAction extends Action<typeof UPDATE_PATH> { path: string }
+interface UpdatePathAction extends Action<typeof UPDATE_PATH> {path: string}
 /**
  * Updates the path currently held intended for the files/fileinfo components.
  * @param {string} path - The current path for the component
@@ -89,7 +89,7 @@ export const updatePath = (path: string): UpdatePathAction => ({
     path: resolvePath(path)
 });
 
-interface ReceiveFiles extends PayloadAction<typeof RECEIVE_FILES, { path: string, sortOrder: SortOrder, sortBy: SortBy, page: Page<File> }> { }
+interface ReceiveFiles extends PayloadAction<typeof RECEIVE_FILES, {path: string, sortOrder: SortOrder, sortBy: SortBy, page: Page<File>}> {}
 /**
  * The function used for the actual receiving the files, rather than the promise
  * @param {Page<File>} page - Contains the page
@@ -115,24 +115,24 @@ export type SortingColumn = 0 | 1;
  * @param {SortBy} sortBy - what field the row should show
  */
 
-interface SetSortingColumnAction extends Action<typeof SET_FILES_SORTING_COLUMN> { sortingColumn: SortBy, index: number }
+interface SetSortingColumnAction extends Action<typeof SET_FILES_SORTING_COLUMN> {sortingColumn: SortBy, index: number}
 export const setSortingColumn = (sortingColumn: SortBy, index: number): SetSortingColumnAction => ({
     type: SET_FILES_SORTING_COLUMN,
     sortingColumn,
     index
 });
 
-interface FileSelectorShownAction extends PayloadAction<typeof FILE_SELECTOR_SHOWN, { state: boolean }> { }
+interface FileSelectorShownAction extends PayloadAction<typeof FILE_SELECTOR_SHOWN, {state: boolean}> {}
 /**
  * Sets whether or not the file selector should be shown
  * @param {boolean} state whether or not the file selector is shown
  */
 export const fileSelectorShown = (state: boolean): FileSelectorShownAction => ({
     type: FILE_SELECTOR_SHOWN,
-    payload: { state }
+    payload: {state}
 });
 
-type ReceiveFileSelectorFilesAction = PayloadAction<typeof RECEIVE_FILE_SELECTOR_FILES, { path: string, page: Page<File>, fileSelectorIsFavorites: boolean }>
+type ReceiveFileSelectorFilesAction = PayloadAction<typeof RECEIVE_FILE_SELECTOR_FILES, {path: string, page: Page<File>, fileSelectorIsFavorites: boolean}>
 /**
  * Returns action for receiving files for the fileselector.
  * @param {Page<File>} page the page of files
@@ -156,7 +156,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string, fileSel
  */
 export async function fetchPageFromPath(path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH, attrs: FileResource[]): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR> | InvalidPathAction> {
     try {
-        const { response } = await Cloud.get<Page<File>>(fileLookupQuery(path, itemsPerPage, order, sortBy, attrs))
+        const {response} = await Cloud.get<Page<File>>(fileLookupQuery(path, itemsPerPage, order, sortBy, attrs))
         markFileAsChecked(path, response);
         return receiveFiles(response, getParentPath(resolvePath(path)), order, sortBy)
     } catch (e) {
@@ -165,10 +165,10 @@ export async function fetchPageFromPath(path: string, itemsPerPage: number, orde
     }
 }
 
-type InvalidPathAction = PayloadAction<typeof FILES_INVALID_PATH, { invalidPath: true, loading: false, error?: string, page: Page<File> }>
+type InvalidPathAction = PayloadAction<typeof FILES_INVALID_PATH, {invalidPath: true, loading: false, error?: string, page: Page<File>}>
 export const setInvalidPath = (error?: string): InvalidPathAction => ({
     type: FILES_INVALID_PATH,
-    payload: { invalidPath: true, loading: false, error, page: emptyPage }
+    payload: {invalidPath: true, loading: false, error, page: emptyPage}
 });
 
 /**
@@ -179,11 +179,11 @@ export const setInvalidPath = (error?: string): InvalidPathAction => ({
  */
 export const fetchFileselectorFiles = async (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> => {
     try {
-        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, SortOrder.ASCENDING, SortBy.FILE_TYPE, [FileResource.PATH, FileResource.SENSITIVITY_LEVEL, FileResource.FILE_TYPE]));
+        const {response} = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, SortOrder.ASCENDING, SortBy.FILE_TYPE, [FileResource.PATH, FileResource.SENSITIVITY_LEVEL, FileResource.FILE_TYPE]));
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, resolvePath(path), false);
     } catch (e) {
-        return setFileSelectorError({ error: `An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}` });
+        return setFileSelectorError({error: `An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`});
     }
 }
 /**
@@ -194,7 +194,7 @@ export const setFileSelectorLoading = (): Action<typeof SET_FILE_SELECTOR_LOADIN
 });
 
 
-type SetDisallowedPathsAction = PayloadAction<typeof SET_DISALLOWED_PATHS, { paths: string[] }>
+type SetDisallowedPathsAction = PayloadAction<typeof SET_DISALLOWED_PATHS, {paths: string[]}>
 /**
  * Sets paths for the file selector to omit.
  * @param {string[]} paths - the list of paths which shouldn't be displayed on
@@ -202,35 +202,35 @@ type SetDisallowedPathsAction = PayloadAction<typeof SET_DISALLOWED_PATHS, { pat
  */
 export const setDisallowedPaths = (paths: string[]): SetDisallowedPathsAction => ({
     type: SET_DISALLOWED_PATHS,
-    payload: { paths }
+    payload: {paths}
 });
 
-type SetFileSelectorCallbackAction = PayloadAction<typeof SET_FILE_SELECTOR_CALLBACK, { callback: Function }>
+type SetFileSelectorCallbackAction = PayloadAction<typeof SET_FILE_SELECTOR_CALLBACK, {callback: (file: File) => void}>
 /**
  * Callback to be executed on fileselection in FileSelector
  * @param callback - callback to be being executed
  */
-export const setFileSelectorCallback = (callback: Function): SetFileSelectorCallbackAction => ({
+export const setFileSelectorCallback = (callback: (file: File) => void): SetFileSelectorCallbackAction => ({
     type: SET_FILE_SELECTOR_CALLBACK,
-    payload: { callback }
+    payload: {callback}
 });
 
 /**
  * Sets the error message for use in the null means nothing will be rendered.
  * @param {string} error The error message to be set.
  */
-export const setFileSelectorError = (error: { error?: string, statusCode?: number }): Error<typeof SET_FILE_SELECTOR_ERROR> => ({
+export const setFileSelectorError = (error: {error?: string, statusCode?: number}): Error<typeof SET_FILE_SELECTOR_ERROR> => ({
     type: SET_FILE_SELECTOR_ERROR,
-    payload: { ...error }
+    payload: {...error}
 });
 
-type CheckAllFilesAction = PayloadAction<typeof CHECK_ALL_FILES, { checked: boolean }>
+type CheckAllFilesAction = PayloadAction<typeof CHECK_ALL_FILES, {checked: boolean}>
 export const checkAllFiles = (checked: boolean): CheckAllFilesAction => ({
     type: CHECK_ALL_FILES,
-    payload: { checked }
+    payload: {checked}
 });
 
-type CheckFileAction = PayloadAction<typeof CHECK_FILE, { checked: boolean, path: string }>
+type CheckFileAction = PayloadAction<typeof CHECK_FILE, {checked: boolean, path: string}>
 export const checkFile = (checked: boolean, path: string): CheckFileAction => ({
     type: CHECK_FILE,
     payload: {
@@ -240,7 +240,7 @@ export const checkFile = (checked: boolean, path: string): CheckFileAction => ({
 });
 
 type CreateFolderAction = Action<typeof CREATE_FOLDER>
-export const createFolder = () => ({ type: CREATE_FOLDER });
+export const createFolder = () => ({type: CREATE_FOLDER});
 
 export const fetchFileSelectorFavorites = async (pageNumber: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> => {
     try {

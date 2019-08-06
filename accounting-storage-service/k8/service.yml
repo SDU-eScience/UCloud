@@ -22,6 +22,5 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: 8080
-  ports:
   selector:
     app: accounting-storage-service

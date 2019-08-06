@@ -3,7 +3,7 @@ import * as Pagination from "Pagination";
 import {connect} from "react-redux";
 import {updatePageTitle, StatusActions, setActivePage} from "Navigation/Redux/StatusActions";
 import {Page} from "Types";
-import {WithAppFavorite, WithAppMetadata} from ".";
+import {FullAppInfo, WithAllAppTags, WithAppFavorite, WithAppMetadata} from ".";
 import {setPrioritizedSearch, HeaderActions, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {Dispatch} from "redux";
 import {ReduxObject} from "DefaultObjects";
@@ -131,7 +131,7 @@ class Applications extends React.Component<ApplicationsProps> {
         const main = (
             <Pagination.List
                 loading={this.props.applications.loading}
-                pageRenderer={(page: Page<WithAppMetadata & WithAppFavorite>) =>
+                pageRenderer={(page: Page<FullAppInfo>) =>
                     <GridCardGroup>
                         {page.items.map((app, index) =>
                             <ApplicationCard
@@ -144,6 +144,7 @@ class Applications extends React.Component<ApplicationsProps> {
                                 }
                                 app={app}
                                 isFavorite={app.favorite}
+                                tags={app.tags}
                             />
                         )}
                     </GridCardGroup>

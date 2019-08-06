@@ -126,7 +126,7 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorShown: boolean
     fileSelectorPage: Page<File>
     fileSelectorPath: string
-    fileSelectorCallback: Function
+    fileSelectorCallback: (file: File) => void
     fileSelectorIsFavorites: boolean
     disallowedPaths: string[]
     invalidPath: boolean
