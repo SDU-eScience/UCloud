@@ -4,7 +4,6 @@ import * as Self from ".";
 import {ifPresent} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
 import Spinner from "LoadingIcon/LoadingIcon";
-import {emptyPage} from "DefaultObjects";
 
 interface ListProps<T> {
     pageRenderer: (page: Page<T>) => React.ReactNode

@@ -1,13 +1,13 @@
 package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.modifiedAt
 import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.ownerName
@@ -41,7 +41,7 @@ private const val TIMEOUT_IN_MINUTES = 5L
 class ElasticIndexingService(
     private val elasticClient: RestHighLevelClient
 ) : IndexingService {
-    private val mapper = jacksonObjectMapper()
+    private val mapper = defaultMapper
 
     private fun createIndexFromJsonResource(name: String) {
         elasticClient.indices().create(
@@ -143,8 +143,6 @@ class ElasticIndexingService(
 
             size = file.size,
             fileTimestamps = Timestamps(file.modifiedAt, file.createdAt, file.modifiedAt),
-
-            fileIsLink = file.link,
 
             sensitivity = file.ownSensitivityLevel
         )

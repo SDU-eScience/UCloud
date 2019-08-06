@@ -33,17 +33,24 @@ import {
 } from "Utilities/ApplicationUtilities";
 import {AppHeader} from "./View";
 import * as Heading from "ui-components/Heading";
-import {checkIfFileExists, expandHomeFolder, fetchFileContent, statFileQuery, filepathQuery, favoritesQuery} from "Utilities/FileUtilities";
+import {
+    checkIfFileExists,
+    expandHomeFolder,
+    fetchFileContent,
+    statFileQuery,
+    filepathQuery,
+    favoritesQuery
+} from "Utilities/FileUtilities";
 import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {FileSelectorModal} from "Files/FileSelector";
 import {addStandardDialog} from "UtilityComponents";
 import {File as CloudFile} from "Files";
 import {dialogStore} from "Dialog/DialogStore";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
+import FileSelector from "Files/FileSelector";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -68,13 +75,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             },
             favorite: false,
             favoriteLoading: false,
-
-            // TODO: Rewrite with new FS approach
-            fsPage: emptyPage,
-            fsShown: false,
-            fsIsFavorites: false,
-            fsLoading: false,
-            fsPath: Cloud.homeFolder
+            fsShown: false
         };
     };
 
@@ -86,28 +87,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 
     public componentWillUnmount = () => this.state.promises.cancelPromises();
-
-    private fetchFiles = async (path: string, page: number, itemsPerPage: number) => {
-        try {
-            this.setState({fsLoading: true});
-            const r = await Cloud.get<Page<CloudFile>>(filepathQuery(path, page, itemsPerPage));
-            this.setState(() => ({fsPage: r.response, fsLoading: false, fsIsFavorites: false, fsPath: path}));
-            this.setState({fsLoading: false});
-        } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error ocurred fetching files"));
-        }
-    }
-
-    private fetchFavorites = async (page: number, itemsPerPage: number) => {
-        try {
-            this.setState({fsLoading: true});
-            const r = await Cloud.get<Page<CloudFile>>(favoritesQuery(page, itemsPerPage));
-            this.setState(() => ({fsPage: r.response, fsLoading: false, fsIsFavorites: true}));
-            this.setState({fsLoading: false});
-        } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error ocurred fetching files"));
-        }
-    }
 
     private onJobSchedulingParamsChange = (field: string | number, value: number, timeField: string) => {
         const {schedulingOptions} = this.state;
@@ -336,7 +315,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
 
 
-
                 if (invalidFiles.length) {
                     snackbarStore.addSnack({
                         message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
@@ -374,7 +352,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    private onFileSelection(file: {path: string}) {
+    private onFileSelection(file: { path: string }) {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -387,7 +365,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: {path: string}) => {
+    private fetchAndImportParameters = async (file: { path: string }) => {
         const fileStat = await Cloud.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
@@ -401,7 +379,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
         if (!application) return (
             <MainContainer
-                main={<LoadingIcon size={18} />}
+                main={<LoadingIcon size={18}/>}
             />
         );
 
@@ -413,7 +391,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const header = (
             <Flex ml="12%">
-                <AppHeader slim application={application} />
+                <AppHeader slim application={application}/>
             </Flex>
         );
 
@@ -483,17 +461,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             </VerticalButtonGroup>
         );
 
-        const additional = <FileSelectorModal
-            fetchFiles={this.fetchFiles}
-            fetchFavorites={this.fetchFavorites}
-            path={this.state.fsPath}
-            isFavorites={this.state.fsIsFavorites}
-            loading={this.state.fsLoading}
-            onHide={() => this.setState(() => this.setState({fsShown: false}))}
-            page={this.state.fsPage}
-            show={this.state.fsShown}
-            setSelectedFile={file => (this.setState({fsShown: false}), this.onFileSelection(file))}
-        />
+        const additional = <FileSelector
+            onFileSelect={it => {
+                if (!!it) this.onFileSelection(it);
+                this.setState(() => ({fsShown: false}));
+            }}
+            trigger={null}
+            visible={this.state.fsShown}/>;
 
         return (
             <MainContainer
@@ -613,7 +587,7 @@ const Parameters = (props: ParameterProps) => {
             />
 
             {optional.length > 0 ?
-                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)} />
+                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)}/>
                 : null
             }
         </form>
@@ -672,7 +646,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                     value={maxTime.hours}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     field="maxTime"
@@ -681,7 +655,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                     value={maxTime.minutes}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     field="maxTime"
@@ -701,7 +675,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                         value={numberOfNodes}
                         onChange={props.onChange}
                     />
-                    <Box ml="5px" />
+                    <Box ml="5px"/>
                     <SchedulingField
                         min={1}
                         field="tasksPerNode"
@@ -754,7 +728,7 @@ function exportParameters({application, schedulingOptions, parameterValues, moun
     const jobInfo = extractJobInfo(schedulingOptions);
     const element = document.createElement("a");
 
-    const values: {[key: string]: string} = {};
+    const values: { [key: string]: string } = {};
 
     for (const [key, ref] of parameterValues[Symbol.iterator]()) {
         if (ref && ref.current) values[key] = ref.current.value;
@@ -805,7 +779,7 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                                 importParameters(file);
                             dialogStore.popDialog();
                         }
-                    }} />
+                    }}/>
             </Button>
             <Button mt="6px" fullWidth onClick={() => (dialogStore.popDialog(), showFileSelector())}>
                 Select file from SDUCloud

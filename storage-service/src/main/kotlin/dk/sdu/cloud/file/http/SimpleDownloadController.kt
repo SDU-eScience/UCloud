@@ -25,7 +25,6 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
@@ -74,29 +73,15 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                 }
 
                 lateinit var stat: FileRow
-                tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
+                commandRunnerFactory.withContext(principal.subject) { ctx ->
                     val mode = setOf(
                         FileAttribute.PATH,
                         FileAttribute.INODE,
                         FileAttribute.SIZE,
-                        FileAttribute.FILE_TYPE,
-                        FileAttribute.IS_LINK,
-                        FileAttribute.LINK_TARGET
+                        FileAttribute.FILE_TYPE
                     )
 
-                    stat = run {
-                        val stat = fs.stat(ctx, request.path, mode)
-
-                        if (stat.isLink) {
-                            // If the link is dead the linkTarget will be equal to "/"
-                            if (stat.linkTarget == "/") throw FSException.NotFound()
-
-                            fs.stat(ctx, stat.linkTarget, mode)
-                        } else {
-                            stat
-                        }
-                    }
-
+                    stat = fs.stat(ctx, request.path, mode)
                     filesDownloaded.add(stat.inode)
                 }
 
@@ -113,7 +98,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     contentType = ContentType.Application.Zip,
                                     status = HttpStatusCode.OK
                                 ) {
-                                    tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
+                                    commandRunnerFactory.withContext(principal.subject) { ctx ->
                                         ZipOutputStream(toOutputStream()).use { os ->
                                             fs.tree(
                                                 ctx,
@@ -158,7 +143,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     contentType = contentType,
                                     status = HttpStatusCode.OK
                                 ) {
-                                    tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
+                                    commandRunnerFactory.withContext(principal.subject) { ctx ->
                                         val writeChannel = this
                                         fs.read(ctx, request.path) {
                                             val stream = this

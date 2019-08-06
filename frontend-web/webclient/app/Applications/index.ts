@@ -43,10 +43,8 @@ export interface AnalysesOperations {
 }
 
 export interface DetailedResultOperations {
-    receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
     setRefresh: (refresh?: () => void) => void
 }
 
@@ -127,14 +125,6 @@ export interface DetailedResultState {
     stderrOldTop: number,
     reloadIntervalId: number
     promises: PromiseKeeper
-    fsError?: string
-    fsLoading: boolean
-    fsShown: boolean
-    fsPath: string
-    fsPage: Page<File>
-    fsDisallowedPaths: string[]
-    fsCallback: (file: File) => void
-    fsIsFavorite: boolean
     outputFolder?: string
     appType?: ApplicationType
     webLink?: string
@@ -176,13 +166,7 @@ export interface RunAppState {
     favorite: boolean
     favoriteLoading: boolean
     mountedFolders: RefReadPair[]
-
-    // TODO: Not necessary in the long run
-    fsPage: Page<File>
     fsShown: boolean
-    fsPath: string
-    fsIsFavorites: boolean
-    fsLoading: boolean
 }
 
 export interface RunOperations extends SetStatusLoading {

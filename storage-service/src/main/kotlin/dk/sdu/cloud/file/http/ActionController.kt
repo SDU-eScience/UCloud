@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
+import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.path
@@ -97,25 +98,15 @@ class ActionController<Ctx : FSUserContext>(
 
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
-                coreFs.copy(it, request.path, request.newPath, stat.sensitivityLevel, request.policy ?: WriteConflictPolicy.OVERWRITE)
+                coreFs.copy(
+                    it,
+                    request.path,
+                    request.newPath,
+                    stat.sensitivityLevel,
+                    request.policy ?: WriteConflictPolicy.OVERWRITE
+                )
                 audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
-            }
-        }
-
-        implement(FileDescriptions.annotate) {
-            audit(SingleFileAudit(null, request))
-            ok(Unit)
-        }
-
-        implement(FileDescriptions.createLink) {
-            audit(SingleFileAudit(null, request))
-
-            commandRunnerFactory.withCtx(this) { ctx ->
-                val created = coreFs.createSymbolicLink(ctx, request.linkTargetPath, request.linkPath)
-                val result = fileLookupService.stat(ctx, created.file.path)
-                audit(SingleFileAudit(result.fileId, request))
-                ok(result)
             }
         }
     }

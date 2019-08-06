@@ -6,10 +6,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 enum class AccessRight {
     READ,
     WRITE,
+
+    @Deprecated("No longer in use")
     EXECUTE
 }
 
-data class AccessEntry(val entity: String, val isGroup: Boolean, val rights: Set<AccessRight>)
+data class AccessEntry(val entity: String, val rights: Set<AccessRight>)
 
 enum class FileType {
     FILE,
@@ -54,6 +56,7 @@ interface StorageFile {
     @get:JsonProperty("ownSensitivityLevel")
     val ownSensitivityLevelOrNull: SensitivityLevel?
 
+    @Deprecated("No longer in use")
     @get:JsonProperty("link")
     val linkOrNull: Boolean?
 
@@ -79,6 +82,7 @@ interface StorageFile {
     @get:JsonProperty("creator")
     val creatorOrNull: String?
 
+    @Deprecated("No longer in use")
     @get:JsonProperty("canonicalPath")
     val canonicalPathOrNull: String?
 }
@@ -110,12 +114,9 @@ val StorageFile.sensitivityLevel: SensitivityLevel
 val StorageFile.ownSensitivityLevel: SensitivityLevel?
     get() = ownSensitivityLevelOrNull
 
+@Deprecated("No longer in use")
 val StorageFile.link: Boolean
     get() = linkOrNull!!
-
-@Deprecated("no longer in use")
-val StorageFile.annotations: Set<String>
-    get() = annotationsOrNull!!
 
 val StorageFile.fileId: String
     get() = fileIdOrNull!!
@@ -123,6 +124,7 @@ val StorageFile.fileId: String
 val StorageFile.creator: String
     get() = creatorOrNull!!
 
+@Deprecated("No longer in use")
 val StorageFile.canonicalPath: String
     get() = canonicalPathOrNull!!
 
@@ -135,13 +137,14 @@ data class StorageFileImpl(
     override val sizeOrNull: Long?,
     override val aclOrNull: List<AccessEntry>? = emptyList(),
     override val sensitivityLevelOrNull: SensitivityLevel? = SensitivityLevel.PRIVATE,
-    override val linkOrNull: Boolean? = false,
     override val annotationsOrNull: Set<String>? = emptySet(),
     override val fileIdOrNull: String?,
     override val creatorOrNull: String?,
-    override val ownSensitivityLevelOrNull: SensitivityLevel?,
-    override val canonicalPathOrNull: String? = pathOrNull
-) : StorageFile
+    override val ownSensitivityLevelOrNull: SensitivityLevel?
+) : StorageFile {
+    override val linkOrNull: Boolean? = null
+    override val canonicalPathOrNull = pathOrNull
+}
 
 fun StorageFile(
     fileType: FileType,
@@ -152,12 +155,10 @@ fun StorageFile(
     size: Long = 0,
     acl: List<AccessEntry>? = emptyList(),
     sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
-    link: Boolean = false,
     annotations: Set<String> = emptySet(),
     fileId: String = "",
     creator: String = ownerName,
-    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE,
-    canonicalPath: String? = path
+    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE
 ): StorageFileImpl {
     return StorageFileImpl(
         fileTypeOrNull = fileType,
@@ -168,12 +169,10 @@ fun StorageFile(
         sizeOrNull = size,
         aclOrNull = acl,
         sensitivityLevelOrNull = sensitivityLevel,
-        linkOrNull = link,
         annotationsOrNull = annotations,
         fileIdOrNull = fileId,
         creatorOrNull = creator,
-        ownSensitivityLevelOrNull = ownSensitivityLevel,
-        canonicalPathOrNull = canonicalPath
+        ownSensitivityLevelOrNull = ownSensitivityLevel
     )
 }
 

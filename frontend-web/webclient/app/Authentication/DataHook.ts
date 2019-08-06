@@ -37,6 +37,7 @@ export interface APICallParameters<Parameters = any, Payload = any> {
     parameters?: Parameters
     disallowProjects?: boolean
     reloadId?: number // Can be used to force an ID by setting this to a random value
+    noop?: boolean // Used to indicate that this should not be run in a useCloudAPI hook.
 }
 
 export interface APIError {
@@ -95,32 +96,33 @@ export function useCloudAPI<T, Parameters = any>(
 
     useEffect(() => {
         let didCancel = false;
+        if (params.noop !== true) {
+            async function fetchData() {
+                if (params.path !== undefined) {
+                    dispatch({type: "FETCH_INIT"});
 
-        async function fetchData() {
-            if (params.path !== undefined) {
-                dispatch({type: "FETCH_INIT"});
+                    try {
+                        const result: T = await callAPI(params);
 
-                try {
-                    const result: T = await callAPI(params);
-
-                    if (!didCancel) {
-                        dispatch({type: "FETCH_SUCCESS", payload: result});
-                    }
-                } catch (e) {
-                    if (!didCancel) {
-                        let statusCode = e.request.status;
-                        let why = "Internal Server Error";
-                        if (!!e.response && e.response.why) {
-                            why = e.response.why;
+                        if (!didCancel) {
+                            dispatch({type: "FETCH_SUCCESS", payload: result});
                         }
+                    } catch (e) {
+                        if (!didCancel) {
+                            let statusCode = e.request.status;
+                            let why = "Internal Server Error";
+                            if (!!e.response && e.response.why) {
+                                why = e.response.why;
+                            }
 
-                        dispatch({type: "FETCH_FAILURE", error: {why, statusCode}});
+                            dispatch({type: "FETCH_FAILURE", error: {why, statusCode}});
+                        }
                     }
                 }
             }
-        }
 
-        fetchData();
+            fetchData();
+        }
 
         return () => {
             didCancel = true;
@@ -146,3 +148,33 @@ export function useAsyncCommand(): [boolean, (call: APICallParameters) => void] 
     return [isLoading, sendCommand];
 }
 
+export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
+export function useAsyncWork(): AsyncWorker {
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | undefined>(undefined);
+    const startWork = async (fn: () => Promise<void>) => {
+        setError(undefined);
+        setIsLoading(true);
+        try {
+            await fn();
+        } catch (e) {
+            if (!!e.request) {
+                let why = "Internal Server Error";
+                if (!!e.response && e.response.why) {
+                    why = e.response.why;
+                }
+                setError(why);
+            } else if (typeof e === "string") {
+                setError(e);
+            }  else if ("message" in e && typeof e.message === "string") {
+                setError(e.message);
+            } else {
+                setError("Internal error");
+                console.warn(e);
+            }
+        }
+        setIsLoading(false);
+    };
+
+    return [isLoading, error, startWork];
+}

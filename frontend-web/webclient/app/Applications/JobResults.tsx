@@ -1,7 +1,6 @@
 import * as React from "react";
 import {capitalized, inDevEnvironment, errorMessageOrDefault} from "UtilityFunctions"
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import {ContainerForText, Box, InputGroup, Label, Checkbox, Button} from "ui-components";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
 import {setLoading, fetchAnalyses, checkAnalysis, checkAllAnalyses} from "./Redux/AnalysesActions";
@@ -51,7 +50,7 @@ const JobResultsHeaderCell = styled(TableHeaderCell) <{pointer?: boolean}>`
     position: sticky;
 `;
 
-function JobResults(props: AnalysesProps & {history: History}) {
+function JobResults(props: AnalysesProps & { history: History }) {
 
     React.useEffect(() => {
         moment.locale("en-gb");
@@ -221,7 +220,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                 />
             </InputGroup>
         </Box>
-        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
+        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()}/>
     </Box>);
 
     return (<MainContainer

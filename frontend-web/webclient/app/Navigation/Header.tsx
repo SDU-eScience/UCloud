@@ -271,7 +271,10 @@ interface HeaderOperations {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
-    fetchAvatar: async () => dispatch(await findAvatar()),
+    fetchAvatar: async () => {
+        const action = await findAvatar();
+        if (action !== null) dispatch(action);
+    },
     setSearchType: st => dispatch(setPrioritizedSearch(st)),
 });
 
@@ -283,10 +286,10 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 });
 
 const isAnyLoading = (rO: ReduxObject): boolean =>
-    rO.loading === true || rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
-    || rO.simpleSearch.applicationsLoading || rO.zenodo.loading || rO.activity.loading
+    rO.loading === true || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
+    || rO.simpleSearch.applicationsLoading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
-    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
+    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading
     || rO.accounting.resources["compute/timeUsed"].events.loading
     || rO.accounting.resources["storage/bytesUsed"].events.loading;
 
