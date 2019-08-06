@@ -37,7 +37,7 @@ const BreadCrumbsBase = styled.ul<{divider?: string}>`
 
 BreadCrumbsBase.defaultProps = {
     divider: "/"
-}
+};
 
 export interface BreadcrumbsList {currentPath: string, navigate: (path: string) => void, homeFolder: string}
 
@@ -67,7 +67,7 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
             </li>
         </BreadCrumbsBase>
     );
-}
+};
 
 function buildBreadCrumbs(path: string, homeFolder: string) {
     const paths = path.split("/").filter(path => path);

@@ -41,7 +41,7 @@ const Flex = styled.div<FlexCProps>`
 Flex.defaultProps = {
   theme,
   cursor: "inherit"
-}
+};
 
 
 Flex.displayName = "Flex";

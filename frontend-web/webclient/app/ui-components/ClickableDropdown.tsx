@@ -43,18 +43,18 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
     public componentWillUnmount = () => {
         document.removeEventListener("mousedown", this.handleClickOutside);
         document.removeEventListener("keydown", this.handleEscPress);
-    }
+    };
 
     // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
     private handleClickOutside = event => {
         if (this.ref.current && !this.ref.current.contains(event.target) && this.state.open) {
             this.setState(() => ({ open: false }));
         }
-    }
+    };
 
     private handleEscPress = (event: { keyCode: KeyCode; }) => {
         if (event.keyCode === KeyCode.ESC && this.state.open) this.setState(() => ({ open: false }));
-    }
+    };
 
     public render() {
         const { keepOpenOnClick, onChange, ...props } = this.props;

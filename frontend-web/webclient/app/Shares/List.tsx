@@ -134,7 +134,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 toPage={page => setPage(page)}
             />
         </GroupedShareCard>)
-    }
+    };
 
     const header = props.byPath !== undefined ? null : (
         <SelectableTextWrapper>

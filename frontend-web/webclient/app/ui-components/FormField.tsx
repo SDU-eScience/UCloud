@@ -12,7 +12,7 @@ const Root = styled(Box)`
   & ${Box} {
     pointer-events: none;
   }
-`
+`;
 
 const fadeIn = keyframes`
   from {
@@ -22,10 +22,11 @@ const fadeIn = keyframes`
   to {
     opacity: 1;
   }
-`
+`;
+
 const labelStyles = css`
   animation: ${fadeIn} 0.3s;
-`
+`;
 
 const getFieldStyles = (showLabel: boolean) =>
   showLabel ? {
@@ -38,11 +39,11 @@ const getFieldStyles = (showLabel: boolean) =>
     transition: "padding-top 0.1s, padding-bottom 0.1s"
   }
 
-const noop = () => { }
+const noop = () => { };
 
-const formElements = [Input, Select]
+const formElements = [Input, Select];
 
-const isFormElement = (element) => formElements.includes(element)
+const isFormElement = (element) => formElements.includes(element);
 
 class FormField extends React.Component<{
   onChange: (e: React.SyntheticEvent) => void

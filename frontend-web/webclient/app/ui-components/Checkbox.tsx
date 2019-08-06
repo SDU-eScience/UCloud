@@ -1,5 +1,5 @@
 import * as React from 'react'
-import styled, { css } from 'styled-components'
+import styled from 'styled-components'
 import theme from './theme'
 import { Icon, Box } from './'
 import { BoxProps } from './Box';
@@ -40,13 +40,13 @@ const CheckBoxWrapper = styled(Box)<CheckBoxWrapper>`
       display: none;
     }
   }
-`
+`;
 
 const StyledInput = styled.input`
   appearance: none;
   opacity: 0;
   position: absolute;
-`
+`;
 
 Checkbox.displayName = "Checkbox";
 
@@ -55,6 +55,6 @@ Checkbox.defaultProps = {
   checked: false,
   disabled: false,
   theme: theme
-}
+};
 
 export default Checkbox;

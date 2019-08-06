@@ -45,7 +45,7 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
             });
         } finally {
             this.setState({loading: false});
-        };
+        }
     }
 
     render() {

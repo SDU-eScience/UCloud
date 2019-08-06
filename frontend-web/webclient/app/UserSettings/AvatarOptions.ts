@@ -1,5 +1,4 @@
 
-export type TopOptions = keyof typeof Top
 export enum Top {
     NoHair = "NoHair",
     Eyepatch = "Eyepatch", // Excludes accessories
