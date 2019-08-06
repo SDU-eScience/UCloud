@@ -6,7 +6,7 @@ metadata:
   annotations:
     getambassador.io/config: |
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: shares
       prefix: ^/api/shares(/.*)?$
@@ -15,7 +15,7 @@ metadata:
       rewrite: ""
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: share_list_files
       prefix: ^/api/shares/list-files$

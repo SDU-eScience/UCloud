@@ -109,6 +109,7 @@ fun compareDocs(context: String, localValue: Any?, remoteValue: Any?) {
 fun main() {
     discoverFiles()
         .filter { (_, resource) -> resource.kind in resourceWhitelist }
+        .sortedBy { (_, resource) -> resource.kind!!.ordinal }
         .forEach { (service, resource) ->
             val remoteDoc = Kubernetes.readResource(resource.kind!!.type, resource.name, resource.namespace)
 

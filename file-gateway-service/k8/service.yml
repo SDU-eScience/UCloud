@@ -6,7 +6,7 @@ metadata:
   annotations:
     getambassador.io/config: |
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: file_gw_list
       prefix: ^/*/api/files(/(lookup|stat))?$
@@ -18,7 +18,7 @@ metadata:
       precedence: 9
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: file_fav_list_gw
       prefix: ^/api/files/favorite$
@@ -30,7 +30,7 @@ metadata:
       precedence: 9
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: filesearch_gw
       prefix: ^/api/file-search(/.*)?$
@@ -41,7 +41,7 @@ metadata:
       precedence: 9
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: share_file_list_gw
       prefix: ^/api/shares/list-files$
