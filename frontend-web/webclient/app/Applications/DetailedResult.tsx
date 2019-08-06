@@ -146,9 +146,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         } else if (this.state.appState === AppState.RUNNING) {
             if (this.state.appType === "VNC") {
                 this.props.setLoading(false);
-                this.props.history.push(`/novnc?jobId=${this.jobId}`);
-                return;
-
+                this.setState({webLink: `/novnc?jobId=${this.jobId}`})
             } else if (this.state.appType === "WEB" && !this.state.webLink) {
                 this.props.setLoading(false);
                 const {response} = await this.state.promises.makeCancelable(
@@ -371,9 +369,15 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private renderWebLink() {
-        if (this.state.appState !== AppState.RUNNING || this.state.appType !== "WEB" || !this.state.webLink)
-            return null;
-        return <ExternalLink href={this.state.webLink}><Button color="green">Go to web interface</Button></ExternalLink>
+        const {appType} = this.state;
+        if (this.state.appState === AppState.RUNNING && this.state.webLink)
+            if (appType === "WEB")
+                return (<ExternalLink href={this.state.webLink}>
+                    <Button color="green">Go to web interface</Button>
+                </ExternalLink>);
+            else if (appType === "VNC")
+                return <Link to={this.state.webLink}><Button color="green">Go to web interface</Button></Link>
+        return null;
     }
 
     private cancelJob() {

@@ -331,7 +331,7 @@ export const initAnalyses = (): AnalysisReduxObject => ({
     loading: false,
     error: undefined,
     sortBy: RunsSortBy.createdAt,
-    sortOrder: SortOrder.ASCENDING
+    sortOrder: SortOrder.DESCENDING
 });
 
 export const initZenodo = (): ZenodoReduxObject => ({

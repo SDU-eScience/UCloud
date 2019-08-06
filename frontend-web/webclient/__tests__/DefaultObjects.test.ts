@@ -70,7 +70,7 @@ describe("Initialize Redux Objects", () => {
             loading: false,
             error: undefined,
             sortBy: RunsSortBy.createdAt,
-            sortOrder: SortOrder.ASCENDING
+            sortOrder: SortOrder.DESCENDING
         } as AnalysesStateProps)
     );
 
