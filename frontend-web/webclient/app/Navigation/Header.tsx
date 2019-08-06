@@ -3,7 +3,7 @@ import {Cloud} from "Authentication/SDUCloudObject"
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
 import {Dispatch} from "redux";
-import Avatar from "avataaars";
+import Avatar from "AvataaarLib";
 import {History} from "history";
 import {HeaderStateToProps} from "Navigation";
 import {ReduxObject, KeyCode, HeaderSearchType} from "DefaultObjects";

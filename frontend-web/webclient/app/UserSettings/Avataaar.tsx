@@ -1,4 +1,4 @@
-import {default as Avataaar} from "avataaars";
+import {default as Avataaar} from "AvataaarLib";
 import * as React from "react";
 import * as Options from "./AvatarOptions";
 import {MainContainer} from "MainContainer/MainContainer";

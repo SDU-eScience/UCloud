@@ -375,11 +375,11 @@ export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: a
 
 export const inDevEnvironment = () => process.env.NODE_ENV === "development";
 
-export var generateId = (): (prefix: string) => string => {
+export var generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
-    return (prefix = "default-prefix") => {
-        const idCount = (store.get(prefix) || 0) + 1;
-        store.set(prefix, idCount);
-        return `${prefix}${idCount}`;
+    return (target = "default-target") => {
+        const idCount = (store.get(target) || 0) + 1;
+        store.set(target, idCount);
+        return `${target}${idCount}`;
     }
-}
+})();
