@@ -318,7 +318,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
     // Aliases
     const isEmbedded = props.embedded !== false;
-    const sortingSupported = props.path !== undefined;
+    const sortingSupported = props.path !== undefined && props.page === undefined;
     const numberOfColumnsBasedOnSpace =
         (props.responsive.greaterThan.lg ? 2 :
             (props.responsive.greaterThan.md ? 1 : 0));
