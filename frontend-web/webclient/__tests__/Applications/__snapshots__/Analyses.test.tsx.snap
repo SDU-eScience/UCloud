@@ -474,6 +474,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c14 {
+  background-color: #fff;
   border: 0px;
   border-spacing: 0;
   table-layout: fixed;
