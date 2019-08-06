@@ -361,6 +361,7 @@ export function copyToClipboard({value, message}: CopyToClipboard) {
 
 export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: any} | {status: number, response: string}, defaultMessage: string): string {
     try {
+        if (typeof err == "string") return err;
         if ("status" in err) {
             return err.response;
         } else {
@@ -373,3 +374,12 @@ export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: a
 }
 
 export const inDevEnvironment = () => process.env.NODE_ENV === "development";
+
+export var generateId = (): (prefix: string) => string => {
+    const store = new Map<string, number>();
+    return (prefix = "default-prefix") => {
+        const idCount = (store.get(prefix) || 0) + 1;
+        store.set(prefix, idCount);
+        return `${prefix}${idCount}`;
+    }
+}
