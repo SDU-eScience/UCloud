@@ -101,7 +101,8 @@ class LinuxFS(
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
 
-        aclService.requirePermission(from, ctx.user, AccessRight.READ)
+        // We need write permission on from's parent to avoid being able to steal a file by changing the owner.
+        aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
         val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
