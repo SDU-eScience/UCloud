@@ -5,22 +5,16 @@ import dk.sdu.cloud.elastic.management.services.BackupService
 import dk.sdu.cloud.elastic.management.services.ExpiredEntriesDeleteService
 import dk.sdu.cloud.elastic.management.services.ReindexService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
-import dk.sdu.cloud.elastic.management.services.mergeIndex
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.elasticHighLevelClient
+import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
-import org.apache.http.HttpHost
-import org.apache.http.auth.AuthScope
-import org.apache.http.auth.UsernamePasswordCredentials
-import org.apache.http.impl.client.BasicCredentialsProvider
-import org.elasticsearch.client.RestClient
 import kotlin.system.exitProcess
-import org.elasticsearch.client.RestHighLevelClient
 
 
 class Server(
-    private val elasticHostAndPort: ElasticHostAndPort,
     private val config: Configuration,
     override val micro: Micro
 ) : CommonServer {
@@ -28,31 +22,13 @@ class Server(
     override val log = logger()
 
     override fun start() {
-        val credentialsProvider = BasicCredentialsProvider()
-        credentialsProvider.setCredentials(
-            AuthScope.ANY,
-            UsernamePasswordCredentials("elastic", "5KYMRYl8S8vHH0zeTV9a")
-        )
-
-        val elastic = RestHighLevelClient(
-            RestClient.builder(
-                HttpHost(
-                    elasticHostAndPort.host,
-                    elasticHostAndPort.port,
-                    "http"
-                )
-            )
-                .setHttpClientConfigCallback { httpClientBuilder ->
-                    httpClientBuilder.setDefaultCredentialsProvider(
-                        credentialsProvider
-                    )
-                }
-        )
+        val elasticHighLevelClient = micro.elasticHighLevelClient
+        val elasticLowLevelClient = micro.elasticLowLevelClient
 
         if (micro.commandLineArguments.contains("--setup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val settingService = AutoSettingsService(elastic)
+                val settingService = AutoSettingsService(elasticHighLevelClient)
                 settingService.setup()
                 exitProcess(0)
             } catch (ex: Exception) {
@@ -64,9 +40,9 @@ class Server(
         if (micro.commandLineArguments.contains("--cleanup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val deleteService = ExpiredEntriesDeleteService(elastic)
+                val deleteService = ExpiredEntriesDeleteService(elasticHighLevelClient)
                 deleteService.deleteExpiredAllIndices()
-                val shrinkService = ShrinkService(elastic, config.gatherNode)
+                val shrinkService = ShrinkService(elasticHighLevelClient, config.gatherNode)
                 shrinkService.shrink()
                 exitProcess(0)
             } catch (ex: Exception) {
@@ -78,8 +54,8 @@ class Server(
         if (micro.commandLineArguments.contains("--reindex")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val reindexService = ReindexService(elastic)
-                reindexService.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", elasticHostAndPort)
+                val reindexService = ReindexService(elasticHighLevelClient)
+                reindexService.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", elasticLowLevelClient)
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
@@ -90,7 +66,7 @@ class Server(
         if (micro.commandLineArguments.contains("--backup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val backupService = BackupService(elastic, config.mount)
+                val backupService = BackupService(elasticHighLevelClient, config.mount)
                 backupService.start()
                 exitProcess(0)
             } catch (ex: Exception) {

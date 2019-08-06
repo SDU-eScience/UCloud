@@ -3,6 +3,7 @@ package dk.sdu.cloud.elastic.management.services
 import dk.sdu.cloud.elastic.management.ElasticHostAndPort
 import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.reindex.ReindexRequest
@@ -15,7 +16,7 @@ class ReindexService(
     private val elastic: RestHighLevelClient
 ) {
 
-    fun reindex(fromIndices: List<String>, toIndex: String, elasticHostAndPort: ElasticHostAndPort) {
+    fun reindex(fromIndices: List<String>, toIndex: String, lowLevelClient: RestClient) {
         //Should always be lowercase
         val destinationIndex = toIndex.toLowerCase()
 
@@ -46,12 +47,12 @@ class ReindexService(
             elastic.reindex(request, RequestOptions.DEFAULT)
         } catch (ex: IOException) {
             //Did not finish reindexing in 2 min (timeout)
-            val fromCount = getDocumentCountSum(fromIndices, elasticHostAndPort)
-            var toCount = getDocumentCountSum(listOf(toIndex), elasticHostAndPort)
+            val fromCount = getDocumentCountSum(fromIndices, lowLevelClient)
+            var toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
             while (fromCount != toCount) {
                 log.info("Waiting for target index to reach count: $fromCount. Currently doc count is: $toCount")
                 Thread.sleep(1000)
-                toCount = getDocumentCountSum(listOf(toIndex), elasticHostAndPort)
+                toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
             }
         }
         //Delete old indices
@@ -63,7 +64,7 @@ class ReindexService(
     fun reindexLogsWithPrefixAWeekBackFrom(
         daysInPast: Long,
         prefix: String,
-        elasticHostAndPort: ElasticHostAndPort,
+        lowLevelClient: RestClient,
         delimiter: String = "-"
     ) {
         getAllLogNamesWithPrefix(elastic, prefix, delimiter).forEach {
@@ -83,7 +84,7 @@ class ReindexService(
                     "-" +
                     LocalDate.now().minusDays(daysInPast).toString().replace("-","." )
 
-            reindex(fromIndices, toIndex, elasticHostAndPort)
+            reindex(fromIndices, toIndex, lowLevelClient )
         }
 
     }
