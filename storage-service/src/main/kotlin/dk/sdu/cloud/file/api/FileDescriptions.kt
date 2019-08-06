@@ -547,7 +547,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val updateAcl = call<UpdateAclRequest, FindByStringId, CommonErrorMessage>("updateAcl") {
+    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         audit<BulkFileAudit<UpdateAclRequest>>()
 
         auth {

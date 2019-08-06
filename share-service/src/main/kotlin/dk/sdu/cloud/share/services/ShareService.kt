@@ -22,13 +22,11 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.ShareId
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.Shares
@@ -38,7 +36,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlin.math.max
 
 class ShareService<DBSession>(
     private val serviceClient: AuthenticatedClient,
@@ -62,10 +59,10 @@ class ShareService<DBSession>(
 
             when (job) {
                 is ShareJob.ReadyToAccept -> handleReadyToAccept(share, job)
-                is ShareJob.Accepting -> handleAccepting(share, job)
-                is ShareJob.Updating -> handleUpdating(share, job)
                 is ShareJob.Deleting -> handleDeleting(share, job)
                 is ShareJob.Failing -> handleFailing(share, job)
+
+                else -> {}
             }
         })
     }
@@ -180,44 +177,20 @@ class ShareService<DBSession>(
 
     private suspend fun handleReadyToAccept(share: InternalShare, job: ShareJob.ReadyToAccept) {
         try {
-            workQueue.produce(
-                ShareJob.Accepting(
-                    updateFSPermissions(share),
-                    share.id,
-                    job.createLink
+            updateFSPermissions(share)
+
+            db.withTransaction { session ->
+                shareDao.updateShare(
+                    session,
+                    AuthRequirements(),
+                    job.shareId,
+                    state = ShareState.ACCEPTED
                 )
-            )
+            }
+
         } catch (ex: Throwable) {
             workQueue.produce(ShareJob.Failing(share.id))
         }
-    }
-
-    private suspend fun handleAccepting(share: InternalShare, job: ShareJob.Accepting) {
-        awaitUpdateACL(
-            share,
-            job,
-
-            onSuccess = {
-                val userCloud = userClientFactory(share.recipientToken!!)
-
-                try {
-                    db.withTransaction { session ->
-                        shareDao.updateShare(
-                            session,
-                            AuthRequirements(),
-                            job.shareId,
-                            state = ShareState.ACCEPTED
-                        )
-                    }
-                } catch (ex: Exception) {
-                    workQueue.produce(ShareJob.Failing(share.id))
-                }
-            },
-
-            onFailure = {
-                markShareAsFailed(share)
-            }
-        )
     }
 
     // Share updates
@@ -247,16 +220,17 @@ class ShareService<DBSession>(
                 }
 
                 try {
-                    workQueue.produce(
-                        ShareJob.Updating(
-                            updateFSPermissions(
-                                existingShare,
-                                newRights = newRights
-                            ),
+                    updateFSPermissions(existingShare, newRights = newRights)
+
+                    db.withTransaction {
+                        shareDao.updateShare(
+                            it,
+                            AuthRequirements(),
                             shareId,
-                            newRights
+                            rights = newRights,
+                            state = ShareState.ACCEPTED
                         )
-                    )
+                    }
                 } catch (ex: Throwable) {
                     workQueue.produce(ShareJob.Failing(shareId))
                 }
@@ -266,30 +240,6 @@ class ShareService<DBSession>(
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             }
         }
-    }
-
-    private suspend fun handleUpdating(share: InternalShare, job: ShareJob.Updating) {
-        awaitUpdateACL(
-            share,
-            job,
-
-            onSuccess = {
-                db.withTransaction {
-                    shareDao.updateShare(
-                        it,
-                        AuthRequirements(),
-                        job.shareId,
-                        rights = job.newRights,
-                        state = ShareState.ACCEPTED
-                    )
-                }
-            },
-
-            onFailure = {
-                // Fail hard. We don't trust that it is capable of correctly restoring permissions.
-                workQueue.produce(ShareJob.Failing(job.shareId))
-            }
-        )
     }
 
     // Share deletions
@@ -314,12 +264,8 @@ class ShareService<DBSession>(
             }
         } else {
             try {
-                workQueue.produce(
-                    ShareJob.Deleting(
-                        updateFSPermissions(existingShare, revoke = true),
-                        existingShare.id
-                    )
-                )
+                updateFSPermissions(existingShare, revoke = true)
+                workQueue.produce(ShareJob.Deleting(existingShare.id))
             } catch (ex: RPCException) {
                 if (ex.httpStatusCode == HttpStatusCode.NotFound) {
                     invalidateShare(existingShare)
@@ -343,36 +289,19 @@ class ShareService<DBSession>(
     }
 
     private suspend fun handleDeleting(share: InternalShare, job: ShareJob.Deleting) {
-        awaitUpdateACL(
-            share,
-            job,
-            onSuccess = {
-                invalidateShare(share)
-                db.withTransaction { dbSession ->
-                    shareDao.deleteShare(dbSession, AuthRequirements(null), share.id)
-                }
-            },
-
-            onFailure = {
-                // Do nothing. Leave the share in a state where it can be revoked by the user (again).
-            }
-        )
+        invalidateShare(share)
+        db.withTransaction { dbSession ->
+            shareDao.deleteShare(dbSession, AuthRequirements(null), share.id)
+        }
     }
 
     private suspend fun handleFailing(share: InternalShare, job: ShareJob.Failing) {
         try {
             delay(job.failureCount * 1000L)
             try {
-                val jobId = updateFSPermissions(share, revoke = true)
+                updateFSPermissions(share, revoke = true)
                 if (job.failureCount > 100) log.warn("Failure count > 100 $job")
-
-                awaitUpdateACL(
-                    share,
-                    jobId,
-
-                    onSuccess = { markShareAsFailed(share) },
-                    onFailure = { workQueue.produce(ShareJob.Failing(job.shareId, job.failureCount + 1)) }
-                )
+                markShareAsFailed(share)
             } catch (ex: RPCException) {
                 if (ex.httpStatusCode == HttpStatusCode.NotFound) {
                     markShareAsFailed(share)
@@ -416,9 +345,9 @@ class ShareService<DBSession>(
         existingShare: InternalShare,
         revoke: Boolean = false,
         newRights: Set<AccessRight> = existingShare.rights
-    ): String {
+    ) {
         val userCloud = userClientFactory(existingShare.ownerToken)
-        return FileDescriptions.updateAcl.call(
+        FileDescriptions.updateAcl.call(
             UpdateAclRequest(
                 existingShare.path,
                 listOf(
@@ -429,55 +358,7 @@ class ShareService<DBSession>(
                     )
                 )
             ), userCloud
-        ).orThrow().id
-    }
-
-    private suspend fun <E> awaitUpdateACL(
-        share: InternalShare,
-        job: E,
-        onSuccess: suspend (result: BackgroundJobs.Query.Response) -> Unit,
-        onFailure: suspend (result: BackgroundJobs.Query.Response) -> Unit
-    ) where E : ShareJob, E : UpdateACLJob {
-        awaitUpdateACL(share, job.updateAclJobId, onSuccess, onFailure)
-    }
-
-    private suspend fun awaitUpdateACL(
-        share: InternalShare,
-        updateAclJobId: String,
-        onSuccess: suspend (result: BackgroundJobs.Query.Response) -> Unit,
-        onFailure: suspend (result: BackgroundJobs.Query.Response) -> Unit
-    ) {
-        var currentDelay = 0L
-        fun increaseAndGetDelay(): Long {
-            currentDelay = max(5_000, currentDelay + 100)
-            return currentDelay
-        }
-
-        while (true) {
-            try {
-                val userClient = userClientFactory(share.ownerToken)
-
-                val backgroundResult =
-                    BackgroundJobs.query.call(BackgroundJobs.Query.Request(updateAclJobId), userClient).orThrow()
-
-                if (backgroundResult.statusCode > 0) {
-                    try {
-                        if (backgroundResult.statusCode < 300) {
-                            onSuccess(backgroundResult)
-                        } else {
-                            onFailure(backgroundResult)
-                        }
-                    } finally {
-                        break
-                    }
-                } else {
-                    delay(increaseAndGetDelay())
-                }
-            } catch (ex: Exception) {
-                log.warn(ex.stackTraceToString())
-                delay(increaseAndGetDelay())
-            }
-        }
+        ).orThrow()
     }
 
     companion object : Loggable {
@@ -487,10 +368,6 @@ class ShareService<DBSession>(
 
 private object ShareACLJobStream : EventStreamContainer() {
     val stream = stream<ShareJob>("share-acl-jobs", { it.shareId.toString() })
-}
-
-private interface UpdateACLJob {
-    val updateAclJobId: String
 }
 
 @JsonTypeInfo(
@@ -513,22 +390,21 @@ private sealed class ShareJob {
         val createLink: Boolean
     ) : ShareJob()
 
+    @Deprecated("No longer in use")
     data class Accepting(
-        override val updateAclJobId: String,
         override val shareId: ShareId,
         val createLink: Boolean
-    ) : ShareJob(), UpdateACLJob
+    ) : ShareJob()
 
+    @Deprecated("No longer in use")
     data class Updating(
-        override val updateAclJobId: String,
         override val shareId: ShareId,
         val newRights: Set<AccessRight>
-    ) : ShareJob(), UpdateACLJob
+    ) : ShareJob()
 
     data class Deleting(
-        override val updateAclJobId: String,
         override val shareId: ShareId
-    ) : ShareJob(), UpdateACLJob
+    ) : ShareJob()
 
     data class Failing(
         override val shareId: ShareId,

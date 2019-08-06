@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.0-ACL.2'
+version '1.4.0-ACL.4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.share.MainKt"
@@ -17,7 +17,7 @@ buildscript {
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
-    compile 'dk.sdu.cloud:file-api:2.1.0-ACL.21'
+    compile 'dk.sdu.cloud:file-api:2.1.0-ACL.25'
     compile 'dk.sdu.cloud:auth-api:1.21.0'
     compile 'dk.sdu.cloud:notification-api:1.1.4'
     compile 'dk.sdu.cloud:indexing-api:1.13.0'

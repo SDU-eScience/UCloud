@@ -97,7 +97,7 @@ class Server(
         }
 
         // Metadata services
-        val aclService = ACLWorker(newAclService, bgExecutor).also { it.registerWorkers() }
+        val aclService = ACLWorker(newAclService)
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
 
         // High level FS

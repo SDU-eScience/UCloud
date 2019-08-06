@@ -186,7 +186,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
     if (props.page !== undefined) {
         api = {
             page: props.page!,
-            pageLoading: false,
+            pageLoading,
             error: undefined,
             setSorting: () => 0,
             sortingIconFor: () => undefined,
@@ -440,7 +440,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         main={
             <Pagination.List
                 loading={pageLoading}
-                customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : <Box>{error}</Box>}
+                customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ? null : <Box>{error}</Box>}
                 page={{...page, items: allFiles}}
                 onPageChanged={(newPage, currentPage) => onPageChanged(newPage, currentPage.itemsPerPage)}
                 pageRenderer={() =>

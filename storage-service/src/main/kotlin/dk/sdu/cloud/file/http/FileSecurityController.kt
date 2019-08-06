@@ -28,7 +28,8 @@ class FileSecurityController<Ctx : FSUserContext>(
             audit(BulkFileAudit(emptyList(), request))
             requirePermissionToChangeFilePermissions()
 
-            ok(FindByStringId(aclWorker.updateAcl(request, ctx.securityPrincipal.username)))
+            aclWorker.updateAcl(request, ctx.securityPrincipal.username)
+            ok(Unit)
         }
 
         implement(FileDescriptions.reclassify) {
