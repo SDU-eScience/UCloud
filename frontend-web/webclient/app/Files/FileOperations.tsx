@@ -90,7 +90,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Share",
         onClick: (files) => shareFiles({files, cloud: Cloud}),
         disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files),
+            isAnyMockFile(files) || files.some(it => it.fileType !== "DIRECTORY"),
         icon: "share"
     },
     {
