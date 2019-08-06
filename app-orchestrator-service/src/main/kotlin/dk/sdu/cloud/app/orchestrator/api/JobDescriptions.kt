@@ -12,8 +12,31 @@ import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+
+data class ListRecentRequest(
+    override val itemsPerPage: Int?,
+    override val page: Int?,
+    val order: SortOrder?,
+    val sortBy: JobSortBy?,
+    val minTimestamp: Long?,
+    val maxTimestamp: Long?,
+    val filter: JobState?
+) : WithPaginationRequest
+
+enum class SortOrder {
+    ASCENDING,
+    DESCENDING
+}
+
+enum class JobSortBy {
+    STATE,
+    APPLICATION,
+    STARTED_AT,
+    LAST_UPDATE,
+    CREATED_AT
+}
 
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
@@ -41,9 +64,9 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
     }
 
     /**
-     * Lists a user's recent jobs, sorted by the modified at timestamp.
+     * Lists a user's recent jobs
      */
-    val listRecent = call<PaginationRequest, Page<JobWithStatus>, CommonErrorMessage>("listRecent") {
+    val listRecent = call<ListRecentRequest, Page<JobWithStatus>, CommonErrorMessage>("listRecent") {
         auth {
             access = AccessRight.READ
         }
@@ -54,8 +77,13 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
             }
 
             params {
-                +boundTo(PaginationRequest::itemsPerPage)
-                +boundTo(PaginationRequest::page)
+                +boundTo(ListRecentRequest::itemsPerPage)
+                +boundTo(ListRecentRequest::page)
+                +boundTo(ListRecentRequest::sortBy)
+                +boundTo(ListRecentRequest::order)
+                +boundTo(ListRecentRequest::minTimestamp)
+                +boundTo(ListRecentRequest::maxTimestamp)
+                +boundTo(ListRecentRequest::filter)
             }
         }
     }
