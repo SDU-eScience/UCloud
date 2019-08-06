@@ -25,8 +25,6 @@ import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSea
 import filePreview from "Files/Redux/FilePreviewReducer";
 import * as AppRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
-import snackbar from "Snackbar/Redux/SnackbarsReducer";
-import * as FavoritesRedux from "Favorites/Redux";
 import {configureStore} from "Utilities/ReduxUtilities";
 import {responsiveStoreEnhancer, createResponsiveStateReducer} from 'redux-responsive';
 import {responsiveBP, invertedColors} from "ui-components/theme";
@@ -53,8 +51,6 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     filePreview,
     ...AppRedux.reducers,
     ...AccountingRedux.reducers,
-    ...FavoritesRedux.reducers,
-    snackbar,
     avatar,
     loading,
     project: ProjectRedux.reducer,
@@ -79,7 +75,8 @@ export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT 
 }
 
 export async function onLogin() {
-    store.dispatch(await findAvatar());
+    const action = await findAvatar();
+    if (action !== null) store.dispatch(action);
 }
 
 const GlobalStyle = createGlobalStyle`

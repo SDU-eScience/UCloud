@@ -5,7 +5,6 @@ import {Page} from "Types";
 import {expandHomeFolder} from "./FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {SnackType} from "Snackbar/Snackbars";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 

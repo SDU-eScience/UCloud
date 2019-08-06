@@ -91,12 +91,6 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     });
 
     useEffect(() => {
-
-        /* In place of 
-            new Set(page.data.items.flatMap(group =>
-                group.shares.map(group.sharedByMe ? share.sharedWith : group.sharedBy)
-            ));
-        */
         const usernames: Set<string> = new Set(page.data.items.map(group =>
             group.shares.map(share => group.sharedByMe ? share.sharedWith : group.sharedBy)
         ).reduce((acc, val) => acc.concat(val), []));

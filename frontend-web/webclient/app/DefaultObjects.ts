@@ -2,7 +2,6 @@ import {SidebarOption, Page} from "Types";
 import {Status} from "Navigation";
 import {Analysis, DetailedApplicationSearchReduxState} from "Applications";
 import {File, DetailedFileSearchReduxState} from "Files";
-import {SortOrder, SortBy} from "Files";
 import {DashboardStateProps} from "Dashboard";
 import {Publication} from "Zenodo";
 import {Notification} from "Notifications";
@@ -12,8 +11,6 @@ import {Reducer} from "redux";
 import {SimpleSearchStateProps} from "Search";
 import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
-import * as SnackbarRedux from "Snackbar/Redux";
-import * as FavoritesRedux from "Favorites/Redux";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {SidebarPages} from "ui-components/Sidebar";
 import {ScrollResult} from "Scroll/Types";
@@ -177,9 +174,7 @@ interface LegacyReduxObject {
 export type ReduxObject =
     LegacyReduxObject &
     ApplicationRedux.Objects &
-    AccountingRedux.Objects &
-    FavoritesRedux.Objects &
-    SnackbarRedux.Wrapper;
+    AccountingRedux.Objects;
 
 export const initActivity = (): ActivityReduxObject => ({
     loading: false
@@ -233,8 +228,6 @@ export function initObject(homeFolder: string): ReduxObject {
         project: ProjectRedux.initialState,
         ...ApplicationRedux.init(),
         ...AccountingRedux.init(),
-        ...FavoritesRedux.init(),
-        ...SnackbarRedux.init(),
         responsive: undefined,
     }
 }
