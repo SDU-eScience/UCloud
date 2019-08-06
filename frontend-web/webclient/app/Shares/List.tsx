@@ -232,7 +232,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             <Flex alignItems={"center"}>
                 <Box ml="3px" mr="10px">
                     <FileIcon
-                        fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)} />
+                        fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
                 </Box>
                 <Link to={fileInfoPage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link>
                 <Box ml="auto" />
@@ -389,15 +389,6 @@ function sharePermissionsToText(rights: AccessRight[]): string {
     if (rights.indexOf(AccessRight.WRITE) !== -1) return CAN_EDIT_TEXT;
     else if (rights.indexOf(AccessRight.READ) !== -1) return CAN_VIEW_TEXT;
     else return "No permissions";
-}
-
-interface FileTypeGuess {
-    path: string
-}
-
-function fileTypeGuess({path}: FileTypeGuess) {
-    const hasExtension = path.split("/").pop()!.includes(".");
-    return hasExtension ? "FILE" : "DIRECTORY";
 }
 
 const receiveDummyShares = (itemsPerPage: number, page: number) => {
