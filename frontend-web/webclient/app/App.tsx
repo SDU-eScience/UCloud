@@ -13,7 +13,6 @@ import header, {USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH} from "Navigation/Redux/
 import status from "Navigation/Redux/StatusReducer";
 import applications from "Applications/Redux/BrowseReducer";
 import dashboard from "Dashboard/Redux/DashboardReducer";
-import zenodo from "Zenodo/Redux/ZenodoReducer";
 import sidebar from "Navigation/Redux/SidebarReducer";
 import analyses from "Applications/Redux/AnalysesReducer";
 import notifications from "Notifications/Redux/NotificationsReducer";
@@ -40,7 +39,6 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     applications,
     header,
     status,
-    zenodo,
     sidebar,
     uploader,
     notifications,
