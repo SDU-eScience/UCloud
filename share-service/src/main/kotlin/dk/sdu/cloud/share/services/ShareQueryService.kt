@@ -5,10 +5,22 @@ import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.file.api.AccessEntry
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.canonicalPath
+import dk.sdu.cloud.file.api.createdAt
+import dk.sdu.cloud.file.api.creator
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.modifiedAt
+import dk.sdu.cloud.file.api.ownSensitivityLevel
+import dk.sdu.cloud.file.api.ownerName
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -78,11 +90,28 @@ class ShareQueryService<Session>(
             client
         ).orThrow()
 
+        val itemsWithAcl = lookupResponse.files.filterNotNull().map { file ->
+            StorageFile(
+                file.fileType,
+                file.path,
+                file.createdAt,
+                file.modifiedAt,
+                file.ownerName,
+                file.size,
+                page.items.find { it.fileId == file.fileId }?.rights?.toAcl(user) ?: emptyList(),
+                file.sensitivityLevel,
+                emptySet(),
+                file.fileId,
+                file.creator,
+                file.ownSensitivityLevel
+            )
+        }
+
         return Page(
             page.itemsInTotal,
             page.itemsPerPage,
             page.pageNumber,
-            lookupResponse.files.filterNotNull()
+            itemsWithAcl
         )
     }
 
@@ -97,4 +126,9 @@ class ShareQueryService<Session>(
             })
         }
     }
+
+    private fun Set<AccessRight>.toAcl(username: String): List<AccessEntry> {
+        return listOf(AccessEntry(username, this))
+    }
 }
+
