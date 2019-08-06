@@ -1,7 +1,7 @@
 import {SidebarOption, Page} from "Types";
 import {Status} from "Navigation";
 import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
-import {File, DetailedFileSearchReduxState} from "Files";
+import {File, DetailedFileSearchReduxState, SortOrder} from "Files";
 import {DashboardStateProps} from "Dashboard";
 import {Notification} from "Notifications";
 import {Upload} from "Uploader";

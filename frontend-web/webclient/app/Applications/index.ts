@@ -3,7 +3,7 @@ import {Page} from "Types";
 import {match} from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import {History} from "history";
-import {DetailedResultReduxObject, ResponsiveReduxObject, AnalysisReduxObject} from "DefaultObjects";
+import {ResponsiveReduxObject, AnalysisReduxObject} from "DefaultObjects";
 import {ParameterValues} from "Utilities/ApplicationUtilities";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 
@@ -48,7 +48,7 @@ export interface DetailedResultOperations {
     setRefresh: (refresh?: () => void) => void
 }
 
-export interface DetailedResultProps extends DetailedResultReduxObject, DetailedResultOperations {
+export interface DetailedResultProps extends DetailedResultOperations {
     match: match<{jobId: string}>
     history: History
 }
