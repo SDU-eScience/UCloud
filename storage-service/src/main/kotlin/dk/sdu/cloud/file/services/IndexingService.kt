@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.StorageEvent
@@ -12,6 +13,7 @@ import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
@@ -30,7 +32,8 @@ import kotlin.collections.component2
 class IndexingService<Ctx : FSUserContext>(
     private val runnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val storageEventProducer: StorageEventProducer
+    private val storageEventProducer: StorageEventProducer,
+    private val aclService: AclService<*>
 ) {
     suspend fun verifyKnowledge(
         ctx: Ctx,
@@ -40,12 +43,21 @@ class IndexingService<Ctx : FSUserContext>(
         return when (mode) {
             is KnowledgeMode.List -> {
                 val parents = files.asSequence().map { it.parent() }.toSet()
-                val knowledgeByParent = parents.map { it to fs.checkPermissions(ctx, it, requireWrite = false) }.toMap()
+                //val knowledgeByParent = parents.map { it to fs.checkPermissions(ctx, it, requireWrite = false) }.toMap()
+                val knowledgeByParent =
+                    parents.map { it to aclService.hasPermission(it, ctx.user, AccessRight.READ) }.toMap()
+
                 files.map { knowledgeByParent[it.parent()]!! }
             }
 
             is KnowledgeMode.Permission -> {
-                files.map { fs.checkPermissions(ctx, it, mode.requireWrite) }
+                files.map {
+                    aclService.hasPermission(
+                        it,
+                        ctx.user,
+                        if (mode.requireWrite) AccessRight.WRITE else AccessRight.READ
+                    )
+                }
             }
         }
     }
@@ -76,8 +88,8 @@ class IndexingService<Ctx : FSUserContext>(
         val shouldContinue = try {
             roots.map { root ->
                 val isValid = fs
-                    .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE, FileAttribute.IS_LINK))
-                    ?.takeIf { it.fileType == FileType.DIRECTORY && !it.isLink } != null
+                    .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE))
+                    ?.takeIf { it.fileType == FileType.DIRECTORY } != null
 
                 root to isValid
             }.toMap()

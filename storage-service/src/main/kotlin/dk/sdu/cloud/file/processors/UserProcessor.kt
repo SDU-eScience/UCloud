@@ -11,16 +11,15 @@ import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FileScanner
-import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-class UserProcessor<FSCtx : CommandRunner, UID>(
+class UserProcessor<FSCtx : CommandRunner>(
     private val streams: EventStreamService,
-    private val userDao: StorageUserDao<UID>,
     private val externalFileService: FileScanner<FSCtx>,
     private val runnerFactory: FSCommandRunnerFactory<FSCtx>,
     private val coreFs: CoreFileSystemService<FSCtx>
@@ -52,9 +51,8 @@ class UserProcessor<FSCtx : CommandRunner, UID>(
                             createHomeFolder("$projectName#PI", projectName)
                         }
 
-                        runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
-                            coreFs.createSymbolicLink(ctx, homeDirectory(projectName), homeDirectory(event.userId))
-                        }
+                        // TODO We used to create a symbolic link here. This might still be doable. It shouldn't
+                        //  be needed though. We should just query the home folder.
                     }
 
                     else -> log.debug("Not creating a home folder for ${event.userCreated}")
@@ -68,15 +66,8 @@ class UserProcessor<FSCtx : CommandRunner, UID>(
     }
 
     private suspend fun createHomeFolder(owner: String, folderName: String = owner) {
-        val findStorageUser = userDao.findStorageUser(owner)
-        if (findStorageUser == null) {
-            log.warn("User: $owner at $folderName does not exist!")
-            return
-        }
-
         val command = listOf(
             "sdu_cloud_add_user",
-            findStorageUser.toString(),
             folderName,
             "yes"
         )

@@ -45,10 +45,8 @@ private fun FileRow.toStorageFileForEvent(): StorageFile = StorageFile(
     size = size,
     acl = shares,
     sensitivityLevel = sensitivityLevel ?: SensitivityLevel.PRIVATE,
-    link = isLink,
     fileId = inode,
-    ownSensitivityLevel = sensitivityLevel,
-    canonicalPath = path
+    ownSensitivityLevel = sensitivityLevel
 )
 
 /**
@@ -63,7 +61,6 @@ val STORAGE_EVENT_MODE = setOf(
     FileAttribute.SIZE,
     FileAttribute.SHARES,
     FileAttribute.SENSITIVITY,
-    FileAttribute.IS_LINK,
     FileAttribute.INODE,
     FileAttribute.SENSITIVITY
 )

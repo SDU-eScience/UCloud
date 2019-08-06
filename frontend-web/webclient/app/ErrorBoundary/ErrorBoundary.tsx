@@ -21,6 +21,7 @@ export class ErrorBoundary extends React.Component<{}, {hasError: boolean, error
     }
 
     public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        console.warn(error);
         this.setState(() => ({error, errorInfo}));
     }
 
@@ -32,7 +33,7 @@ export class ErrorBoundary extends React.Component<{}, {hasError: boolean, error
                 message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location.pathname},\nAdditional info: ${textAreaContent}`
             })
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error ocurred"))
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"))
         }
         ErrorBoundary.redirectToDashboard();
     };

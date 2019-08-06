@@ -8,7 +8,7 @@ exports[`Breadcrumbs Build breadcrumbs 1`] = `
   list-style: none;
   max-width: 85%;
   height: 85px;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 .c0 li {

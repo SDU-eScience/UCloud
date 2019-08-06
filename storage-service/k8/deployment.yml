@@ -74,3 +74,6 @@ spec:
           name: storage-config
           optional: false
         name: storage-config
+
+      imagePullSecrets:
+        - name: esci-docker

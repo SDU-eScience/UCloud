@@ -159,23 +159,6 @@ data class FileQuery(
     val sensitivity: PredicateCollection<SensitivityLevel>? = null,
 
     /**
-     * Predicate for [StorageFile.link]. Only exact matches are considered.
-     */
-    val fileIsLink: Boolean? = null,
-
-    /**
-     * Deprecated.
-     */
-    @Deprecated("Not in use")
-    val linkTarget: PredicateCollection<String>? = null,
-
-    /**
-     * Deprecated.
-     */
-    @Deprecated("Not in use")
-    val linkTargetId: PredicateCollection<String>? = null,
-
-    /**
      * Predicate for [StorageFile.size]. Only exact matches are considered.
      */
     val size: PredicateCollection<Comparison<Long>>? = null
@@ -263,8 +246,6 @@ data class SortRequest(
 enum class SortableField {
     FILE_NAME,
     FILE_TYPE,
-
-    IS_LINK,
 
     SIZE,
 

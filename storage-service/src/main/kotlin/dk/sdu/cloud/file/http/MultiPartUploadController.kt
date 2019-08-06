@@ -36,43 +36,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     private val sensitivityService: FileSensitivityService<Ctx>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(MultiPartUploadDescriptions.upload) {
-            audit(MultiPartUploadAudit(null))
-
-            request.asIngoing().receiveBlocks { req ->
-                val sensitivity = req.sensitivity
-                val owner = ctx.securityPrincipal.username
-
-                audit(
-                    MultiPartUploadAudit(
-                        UploadRequestAudit(
-                            req.location,
-                            sensitivity,
-                            owner
-                        )
-                    )
-                )
-
-                val upload = req.upload
-                if (upload != null) {
-                    commandRunnerFactory.withContext(owner) { ctx ->
-                        val policy = req.policy ?: WriteConflictPolicy.OVERWRITE
-
-                        val location = fs.write(ctx, req.location, policy) {
-                            val out = this
-                            req.upload.channel.copyTo(out)
-                        }
-
-                        if (sensitivity != null) {
-                            sensitivityService.setSensitivityLevel(ctx, location, sensitivity, owner)
-                        }
-                        Unit
-                    }
-                }
-            }
-            ok(Unit)
-        }
-
         implement(MultiPartUploadDescriptions.simpleUpload) {
             audit(MultiPartUploadAudit(null))
             val owner = ctx.securityPrincipal.username
@@ -148,44 +111,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     )
                 } finally {
                     runCatching { temporaryFile.delete() }
-                }
-            }
-
-            ok(BulkUploadErrorMessage("OK"), HttpStatusCode.Accepted)
-        }
-
-        implement(MultiPartUploadDescriptions.bulkUpload) {
-            val user = ctx.securityPrincipal.username
-
-            request.asIngoing().receiveBlocks { req ->
-                val uploader =
-                    BulkUploader.fromFormat(req.format, commandRunnerFactory.type) ?: return@receiveBlocks error(
-                        CommonErrorMessage("Unsupported format '${req.format}'"),
-                        HttpStatusCode.BadRequest
-                    )
-
-                val archiveName = req.upload.fileName ?: "upload"
-
-                audit(BulkUploadAudit(req.location, req.policy, req.format))
-
-                val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
-                req.upload.channel.copyTo(outputFile.outputStream())
-                BackgroundScope.launch {
-                    uploader.upload(
-                        serviceCloud,
-                        fs,
-                        { commandRunnerFactory(user) },
-                        req.location,
-                        req.policy,
-                        outputFile.inputStream(),
-                        req.sensitivity,
-                        sensitivityService,
-                        archiveName
-                    )
-                    try {
-                        outputFile.delete()
-                    } catch (_: Exception) {
-                    }
                 }
             }
 
