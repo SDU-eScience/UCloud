@@ -11,6 +11,9 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import org.apache.http.HttpHost
+import org.apache.http.auth.AuthScope
+import org.apache.http.auth.UsernamePasswordCredentials
+import org.apache.http.impl.client.BasicCredentialsProvider
 import org.elasticsearch.client.RestClient
 import kotlin.system.exitProcess
 import org.elasticsearch.client.RestHighLevelClient
@@ -25,6 +28,12 @@ class Server(
     override val log = logger()
 
     override fun start() {
+        val credentialsProvider = BasicCredentialsProvider()
+        credentialsProvider.setCredentials(
+            AuthScope.ANY,
+            UsernamePasswordCredentials("elastic", "5KYMRYl8S8vHH0zeTV9a")
+        )
+
         val elastic = RestHighLevelClient(
             RestClient.builder(
                 HttpHost(
@@ -33,6 +42,11 @@ class Server(
                     "http"
                 )
             )
+                .setHttpClientConfigCallback { httpClientBuilder ->
+                    httpClientBuilder.setDefaultCredentialsProvider(
+                        credentialsProvider
+                    )
+                }
         )
 
         if (micro.commandLineArguments.contains("--setup")) {

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management
 
 import dk.sdu.cloud.elastic.management.api.ElasticManagementServiceDescription
+import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.initWithDefaultFeatures

@@ -11,6 +11,9 @@ import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.apache.http.HttpHost
+import org.apache.http.auth.AuthScope
+import org.apache.http.auth.UsernamePasswordCredentials
+import org.apache.http.impl.client.BasicCredentialsProvider
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import kotlin.system.exitProcess
@@ -20,13 +23,18 @@ class Server(
     private val config: Configuration,
     override val micro: Micro
 ) : CommonServer {
-    private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
 
     override fun start() {
 
-        elastic = RestHighLevelClient(
+        val credentialsProvider = BasicCredentialsProvider()
+        credentialsProvider.setCredentials(
+            AuthScope.ANY,
+            UsernamePasswordCredentials("elastic", "5KYMRYl8S8vHH0zeTV9a")
+        )
+
+        val elastic = RestHighLevelClient(
             RestClient.builder(
                 HttpHost(
                     elasticHostAndPort.host,
@@ -34,6 +42,11 @@ class Server(
                     "http"
                 )
             )
+                .setHttpClientConfigCallback { httpClientBuilder ->
+                    httpClientBuilder.setDefaultCredentialsProvider(
+                        credentialsProvider
+                    )
+                }
         )
 
         val alertService = AlertingService(listOf(SlackNotifier(config.notifiers.slack?.hook!!)))
