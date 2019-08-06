@@ -6,7 +6,6 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
-import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.LookupFileInDirectoryRequest
@@ -94,7 +93,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
         BackgroundStreams("storage"),
         micro.eventStreamService
     )
-    val aclWorker = ACLWorker(aclService, backgroundExecutor).also { it.registerWorkers() }
+    val aclWorker = ACLWorker(aclService)
     val homeFolderService = mockk<HomeFolderService>()
     val callRunner = CommandRunnerFactoryForCalls(runner, WSFileSessionService(runner))
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }

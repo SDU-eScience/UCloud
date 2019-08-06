@@ -56,8 +56,7 @@ data class MockConfiguration(
     val allowTokenRevoke: Boolean = true,
     val statOwner: String? = owner,
     val allowUserLookup: HttpStatusCode = HttpStatusCode.OK,
-    val allowAclUpdate: Boolean = true,
-    val allowJobQuery: Boolean = true
+    val allowAclUpdate: Boolean = true
 )
 
 class ShareServiceTest {
@@ -174,17 +173,9 @@ class ShareServiceTest {
     fun MockConfiguration.initializeACLMock() {
         ClientMock.mockCall(FileDescriptions.updateAcl) {
             if (allowAclUpdate) {
-                TestCallResult.Ok(FindByStringId("id"))
+                TestCallResult.Ok(Unit)
             } else {
                 TestCallResult.Error(null, HttpStatusCode.InternalServerError)
-            }
-        }
-
-        ClientMock.mockCall(BackgroundJobs.query) {
-            if (allowJobQuery) {
-                TestCallResult.Ok(BackgroundJobs.Query.Response(200, "{}"))
-            } else {
-                TestCallResult.Ok(BackgroundJobs.Query.Response(500, "{}"))
             }
         }
     }
@@ -334,22 +325,6 @@ class ShareServiceTest {
         return@runBlocking
     }
 
-    @Test
-    fun `test accepting with updateAcl query failure`() = runBlocking {
-        initializeMocks(MockConfiguration())
-        assertEquals(0, createShare())
-
-        initializeMocks(MockConfiguration(allowJobQuery = false))
-
-        Thread {
-            Thread.sleep(2000)
-            initializeMocks(MockConfiguration(allowJobQuery = true))
-        }.start()
-
-        acceptShare(ShareState.FAILURE)
-        return@runBlocking
-    }
-
     private suspend fun updateShare(expectedState: ShareState = ShareState.ACCEPTED) {
         shareService.updateRights(owner, 1L, setOf(AccessRight.READ, AccessRight.WRITE))
 
@@ -378,23 +353,6 @@ class ShareServiceTest {
         Thread {
             Thread.sleep(2000)
             initializeMocks(MockConfiguration())
-        }.start()
-
-        updateShare(ShareState.FAILURE)
-        return@runBlocking
-    }
-
-    @Test
-    fun `test updating with accepted share and updateAcl query failure`() = runBlocking {
-        initializeMocks(MockConfiguration())
-        assertEquals(0, createShare())
-        acceptShare()
-        initializeMocks(MockConfiguration(allowJobQuery = false))
-
-        // Allow job query to function after a little while.
-        Thread {
-            Thread.sleep(2000)
-            initializeMocks(MockConfiguration(allowJobQuery = true))
         }.start()
 
         updateShare(ShareState.FAILURE)

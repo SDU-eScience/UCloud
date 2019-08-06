@@ -7,7 +7,7 @@ mainClassName = "dk.sdu.cloud.redis.cleaner.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.2-ACL"
+    ext.serviceCommonVersion = "1.5.4"
     ext.authApiVersion = "1.21.0"
 }
 
