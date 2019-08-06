@@ -102,26 +102,6 @@ class AclHibernateDao : AclDao<HibernateSession> {
             .toMap()
     }
 
-    override fun listAclsForChildrenOf(
-        session: HibernateSession,
-        path: String
-    ): Map<String, List<UserWithPermissions>> {
-        return session
-            .criteria<PermissionEntry> {
-                entity[PermissionEntry::parent] equal path
-            }
-            .list()
-            .groupBy { it.key.path }
-            .mapValues { (_, entries) ->
-                entries
-                    .groupBy { it.key.username }
-                    .map { (username, permissions) ->
-                        UserWithPermissions(username, permissions.map { it.key.permission }.toSet())
-                    }
-            }
-            .toMap()
-    }
-
     override fun revokePermission(session: HibernateSession, path: String, username: String) {
         val normalizedPath = path.normalize()
         session.deleteCriteria<PermissionEntry> {

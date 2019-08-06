@@ -41,7 +41,7 @@ class CreatedAtTest {
                 StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {}),
                 fileSensitivityService,
                 ClientMock.authenticatedClient)
-        val fileLookupService = FileLookupService(coreFs)
+        val fileLookupService = FileLookupService(runner, coreFs)
 
         return TestContext(runner, fs, coreFs, fileLookupService)
     }

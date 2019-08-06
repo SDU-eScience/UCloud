@@ -41,7 +41,7 @@ class SensitivityTest {
         val sensitivityService =
             FileSensitivityService(fs, storageEventProducer)
         val coreFs = CoreFileSystemService(fs, storageEventProducer, sensitivityService, ClientMock.authenticatedClient)
-        val fileLookupService = FileLookupService(coreFs)
+        val fileLookupService = FileLookupService(runner, coreFs)
 
         return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService) as TestContext<FSUserContext>
     }

@@ -311,18 +311,7 @@ class LinuxFS(
     ): List<FileRow?> {
         // The 'shareLookup' contains a mapping between cloud paths and their ACL
         val shareLookup = if (FileAttribute.SHARES in mode) {
-            val parents = systemFiles.map { it.path.toCloudPath().parent().normalize() }
-
-            // We optimize in the case that we only have a single unique parent. This makes it quite a bit more
-            // efficient.
-            if (parents.size == 1) {
-                aclService.listAclsForChildrenOf(
-                    parents.first(),
-                    parents
-                )
-            } else {
-                aclService.listAcl(systemFiles.map { it.path.toCloudPath().normalize() })
-            }
+            aclService.listAcl(systemFiles.map { it.path.toCloudPath().normalize() })
         } else {
             emptyMap()
         }

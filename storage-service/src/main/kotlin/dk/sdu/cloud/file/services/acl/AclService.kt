@@ -98,37 +98,7 @@ class AclService<Session>(
         }.toMap()
     }
 
-    suspend fun listAclsForChildrenOf(
-        path: String,
-        knownChildren: List<String>
-    ): Map<String, List<UserWithPermissions>> {
-        val normalizedPath = pathNormalizer(path) ?: return emptyMap()
-        val allParents = normalizedPath.parents().map { it.normalize() }.toSet() + setOf(normalizedPath)
-
-        lateinit var childrenAcls: Map<String, List<UserWithPermissions>>
-        lateinit var parentAcls: Map<String, List<UserWithPermissions>>
-
-        db.withTransaction { session ->
-            childrenAcls = dao.listAclsForChildrenOf(session, normalizedPath)
-            parentAcls = dao.listAcl(session, allParents.toList())
-        }
-
-        return knownChildren.mapNotNull { originalPath ->
-            val normalizedChild = pathNormalizer(originalPath) ?: return@mapNotNull null
-
-            val aclEntriesFromChildren = childrenAcls[normalizedChild] ?: emptyList()
-            val aclEntriesFromParents =
-                normalizedChild.parents().flatMap { parentAcls[it.normalize()] ?: emptyList() }
-
-            val unmergedAcl = aclEntriesFromChildren + aclEntriesFromParents
-
-            originalPath to unmergedAcl.groupBy { it.username }.map { (username, entries) ->
-                UserWithPermissions(username, entries.flatMap { it.permissions }.toSet())
-            }
-        }.toMap()
-    }
-
-    suspend fun revokePermission(path: String, username: String) {
+   suspend fun revokePermission(path: String, username: String) {
         val normalizedPath = pathNormalizer(path) ?: throw FSException.NotFound()
 
         db.withTransaction {
@@ -144,7 +114,6 @@ class AclService<Session>(
 
         db.withTransaction {
             from.zip(to).sortedBy { it.first.length }.forEach { (rawOld, rawNew) ->
-                // Note: We don't need to resolve symlinks here (in fact we don't want to)
                 val old = rawOld.normalize()
                 val new = rawNew.normalize()
 

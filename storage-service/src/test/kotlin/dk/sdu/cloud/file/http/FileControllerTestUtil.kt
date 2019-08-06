@@ -109,7 +109,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
         fs = fs,
         eventProducer = eventProducer,
         coreFs = coreFs,
-        lookupService = FileLookupService(coreFs)
+        lookupService = FileLookupService(runner, coreFs)
     )
 
     with(ctx) {

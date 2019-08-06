@@ -107,7 +107,7 @@ class Server(
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
 
         // Specialized operations (built on high level FS)
-        val fileLookupService = FileLookupService(coreFileSystem)
+        val fileLookupService = FileLookupService(processRunner, coreFileSystem)
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer, newAclService)
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
         val workspaceService = WorkspaceService(fsRootFile, fileScanner, newAclService)
