@@ -56,7 +56,6 @@
   "dependencies": {
     "@novnc/novnc": "^1.1.0",
     "@svgr/cli": "^4.3.2",
-    "avataaars": "^1.2.1",
     "fuse.js": "^3.4.5",
     "jsonwebtoken": "8.5.1",
     "moment": "~2.24.0",
@@ -81,7 +80,7 @@
     "@types/enzyme": "^3.10.3",
     "@types/enzyme-adapter-react-16": "^1.0.5",
     "@types/history": "^4.7.2",
-    "@types/jest": "24.0.16",
+    "@types/jest": "24.0.17",
     "@types/json-schema": "^7.0.3",
     "@types/jsonwebtoken": "^8.3.2",
     "@types/moment-timezone": "^0.5.12",
