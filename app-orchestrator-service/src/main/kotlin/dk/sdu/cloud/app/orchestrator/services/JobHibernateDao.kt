@@ -10,7 +10,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
@@ -19,6 +18,8 @@ import org.hibernate.annotations.Type
 import org.slf4j.Logger
 import java.util.*
 import javax.persistence.*
+import javax.persistence.criteria.Predicate
+import kotlin.collections.ArrayList
 
 @Entity
 @Table(name = "job_information")
@@ -248,11 +249,29 @@ class JobHibernateDao(
     override suspend fun list(
         session: HibernateSession,
         owner: SecurityPrincipalToken,
-        pagination: NormalizedPaginationRequest
+        pagination: NormalizedPaginationRequest,
+        order: SortOrder,
+        sortBy: JobSortBy,
+        minTimestamp: Long?,
+        maxTimestamp: Long?,
+        filter: JobState?
     ): Page<VerifiedJobWithAccessToken> {
         return session.paginatedCriteria<JobInformationEntity>(
             pagination,
-            orderBy = { listOf(descending(entity[JobInformationEntity::createdAt])) },
+            orderBy = {
+                val field = when (sortBy) {
+                    JobSortBy.STATE -> JobInformationEntity::state
+                    JobSortBy.APPLICATION -> JobInformationEntity::application
+                    JobSortBy.STARTED_AT -> JobInformationEntity::startedAt
+                    JobSortBy.LAST_UPDATE -> JobInformationEntity::modifiedAt
+                    JobSortBy.CREATED_AT -> JobInformationEntity::createdAt
+                }
+
+                when (order) {
+                    SortOrder.ASCENDING -> listOf(ascending(entity[field]))
+                    SortOrder.DESCENDING -> listOf(descending(entity[field]))
+                }
+            },
             predicate = {
                 val canViewAsOwner = entity[JobInformationEntity::owner] equal owner.realUsername()
 
@@ -270,15 +289,30 @@ class JobHibernateDao(
                         )
                     }
 
-                anyOf(
-                    canViewAsOwner,
-                    canViewAsPartOfProject
+                // Time ranges
+                val lowerTime = entity[JobInformationEntity::createdAt] greaterThanEquals Date(minTimestamp ?: 0)
+                val upperTime = entity[JobInformationEntity::createdAt] lessThanEquals Date(maxTimestamp ?: Date().time)
+                val matchesLowerFilter = literal(minTimestamp == null).toPredicate() or lowerTime
+                val matchesUpperFilter = literal(maxTimestamp == null).toPredicate() or upperTime
+
+                // AppState filter
+                val appState = entity[JobInformationEntity::state] equal (filter ?: JobState.VALIDATED)
+                val appStateFilter = literal(filter == null).toPredicate() or appState
+
+                allOf(
+                    matchesLowerFilter,
+                    matchesUpperFilter,
+                    appStateFilter,
+                    anyOf(
+                        canViewAsOwner,
+                        canViewAsPartOfProject
+                    )
                 )
             }
         ).mapItems { it.toModel() }
     }
 
-       private suspend fun JobInformationEntity.toModel(
+    private suspend fun JobInformationEntity.toModel(
         resolveTool: Boolean = false
     ): VerifiedJobWithAccessToken {
         val withoutTool = VerifiedJobWithAccessToken(

@@ -28,6 +28,6 @@
     },
     "exclude": [
         "./__tests__/*",
-        "./dist"
+        "./dist/*"
     ]
 }

@@ -1,7 +1,7 @@
 import * as Defaults from "../app/DefaultObjects";
 import { SortOrder, SortBy } from "../app/Files";
 import { SidebarPages } from "../app/ui-components/Sidebar";
-import { Analysis } from "../app/Applications";
+import { AnalysesStateProps, RunsSortBy } from "../app/Applications";
 import { DashboardStateProps } from "../app/Dashboard";
 
 describe("Initialize Redux Objects", () => {
@@ -68,8 +68,10 @@ describe("Initialize Redux Objects", () => {
         expect(Defaults.initAnalyses()).toEqual({
             page: Defaults.emptyPage,
             loading: false,
-            error: undefined
-        } as Defaults.ComponentWithPage<Analysis>)
+            error: undefined,
+            sortBy: RunsSortBy.createdAt,
+            sortOrder: SortOrder.ASCENDING
+        } as AnalysesStateProps)
     );
 
     test("Zenodo", () =>

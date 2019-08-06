@@ -17,7 +17,7 @@ export const Table = styled.table<WidthProps & MinWidthProps & ColorProps>`
     border: 0px;
     border-spacing: 0;
     table-layout: fixed;
-    ${width} ${minWidth}
+    ${width} ${minWidth} ${color}
 `;
 
 Table.displayName = "Table";
