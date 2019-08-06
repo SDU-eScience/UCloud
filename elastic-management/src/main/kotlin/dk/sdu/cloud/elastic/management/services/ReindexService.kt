@@ -1,6 +1,5 @@
 package dk.sdu.cloud.elastic.management.services
 
-import dk.sdu.cloud.elastic.management.ElasticHostAndPort
 import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient

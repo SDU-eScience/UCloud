@@ -1,7 +1,5 @@
 package dk.sdu.cloud.elastic.management.services
 
-import dk.sdu.cloud.elastic.management.ElasticHostAndPort
-import org.apache.http.HttpHost
 import org.apache.http.util.EntityUtils
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest

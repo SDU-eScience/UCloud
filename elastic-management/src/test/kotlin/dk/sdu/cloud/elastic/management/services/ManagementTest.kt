@@ -1,6 +1,5 @@
 package dk.sdu.cloud.elastic.management.services
 
-import dk.sdu.cloud.elastic.management.ElasticHostAndPort
 import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.micro.install
@@ -151,6 +150,7 @@ class ManagementTest {
         println(getAllLogNamesWithPrefix(elastic, "http_logs"))
     }
 
+    @Ignore
     @Test
     fun `Delete all empty test`() {
         val micro = initializeMicro()
