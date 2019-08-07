@@ -7,7 +7,7 @@ mainClassName = "dk.sdu.cloud.audit.ingestion.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.1"
+    ext.serviceCommonVersion = "1.5.4-ElasticFeature.RC1"
     ext.authApiVersion = "1.21.0"
 }
 
@@ -18,7 +18,6 @@ repositories {
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
-    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
     compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 

@@ -5,8 +5,10 @@ import dk.sdu.cloud.service.Loggable
 import org.apache.http.HttpHost
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
+import org.apache.http.client.config.RequestConfig
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.elasticsearch.client.RestClient
+import org.elasticsearch.client.RestClientBuilder
 import org.elasticsearch.client.RestHighLevelClient
 
 class ElasticFeature : MicroFeature {
@@ -40,6 +42,11 @@ class ElasticFeature : MicroFeature {
                 httpClientBuilder.setDefaultCredentialsProvider(
                     credentialsProvider
                 )
+            }
+            .setRequestConfigCallback { requestConfigBuilder ->
+                requestConfigBuilder
+                    .setConnectTimeout(30000)
+                    .setSocketTimeout(60000)
             }
 
         ctx.elasticLowLevelClient = lowLevelClient.build()
