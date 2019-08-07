@@ -180,7 +180,9 @@ class LinuxFS(
             (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).toList()
         }.filter { !Files.isSymbolicLink(it.toPath()) }
 
-        val min = if (paginationRequest == null) 0 else paginationRequest.itemsPerPage * paginationRequest.page
+        val min =
+            if (paginationRequest == null) 0
+            else min(systemFiles.size, paginationRequest.itemsPerPage * paginationRequest.page)
         val max =
             if (paginationRequest == null) systemFiles.size
             else min(systemFiles.size, min + paginationRequest.itemsPerPage)
