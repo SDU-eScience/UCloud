@@ -30,6 +30,8 @@ data class JobInformationEntity(
 
     var owner: String,
 
+    var name: String?,
+
     @Embedded
     @AttributeOverrides(
         AttributeOverride(name = "name", column = Column(name = "application_name")),
@@ -149,6 +151,7 @@ class JobHibernateDao(
         val entity = JobInformationEntity(
             job.id,
             job.owner,
+            job.name,
             job.application.metadata.toEmbedded(),
             "Verified",
             job.currentState,
@@ -319,6 +322,7 @@ class JobHibernateDao(
             VerifiedJob(
                 appStoreService.findByNameAndVersion(application.name, application.version)
                     ?: throw RPCException("Application was not found", HttpStatusCode.BadRequest),
+                name,
                 files,
                 systemId,
                 owner,

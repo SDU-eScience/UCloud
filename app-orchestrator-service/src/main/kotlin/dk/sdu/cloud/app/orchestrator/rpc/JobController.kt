@@ -4,6 +4,7 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.fs.api.AppFileSystems
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.AppOrchestratorServiceDescription.name
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
@@ -134,6 +135,7 @@ class JobController<DBSession>(
         val job = this
         return JobWithStatus(
             job.id,
+            job.name,
             job.owner,
             job.currentState,
             job.status,
