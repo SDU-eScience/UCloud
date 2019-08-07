@@ -154,11 +154,9 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         user: String,
         paging: NormalizedPaginationRequest
     ): Page<InternalShare> {
-        return session.paginatedCriteria<ShareEntity>(paging,
-            predicate = {
-                (entity[ShareEntity::sharedWith] equal user) and (entity[ShareEntity::state] equal ShareState.ACCEPTED)
-            }, orderBy = { listOf(ascending(entity[ShareEntity::state]), ascending(entity[ShareEntity::filename]))})
-        .mapItems { it.toModel() }
+        return session.paginatedCriteria<ShareEntity>(paging) {
+            (entity[ShareEntity::sharedWith] equal user) and (entity[ShareEntity::state] equal ShareState.ACCEPTED)
+        }.mapItems { it.toModel() }
     }
 
     private fun countShareGroups(
@@ -194,8 +192,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             .criteria<ShareEntity>(
                 orderBy = {
                     listOf(
-                        ascending(entity[ShareEntity::owner]),
-                        ascending(entity[ShareEntity::sharedWith]),
+                        descending(entity[ShareEntity::state]),
                         ascending(entity[ShareEntity::filename])
                     )
                 },
