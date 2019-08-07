@@ -388,7 +388,7 @@ export class EScienceLogo extends React.Component<Props> {
       fill='#FFFFFF'>
       <g transform='translate(106.000000, 58.000000), scale(0.8)' id='EScienceLogo!'>
         <path id="Selection"
-            fill="gray" stroke="black" stroke-width="0"
+            fill="gray" stroke="black" strokeWidth="0"
             d="M 30.00,1.66
               C 25.32,3.47 17.71,8.28 13.00,11.00
                 10.74,12.30 7.36,13.94 6.02,16.21
@@ -456,6 +456,136 @@ export class EScienceLogo extends React.Component<Props> {
   }
 }
 
+export class Teeth extends React.Component<Props> {
+  static optionValue = "Teeth";
+  render () {
+    return <g
+    id='Clothing/Graphic/Teeth'
+    mask={`url(#${this.props.maskID})`}
+    fillRule='evenodd'
+    fill='#FFFFFF'>
+    <g transform='translate(112, 62), scale(1.2)' id='Teeth!'>
+    <g
+     transform="translate(-85.739821,-134.97873)"
+     style={{ display: "inline"}}
+     id="layer9">
+    <g
+       style={{ display: "inline"}}
+       id="layer7">
+      <path
+         id="path891"
+         d="m 85.759498,134.97873 h 33.866662 v 18.53909 H 85.739821 Z"
+         style={{fill:"#edb98a",fillOpacity:1,stroke:"none",strokeWidth: "0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer10">
+      <path
+         id="path917"
+         d="m 105.91276,154.62452 c 3.2413,-0.0808 4.44619,-5.14517 4.44619,-5.14517 0.10889,1.95177 -1.94862,6.47383 -3.88314,6.5431 z"
+         style={{fill:"#000000",fillOpacity:0.14354069,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+      <path
+         id="path917-6"
+         d="m 99.264938,154.32358 c -3.2413,-0.0808 -4.44619,-5.14517 -4.44619,-5.14517 -0.10889,1.95177 1.94862,6.47383 3.88314,6.5431 z"
+         style={{display:"inline",fill:"#000000",fillOpacity:0.14354069,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer8">
+      <path
+         id="path896"
+         d="m 85.739821,153.51782 0.01968,15.32757 h 33.866669 v -15.32757 z"
+         style={{opacity:1,fill:"#5199e4",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer11">
+      <path
+         id="path845"
+         d="m 101.56705,162.33235 c 0,0 1.51019,-0.53542 2.21037,-0.0687 0,0 0.21969,-0.49425 0.7139,-0.49425 0.65899,0 1.3729,0.54916 0.63154,1.48273 0,0 0.87865,0.31576 0.87865,1.81222 0,1.38663 -1.30425,2.48495 -3.34987,2.48495 -2.04562,0 -3.294956,-1.24934 -3.294956,-2.56732 0,-1.31798 0.823746,-1.74358 0.823746,-1.74358 -0.328948,-0.71704 -0.223505,-1.23219 0.46678,-1.45527 0.77902,0.03 0.91984,0.5492 0.91984,0.5492 z"
+         style={{fill:"#ffffff",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       id="layer12">
+      <circle
+         r="0.30203775"
+         cy="164.06221"
+         cx="101.58078"
+         id="path854"
+         style={{opacity:1,fill:"#5199e4",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+      <circle
+         r="0.30203775"
+         cy="163.93864"
+         cx="103.65385"
+         id="path854-3"
+         style={{display:"inline",opacity:1,fill:"#5199e4",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+      <path
+         id="path871"
+         d="m 101.38857,166.06664 c 0,0 -0.0137,0.86493 0.71391,0.89239 0.35617,0.0134 0.31502,-0.17912 0.3295,-0.49425 0.0215,-0.46811 -0.39814,-0.0549 -0.28831,-0.60407 0.0412,-0.28831 0.23339,-0.20594 0.56289,-0.20594 0.32949,0 0.5217,0.0686 0.53543,0.27458 -0.0138,0.38442 -0.41188,0.0961 -0.26085,0.50797 -0.0961,0.41187 0.26085,0.46679 0.45305,0.48052 0.45306,-0.0824 0.71391,-0.50797 0.72764,-0.89239 -0.0412,-0.38441 -0.0686,-0.93357 -1.31798,-0.93357 -1.24934,0 -1.45528,0.4256 -1.45528,0.97476 z"
+         style={{fill:"#5199e4",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer2">
+      <path
+         id="path827"
+         d="m 96.652071,143.56483 c 0,0 1.537647,-1.48273 3.789199,-1.09832"
+         style={{fill:"none",stroke:"#5f4a37",strokeWidth:0.465,strokeLinecap:"round",strokeLinejoin:"miter",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1}} />
+      <path
+         id="path829"
+         d="m 108.65121,143.48246 c 0,0 -1.23561,-1.40036 -3.67937,-1.01595"
+         style={{fill:"none",fillOpacity:1,stroke:"#5f4a37",strokeWidth:0.465,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+      <circle
+         r="0.8786552"
+         cy="145.51436"
+         cx="99.068367"
+         id="path831"
+         style={{opacity:1,fill:"#5f4a37",fillOpacity:1,stroke:"none",strokeWidth:0.26499999,strokeLinejoin:"miter",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1}} />
+      <circle
+         r="0.8786552"
+         cy="145.43198"
+         cx="106.26237"
+         id="path831-3"
+         style={{opacity:1,fill:"#5f4a37",fillOpacity:1,stroke:"none",strokeWidth:0.26499999,strokeLinejoin:"miter",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer4">
+      <path
+         id="path858"
+         d="m 100.09805,150.63526 c 0,0 0.12356,-0.28831 0.32949,-0.28831 h 4.48938 c 0,0 0.38441,0.0137 0.38441,0.3295 0,0.31576 -0.89238,2.11427 -2.48494,2.56732 -2.56732,-0.56289 -2.71834,-2.60851 -2.71834,-2.60851 z"
+         style={{fill:"#473729",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer3">
+      <path
+         id="path855"
+         d="m 102.6791,152.15918 c 0,0 -0.24712,-0.16475 -0.78255,-0.16475 -0.53543,0 -1.38663,0.67272 -1.38663,1.38663 0,0.71391 0.43933,1.42781 2.18291,1.42781 1.74358,0 2.10339,-0.87877 2.11426,-1.40036 0.0137,-0.65899 -0.78256,-1.88086 -2.12799,-1.24933 z"
+         style={{fill:"#ff4f6d",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer5">
+      <path
+         id="path865"
+         d="m 101.00416,148.79559 c -0.21967,0.43932 -0.48051,1.34543 -0.10986,2.22407 1.53764,0.12354 2.16918,0.10983 3.80293,-0.0549 0.0684,-0.007 0.59035,-1.38663 -0.10989,-2.16917 -1.69788,-0.1057 -2.02757,-0.0813 -3.58318,0 z"
+         style={{opacity:1,fill:"#ffffff",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer6">
+      <path
+         id="path893"
+         d="m 100.91321,147.95522 3.54337,0.01 c 0,0 -0.90284,1.6018 -1.67947,1.57267 -0.77662,-0.0291 -1.8639,-1.58238 -1.8639,-1.58238 z"
+         style={{fill:"#000000",fillOpacity:0.17224881,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+  </g>
+      </g>
+    </g>
+  }
+}
+
 export default class Graphics extends React.Component<Props> {
   render() {
     return (
@@ -472,6 +602,7 @@ export default class Graphics extends React.Component<Props> {
         <SkullOutline maskID={this.props.maskID} />
         <Skull maskID={this.props.maskID} />
         <EScienceLogo maskID={this.props.maskID} />
+        <Teeth maskID={this.props.maskID} />
       </Selector>
     )
   }
