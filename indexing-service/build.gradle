@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.14.3'
+version '1.14.4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
@@ -11,13 +11,12 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.1"
+    ext.serviceCommonVersion = "1.5.3-ElasticFeature.RC1"
     ext.fileApiVersion = "1.8.0-REDIS.0"
 }
 
 dependencies {
     compile 'mbuhot:eskotlin:0.4.0'
-    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
 
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:file-api:$fileApiVersion"
