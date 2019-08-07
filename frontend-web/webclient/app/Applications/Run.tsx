@@ -4,42 +4,42 @@ import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import {connect} from "react-redux";
 import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
-import {updatePageTitle, setLoading} from "Navigation/Redux/StatusActions";
+import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {
+    ApplicationMetadata,
+    ApplicationParameter,
+    FullAppInfo,
+    JobSchedulingOptionsForInput,
+    ParameterTypes,
+    RefReadPair,
     RunAppProps,
     RunAppState,
-    ApplicationParameter,
-    ParameterTypes,
-    JobSchedulingOptionsForInput,
-    WithAppInvocation,
-    WithAppMetadata,
     RunOperations,
-    RefReadPair,
-    FullAppInfo,
-    ApplicationMetadata
+    WithAppInvocation,
+    WithAppMetadata
 } from ".";
 import {Dispatch} from "redux";
-import {Box, Flex, Label, OutlineButton, ContainerForText, VerticalButtonGroup, Button} from "ui-components";
+import {Box, Button, ContainerForText, Flex, Label, OutlineButton, Text, VerticalButtonGroup} from "ui-components";
 import Input, {HiddenInputField} from "ui-components/Input";
 import {MainContainer} from "MainContainer/MainContainer";
-import {Parameter, OptionalParameters, InputDirectoryParameter} from "./ParameterWidgets";
+import {InputDirectoryParameter, OptionalParameters, Parameter} from "./ParameterWidgets";
 import {
     extractParameters,
+    extractParametersFromMap,
     hpcFavoriteApp,
     hpcJobQueryPost,
-    extractParametersFromMap,
-    ParameterValues,
-    isFileOrDirectoryParam
+    isFileOrDirectoryParam,
+    ParameterValues
 } from "Utilities/ApplicationUtilities";
 import {AppHeader} from "./View";
 import * as Heading from "ui-components/Heading";
 import {
+    allFilesHasAccessRight,
     checkIfFileExists,
     expandHomeFolder,
     fetchFileContent,
-    statFileQuery,
-    filepathQuery,
-    favoritesQuery
+    statFileOrNull,
+    statFileQuery
 } from "Utilities/FileUtilities";
 import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -48,9 +48,8 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {addStandardDialog} from "UtilityComponents";
 import {File as CloudFile} from "Files";
 import {dialogStore} from "Dialog/DialogStore";
-import {Page} from "Types";
-import {emptyPage} from "DefaultObjects";
 import FileSelector from "Files/FileSelector";
+import {AccessRight} from "Types";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -171,13 +170,30 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         // FIXME: Unify with extractParametersFromMap
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
-            const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder)
+            const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!,
                 readOnly: it.readOnly
             };
         });
+
+        for (const mount of mounts) {
+            if (!mount.readOnly) {
+                const stat = await statFileOrNull(mount.source);
+                if (stat !== null) {
+                    if (!allFilesHasAccessRight(AccessRight.WRITE, [stat])) {
+                        snackbarStore.addSnack({
+                            message: `Cannot mount ${mount.source} as read/write because share is read-only`,
+                            type: SnackType.Failure,
+                            lifetime: 5000
+                        });
+
+                        return;
+                    }
+                }
+            }
+        }
         // FIXME end
 
         const job = {
@@ -199,7 +215,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Cloud.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."))
+            snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
             this.setState(() => ({jobSubmitted: false}));
         } finally {
             this.props.setLoading(false);
@@ -359,7 +375,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 message: "The selected file's extension is not \"json\" which is the required format.",
                 confirmText: "Continue",
                 onConfirm: () => this.fetchAndImportParameters(file)
-            })
+            });
             return;
         }
         this.fetchAndImportParameters(file);
@@ -373,7 +389,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
         const response = await fetchFileContent(file.path, Cloud);
         if (response.ok) this.importParameters(new File([await response.blob()], "params"))
-    }
+    };
 
     render() {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
@@ -387,7 +403,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const {mountedFolders} = this.state;
             mountedFolders[index].readOnly = readOnly;
             this.setState(() => ({mountedFolders}));
-        }
+        };
 
         const header = (
             <Flex ml="12%">
