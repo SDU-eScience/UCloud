@@ -206,6 +206,9 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
         const loading = pageLoading;
 
         const setSorting = (sortBy: SortBy, order: SortOrder, column?: number) => {
+            let sortByToUse = sortBy;
+            if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
+
             if (column !== undefined) {
                 setSortingColumnAt(sortBy, column as 0 | 1);
 
@@ -216,7 +219,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
 
             loadManaged({
                 ...pageParameters,
-                sortBy,
+                sortBy: sortByToUse,
                 order,
                 page: 0
             });
@@ -493,14 +496,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                     trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
                                                     chevron>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
-                                                         hidden={order === SortOrder.ASCENDING && isSortedBy}
+                                                         hidden={(order === SortOrder.ASCENDING && isSortedBy) || column === SortBy.ACL}
                                                          onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
                                                     >
                                                         {UF.prettierString(SortOrder.ASCENDING)}
                                                     </Box>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
                                                          onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                         hidden={order === SortOrder.DESCENDING && isSortedBy}
+                                                         hidden={(order === SortOrder.DESCENDING && isSortedBy) || column === SortBy.ACL}
                                                     >
                                                         {UF.prettierString(SortOrder.DESCENDING)}
                                                     </Box>

@@ -87,7 +87,6 @@ enum class FileSortBy {
     CREATED_AT,
     MODIFIED_AT,
     SIZE,
-    ACL,
     SENSITIVITY
 }
 
@@ -99,7 +98,7 @@ class FileSortByDeserializer : StdDeserializer<FileSortBy>(FileSortBy::class.jav
             "CREATED_AT", "createdAt" -> FileSortBy.CREATED_AT
             "MODIFIED_AT", "modifiedAt" -> FileSortBy.MODIFIED_AT
             "SIZE", "size" -> FileSortBy.SIZE
-            "ACL", "acl" -> FileSortBy.ACL
+            "ACL", "acl" -> FileSortBy.PATH // ACL sorting has been disabled
             "SENSITIVITY", "sensitivityLevel" -> FileSortBy.SENSITIVITY
             else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
@@ -114,7 +113,7 @@ class FileSortBySerializer : StdSerializer<FileSortBy>(FileSortBy::class.java) {
             FileSortBy.CREATED_AT -> "createdAt"
             FileSortBy.MODIFIED_AT -> "modifiedAt"
             FileSortBy.SIZE -> "size"
-            FileSortBy.ACL -> "acl"
+//            FileSortBy.ACL -> "acl"
             FileSortBy.SENSITIVITY -> "sensitivityLevel"
         }
 

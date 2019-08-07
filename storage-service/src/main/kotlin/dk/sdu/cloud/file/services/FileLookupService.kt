@@ -107,7 +107,7 @@ class FileLookupService<Ctx : FSUserContext>(
                 FileSortBy.CREATED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.MODIFIED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.SIZE -> listOf(FileAttribute.SIZE)
-                FileSortBy.ACL -> listOf(FileAttribute.SHARES)
+//                FileSortBy.ACL -> listOf(FileAttribute.SHARES)
                 FileSortBy.SENSITIVITY -> listOf(FileAttribute.SENSITIVITY, FileAttribute.PATH)
                 null -> emptyList()
             }

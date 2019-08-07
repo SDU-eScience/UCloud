@@ -201,7 +201,7 @@ class LinuxFS(
                 FileSortBy.PATH -> FileAttribute.PATH
                 FileSortBy.CREATED_AT, FileSortBy.MODIFIED_AT -> FileAttribute.TIMESTAMPS
                 FileSortBy.SIZE -> FileAttribute.SIZE
-                FileSortBy.ACL -> FileAttribute.SHARES
+//                FileSortBy.ACL -> FileAttribute.SHARES
                 FileSortBy.SENSITIVITY -> FileAttribute.SENSITIVITY
                 null -> FileAttribute.PATH
             }
@@ -265,7 +265,7 @@ class LinuxFS(
         order: SortOrder
     ): Comparator<FileRow> {
         val naturalComparator: Comparator<FileRow> = when (sortBy) {
-            FileSortBy.ACL -> Comparator.comparingInt { it.shares.size }
+//            FileSortBy.ACL -> Comparator.comparingInt { it.shares.size }
 
             FileSortBy.CREATED_AT -> Comparator.comparingLong { it.timestamps.created }
 
