@@ -177,6 +177,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 readOnly: it.readOnly
             };
         });
+        // FIXME end
 
         for (const mount of mounts) {
             if (!mount.readOnly) {
@@ -194,7 +195,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }
             }
         }
-        // FIXME end
 
         const job = {
             application: {
