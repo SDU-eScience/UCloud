@@ -17,18 +17,22 @@ spec:
     spec:
       containers:
       - name: notification-service
-        image: registry.cloud.sdu.dk/sdu-cloud/notification-service:0.3.0
+        image: registry.cloud.sdu.dk/sdu-cloud/notification-service:1.2.2
         command:
         - /opt/service/bin/service
         - --config-dir
         - /etc/psql
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
         volumeMounts:
         - mountPath: /etc/psql
           name: psql-secrets
         - mountPath: /etc/refresh-token
           name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
         env:
         - name: POD_IP
           valueFrom:
@@ -42,6 +46,9 @@ spec:
       - name: refresh-token
         secret:
           secretName: notification-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
 
 
 

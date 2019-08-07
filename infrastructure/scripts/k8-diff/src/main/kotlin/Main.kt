@@ -73,6 +73,8 @@ enum class ResourceType(val type: String) {
 
 fun compareDocs(context: String, localValue: Any?, remoteValue: Any?) {
     fun complain() {
+        println()
+        println("---")
         println("$context values are different!\nlocal:\n$localValue\n\nremote:\n$remoteValue")
     }
 
