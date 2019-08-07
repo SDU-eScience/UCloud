@@ -98,7 +98,7 @@
     "@types/styled-system": "^5.0.1",
     "compression-webpack-plugin": "^3.0.0",
     "copy-webpack-plugin": "5.0.4",
-    "css-loader": "^3.1.0",
+    "css-loader": "^3.2.0",
     "empty-module": "~0.0.2",
     "enzyme": "^3.10.0",
     "enzyme-adapter-react-16": "^1.14.0",
