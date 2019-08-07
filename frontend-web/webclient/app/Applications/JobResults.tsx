@@ -1,5 +1,5 @@
 import * as React from "react";
-import {capitalized, inDevEnvironment, errorMessageOrDefault} from "UtilityFunctions"
+import {capitalized, errorMessageOrDefault} from "UtilityFunctions"
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
@@ -245,7 +245,7 @@ function JobResults(props: AnalysesProps & { history: History }) {
         headerSize={48}
         sidebarSize={340}
         main={content}
-        sidebar={inDevEnvironment() ? sidebar : null}
+        sidebar={sidebar}
     />);
 }
 
