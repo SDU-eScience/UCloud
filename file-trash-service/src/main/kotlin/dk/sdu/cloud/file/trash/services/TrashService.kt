@@ -15,7 +15,6 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.path
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
@@ -100,7 +99,7 @@ class TrashService(
         } else {
             val stat = statCall.orThrow()
 
-            if (stat.link || stat.fileType != FileType.DIRECTORY) {
+            if (stat.fileType != FileType.DIRECTORY) {
                 FileDescriptions.move.call(
                     MoveRequest(trashDirectoryPath, trashDirectoryPath, WriteConflictPolicy.RENAME),
                     userCloud

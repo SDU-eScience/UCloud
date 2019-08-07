@@ -38,7 +38,6 @@ data class CreateLinkRequest(
 
 data class UpdateAclRequest(
     val path: String,
-    val recurse: Boolean,
     val changes: List<ACLEntryRequest>,
     val automaticRollback: Boolean? = null
 ) {
@@ -51,8 +50,7 @@ data class UpdateAclRequest(
 data class ACLEntryRequest(
     val entity: String,
     val rights: Set<FileAccessRight>,
-    val revoke: Boolean = false,
-    val isUser: Boolean = true
+    val revoke: Boolean = false
 )
 
 data class ChmodRequest(
@@ -170,7 +168,6 @@ enum class StorageFileAttribute {
     acl,
     sensitivityLevel,
     ownSensitivityLevel,
-    link,
     fileId,
     creator,
     canonicalPath
@@ -201,32 +198,8 @@ data class CopyRequest(val path: String, val newPath: String, val policy: WriteC
 
 data class BulkDownloadRequest(val prefix: String, val files: List<String>)
 
-data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null)
-
-data class AnnotateFileRequest(val path: String, val annotatedWith: String, val proxyUser: String) {
-    init {
-        validateAnnotation(annotatedWith)
-        if (proxyUser.isBlank()) throw IllegalArgumentException("proxyUser cannot be blank")
-    }
-}
-
 data class FindHomeFolderRequest(val username: String)
 data class FindHomeFolderResponse(val path: String)
-
-fun validateAnnotation(annotation: String) {
-    if (annotation.contains(Regex("[0-9]"))) {
-        throw IllegalArgumentException("Annotation reserved for future use")
-    }
-
-    if (annotation.contains(',') || annotation.contains('\n')) {
-        throw IllegalArgumentException("Illegal annotation")
-    }
-
-    if (annotation.isEmpty()) throw IllegalArgumentException("Annotation cannot be empty")
-    if (annotation.length > 1) {
-        throw IllegalArgumentException("Annotation type reserved for future use")
-    }
-}
 
 val DOWNLOAD_FILE_SCOPE = FileDescriptions.download.requiredAuthScope
 
@@ -509,31 +482,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    /**
-     * Annotates a file with metadata. Privileged API.
-     */
-    @Deprecated("No longer in use")
-    val annotate = call<AnnotateFileRequest, Unit, CommonErrorMessage>("annotate") {
-        audit<SingleFileAudit<AnnotateFileRequest>>()
-
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
-        }
-
-        websocket(wsBaseContext)
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"annotate"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
     val verifyFileKnowledge = call<
             VerifyFileKnowledgeRequest,
             VerifyFileKnowledgeResponse,
@@ -578,6 +526,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
+    @Deprecated("No longer in use")
     val chmod = call<ChmodRequest, Unit, CommonErrorMessage>("chmod") {
         audit<BulkFileAudit<ChmodRequest>>()
 
@@ -598,7 +547,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val updateAcl = call<UpdateAclRequest, FindByStringId, CommonErrorMessage>("updateAcl") {
+    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         audit<BulkFileAudit<UpdateAclRequest>>()
 
         auth {
@@ -612,30 +561,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
             path {
                 using(baseContext)
                 +"update-acl"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val createLink = call<
-            CreateLinkRequest,
-            StorageFile,
-            CommonErrorMessage>("createLink") {
-        audit<SingleFileAudit<CreateLinkRequest>>()
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        websocket(wsBaseContext)
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"create-link"
             }
 
             body { bindEntireRequestFromBody() }

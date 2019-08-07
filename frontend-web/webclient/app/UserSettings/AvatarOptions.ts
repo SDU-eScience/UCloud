@@ -1,5 +1,4 @@
 
-export type TopOptions = keyof typeof Top
 export enum Top {
     NoHair = "NoHair",
     Eyepatch = "Eyepatch", // Excludes accessories
@@ -122,7 +121,8 @@ export enum ClothesGraphic {
     Selena = "Selena",
     Bear = "Bear",
     SkullOutline = "SkullOutline",
-    Skull = "Skull"
+    Skull = "Skull",
+    EScienceLogo = "eScienceLogo"
 }
 
 export enum Eyes {

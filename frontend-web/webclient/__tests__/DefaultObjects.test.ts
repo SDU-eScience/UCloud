@@ -17,29 +17,6 @@ describe("Initialize Redux Objects", () => {
         } as DashboardStateProps)
     });
 
-    test("Files", () => {
-        const homeFolder = "/home/user@test.dk/"
-        expect(JSON.parse(JSON.stringify(Defaults.initFiles(homeFolder)))).toEqual(JSON.parse(JSON.stringify({
-            page: Defaults.emptyPage,
-            sortOrder: SortOrder.ASCENDING,
-            sortBy: SortBy.PATH,
-            loading: false,
-            error: undefined,
-            path: "",
-            invalidPath: false,
-            filesInfoPath: "",
-            sortingColumns: [SortBy.MODIFIED_AT, SortBy.SIZE],
-            fileSelectorLoading: false,
-            fileSelectorShown: false,
-            fileSelectorPage: Defaults.emptyPage,
-            fileSelectorPath: homeFolder,
-            fileSelectorCallback: () => null,
-            fileSelectorError: undefined,
-            fileSelectorIsFavorites: false,
-            disallowedPaths: []
-        })) as Defaults.FilesReduxObject)
-    });
-
     test("Status", () =>
         expect(Defaults.initStatus()).toEqual({
             status: Defaults.DefaultStatus,
@@ -70,19 +47,10 @@ describe("Initialize Redux Objects", () => {
             loading: false,
             error: undefined,
             sortBy: RunsSortBy.createdAt,
-            sortOrder: SortOrder.ASCENDING
+            sortOrder: SortOrder.DESCENDING
         } as AnalysesStateProps)
     );
-
-    test("Zenodo", () =>
-        expect(Defaults.initZenodo()).toEqual({
-            connected: false,
-            loading: false,
-            page: Defaults.emptyPage,
-            error: undefined
-        } as Defaults.ZenodoReduxObject)
-    );
-
+    
     test("Sidebar", () =>
         expect(Defaults.initSidebar()).toEqual({
             kcCount: 0,

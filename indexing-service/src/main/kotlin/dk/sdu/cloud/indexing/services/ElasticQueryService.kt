@@ -99,7 +99,6 @@ class ElasticQueryService(
                 val field = when (sorting.field) {
                     SortableField.FILE_NAME -> ElasticIndexedFile.FILE_NAME_KEYWORD
                     SortableField.FILE_TYPE -> ElasticIndexedFile.FILE_TYPE_FIELD
-                    SortableField.IS_LINK -> ElasticIndexedFile.FILE_IS_LINK_FIELD
                     SortableField.SIZE -> ElasticIndexedFile.SIZE_FIELD
                     SortableField.CREATED_AT -> ElasticIndexedFile.TIMESTAMP_CREATED_FIELD
                     SortableField.MODIFIED_AT -> ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD
@@ -186,10 +185,6 @@ class ElasticQueryService(
                     modifiedAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
                     sensitivity.addClausesIfExists(list, ElasticIndexedFile.SENSITIVITY_FIELD)
                     size.addClausesIfExists(list, ElasticIndexedFile.SIZE_FIELD)
-
-                    if (fileIsLink != null) {
-                        list.add(terms { ElasticIndexedFile.FILE_IS_LINK_FIELD to listOf(fileIsLink) })
-                    }
                 }
             }.also {
                 if (it.should().isNotEmpty()) {

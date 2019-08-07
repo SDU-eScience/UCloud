@@ -27,7 +27,7 @@ const dropdownOptions: {text: string, value: string}[] = [
     {value: Module.ActivityType.INSPECTED, text: "Inspections"},
     {value: Module.ActivityType.MOVED, text: "Moves"},
     {value: Module.ActivityType.UPDATED, text: "Updates"},
-]
+];
 
 function Activity(props: ActivityProps) {
 
@@ -136,11 +136,11 @@ export const getStartOfDay = (d: Date): Date => {
     copy.setSeconds(0);
     copy.setMilliseconds(0);
     return copy;
-}
+};
 
 export const getStartOfWeek = (d: Date): Date => {
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
 
     const copy = new Date(d);
     copy.setDate(diff);
@@ -149,7 +149,7 @@ export const getStartOfWeek = (d: Date): Date => {
     copy.setSeconds(0);
     copy.setMilliseconds(0);
     return copy;
-}
+};
 
 export const TimeFilter = (props: {text: string, onChange: (ts?: Date) => void, selected?: Date}) => (
     <Box mb={16}>
@@ -170,9 +170,7 @@ export const TimeFilter = (props: {text: string, onChange: (ts?: Date) => void, 
     </Box>
 );
 
-const mapStateToProps = ({activity}: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => ({
-    ...activity
-});
+const mapStateToProps = ({activity}: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => activity;
 
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
     fetchActivity: async (req, filter) => {
@@ -181,8 +179,8 @@ const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
     },
 
     onMount: () => {
-        dispatch(updatePageTitle("Activity"))
-        dispatch(setActivePage(SidebarPages.Activity))
+        dispatch(updatePageTitle("Activity"));
+        dispatch(setActivePage(SidebarPages.Activity));
     },
 
     resetActivity: () => {

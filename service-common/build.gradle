@@ -38,7 +38,8 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version "1.5.3-ElasticFeature.RC1"
+version "1.5.4-ElasticFeature.RC1"
+
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"

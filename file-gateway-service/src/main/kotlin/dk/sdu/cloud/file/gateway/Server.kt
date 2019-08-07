@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.gateway.http.FavoriteController
 import dk.sdu.cloud.file.gateway.http.FileController
 import dk.sdu.cloud.file.gateway.http.SearchController
+import dk.sdu.cloud.file.gateway.http.ShareController
 import dk.sdu.cloud.file.gateway.services.FileAnnotationService
 import dk.sdu.cloud.file.gateway.services.UserCloudService
 import dk.sdu.cloud.micro.Micro
@@ -27,7 +28,8 @@ class Server(
             configureControllers(
                 FileController(userCloudService, fileAnnotationService),
                 FavoriteController(userCloudService, fileAnnotationService),
-                SearchController(userCloudService, fileAnnotationService)
+                SearchController(userCloudService, fileAnnotationService),
+                ShareController(userCloudService, fileAnnotationService)
             )
         }
 

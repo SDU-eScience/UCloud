@@ -1,7 +1,6 @@
 import * as React from "react";
-import {capitalized, inDevEnvironment, errorMessageOrDefault} from "UtilityFunctions"
+import {capitalized, errorMessageOrDefault} from "UtilityFunctions"
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import {ContainerForText, Box, InputGroup, Label, Checkbox, Button} from "ui-components";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
 import {setLoading, fetchAnalyses, checkAnalysis, checkAllAnalyses} from "./Redux/AnalysesActions";
@@ -31,6 +30,12 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import {SortOrder} from "Files";
 import {getStartOfWeek} from "Activity/Page";
+import Button from "ui-components/Button";
+import InputGroup from "ui-components/InputGroup";
+import Label from "ui-components/Label";
+import Box from "ui-components/Box";
+import {ContainerForText} from "ui-components";
+import Checkbox from "ui-components/Checkbox";
 
 interface FetchJobsOptions {
     itemsPerPage?: number
@@ -51,7 +56,7 @@ const JobResultsHeaderCell = styled(TableHeaderCell) <{pointer?: boolean}>`
     position: sticky;
 `;
 
-function JobResults(props: AnalysesProps & {history: History}) {
+function JobResults(props: AnalysesProps & { history: History }) {
 
     React.useEffect(() => {
         moment.locale("en-gb");
@@ -121,7 +126,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                                     <Checkbox
                                         checked={a.checked}
                                         onClick={(e: {target: {checked: boolean}}) =>
-                                            checkAnalysis(a.jobId, e.target.checked)}
+                                            props.checkAnalysis(a.jobId, e.target.checked)}
                                     />
                                 </Label></Box>
                             </Row>)}
@@ -221,7 +226,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                 />
             </InputGroup>
         </Box>
-        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
+        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()}/>
     </Box>);
 
     return (<MainContainer
@@ -240,7 +245,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         headerSize={48}
         sidebarSize={340}
         main={content}
-        sidebar={inDevEnvironment() ? sidebar : null}
+        sidebar={sidebar}
     />);
 }
 

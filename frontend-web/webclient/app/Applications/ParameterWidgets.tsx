@@ -10,6 +10,8 @@ import * as Fuse from "fuse.js";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {replaceHomeFolder, resolvePath} from "Utilities/FileUtilities";
 import {addTrailingSlash} from "UtilityFunctions";
+import {SyntheticEvent} from "react";
+import {FileInputSelector} from "Files/FileInputSelector";
 
 
 interface ParameterProps {
@@ -20,7 +22,7 @@ interface ParameterProps {
 }
 
 export const Parameter = (props: ParameterProps) => {
-    let component = (<div />);
+    let component = (<div/>);
     switch (props.parameter.type) {
         case Types.ParameterTypes.InputFile:
             component = <InputFileParameter {...props} />;
@@ -61,7 +63,7 @@ export const Parameter = (props: ParameterProps) => {
             />;
             break;
     }
-    return (<>{component}<Box pb="1em" /></>);
+    return (<>{component}<Box pb="1em"/></>);
 };
 
 interface InputFileParameterProps extends ParameterProps {
@@ -71,11 +73,13 @@ interface InputFileParameterProps extends ParameterProps {
 
 const InputFileParameter = (props: InputFileParameterProps) => (
     <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
-        <FileSelector
+        <FileInputSelector
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}
             path={props.parameterRef.current && props.parameterRef.current.value || ""}
-            onFileSelect={file => {props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))}}
+            onFileSelect={file => {
+                props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))
+            }}
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             isRequired={!props.parameter.optional}
             unitName={props.parameter.unitName}
@@ -85,12 +89,14 @@ const InputFileParameter = (props: InputFileParameterProps) => (
 
 export const InputDirectoryParameter = (props: InputFileParameterProps) => (
     <GenericParameter parameter={props.parameter} onRemove={props.onParamRemove}>
-        <FileSelector
+        <FileInputSelector
             defaultValue={props.defaultValue}
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}
             path={props.parameterRef.current && props.parameterRef.current.value || ""}
-            onFileSelect={file => {props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)))}}
+            onFileSelect={file => {
+                props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)))
+            }}
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             canSelectFolders
             onlyAllowFolders
@@ -124,12 +130,13 @@ const TextParameter = (props: TextParameterProps) => {
     );
 };
 
-type BooleanParameterOption = {value?: boolean, display: string}
+type BooleanParameterOption = { value?: boolean, display: string }
 
 interface BooleanParameter extends ParameterProps {
     parameter: Types.BooleanParameter
     parameterRef: React.RefObject<HTMLSelectElement>
 }
+
 const BooleanParameter = (props: BooleanParameter) => {
     let options: BooleanParameterOption[] = [{value: true, display: "Yes"}, {value: false, display: "No"}];
     if (props.parameter.optional) {
@@ -150,7 +157,7 @@ const BooleanParameter = (props: BooleanParameter) => {
                     rightLabel={hasUnitName}
                     required={!props.parameter.optional}
                 >
-                    <option />
+                    <option/>
                     <option selected={defaultValue === true}>Yes</option>
                     <option selected={defaultValue === false}>No</option>
                 </Select>
@@ -230,16 +237,19 @@ const FloatingParameter = (props: NumberParameterProps) => {
     return <GenericNumberParameter {...childProps} />;
 };
 
-const GenericParameter: React.FunctionComponent<{parameter: Types.ApplicationParameter, onRemove?: () => void}> = ({parameter, children, onRemove}) => (
+const GenericParameter: React.FunctionComponent<{ parameter: Types.ApplicationParameter, onRemove?: () => void }> = ({parameter, children, onRemove}) => (
     <>
         <Label fontSize={1} htmlFor={parameter.name}>
             <Flex>
                 <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
-                {parameter.optional && !!onRemove ? <><Box ml="auto" /><Text cursor="pointer" mb="4px" onClick={onRemove}>Remove<Icon ml="6px" size={16} name="close" /></Text></> : null}
+                {parameter.optional && !!onRemove ? <><Box ml="auto"/><Text cursor="pointer" mb="4px"
+                                                                            onClick={onRemove}>Remove<Icon ml="6px"
+                                                                                                           size={16}
+                                                                                                           name="close"/></Text></> : null}
             </Flex>
         </Label>
         {children}
-        <Markdown source={parameter.description} />
+        <Markdown source={parameter.description}/>
     </>
 );
 
@@ -311,7 +321,7 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
     render() {
         const {onUse} = this.props;
         const {results} = this.state;
-        const components = results.map((p, i) => <OptionalParameter key={i} parameter={p} onUse={() => onUse(p)} />);
+        const components = results.map((p, i) => <OptionalParameter key={i} parameter={p} onUse={() => onUse(p)}/>);
 
         return (
             <>
@@ -320,7 +330,8 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
                         <Heading.h4>Optional Parameters ({results.length})</Heading.h4>
                     </Box>
                     <Box flexShrink={0}>
-                        <Input placeholder={"Search..."} ref={this.searchField} onChange={e => this.search(e.target.value)} />
+                        <Input placeholder={"Search..."} ref={this.searchField}
+                               onChange={e => this.search(e.target.value)}/>
                     </Box>
                 </Flex>
                 <OptionalParamsBox>{components}</OptionalParamsBox>
@@ -330,7 +341,7 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
     }
 }
 
-export class OptionalParameter extends React.Component<{parameter: Types.ApplicationParameter, onUse: () => void}, {open: boolean}> {
+export class OptionalParameter extends React.Component<{ parameter: Types.ApplicationParameter, onUse: () => void }, { open: boolean }> {
     state = {open: false};
 
     private static Base = styled(Flex)`
@@ -369,30 +380,37 @@ export class OptionalParameter extends React.Component<{parameter: Types.Applica
         const {parameter, onUse} = this.props;
         const {open} = this.state;
 
+        const toggleOpen = ({preventDefault}: {preventDefault: () => void}) => {
+            preventDefault();
+            this.setState({open: !open});
+        };
+
+        const use = (e: SyntheticEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onUse();
+        };
+
         return (
             <Box mb={8}>
-                <OptionalParameter.Base onClick={(e) => (e.preventDefault(), this.setState({open: !open}))}>
+                <OptionalParameter.Base onClick={toggleOpen}>
                     <strong>{parameter.title}</strong>
                     {!open ?
                         <EllipsedText>
                             <Markdown
                                 source={parameter.description}
-                                allowedTypes={["text", "root", "paragraph"]} />
+                                allowedTypes={["text", "root", "paragraph"]}/>
                         </EllipsedText>
-                        : <Box flexGrow={1} />}
+                        : <Box flexGrow={1}/>}
 
                     <Button
                         type="button"
                         lineHeight={"16px"}
-                        onClick={e => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            onUse();
-                        }}>
+                        onClick={use}>
                         Use
-                </Button>
+                    </Button>
                 </OptionalParameter.Base>
-                {open ? <Markdown source={parameter.description} /> : null}
+                {open ? <Markdown source={parameter.description}/> : null}
             </Box>
         );
     }

@@ -91,12 +91,6 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     });
 
     useEffect(() => {
-
-        /* In place of 
-            new Set(page.data.items.flatMap(group =>
-                group.shares.map(group.sharedByMe ? share.sharedWith : group.sharedBy)
-            ));
-        */
         const usernames: Set<string> = new Set(page.data.items.map(group =>
             group.shares.map(share => group.sharedByMe ? share.sharedWith : group.sharedBy)
         ).reduce((acc, val) => acc.concat(val), []));
@@ -134,7 +128,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 toPage={page => setPage(page)}
             />
         </GroupedShareCard>)
-    }
+    };
 
     const header = props.byPath !== undefined ? null : (
         <SelectableTextWrapper>
@@ -174,7 +168,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 shares.length === 0 ?
                     <NoShares sharedByMe={sharedByMe} /> :
                     shares.map(it =>
-                        <GroupedShareCardWrapper shareByPath={it} />
+                        <GroupedShareCardWrapper key={it.path} shareByPath={it} />
                     )
             }
         </>
@@ -238,7 +232,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             <Flex alignItems={"center"}>
                 <Box ml="3px" mr="10px">
                     <FileIcon
-                        fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)} />
+                        fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
                 </Box>
                 <Link to={fileInfoPage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link>
                 <Box ml="auto" />
@@ -395,15 +389,6 @@ function sharePermissionsToText(rights: AccessRight[]): string {
     if (rights.indexOf(AccessRight.WRITE) !== -1) return CAN_EDIT_TEXT;
     else if (rights.indexOf(AccessRight.READ) !== -1) return CAN_VIEW_TEXT;
     else return "No permissions";
-}
-
-interface FileTypeGuess {
-    path: string
-}
-
-function fileTypeGuess({path}: FileTypeGuess) {
-    const hasExtension = path.split("/").pop()!.includes(".");
-    return hasExtension ? "FILE" : "DIRECTORY";
 }
 
 const receiveDummyShares = (itemsPerPage: number, page: number) => {

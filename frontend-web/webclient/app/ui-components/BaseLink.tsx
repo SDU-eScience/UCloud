@@ -9,7 +9,7 @@ const hoverColor = style({
   prop: 'hoverColor',
   cssProperty: 'color',
   key: 'colors'
-})
+});
 
 const BaseLink = styled.a<BaseLinkProps>`
   cursor: pointer;

@@ -2,7 +2,7 @@ import * as React from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import {defaultErrorHandler} from "UtilityFunctions";
-import {UserCreationState, UserCreationField} from ".";
+import {UserCreationState} from ".";
 import {Input, Label, Button} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {connect} from "react-redux";
@@ -32,7 +32,7 @@ function UserCreation(props: UserCreationOperations) {
         return () => promiseKeeper.cancelPromises();
     }, []);
 
-    function updateFields(field: UserCreationField, value: string) {
+    function updateFields(field: keyof UserCreationState, value: string) {
         if (field === "username") state.usernameError = false;
         else if (field === "password" || field === "repeatedPassword") state.passwordError = false;
         setState({...state, [field]: value});

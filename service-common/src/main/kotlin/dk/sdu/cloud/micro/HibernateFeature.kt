@@ -40,7 +40,8 @@ class HibernateFeature : MicroFeature {
                             showSQLInStdout = configuration.logSql,
                             username = null,
                             password = null,
-                            recreateSchemaOnStartup = false
+                            recreateSchemaOnStartup = false,
+                            defaultSchema = safeSchemaName(ctx.serviceDescription)
                         )
                     )
             }

@@ -7,6 +7,7 @@ import {ReduxObject} from "DefaultObjects";
 import {Upload} from "Uploader";
 import {Dispatch} from "redux";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
+import {Cloud} from "Authentication/SDUCloudObject";
 
 const BackgroundTasks = (props: {activeUploads: number, uploads: Upload[], showUploader: () => void}) => {
     const uploadsCount = props.activeUploads;
@@ -50,7 +51,7 @@ const mapStateToProps = ({uploader}: ReduxObject) => ({
 });
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: () => dispatch(setUploaderVisible(true))
+    showUploader: () => dispatch(setUploaderVisible(true, Cloud.homeFolder))
 });
 
 const TasksIcon = () => <TasksIconBase name="notchedCircle" />;

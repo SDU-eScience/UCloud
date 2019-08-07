@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.14.4'
+version '1.14.5'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.3-ElasticFeature.RC1"
+    ext.serviceCommonVersion = "1.5.4-ElasticFeature.RC1"
     ext.fileApiVersion = "1.8.0-REDIS.0"
 }
 
