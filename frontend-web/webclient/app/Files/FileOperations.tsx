@@ -98,7 +98,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) => {
             updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()})
         },
-        disabled: files => isAnyMockFile(files),
+        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files),
         icon: "verified"
     },
     {
