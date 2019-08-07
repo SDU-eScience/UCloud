@@ -6,7 +6,7 @@ import {RouteComponentProps, withRouter} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 
 interface ResolveHolder<T> {
-    resolve: (T) => void
+    resolve: (arg: T) => void
 }
 
 // The files table that most other clients should use as a base. This includes an embedded file selector for copy and
