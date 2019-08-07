@@ -26,7 +26,7 @@ import {
     isDirectory,
     isInvalidPathName,
     mergeFilePages, MOCK_RELATIVE,
-    MOCK_RENAME_TAG, MOCK_VIRTUAL,
+    MOCK_RENAME_TAG,
     mockFile,
     moveFile,
     replaceHomeFolder,
