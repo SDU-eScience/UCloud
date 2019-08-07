@@ -550,6 +550,12 @@ class LinuxFS(
                 ctx.outputSystemFile = systemFile
             } catch (ex: FileAlreadyExistsException) {
                 throw FSException.AlreadyExists()
+            } catch (ex: java.nio.file.FileSystemException) {
+                if (ex.message?.contains("Is a directory") == true) {
+                    throw FSException.BadRequest("Upload target is a not a directory")
+                } else {
+                    throw ex
+                }
             }
 
             FSResult(
