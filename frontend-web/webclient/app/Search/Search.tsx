@@ -24,6 +24,9 @@ import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {SelectableTextWrapper, SelectableText} from "ui-components";
 import {EmbeddedFileTable, FileTable} from "Files/FileTable"
+import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {FullAppInfo} from "Applications";
 
 function Search(props: SearchProps) {
     React.useEffect(() => {
@@ -93,9 +96,9 @@ function Search(props: SearchProps) {
     }
 
     const refreshFiles = () => props.searchFiles({...fileSearchBody()});
-    const {search, files, applications, filesLoading, applicationsLoading, errors} = props;
+    const {search, files, applications, applicationsLoading} = props;
 
-    const Tab = ({searchType}: { searchType: HeaderSearchType }): JSX.Element => (
+    const Tab = ({searchType}: {searchType: HeaderSearchType}): JSX.Element => (
         <SelectableText
             cursor="pointer"
             fontSize={2}
@@ -109,12 +112,12 @@ function Search(props: SearchProps) {
 
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
 
-    let main;
+    let main: React.ReactNode = null;
     const {priority} = props.match.params;
     if (priority === "files") {
         main = <>
             <Hide xxl xl lg>
-                <DetailedFileSearch cantHide/>
+                <DetailedFileSearch cantHide />
             </Hide>
 
             <EmbeddedFileTable
@@ -126,7 +129,7 @@ function Search(props: SearchProps) {
     } else if (priority === "applications") {
         main = <>
             <Hide xxl xl lg>
-                <DetailedApplicationSearch/>
+                <DetailedApplicationSearch />
             </Hide>
             <Pagination.List
                 loading={applicationsLoading}
@@ -134,6 +137,12 @@ function Search(props: SearchProps) {
                     <GridCardGroup>
                         {items.map(app =>
                             <ApplicationCard
+                                onFavorite={async () => props.setApplicationsPage(await favoriteApplicationFromPage({
+                                    name: app.metadata.name,
+                                    version: app.metadata.version,
+                                    page: props.applications,
+                                    cloud: Cloud
+                                }))}
                                 key={`${app.metadata.name}${app.metadata.version}`}
                                 app={app}
                                 isFavorite={app.favorite}
@@ -152,7 +161,7 @@ function Search(props: SearchProps) {
             header={
                 <React.Fragment>
                     <SelectableTextWrapper>
-                        {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index}/>)}
+                        {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
                     </SelectableTextWrapper>
                     <Spacer left={null} right={<Pagination.EntriesPerPageSelector
                         onChange={itemsPerPage => fetchAll(props.search, itemsPerPage)}
@@ -160,7 +169,7 @@ function Search(props: SearchProps) {
                         entriesPerPage={
                             priority === "files" ? props.files.itemsPerPage : (props.applications.itemsPerPage)
                         }
-                    />}/>
+                    />} />
                 </React.Fragment>
             }
             main={main}
@@ -194,9 +203,10 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
-const mapStateToProps = ({simpleSearch, detailedFileSearch, detailedApplicationSearch}: ReduxObject): SimpleSearchStateProps & { favFilesCount: number } => ({
+const mapStateToProps = ({simpleSearch, detailedFileSearch, detailedApplicationSearch}: ReduxObject): SimpleSearchStateProps & {favFilesCount: number, favAppCount: number} => ({
     ...simpleSearch,
     favFilesCount: simpleSearch.files.items.filter(it => it.favorited).length,
+    favAppCount: simpleSearch.applications.items.filter(it => it.favorite).length,
     fileSearch: detailedFileSearch,
     applicationSearch: detailedApplicationSearch
 });

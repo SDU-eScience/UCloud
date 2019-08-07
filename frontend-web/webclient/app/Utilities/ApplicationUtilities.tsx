@@ -1,5 +1,5 @@
 import {removeTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
-import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState, RunsSortBy} from "Applications";
+import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState, RunsSortBy, FullAppInfo, ApplicationMetadata} from "Applications";
 import Cloud from "Authentication/lib";
 import {Page} from "Types";
 import {expandHomeFolder} from "./FileUtilities";
@@ -59,10 +59,10 @@ export const cancelJobDialog = ({jobId, onConfirm, jobCount = 1}: {jobCount?: nu
 export const cancelJob = (cloud: Cloud, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
     cloud.delete(cancelJobQuery, {jobId});
 
-interface FavoriteApplicationFromPage {
+interface FavoriteApplicationFromPage<T> {
     name: string
     version: string
-    page: Page<WithAppMetadata & WithAppFavorite>
+    page: Page<{metadata: ApplicationMetadata, favorite: boolean} & T>
     cloud: Cloud
 }
 /**
@@ -70,7 +70,7 @@ interface FavoriteApplicationFromPage {
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = async ({name, version, page, cloud}: FavoriteApplicationFromPage): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
+export async function favoriteApplicationFromPage<T>({name, version, page, cloud}: FavoriteApplicationFromPage<T>): Promise<Page<T>> {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     try {
         await cloud.post(hpcFavoriteApp(name, version));
