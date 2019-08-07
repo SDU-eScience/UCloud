@@ -37,10 +37,11 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
     let failurePaths: string[] = [];
     let applyToAll = false;
     let policy = UploadPolicy.REJECT;
+    let allowRewrite = false;
 
     for (let i = 0; i < files.length; i++) {
         let f = files[i];
-        let {exists, allowRewrite, newPathForFile} = await moveCopySetup({
+        let {exists, newPathForFile, allowOverwrite} = await moveCopySetup({
             targetPath: targetPathFolder,
             path: f.path,
             cloud: Cloud
@@ -49,10 +50,10 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
             const result = await rewritePolicyDialog({
                 path: newPathForFile,
                 homeFolder: Cloud.homeFolder,
-                filesRemaining: files.length - i
+                filesRemaining: files.length - i,
+                allowOverwrite
             });
             if (result != false) {
-                allowRewrite = true;
                 allowRewrite = !!result.policy;
                 policy = result.policy as UploadPolicy;
                 if (files.length - i > 1) applyToAll = result.applyToAll;
@@ -91,13 +92,21 @@ interface MoveCopySetup {
 
 async function moveCopySetup({targetPath, path, cloud}: MoveCopySetup) {
     const newPathForFile = getNewPath(targetPath, path);
-    const exists = await checkIfFileExists(newPathForFile, cloud);
-    return {exists, allowRewrite: false, newPathForFile};
+    const stat = await statFileOrNull(newPathForFile);
+    return {exists: stat !== null, newPathForFile, allowOverwrite: stat ? stat.fileType !== "DIRECTORY" : true};
 }
 
 function onOnlySuccess({operation, fileCount}: { operation: string, fileCount: number }): void {
     snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
 }
+
+export const statFileOrNull = async (path: string): Promise<File | null> => {
+    try {
+        return (await Cloud.get<File>(statFileQuery(path))).response;
+    } catch (e) {
+        return null;
+    }
+};
 
 export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
     try {
