@@ -192,7 +192,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             .criteria<ShareEntity>(
                 orderBy = {
                     listOf(
-                        descending(entity[ShareEntity::state]),
+                        ascending(entity[ShareEntity::state]),
                         ascending(entity[ShareEntity::filename])
                     )
                 },
