@@ -263,6 +263,7 @@ class JobHibernateDao(
             pagination,
             orderBy = {
                 val field = when (sortBy) {
+                    JobSortBy.NAME -> JobInformationEntity::name
                     JobSortBy.STATE -> JobInformationEntity::state
                     JobSortBy.APPLICATION -> JobInformationEntity::application
                     JobSortBy.STARTED_AT -> JobInformationEntity::startedAt
