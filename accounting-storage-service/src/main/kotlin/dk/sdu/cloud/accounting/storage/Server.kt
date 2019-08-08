@@ -13,6 +13,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stopServices
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 
 class Server(
@@ -38,6 +39,7 @@ class Server(
                 storageAccountingService.collectCurrentStorageUsage()
             }
             log.info("Scan complete")
+            stopServices()
             return
         }
 
