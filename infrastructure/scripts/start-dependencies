@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -e
+script=`dirname "$0"`/development-utils/src/main/kotlin/Main.kt
+output=`kscript "$script" "$@"`
+bash $output
