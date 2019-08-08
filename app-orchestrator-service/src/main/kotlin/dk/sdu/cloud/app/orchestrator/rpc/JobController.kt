@@ -4,7 +4,6 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.fs.api.AppFileSystems
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.orchestrator.api.AppOrchestratorServiceDescription.name
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
@@ -73,6 +72,16 @@ class JobController<DBSession>(
             if (maxTime != null && maxTime.toMillis() > JOB_MAX_TIME) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Maximum job time exceeded")
             }
+
+            // Check name
+            if (request.name != null) {
+                val invalidChars = Regex("""(\.|/|\\|\n)""")
+                if (invalidChars.containsMatchIn(request.name!!)) {
+                    error(CommonErrorMessage("Provided name not allowed"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
+            }
+
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     ctx.bearer!!,
