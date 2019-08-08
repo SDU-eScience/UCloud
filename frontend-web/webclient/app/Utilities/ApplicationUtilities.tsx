@@ -1,5 +1,5 @@
 import {removeTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
-import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState, RunsSortBy, FullAppInfo, ApplicationMetadata} from "Applications";
+import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState, RunsSortBy, FullAppInfo, ApplicationMetadata, ApplicationInvocationDescription} from "Applications";
 import Cloud from "Authentication/lib";
 import {Page} from "Types";
 import {expandHomeFolder} from "./FileUtilities";
@@ -182,3 +182,56 @@ export const inCancelableState = (state: AppState) =>
     state === AppState.PREPARED ||
     state === AppState.SCHEDULED ||
     state === AppState.RUNNING;
+
+
+export function validateOptionalFields(
+    invocation: ApplicationInvocationDescription,
+    parameters: ParameterValues
+): boolean {
+    const optionalErrors = [] as string[];
+    const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it =>
+        ({name: it.name, title: it.title})
+    );
+    optionalParams.forEach(it => {
+        const param = parameters.get(it.name)!;
+        if (!param.current!.checkValidity()) optionalErrors.push(it.title);
+    });
+
+    if (optionalErrors.length > 0) {
+        snackbarStore.addFailure(
+            `Invalid values for ${optionalErrors.slice(0, 3).join(", ")}
+                    ${optionalErrors.length > 3 ? `and ${optionalErrors.length - 3} others` : ""}`,
+            5000
+        );
+        return false;
+    }
+
+    return true;
+}
+
+export function checkForMissingParameters(parameters: ExtractedParameters, invocation: ApplicationInvocationDescription ): boolean {
+    const requiredParams = invocation.parameters.filter(it => !it.optional);
+    const missingParameters: string[] = [];
+    requiredParams.forEach(rParam => {
+        const parameterValue = parameters[rParam.name];
+        // Number, string, boolean 
+        if (!parameterValue) missingParameters.push(rParam.title);
+        // { source, destination }, might need refactoring in the event that other types become objects
+        else if (typeof parameterValue === "object") {
+            if (!parameterValue.source) {
+                missingParameters.push(rParam.title);
+            }
+        }
+    });
+
+    // Check missing values for required input fields.
+    if (missingParameters.length > 0) {
+        snackbarStore.addFailure(
+            `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
+                ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,    
+            5000
+        );
+        return false;
+    }
+    return true;
+}

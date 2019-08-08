@@ -1,8 +1,7 @@
 import {Cloud} from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import {File, FileOperation, FileResource, FileType, MoveCopyOperations, SortBy, SortOrder} from "Files";
-import {Operation, Page} from "Types";
-import {History} from "history";
+import {File, FileResource, FileType, MoveCopyOperations, SortBy, SortOrder} from "Files";
+import {Page} from "Types";
 import * as UF from "UtilityFunctions";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
