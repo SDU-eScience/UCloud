@@ -491,7 +491,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
                                     const isSortedBy = sortBy === column;
 
-                                    return <FileTableHeaderCell notSticky={isEmbedded} width="10rem">
+                                    return <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
                                         <Flex backgroundColor="white" alignItems="center" cursor="pointer"
                                               justifyContent="left">
                                             <Box
