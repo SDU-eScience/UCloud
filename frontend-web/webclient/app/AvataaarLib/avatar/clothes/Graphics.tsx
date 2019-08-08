@@ -586,6 +586,128 @@ export class Teeth extends React.Component<Props> {
   }
 }
 
+export class Espie extends React.Component<Props> {
+  static optionValue = "Espie";
+
+  render() {
+    return (
+      <g
+    id='Clothing/Graphic/Espie'
+    mask={`url(#${this.props.maskID})`}
+    fillRule='evenodd'
+    fill='#FFFFFF'>
+    <g transform='translate(112, 62), scale(1.2)' id='Espie'>
+      <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer3">
+    <path
+       id="rect846"
+       d="m 72.239801,129.0199 c 4.567176,-0.97018 21.242761,-1.06097 31.253449,0.16475 -0.59458,3.08437 -1.45527,11.43253 -1.45527,11.43253 l -28.88426,0.007 c 0,0 0.06978,-3.20261 -0.913919,-11.60394 z"
+       style={{opacity:1, fill:"url(#linearGradient994)",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill",filter:"url(#filter1026)"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer2">
+    <path
+       id="path827"
+       d="m 104.14592,128.31626 c 0.29419,0.23026 0.27182,1.08728 0.27182,1.08728 0,0 -26.055892,-1.00962 -32.967888,-0.19416 l 0.03883,-1.00965 c 15.32689,-0.95441 29.130348,-0.20581 32.657238,0.11653 z"
+       style={{fill:"#f2e8d3",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1,filter:"url(#filter1110)"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     id="layer4">
+    <path
+       id="path850"
+       d="m 71.473109,130.385 c 1.844467,0.094 1.853656,1.59168 1.838977,3.70702 -0.01314,1.89366 -0.08435,3.88131 7.08e-4,5.73853 -0.587546,0.1628 -1.070861,-0.0275 -1.070861,-0.0275 0,0 0.174636,-8.24681 -0.768824,-9.41805 z"
+       style={{fill:"#f2e8d3",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"butt",strokeLinejoin:"miter",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,filter:"url(#filter1098)"}} />
+    <path
+       id="path850-3"
+       d="m 104.1176,130.51412 c -1.84625,0.0474 -1.89325,1.54437 -1.93199,3.6594 -0.0347,1.8934 -0.0134,3.88221 -0.14563,5.73668 0.58325,0.17759 1.07122,3e-5 1.07122,3e-5 0,0 0.0337,-8.24859 1.0064,-9.39563 z"
+       style={{fill:"#f2e8d3",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1,filter:"url(#filter1086)"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer7">
+    <circle
+       r="0.58247161"
+       cy="137.93317"
+       cx="97.86895"
+       id="path904"
+       style={{opacity:1,fill:"#1c1b1d",fillOpacity:1,stroke:"none",strokeWidth:0.42272726,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+    <circle
+       r="0.58247161"
+       cy="137.93671"
+       cx="96.07869"
+       id="path904-5"
+       style={{opacity:1,fill:"#1c1b1d",fillOpacity:1,stroke:"none",strokeWidth:0.42272726,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+    <rect
+       ry="0.48334357"
+       y="138.69104"
+       x="83.499702"
+       height="2.1554511"
+       width="8.5394306"
+       id="rect923"
+       style={{opacity:1,fill:"#1c1b1d",fillOpacity:0.76595746,stroke:"none",strokeWidth:0.4535872,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer5">
+    <circle
+       r="3.1453466"
+       cy="134.25743"
+       cx="80.109261"
+       id="path868"
+       style={{opacity:1,fill:"#f7f3f4",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+    <circle
+       r="3.1453466"
+       cy="134.3351"
+       cx="95.603004"
+       id="path868-6"
+       style={{opacity:1,fill:"#f7f3f4",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer6">
+    <circle
+       r="1.8833249"
+       cy="134.9758"
+       cx="80.167503"
+       id="path886"
+       style={{opacity:1,fill:"#1c1b1d",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+    <circle
+       r="1.8833249"
+       cy="134.91757"
+       cx="95.758331"
+       id="path886-7"
+       style={{opacity:1,fill:"#1c1b1d",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     id="layer9">
+    <circle
+       r="0.56305593"
+       cy="134.04385"
+       cx="80.905304"
+       id="path999"
+       style={{opacity:1,fill:"#ffffff",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+    <circle
+       r="0.56305593"
+       cy="133.94678"
+       cx="96.496132"
+       id="path999-3"
+       style={{opacity:1,fill:"#ffffff",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+  </g>
+</g>
+</g>
+    )
+  }
+}
+
 export default class Graphics extends React.Component<Props> {
   render() {
     return (
@@ -603,6 +725,7 @@ export default class Graphics extends React.Component<Props> {
         <Skull maskID={this.props.maskID} />
         <EScienceLogo maskID={this.props.maskID} />
         <Teeth maskID={this.props.maskID} />
+        <Espie maskID={this.props.maskID} />
       </Selector>
     )
   }
