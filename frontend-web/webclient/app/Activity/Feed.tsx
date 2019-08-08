@@ -85,7 +85,7 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
 
 export const ActivityFeedSpacer = (props: {height: number}) => (
     <tr style={{height: `${props.height}px`}} />
-)
+);
 
 interface ActivityFeedProps {
     activity: ActivityGroup
@@ -138,7 +138,7 @@ const operationToPastTense = (operation: Module.ActivityType): string => {
         case Module.ActivityType.MOVED: return "moved";
         case Module.ActivityType.UPDATED: return "updated";
     }
-}
+};
 
 interface EventIconAndColor {
     icon: IconName
@@ -159,7 +159,7 @@ const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
         default:
             return {icon: "ellipsis"};
     }
-}
+};
 
 function groupActivity(items: Module.Activity[] = []): ActivityGroup[] {
     const result: ActivityGroup[] = [];

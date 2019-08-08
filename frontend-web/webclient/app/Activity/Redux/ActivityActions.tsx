@@ -13,10 +13,10 @@ export const fetchActivity = async (scroll: ScrollRequest<number>, filter?: Acti
         const {response} = await Cloud.get(activityQuery(scroll, filter));
         return receiveActivity(response)
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "Could not fetch activity from server"))
+        snackbarStore.addFailure(errorMessageOrDefault(e, "Could not fetch activity from server"));
         return setErrorMessage();
     }
-}
+};
 
 export type ActivityActions =
     ActivityError |

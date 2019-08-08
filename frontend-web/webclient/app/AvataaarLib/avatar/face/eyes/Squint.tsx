@@ -2,15 +2,15 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 export default class Squint extends React.Component {
-  static optionValue = 'Squint'
+  static optionValue = 'Squint';
 
-  private path1 = uniqueId('react-path-')
-  private path2 = uniqueId('react-path-')
-  private mask1 = uniqueId('react-mask-')
-  private mask2 = uniqueId('react-mask-')
+  private path1 = uniqueId('react-path-');
+  private path2 = uniqueId('react-path-');
+  private mask1 = uniqueId('react-mask-');
+  private mask2 = uniqueId('react-mask-');
 
   render () {
-    const { path1, path2, mask1, mask2 } = this
+    const { path1, path2, mask1, mask2 } = this;
     return (
       <g id='Eyes/Squint-😊' transform='translate(0.000000, 8.000000)'>
         <defs>

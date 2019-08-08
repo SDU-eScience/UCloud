@@ -74,7 +74,7 @@ const PaginationButton = ({ onClick, ...props }) => (
 
 PaginationButtonBase.defaultProps = {
     theme
-}
+};
 
 const PaginationGroup = styled(Flex)`
     & > ${PaginationButtonBase} {

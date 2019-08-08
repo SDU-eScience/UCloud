@@ -4,14 +4,14 @@ import {generateId as uniqueId} from 'UtilityFunctions';
 import FacialHair from './facialHair'
 
 export default class NoHair extends React.Component {
-  static optionValue = 'NoHair'
+  static optionValue = 'NoHair';
 
-  private filter1 = uniqueId('react-filter-')
-  private mask1 = uniqueId('react-mask-')
-  private path1 = uniqueId('react-path-')
+  private filter1 = uniqueId('react-filter-');
+  private mask1 = uniqueId('react-mask-');
+  private path1 = uniqueId('react-path-');
 
   render () {
-    const { filter1, mask1, path1 } = this
+    const { filter1, mask1, path1 } = this;
     return (
       <g id='Top' strokeWidth='1' fillRule='evenodd'>
         <defs>

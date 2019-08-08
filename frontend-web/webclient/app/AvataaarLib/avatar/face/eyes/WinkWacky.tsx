@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 export default class WinkWacky extends React.Component {
-  static optionValue = 'WinkWacky'
+  static optionValue = 'WinkWacky';
 
   render () {
     return (

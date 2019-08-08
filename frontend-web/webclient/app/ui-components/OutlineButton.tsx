@@ -12,22 +12,22 @@ const size = ({ size, theme }: { size: string, theme: Theme }) => {
       return {
         fontSize: `${theme.fontSizes[0]}px`,
         padding: "3px 10px"
-      }
+      };
     case "small":
       return {
         fontSize: `${theme.fontSizes[0]}px`,
         padding: "5px 12px"
-      }
+      };
     case "medium":
       return {
         fontSize: `${theme.fontSizes[1]}px`,
         padding: "7.5px 18px"
-      }
+      };
     case "large":
       return {
         fontSize: `${theme.fontSizes[2]}px`,
         padding: "10px 22px"
-      }
+      };
     default:
       return {
         fontSize: `${theme.fontSizes[1]}px`,

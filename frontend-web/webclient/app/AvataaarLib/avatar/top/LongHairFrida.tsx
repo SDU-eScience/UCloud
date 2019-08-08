@@ -4,17 +4,17 @@ import {generateId as uniqueId} from 'UtilityFunctions';
 import FacialHair from './facialHair'
 
 export default class LongHairFrida extends React.Component {
-  static optionValue = 'LongHairFrida'
-  private filter1 = uniqueId('react-filter-')
-  private filter2 = uniqueId('react-filter-')
-  private filter3 = uniqueId('react-filter-')
-  private filter4 = uniqueId('react-filter-')
-  private filter5 = uniqueId('react-filter-')
-  private filter6 = uniqueId('react-filter-')
-  private filter7 = uniqueId('react-filter-')
-  private mask1 = uniqueId('react-mask-')
-  private path1 = uniqueId('react-path-')
-  private path2 = uniqueId('react-path-')
+  static optionValue = 'LongHairFrida';
+  private filter1 = uniqueId('react-filter-');
+  private filter2 = uniqueId('react-filter-');
+  private filter3 = uniqueId('react-filter-');
+  private filter4 = uniqueId('react-filter-');
+  private filter5 = uniqueId('react-filter-');
+  private filter6 = uniqueId('react-filter-');
+  private filter7 = uniqueId('react-filter-');
+  private mask1 = uniqueId('react-mask-');
+  private path1 = uniqueId('react-path-');
+  private path2 = uniqueId('react-path-');
 
   render () {
     const {
@@ -28,7 +28,7 @@ export default class LongHairFrida extends React.Component {
       mask1,
       path1,
       path2
-    } = this
+    } = this;
     return (
       <g id='Top' strokeWidth='1' fillRule='evenodd'>
         <defs>

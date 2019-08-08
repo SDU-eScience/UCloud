@@ -6,6 +6,7 @@ import {expandHomeFolder} from "./FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SortOrder} from "Files";
+import * as React from "react";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -21,12 +22,12 @@ export function hpcJobsQuery(
     maxTimestamp?: number,
     filter?: AppState
 ): string {
-    var query = `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
+    let query = `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (sortOrder) query = query.concat(`&order=${sortOrder}`);
     if (sortBy) query = query.concat(`&sortBy=${sortBy}`);
     if (minTimestamp != null) query = query.concat(`&minTimestamp=${minTimestamp}`);
     if (maxTimestamp != null) query = query.concat(`&maxTimestamp=${maxTimestamp}`);
-    if (filter != null) query = query.concat(`&filter=${filter}`)
+    if (filter != null) query = query.concat(`&filter=${filter}`);
     return query;
 }
 
@@ -103,7 +104,7 @@ export const extractParameters = ({parameters, allowedParameterKeys, siteVersion
         });
     }
     return extractedParameters;
-}
+};
 
 export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
 

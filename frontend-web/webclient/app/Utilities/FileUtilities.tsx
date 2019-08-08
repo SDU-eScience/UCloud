@@ -337,7 +337,7 @@ export const reclassifyFile = async ({file, sensitivity, cloud}: ReclassifyFile)
         sensitivity: serializedSensitivity
     }));
     if (isError(callResult)) {
-        snackbarStore.addSnack({message: (callResult as ErrorMessage).errorMessage, type: SnackType.Failure})
+        snackbarStore.addSnack({message: (callResult as ErrorMessage).errorMessage, type: SnackType.Failure});
         return file;
     }
     return {...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity};

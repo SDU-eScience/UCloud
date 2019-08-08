@@ -119,7 +119,7 @@ class Uploader extends React.Component<UploaderProps> {
                 this.props.onFilesUploaded(this.props.location);
             this.props.setUploads(this.props.uploads);
             this.startPending();
-        }
+        };
         upload.uploadXHR = xhr;
         this.props.setUploads(this.props.uploads);
     }
@@ -139,7 +139,7 @@ class Uploader extends React.Component<UploaderProps> {
         const setError = (err?: string) => {
             this.props.uploads[index].error = err;
             this.props.setUploads(this.props.uploads);
-        }
+        };
 
         if (!upload.extractArchive) {
             multipartUpload({
@@ -168,13 +168,13 @@ class Uploader extends React.Component<UploaderProps> {
             }).then(xhr => this.onUploadFinished(upload, xhr))
                 .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
         }
-    }
+    };
 
     private startAllUploads = (event: {preventDefault: () => void}) => {
         event.preventDefault();
         this.props.uploads.forEach(it => {if (!it.uploadXHR) it.isPending = true});
         this.startPending();
-    }
+    };
 
     private removeUpload = (index: number) => {
         const files = this.props.uploads.slice();
@@ -183,7 +183,7 @@ class Uploader extends React.Component<UploaderProps> {
             this.props.setUploads(remainderFiles);
             this.startPending();
         }
-    }
+    };
 
     private abort = async (index: number) => {
         const upload = this.props.uploads[index];
@@ -196,13 +196,13 @@ class Uploader extends React.Component<UploaderProps> {
             this.removeUpload(index);
             this.startPending();
         }
-    }
+    };
 
     private onExtractChange = (index: number, value: boolean) => {
         const uploads = this.props.uploads;
         uploads[index].extractArchive = value;
         this.props.setUploads(uploads);
-    }
+    };
 
     private updateSensitivity(index: number, sensitivity: Sensitivity) {
         const uploads = this.props.uploads;
@@ -228,9 +228,9 @@ class Uploader extends React.Component<UploaderProps> {
             maxWidth: "60rem",
             background: ""
         }
-    }
+    };
 
-    private clearUpload = (index: number) => this.props.setUploads(removeEntry(this.props.uploads, index))
+    private clearUpload = (index: number) => this.props.setUploads(removeEntry(this.props.uploads, index));
 
     private clearFinishedUploads = () =>
         this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)));
@@ -322,7 +322,7 @@ const privacyOptions = [
     {text: "Private", value: "PRIVATE"},
     {text: "Confidential", value: "CONFIDENTIAL"},
     {text: "Sensitive", value: "SENSITIVE"}
-]
+];
 
 const UploaderRow = (p: {
     upload: Upload,

@@ -24,8 +24,8 @@ interface AvataaarModificationOperations {
 }
 
 function Modification(props: AvataaarModificationOperations) {
-    const [avatar, setAvatar] = React.useState(defaultAvatar)
-    const [loading, setLoading] = React.useState(true)
+    const [avatar, setAvatar] = React.useState(defaultAvatar);
+    const [loading, setLoading] = React.useState(true);
 
     async function fetchAvatar(promises: PromiseKeeper) {
         try {

@@ -37,12 +37,14 @@ export const fetchAnalyses = async (
         snackbarStore.addFailure(errorMessageOrDefault(e, "Retrieval of analyses failed, please try again later."));
         return setError()
     }
-}
+};
 
 type ReceiveAnalysesProps = PayloadAction<typeof RECEIVE_ANALYSES, { page: Page<Analysis>, sortBy: RunsSortBy, sortOrder: SortOrder}>
 /**
  * Returns an action containing the page retrieved
- * @param {Page<Analysis>} page contains the analyses, pageNumber and items per page
+ * @param page contains the analyses, pageNumber and items per page
+ * @param sortBy is the field the analyses are sorted by
+ * @param sortOrder is the order the analyses are sorted
  */
 const receiveAnalyses = (page: Page<Analysis>, sortBy: RunsSortBy, sortOrder: SortOrder): ReceiveAnalysesProps => ({
     type: RECEIVE_ANALYSES,
@@ -84,4 +86,4 @@ export const checkAnalysis = (jobId: string, checked: boolean) => ({
         jobId,
         checked
     }
-})
+});

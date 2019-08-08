@@ -69,6 +69,6 @@ const detailedFileSearch = (state: DetailedFileSearchReduxState = initFilesDetai
         default:
             return state;
     }
-}
+};
 
 export default detailedFileSearch;

@@ -180,8 +180,7 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
     setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
     clear: () => {
-        dispatch(SSActions.receiveFiles(emptyPage))
-        dispatch(SSActions.receiveFiles(emptyPage))
+        dispatch(SSActions.receiveFiles(emptyPage));
     },
     searchFiles: async body => {
         dispatch(SSActions.setFilesLoading(true));

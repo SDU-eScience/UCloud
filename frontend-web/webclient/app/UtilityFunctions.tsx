@@ -15,7 +15,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 export const setSiteTheme = (isLightTheme: boolean): void => {
     const lightTheme = isLightTheme ? "light" : "dark";
     window.localStorage.setItem("theme", lightTheme);
-}
+};
 
 /**
  * Returns whether or not the value "light", "dark" or null is stored. 
@@ -25,7 +25,7 @@ export const isLightThemeStored = (): boolean => {
     const theme = window.localStorage.getItem("theme");
     if (theme === "dark") return false;
     else return true;
-}
+};
 
 /**
  * Capitalizes the input string

@@ -10,7 +10,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
 
-export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading: boolean}, TwoFactorSetupState> {
+export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading: boolean }, TwoFactorSetupState> {
     public state = this.initialState();
 
     public componentDidMount() {
@@ -42,7 +42,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
             <React.StrictMode>
                 <Heading.h1>Two Factor Authentication</Heading.h1>
                 <b>{this.displayConnectedStatus()}</b>
-                <Divider />
+                <Divider/>
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
             </React.StrictMode>
         );
@@ -70,12 +70,13 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
                 </p>
 
                 <Flex>
-                    <ExternalLink href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
-                        <Image width="150px" src={googlePlay} />
+                    <ExternalLink
+                        href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
+                        <Image width="150px" src={googlePlay}/>
                     </ExternalLink>
 
                     <ExternalLink href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
-                        <Image width="150px" src={appStore} />
+                        <Image width="150px" src={appStore}/>
                     </ExternalLink>
                 </Flex>
 
@@ -104,28 +105,31 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
 
         return (
             <div>
-                <Divider />
+                <Divider/>
                 <h4>Step One</h4>
                 <p>Open the 'Google Authenticator' app on your phone</p>
-                <Divider />
+                <Divider/>
 
                 <h4>Step Two</h4>
                 <p>Add a new authenticator by tapping the '+' icon.</p>
-                <Divider />
+                <Divider/>
 
                 <h4>Step Three</h4>
                 <p>Use the 'Scan a barcode option'</p>
-                <Divider />
+                <Divider/>
 
                 <h4>Step Four</h4>
                 <p>Scan the barcode below using your phone's camera</p>
-                <img src={this.state.qrCode} />
-                <Divider />
+                <img src={this.state.qrCode} alt="QRCode"/>
+                <Divider/>
 
                 <h4>Step Five</h4>
                 <p>Enter the verification code from your app in the field below.</p>
 
-                <form onSubmit={e => (e.preventDefault(), this.onVerificationSubmit())}>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    this.onVerificationSubmit()
+                }}>
                     <Input
                         placeholder="6-digit verification code"
                         value={this.state.verificationCode}

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { ScrollResult, ScrollRequest, ScrollSize } from "./Types";
-import { Flex, Button } from "ui-components";
+import {ScrollRequest, ScrollResult, ScrollSize} from "./Types";
+import {Button, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
 
 interface ListProps<Item, OffsetType> {
@@ -26,7 +26,7 @@ interface ListState {
 }
 
 export class List<Item, OffsetType> extends React.Component<ListProps<Item, OffsetType>, ListState> {
-    private eventListener: (e: UIEvent) => void
+    private eventListener: (e: UIEvent) => void;
     private container = React.createRef<HTMLElement>();
     private recordedHeights: number[] = [];
     private topOffset: number = -1;
@@ -46,8 +46,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
     }
 
      public shouldComponentUpdate(nextProps: ListProps<Item, OffsetType>, nextState: ListState) {
-        const result = this.state !== nextState || this.props !== nextProps;
-        return result;
+        return this.state !== nextState || this.props !== nextProps;
     }
 
     // FIXME, should be replaced;
@@ -81,7 +80,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
             const container = this.container.current;
             if (container !== null) {
                 const bodyRect = document.body.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect()
+                const containerRect = container.getBoundingClientRect();
                 this.topOffset = containerRect.top - bodyRect.top;
             } else {
                 this.topOffset = 0;
@@ -153,8 +152,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
 
             for (let i = initialElement; i < container.children.length - elementsToSkip; i++) {
                 const child = container.children[i];
-                const height = child.getBoundingClientRect().height;
-                this.recordedHeights[offset + i - initialElement] = height;
+                this.recordedHeights[offset + i - initialElement] = child.getBoundingClientRect().height;
             }
 
             if (this.averageComponentSize === -1) {

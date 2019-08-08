@@ -2,15 +2,15 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 export default class Vomit extends React.Component {
-  static optionValue = 'Vomit'
+  static optionValue = 'Vomit';
 
-  private path1 = uniqueId('react-path-')
-  private path2 = uniqueId('react-path-')
-  private mask1 = uniqueId('react-mask-')
-  private filter1 = uniqueId('react-filter-')
+  private path1 = uniqueId('react-path-');
+  private path2 = uniqueId('react-path-');
+  private mask1 = uniqueId('react-mask-');
+  private filter1 = uniqueId('react-filter-');
 
   render () {
-    const { path1, path2, filter1, mask1 } = this
+    const { path1, path2, filter1, mask1 } = this;
     return (
       <g id='Mouth/Vomit' transform='translate(2.000000, 52.000000)'>
         <defs>

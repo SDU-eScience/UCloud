@@ -2,12 +2,12 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 export default class Prescription01 extends React.Component {
-  static optionValue = 'Prescription01'
+  static optionValue = 'Prescription01';
 
-  private filter1 = uniqueId('react-filter-')
+  private filter1 = uniqueId('react-filter-');
 
   render () {
-    const { filter1 } = this
+    const { filter1 } = this;
     return (
       <g
         id='Top/_Resources/Prescription-01'

@@ -12,6 +12,6 @@ export const h4 = ({ children, ...props }: any) => (<Text as="h4" regular={true}
 export const h5 = ({ children, ...props }: any) => (<Text as="h5" bold={true} fontSize={2} m={0} {...props}>{children}</Text>);
 export const h6 = ({ children, ...props }: any) => (<Text as="h6" bold={true} caps={true} fontSize={0} m={0} {...props}>{children}</Text>);
 
-const Heading = h3
+const Heading = h3;
 
 export default Heading;

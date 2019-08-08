@@ -44,6 +44,6 @@ const Notifications = (
             return state;
         }
     }
-}
+};
 
 export default Notifications;

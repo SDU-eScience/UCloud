@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 export default class Cry extends React.Component {
-  static optionValue = 'Cry'
+  static optionValue = 'Cry';
 
   render () {
     return (

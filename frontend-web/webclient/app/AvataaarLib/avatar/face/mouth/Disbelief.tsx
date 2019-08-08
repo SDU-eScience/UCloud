@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 export default class Disbelief extends React.Component {
-  static optionValue = 'Disbelief'
+  static optionValue = 'Disbelief';
 
   render () {
     return (

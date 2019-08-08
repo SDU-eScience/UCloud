@@ -2,13 +2,13 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 export default class BlazerSweater extends React.Component {
-  static optionValue = 'BlazerSweater'
+  static optionValue = 'BlazerSweater';
 
-  private path1 = uniqueId('react-path-')
-  private mask1 = uniqueId('react-mask-')
+  private path1 = uniqueId('react-path-');
+  private mask1 = uniqueId('react-mask-');
 
   render () {
-    const { path1, mask1 } = this
+    const { path1, mask1 } = this;
     return (
       <g
         id='Clothing/Blazer-+-Sweater'

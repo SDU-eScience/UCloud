@@ -191,7 +191,7 @@ export const FileIcon = ({shared = false, link = false, fileIcon, size = 30}: Fi
                     </DropdownContent>
                 </Dropdown>
             </Absolute>
-        </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>
+        </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>;
 
 const RelativeFlex = styled(Flex)`
     position: relative;

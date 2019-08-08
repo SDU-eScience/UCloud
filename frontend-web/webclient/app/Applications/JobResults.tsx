@@ -142,7 +142,7 @@ function JobResults(props: AnalysesProps & { history: History }) {
     const [firstDate, setFirstDate] = React.useState<Date | null>(null);
     const [secondDate, setSecondDate] = React.useState<Date | null>(null);
 
-    const appStates = Object.keys(AppState).map(it => ({text: prettierString(it), value: it}))
+    const appStates = Object.keys(AppState).map(it => ({text: prettierString(it), value: it}));
     appStates.push({text: "Don't Filter", value: "Don't filter"});
 
     function fetchJobsInRange(minDate: Date | null, maxDate: Date | null) {

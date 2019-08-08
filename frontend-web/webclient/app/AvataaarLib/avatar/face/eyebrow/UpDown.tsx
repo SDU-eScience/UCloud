@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 export default class UpDown extends React.Component {
-  static optionValue = 'UpDown'
+  static optionValue = 'UpDown';
 
   render () {
     return (

@@ -109,7 +109,7 @@ export function LoadableMainContainer(props: LoadableMainContainerProps): JSX.El
     if (!props.loadable.content) {
         const main = !!props.loadable.error ?
             <Heading.h2>{props.loadable.error.statusCode} - {props.loadable.error.errorMessage}</Heading.h2> :
-            <Spinner size={24}/>
+            <Spinner size={24}/>;
         return <MainContainer
             header={props.fallbackHeader}
             sidebar={props.fallbackSidebar}
