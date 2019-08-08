@@ -1,5 +1,4 @@
 import {SensitivityLevel} from "DefaultObjects";
-import Cloud from "Authentication/lib";
 import {Cloud as currentCloud} from "Authentication/SDUCloudObject";
 import {SortBy, SortOrder, File, Acl, FileType} from "Files";
 import {dateToString} from "Utilities/DateUtilities";
@@ -194,40 +193,6 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     icon.ext = extensionFromPath(filePath);
 
     return icon;
-};
-
-
-interface CreateProject {
-    filePath: string
-    cloud: Cloud
-    navigate: (path: string) => void
-}
-
-// FIXME Remove navigation when backend support comes.
-export const createProject = ({filePath, cloud, navigate}: CreateProject) => {
-    cloud.put("/projects", {fsRoot: filePath}).then(() => {
-        redirectToProject({path: filePath, cloud, navigate, remainingTries: 5});
-    }).catch(() => snackbarStore.addSnack({
-        message: `An error occurred creating project ${filePath}`,
-        type: SnackType.Failure
-    }));
-};
-
-interface RedirectToProject {
-    path: string
-    cloud: Cloud
-    navigate: (path: string) => void
-    remainingTries: number
-}
-
-const redirectToProject = ({path, cloud, navigate, remainingTries}: RedirectToProject) => {
-    cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(() => navigate(path)).catch(_ => {
-        if (remainingTries > 0) {
-            setTimeout(() => redirectToProject({path, cloud, navigate, remainingTries: remainingTries - 1}), 400);
-        } else {
-            snackbarStore.addSnack({message: `Project ${path} is being created.`, type: SnackType.Success});
-        }
-    });
 };
 
 /**
