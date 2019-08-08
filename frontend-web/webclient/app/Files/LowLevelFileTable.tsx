@@ -299,6 +299,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 ]
             );
             setFileBeingRenamed(fileId);
+
+            if (!isEmbedded) window.scrollTo({ top: 0 });
         },
         startRenaming: file => setFileBeingRenamed(file.fileId!),
         requestFileSelector: async (allowFolders: boolean, canOnlySelectFolders: boolean) => {
@@ -333,6 +335,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const isMasterChecked = allFiles.length > 0 && allFiles.every(f => checkedFiles.has(f.fileId!) || f.mockTag !== undefined);
     const isAnyLoading = workLoading || pageLoading;
     const checkedFilesWithInfo = allFiles.filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
+    const onFileNavigation = (path: string) => {
+        setCheckedFiles(new Set());
+        setFileBeingRenamed(null);
+        setInjectedViaState([]);
+        if (!isEmbedded) window.scrollTo({ top: 0 });
+        props.onFileNavigation(path);
+    };
 
     // Loading state
     if (props.onLoadingState) props.onLoadingState(isAnyLoading);
@@ -394,7 +403,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 left={
                     <BreadCrumbs
                         currentPath={props.path ? props.path : ""}
-                        navigate={path => props.onFileNavigation(path)}
+                        navigate={path => onFileNavigation(path)}
                         homeFolder={Cloud.homeFolder}/>
                 }
 
@@ -553,7 +562,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                             }
                                             <Box ml="5px" pr="5px"/>
                                             <NameBox file={file} onRenameFile={onRenameFile}
-                                                     onNavigate={props.onFileNavigation}
+                                                     onNavigate={onFileNavigation}
                                                      callbacks={callbacks}
                                                      fileBeingRenamed={fileBeingRenamed}/>
                                         </Flex>

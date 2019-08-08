@@ -109,6 +109,7 @@ export const defaultFileOperations: FileOperation[] = [
             cb.invokeAsyncWork(async () => {
                 try {
                     await copyOrMoveFilesNew(CopyOrMove.Copy, files, target);
+                    cb.requestReload();
                 } catch (e) {
                     console.warn(e);
                 }
@@ -125,6 +126,7 @@ export const defaultFileOperations: FileOperation[] = [
             cb.invokeAsyncWork(async () => {
                 try {
                     await copyOrMoveFilesNew(CopyOrMove.Move, files, target);
+                    cb.requestReload();
                 } catch (e) {
                     console.warn(e);
                 }
