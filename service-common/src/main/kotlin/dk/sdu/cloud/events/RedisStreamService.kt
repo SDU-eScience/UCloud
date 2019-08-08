@@ -91,7 +91,7 @@ class RedisStreamService(
                     messages: List<StreamMessage<String, String>>
                 ) {
                     val events = messages.mapNotNull { message ->
-                        val textValue = message.body.values.first()
+                        val textValue = message.body?.values?.first() ?: return@mapNotNull null
                         if (textValue == STREAM_INIT_MSG) return@mapNotNull null
 
                         runCatching { stream.deserialize(textValue) }.getOrNull()
