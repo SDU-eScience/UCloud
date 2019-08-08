@@ -14,6 +14,6 @@ dependencies {
     // Internal services
 
     compile 'mbuhot:eskotlin:0.4.0'
-    compile 'dk.sdu.cloud:service-common:1.5.4-ElasticFeature.RC1'
+    compile 'dk.sdu.cloud:service-common:1.5.5'
     testCompile 'dk.sdu.cloud:service-common-test:1.5.4-ElasticFeature.RC1'
 }

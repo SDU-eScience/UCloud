@@ -5,11 +5,11 @@ import dk.sdu.cloud.service.Loggable
 import org.apache.http.HttpHost
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
-import org.apache.http.client.config.RequestConfig
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.elasticsearch.client.RestClient
-import org.elasticsearch.client.RestClientBuilder
 import org.elasticsearch.client.RestHighLevelClient
+import java.net.InetAddress
+import java.net.UnknownHostException
 
 class ElasticFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -65,13 +65,26 @@ class ElasticFeature : MicroFeature {
         internal val HIGH_LEVEL = MicroAttributeKey<RestHighLevelClient>("elastic-high-level-client")
         internal val LOW_LEVEL = MicroAttributeKey<RestClient>("elastic-low-level-client")
 
+        private fun testHostname(hostname: String): Boolean {
+            return try {
+                InetAddress.getByName(hostname)
+                true
+            } catch (ex: UnknownHostException) {
+                false
+            }
+        }
+
+        fun findValidHostname(hostnames: List<String>): String? {
+            return hostnames.find { testHostname(it) }
+        }
+
         //Config chunks
         val CONFIG_PATH = arrayOf("elk", "elasticsearch")
 
         data class Credentials(val username: String, val password: String)
 
         data class Config(
-            val hostname: String? = "localhost",
+            val hostname: String? = findValidHostname(listOf("elasticsearch", "localhost")),
             val port: Int? = 9200,
             val credentials: Credentials? = null
         )

@@ -38,7 +38,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version "1.5.4-ElasticFeature.RC1"
+version "1.5.5"
 
 
 apply plugin: "kotlin"
