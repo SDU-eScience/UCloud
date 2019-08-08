@@ -25,7 +25,7 @@ fun printHelp(): Nothing {
         """
              Usage: start-dependencies [args]
              
-             This application should be run with sdu-cloud repository as root.
+             This application should be run with sdu-cloud repository as current working directory.
              
              Args:
              
