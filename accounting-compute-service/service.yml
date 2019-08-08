@@ -1,0 +1,8 @@
+---
+name: accounting-compute
+
+namespaces:
+  - accounting.compute
+  - accounting.compute.timeUsed
+
+dependencies: []

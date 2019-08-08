@@ -1,0 +1,7 @@
+---
+name: support
+
+namespaces:
+  - support
+
+dependencies: []
