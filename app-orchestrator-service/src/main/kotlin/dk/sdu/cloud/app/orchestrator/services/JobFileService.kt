@@ -141,11 +141,17 @@ class JobFileService(
 
             jobFolderCache[job.owner] = homeFolder
 
+            val folderName: String = if (job.name == null) {
+                timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+            } else {
+                job.name + "-" + timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+            }
+
             return joinPath(
                 homeFolder,
                 "Jobs",
                 job.archiveInCollection,
-                timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+                folderName
             )
         }
     }
