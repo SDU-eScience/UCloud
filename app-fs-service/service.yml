@@ -1,0 +1,7 @@
+---
+name: app-fs
+
+namespaces:
+  - app-fs
+
+dependencies: []

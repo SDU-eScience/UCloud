@@ -25,6 +25,9 @@ export interface File {
     favorited: boolean | null
     sensitivityLevel: SensitivityLevelMap | null
     ownSensitivityLevel: SensitivityLevelMap | null
+    mockTag?: string
+
+    // TODO Delete below this line
     isChecked?: boolean
     beingRenamed?: boolean | null
     link: boolean
@@ -59,7 +62,6 @@ export enum FileResource {
     ACL = "acl",
     SENSITIVITY_LEVEL = "sensitivityLevel",
     OWN_SENSITIVITY_LEVEL = "ownSensitivityLevel",
-    LINK = "link",
     FILE_ID = "fileId",
     CREATOR = "creator"
 }
@@ -114,28 +116,19 @@ export interface FilesOperations extends ClearRefresh {
 }
 
 export interface FileSelectorProps {
-    allowUpload?: boolean
-    inputRef?: React.RefObject<HTMLInputElement>
-    showError?: boolean
-    onFileSelect: (file: {path: string}) => void
-    path: string
-    defaultValue?: string
-    isRequired?: boolean
+    initialPath?: string
+    onFileSelect: (file: {path: string} | null) => void
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
-    unitName?: string | React.ReactNode
-    unitWidth?: string | number | undefined
-    remove?: () => void
+    trigger: React.ReactNode
+    visible: boolean
+    disallowedPaths?: string[]
 }
 
-export interface FileSelectorState {
-    promises: PromiseKeeper
-    path: string
-    error?: string
-    loading: boolean
-    page: Page<File>
-    modalShown: boolean
-    isFavorites: boolean
+export enum FileSource {
+    HOME,
+    FAVORITES,
+    SHARES
 }
 
 export interface FilesTableProps {
@@ -169,7 +162,6 @@ export interface FilesTableHeaderProps {
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
     customEntriesWidth?: string
     notStickyHeader?: boolean
-    children: React.ReactNode
 }
 
 export interface FilenameAndIconsProps {
@@ -181,39 +173,6 @@ export interface FilenameAndIconsProps {
     onCheckFile?: (c: boolean) => void
     onFavoriteFile?: (files: File[]) => void
     onNavigationClick?: (path: string) => void
-}
-
-export interface FileSelectorModalProps {
-    toFavorites?: () => void
-    show: boolean
-    loading: boolean
-    path: string
-    onHide: () => void
-    page: Page<File>
-    setSelectedFile: (file: File) => void
-    fetchFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
-    fetchFavorites: (pageNumber: number, itemsPerPage: number) => void
-    disallowedPaths?: string[]
-    onlyAllowFolders?: boolean
-    canSelectFolders?: boolean
-    isFavorites: boolean
-    errorMessage?: string
-    onErrorDismiss?: () => void
-    navigate?: (path: string, pageNumber: number, itemsPerPage: number) => void
-}
-
-export interface FileSelectorBodyProps {
-    entriesPerPageSelector?: React.ReactNode
-    disallowedPaths?: string[]
-    onlyAllowFolders?: boolean
-    creatingFolder?: boolean
-    canSelectFolders: boolean
-    page: Page<File>
-    fetchFiles: (path: string) => void
-    setSelectedFile: Function
-    createFolder?: () => void
-    path: string
-    omitRelativeFolders: boolean
 }
 
 export interface MoveCopyOperations {

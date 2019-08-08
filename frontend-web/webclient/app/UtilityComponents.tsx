@@ -33,14 +33,14 @@ interface StandardDialog {
 }
 
 export function addStandardDialog({
-   title,
-   message,
-   onConfirm,
-   onCancel = () => undefined,
-   validator = () => true,
-   cancelText = "Cancel",
-   confirmText = "Confirm"
-}: StandardDialog) {
+                                      title,
+                                      message,
+                                      onConfirm,
+                                      onCancel = () => undefined,
+                                      validator = () => true,
+                                      cancelText = "Cancel",
+                                      confirmText = "Confirm"
+                                  }: StandardDialog) {
     dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>{title}</Heading.h3>
@@ -48,8 +48,14 @@ export function addStandardDialog({
             <Box>{message}</Box>
         </Box>
         <Flex mt="20px">
-            <Button onClick={() => { onCancel(); dialogStore.popDialog() }} color="red" mr="5px">{cancelText}</Button>
-            <Button onClick={() => { if (validator()) onConfirm(); dialogStore.popDialog() }} color="green">{confirmText}</Button>
+            <Button onClick={() => {
+                onCancel();
+                dialogStore.popDialog()
+            }} color="red" mr="5px">{cancelText}</Button>
+            <Button onClick={() => {
+                if (validator()) onConfirm();
+                dialogStore.popDialog()
+            }} color="green">{confirmText}</Button>
         </Flex>
     </Box>)
 }
@@ -59,15 +65,15 @@ export function sensitivityDialog(): Promise<{ cancelled: true } | { option: Sen
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
         message: (<Box>
-                <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
-                    <option value="INHERIT">Inherit</option>
-                    <option value="PRIVATE">Private</option>
-                    <option value="CONFIDENTIAL">Confidential</option>
-                    <option value="SENSITIVE">Sensitive</option>
-                </Select>
+            <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
+                <option value="INHERIT">Inherit</option>
+                <option value="PRIVATE">Private</option>
+                <option value="CONFIDENTIAL">Confidential</option>
+                <option value="SENSITIVE">Sensitive</option>
+            </Select>
         </Box>),
-        onConfirm: () => resolve({ option }),
-        onCancel: () => resolve({ cancelled: true }),
+        onConfirm: () => resolve({option}),
+        onCancel: () => resolve({cancelled: true}),
         confirmText: "Change"
     }));
 }
@@ -117,7 +123,7 @@ export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
         message: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
         cancelText: "Continue Upload",
         confirmText: "Cancel Upload",
-        onConfirm: () =>  resolve({}),
+        onConfirm: () => resolve({}),
         onCancel: () => resolve({cancelled: true})
     }));
 }
@@ -126,22 +132,24 @@ interface RewritePolicy {
     path: string
     homeFolder: string
     filesRemaining: number
+    allowOverwrite: boolean
 }
 
 type RewritePolicyResult = { policy: string, applyToAll: boolean } | false
 
-export function rewritePolicyDialog({path, homeFolder, filesRemaining}: RewritePolicy): Promise<RewritePolicyResult> {
+export function rewritePolicyDialog({path, homeFolder, filesRemaining, allowOverwrite}: RewritePolicy): Promise<RewritePolicyResult> {
     let policy = "RENAME";
     let applyToAll = false;
     return new Promise(resolve => dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>File exists</Heading.h3>
             <Divider/>
-            {replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it?
+            {replaceHomeFolder(path, homeFolder)} already
+            exists. {allowOverwrite ? "Do you want to overwrite it?" : "Do you wish to continue? Folders cannot be overwritten."}
             <Box mt="10px">
                 <Select onChange={e => policy = e.target.value} defaultValue="RENAME">
                     <option value="RENAME">Rename</option>
-                    <option value="OVERWRITE">Overwrite</option>
+                    {!allowOverwrite ? null : <option value="OVERWRITE">Overwrite</option>}
                 </Select>
                 {filesRemaining > 1 ?
                     <Flex mt="20px">
@@ -173,17 +181,17 @@ interface FileIconProps {
 
 export const FileIcon = ({shared = false, link = false, fileIcon, size = 30}: FileIconProps) =>
     link || shared ?
-    <RelativeFlex>
-        <FtIcon size={size} fileIcon={fileIcon}/>
-        <Absolute bottom={"-6px"} right={"-2px"}>
-            <Dropdown>
-                <Icon size="15px" name="link" color2="white"/>
-                <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
-                    <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
-                </DropdownContent>
-            </Dropdown>
-        </Absolute>
-    </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>
+        <RelativeFlex>
+            <FtIcon size={size} fileIcon={fileIcon}/>
+            <Absolute bottom={"-6px"} right={"-2px"}>
+                <Dropdown>
+                    <Icon size="15px" name="link" color2="white"/>
+                    <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
+                        <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
+                    </DropdownContent>
+                </Dropdown>
+            </Absolute>
+        </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>
 
 const RelativeFlex = styled(Flex)`
     position: relative;

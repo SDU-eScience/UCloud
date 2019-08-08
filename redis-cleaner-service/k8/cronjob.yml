@@ -22,6 +22,8 @@ spec:
             - /etc/token-validation
             - --config-dir
             - /etc/psql
+            imagePullSecrets:
+            - name: esci-docker
             volumeMounts:
             - mountPath: /etc/refresh-token
               name: refresh-token

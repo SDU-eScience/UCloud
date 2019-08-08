@@ -10,7 +10,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import java.util.*
 
-typealias BackgroundWorker = (requestType: String, requestMessage: String) -> BackgroundResponse
+typealias BackgroundWorker = (requestType: String, requestMessage: String, user: String) -> BackgroundResponse
 
 class BackgroundExecutor<Session>(
     private val db: DBSessionFactory<Session>,
@@ -30,7 +30,8 @@ class BackgroundExecutor<Session>(
             rescheduleIdleJobsAfterMs = 1000 * 60 * 60L,
             consumer = EventConsumer.Immediate { job ->
                 val response =
-                    handlers[job.requestType]?.invoke(job.requestType, job.requestMessage) ?: return@Immediate
+                    handlers[job.requestType]?.invoke(job.requestType, job.requestMessage, job.owner)
+                        ?: return@Immediate
 
                 db.withTransaction { session ->
                     dao.setResponse(session, job.jobId, response)

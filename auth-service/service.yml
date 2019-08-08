@@ -1,0 +1,9 @@
+---
+name: auth
+
+namespaces:
+  - auth
+  - auth.2fa
+  - auth.users
+
+dependencies: []

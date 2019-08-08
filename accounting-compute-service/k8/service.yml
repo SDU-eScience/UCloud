@@ -6,7 +6,7 @@ metadata:
   annotations:
     getambassador.io/config: |
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: accounting_compute
       prefix: ^/api/accounting/compute(/.*)?$
@@ -22,6 +22,5 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: 8080
-  ports:
   selector:
     app: accounting-compute

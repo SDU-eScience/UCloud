@@ -76,15 +76,6 @@
         "checksum": {
           "type": "object"
         },
-        "fileIsLink": {
-          "type": "boolean"
-        },
-        "linkTarget": {
-          "type": "text"
-        },
-        "linkTargetId": {
-          "type": "text"
-        },
         "sensitivity": {
           "type": "keyword"
         },

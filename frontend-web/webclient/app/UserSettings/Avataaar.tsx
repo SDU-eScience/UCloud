@@ -1,4 +1,4 @@
-import {default as Avataaar} from "avataaars";
+import {default as Avataaar} from "AvataaarLib";
 import * as React from "react";
 import * as Options from "./AvatarOptions";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -29,8 +29,8 @@ function Modification(props: AvataaarModificationOperations) {
 
     async function fetchAvatar(promises: PromiseKeeper) {
         try {
-            const {response} = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
-            setAvatar(response);
+            const r = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
+            setAvatar(r.response);
         } catch (e) {
             if (!e.isCanceled)
                 snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));

@@ -1,0 +1,8 @@
+---
+name: accounting-storage
+
+namespaces:
+  - accounting.storage
+  - accounting.storage.bytesUsed
+
+dependencies: []

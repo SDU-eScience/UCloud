@@ -8,27 +8,27 @@ const size = ({ size, theme }: { size: string, theme: Theme }) => {
       return {
         fontSize: `${theme.fontSizes[0]}px`,
         padding: "5px 10px"
-      }
+      };
     case "small":
       return {
         fontSize: `${theme.fontSizes[0]}px`,
         padding: "7px 12px"
-      }
+      };
     case "medium":
       return {
         fontSize: `${theme.fontSizes[1]}px`,
         padding: "9.5px 18px"
-      }
+      };
     case "large":
       return {
         fontSize: `${theme.fontSizes[2]}px`,
         padding: "12px 22px"
-      }
+      };
     default:
       return {
         fontSize: `${theme.fontSizes[1]}px`,
         padding: "9.5px 18px"
-      }
+      };
   }
 };
 

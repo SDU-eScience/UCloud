@@ -16,15 +16,6 @@ export const getQueryParam = (
     return parsed.get(key);
 };
 
-export const getQueryParamOrCompute = (
-    props: RouterLocationProps,
-    key: string,
-    orElse: () => string
-): string => {
-    const result = getQueryParam(props, key);
-    return result ? result : orElse();
-};
-
 export const getQueryParamOrElse = (
     props: RouterLocationProps,
     key: string,

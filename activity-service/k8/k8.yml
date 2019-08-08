@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: activity-service
-        image: registry.cloud.sdu.dk/sdu-cloud/activity-service:0.2.0
+        image: registry.cloud.sdu.dk/sdu-cloud/activity-service:1.4.5.RC-1
         command:
         - /opt/service/bin/service
         - --config-dir
@@ -26,6 +26,8 @@ spec:
         - /etc/service-config
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
         volumeMounts:
         - mountPath: /etc/psql
           name: psql-secrets
@@ -33,6 +35,8 @@ spec:
           name: refresh-token
         - mountPath: /etc/service-config
           name: service-config
+        - mountPath: /etc/token-validation
+          name: token-validation
 
       volumes:
       - name: psql-secrets
@@ -46,6 +50,9 @@ spec:
       - name: service-config
         configMap:
           name: activity-config
+      - name: token-validation
+        configMap:
+          name: token-validation
 
       imagePullSecrets:
         - name: esci-docker

@@ -12,7 +12,7 @@ const EntriesPerPageSelectorOptions = [
 ];
 
 const handleBoundaries = (page: string, maxPage: number) => 
-    Math.max(Math.min(parseInt(page), maxPage - 1), 0)
+    Math.max(Math.min(parseInt(page), maxPage - 1), 0);
 
 interface PaginationButtons { totalPages: number, currentPage: number, toPage: (p: number) => void }
 export function PaginationButtons({ totalPages, currentPage, toPage }: PaginationButtons) {
@@ -24,7 +24,7 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
                 <Input defaultValue={"1"} autoComplete="off" type="number" min={1} max={totalPages} ref={ref} />
                 <OutlineButton ml="2px" fullWidth onClick={() => toPage(ref.current && handleBoundaries(ref.current.value, totalPages) || 0)}>→</OutlineButton>
             </>) : null}
-        </Flex>)
+        </Flex>);
     const half = Math.floor((totalPages - 1) / 2);
     const upperQuarter = Math.floor(half + half / 2);
     const lowerQuarter = Math.floor(half - half / 2);
@@ -47,7 +47,7 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
             {inputField}
         </PaginationGroup>
     );
-};
+}
 
 
 const PaginationButtonBase = styled(Button) <{ unclickable?: boolean }>`

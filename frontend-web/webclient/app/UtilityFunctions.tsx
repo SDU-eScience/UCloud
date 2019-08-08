@@ -40,11 +40,11 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  * @param {Acl[]} acls - the list of access controls
  * @return {string}
  */
-export const getOwnerFromAcls = (acls?: Acl[]): string => {
+export const getMembersString = (acls?: Acl[]): string => {
     if (acls === undefined) return "N/A";
     const filteredAcl = acls.filter(it => it.entity !== currentCloud.activeUsername);
     if (filteredAcl.length > 0) {
-        return `${acls.length} members`;
+        return `${acls.length + 1} members`;
     } else {
         return "Only You";
     }
@@ -64,7 +64,7 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
             return sizeToString(file.size!);
         case SortBy.ACL:
             if (file.acl !== null)
-                return getOwnerFromAcls(file.acl);
+                return getMembersString(file.acl);
             else
                 return "";
         case SortBy.SENSITIVITY_LEVEL:
@@ -361,6 +361,7 @@ export function copyToClipboard({value, message}: CopyToClipboard) {
 
 export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: any} | {status: number, response: string}, defaultMessage: string): string {
     try {
+        if (typeof err == "string") return err;
         if ("status" in err) {
             return err.response;
         } else {
@@ -372,4 +373,19 @@ export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: a
     }
 }
 
+export function delay(ms: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), ms);
+    });
+}
+
 export const inDevEnvironment = () => process.env.NODE_ENV === "development";
+
+export var generateId = ((): (target: string) => string => {
+    const store = new Map<string, number>();
+    return (target = "default-target") => {
+        const idCount = (store.get(target) || 0) + 1;
+        store.set(target, idCount);
+        return `${target}${idCount}`;
+    }
+})();

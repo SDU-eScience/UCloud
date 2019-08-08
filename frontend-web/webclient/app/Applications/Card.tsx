@@ -228,7 +228,7 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color
         >
             <defs>
                 <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${(s32 * r1)}H-${(0.5 * r1)}Z`} />
-                <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fill-opacity=".55" />
+                <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fillOpacity=".55" />
                 <path id="hex_th___" d={`M-${r3} 0L-${(0.5 * r3)} ${(s32 * r3)}H${(0.5 * r3)}L${r3} 0L${(0.5 * r3)} -${(s32 * r3)}H-${(0.5 * r3)}Z`} />
             </defs>
             <g transform={`rotate(${rot} 0 0)`} >

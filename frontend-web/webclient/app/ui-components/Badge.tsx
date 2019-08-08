@@ -1,4 +1,4 @@
-import styled, {keyframes, ThemeConsumer} from "styled-components";
+import styled, {keyframes} from "styled-components";
 import {space, color, SpaceProps} from "styled-system";
 import theme, {ThemeColor, Theme} from "./theme";
 
@@ -40,9 +40,9 @@ export const colorScheme = (props: {theme: Theme, bg?: ThemeColor, color?: Theme
       backgroundColor: props.theme.colors.lightGray,
       color: props.theme.colors.text
     }
-  }
+  };
   return props.bg && props.color && (badgeColors[props.bg] || badgeColors.lightGray);
-}
+};
 
 const fadeIn = keyframes`
   from {
@@ -62,7 +62,7 @@ const Badge = styled.div<SpaceProps & {color?: ThemeColor, bg?: ThemeColor}>`
   text-transform: uppercase;
   letter-spacing: ${({theme}) => theme.letterSpacings.caps};
   ${space} ${colorScheme} ${color};
-`
+`;
 
 Badge.displayName = "Badge";
 
@@ -70,7 +70,7 @@ Badge.defaultProps = {
   px: 2,
   py: 1,
   theme
-}
+};
 
 const DevelopmentBadgeBase = styled(Badge)`
   background-color: ${({theme}) => theme.colors.red};

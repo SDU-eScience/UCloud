@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import {fileInfoPage, getFilenameFromPath} from "Utilities/FileUtilities";
+import {fileInfoPage, getFilenameFromPath, fileTablePage} from "Utilities/FileUtilities";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 import {Box, Card, Flex, Icon, Text, SelectableText, SelectableTextWrapper} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -91,12 +91,6 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     });
 
     useEffect(() => {
-
-        /* In place of 
-            new Set(page.data.items.flatMap(group =>
-                group.shares.map(group.sharedByMe ? share.sharedWith : group.sharedBy)
-            ));
-        */
         const usernames: Set<string> = new Set(page.data.items.map(group =>
             group.shares.map(share => group.sharedByMe ? share.sharedWith : group.sharedBy)
         ).reduce((acc, val) => acc.concat(val), []));
@@ -134,7 +128,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 toPage={page => setPage(page)}
             />
         </GroupedShareCard>)
-    }
+    };
 
     const header = props.byPath !== undefined ? null : (
         <SelectableTextWrapper>
@@ -174,7 +168,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 shares.length === 0 ?
                     <NoShares sharedByMe={sharedByMe} /> :
                     shares.map(it =>
-                        <GroupedShareCardWrapper shareByPath={it} />
+                        <GroupedShareCardWrapper key={it.path} shareByPath={it} />
                     )
             }
         </>
@@ -233,14 +227,17 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         }
     };
 
+    const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ? 
+        <Link to={fileTablePage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link> :
+        <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
     return <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" height="auto">
         <Heading.h4 mb={"10px"}>
             <Flex alignItems={"center"}>
                 <Box ml="3px" mr="10px">
                     <FileIcon
-                        fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)} />
+                        fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
                 </Box>
-                <Link to={fileInfoPage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link>
+                {folderLink}
                 <Box ml="auto" />
                 {groupedShare.sharedByMe ?
                     `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?
@@ -395,15 +392,6 @@ function sharePermissionsToText(rights: AccessRight[]): string {
     if (rights.indexOf(AccessRight.WRITE) !== -1) return CAN_EDIT_TEXT;
     else if (rights.indexOf(AccessRight.READ) !== -1) return CAN_VIEW_TEXT;
     else return "No permissions";
-}
-
-interface FileTypeGuess {
-    path: string
-}
-
-function fileTypeGuess({path}: FileTypeGuess) {
-    const hasExtension = path.split("/").pop()!.includes(".");
-    return hasExtension ? "FILE" : "DIRECTORY";
 }
 
 const receiveDummyShares = (itemsPerPage: number, page: number) => {

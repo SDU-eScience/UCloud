@@ -1,0 +1,8 @@
+---
+name: file-favorite
+
+namespaces:
+  - files.favorite
+
+dependencies:
+  - files

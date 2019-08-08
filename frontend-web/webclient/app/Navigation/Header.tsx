@@ -3,11 +3,26 @@ import {Cloud} from "Authentication/SDUCloudObject"
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
 import {Dispatch} from "redux";
-import Avatar from "avataaars";
+import Avatar from "AvataaarLib";
 import {History} from "history";
 import {HeaderStateToProps} from "Navigation";
 import {ReduxObject, KeyCode, HeaderSearchType} from "DefaultObjects";
-import {Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, Hide, Divider, SelectableText, SelectableTextWrapper} from "ui-components";
+import {
+    Flex,
+    Box,
+    Text,
+    Icon,
+    Relative,
+    Absolute,
+    Input,
+    Label,
+    Support,
+    Hide,
+    Divider,
+    SelectableText,
+    SelectableTextWrapper,
+    ExternalLink
+} from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -34,7 +49,6 @@ interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteCompone
 const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
     <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
 
-// NOTE: Ideal for hooks, if useRouter ever happens
 function Header(props: HeaderProps) {
 
     const searchRef = React.useRef<HTMLInputElement>(null);
@@ -72,6 +86,15 @@ function Header(props: HeaderProps) {
             <ClickableDropdown colorOnHover={false} width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ?
                 <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}>
                 <Box ml="-17px" mr="-17px" pl="15px">
+                    <ExternalLink color="black" href="https://status.cloud.sdu.dk">
+                        <Flex color="black">
+                            <Icon name="cloudTryingItsBest" mr="0.5em" my="0.2em" size="1.3em" />
+                            <TextSpan>Site status</TextSpan>
+                        </Flex>
+                    </ExternalLink>
+                </Box>
+                <Divider />
+                <Box ml="-17px" mr="-17px" pl="15px">
                     <Link color="black" to="/users/settings">
                         <Flex color="black">
                             <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
@@ -91,7 +114,7 @@ function Header(props: HeaderProps) {
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
-                <Divider />
+                {inDevEnvironment() ? <Divider /> : null}
                 <Flex onClick={e => (e.preventDefault(), e.stopPropagation(), props.toggleTheme())}>
                     <ThemeToggler isLightTheme={isLightThemeStored()} />
                 </Flex>
@@ -115,7 +138,7 @@ const HeaderContainer = styled(Flex)`
     top: 0;
     width: 100%;
     z-index: 100;
-    box-shadow: ${({theme}) => theme.shadows["sm"]};
+    box-shadow: ${({theme}) => theme.shadows.sm};
 `;
 
 const Logo = () => (
@@ -123,7 +146,8 @@ const Logo = () => (
         <Flex alignItems={"center"} ml="15px">
             <Icon name={"logoEsc"} size={"38px"} />
             <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
-            <Text ml={"4px"} mt={-7} style={{verticalAlign: "top", fontWeight: 700}} color="red" fontSize={17}>BETA</Text>
+            <Text ml={"4px"} mt={-7} style={{verticalAlign: "top", fontWeight: 700}} color="red"
+                fontSize={17}>BETA</Text>
         </Flex>
     </Link>
 );
@@ -271,7 +295,10 @@ interface HeaderOperations {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
-    fetchAvatar: async () => dispatch(await findAvatar()),
+    fetchAvatar: async () => {
+        const action = await findAvatar();
+        if (action !== null) dispatch(action);
+    },
     setSearchType: st => dispatch(setPrioritizedSearch(st)),
 });
 
@@ -283,10 +310,10 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 });
 
 const isAnyLoading = (rO: ReduxObject): boolean =>
-    rO.loading === true || rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
-    || rO.simpleSearch.applicationsLoading || rO.zenodo.loading || rO.activity.loading
+    rO.loading === true || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
+    || rO.simpleSearch.applicationsLoading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
-    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
+    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading
     || rO.accounting.resources["compute/timeUsed"].events.loading
     || rO.accounting.resources["storage/bytesUsed"].events.loading;
 

@@ -3,14 +3,14 @@ import styled from "styled-components";
 import {addTrailingSlash} from "UtilityFunctions";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
-const BreadCrumbsBase = styled.ul<{divider?: string}>`
+const BreadCrumbsBase = styled.ul<{ divider?: string }>`
     padding: 0;
     padding-right: 10px;
     margin: 0;
     list-style: none;
     max-width: 85%;
     height: 85px;
-    overflow-y: scroll;
+    overflow-y: auto;
 
     & li {
         display: inline;
@@ -37,9 +37,13 @@ const BreadCrumbsBase = styled.ul<{divider?: string}>`
 
 BreadCrumbsBase.defaultProps = {
     divider: "/"
-}
+};
 
-export interface BreadcrumbsList {currentPath: string, navigate: (path: string) => void, homeFolder: string}
+export interface BreadcrumbsList {
+    currentPath: string,
+    navigate: (path: string) => void,
+    homeFolder: string
+}
 
 export interface BreadCrumbMapping {
     actualPath: string
@@ -67,10 +71,14 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
             </li>
         </BreadCrumbsBase>
     );
-}
+};
 
-function buildBreadCrumbs(path: string, homeFolder: string) {
-    const paths = path.split("/").filter(path => path);
+function buildBreadCrumbs(path: string, homeFolder: string): BreadCrumbMapping[] {
+    const paths = path.split("/").filter(path => path !== "");
+    if (paths.length === 0) {
+        return [{actualPath: "/", local: "/"}];
+    }
+
     let pathsMapping: BreadCrumbMapping[] = [];
     for (let i = 0; i < paths.length; i++) {
         let actualPath = "/";
