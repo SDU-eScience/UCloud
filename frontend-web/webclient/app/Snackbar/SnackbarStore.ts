@@ -24,11 +24,10 @@ class SnackbarStore {
         }
     }
 
-    public addFailure(message: string, lifetime?: number) {
+    public addFailure(message: string) {
         this.addSnack({
             message,
-            type: SnackType.Failure,
-            lifetime
+            type: SnackType.Failure
         })
     }
 

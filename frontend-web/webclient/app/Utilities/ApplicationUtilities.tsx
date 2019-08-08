@@ -1,5 +1,5 @@
 import {removeTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
-import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState, RunsSortBy, FullAppInfo, ApplicationMetadata, ApplicationInvocationDescription} from "Applications";
+import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState, RunsSortBy, FullAppInfo, ApplicationMetadata} from "Applications";
 import Cloud from "Authentication/lib";
 import {Page} from "Types";
 import {expandHomeFolder} from "./FileUtilities";
@@ -105,26 +105,6 @@ export const extractParameters = ({parameters, allowedParameterKeys, siteVersion
     return extractedParameters;
 }
 
-export function findMissingParameters(
-    invocation: ApplicationInvocationDescription,
-    parameters: ExtractedParameters
-): string[] {
-    const requiredParams = invocation.parameters.filter(it => !it.optional);
-    const missingParameters: string[] = [];
-    requiredParams.forEach(rParam => {
-        const parameterValue = parameters[rParam.name];
-        // Number, string, boolean 
-        if (!parameterValue) missingParameters.push(rParam.title);
-        // { source, destination }, might need refactoring in the event that other types become objects
-        else if (typeof parameterValue === "object") {
-            if (!parameterValue.source) {
-                missingParameters.push(rParam.title);
-            }
-        }
-    });
-    return missingParameters;
-}
-
 export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
 
 
@@ -196,32 +176,6 @@ export function extractParametersFromMap({map, appParameters, cloud}: ExtractPar
     });
     return extracted;
 }
-
-export function validateOptionalFields(
-    parameterValues: Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>, 
-    invocation: ApplicationInvocationDescription
-): boolean {
-    const optionalErrors = [] as string[];
-    const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it =>
-        ({name: it.name, title: it.title})
-    );
-    optionalParams.forEach(it => {
-        const param = parameterValues.get(it.name)!;
-        if (!param.current!.checkValidity()) optionalErrors.push(it.title);
-    });
-
-    if (optionalErrors.length > 0) {
-        snackbarStore.addFailure(
-            `Invalid values for ${optionalErrors.slice(0, 3).join(", ")}
-                ${optionalErrors.length > 3 ? `and ${optionalErrors.length - 3} others` : ""}`,
-            5000
-        );
-        return false;
-    }
-    return true;
-}
-
-
 
 export const inCancelableState = (state: AppState) =>
     state === AppState.VALIDATED ||

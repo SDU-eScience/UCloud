@@ -29,9 +29,7 @@ import {
     hpcJobQueryPost,
     extractParametersFromMap,
     ParameterValues,
-    isFileOrDirectoryParam,
-    findMissingParameters,
-    validateOptionalFields
+    isFileOrDirectoryParam
 } from "Utilities/ApplicationUtilities";
 import {AppHeader} from "./View";
 import * as Heading from "ui-components/Heading";
@@ -39,7 +37,9 @@ import {
     checkIfFileExists,
     expandHomeFolder,
     fetchFileContent,
-    statFileQuery
+    statFileQuery,
+    filepathQuery,
+    favoritesQuery
 } from "Utilities/FileUtilities";
 import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -48,6 +48,8 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {addStandardDialog} from "UtilityComponents";
 import {File as CloudFile} from "Files";
 import {dialogStore} from "Dialog/DialogStore";
+import {Page} from "Types";
+import {emptyPage} from "DefaultObjects";
 import FileSelector from "Files/FileSelector";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
@@ -108,29 +110,62 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             appParameters: this.state.application!.invocation.parameters,
             cloud: Cloud
         });
-
-        const missingParameters = findMissingParameters(invocation, parameters);
+        const requiredParams = invocation.parameters.filter(it => !it.optional);
+        const missingParameters: string[] = [];
+        requiredParams.forEach(rParam => {
+            const parameterValue = parameters[rParam.name];
+            // Number, string, boolean 
+            if (!parameterValue) missingParameters.push(rParam.title);
+            // { source, destination }, might need refactoring in the event that other types become objects
+            else if (typeof parameterValue === "object") {
+                if (!parameterValue.source) {
+                    missingParameters.push(rParam.title);
+                }
+            }
+        });
 
         // FIXME: Not DRY 
 
         // Check missing values for required input fields.
         if (missingParameters.length > 0) {
-            snackbarStore.addFailure(
-                `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
-                    ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,
-                5000
-            );
+            snackbarStore.addSnack({
+                message: `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
+                 ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,
+                type: SnackType.Failure,
+                lifetime: 5000
+            });
             return;
         }
-        // Check optional input fields with errors
-        if (!validateOptionalFields(this.state.parameterValues, invocation)) return;
 
+        // Check optional input fields with errors
+        const optionalErrors = [] as string[];
+        const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it =>
+            ({name: it.name, title: it.title})
+        );
+        optionalParams.forEach(it => {
+            const param = this.state.parameterValues.get(it.name)!;
+            if (!param.current!.checkValidity()) optionalErrors.push(it.title);
+        });
+
+        if (optionalErrors.length > 0) {
+            snackbarStore.addSnack({
+                message: `Invalid values for ${optionalErrors.slice(0, 3).join(", ")}
+                    ${optionalErrors.length > 3 ? `and ${optionalErrors.length - 3} others` : ""}`,
+                type: SnackType.Failure,
+                lifetime: 5000
+            });
+            return;
+        }
 
         // FIXME END
 
         const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
-            snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", 5000);
+            snackbarStore.addSnack({
+                message: "Scheduling times must be more than 0 seconds.",
+                type: SnackType.Failure,
+                lifetime: 5000
+            });
             return;
         }
 
@@ -158,9 +193,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             type: "start"
         };
 
+        this.setState(() => ({jobSubmitted: true}));
+        this.props.setLoading(true);
         try {
-            this.setState(() => ({jobSubmitted: true}));
-            this.props.setLoading(true);
             const req = await Cloud.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
@@ -317,7 +352,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    private onFileSelection(file: {path: string}) {
+    private onFileSelection(file: { path: string }) {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -330,7 +365,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: {path: string}) => {
+    private fetchAndImportParameters = async (file: { path: string }) => {
         const fileStat = await Cloud.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
@@ -344,7 +379,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
         if (!application) return (
             <MainContainer
-                main={<LoadingIcon size={18} />}
+                main={<LoadingIcon size={18}/>}
             />
         );
 
@@ -356,7 +391,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const header = (
             <Flex ml="12%">
-                <AppHeader slim application={application} />
+                <AppHeader slim application={application}/>
             </Flex>
         );
 
@@ -432,7 +467,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 this.setState(() => ({fsShown: false}));
             }}
             trigger={null}
-            visible={this.state.fsShown} />;
+            visible={this.state.fsShown}/>;
 
         return (
             <MainContainer
@@ -552,7 +587,7 @@ const Parameters = (props: ParameterProps) => {
             />
 
             {optional.length > 0 ?
-                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)} />
+                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)}/>
                 : null
             }
         </form>
@@ -611,7 +646,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                     value={maxTime.hours}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     field="maxTime"
@@ -620,7 +655,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                     value={maxTime.minutes}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     field="maxTime"
@@ -640,7 +675,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                         value={numberOfNodes}
                         onChange={props.onChange}
                     />
-                    <Box ml="5px" />
+                    <Box ml="5px"/>
                     <SchedulingField
                         min={1}
                         field="tasksPerNode"
@@ -693,7 +728,7 @@ function exportParameters({application, schedulingOptions, parameterValues, moun
     const jobInfo = extractJobInfo(schedulingOptions);
     const element = document.createElement("a");
 
-    const values: {[key: string]: string} = {};
+    const values: { [key: string]: string } = {};
 
     for (const [key, ref] of parameterValues[Symbol.iterator]()) {
         if (ref && ref.current) values[key] = ref.current.value;
@@ -744,7 +779,7 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                                 importParameters(file);
                             dialogStore.popDialog();
                         }
-                    }} />
+                    }}/>
             </Button>
             <Button mt="6px" fullWidth onClick={() => (dialogStore.popDialog(), showFileSelector())}>
                 Select file from SDUCloud
