@@ -26,7 +26,7 @@ import {
     isDirectory,
     isInvalidPathName,
     mergeFilePages, MOCK_RELATIVE,
-    MOCK_RENAME_TAG, MOCK_VIRTUAL,
+    MOCK_RENAME_TAG,
     mockFile,
     moveFile,
     replaceHomeFolder,
@@ -206,6 +206,9 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
         const loading = pageLoading;
 
         const setSorting = (sortBy: SortBy, order: SortOrder, column?: number) => {
+            let sortByToUse = sortBy;
+            if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
+
             if (column !== undefined) {
                 setSortingColumnAt(sortBy, column as 0 | 1);
 
@@ -216,7 +219,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
 
             loadManaged({
                 ...pageParameters,
-                sortBy,
+                sortBy: sortByToUse,
                 order,
                 page: 0
             });
@@ -296,6 +299,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 ]
             );
             setFileBeingRenamed(fileId);
+
+            if (!isEmbedded) window.scrollTo({ top: 0 });
         },
         startRenaming: file => setFileBeingRenamed(file.fileId!),
         requestFileSelector: async (allowFolders: boolean, canOnlySelectFolders: boolean) => {
@@ -330,6 +335,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const isMasterChecked = allFiles.length > 0 && allFiles.every(f => checkedFiles.has(f.fileId!) || f.mockTag !== undefined);
     const isAnyLoading = workLoading || pageLoading;
     const checkedFilesWithInfo = allFiles.filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
+    const onFileNavigation = (path: string) => {
+        setCheckedFiles(new Set());
+        setFileBeingRenamed(null);
+        setInjectedViaState([]);
+        if (!isEmbedded) window.scrollTo({ top: 0 });
+        props.onFileNavigation(path);
+    };
 
     // Loading state
     if (props.onLoadingState) props.onLoadingState(isAnyLoading);
@@ -391,7 +403,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 left={
                     <BreadCrumbs
                         currentPath={props.path ? props.path : ""}
-                        navigate={path => props.onFileNavigation(path)}
+                        navigate={path => onFileNavigation(path)}
                         homeFolder={Cloud.homeFolder}/>
                 }
 
@@ -493,14 +505,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                     trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
                                                     chevron>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
-                                                         hidden={order === SortOrder.ASCENDING && isSortedBy}
+                                                         hidden={(order === SortOrder.ASCENDING && isSortedBy) || column === SortBy.ACL}
                                                          onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
                                                     >
                                                         {UF.prettierString(SortOrder.ASCENDING)}
                                                     </Box>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
                                                          onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                         hidden={order === SortOrder.DESCENDING && isSortedBy}
+                                                         hidden={(order === SortOrder.DESCENDING && isSortedBy) || column === SortBy.ACL}
                                                     >
                                                         {UF.prettierString(SortOrder.DESCENDING)}
                                                     </Box>
@@ -550,7 +562,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                             }
                                             <Box ml="5px" pr="5px"/>
                                             <NameBox file={file} onRenameFile={onRenameFile}
-                                                     onNavigate={props.onFileNavigation}
+                                                     onNavigate={onFileNavigation}
                                                      callbacks={callbacks}
                                                      fileBeingRenamed={fileBeingRenamed}/>
                                         </Flex>

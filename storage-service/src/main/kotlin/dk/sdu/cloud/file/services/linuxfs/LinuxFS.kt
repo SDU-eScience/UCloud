@@ -180,7 +180,9 @@ class LinuxFS(
             (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).toList()
         }.filter { !Files.isSymbolicLink(it.toPath()) }
 
-        val min = if (paginationRequest == null) 0 else paginationRequest.itemsPerPage * paginationRequest.page
+        val min =
+            if (paginationRequest == null) 0
+            else min(systemFiles.size, paginationRequest.itemsPerPage * paginationRequest.page)
         val max =
             if (paginationRequest == null) systemFiles.size
             else min(systemFiles.size, min + paginationRequest.itemsPerPage)
@@ -199,7 +201,7 @@ class LinuxFS(
                 FileSortBy.PATH -> FileAttribute.PATH
                 FileSortBy.CREATED_AT, FileSortBy.MODIFIED_AT -> FileAttribute.TIMESTAMPS
                 FileSortBy.SIZE -> FileAttribute.SIZE
-                FileSortBy.ACL -> FileAttribute.SHARES
+//                FileSortBy.ACL -> FileAttribute.SHARES
                 FileSortBy.SENSITIVITY -> FileAttribute.SENSITIVITY
                 null -> FileAttribute.PATH
             }
@@ -263,7 +265,7 @@ class LinuxFS(
         order: SortOrder
     ): Comparator<FileRow> {
         val naturalComparator: Comparator<FileRow> = when (sortBy) {
-            FileSortBy.ACL -> Comparator.comparingInt { it.shares.size }
+//            FileSortBy.ACL -> Comparator.comparingInt { it.shares.size }
 
             FileSortBy.CREATED_AT -> Comparator.comparingLong { it.timestamps.created }
 
@@ -548,6 +550,12 @@ class LinuxFS(
                 ctx.outputSystemFile = systemFile
             } catch (ex: FileAlreadyExistsException) {
                 throw FSException.AlreadyExists()
+            } catch (ex: java.nio.file.FileSystemException) {
+                if (ex.message?.contains("Is a directory") == true) {
+                    throw FSException.BadRequest("Upload target is a not a directory")
+                } else {
+                    throw ex
+                }
             }
 
             FSResult(

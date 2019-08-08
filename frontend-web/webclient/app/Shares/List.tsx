@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import {fileInfoPage, getFilenameFromPath} from "Utilities/FileUtilities";
+import {fileInfoPage, getFilenameFromPath, fileTablePage} from "Utilities/FileUtilities";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 import {Box, Card, Flex, Icon, Text, SelectableText, SelectableTextWrapper} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -227,6 +227,9 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         }
     };
 
+    const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ? 
+        <Link to={fileTablePage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link> :
+        <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
     return <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" height="auto">
         <Heading.h4 mb={"10px"}>
             <Flex alignItems={"center"}>
@@ -234,7 +237,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                     <FileIcon
                         fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
                 </Box>
-                <Link to={fileInfoPage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link>
+                {folderLink}
                 <Box ml="auto" />
                 {groupedShare.sharedByMe ?
                     `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?

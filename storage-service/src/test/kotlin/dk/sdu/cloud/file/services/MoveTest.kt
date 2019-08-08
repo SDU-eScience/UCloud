@@ -79,6 +79,34 @@ class MoveTest {
         }
     }
 
+    @Test(expected = FSException.AlreadyExists::class)
+    fun `test move to self`() {
+        val fsRoot = createDummyFS()
+        val (runner, service) = createService(fsRoot.absolutePath)
+
+        val child = "/home/user1/folder/a"
+        val existingFolder = File(fsRoot, "./$child")
+        Assert.assertTrue(existingFolder.exists())
+
+        runner.withBlockingContext("user1") {
+            service.move(it, child, child, WriteConflictPolicy.REJECT)
+        }
+    }
+
+    @Test(expected = FSException.BadRequest::class)
+    fun `test move into self`() {
+        val fsRoot = createDummyFS()
+        val (runner, service) = createService(fsRoot.absolutePath)
+
+        val child = "/home/user1/folder/a"
+        val existingFolder = File(fsRoot, "./$child")
+        Assert.assertTrue(existingFolder.exists())
+
+        runner.withBlockingContext("user1") {
+            service.move(it, child, "$child/a", WriteConflictPolicy.REJECT)
+        }
+    }
+
     @Test(expected = FSException.NotFound::class)
     fun `test moving to non existing location`() {
         val fsRoot = createDummyFS()

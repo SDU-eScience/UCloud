@@ -261,7 +261,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     private renderFilePanel() {
-        if (this.state.outputFolder === "") return null;
+        if (this.state.outputFolder === "" || this.state.appState !== AppState.SUCCESS) return null;
 
         return (
             <Panel>

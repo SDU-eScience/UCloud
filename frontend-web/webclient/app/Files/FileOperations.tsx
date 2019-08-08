@@ -98,7 +98,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) => {
             updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()})
         },
-        disabled: files => isAnyMockFile(files),
+        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files),
         icon: "verified"
     },
     {
@@ -109,6 +109,7 @@ export const defaultFileOperations: FileOperation[] = [
             cb.invokeAsyncWork(async () => {
                 try {
                     await copyOrMoveFilesNew(CopyOrMove.Copy, files, target);
+                    cb.requestReload();
                 } catch (e) {
                     console.warn(e);
                 }
@@ -125,6 +126,7 @@ export const defaultFileOperations: FileOperation[] = [
             cb.invokeAsyncWork(async () => {
                 try {
                     await copyOrMoveFilesNew(CopyOrMove.Move, files, target);
+                    cb.requestReload();
                 } catch (e) {
                     console.warn(e);
                 }

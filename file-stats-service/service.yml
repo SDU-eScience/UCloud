@@ -1,0 +1,10 @@
+---
+name: file-stats
+
+namespaces:
+  - files.stats
+  - accounting.compute.timeUsed
+
+dependencies:
+  - files
+  - indexing

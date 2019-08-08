@@ -50,6 +50,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import org.slf4j.Logger
+import java.io.File
 import java.security.SecureRandom
 import java.util.*
 
@@ -249,6 +250,19 @@ class Server(
         log.info("Access token expires in one year.")
         log.info("Password is: '$password'")
         log.info("---------------")
+
+        if (role == Role.ADMIN) {
+            val idx = micro.commandLineArguments.indexOf("--save-config")
+            if (idx != -1) {
+                val configLocation = micro.commandLineArguments.getOrNull(idx + 1) ?: return
+                File(configLocation).writeText(
+                    """
+                        ---
+                        refreshToken: "${token.refreshToken}"
+                    """.trimIndent()
+                )
+            }
+        }
     }
 
     override fun stop() {

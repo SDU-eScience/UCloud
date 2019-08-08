@@ -1,42 +1,12 @@
 package dk.sdu.cloud.share.services
 
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.asEnumSet
-import dk.sdu.cloud.service.asInt
-import dk.sdu.cloud.service.db.CriteriaBuilderContext
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
-import dk.sdu.cloud.service.db.WithTimestamps
-import dk.sdu.cloud.service.db.countWithPredicate
-import dk.sdu.cloud.service.db.createCriteriaBuilder
-import dk.sdu.cloud.service.db.createQuery
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.deleteCriteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
-import dk.sdu.cloud.service.db.paginatedList
-import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.share.api.ShareState
 import org.hibernate.ScrollMode
 import java.util.*
-import javax.persistence.Column
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.GeneratedValue
-import javax.persistence.Id
-import javax.persistence.Index
-import javax.persistence.Table
-import javax.persistence.Temporal
-import javax.persistence.TemporalType
-import javax.persistence.UniqueConstraint
+import javax.persistence.*
 import javax.persistence.criteria.Predicate
 
 private const val COL_FILE_ID = "file_id"
@@ -222,8 +192,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             .criteria<ShareEntity>(
                 orderBy = {
                     listOf(
-                        ascending(entity[ShareEntity::owner]),
-                        ascending(entity[ShareEntity::sharedWith]),
+                        ascending(entity[ShareEntity::state]),
                         ascending(entity[ShareEntity::filename])
                     )
                 },
@@ -305,10 +274,10 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
 
     override fun listAll(session: HibernateSession): Sequence<InternalShare> = sequence {
         session.createQuery("from ShareEntity").scroll(ScrollMode.FORWARD_ONLY).use { iterator ->
-             while (iterator.next()) {
-                 val entity = iterator.get(0) as? ShareEntity ?: break
-                 yield(entity.toModel())
-             }
+            while (iterator.next()) {
+                val entity = iterator.get(0) as? ShareEntity ?: break
+                yield(entity.toModel())
+            }
         }
     }
 
