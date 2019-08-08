@@ -80,7 +80,7 @@ fun main(args: Array<String>) {
     var port = 8001
     servicesToStart.forEach { (service, _) ->
         overrides[service.name] = ":$port"
-        service.dependencies.forEach { overrides[it] = ":$port" }
+        service.namespaces.forEach { overrides[it] = ":$port" }
         port++
     }
 
