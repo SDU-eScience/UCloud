@@ -45,8 +45,12 @@ import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {addStandardDialog} from "UtilityComponents";
+import {File as CloudFile} from "Files";
+import {dialogStore} from "Dialog/DialogStore";
+import FileSelector from "Files/FileSelector";
+import {AccessRight} from "Types";
 import * as AppFS from "Applications/FileSystems";
-import {SharedFileSystemMount} from "Applications/FileSystems";
 import Networking from "Applications/Networking";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
@@ -57,7 +61,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.state = {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
-            hasSentInitialSubmit: false,
+            initialSubmit: false,
 
             parameterValues: new Map(),
             mountedFolders: [],
@@ -72,7 +76,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             },
             favorite: false,
             favoriteLoading: false,
-            fsShown: false
+            fsShown: false,
+
+            sharedFileSystems: { mounts: [] }
         };
     };
 
@@ -100,7 +106,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
         const {invocation} = this.state.application;
-        this.setState(() => ({hasSentInitialSubmit: true}));
+        this.setState(() => ({initialSubmit: true}));
 
         const parameters = extractParametersFromMap({
             map: this.state.parameterValues,
@@ -111,7 +117,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const missingParameters: string[] = [];
         requiredParams.forEach(rParam => {
             const parameterValue = parameters[rParam.name];
-            // Number, string, boolean 
+            // Number, string, boolean
             if (!parameterValue) missingParameters.push(rParam.title);
             // { source, destination }, might need refactoring in the event that other types become objects
             else if (typeof parameterValue === "object") {
@@ -121,7 +127,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             }
         });
 
-        // FIXME: Not DRY 
+        // FIXME: Not DRY
 
         // Check missing values for required input fields.
         if (missingParameters.length > 0) {
@@ -435,7 +441,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                             parameterValues.set(p.name, React.createRef<HTMLSelectElement | HTMLInputElement>());
                         this.setState(() => ({application: this.state.application}));
                     }}
-                    onSharedMountsChange={mounts => this.setState({sharedFileSystems: {mounts}})}
                 />
             </ContainerForText>
         );
@@ -506,7 +511,7 @@ const SubmitButton = ({onSubmit, jobSubmitted}: SubmitButton) =>
     (<Button onClick={onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>);
 
 interface ParameterProps {
-    hasSentInitialSubmit: boolean
+    initialSubmit: boolean
     values: ParameterValues
     parameters: ApplicationParameter[]
     schedulingOptions: JobSchedulingOptionsForInput
@@ -518,7 +523,6 @@ interface ParameterProps {
     addFolder: () => void
     removeDirectory: (index: number) => void
     onAccessChange: (index: number, readOnly: boolean) => void
-    onSharedMountsChange: (mounts: SharedFileSystemMount[]) => void
 }
 
 const Parameters = (props: ParameterProps) => {
@@ -537,7 +541,7 @@ const Parameters = (props: ParameterProps) => {
         return (
             <Parameter
                 key={parameter.name}
-                hasSentInitialSubmit={props.hasSentInitialSubmit}
+                initialSubmit={props.initialSubmit}
                 parameterRef={ref}
                 parameter={parameter}
                 onParamRemove={() => props.onParameterChange(parameter, false)}
@@ -571,7 +575,7 @@ const Parameters = (props: ParameterProps) => {
                 <Box key={i} mb="7px">
                     <InputDirectoryParameter
                         defaultValue={entry.defaultValue}
-                        hasSentInitialSubmit={false}
+                        initialSubmit={false}
                         parameterRef={entry.ref}
                         onRemove={() => props.removeDirectory(i)}
                         parameter={{
@@ -597,7 +601,7 @@ const Parameters = (props: ParameterProps) => {
                 </Box>))}
 
             <Heading.h4>Shared File Systems</Heading.h4>
-            <AppFS.Management onMountsChange={mounts => props.onSharedMountsChange(mounts)}/>
+            <AppFS.Management onMountsChange={mounts => 42}/>
 
             <Heading.h4>Networking Peers</Heading.h4>
             <Networking />
