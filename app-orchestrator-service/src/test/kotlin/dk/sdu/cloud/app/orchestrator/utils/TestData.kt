@@ -96,6 +96,7 @@ val normTool = Tool("", 0L, 0L, normToolDesc)
 
 val verifiedJob = VerifiedJob(
     normAppDesc,
+    null,
     emptyList(),
     "verifiedId",
     "owner",
@@ -119,6 +120,7 @@ val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(
 
 val startJobRequest = StartJobRequest(
     NameAndVersion("name", "2.2"),
+    null,
     emptyMap(),
     1,
     1,
