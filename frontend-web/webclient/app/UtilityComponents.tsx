@@ -21,6 +21,7 @@ import styled from "styled-components";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {dialogStore} from "Dialog/DialogStore";
 import {SensitivityLevelMap} from "DefaultObjects";
+import {SortOrder} from "Files";
 
 interface StandardDialog {
     title?: string
@@ -197,15 +198,17 @@ const RelativeFlex = styled(Flex)`
     position: relative;
 `;
 
-/* FIXME: Add logic for arrows inside Arrow from SortBys and SortOrder */
-interface Arrow {
-    name: "arrowUp" | "arrowDown" | undefined
+interface Arrow<T> {
+    sortBy: T
+    activeSortBy: T
+    sortOrder: SortOrder
 }
 
-export function Arrow({name}: Arrow) {
-    if (name === "arrowUp") return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em"/>);
-    else if (name === "arrowDown") return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
-    return null;
+export function Arrow<T>({sortBy, activeSortBy, sortOrder}: Arrow<T>) {
+    if (sortBy !== activeSortBy) return null
+    else if (sortOrder === SortOrder.ASCENDING) 
+        return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em"/>);
+    else return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
 }
 
 export class PP extends React.Component<{ visible: boolean }, { duration: number }> {
