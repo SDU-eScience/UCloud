@@ -12,14 +12,14 @@ import styled from "styled-components";
 import {Link as ReactRouterLink} from "react-router-dom";
 import {colors} from "ui-components/theme";
 
-export class ActivityFeedFrame extends React.PureComponent<{containerRef?: React.RefObject<any>}> {
+export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: React.RefObject<any> }> {
     render() {
         return <Table>
             <TableHeader>
                 <TFRow>
-                    <TableHeaderCell width="12em" />
-                    <TableHeaderCell width="10.5em" />
-                    <TableHeaderCell width="99%" />
+                    <TableHeaderCell width="12em"/>
+                    <TableHeaderCell width="10.5em"/>
+                    <TableHeaderCell width="99%"/>
                 </TFRow>
             </TableHeader>
             <TableBody ref={this.props.containerRef}>
@@ -30,14 +30,14 @@ export class ActivityFeedFrame extends React.PureComponent<{containerRef?: React
 
 }
 
-export const ActivityFeed = ({activity}: {activity: Module.Activity[]}) => (
+export const ActivityFeed = ({activity}: { activity: Module.Activity[] }) => (
     <ActivityFeedFrame>
-        {groupActivity(activity).map((a, i) => <ActivityFeedItem key={i} activity={a} />)}
+        {groupActivity(activity).map((a, i) => <ActivityFeedItem key={i} activity={a}/>)}
     </ActivityFeedFrame>
 );
 
 // Performance note: Don't use styled components here.
-const ActivityEvent: React.FunctionComponent<{event: Module.Activity}> = props => (
+const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props => (
     <div>
         <b>
             <ReactRouterLink to={fileInfoPage(props.event.originalFilePath)}>
@@ -47,12 +47,12 @@ const ActivityEvent: React.FunctionComponent<{event: Module.Activity}> = props =
             </ReactRouterLink>
         </b>
         {" "}
-        <OperationText event={props.event} />
+        <OperationText event={props.event}/>
     </div>
 );
 
 // Performance note: Don't use styled components here.
-const OperationText: React.FunctionComponent<{event: Module.Activity}> = props => {
+const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props => {
     switch (props.event.type) {
         case Module.ActivityType.MOVED: {
             return <span>
@@ -61,7 +61,8 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
                 <b>
                     <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
                     <div className="ellipsis">
-                            <Text color="black">{replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}</Text>
+                            <Text
+                                color="black">{replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}</Text>
                         </div>
                     </ReactRouterLink>
                 </b>
@@ -83,9 +84,9 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
     }
 };
 
-export const ActivityFeedSpacer = (props: {height: number}) => (
-    <tr style={{height: `${props.height}px`}} />
-)
+export const ActivityFeedSpacer = (props: { height: number }) => (
+    <tr style={{height: `${props.height}px`}}/>
+);
 
 interface ActivityFeedProps {
     activity: ActivityGroup
@@ -102,19 +103,19 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
             <TableCell>
                 <Text fontSize={1} color="text">
                     {moment(new Date(activity.newestTimestamp)).fromNow()}
-                    <br />
+                    <br/>
                     {moment(new Date(activity.newestTimestamp)).format("lll")}
                 </Text>
             </TableCell>
             <TableCell>
                 <Flex>
-                    <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
+                    <Icon mr="0.5em" name={eventIcon(activity.type).icon}/>
                     <Text fontSize={2}>{`Files ${operationToPastTense(activity.type)}`}</Text>
                 </Flex>
             </TableCell>
             <TableCell>
                 {activity.items.map((item, idx) =>
-                    <ActivityEvent key={idx} event={item} />
+                    <ActivityEvent key={idx} event={item}/>
                 )}
 
                 {!!activity.numberOfHiddenResults ?
@@ -131,14 +132,20 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
 
 const operationToPastTense = (operation: Module.ActivityType): string => {
     switch (operation) {
-        case Module.ActivityType.DELETED: return "deleted";
-        case Module.ActivityType.DOWNLOAD: return "downloaded";
-        case Module.ActivityType.FAVORITE: return "favorited";
-        case Module.ActivityType.INSPECTED: return "inspected";
-        case Module.ActivityType.MOVED: return "moved";
-        case Module.ActivityType.UPDATED: return "updated";
+        case Module.ActivityType.DELETED:
+            return "deleted";
+        case Module.ActivityType.DOWNLOAD:
+            return "downloaded";
+        case Module.ActivityType.FAVORITE:
+            return "favorited";
+        case Module.ActivityType.INSPECTED:
+            return "inspected";
+        case Module.ActivityType.MOVED:
+            return "moved";
+        case Module.ActivityType.UPDATED:
+            return "updated";
     }
-}
+};
 
 interface EventIconAndColor {
     icon: IconName
@@ -159,7 +166,7 @@ const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
         default:
             return {icon: "ellipsis"};
     }
-}
+};
 
 function groupActivity(items: Module.Activity[] = []): ActivityGroup[] {
     const result: ActivityGroup[] = [];
