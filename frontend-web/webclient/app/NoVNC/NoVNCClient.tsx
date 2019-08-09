@@ -142,7 +142,7 @@ function NoVNCClient(props: RouterLocationProps) {
 
     const mountNode = <div className="noVNC"/>
     const main = <>
-        <Heading mb="5px">noVNC
+        <Heading mb="5px">
             {isConnected ? <OutlineButton ml="15px" mr="10px" onClick={() => disconnect()}>
                     Disconnect
                 </OutlineButton> :

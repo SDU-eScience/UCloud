@@ -61,6 +61,10 @@ interface WithAppFavorite {
     val favorite: Boolean
 }
 
+interface WithAllAppTags {
+    val tags: List<String>
+}
+
 data class ApplicationSummary(
     override val metadata: ApplicationMetadata
 ) : WithAppMetadata
@@ -75,12 +79,14 @@ data class Application(
 data class ApplicationWithFavorite(
     override val metadata: ApplicationMetadata,
     override val invocation: ApplicationInvocationDescription,
-    override val favorite: Boolean
-) : WithAppMetadata, WithAppInvocation, WithAppFavorite {
-    fun withoutInvocation(): ApplicationSummaryWithFavorite = ApplicationSummaryWithFavorite(metadata, favorite)
+    override val favorite: Boolean,
+    override val tags: List<String>
+) : WithAppMetadata, WithAppInvocation, WithAppFavorite, WithAllAppTags {
+    fun withoutInvocation(): ApplicationSummaryWithFavorite = ApplicationSummaryWithFavorite(metadata, favorite, tags)
 }
 
 data class ApplicationSummaryWithFavorite(
     override val metadata: ApplicationMetadata,
-    override val favorite: Boolean
-) : WithAppMetadata, WithAppFavorite
+    override val favorite: Boolean,
+    override val tags: List<String>
+) : WithAppMetadata, WithAppFavorite, WithAllAppTags

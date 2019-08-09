@@ -31,4 +31,6 @@ InputGroup.defaultProps = {
   borderColor: 'borderGray'
 };
 
+InputGroup.displayName = "InputGroup";
+
 export default InputGroup;

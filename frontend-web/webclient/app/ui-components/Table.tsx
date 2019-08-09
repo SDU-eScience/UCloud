@@ -6,19 +6,21 @@ import {
     width,
     MinWidthProps,
     minWidth,
-    backgroundColor,
-    BackgroundColorProps
+    ColorProps,
+    color
 } from "styled-system";
 import {Theme} from "./theme";
 import {Cursor} from "./Types";
 
-export const Table = styled.table<WidthProps & MinWidthProps & BackgroundColorProps>`
-    ${backgroundColor}
+export const Table = styled.table<WidthProps & MinWidthProps & ColorProps>`
+    ${color}
     border: 0px;
     border-spacing: 0;
     table-layout: fixed;
-    ${width} ${minWidth}
+    ${width} ${minWidth} ${color}
 `;
+
+Table.displayName = "Table";
 
 Table.defaultProps = {
     backgroundColor: "white",
@@ -28,15 +30,20 @@ Table.defaultProps = {
 
 export const TableBody = styled.tbody``;
 
+TableBody.displayName = "TableBody";
+
 export const TableCell = styled.td<TextAlignProps>`
     border: 0px;
     border-spacing: 0;
-    ${textAlign};
+    ${textAlign}
 `;
 
-const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) => highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
+TableCell.displayName = "TableCell";
 
-export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string, cursor?: Cursor} & BackgroundColorProps>`
+const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) =>
+    highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
+
+export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string, cursor?: Cursor} & ColorProps>`
     ${highlighted};
     cursor: ${props => props.cursor};
 
@@ -53,11 +60,15 @@ TableRow.defaultProps = {
     cursor: "auto"
 }
 
+TableRow.displayName = "TableRow";
+
 export const TableHeader = styled.thead`
     background-color: ${({theme}) => theme.colors.white};
     padding-top: 11px;
     padding-bottom: 11px;
 `;
+
+TableHeader.displayName = "TableHeader";
 
 export const TableHeaderCell = styled.th<TextAlignProps & WidthProps>`
     border-spacing: 0;
@@ -65,5 +76,7 @@ export const TableHeaderCell = styled.th<TextAlignProps & WidthProps>`
     ${textAlign};
     ${width} ${minWidth}
 `;
+
+TableHeaderCell.displayName = "TableHeaderCell";
 
 export default Table;

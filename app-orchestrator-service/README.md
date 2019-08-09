@@ -75,7 +75,7 @@ the job. This is required to account due to the container environment. The
 container environment allows the container to run as any UID, this includes
 root. The files are sanitized before being moved into the SDUCloud system.
 The sanitization step normalizes ACLs, file owners, and file permissions.
-This also triggers any relevant [storage events](../../../storage-service).
+This also triggers any relevant [storage events](../storage-service).
 
 ## Shared File Systems
 
@@ -86,7 +86,7 @@ mounted by one or more jobs. The files stored in these file systems are not
 managed by SDUCloud at all. The only way to import and export files to and
 from them is through applications.
 
-You can read more about this feature [here](../../../app-fs-service).
+You can read more about this feature [here](../app-fs-service).
 
 ## Networking and Peering with Other Applications
 

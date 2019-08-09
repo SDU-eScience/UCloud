@@ -79,7 +79,6 @@ class DetailedPage extends React.Component<DetailedPageProps> {
             pageRenderer={p => <Breakdown events={p.items} />}
             page={events.content || emptyPage}
             loading={events.loading}
-            errorMessage={events.error ? events.error.errorMessage : undefined}
             onPageChanged={(newPage, page) => this.props.fetchEvents(page.itemsPerPage, newPage)}
         />
     }

@@ -55,10 +55,8 @@ export function addStandardDialog(
                 dialogStore.popDialog()
             }} color="red" mr="5px">{cancelText}</Button>
             <Button onClick={() => {
-                if (validator()) {
-                    onConfirm();
-                    dialogStore.popDialog();
-                }
+                if (validator()) onConfirm();
+                dialogStore.popDialog()
             }} color="green">{confirmText}</Button>
         </Flex>
     </Box>)
@@ -136,22 +134,24 @@ interface RewritePolicy {
     path: string
     homeFolder: string
     filesRemaining: number
+    allowOverwrite: boolean
 }
 
 type RewritePolicyResult = { policy: string, applyToAll: boolean } | false
 
-export function rewritePolicyDialog({path, homeFolder, filesRemaining}: RewritePolicy): Promise<RewritePolicyResult> {
+export function rewritePolicyDialog({path, homeFolder, filesRemaining, allowOverwrite}: RewritePolicy): Promise<RewritePolicyResult> {
     let policy = "RENAME";
     let applyToAll = false;
     return new Promise(resolve => dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>File exists</Heading.h3>
             <Divider/>
-            {replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it?
+            {replaceHomeFolder(path, homeFolder)} already
+            exists. {allowOverwrite ? "Do you want to overwrite it?" : "Do you wish to continue? Folders cannot be overwritten."}
             <Box mt="10px">
                 <Select onChange={e => policy = e.target.value} defaultValue="RENAME">
                     <option value="RENAME">Rename</option>
-                    <option value="OVERWRITE">Overwrite</option>
+                    {!allowOverwrite ? null : <option value="OVERWRITE">Overwrite</option>}
                 </Select>
                 {filesRemaining > 1 ?
                     <Flex mt="20px">
@@ -199,6 +199,7 @@ const RelativeFlex = styled(Flex)`
     position: relative;
 `;
 
+/* FIXME: Add logic for arrows inside Arrow from SortBys and SortOrder */
 interface Arrow {
     name: "arrowUp" | "arrowDown" | undefined
 }

@@ -37,6 +37,18 @@ metadata:
       prefix_regex: true
       service: storage:8080
       method: DELETE
+
+      ---
+      apiVersion: ambassador/v1
+      kind: Mapping
+      name: storage_list_4
+      timeout_ms: 0
+      rewrite: ""
+      prefix: ^/api/files/workspaces(/)?$
+      prefix_regex: true
+      service: storage:8080
+      use_websocket: true
+
   name: storage
   namespace: default
 spec:

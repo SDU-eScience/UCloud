@@ -1,17 +1,17 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject";
+import {Cloud} from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
-import { defaultErrorHandler } from "UtilityFunctions";
-import { UserCreationState, UserCreationField } from ".";
-import { Input, Label, Button } from "ui-components";
+import {defaultErrorHandler} from "UtilityFunctions";
+import {UserCreationState} from ".";
+import {Input, Label, Button} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import { connect } from "react-redux";
-import { Dispatch } from "redux";
-import { setActivePage, SetStatusLoading, setLoading } from "Navigation/Redux/StatusActions";
-import { SidebarPages } from "ui-components/Sidebar";
-import { MainContainer } from "MainContainer/MainContainer";
-import { SnackType } from "Snackbar/Snackbars";
-import { snackbarStore } from "Snackbar/SnackbarStore";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {setActivePage, SetStatusLoading, setLoading} from "Navigation/Redux/StatusActions";
+import {SidebarPages} from "ui-components/Sidebar";
+import {MainContainer} from "MainContainer/MainContainer";
+import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const initialState: UserCreationState = {
     submitted: false,
@@ -32,10 +32,10 @@ function UserCreation(props: UserCreationOperations) {
         return () => promiseKeeper.cancelPromises();
     }, []);
 
-    function updateFields(field: UserCreationField, value: string) {
+    function updateFields(field: keyof UserCreationState, value: string) {
         if (field === "username") state.usernameError = false;
         else if (field === "password" || field === "repeatedPassword") state.passwordError = false;
-        setState({ ...state, [field]: value });
+        setState({...state, [field]: value});
     }
 
     async function submit(e: React.SyntheticEvent) {
@@ -43,24 +43,24 @@ function UserCreation(props: UserCreationOperations) {
 
         let usernameError = false;
         let passwordError = false;
-        const { username, password, repeatedPassword } = state;
+        const {username, password, repeatedPassword} = state;
         if (!username) usernameError = true;
         if (!password || password !== repeatedPassword) passwordError = true;
-        setState({ ...state, usernameError, passwordError });
+        setState({...state, usernameError, passwordError});
         if (!usernameError && !passwordError) {
             try {
                 props.setLoading(true);
-                await promiseKeeper.makeCancelable(Cloud.post("/auth/users/register", { username, password }, "")).promise;
-                snackbarStore.addSnack({ message: `User '${username}' successfully created`, type: SnackType.Success });
+                await promiseKeeper.makeCancelable(Cloud.post("/auth/users/register", {username, password}, "")).promise;
+                snackbarStore.addSnack({message: `User '${username}' successfully created`, type: SnackType.Success});
                 setState(() => initialState);
             } catch (e) {
                 const status = defaultErrorHandler(e);
                 if (status == 400) {
-                    snackbarStore.addSnack({ 
+                    snackbarStore.addSnack({
                         message: "User already exists",
                         type: SnackType.Information
                     });
-                    setState({ ...state, usernameError: true });
+                    setState({...state, usernameError: true});
                 }
             } finally {
                 props.setLoading(false);
@@ -94,7 +94,7 @@ function UserCreation(props: UserCreationOperations) {
                     <Input
                         value={username}
                         color={usernameError ? "red" : "gray"}
-                        onChange={({ target: { value } }) => updateFields("username", value)}
+                        onChange={({target: {value}}) => updateFields("username", value)}
                         placeholder="Username..."
                     />
                 </Label>
@@ -104,7 +104,7 @@ function UserCreation(props: UserCreationOperations) {
                         value={password}
                         type="password"
                         color={passwordError ? "red" : "gray"}
-                        onChange={({ target: { value } }) => updateFields("password", value)}
+                        onChange={({target: {value}}) => updateFields("password", value)}
                         placeholder="Password..."
                     />
                 </Label>
@@ -114,7 +114,7 @@ function UserCreation(props: UserCreationOperations) {
                         value={repeatedPassword}
                         type="password"
                         color={passwordError ? "red" : "gray"}
-                        onChange={({ target: { value } }) => updateFields("repeatedPassword", value)}
+                        onChange={({target: {value}}) => updateFields("repeatedPassword", value)}
                         placeholder="Repeat password..."
                     />
                 </Label>

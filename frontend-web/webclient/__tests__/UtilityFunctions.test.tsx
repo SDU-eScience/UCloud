@@ -141,11 +141,11 @@ const mockAcls: Acl[] = [
 ]
 
 test("Get multiple owners from Acls", () =>
-    expect(UF.getOwnerFromAcls(mockAcls)).toBe("1 members")
+    expect(UF.getMembersString(mockAcls)).toBe("2 members")
 );
 
 test("Get single owner from Acls", () =>
-    expect(UF.getOwnerFromAcls([])).toBe("Only You")
+    expect(UF.getMembersString([])).toBe("Only You")
 );
 
 // Get extension from path
@@ -269,7 +269,7 @@ describe("sortingColumnToValue", () => {
         expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size as number))
     })
     test("ACL", () => {
-        expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getOwnerFromAcls(file.acl as Acl[]))
+        expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getMembersString(file.acl as Acl[]))
     })
     test("SENSITIVITY", () => {
         expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file)).toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])

@@ -1,39 +1,39 @@
-import {default as Avataaar} from "avataaars";
+import {default as Avataaar} from "AvataaarLib";
 import * as React from "react";
 import * as Options from "./AvatarOptions";
 import {MainContainer} from "MainContainer/MainContainer";
-import {Select, Label, Box, Flex, OutlineButton, Error} from "ui-components";
+import {Select, Label, Box, Flex, OutlineButton} from "ui-components";
 import Spinner from "LoadingIcon/LoadingIcon";
 import {connect} from "react-redux";
 import {ReduxObject} from "DefaultObjects";
 import {Dispatch} from "redux";
-import {saveAvatar, setAvatarError} from "./Redux/AvataaarActions";
+import {saveAvatar} from "./Redux/AvataaarActions";
 import PromiseKeeper from "PromiseKeeper";
 import {findAvatarQuery} from "Utilities/AvatarUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {setActivePage} from "Navigation/Redux/StatusActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {errorMessageOrDefault} from "UtilityFunctions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
-type AvataaarModificationStateProps = AvatarType & { error?: string };
+type AvataaarModificationStateProps = AvatarType;
 
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void
     setActivePage: () => void
-    setError: (err?: string) => void
 }
 
-function Modification(props: AvataaarModificationOperations & { error?: string }) {
+function Modification(props: AvataaarModificationOperations) {
     const [avatar, setAvatar] = React.useState(defaultAvatar)
     const [loading, setLoading] = React.useState(true)
 
     async function fetchAvatar(promises: PromiseKeeper) {
         try {
-            const {response} = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
-            setAvatar(response);
+            const r = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
+            setAvatar(r.response);
         } catch (e) {
             if (!e.isCanceled)
-                props.setError(errorMessageOrDefault(e, "An error occurred fetching current Avatar"))
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));
         } finally {
             setLoading(false);
         }
@@ -47,11 +47,10 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
 
     return (
         <MainContainer
-            headerSize={220 + (!props.error ? 0 : 60)}
+            headerSize={220}
             header={<>
-                <Error error={props.error} clearError={() => props.setError()}/>
                 <Flex>
-                    <Box ml="auto"/>
+                    <Box ml="auto" />
                     <Avataaar
                         style={{height: "150px"}}
                         avatarStyle="circle"
@@ -68,7 +67,7 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
                         mouthType={avatar.mouthTypes}
                         skinColor={avatar.skinColors}
                     />
-                    <Box mr="auto"/>
+                    <Box mr="auto" />
                 </Flex>
                 <Flex>
                     <OutlineButton
@@ -82,7 +81,7 @@ function Modification(props: AvataaarModificationOperations & { error?: string }
                 </Flex></>}
 
             main={
-                loading ? (<Spinner size={24}/>) : <>
+                loading ? (<Spinner size={24} />) : <>
                     <AvatarSelect
                         defaultValue={avatar.top}
                         update={value => setAvatar({...avatar, top: value})}
@@ -185,7 +184,7 @@ function AvatarSelect<T1, T2>({update, options, title, disabled, defaultValue}: 
     return (
         <Label mt="0.8em">{title}
             <Select defaultValue={defaultValue}
-                    onChange={({target: {value}}: { target: { value: T1 } }) => update(value)}>
+                onChange={({target: {value}}: {target: {value: T1}}) => update(value)}>
                 {Object.keys(options).map(it => <option key={it}>{it}</option>)}
             </Select>
         </Label>
@@ -195,8 +194,7 @@ function AvatarSelect<T1, T2>({update, options, title, disabled, defaultValue}: 
 const mapStateToProps = ({avatar}: ReduxObject): AvataaarModificationStateProps => avatar;
 const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
     save: async avatar => dispatch(await saveAvatar(avatar)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
-    setError: error => dispatch(setAvatarError(error))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.None))
 });
 
 const defaultAvatar = ({

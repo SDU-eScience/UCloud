@@ -1,7 +1,9 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.app.orchestrator.api.JobSortBy
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.SortOrder
 
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -41,7 +43,11 @@ interface JobDao<Session> {
         session: Session,
         owner: SecurityPrincipalToken,
         pagination: NormalizedPaginationRequest,
-        state: JobState?
+        order: SortOrder = SortOrder.DESCENDING,
+        sortBy: JobSortBy = JobSortBy.STARTED_AT,
+        minTimestamp: Long? = null,
+        maxTimestamp: Long? = null,
+        filter: JobState? = null
     ): Page<VerifiedJobWithAccessToken>
 
     suspend fun findJobsCreatedBefore(

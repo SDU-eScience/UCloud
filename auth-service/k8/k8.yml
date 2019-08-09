@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: registry.cloud.sdu.dk/sdu-cloud/auth-service:1.2.1
+        image: registry.cloud.sdu.dk/sdu-cloud/auth-service:1.22.5-EDUGAIN.0
         command:
         - /opt/service/bin/service
         - --config-dir
@@ -26,6 +26,11 @@ spec:
         - /etc/auth-config
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/wayf-config
+
         volumeMounts:
         - mountPath: /etc/psql
           name: psql-secrets
@@ -35,22 +40,44 @@ spec:
           name: config
         - mountPath: /etc/refresh-token
           name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/wayf-certs
+          name: auth-wayf
+        - mountPath: /etc/wayf-config
+          name: auth-wayf-config
 
       volumes:
       - name: psql-secrets
         secret:
+          defaultMode: 420
           optional: false
           secretName: auth-psql
       - name: cert-secrets
         secret:
+          defaultMode: 420
           optional: false
           secretName: auth-certs
-      - name: config
-        configMap:
+      - configMap:
+          defaultMode: 420
           name: auth-config
+        name: config
       - name: refresh-token
         secret:
+          defaultMode: 420
           secretName: auth-refresh-token
-
+      - configMap:
+          defaultMode: 420
+          name: token-validation
+        name: token-validation
+      - name: auth-wayf
+        secret:
+          defaultMode: 420
+          secretName: auth-wayf
+      - name: auth-wayf-config
+        secret:
+          defaultMode: 420
+          secretName: auth-wayf-config
+      
       imagePullSecrets:
         - name: esci-docker

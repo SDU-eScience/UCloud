@@ -72,8 +72,12 @@ export const EllipsedText = styled(Text) <EllipsedTextProps>`
   vertical-align: bottom;
 `;
 
+EllipsedText.displayName = "EllipsedText";
+
 Text.defaultProps = {
   cursor: "inherit"
 };
+
+Text.displayName = "Text";
 
 export default Text;

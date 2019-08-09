@@ -51,7 +51,7 @@ const Snackbars: React.FunctionComponent = props => {
         snackElement = <DefaultSnack snack={activeSnack}/>;
     }
 
-    return <Snackbar onClick={e => snackbarStore.requestCancellation()} visible={true}>{snackElement}</Snackbar>;
+    return <Snackbar onClick={() => snackbarStore.requestCancellation()} visible={true}>{snackElement}</Snackbar>;
 };
 
 export const enum SnackType {

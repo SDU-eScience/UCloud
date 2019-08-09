@@ -1,36 +1,14 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
-import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.JSONB_LIST_PARAM_TYPE
-import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
-import dk.sdu.cloud.service.db.WithId
-import dk.sdu.cloud.service.db.WithTimestamps
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
-import dk.sdu.cloud.service.db.updateCriteria
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.validateAndDecodeOrNull
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.*
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import org.hibernate.ScrollMode
@@ -39,15 +17,9 @@ import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
 import org.slf4j.Logger
 import java.util.*
-import javax.persistence.AttributeOverride
-import javax.persistence.AttributeOverrides
-import javax.persistence.Column
-import javax.persistence.Embedded
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.Id
-import javax.persistence.Table
+import javax.persistence.*
+import javax.persistence.criteria.Predicate
+import kotlin.collections.ArrayList
 
 @Entity
 @Table(name = "job_information")
@@ -278,44 +250,64 @@ class JobHibernateDao(
         session: HibernateSession,
         owner: SecurityPrincipalToken,
         pagination: NormalizedPaginationRequest,
-        state: JobState?
+        order: SortOrder,
+        sortBy: JobSortBy,
+        minTimestamp: Long?,
+        maxTimestamp: Long?,
+        filter: JobState?
     ): Page<VerifiedJobWithAccessToken> {
         return session.paginatedCriteria<JobInformationEntity>(
             pagination,
-            orderBy = { listOf(descending(entity[JobInformationEntity::createdAt])) },
+            orderBy = {
+                val field = when (sortBy) {
+                    JobSortBy.STATE -> JobInformationEntity::state
+                    JobSortBy.APPLICATION -> JobInformationEntity::application
+                    JobSortBy.STARTED_AT -> JobInformationEntity::startedAt
+                    JobSortBy.LAST_UPDATE -> JobInformationEntity::modifiedAt
+                    JobSortBy.CREATED_AT -> JobInformationEntity::createdAt
+                }
+
+                when (order) {
+                    SortOrder.ASCENDING -> listOf(ascending(entity[field]))
+                    SortOrder.DESCENDING -> listOf(descending(entity[field]))
+                }
+            },
             predicate = {
-                val canView = run {
-                    val canViewAsOwner = entity[JobInformationEntity::owner] equal owner.realUsername()
+                val canViewAsOwner = entity[JobInformationEntity::owner] equal owner.realUsername()
 
-                    val project = owner.projectOrNull()
-                    val canViewAsPartOfProject =
-                        if (project == null) {
-                            literal(false).toPredicate()
-                        } else {
-                            allOf(
-                                entity[JobInformationEntity::project] equal project,
-                                anyOf(
-                                    entity[JobInformationEntity::state] equal JobState.FAILURE,
-                                    entity[JobInformationEntity::state] equal JobState.SUCCESS
-                                )
+                val project = owner.projectOrNull()
+                val canViewAsPartOfProject =
+                    if (project == null) {
+                        literal(false).toPredicate()
+                    } else {
+                        allOf(
+                            entity[JobInformationEntity::project] equal project,
+                            anyOf(
+                                entity[JobInformationEntity::state] equal JobState.FAILURE,
+                                entity[JobInformationEntity::state] equal JobState.SUCCESS
                             )
-                        }
+                        )
+                    }
 
+                // Time ranges
+                val lowerTime = entity[JobInformationEntity::createdAt] greaterThanEquals Date(minTimestamp ?: 0)
+                val upperTime = entity[JobInformationEntity::createdAt] lessThanEquals Date(maxTimestamp ?: Date().time)
+                val matchesLowerFilter = literal(minTimestamp == null).toPredicate() or lowerTime
+                val matchesUpperFilter = literal(maxTimestamp == null).toPredicate() or upperTime
+
+                // AppState filter
+                val appState = entity[JobInformationEntity::state] equal (filter ?: JobState.VALIDATED)
+                val appStateFilter = literal(filter == null).toPredicate() or appState
+
+                allOf(
+                    matchesLowerFilter,
+                    matchesUpperFilter,
+                    appStateFilter,
                     anyOf(
                         canViewAsOwner,
                         canViewAsPartOfProject
                     )
-                }
-
-                val matchesState = run {
-                    if (state == null) {
-                        literal(true).toPredicate()
-                    } else {
-                        entity[JobInformationEntity::state] equal state
-                    }
-                }
-
-                allOf(canView, matchesState)
+                )
             }
         ).mapItems { it.toModel() }
     }

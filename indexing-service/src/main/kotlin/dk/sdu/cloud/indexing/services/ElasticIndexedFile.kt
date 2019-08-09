@@ -7,7 +7,6 @@ import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.modifiedAt
 import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.ownerName
@@ -38,8 +37,6 @@ data class ElasticIndexedFile(
     val size: Long,
     val fileTimestamps: Timestamps,
 
-    val fileIsLink: Boolean,
-
     val sensitivity: SensitivityLevel?
 ) {
     fun toMaterializedFile(): StorageFile = StorageFile(
@@ -50,7 +47,6 @@ data class ElasticIndexedFile(
         createdAt = fileTimestamps.created,
         modifiedAt = fileTimestamps.modified,
         size = size,
-        link = fileIsLink,
         ownSensitivityLevel = sensitivity
     )
 
@@ -73,8 +69,6 @@ data class ElasticIndexedFile(
         val TIMESTAMP_MODIFIED_FIELD = FILE_TIMESTAMPS_FIELD + "." + Timestamps::modified.name
         val TIMESTAMP_ACCESSED_FIELD = FILE_TIMESTAMPS_FIELD + "." + Timestamps::accessed.name
 
-        val FILE_IS_LINK_FIELD = ElasticIndexedFile::fileIsLink.name
-
         val SENSITIVITY_FIELD = ElasticIndexedFile::sensitivity.name
 
     }
@@ -88,7 +82,6 @@ fun StorageFile.withSensitivity(level: SensitivityLevel): StorageFile = StorageF
     createdAt = createdAt,
     modifiedAt = modifiedAt,
     size = size,
-    link = link,
     ownSensitivityLevel = ownSensitivityLevel,
     sensitivityLevel = level
 )

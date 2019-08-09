@@ -6,7 +6,7 @@ metadata:
   annotations:
     getambassador.io/config: |
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: file_fav_list
       prefix: ^/api/files/favorite$
@@ -19,7 +19,7 @@ metadata:
         x-no-load: true
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: file_fav
       prefix: /api/files/favorite

@@ -32,10 +32,14 @@ export const Step = styled(Flex) <{ active?: boolean }>`
     }
 `;
 
+Step.displayName = "Step";
+
 export const StepGroup = styled(Flex)`
     border:1px solid rgba(34,36,38,.15);
     border-radius: 2px;
     & > ${Step}:last-child::after {
         content: none;   
     }
-`
+`;
+
+StepGroup.displayName = "StepGroup";

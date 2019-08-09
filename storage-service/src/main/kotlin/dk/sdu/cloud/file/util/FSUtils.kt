@@ -2,11 +2,7 @@ package dk.sdu.cloud.file.util
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSResult
-import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
@@ -45,7 +41,6 @@ private const val NO_DATA = 61
 
 // Observed on OSX. Code doesn't really makes sense [DIRECTORY_NOT_EMPTY] would make more sense.
 private const val OBJECT_IS_REMOTE = 66
-
 
 fun throwExceptionBasedOnStatus(status: Int, cause: Throwable? = null): Nothing {
     when (status.absoluteValue) {
@@ -99,34 +94,6 @@ sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCExcep
         FSException("File cannot overwrite directory.", HttpStatusCode.Conflict)
 }
 
-@Deprecated("Deprecated")
-suspend inline fun CallHandler<*, *, CommonErrorMessage>.tryWithFS(
-    body: () -> Unit
-) {
-    try {
-        body()
-    } catch (ex: Exception) {
-        fsLog.debug(ex.stackTraceToString())
-        val (msg, status) = handleFSException(ex)
-        error(msg, status)
-    }
-}
-
-@Deprecated("Deprecated")
-suspend inline fun <Ctx : FSUserContext> CallHandler<*, *, CommonErrorMessage>.tryWithFS(
-    factory: FSCommandRunnerFactory<Ctx>,
-    user: String,
-    body: (Ctx) -> Unit
-) {
-    try {
-        factory.withContext(user) { body(it) }
-    } catch (ex: Exception) {
-        fsLog.debug(ex.stackTraceToString())
-        val (msg, status) = handleFSException(ex)
-        error(msg, status)
-    }
-}
-
 sealed class CallResult<S, E>(val status: HttpStatusCode) {
     class Success<S, E>(val item: S, status: HttpStatusCode = HttpStatusCode.OK) : CallResult<S, E>(status)
     class Error<S, E>(val item: E, status: HttpStatusCode) : CallResult<S, E>(status)
@@ -153,4 +120,4 @@ fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
     }
 }
 
-val fsLog = LoggerFactory.getLogger("dk.sdu.cloud.storage.services.FileSystemServiceKt")!!
+val fsLog = LoggerFactory.getLogger("dk.sdu.cloud.file.services.FileSystemServiceKt")!!

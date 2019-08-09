@@ -28,6 +28,9 @@ spec:
     - to:
       - ipBlock:
           cidr: 10.135.0.200/32 # allow dev.cloud.sdu.dk
+    - to:
+      - ipBlock:
+          cidr: 10.144.4.166/32 # allow tek-ansys.tek.c.sdu.dk
             
 
 ---

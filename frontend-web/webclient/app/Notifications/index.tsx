@@ -6,13 +6,12 @@ import {
     fetchNotifications,
     notificationRead,
     readAllNotifications,
-    receiveSingleNotification,
-    setNotificationError
+    receiveSingleNotification
 } from "./Redux/NotificationsActions";
 import {History} from "history";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {Dispatch} from "redux";
-import {Absolute, Badge, Box, Button, Divider, Error, Flex, Icon, Relative} from "ui-components";
+import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {TextSpan} from "ui-components/Text";
 import styled from "styled-components";
@@ -120,7 +119,6 @@ function Notifications(props: Notifications) {
             </Flex>
         }>
             <ContentWrapper>
-                <Error error={props.error} clearError={() => props.setError()} />
                 {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
             </ContentWrapper>
         </ClickableDropdown>
@@ -213,16 +211,14 @@ interface NotificationsOperations {
     notificationRead: (id: number) => void
     showUploader: () => void
     readAll: () => void
-    setError: (error?: string) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
     receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
-    showUploader: () => dispatch(setUploaderVisible(true)),
-    readAll: async () => dispatch(await readAllNotifications()),
-    setError: error => dispatch(setNotificationError(error))
+    showUploader: () => dispatch(setUploaderVisible(true, Cloud.homeFolder)),
+    readAll: async () => dispatch(await readAllNotifications())    
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
 

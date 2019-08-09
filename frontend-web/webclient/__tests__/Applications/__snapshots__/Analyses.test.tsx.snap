@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Analyses component Mount component 1`] = `
-.c0 {
+.c1 {
   cursor: auto;
   margin-left: 190px;
   padding-top: 48px;
@@ -11,18 +11,46 @@ exports[`Analyses component Mount component 1`] = `
   background-color: #fff;
 }
 
-.c3 {
+.c4 {
   cursor: auto;
   margin-left: auto;
 }
 
-.c10 {
+.c13 {
   cursor: auto;
   padding-top: 48px;
-  padding-right: 14px;
 }
 
-.c2 {
+.c15 {
+  cursor: pointer;
+}
+
+.c19 {
+  cursor: pointer;
+  margin-left: -17px;
+  padding-left: 15px;
+  margin-right: -17px;
+  width: auto;
+}
+
+.c20 {
+  cursor: auto;
+  margin-bottom: 16px;
+  margin-top: 16px;
+}
+
+.c23 {
+  cursor: auto;
+  margin-bottom: 16px;
+}
+
+.c24 {
+  cursor: auto;
+  padding-top: 48px;
+  padding-right: 340px;
+}
+
+.c3 {
   cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
@@ -30,29 +58,44 @@ exports[`Analyses component Mount component 1`] = `
   display: flex;
 }
 
-.c5 {
+.c6 {
   cursor: pointer;
 }
 
-.c6 {
+.c7 {
   cursor: inherit;
 }
 
-.c9 {
+.c10 {
   cursor: pointer;
   margin-left: -17px;
-  margin-right: -17px;
   padding-left: 17px;
+  margin-right: -17px;
 }
 
-.c12 {
+.c14 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c16 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  margin-top: 16px;
+  font-weight: 400;
+}
+
+.c26 {
   cursor: inherit;
   font-size: 40px;
   margin: 0;
   font-weight: 700;
 }
 
-.c7 {
+.c8 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -61,20 +104,65 @@ exports[`Analyses component Mount component 1`] = `
   margin-left: .7em;
 }
 
+.c17 {
+  font-size: 10px;
+  -webkit-letter-spacing: 0.2px;
+  -moz-letter-spacing: 0.2px;
+  -ms-letter-spacing: 0.2px;
+  letter-spacing: 0.2px;
+  display: block;
+  margin: 0;
+  font-size: 14px;
+  color: #000;
+  font-weight: 700;
+  width: 100%;
+}
+
 .c11 {
   cursor: auto;
 }
 
-.c4 {
+.c25 {
+  cursor: auto;
+}
+
+.c21 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  border-radius: 5px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #c9d3df;
+}
+
+.c21 > .c0 {
+  width: 100%;
+  -webkit-flex: 1 1 auto;
+  -ms-flex: 1 1 auto;
+  flex: 1 1 auto;
+}
+
+.c21 .c28 {
+  border: 0;
+  box-shadow: none;
+}
+
+.c5 {
   position: relative;
   display: inline-block;
 }
 
-.c4:hover > div {
+.c5:hover > div {
   display: block;
 }
 
-.c8 {
+.c9 {
   overflow: visible;
   border-bottom-left-radius: 5px;
   border-bottom-right-radius: 5px;
@@ -95,19 +183,51 @@ exports[`Analyses component Mount component 1`] = `
   left: 85px;
 }
 
-.c8 > *:hover:not(.c13) {
+.c9 > *:hover:not(.c27) {
   background-color: rgba(0,0,0,0.05);
 }
 
-.c8 svg {
+.c9 svg {
   margin-right: 1em;
 }
 
-.c8 > svg ~ span {
+.c9 > svg ~ span {
   margin-right: 1em;
 }
 
-.c1 {
+.c18 {
+  overflow: visible;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2),0px 6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12);
+  position: absolute;
+  background-color: #fff;
+  color: #000;
+  width: 138px;
+  min-width: 138pxpx;
+  padding: 12px 16px;
+  z-index: 47;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.c18 > *:hover:not(.c27) {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.c18 svg {
+  margin-right: 1em;
+}
+
+.c18 > svg ~ span {
+  margin-right: 1em;
+}
+
+.c2 {
   cursor: auto;
   padding-top: 14px;
   padding-bottom: 14px;
@@ -123,60 +243,134 @@ exports[`Analyses component Mount component 1`] = `
   z-index: 50;
 }
 
-@media screen and (min-width:768px) and (max-width:1023px) {
+.c12 {
+  cursor: auto;
+  padding-top: 96px;
+  padding-left: 14px;
+  padding-right: 14px;
+  width: 340px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  overflow-y: auto;
+  position: fixed;
+  z-index: 45;
+}
+
+.c22 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  font-size: 14px;
+  background-color: transparent;
+  border-radius: 5px;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+}
+
+.c22::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c22::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c22:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c22::placeholder {
+  color: #8393A7;
+}
+
+.c22::-ms-clear {
+  display: none;
+}
+
+@media screen and (max-width:511px) {
   .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:512px) and (max-width:639px) {
+  .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:640px) and (max-width:767px) {
+  .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c25 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c11 {
+  .c25 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c11 {
+  .c25 {
     display: none;
   }
 }
 
 <div
-  className="c0"
+  className="c0 c1"
   cursor="auto"
 >
   <div
-    className="c1"
+    className="c0 c2"
     cursor="auto"
     height={48}
     width={1}
   >
     <div
-      className="c2"
+      className="c3"
       cursor="inherit"
     >
       <div
-        className="c3"
+        className="c0 c4"
         cursor="auto"
       />
       <div
-        className="c4"
+        className="c5"
         data-tag="dropdown"
       >
         <span
-          className="c5"
+          className="c6"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c6"
+            className="c7"
             cursor="inherit"
           >
              
             Jobs per page 25
           </span>
           <svg
-            className="c7"
+            className="c8"
             clipRule="evenodd"
             cursor="inherit"
             fill="currentcolor"
@@ -192,7 +386,7 @@ exports[`Analyses component Mount component 1`] = `
           </svg>
         </span>
         <div
-          className="c8"
+          className="c9"
           color="black"
           cursor="pointer"
           disabled={false}
@@ -201,28 +395,28 @@ exports[`Analyses component Mount component 1`] = `
           width="80px"
         >
           <div
-            className="c9"
+            className="c10"
             cursor="pointer"
             onClick={[Function]}
           >
             10
           </div>
           <div
-            className="c9"
+            className="c10"
             cursor="pointer"
             onClick={[Function]}
           >
             25
           </div>
           <div
-            className="c9"
+            className="c10"
             cursor="pointer"
             onClick={[Function]}
           >
             50
           </div>
           <div
-            className="c9"
+            className="c10"
             cursor="pointer"
             onClick={[Function]}
           >
@@ -233,26 +427,549 @@ exports[`Analyses component Mount component 1`] = `
     </div>
   </div>
   <div
-    className="c10"
+    className="c0 c11"
     cursor="auto"
   >
     <div
-      className="c11"
+      className="c0 c12"
       cursor="auto"
-    />
+      height="100%"
+      width={340}
+    >
+      <div
+        className="c0 c13"
+        cursor="auto"
+      >
+        <h3
+          className="c14"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Quick Filters
+        </h3>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            Today
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            Yesterday
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            This week
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            No filter
+          </span>
+        </div>
+        <h3
+          className="c16"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Active Filters
+        </h3>
+        <label
+          className="c17"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Filter by app state
+        </label>
+        <div
+          className="c5"
+          data-tag="dropdown"
+        >
+          <span
+            className="c6"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            Don't filter
+            <svg
+              className="c8"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              ml=".7em"
+              viewBox="0 0 24 12"
+              width=".7em"
+            >
+              <path
+                d="M0 0l11.959 12 12-12H0z"
+              />
+            </svg>
+          </span>
+          <div
+            className="c18"
+            color="black"
+            cursor="pointer"
+            disabled={false}
+            onClick={[Function]}
+            overflow="visible"
+            width="138px"
+          >
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Validated
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Prepared
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Scheduled
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Running
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Transfer success
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Success
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Failure
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Cancelling
+            </div>
+          </div>
+        </div>
+        <div
+          className="c0 c20"
+          cursor="auto"
+        >
+          <label
+            className="c17"
+            color="black"
+            fontSize={1}
+            fontWeight="bold"
+            width="100%"
+          >
+            Job created after
+          </label>
+          <div
+            className="c21"
+          >
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className="c22"
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  placeholder="Don't filter"
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          className="c0 c23"
+          cursor="auto"
+        >
+          <label
+            className="c17"
+            color="black"
+            fontSize={1}
+            fontWeight="bold"
+            width="100%"
+          >
+            Job created before
+          </label>
+          <div
+            className="c21"
+          >
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className="c22"
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  placeholder="Don't filter"
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="c0 c24"
+    cursor="auto"
+  >
+    <div
+      className="c0 c25"
+      cursor="auto"
+    >
+      <div
+        className="c0 c13"
+        cursor="auto"
+      >
+        <h3
+          className="c14"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Quick Filters
+        </h3>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            Today
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            Yesterday
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            This week
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            No filter
+          </span>
+        </div>
+        <h3
+          className="c16"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Active Filters
+        </h3>
+        <label
+          className="c17"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Filter by app state
+        </label>
+        <div
+          className="c5"
+          data-tag="dropdown"
+        >
+          <span
+            className="c6"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            Don't filter
+            <svg
+              className="c8"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              ml=".7em"
+              viewBox="0 0 24 12"
+              width=".7em"
+            >
+              <path
+                d="M0 0l11.959 12 12-12H0z"
+              />
+            </svg>
+          </span>
+          <div
+            className="c18"
+            color="black"
+            cursor="pointer"
+            disabled={false}
+            onClick={[Function]}
+            overflow="visible"
+            width="138px"
+          >
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Validated
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Prepared
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Scheduled
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Running
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Transfer success
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Success
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Failure
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Cancelling
+            </div>
+          </div>
+        </div>
+        <div
+          className="c0 c20"
+          cursor="auto"
+        >
+          <label
+            className="c17"
+            color="black"
+            fontSize={1}
+            fontWeight="bold"
+            width="100%"
+          >
+            Job created after
+          </label>
+          <div
+            className="c21"
+          >
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className="c22"
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  placeholder="Don't filter"
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          className="c0 c23"
+          cursor="auto"
+        >
+          <label
+            className="c17"
+            color="black"
+            fontSize={1}
+            fontWeight="bold"
+            width="100%"
+          >
+            Job created before
+          </label>
+          <div
+            className="c21"
+          >
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className="c22"
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  placeholder="Don't filter"
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <h1
-      className="c12"
+      className="c26"
       cursor="inherit"
       fontSize={6}
     >
-      No jobs have been run on this account.
+      No jobs found.
     </h1>
   </div>
 </div>
 `;
 
 exports[`Analyses component Mount component with non-empty page 1`] = `
-.c0 {
+.c1 {
   cursor: auto;
   margin-left: 190px;
   padding-top: 48px;
@@ -262,24 +979,56 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   background-color: #fff;
 }
 
-.c3 {
+.c4 {
   cursor: auto;
   margin-left: auto;
 }
 
-.c10 {
+.c13 {
   cursor: auto;
   padding-top: 48px;
-  padding-right: 14px;
 }
 
-.c13 {
+.c15 {
+  cursor: pointer;
+}
+
+.c19 {
+  cursor: pointer;
+  margin-left: -17px;
+  padding-left: 15px;
+  margin-right: -17px;
+  width: auto;
+}
+
+.c20 {
+  cursor: auto;
+  margin-bottom: 16px;
+  margin-top: 16px;
+}
+
+.c23 {
+  cursor: auto;
+  margin-bottom: 16px;
+}
+
+.c24 {
+  cursor: auto;
+  padding-top: 48px;
+  padding-right: 340px;
+}
+
+.c27 {
   cursor: auto;
   width: 70%;
   max-width: 1024px;
 }
 
-.c2 {
+.c40 {
+  cursor: auto;
+}
+
+.c3 {
   cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
@@ -287,7 +1036,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   display: flex;
 }
 
-.c12 {
+.c26 {
   cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
@@ -302,22 +1051,37 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   flex-direction: column;
 }
 
-.c5 {
-  cursor: pointer;
-}
-
 .c6 {
-  cursor: inherit;
-}
-
-.c9 {
   cursor: pointer;
-  margin-left: -17px;
-  margin-right: -17px;
-  padding-left: 17px;
 }
 
 .c7 {
+  cursor: inherit;
+}
+
+.c10 {
+  cursor: pointer;
+  margin-left: -17px;
+  padding-left: 17px;
+  margin-right: -17px;
+}
+
+.c14 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c16 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  margin-top: 16px;
+  font-weight: 400;
+}
+
+.c8 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -326,7 +1090,27 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   margin-left: .7em;
 }
 
-.c21 {
+.c34 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+.c36 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: pointer;
+  -webkit-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  transform: rotate(180deg);
+  margin-right: .4em;
+}
+
+.c42 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -336,7 +1120,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   color: #c00;
 }
 
-.c22 {
+.c43 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -346,20 +1130,95 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   color: #00C05A;
 }
 
+.c17 {
+  font-size: 10px;
+  -webkit-letter-spacing: 0.2px;
+  -moz-letter-spacing: 0.2px;
+  -ms-letter-spacing: 0.2px;
+  letter-spacing: 0.2px;
+  display: block;
+  margin: 0;
+  font-size: 14px;
+  color: #000;
+  font-weight: 700;
+  width: 100%;
+}
+
 .c11 {
   cursor: auto;
 }
 
-.c4 {
+.c25 {
+  cursor: auto;
+}
+
+.c21 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  border-radius: 5px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #c9d3df;
+}
+
+.c21 > .c0 {
+  width: 100%;
+  -webkit-flex: 1 1 auto;
+  -ms-flex: 1 1 auto;
+  flex: 1 1 auto;
+}
+
+.c21 .c45 {
+  border: 0;
+  box-shadow: none;
+}
+
+.c32 {
+  cursor: auto;
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+  cursor: pointer;
+  color: #8393A7;
+}
+
+.c32 svg[data-name="checked"] {
+  display: none;
+}
+
+.c32 > input:checked ~ svg[data-name="checked"] {
+  display: inline-block;
+  color: #006aff;
+}
+
+.c32 > input:checked ~ svg[data-name="empty"] {
+  display: none;
+}
+
+.c33 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  opacity: 0;
+  position: absolute;
+}
+
+.c5 {
   position: relative;
   display: inline-block;
 }
 
-.c4:hover > div {
+.c5:hover > div {
   display: block;
 }
 
-.c8 {
+.c9 {
   overflow: visible;
   border-bottom-left-radius: 5px;
   border-bottom-right-radius: 5px;
@@ -380,19 +1239,51 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   left: 85px;
 }
 
-.c8 > *:hover:not(.c23) {
+.c9 > *:hover:not(.c44) {
   background-color: rgba(0,0,0,0.05);
 }
 
-.c8 svg {
+.c9 svg {
   margin-right: 1em;
 }
 
-.c8 > svg ~ span {
+.c9 > svg ~ span {
   margin-right: 1em;
 }
 
-.c1 {
+.c18 {
+  overflow: visible;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2),0px 6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12);
+  position: absolute;
+  background-color: #fff;
+  color: #000;
+  width: 138px;
+  min-width: 138pxpx;
+  padding: 12px 16px;
+  z-index: 47;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.c18 > *:hover:not(.c44) {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.c18 svg {
+  margin-right: 1em;
+}
+
+.c18 > svg ~ span {
+  margin-right: 1em;
+}
+
+.c2 {
   cursor: auto;
   padding-top: 14px;
   padding-bottom: 14px;
@@ -408,108 +1299,207 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   z-index: 50;
 }
 
-.c14 {
+.c12 {
+  cursor: auto;
+  padding-top: 96px;
+  padding-left: 14px;
+  padding-right: 14px;
+  width: 340px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  overflow-y: auto;
+  position: fixed;
+  z-index: 45;
+}
+
+.c28 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
   table-layout: fixed;
   width: 100%;
   min-width: 15em;
+  background-color: #fff;
 }
 
-.c20 {
+.c39 {
+  border: 0px;
+  border-spacing: 0;
+  text-align: center;
+}
+
+.c41 {
   border: 0px;
   border-spacing: 0;
 }
 
-.c16 {
+.c30 {
   cursor: auto;
 }
 
-.c16 > .c19 {
+.c30 > .c38 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
-.c18 {
+.c37 {
   cursor: pointer;
 }
 
-.c18 > .c19 {
+.c37 > .c38 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
-.c15 {
+.c29 {
   background-color: #fff;
   padding-top: 11px;
   padding-bottom: 11px;
 }
 
-.c17 {
+.c22 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  font-size: 14px;
+  background-color: transparent;
+  border-radius: 5px;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+}
+
+.c22::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c22::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c22:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c22::placeholder {
+  color: #8393A7;
+}
+
+.c22::-ms-clear {
+  display: none;
+}
+
+.c31 {
+  border-spacing: 0;
+  border: 0px;
+  text-align: center;
+  width: 4%;
+  background-color: #fff;
+  top: 96px;
+  z-index: 10;
+  position: -webkit-sticky;
+  position: sticky;
+}
+
+.c35 {
   border-spacing: 0;
   border: 0px;
   text-align: left;
+  background-color: #fff;
+  cursor: pointer;
+  top: 96px;
+  z-index: 10;
+  position: -webkit-sticky;
+  position: sticky;
+}
+
+@media screen and (max-width:511px) {
+  .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:512px) and (max-width:639px) {
+  .c11 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:640px) and (max-width:767px) {
+  .c11 {
+    display: none;
+  }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c11 {
+  .c25 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c11 {
+  .c25 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c11 {
+  .c25 {
     display: none;
   }
 }
 
 <div
-  className="c0"
+  className="c0 c1"
   cursor="auto"
 >
   <div
-    className="c1"
+    className="c0 c2"
     cursor="auto"
     height={48}
     width={1}
   >
     <div
-      className="c2"
+      className="c3"
       cursor="inherit"
     >
       <div
-        className="c3"
+        className="c0 c4"
         cursor="auto"
       />
       <div
-        className="c4"
+        className="c5"
         data-tag="dropdown"
       >
         <span
-          className="c5"
+          className="c6"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c6"
+            className="c7"
             cursor="inherit"
           >
              
             Jobs per page 25
           </span>
           <svg
-            className="c7"
+            className="c8"
             clipRule="evenodd"
             cursor="inherit"
             fill="currentcolor"
@@ -525,7 +1515,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           </svg>
         </span>
         <div
-          className="c8"
+          className="c9"
           color="black"
           cursor="pointer"
           disabled={false}
@@ -534,28 +1524,28 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           width="80px"
         >
           <div
-            className="c9"
+            className="c10"
             cursor="pointer"
             onClick={[Function]}
           >
             10
           </div>
           <div
-            className="c9"
+            className="c10"
             cursor="pointer"
             onClick={[Function]}
           >
             25
           </div>
           <div
-            className="c9"
+            className="c10"
             cursor="pointer"
             onClick={[Function]}
           >
             50
           </div>
           <div
-            className="c9"
+            className="c10"
             cursor="pointer"
             onClick={[Function]}
           >
@@ -566,50 +1556,648 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
     </div>
   </div>
   <div
-    className="c10"
+    className="c0 c11"
     cursor="auto"
   >
     <div
-      className="c11"
+      className="c0 c12"
       cursor="auto"
-    />
+      height="100%"
+      width={340}
+    >
+      <div
+        className="c0 c13"
+        cursor="auto"
+      >
+        <h3
+          className="c14"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Quick Filters
+        </h3>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            Today
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            Yesterday
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            This week
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            No filter
+          </span>
+        </div>
+        <h3
+          className="c16"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Active Filters
+        </h3>
+        <label
+          className="c17"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Filter by app state
+        </label>
+        <div
+          className="c5"
+          data-tag="dropdown"
+        >
+          <span
+            className="c6"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            Don't filter
+            <svg
+              className="c8"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              ml=".7em"
+              viewBox="0 0 24 12"
+              width=".7em"
+            >
+              <path
+                d="M0 0l11.959 12 12-12H0z"
+              />
+            </svg>
+          </span>
+          <div
+            className="c18"
+            color="black"
+            cursor="pointer"
+            disabled={false}
+            onClick={[Function]}
+            overflow="visible"
+            width="138px"
+          >
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Validated
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Prepared
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Scheduled
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Running
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Transfer success
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Success
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Failure
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Cancelling
+            </div>
+          </div>
+        </div>
+        <div
+          className="c0 c20"
+          cursor="auto"
+        >
+          <label
+            className="c17"
+            color="black"
+            fontSize={1}
+            fontWeight="bold"
+            width="100%"
+          >
+            Job created after
+          </label>
+          <div
+            className="c21"
+          >
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className="c22"
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  placeholder="Don't filter"
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          className="c0 c23"
+          cursor="auto"
+        >
+          <label
+            className="c17"
+            color="black"
+            fontSize={1}
+            fontWeight="bold"
+            width="100%"
+          >
+            Job created before
+          </label>
+          <div
+            className="c21"
+          >
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className="c22"
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  placeholder="Don't filter"
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="c0 c24"
+    cursor="auto"
+  >
     <div
-      className="c12"
+      className="c0 c25"
+      cursor="auto"
+    >
+      <div
+        className="c0 c13"
+        cursor="auto"
+      >
+        <h3
+          className="c14"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Quick Filters
+        </h3>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            Today
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            Yesterday
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            This week
+          </span>
+        </div>
+        <div
+          className="c0 c15"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="c7"
+            cursor="inherit"
+          >
+            No filter
+          </span>
+        </div>
+        <h3
+          className="c16"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Active Filters
+        </h3>
+        <label
+          className="c17"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Filter by app state
+        </label>
+        <div
+          className="c5"
+          data-tag="dropdown"
+        >
+          <span
+            className="c6"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            Don't filter
+            <svg
+              className="c8"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              ml=".7em"
+              viewBox="0 0 24 12"
+              width=".7em"
+            >
+              <path
+                d="M0 0l11.959 12 12-12H0z"
+              />
+            </svg>
+          </span>
+          <div
+            className="c18"
+            color="black"
+            cursor="pointer"
+            disabled={false}
+            onClick={[Function]}
+            overflow="visible"
+            width="138px"
+          >
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Validated
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Prepared
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Scheduled
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Running
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Transfer success
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Success
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Failure
+            </div>
+            <div
+              className="c0 c19"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Cancelling
+            </div>
+          </div>
+        </div>
+        <div
+          className="c0 c20"
+          cursor="auto"
+        >
+          <label
+            className="c17"
+            color="black"
+            fontSize={1}
+            fontWeight="bold"
+            width="100%"
+          >
+            Job created after
+          </label>
+          <div
+            className="c21"
+          >
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className="c22"
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  placeholder="Don't filter"
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          className="c0 c23"
+          cursor="auto"
+        >
+          <label
+            className="c17"
+            color="black"
+            fontSize={1}
+            fontWeight="bold"
+            width="100%"
+          >
+            Job created before
+          </label>
+          <div
+            className="c21"
+          >
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className="c22"
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  placeholder="Don't filter"
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      className="c26"
       cursor="inherit"
     >
       <div
-        className="c13"
+        className="c0 c27"
         cursor="auto"
         width={0.7}
       >
         <table
-          className="c14"
+          className="c28"
           width="100%"
         >
           <thead
-            className="c15"
+            className="c29"
           >
             <tr
-              className="c16"
+              className="c30"
               cursor="auto"
             >
               <th
-                className="c17"
+                className="c31"
+                width="4%"
+              >
+                <label
+                  className="c17"
+                  color="black"
+                  fontSize={1}
+                  fontWeight="bold"
+                  width="100%"
+                >
+                  <div
+                    className="c0 c32"
+                    cursor="auto"
+                    disabled={false}
+                  >
+                    <input
+                      checked={false}
+                      className="c33"
+                      data-tag="masterCheckbox"
+                      disabled={false}
+                      onChange={[Function]}
+                      onClick={[Function]}
+                      size={20}
+                      type="checkbox"
+                    />
+                    <svg
+                      className="c34"
+                      cursor="inherit"
+                      data-name="checked"
+                      fill="currentcolor"
+                      height={20}
+                      viewBox="0 0 24 24"
+                      width={20}
+                    >
+                      <path
+                        d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                      />
+                    </svg>
+                    <svg
+                      className="c34"
+                      cursor="inherit"
+                      data-name="empty"
+                      fill="currentcolor"
+                      height={20}
+                      viewBox="0 0 24 24"
+                      width={20}
+                    >
+                      <path
+                        d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                      />
+                    </svg>
+                  </div>
+                </label>
+              </th>
+              <th
+                className="c35"
+                onClick={[Function]}
               >
                 State
               </th>
               <th
-                className="c17"
+                className="c35"
+                onClick={[Function]}
               >
                 Application
               </th>
               <th
-                className="c17"
+                className="c35"
+                onClick={[Function]}
               >
-                Started at
+                <svg
+                  className="c36"
+                  clipRule="evenodd"
+                  cursor="pointer"
+                  fill="currentcolor"
+                  fillRule="evenodd"
+                  height=".7em"
+                  mr=".4em"
+                  rotation="180"
+                  viewBox="0 0 18 24"
+                  width=".7em"
+                >
+                  <path
+                    d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+                  />
+                </svg>
+                Created at
               </th>
               <th
-                className="c17"
+                className="c35"
+                onClick={[Function]}
               >
                 Last update
               </th>
@@ -619,15 +2207,73 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             className=""
           >
             <tr
-              className="c18"
+              className="c37"
               cursor="pointer"
-              onClick={[Function]}
             >
               <td
-                className="c19 c20"
+                className="c38 c39"
+              >
+                <div
+                  className="c0 c40"
+                  cursor="auto"
+                >
+                  <label
+                    className="c17"
+                    color="black"
+                    fontSize={1}
+                    fontWeight="bold"
+                    width="100%"
+                  >
+                    <div
+                      className="c0 c32"
+                      cursor="auto"
+                      disabled={false}
+                    >
+                      <input
+                        checked={false}
+                        className="c33"
+                        disabled={false}
+                        onChange={[Function]}
+                        onClick={[Function]}
+                        size={20}
+                        type="checkbox"
+                      />
+                      <svg
+                        className="c34"
+                        cursor="inherit"
+                        data-name="checked"
+                        fill="currentcolor"
+                        height={20}
+                        viewBox="0 0 24 24"
+                        width={20}
+                      >
+                        <path
+                          d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                        />
+                      </svg>
+                      <svg
+                        className="c34"
+                        cursor="inherit"
+                        data-name="empty"
+                        fill="currentcolor"
+                        height={20}
+                        viewBox="0 0 24 24"
+                        width={20}
+                      >
+                        <path
+                          d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                        />
+                      </svg>
+                    </div>
+                  </label>
+                </div>
+              </td>
+              <td
+                className="c38 c41"
+                onClick={[Function]}
               >
                 <svg
-                  className="c21"
+                  className="c42"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -647,33 +2293,94 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 Failure
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 
                  v
                 
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 28/08/2018
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 30/08/2018
               </td>
             </tr>
             <tr
-              className="c18"
+              className="c37"
               cursor="pointer"
-              onClick={[Function]}
             >
               <td
-                className="c19 c20"
+                className="c38 c39"
+              >
+                <div
+                  className="c0 c40"
+                  cursor="auto"
+                >
+                  <label
+                    className="c17"
+                    color="black"
+                    fontSize={1}
+                    fontWeight="bold"
+                    width="100%"
+                  >
+                    <div
+                      className="c0 c32"
+                      cursor="auto"
+                      disabled={false}
+                    >
+                      <input
+                        checked={false}
+                        className="c33"
+                        disabled={false}
+                        onChange={[Function]}
+                        onClick={[Function]}
+                        size={20}
+                        type="checkbox"
+                      />
+                      <svg
+                        className="c34"
+                        cursor="inherit"
+                        data-name="checked"
+                        fill="currentcolor"
+                        height={20}
+                        viewBox="0 0 24 24"
+                        width={20}
+                      >
+                        <path
+                          d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                        />
+                      </svg>
+                      <svg
+                        className="c34"
+                        cursor="inherit"
+                        data-name="empty"
+                        fill="currentcolor"
+                        height={20}
+                        viewBox="0 0 24 24"
+                        width={20}
+                      >
+                        <path
+                          d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                        />
+                      </svg>
+                    </div>
+                  </label>
+                </div>
+              </td>
+              <td
+                className="c38 c41"
+                onClick={[Function]}
               >
                 <svg
-                  className="c21"
+                  className="c42"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -693,33 +2400,94 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 Failure
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 
                  v
                 
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 29/08/2018
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 30/08/2018
               </td>
             </tr>
             <tr
-              className="c18"
+              className="c37"
               cursor="pointer"
-              onClick={[Function]}
             >
               <td
-                className="c19 c20"
+                className="c38 c39"
+              >
+                <div
+                  className="c0 c40"
+                  cursor="auto"
+                >
+                  <label
+                    className="c17"
+                    color="black"
+                    fontSize={1}
+                    fontWeight="bold"
+                    width="100%"
+                  >
+                    <div
+                      className="c0 c32"
+                      cursor="auto"
+                      disabled={false}
+                    >
+                      <input
+                        checked={false}
+                        className="c33"
+                        disabled={false}
+                        onChange={[Function]}
+                        onClick={[Function]}
+                        size={20}
+                        type="checkbox"
+                      />
+                      <svg
+                        className="c34"
+                        cursor="inherit"
+                        data-name="checked"
+                        fill="currentcolor"
+                        height={20}
+                        viewBox="0 0 24 24"
+                        width={20}
+                      >
+                        <path
+                          d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                        />
+                      </svg>
+                      <svg
+                        className="c34"
+                        cursor="inherit"
+                        data-name="empty"
+                        fill="currentcolor"
+                        height={20}
+                        viewBox="0 0 24 24"
+                        width={20}
+                      >
+                        <path
+                          d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                        />
+                      </svg>
+                    </div>
+                  </label>
+                </div>
+              </td>
+              <td
+                className="c38 c41"
+                onClick={[Function]}
               >
                 <svg
-                  className="c21"
+                  className="c42"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -739,33 +2507,94 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 Failure
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 
                  v
                 
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 30/08/2018
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 30/08/2018
               </td>
             </tr>
             <tr
-              className="c18"
+              className="c37"
               cursor="pointer"
-              onClick={[Function]}
             >
               <td
-                className="c19 c20"
+                className="c38 c39"
+              >
+                <div
+                  className="c0 c40"
+                  cursor="auto"
+                >
+                  <label
+                    className="c17"
+                    color="black"
+                    fontSize={1}
+                    fontWeight="bold"
+                    width="100%"
+                  >
+                    <div
+                      className="c0 c32"
+                      cursor="auto"
+                      disabled={false}
+                    >
+                      <input
+                        checked={false}
+                        className="c33"
+                        disabled={false}
+                        onChange={[Function]}
+                        onClick={[Function]}
+                        size={20}
+                        type="checkbox"
+                      />
+                      <svg
+                        className="c34"
+                        cursor="inherit"
+                        data-name="checked"
+                        fill="currentcolor"
+                        height={20}
+                        viewBox="0 0 24 24"
+                        width={20}
+                      >
+                        <path
+                          d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                        />
+                      </svg>
+                      <svg
+                        className="c34"
+                        cursor="inherit"
+                        data-name="empty"
+                        fill="currentcolor"
+                        height={20}
+                        viewBox="0 0 24 24"
+                        width={20}
+                      >
+                        <path
+                          d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                        />
+                      </svg>
+                    </div>
+                  </label>
+                </div>
+              </td>
+              <td
+                className="c38 c41"
+                onClick={[Function]}
               >
                 <svg
-                  className="c22"
+                  className="c43"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -785,19 +2614,22 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 Success
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 
                  v
                 
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 03/09/2018
               </td>
               <td
-                className="c19 c20"
+                className="c38 c41"
+                onClick={[Function]}
               >
                 03/09/2018
               </td>

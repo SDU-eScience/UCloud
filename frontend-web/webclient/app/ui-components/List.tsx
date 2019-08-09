@@ -21,4 +21,6 @@ List.defaultProps = {
     bordered: true
 }
 
+List.displayName = "List";
+
 export default List;

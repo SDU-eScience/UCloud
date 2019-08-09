@@ -6,12 +6,13 @@ metadata:
   annotations:
     getambassador.io/config: |
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: activity
       prefix: ^/api/activity(/.*)?$
       prefix_regex: true
       service: activity:8080
+      timeout_ms: 10000
       rewrite: ""
 
 spec:

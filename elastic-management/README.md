@@ -23,8 +23,8 @@ Elastic-management uses different arguments to handle different jobs:
    overhead and also the storage used by the index.
 - *"--reindex"*  
    Meant to run as a weekly cron job. Takes the audit entries from the week before and 
-   [reindexed](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-reindex.html)
-   them into week indices for each audit type.
+   [reindex](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-reindex.html)
+   them into weekly indices for each audit type.
 - *"--backup"*  
    Intended to be a cronjob creating a incremental 
    [snapshot](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-snapshots.html).

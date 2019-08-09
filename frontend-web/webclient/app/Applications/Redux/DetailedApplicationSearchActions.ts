@@ -1,35 +1,46 @@
-import { Cloud } from "Authentication/SDUCloudObject";
-import { DETAILED_APPS_SET_NAME, DETAILED_APPS_SET_VERSION, DETAILED_APPLICATION_SET_ERROR } from "./DetailedApplicationSearchReducer";
-import { hpcApplicationsSearchQuery, hpcApplicationsTagSearchQuery } from "Utilities/ApplicationUtilities";
-import { setErrorMessage, receiveApplications } from "Search/Redux/SearchActions";
-import { PayloadAction } from "Types";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {
+    DETAILED_APPS_SET_NAME,
+    DETAILED_APPS_SET_VERSION,
+    DETAILED_APPLICATION_SET_ERROR
+} from "./DetailedApplicationSearchReducer";
+import {hpcApplicationsSearchQuery, hpcApplicationsTagSearchQuery} from "Utilities/ApplicationUtilities";
+import {setErrorMessage, receiveApplications} from "Search/Redux/SearchActions";
+import {PayloadAction} from "Types";
+import {Action} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "UtilityFunctions";
 
-export type DetailedAppActions = SetAppVersionAction | SetAppNameAction | ClearError;
+export type DetailedAppActions = SetAppVersionAction | SetAppNameAction | Action<typeof DETAILED_APPLICATION_SET_ERROR>;
 
-type SetAppVersionAction = PayloadAction<typeof DETAILED_APPS_SET_VERSION, { appVersion: string }>
+type SetAppVersionAction = PayloadAction<typeof DETAILED_APPS_SET_VERSION, {appVersion: string}>
 export const setVersion = (appVersion: string): SetAppVersionAction => ({
     type: DETAILED_APPS_SET_VERSION,
-    payload: { appVersion }
+    payload: {appVersion}
 });
 
-type SetAppNameAction = PayloadAction<typeof DETAILED_APPS_SET_NAME, { appName: string }>
+type SetAppNameAction = PayloadAction<typeof DETAILED_APPS_SET_NAME, {appName: string}>
 export const setAppName = (appName: string): SetAppNameAction => ({
     type: DETAILED_APPS_SET_NAME,
-    payload: { appName }
+    payload: {appName}
 });
 
-type ClearError = PayloadAction<typeof DETAILED_APPLICATION_SET_ERROR, { error?: string }>
-export const setError = (error?: string): ClearError => ({
-    type: DETAILED_APPLICATION_SET_ERROR,
-    payload: { error }
-});
+export async function fetchApplicationPageFromName(query: string, itemsPerPage: number, page: number) {
+    try {
+        const {response} = await Cloud.get(hpcApplicationsSearchQuery({query, page, itemsPerPage}))
+        return receiveApplications(response);
+    } catch (e) {
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for applications"));
+        return setErrorMessage({applicationsLoading: false});
+    }
+}
 
-export const fetchApplicationPageFromName = (query: string, itemsPerPage: number, page: number) =>
-    Cloud.get(hpcApplicationsSearchQuery({ query, page, itemsPerPage }))
-        .then(({ response }) => receiveApplications(response))
-        .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));
-
-export const fetchApplicationPageFromTag = (query: string, itemsPerPage: number, page: number) =>
-    Cloud.get(hpcApplicationsTagSearchQuery({ query, page, itemsPerPage }))
-        .then(({ response }) => receiveApplications(response))
-        .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));
+export async function fetchApplicationPageFromTag(query: string, itemsPerPage: number, page: number) {
+    try {
+        const {response} = await Cloud.get(hpcApplicationsTagSearchQuery({query, page, itemsPerPage}))
+        return receiveApplications(response)
+    } catch (e) {
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for applications"));
+        return setErrorMessage({applicationsLoading: false});
+    }
+}

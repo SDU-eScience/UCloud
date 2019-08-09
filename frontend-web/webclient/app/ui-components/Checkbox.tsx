@@ -1,5 +1,5 @@
 import * as React from 'react'
-import styled, { css } from 'styled-components'
+import styled from 'styled-components'
 import theme from './theme'
 import { Icon, Box } from './'
 import { BoxProps } from './Box';
@@ -8,7 +8,7 @@ function Checkbox(props) {
   const { disabled, size } = props;
   return (
     <CheckBoxWrapper disabled={disabled}>
-      <StyledInput type="checkbox" {...props} />
+      <StyledInput type="checkbox" onChange={e => e} {...props} />
       <Icon name="boxChecked" size={size} data-name="checked" />
       <Icon name="boxEmpty" size={size} data-name="empty" />
     </CheckBoxWrapper>
@@ -24,8 +24,7 @@ const CheckBoxWrapper = styled(Box)<CheckBoxWrapper>`
   position: relative;
   vertical-align: middle;
   cursor: pointer;
-  color: ${props =>
-    props.disabled ? props.theme.colors.borderGray : props.theme.colors.gray};
+  color: ${props => props.disabled ? props.theme.colors.borderGray : props.theme.colors.gray};
   svg[data-name="checked"] {
     display: none;
   }
@@ -41,13 +40,13 @@ const CheckBoxWrapper = styled(Box)<CheckBoxWrapper>`
       display: none;
     }
   }
-`
+`;
 
 const StyledInput = styled.input`
   appearance: none;
   opacity: 0;
   position: absolute;
-`
+`;
 
 Checkbox.displayName = "Checkbox";
 
@@ -56,6 +55,6 @@ Checkbox.defaultProps = {
   checked: false,
   disabled: false,
   theme: theme
-}
+};
 
 export default Checkbox;

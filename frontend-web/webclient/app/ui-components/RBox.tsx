@@ -2,18 +2,18 @@ import * as React from "react";
 import RatingBadge from "./RatingBadge";
 import Box from "./Box";
 import * as Heading from "./Heading"
-import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects";
-import { connect } from 'react-redux'
+import {ReduxObject, ResponsiveReduxObject} from "DefaultObjects";
+import {connect} from 'react-redux'
 
 
 interface RBoxStateProps {
     responsiveState: ResponsiveReduxObject | undefined
 }
 
-interface RBoxProps extends RBoxStateProps {}
+type RBoxProps = RBoxStateProps;
 
 // Responsive Box used for dev / testing
-const RBox = ({ responsiveState }: RBoxProps) => {
+const RBox = ({responsiveState}: RBoxProps) => {
     let message = "";
     if (!responsiveState) {
         message += "undef";
@@ -28,10 +28,10 @@ const RBox = ({ responsiveState }: RBoxProps) => {
             </Box>
         </RatingBadge>
     )
-}
+};
 
 
-const mapStateToProps = ({ responsive }: ReduxObject): RBoxStateProps => ({
+const mapStateToProps = ({responsive}: ReduxObject): RBoxStateProps => ({
     responsiveState: responsive
 });
 

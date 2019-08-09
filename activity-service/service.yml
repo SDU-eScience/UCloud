@@ -1,0 +1,7 @@
+---
+name: activity
+
+namespaces:
+  - activity
+
+dependencies: []

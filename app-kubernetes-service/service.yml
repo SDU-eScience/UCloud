@@ -1,0 +1,8 @@
+---
+name: app-kubernetes
+
+namespaces:
+  - app.compute.kubernetes
+
+dependencies:
+  - app.compute

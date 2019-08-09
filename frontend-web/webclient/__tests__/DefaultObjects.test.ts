@@ -1,8 +1,8 @@
-import * as Defaults from "DefaultObjects";
-import { SortOrder, SortBy } from "Files";
-import { SidebarPages } from "ui-components/Sidebar";
-import { Analysis } from "Applications";
-import { DashboardStateProps } from "Dashboard";
+import * as Defaults from "../app/DefaultObjects";
+import { SortOrder, SortBy } from "../app/Files";
+import { SidebarPages } from "../app/ui-components/Sidebar";
+import { AnalysesStateProps, RunsSortBy } from "../app/Applications";
+import { DashboardStateProps } from "../app/Dashboard";
 
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
@@ -14,31 +14,7 @@ describe("Initialize Redux Objects", () => {
             favoriteLoading: false,
             recentLoading: false,
             analysesLoading: false,
-            errors: []
         } as DashboardStateProps)
-    });
-
-    test("Files", () => {
-        const homeFolder = "/home/user@test.dk/"
-        expect(JSON.parse(JSON.stringify(Defaults.initFiles(homeFolder)))).toEqual(JSON.parse(JSON.stringify({
-            page: Defaults.emptyPage,
-            sortOrder: SortOrder.ASCENDING,
-            sortBy: SortBy.PATH,
-            loading: false,
-            error: undefined,
-            path: "",
-            invalidPath: false,
-            filesInfoPath: "",
-            sortingColumns: [SortBy.MODIFIED_AT, SortBy.SIZE],
-            fileSelectorLoading: false,
-            fileSelectorShown: false,
-            fileSelectorPage: Defaults.emptyPage,
-            fileSelectorPath: homeFolder,
-            fileSelectorCallback: () => null,
-            fileSelectorError: undefined,
-            fileSelectorIsFavorites: false,
-            disallowedPaths: []
-        })) as Defaults.FilesReduxObject)
     });
 
     test("Status", () =>
@@ -69,19 +45,12 @@ describe("Initialize Redux Objects", () => {
         expect(Defaults.initAnalyses()).toEqual({
             page: Defaults.emptyPage,
             loading: false,
-            error: undefined
-        } as Defaults.ComponentWithPage<Analysis>)
+            error: undefined,
+            sortBy: RunsSortBy.createdAt,
+            sortOrder: SortOrder.DESCENDING
+        } as AnalysesStateProps)
     );
-
-    test("Zenodo", () =>
-        expect(Defaults.initZenodo()).toEqual({
-            connected: false,
-            loading: false,
-            page: Defaults.emptyPage,
-            error: undefined
-        } as Defaults.ZenodoReduxObject)
-    );
-
+    
     test("Sidebar", () =>
         expect(Defaults.initSidebar()).toEqual({
             kcCount: 0,

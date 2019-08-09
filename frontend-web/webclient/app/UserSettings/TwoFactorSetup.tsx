@@ -1,16 +1,16 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { TwoFactorSetupState } from ".";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {TwoFactorSetupState} from ".";
 import * as Heading from "ui-components/Heading";
-import { Image, Flex, Divider, Input, Button, ExternalLink } from "ui-components";
-import { SnackType } from "Snackbar/Snackbars";
-import { SetStatusLoading } from "Navigation/Redux/StatusActions";
+import {Image, Flex, Divider, Input, Button, ExternalLink} from "ui-components";
+import {SnackType} from "Snackbar/Snackbars";
+import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
 
-export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading: boolean }, TwoFactorSetupState> {
+export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading: boolean}, TwoFactorSetupState> {
     public state = this.initialState();
 
     public componentDidMount() {
@@ -21,10 +21,10 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
         this.props.setLoading(true);
         try {
             const res = await Cloud.get("2fa/status", "/auth", true);
-            this.setState(() => ({ isConnectedToAccount: res.response.connected }));
+            this.setState(() => ({isConnectedToAccount: res.response.connected}));
         } catch (res) {
             const why = res.response.why ? res.response.why as string : "";
-            snackbarStore.addSnack({ message: `Could not fetch 2FA status. ${why}`, type: SnackType.Failure });
+            snackbarStore.addSnack({message: `Could not fetch 2FA status. ${why}`, type: SnackType.Failure});
         } finally {
             this.props.setLoading(false);
         }
@@ -130,7 +130,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                         placeholder="6-digit verification code"
                         value={this.state.verificationCode}
                         type="text"
-                        onChange={({ target }) => {
+                        onChange={({target}) => {
                             this.setState(() => ({
                                 verificationCode: target.value
                             }))
@@ -169,14 +169,14 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                 verificationCode: this.state.verificationCode
             }, "/auth", true);
 
-            this.setState(() => ({ isConnectedToAccount: true }));
+            this.setState(() => ({isConnectedToAccount: true}));
         } catch (res) {
             let response = res.response;
             let why: string = "Could not submit verification code. Try again later";
             if (response !== undefined && response.why !== undefined) {
                 why = response.why;
             }
-            snackbarStore.addSnack({ message: why, type: SnackType.Failure });
+            snackbarStore.addSnack({message: why, type: SnackType.Failure});
         } finally {
             this.props.setLoading(false);
         }

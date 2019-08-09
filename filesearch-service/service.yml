@@ -1,0 +1,9 @@
+---
+name: filesearch
+
+namespaces:
+  - fileSearch
+
+dependencies:
+  - indexing
+  - files

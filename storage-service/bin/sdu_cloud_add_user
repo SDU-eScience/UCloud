@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-USER=$1
-PRETTY=$2
-CREATE_DIR=$3
+PRETTY=$1
+CREATE_DIR=$2
 
 if [ ! -f /mnt/cephfs/home ]; then
     mkdir -p /mnt/cephfs/home
@@ -15,6 +14,5 @@ if [ "${CREATE_DIR}" != "no" ]; then
     mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/"
     mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Jobs"
     mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Trash"
-
-    chown -R ${USER}:${USER} "/mnt/cephfs/home/${PRETTY}"
+    chown -R 11042:11042 "/mnt/cephfs/home/${PRETTY}"
 fi
