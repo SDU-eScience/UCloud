@@ -1,4 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.services
+
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsResponse
 import dk.sdu.cloud.app.orchestrator.api.InternalFollowStdStreamsRequest
@@ -38,7 +39,11 @@ class StreamFollowService<DBSession>(
             serviceClient
         ).orThrow()
 
-        val timeLeft = (job.createdAt+job.maxTime.toMillis()-System.currentTimeMillis()).toInt()
+        val timeLeft = if (job.startedAt != null) {
+            (job.startedAt + job.maxTime.toMillis() - System.currentTimeMillis()).toInt()
+        } else {
+            null
+        }
 
         return FollowStdStreamsResponse(
             internalResult.stdout,

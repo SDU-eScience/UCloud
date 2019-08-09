@@ -272,7 +272,7 @@ data class FollowStdStreamsResponse(
     /**
      * Time (in milliseconds) left of the job
      */
-    val timeLeft: Int,
+    val timeLeft: Int?,
 
     /**
      * The job ID
