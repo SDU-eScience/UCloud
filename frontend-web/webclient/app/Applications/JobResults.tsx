@@ -288,20 +288,20 @@ const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProp
                 {masterCheckbox}
             </JobResultsHeaderCell>
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.state)}>
-                <Arrow sortBy={RunsSortBy.state} activeSortBy={sortBy} sortOrder={sortOrder}/>
+                <Arrow sortBy={RunsSortBy.state} activeSortBy={sortBy} order={sortOrder}/>
                 State
             </JobResultsHeaderCell>
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.application)}>
-                <Arrow sortBy={RunsSortBy.application} activeSortBy={sortBy} sortOrder={sortOrder}/>
+                <Arrow sortBy={RunsSortBy.application} activeSortBy={sortBy} order={sortOrder}/>
                 Application
             </JobResultsHeaderCell>
             {hide ? null :
                 <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.createdAt)}>
-                    <Arrow sortBy={RunsSortBy.createdAt} activeSortBy={sortBy} sortOrder={sortOrder}/>
+                    <Arrow sortBy={RunsSortBy.createdAt} activeSortBy={sortBy} order={sortOrder}/>
                     Created at
                 </JobResultsHeaderCell>}
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
-                <Arrow sortBy={RunsSortBy.lastUpdate} activeSortBy={sortBy} sortOrder={sortOrder}/>
+                <Arrow sortBy={RunsSortBy.lastUpdate} activeSortBy={sortBy} order={sortOrder}/>
                 Last update
             </JobResultsHeaderCell>
         </TableRow>

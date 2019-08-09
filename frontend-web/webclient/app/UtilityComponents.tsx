@@ -201,14 +201,14 @@ const RelativeFlex = styled(Flex)`
 interface Arrow<T> {
     sortBy: T
     activeSortBy: T
-    sortOrder: SortOrder
+    order: SortOrder
 }
 
-export function Arrow<T>({sortBy, activeSortBy, sortOrder}: Arrow<T>) {
-    if (sortBy !== activeSortBy) return null
-    else if (sortOrder === SortOrder.ASCENDING) 
+export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
+    if (sortBy !== activeSortBy) return null;
+    if (order === SortOrder.ASCENDING) 
         return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em"/>);
-    else return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
+    return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
 }
 
 export class PP extends React.Component<{ visible: boolean }, { duration: number }> {

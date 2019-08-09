@@ -1,0 +1,81 @@
+---
+application: v1
+
+title: "JupyterLab"
+name: jupyter-all-spark
+version: 1.2.1
+
+applicationType: WEB
+
+tool:
+  name: jupyter-all-spark
+  version: 1.2.1
+
+authors:
+- Emiliano Molinaro <molinaro@imada.sdu.dk>
+
+description: >
+  JupyterLab ecosystem for Data Science. Installed kernels: 
+  Python, R, and Scala with support for Apache Spark, 
+  Clojure, Go, Groovy, Java, Javascript, Julia, Kotlin, Octave, Ruby, SQL.
+
+
+tags:
+  - Development
+  - Editor
+  - Featured
+  
+invocation:
+- start_jupyter
+- type: var
+  vars: requirements
+  prefixGlobal: '-p '
+- type: var
+  vars: n_var
+  prefixGlobal: '-n '
+- type: flag
+  flag: '-b '
+  var: b_flag
+
+web:
+  port: 8888
+
+container:
+  changeWorkingDirectory: true
+  runAsRoot: true
+
+parameters:
+  directory:
+    title: Mount
+    type: input_directory
+    description: >
+       data folder
+    optional: true
+  requirements:
+    title: Dependencies
+    type: input_file
+    description: >
+       file with list of dependencies: .txt, .yml (Conda), and .sh (Bash)
+    optional: true
+  n_var:
+    title: 'Notebook'
+    type: integer
+    description: >
+      start Jypyter Notebook: 1 (light theme), 2 (dark theme), 3 (nteract support); 
+      default is JupyterLab
+    defaultValue:
+      type: integer
+      value: 0
+    min: 1
+    max: 3
+    step: 1
+    optional: true
+  b_flag:
+    title: 'Disable BeakerX'
+    type: boolean
+    description: >
+      disable BeakerX kernels support (default: false)
+    optional: true
+
+outputFileGlobs:
+  - "*"

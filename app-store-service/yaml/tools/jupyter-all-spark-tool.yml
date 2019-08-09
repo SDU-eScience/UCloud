@@ -1,0 +1,32 @@
+---
+tool: v1
+
+title: "JupyterLab"
+
+name: jupyter-all-spark
+version: 1.2.1
+
+container: dockerregistry.cloud.sdu.dk/jupyter-sducloud:1.2.1
+
+authors:
+- Emiliano Molinaro <molinaro@imada.sdu.dk>
+
+description: >
+  JupyterLab ecosystem for Data Science. Installed kernels: 
+  Python, R, and Scala with support for Apache Spark, 
+  Clojure, Go, Groovy, Java, Javascript, Julia, Kotlin, Octave, Ruby, SQL.
+
+defaultTimeAllocation:
+  hours: 1
+  minutes: 0
+  seconds: 0
+
+defaultNumberOfNodes: 1
+
+defaultTasksPerNode: 1
+
+license: The 3-Clause BSD License
+
+backend: DOCKER
+
+

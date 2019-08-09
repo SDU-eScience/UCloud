@@ -205,7 +205,7 @@ class WebService(
     }
 
     private suspend fun PipelineContext<Unit, ApplicationCall>.proxyToServer(tunnel: Tunnel): HttpClientCall {
-        val requestPath = call.parameters.getAll("path")?.joinToString("/") ?: "/"
+        val requestPath = call.request.path()
         val requestQueryParameters = call.request.queryParameters
         val method = call.request.httpMethod
         val requestCookies = HashMap(call.request.cookies.rawCookies).apply {

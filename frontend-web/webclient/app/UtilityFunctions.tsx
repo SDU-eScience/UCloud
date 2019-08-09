@@ -71,13 +71,6 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     }
 }
 
-export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy): ("arrowUp" | "arrowDown" | undefined) => {
-    if (sortBy === name) {
-        return sortOrder === SortOrder.DESCENDING ? "arrowDown" : "arrowUp";
-    }
-    return undefined;
-};
-
 export const extensionTypeFromPath = (path: string) => extensionType(extensionFromPath(path));
 export const extensionFromPath = (path: string): string => {
     const splitString = path.split(".");

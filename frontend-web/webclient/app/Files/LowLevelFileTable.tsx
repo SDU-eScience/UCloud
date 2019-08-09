@@ -226,7 +226,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
         };
 
         const sortingIcon = (other: SortBy): React.ReactNode => 
-            <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} sortOrder={pageParameters.order} />;
+            <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order} />;
 
         const reload = () => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
