@@ -30,7 +30,6 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
     private recordedHeights: number[] = [];
     private topOffset: number = -1;
     private averageComponentSize: number = -1;
-    private isUpdating = false;
 
     private get scrollOrDefault(): ScrollResult<Item, OffsetType> {
         return this.props.scroll || {endOfScroll: false, nextOffset: null, items: []};
