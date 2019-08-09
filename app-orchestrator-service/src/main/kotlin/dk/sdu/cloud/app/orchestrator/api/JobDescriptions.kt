@@ -270,6 +270,11 @@ data class FollowStdStreamsResponse(
     val complete: Boolean,
 
     /**
+     * Time (in milliseconds) left of the job
+     */
+    val timeLeft: Int,
+
+    /**
      * The job ID
      */
     val id: String,

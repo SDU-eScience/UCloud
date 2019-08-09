@@ -38,6 +38,8 @@ class StreamFollowService<DBSession>(
             serviceClient
         ).orThrow()
 
+        val timeLeft = (job.createdAt+job.maxTime.toMillis()-System.currentTimeMillis()).toInt()
+
         return FollowStdStreamsResponse(
             internalResult.stdout,
             internalResult.stdoutNextLine,
@@ -47,6 +49,7 @@ class StreamFollowService<DBSession>(
             job.currentState,
             job.status,
             job.currentState.isFinal(),
+            timeLeft,
             job.id,
             jobFileService.jobFolder(job),
             job.application.metadata
