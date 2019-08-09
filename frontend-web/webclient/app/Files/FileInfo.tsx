@@ -80,8 +80,8 @@ function FileInfo(props: Readonly<FileInfo>) {
                         file={file}
                         onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
                         onReclassify={async sensitivity => {
-                            props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}))
-                            props.fetchFileStat(path())
+                            props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}));
+                            props.fetchFileStat(path());
                         }} />
                     {activity.items.length ? (
                         <Flex flexDirection="row" justifyContent="center">

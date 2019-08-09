@@ -4,13 +4,13 @@ import {generateId as uniqueId} from 'UtilityFunctions';
 import FacialHair from './facialHair'
 
 export default class Eyepatch extends React.Component {
-  static optionValue = 'Eyepatch'
+  static optionValue = 'Eyepatch';
 
-  private mask1 = uniqueId('react-mask-')
-  private path1 = uniqueId('react-path-')
+  private mask1 = uniqueId('react-mask-');
+  private path1 = uniqueId('react-path-');
 
   render () {
-    const { mask1, path1 } = this
+    const { mask1, path1 } = this;
     return (
       <g id='Top' strokeWidth='1' fillRule='evenodd'>
         <defs>

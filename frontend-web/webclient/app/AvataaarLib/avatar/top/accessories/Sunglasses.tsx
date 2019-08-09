@@ -2,16 +2,16 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 export default class Sunglasses extends React.Component {
-  static optionValue = 'Sunglasses'
+  static optionValue = 'Sunglasses';
 
-  private path1 = uniqueId('react-path-')
-  private path2 = uniqueId('react-path-')
-  private filter1 = uniqueId('react-filter-')
-  private linearGradient1 = uniqueId('react-linear-gradient-')
-  private linearGradient2 = uniqueId('react-linear-gradient-')
+  private path1 = uniqueId('react-path-');
+  private path2 = uniqueId('react-path-');
+  private filter1 = uniqueId('react-filter-');
+  private linearGradient1 = uniqueId('react-linear-gradient-');
+  private linearGradient2 = uniqueId('react-linear-gradient-');
 
   render () {
-    const { path1, path2, filter1, linearGradient1, linearGradient2 } = this
+    const { path1, path2, filter1, linearGradient1, linearGradient2 } = this;
     return (
       <g
         id='Top/_Resources/Sunglasses'

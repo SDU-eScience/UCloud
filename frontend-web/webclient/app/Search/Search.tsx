@@ -23,10 +23,9 @@ import {prettierString} from "UtilityFunctions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {SelectableTextWrapper, SelectableText} from "ui-components";
-import {EmbeddedFileTable, FileTable} from "Files/FileTable"
+import {EmbeddedFileTable} from "Files/FileTable"
 import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {FullAppInfo} from "Applications";
 
 function Search(props: SearchProps) {
     React.useEffect(() => {
@@ -181,8 +180,7 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
     setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
     clear: () => {
-        dispatch(SSActions.receiveFiles(emptyPage))
-        dispatch(SSActions.receiveFiles(emptyPage))
+        dispatch(SSActions.receiveFiles(emptyPage));
     },
     searchFiles: async body => {
         dispatch(SSActions.setFilesLoading(true));

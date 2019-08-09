@@ -20,7 +20,7 @@ const analyses = (state: AnalysisReduxObject = initAnalyses(), action: AnalysesA
                         return a;
                     })
                 }
-            }
+            };
         }
         case CHECK_ALL_ANALYSES:
             return {
@@ -30,11 +30,11 @@ const analyses = (state: AnalysisReduxObject = initAnalyses(), action: AnalysesA
                         return a;
                     })
                 }
-            }
+            };
         case SET_ANALYSES_ERROR:
         default:
             return state;
     }
-}
+};
 
 export default analyses;

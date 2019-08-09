@@ -30,7 +30,7 @@ const BGLogo = styled(Absolute) <{image: string}>`
 `;
 
 
-const inDevEnvironment = process.env.NODE_ENV === "development"
+const inDevEnvironment = process.env.NODE_ENV === "development";
 const enabledWayf = true;
 const wayfService = inDevEnvironment ? "dev-web" : "web";
 
@@ -174,7 +174,7 @@ export const LoginPage = (props: {history: History, initialState?: any}) => {
         </BackgroundImage>
     </>);
 
-}
+};
 
 const TwoFactor = ({enabled2fa, inputRef}: {enabled2fa: string, inputRef: React.RefObject<HTMLInputElement>}) => enabled2fa ? (
     <Input ref={inputRef} autoComplete="off" autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />

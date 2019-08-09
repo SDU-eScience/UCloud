@@ -2,13 +2,13 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 export default class Round extends React.Component {
-  static optionValue = 'Round'
+  static optionValue = 'Round';
 
-  private path1 = uniqueId('react-path-')
-  private filter1 = uniqueId('react-filter-')
+  private path1 = uniqueId('react-path-');
+  private filter1 = uniqueId('react-filter-');
 
   render () {
-    const { path1, filter1 } = this
+    const { path1, filter1 } = this;
     return (
       <g
         id='Top/_Resources/Round'

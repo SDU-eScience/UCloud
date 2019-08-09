@@ -23,7 +23,7 @@ function Chart (props: ChartProps) {
     const chart: API.Chart<API.DataPoint2D> = props.chart || MockedChart.chart;
 
     const normalizedData = chart.data.map(d => {
-        const xType = getOrElse(0, DataTypes.NUMBER, chart.dataTypes)
+        const xType = getOrElse(0, DataTypes.NUMBER, chart.dataTypes);
         let result: { name: string, value: any } = {
             name: API.formatDataType(xType, d.x),
             value: d.y

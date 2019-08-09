@@ -157,8 +157,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
 
             for (let i = initialElement; i < container.children.length - elementsToSkip; i++) {
                 const child = container.children[i];
-                const height = child.getBoundingClientRect().height;
-                this.recordedHeights[offset + i - initialElement] = height;
+                this.recordedHeights[offset + i - initialElement] = child.getBoundingClientRect().height;
             }
 
             if (this.averageComponentSize === -1) {

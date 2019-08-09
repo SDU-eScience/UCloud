@@ -19,7 +19,7 @@ const List = styled(Box) <{ fontSize?: string, childPadding?: string | number, b
 List.defaultProps = {
     fontSize: "large",
     bordered: true
-}
+};
 
 List.displayName = "List";
 

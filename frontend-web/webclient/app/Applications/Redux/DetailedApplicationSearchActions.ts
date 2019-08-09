@@ -27,7 +27,7 @@ export const setAppName = (appName: string): SetAppNameAction => ({
 
 export async function fetchApplicationPageFromName(query: string, itemsPerPage: number, page: number) {
     try {
-        const {response} = await Cloud.get(hpcApplicationsSearchQuery({query, page, itemsPerPage}))
+        const {response} = await Cloud.get(hpcApplicationsSearchQuery({query, page, itemsPerPage}));
         return receiveApplications(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for applications"));
@@ -37,7 +37,7 @@ export async function fetchApplicationPageFromName(query: string, itemsPerPage: 
 
 export async function fetchApplicationPageFromTag(query: string, itemsPerPage: number, page: number) {
     try {
-        const {response} = await Cloud.get(hpcApplicationsTagSearchQuery({query, page, itemsPerPage}))
+        const {response} = await Cloud.get(hpcApplicationsTagSearchQuery({query, page, itemsPerPage}));
         return receiveApplications(response)
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for applications"));

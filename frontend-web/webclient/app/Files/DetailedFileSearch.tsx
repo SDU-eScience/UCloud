@@ -134,7 +134,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
         };
         this.props.fetchPage(request, () => this.props.history.push(searchPage("files", this.props.fileName)));
         this.props.setLoading(true);
-    }
+    };
 
     render() {
         const {hidden, cantHide, extensions, allowFiles, allowFolders} = this.props;
