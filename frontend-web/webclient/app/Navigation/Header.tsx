@@ -88,7 +88,7 @@ function Header(props: HeaderProps) {
                 <Box ml="-17px" mr="-17px" pl="15px">
                     <ExternalLink color="black" href="https://status.cloud.sdu.dk">
                         <Flex color="black">
-                            <Icon name="cloudTryingItsBest" mr="0.5em" my="0.2em" size="1.3em" />
+                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
                             <TextSpan>Site status</TextSpan>
                         </Flex>
                     </ExternalLink>
