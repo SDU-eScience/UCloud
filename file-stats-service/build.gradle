@@ -7,7 +7,7 @@ version '1.2.4'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.stats.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.16/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.18/sdu-cloud.gradle"
 
 repositories {
     jcenter()

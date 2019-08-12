@@ -4,7 +4,7 @@ version '1.2.6'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.accounting.storage.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.16/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.18/sdu-cloud.gradle"
 
 buildscript {
     ext.serviceCommonVersion = "1.5.6"
