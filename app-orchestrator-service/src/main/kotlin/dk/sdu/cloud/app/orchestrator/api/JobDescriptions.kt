@@ -275,6 +275,12 @@ data class FollowStdStreamsResponse(
      */
     val id: String,
 
+    /**
+     * The job name
+     */
+    val name: String?,
+
+
     val outputFolder: String? = null,
 
     override val metadata: ApplicationMetadata
