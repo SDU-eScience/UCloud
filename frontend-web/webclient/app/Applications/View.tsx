@@ -275,7 +275,7 @@ function Information({application}: {application: WithAppMetadata & WithAppInvoc
     const time = application.invocation.tool.tool.description.defaultTimeAllocation;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
     const backend = application.invocation.tool.tool.description.backend;
-    const license = application.invocation.tool.tool.description.license
+    const license = application.invocation.tool.tool.description.license;
     return <>
         <Heading.h4>Information</Heading.h4>
 
@@ -324,10 +324,10 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAct
         dispatch({type: Actions.Tag.RECEIVE_FAVORITE, payload: loadingEvent(true)});
         dispatch(await Actions.favoriteApplication(name, version));
     }
-})
+});
 
 const mapStateToProps = (state: ReduxObject): StateProps => ({
     ...state.applicationView
-})
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(View);

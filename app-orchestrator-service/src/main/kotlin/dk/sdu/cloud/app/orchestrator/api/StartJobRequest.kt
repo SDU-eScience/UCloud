@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.store.api.SimpleDuration
 data class StartJobRequest(
     @JsonDeserialize(`as` = NameAndVersionImpl::class)
     val application: NameAndVersion,
+    val name: String? = null,
     val parameters: Map<String, Any>,
     val numberOfNodes: Int? = null,
     val tasksPerNode: Int? = null,

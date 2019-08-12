@@ -114,20 +114,6 @@ test("Upper 5xx range", () =>
     expect(UF.is5xxStatusCode(599)).toBe(true)
 );
 
-// Get sorting icon
-
-test("Arrow up", () =>
-    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.ASCENDING, SortBy.PATH)).toBe("arrowUp")
-);
-
-test("Arrow down", () =>
-    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.DESCENDING, SortBy.PATH)).toBe("arrowDown")
-);
-
-test("Undefined", () =>
-    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.ASCENDING, SortBy.MODIFIED_AT)).toBeUndefined()
-);
-
 // Get owner from ACL
 
 const mockAcls: Acl[] = [
@@ -238,16 +224,6 @@ const highSensitivityFile = newMockFile({
 test("Download disallowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
-
-describe("Get sorting icon", () => {
-    test("Matching sortBy, up", () =>
-        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.ASCENDING, SortBy.ACL)).toBe("arrowUp")
-    )
-
-    test("Matching sortBy, down", () =>
-        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.DESCENDING, SortBy.ACL)).toBe("arrowDown")
-    )
-});
 
 describe("sortingColumnToValue", () => {
     const file = mockFiles_SensitivityConfidential.items[0];

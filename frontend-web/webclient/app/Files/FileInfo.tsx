@@ -1,7 +1,7 @@
 import * as React from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {capitalized, removeTrailingSlash} from "UtilityFunctions";
-import {sizeToString, getParentPath, favoriteFile, reclassifyFile, fileTablePage, expandHomeFolder} from "Utilities/FileUtilities";
+import {sizeToString, getParentPath, favoriteFile, reclassifyFile, fileTablePage, expandHomeFolder, directorySizeQuery} from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {SensitivityLevel, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {dateToString} from "Utilities/DateUtilities"
@@ -37,6 +37,7 @@ interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
 }
 
 function FileInfo(props: Readonly<FileInfo>) {
+    const [size, setSize] = React.useState(0);
 
     React.useEffect(() => {
         props.setActivePage();
@@ -50,15 +51,13 @@ function FileInfo(props: Readonly<FileInfo>) {
         }
     }, []);
 
-    function queryParams(): URLSearchParams {
-        return new URLSearchParams(props.location.search);
-    }
-
-    function path(): string {
-        const param = queryParams().get("path");
-        return param ? removeTrailingSlash(param) : "";
-    }
-
+    React.useEffect(() => {
+        const fileType = props.file && props.file.fileType;
+        if (fileType === "DIRECTORY") {
+            Cloud.post<{size: number}>(directorySizeQuery, {paths: [file!.path]})
+                 .then(it => setSize(it.response.size));
+        }
+    }, [props.file && props.file.size])
 
     const {loading, file, activity} = props;
     if (loading) return (<LoadingIcon size={18} />);
@@ -77,11 +76,11 @@ function FileInfo(props: Readonly<FileInfo>) {
             main={
                 <>
                     <FileView
-                        file={file}
+                        file={{...file, size}}
                         onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
                         onReclassify={async sensitivity => {
-                            props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}))
-                            props.fetchFileStat(path())
+                            props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}));
+                            props.fetchFileStat(path());
                         }} />
                     {activity.items.length ? (
                         <Flex flexDirection="row" justifyContent="center">
@@ -94,6 +93,15 @@ function FileInfo(props: Readonly<FileInfo>) {
                 </>}
         />
     );
+
+    function queryParams(): URLSearchParams {
+        return new URLSearchParams(props.location.search);
+    }
+
+    function path(): string {
+        const param = queryParams().get("path");
+        return param ? removeTrailingSlash(param) : "";
+    }
 }
 
 const Attribute: React.FunctionComponent<{name: string, value?: string}> = props => (

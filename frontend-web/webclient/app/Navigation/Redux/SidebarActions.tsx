@@ -10,7 +10,7 @@ type SidebarState = PayloadAction<typeof Types.SET_SIDEBAR_STATE, {open: boolean
 export const setSidebarState = (open: boolean): SidebarState => ({
     type: Types.SET_SIDEBAR_STATE,
     payload: {open}
-})
+});
 
 type KCSuccess = PayloadAction<typeof Types.KC_SUCCESS, {pp: boolean}>
 export const KCSuccess = (): KCSuccess => ({

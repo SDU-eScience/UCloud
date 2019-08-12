@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 export default class AngryNatural extends React.Component {
-  static optionValue = 'AngryNatural'
+  static optionValue = 'AngryNatural';
 
   render () {
     return (

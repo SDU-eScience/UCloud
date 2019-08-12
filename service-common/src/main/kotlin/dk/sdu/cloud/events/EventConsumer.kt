@@ -21,6 +21,7 @@ sealed class EventConsumer<V> {
         private val handler: suspend (V) -> Unit
     ) : EventConsumer<V>() {
         override suspend fun accept(events: List<V>): Boolean {
+            @Suppress("TooGenericExceptionCaught")
             return try {
                 coroutineScope {
                     val jobs = events.map { launch { handler(it) } }

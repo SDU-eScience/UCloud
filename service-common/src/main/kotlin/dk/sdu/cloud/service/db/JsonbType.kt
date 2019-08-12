@@ -29,6 +29,7 @@ const val JSONB_MAP_TYPE = "dk.sdu.cloud.service.db.JsonbMapType"
 const val JSONB_MAP_PARAM_KEY_TYPE = "keyParam"
 const val JSONB_MAP_PARAM_VALUE_TYPE = "valueParam"
 
+@Suppress("EqualsWithHashCodeExist")
 open class JsonbType : UserType, DynamicParameterizedType {
     private lateinit var klass: Class<*>
 

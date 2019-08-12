@@ -15,6 +15,30 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
+data class ListRecentRequest(
+    override val itemsPerPage: Int?,
+    override val page: Int?,
+    val order: SortOrder?,
+    val sortBy: JobSortBy?,
+    val minTimestamp: Long?,
+    val maxTimestamp: Long?,
+    val filter: JobState?
+) : WithPaginationRequest
+
+enum class SortOrder {
+    ASCENDING,
+    DESCENDING
+}
+
+enum class JobSortBy {
+    NAME,
+    STATE,
+    APPLICATION,
+    STARTED_AT,
+    LAST_UPDATE,
+    CREATED_AT
+}
+
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
  */
@@ -63,14 +87,6 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
                 +boundTo(ListRecentRequest::filter)
             }
         }
-    }
-
-    object ListRecent {
-        data class Request(
-            val state: JobState?,
-            override val itemsPerPage: Int?,
-            override val page: Int?
-        ) : WithPaginationRequest
     }
 
     /**
@@ -253,6 +269,11 @@ data class FollowStdStreamsResponse(
      * true if the application has completed (successfully or not) otherwise false
      */
     val complete: Boolean,
+
+    /**
+     * Time (in milliseconds) left of the job
+     */
+    val timeLeft: Int?,
 
     /**
      * The job ID

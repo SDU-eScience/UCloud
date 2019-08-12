@@ -242,7 +242,8 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color
             </g>
         </svg>
     );
-}
+};
+
 export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
     const i1 = (hash >>> 30) & 3;
     const i2 = (hash >>> 20) & 3;
@@ -251,7 +252,7 @@ export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
     const appC = appColor(hash);
 
     return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />
-}
+};
 
 
 const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
@@ -262,11 +263,11 @@ const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
     &: hover {
         transform: translate(0, 0);
     }
-`
+`;
 
 
 export function hashF(str: string): number {
-    var hash = 5381,
+    let hash = 5381,
         i = str.length;
 
     while (i) {
@@ -287,7 +288,7 @@ function appColor(hash: number): number {
 
 const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
-`
+`;
 
 export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({app, onFavorite, isFavorite, linkToRun}: ApplicationCardProps) => {
     const hash = hashF(app.metadata.title);

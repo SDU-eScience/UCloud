@@ -8,6 +8,7 @@ import * as Adapter from "enzyme-adapter-react-16";
 import "jest-styled-components";
 import {theme} from "../app/ui-components";
 import {ThemeProvider} from "styled-components";
+import {SortBy, SortOrder} from "../app/Files";
 
 configure({adapter: new Adapter()});
 
@@ -64,14 +65,20 @@ describe("FileIcon", () => {
 
 describe("Arrow", () => {
     test("arrowUp", () => {
-        expect(create(<Arrow name="arrowUp" />)).toMatchSnapshot();
+        expect(create(
+            <Arrow activeSortBy={SortBy.PATH} sortBy={SortBy.PATH} order={SortOrder.ASCENDING} />
+        )).toMatchSnapshot();
     });
 
     test("arrowDown", () => {
-        expect(create(<Arrow name="arrowDown" />)).toMatchSnapshot();
+        expect(create(
+            <Arrow activeSortBy={SortBy.PATH} sortBy={SortBy.PATH} order={SortOrder.DESCENDING} />
+        )).toMatchSnapshot();
     });
 
     test("undefined", () => {
-        expect(create(<Arrow name={undefined} />)).toMatchSnapshot();
+        expect(create(
+            <Arrow activeSortBy={SortBy.PATH} sortBy={SortBy.FILE_TYPE} order={SortOrder.ASCENDING} />)
+        ).toMatchSnapshot();
     });
 })

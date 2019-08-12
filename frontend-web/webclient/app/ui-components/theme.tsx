@@ -1,5 +1,5 @@
-const createMinMediaQuery = (n: number) => `@media screen and (min-width:${n}px)`
-const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n - 1}px)`
+const createMinMediaQuery = (n: number) => `@media screen and (min-width:${n}px)`;
+const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n - 1}px)`;
 
 const addAliases = (arr: any, aliases: any[]) =>
   aliases.forEach((key, i) =>
@@ -9,26 +9,26 @@ const addAliases = (arr: any, aliases: any[]) =>
         return this[i]
       }
     })
-  )
+  );
 
 // export const breakpoints = [32, 40, 48, 64, 80].map(n => n + 'em')
-const bp = [512, 640, 768, 1024, 1280]
-const aliases = ['xs', 'sm', 'md', 'lg', 'xl']
-export const breakpoints = bp.map(n => n + 'px')
-export const responsiveBP = bp.map((n, i) => ({[aliases[i]]: n - 1})).reduce((obj, item) => ({...obj, ...item}), {})
+const bp = [512, 640, 768, 1024, 1280];
+const aliases = ['xs', 'sm', 'md', 'lg', 'xl'];
+export const breakpoints = bp.map(n => n + 'px');
+export const responsiveBP = bp.map((n, i) => ({[aliases[i]]: n - 1})).reduce((obj, item) => ({...obj, ...item}), {});
 //export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 } 
 
-export const mediaQueryGT = bp.map(createMinMediaQuery)
-export const mediaQueryLT = bp.map(createMaxMediaQuery)
-addAliases(breakpoints, aliases)
-addAliases(mediaQueryGT, aliases)
-addAliases(mediaQueryLT, aliases)
+export const mediaQueryGT = bp.map(createMinMediaQuery);
+export const mediaQueryLT = bp.map(createMaxMediaQuery);
+addAliases(breakpoints, aliases);
+addAliases(mediaQueryGT, aliases);
+addAliases(mediaQueryLT, aliases);
 
-export const space = [0, 4, 8, 16, 32, 64, 128]
+export const space = [0, 4, 8, 16, 32, 64, 128];
 
-export const fontFamily = `'IBM Plex Sans', sans-serif`
+export const fontFamily = `'IBM Plex Sans', sans-serif`;
 
-export const fontSizes = [10, 14, 16, 20, 24, 32, 40, 56, 72]
+export const fontSizes = [10, 14, 16, 20, 24, 32, 40, 56, 72];
 
 export const medium = 300;
 export const bold = 700;
@@ -39,17 +39,17 @@ export const fontWeights = {
   medium,
   bold,
   regular
-}
+};
 
 export const lineHeights = {
   standard: 1.5,
   display: 1.25
-}
+};
 
 const letterSpacings = {
   normal: 'normal',
   caps: '0.025em'
-}
+};
 
 export const textStyles = {
   display8: {
@@ -114,13 +114,13 @@ export const textStyles = {
     fontWeight: fontWeights.medium,
     lineHeight: lineHeights.standard
   }
-}
+};
 
 
 // color palette
 const black = "#000";
 const white = "#fff";
-const textBlack = "#1e252e"
+const textBlack = "#1e252e";
 //// Gray
 //const lightGray = "#ebeff3";
 const lightGray = "#f5f7f9";
@@ -237,7 +237,7 @@ const colors = {
   tableRowHighlight,
   wayfGreen: "#66b340",
   appCard
-}
+};
 
 export const invertedColors = {
   ...colors,
@@ -253,7 +253,7 @@ export const invertedColors = {
   paginationHoverColor: "#444",
   appCard: "#060707",
   borderGray: "#111"
-}
+};
 
 
 export type ThemeColor = keyof typeof colors;
@@ -358,13 +358,13 @@ export const colorStyles = {
     color: colors.white,
     backgroundColor: colors.red
   }
-}
+};
 
 // styled-system's `borderRadius` function can hook into the `radii` object/array
-export const radii = [0, 2, 6]
-export const radius = '5px'
+export const radii = [0, 2, 6];
+export const radius = '5px';
 
-export const maxContainerWidth = '1280px'
+export const maxContainerWidth = '1280px';
 
 // boxShadows: styled-systems hooks into shadows
 // export const shadows = [
@@ -407,14 +407,14 @@ const MDshadows = [
   `0px 10px 14px -6px rgba(0,0,0,0.2), 0px 22px 35px 3px rgba(0,0,0,.14),0px 8px 42px 7px rgba(0,0,0,.12)`,
   `0px 11px 14px -7px rgba(0,0,0,0.2), 0px 23px 36px 3px rgba(0,0,0,.14),0px 9px 44px 8px rgba(0,0,0,.12)`,
   `0px 11px 15px -7px rgba(0,0,0,0.2), 0px 24px 38px 3px rgba(0,0,0,.14),0px 9px 46px 8px rgba(0,0,0,.12)`
-]
+];
 export const shadows = [
   MDshadows[3],
   MDshadows[6],
   MDshadows[12],
   MDshadows[18],
   MDshadows[24]
-]
+];
 const BoxShadowsAliases = ['sm', 'md', 'lg', 'xl', 'xxl'];
 addAliases(shadows, BoxShadowsAliases);
 
@@ -425,17 +425,17 @@ export const duration = {
   normal: `300ms`,
   slow: `450ms`,
   slowest: `600ms`
-}
+};
 
 // animation easing curves
-const easeInOut = 'cubic-bezier(0.5, 0, 0.25, 1)'
-const easeOut = 'cubic-bezier(0, 0, 0.25, 1)'
-const easeIn = 'cubic-bezier(0.5, 0, 1, 1)'
-const easeInQuint = 'cubic-bezier(0.755, 0.05, 0.855, 0.06)' //This is a steep easeIn curve
-const easeInQuintR = `cubic-bezier(${1 - 0.855}, ${1 - 0.06}, ${1 - 0.755}, ${1 - 0.05})` //This is a steep easeIn curve
-const easeOutQuint = 'cubic-bezier(0.23, 1, 0.32, 1)'
-const stepStart = 'step-start'
-const stepEnd = 'step-end'
+const easeInOut = 'cubic-bezier(0.5, 0, 0.25, 1)';
+const easeOut = 'cubic-bezier(0, 0, 0.25, 1)';
+const easeIn = 'cubic-bezier(0.5, 0, 1, 1)';
+const easeInQuint = 'cubic-bezier(0.755, 0.05, 0.855, 0.06)'; //This is a steep easeIn curve
+const easeInQuintR = `cubic-bezier(${1 - 0.855}, ${1 - 0.06}, ${1 - 0.755}, ${1 - 0.05})`; //This is a steep easeIn curve
+const easeOutQuint = 'cubic-bezier(0.23, 1, 0.32, 1)';
+const stepStart = 'step-start';
+const stepEnd = 'step-end';
 
 const timingFunctions = {
   easeInOut,
@@ -446,7 +446,7 @@ const timingFunctions = {
   easeOutQuint,
   stepStart,
   stepEnd,
-}
+};
 
 // animation delay
 const transitionDelays = {
@@ -455,7 +455,7 @@ const transitionDelays = {
   medium: `160ms`,
   large: `260ms`,
   xLarge: `360ms`
-}
+};
 
 const theme = {
   breakpoints,
@@ -480,7 +480,7 @@ const theme = {
   duration,
   timingFunctions,
   transitionDelays
-}
+};
 
 export type Theme = typeof theme
 

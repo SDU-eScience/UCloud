@@ -15,4 +15,4 @@ export const setFilePreviewError = (error?: string) => ({
 const receiveFile = (file: File) => ({
     type: FILE_PREVIEW_RECEIVE_FILE,
     payload: { file }
-})
+});

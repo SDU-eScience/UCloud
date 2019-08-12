@@ -5,17 +5,17 @@ import FacialHair from './facialHair'
 import HatColor from './HatColor'
 
 export default class WinterHat4 extends React.Component {
-  static optionValue = 'WinterHat4'
-  private filter1 = uniqueId('react-filter-')
-  private mask1 = uniqueId('react-mask-')
-  private mask2 = uniqueId('react-mask-')
-  private mask3 = uniqueId('react-mask-')
-  private mask4 = uniqueId('react-mask-')
-  private path1 = uniqueId('react-path-')
-  private path2 = uniqueId('react-path-')
-  private path3 = uniqueId('react-path-')
-  private path4 = uniqueId('react-path-')
-  private path5 = uniqueId('react-path-')
+  static optionValue = 'WinterHat4';
+  private filter1 = uniqueId('react-filter-');
+  private mask1 = uniqueId('react-mask-');
+  private mask2 = uniqueId('react-mask-');
+  private mask3 = uniqueId('react-mask-');
+  private mask4 = uniqueId('react-mask-');
+  private path1 = uniqueId('react-path-');
+  private path2 = uniqueId('react-path-');
+  private path3 = uniqueId('react-path-');
+  private path4 = uniqueId('react-path-');
+  private path5 = uniqueId('react-path-');
 
   render () {
     const {
@@ -29,7 +29,7 @@ export default class WinterHat4 extends React.Component {
       path3,
       path4,
       path5
-    } = this
+    } = this;
     return (
       <g id='Top'>
         <defs>

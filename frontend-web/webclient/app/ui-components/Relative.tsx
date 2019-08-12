@@ -13,7 +13,7 @@ const Relative = styled(Box)<RelativeProps>`
   position: relative;
   ${top} ${bottom} ${left} ${right}
   ${zIndex}
-`
+`;
 
 Relative.displayName = "Relative";
 

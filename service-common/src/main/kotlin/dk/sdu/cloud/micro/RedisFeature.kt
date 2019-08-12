@@ -22,7 +22,7 @@ class RedisFeature : MicroFeature {
             log.info("No available configuration found at 'redis/hostname'.")
             log.info("Attempting to look for defaults.")
 
-            val hostname = findValidHostname(DEFAULT_HOST_NAMES)
+            val hostname = findValidHostname(defaultHostNames)
                 ?: throw IllegalStateException("Could not find a valid redis host")
 
             log.info("$hostname is a valid host, assuming redis is running on this machine.")
@@ -49,6 +49,6 @@ class RedisFeature : MicroFeature {
         override val key: MicroAttributeKey<RedisFeature> = MicroAttributeKey("redis-feature")
         override fun create(config: Unit): RedisFeature = RedisFeature()
 
-        private val DEFAULT_HOST_NAMES = listOf("redis", "localhost")
+        private val defaultHostNames = listOf("redis", "localhost")
     }
 }

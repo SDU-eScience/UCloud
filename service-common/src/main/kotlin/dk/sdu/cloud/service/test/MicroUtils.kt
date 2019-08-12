@@ -4,8 +4,6 @@ import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.micro.ClientFeature
 import dk.sdu.cloud.micro.ConfigurationFeature
 import dk.sdu.cloud.micro.DevelopmentOverrides
-import dk.sdu.cloud.micro.KafkaFeature
-import dk.sdu.cloud.micro.KafkaFeatureConfiguration
 import dk.sdu.cloud.micro.KtorServerProviderFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ScriptFeature
@@ -50,7 +48,8 @@ private val databaseConfig by lazy {
 /**
  * Initializes Micro with all default features. Certain services are mocked.
  *
- * @see KafkaMock
+ * @see ClientMock
+ * @see EventServiceMock
  * @see TokenValidationMock
  */
 fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
@@ -70,7 +69,6 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
         install(ConfigurationFeature)
         install(ServiceDiscoveryOverrides)
         install(DevelopmentOverrides) // Always activated
-//        install(KtorServerProviderFeature)
 
         attributes[KtorServerProviderFeature.serverProviderKey] = { module ->
             val engine = TestApplicationEngine()
@@ -79,10 +77,6 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
             engine
         }
 
-        install(
-            KafkaFeature,
-            KafkaFeatureConfiguration()
-        )
         EventServiceMock.reset()
         eventStreamService = EventServiceMock
         install(ClientFeature)

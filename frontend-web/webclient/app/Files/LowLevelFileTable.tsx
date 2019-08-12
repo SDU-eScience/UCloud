@@ -136,7 +136,7 @@ interface InternalFileTableAPI {
     error: string | undefined;
     pageLoading: boolean;
     setSorting: ((sortBy: SortBy, order: SortOrder, column?: number) => void);
-    sortingIconFor: ((other: SortBy) => "arrowUp" | "arrowDown" | undefined);
+    sortingIcon: (other: SortBy) => React.ReactNode;
     reload: () => void;
     sortBy: SortBy;
     order: SortOrder;
@@ -189,7 +189,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
             pageLoading,
             error: undefined,
             setSorting: () => 0,
-            sortingIconFor: () => undefined,
+            sortingIcon: () => undefined,
             sortBy: SortBy.PATH,
             order: SortOrder.ASCENDING,
             reload: () => {
@@ -225,17 +225,8 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
             });
         };
 
-        const sortingIconFor = (other: SortBy): "arrowUp" | "arrowDown" | undefined => {
-            if (other === pageParameters.sortBy) {
-                if (pageParameters.order === SortOrder.ASCENDING) {
-                    return "arrowUp";
-                } else {
-                    return "arrowDown";
-                }
-            }
-
-            return undefined;
-        };
+        const sortingIcon = (other: SortBy): React.ReactNode => 
+            <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order} />;
 
         const reload = () => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
@@ -245,7 +236,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
             loadManaged({...pageParameters, page: pageNumber, itemsPerPage: itemsPerPage});
         };
 
-        api = {page, error, pageLoading: loading, setSorting, sortingIconFor, reload, sortBy, order, onPageChanged};
+        api = {page, error, pageLoading: loading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged};
     }
     return api;
 }
@@ -270,7 +261,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, workError, invokeWork] = useAsyncWork();
 
-    let {page, error, pageLoading, setSorting, sortingIconFor, reload, sortBy, order, onPageChanged} =
+    let {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
 
     // Callbacks for operations
@@ -477,7 +468,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                 </Label>
                                             }
                                         </Box>
-                                        <Arrow name={sortingIconFor(SortBy.PATH)}/>
+                                        {sortingIcon(SortBy.PATH)}
                                         <Box cursor="pointer">Filename</Box>
                                     </Flex>
                                 </FileTableHeaderCell>
@@ -491,12 +482,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
                                     const isSortedBy = sortBy === column;
 
-                                    return <FileTableHeaderCell notSticky={isEmbedded} width="10rem">
+                                    return <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
                                         <Flex backgroundColor="white" alignItems="center" cursor="pointer"
                                               justifyContent="left">
                                             <Box
                                                 onClick={() => setSorting(column, invertSortOrder(order), i)}>
-                                                <Arrow name={sortingIconFor(column)}/>
+                                                {sortingIcon(column)}
                                             </Box>
                                             {!sortingSupported ?
                                                 <>{UF.sortByToPrettierString(column)}</>

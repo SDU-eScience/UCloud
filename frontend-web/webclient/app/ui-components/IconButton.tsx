@@ -32,6 +32,6 @@ IconButton.displayName = "IconButton";
 
 IconButton.defaultProps = {
   theme: theme
-}
+};
 
 export default IconButton;

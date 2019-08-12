@@ -1,24 +1,24 @@
 import * as React from "react";
 import JobResults from "../../app/Applications/JobResults";
-import { create } from "react-test-renderer";
-import { configureStore } from "../../app/Utilities/ReduxUtilities";
-import { initAnalyses } from "../../app/DefaultObjects";
+import {create} from "react-test-renderer";
+import {configureStore} from "../../app/Utilities/ReduxUtilities";
+import {initAnalyses} from "../../app/DefaultObjects";
 import analyses from "../../app/Applications/Redux/AnalysesReducer";
-import { Provider } from "react-redux";
-import { MemoryRouter } from "react-router";
-import { analyses as analysesPage } from "../mock/Analyses";
-import { createMemoryHistory } from "history";
+import {Provider} from "react-redux";
+import {MemoryRouter} from "react-router";
+import {analyses as analysesPage} from "../mock/Analyses";
+import {createMemoryHistory} from "history";
 import "jest-styled-components";
-import { responsiveStoreEnhancer, createResponsiveStateReducer } from "redux-responsive";
-import theme, { responsiveBP } from "../../app/ui-components/theme";
-import { ThemeProvider } from "styled-components";
+import {responsiveStoreEnhancer, createResponsiveStateReducer} from "redux-responsive";
+import theme, {responsiveBP} from "../../app/ui-components/theme";
+import {ThemeProvider} from "styled-components";
 
 
-const configureTestStore = () => configureStore({ analyses: initAnalyses() }, {
+const configureTestStore = () => configureStore({analyses: initAnalyses()}, {
     analyses,
     responsive: createResponsiveStateReducer(
         responsiveBP,
-        { infinity: "xxl" }),
+        {infinity: "xxl"}),
 }, responsiveStoreEnhancer);
 
 describe("Analyses component", () => {

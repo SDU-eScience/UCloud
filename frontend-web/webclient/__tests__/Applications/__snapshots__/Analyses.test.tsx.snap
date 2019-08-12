@@ -1104,9 +1104,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   flex: none;
   vertical-align: middle;
   cursor: pointer;
-  -webkit-transform: rotate(180deg);
-  -ms-transform: rotate(180deg);
-  transform: rotate(180deg);
   margin-right: .4em;
 }
 
@@ -2185,7 +2182,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                   fillRule="evenodd"
                   height=".7em"
                   mr=".4em"
-                  rotation="180"
                   viewBox="0 0 18 24"
                   width=".7em"
                 >

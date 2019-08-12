@@ -59,10 +59,10 @@ export const colorScheme = (props: {theme: Theme, color: ThemeColor}) => {
       borderColor: props.theme.colors.lightGray,
       color: props.theme.colors.text
     }
-  }
+  };
   const color = badgeColors[props.color];
   return color || badgeColors["white"];
-}
+};
 
 const StampBase = styled.div<StampProps>`
   display: inline-flex;
@@ -77,7 +77,7 @@ const StampBase = styled.div<StampProps>`
   border-style: solid;
   ${colorScheme}
   ${space} ${fontSize};
-`
+`;
 
 StampBase.displayName = "Stamp";
 
@@ -96,7 +96,7 @@ StampBase.defaultProps = {
   color: "gray",
   fontSize: 0,
   fullWidth: false
-}
+};
 
 const Stamp = (props: StampProps & {icon?: IconName, onClick?: () => void, text: string}) => (
   <StampBase {...props}>

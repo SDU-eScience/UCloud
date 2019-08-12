@@ -6,6 +6,7 @@ import {History} from "history";
 import {ResponsiveReduxObject, AnalysisReduxObject} from "DefaultObjects";
 import {ParameterValues} from "Utilities/ApplicationUtilities";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
+import * as React from "react";
 import {SharedFileSystemMount} from "Applications/FileSystems";
 
 export interface Analysis {

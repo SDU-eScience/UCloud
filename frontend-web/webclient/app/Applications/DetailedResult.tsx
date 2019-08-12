@@ -279,7 +279,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     <Button color="green">Go to web interface</Button>
                 </ExternalLink>);
             else if (appType === "VNC")
-                return <Link to={this.state.webLink}><Button color="green">Go to web interface</Button></Link>
+                return <Link to={this.state.webLink}><Button color="green">Go to web interface</Button></Link>;
         return null;
     }
 

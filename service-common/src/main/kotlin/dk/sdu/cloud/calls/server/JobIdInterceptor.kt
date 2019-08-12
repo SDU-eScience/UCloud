@@ -71,8 +71,9 @@ var IngoingCall.jobId: String
 var IngoingCall.causedBy: String?
     get() = attributes.getOrNull(JobIdInterceptor.causedByKey)
     set(value) {
-        if (value != null) attributes[JobIdInterceptor.causedByKey] = value
-        else {
+        if (value != null) {
+            attributes[JobIdInterceptor.causedByKey] = value
+        } else {
             attributes.remove(JobIdInterceptor.causedByKey)
         }
     }
