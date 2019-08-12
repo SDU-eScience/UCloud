@@ -50,6 +50,7 @@ fun <T, P> assertThatPropertyEquals(
  */
 inline fun <T> retrySection(attempts: Int = 5, delay: Long = 500, block: () -> T): T {
     for (i in 1..attempts) {
+        @Suppress("TooGenericExceptionCaught")
         try {
             return block()
         } catch (ex: Throwable) {

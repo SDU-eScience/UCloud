@@ -51,13 +51,19 @@ class ClientInfoInterceptor : IngoingCallFilter.BeforeParsing() {
 var IngoingCall.remoteHost: String?
     get() = attributes.getOrNull(ClientInfoInterceptor.remoteHostKey)
     internal set(value) {
-        if (value != null) attributes[ClientInfoInterceptor.remoteHostKey] = value
-        else attributes.remove(ClientInfoInterceptor.remoteHostKey)
+        if (value != null) {
+            attributes[ClientInfoInterceptor.remoteHostKey] = value
+        } else {
+            attributes.remove(ClientInfoInterceptor.remoteHostKey)
+        }
     }
 
 var IngoingCall.userAgent: String?
     get() = attributes.getOrNull(ClientInfoInterceptor.userAgentKey)
     internal set(value) {
-        if (value != null) attributes[ClientInfoInterceptor.userAgentKey] = value
-        else attributes.remove(ClientInfoInterceptor.userAgentKey)
+        if (value != null) {
+            attributes[ClientInfoInterceptor.userAgentKey] = value
+        } else {
+            attributes.remove(ClientInfoInterceptor.userAgentKey)
+        }
     }

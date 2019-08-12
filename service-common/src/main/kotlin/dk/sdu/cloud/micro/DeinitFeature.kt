@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.stackTraceToString
 
 class DeinitFeature : MicroFeature {
     private val handlers = ArrayList<() -> Unit>()
+
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
 
     }
@@ -17,6 +18,7 @@ class DeinitFeature : MicroFeature {
     fun runHandlers() {
         log.info("Shutting down features")
         handlers.forEach {
+            @Suppress("TooGenericExceptionCaught")
             try {
                 it()
             } catch (ex: Throwable) {

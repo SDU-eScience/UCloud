@@ -100,6 +100,7 @@ class RedisStreamService(
                     if (consumer is EventConsumer.Immediate) {
                         val ids = messages.map { it.id }
                         launch {
+                            @Suppress("TooGenericExceptionCaught")
                             try {
                                 if (consumer.accept(events)) {
                                     xackA(stream.name, group, ids.toSet())
@@ -111,6 +112,7 @@ class RedisStreamService(
                         }
                     } else {
                         messagesNotYetAcknowledged.addAll(messages.map { it.id })
+                        @Suppress("TooGenericExceptionCaught")
                         try {
                             if (consumer.accept(events)) {
                                 xackA(stream.name, group, messagesNotYetAcknowledged)

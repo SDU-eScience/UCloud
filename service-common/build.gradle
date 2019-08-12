@@ -3,7 +3,7 @@ import java.nio.channels.ReadableByteChannel
 import java.nio.file.Files
 
 buildscript {
-    ext.jacksonVersion = "2.9.9.3"
+    ext.jacksonVersion = "2.9.9"
     ext.kotlin_version = "1.3.41"
     ext.ktor_version = "1.2.3"
     ext.dokka_version = "0.9.18"
@@ -28,7 +28,7 @@ detekt {
     filters = ".*/resources/.*,.*/build/.*"
 
     // https://stackoverflow.com/a/921400
-    def currentVersion = "v0.2.11"
+    def currentVersion = "v0.2.16"
     URL website = new URL("https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/$currentVersion/detekt.yml")
     ReadableByteChannel rbc = Channels.newChannel(website.openStream())
     def outputFile = Files.createTempFile("detekt", ".yml").toFile()
@@ -38,7 +38,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version "1.5.4"
+version "1.5.6"
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
@@ -53,6 +53,7 @@ dokka {
 repositories {
     mavenCentral()
     mavenLocal()
+    jcenter()
 
     maven { url "https://kotlin.bintray.com/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
@@ -96,7 +97,6 @@ dependencies {
     compile group: "io.ktor", name: "ktor-jackson", version: "$ktor_version"
     compile group: "io.ktor", name: "ktor-server-netty", version: "$ktor_version"
     compile group: "io.ktor", name: "ktor-server-host-common", version: "$ktor_version"
-    compile "io.ktor:ktor-websockets:$ktor_version"
 
     // db
     compile group: 'org.postgresql', name: 'postgresql', version: '42.2.5'
@@ -114,7 +114,7 @@ dependencies {
     compile "io.ktor:ktor-client-json:$ktor_version"
     compile "io.ktor:ktor-client-json-jvm:$ktor_version"
     compile "io.ktor:ktor-client-jackson:$ktor_version"
-    compile "io.ktor:ktor-client-websocket:$ktor_version"
+    compile "io.ktor:ktor-client-websockets:$ktor_version"
     compile "io.ktor:ktor-client-cio:$ktor_version"
 
     // JWTs
@@ -134,7 +134,7 @@ dependencies {
     def withoutLogback = { exclude group: 'ch.qos.logback', module: 'logback-classic' }
 
     compile "io.ktor:ktor-server-test-host:$ktor_version", withoutLogback
-    compile "io.mockk:mockk:1.9.13"
+    compile "io.mockk:mockk:1.9.3"
 }
 
 compileKotlin {

@@ -44,6 +44,7 @@ object RequestParsing : Loggable {
             it to parameters[name]
         }.toMap()
 
+        @Suppress("TooGenericExceptionCaught")
         try {
             return constructor.callBy(resolvedArguments)
         } catch (ex: Exception) {
