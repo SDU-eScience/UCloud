@@ -349,8 +349,8 @@ export const toFileText = (selectedFiles: File[]): string =>
 export const isDirectory = (file: { fileType: FileType }): boolean => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
 export const expandHomeFolder = (path: string, homeFolder: string): string => {
-    if (path.startsWith("Home/"))
-        return path.replace("Home/", homeFolder);
+    if (path.startsWith("/Home/"))
+        return path.replace("/Home/", homeFolder);
     return path;
 };
 

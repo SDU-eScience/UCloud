@@ -124,6 +124,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         // FIXME: Unify with extractParametersFromMap
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
             const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder);
+            console.log(it.ref.current!.value, expandedValue);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!,
