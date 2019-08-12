@@ -58,7 +58,7 @@ class Server(
         val shareQueryService = ShareQueryService(micro.hibernateDatabase, shareDao, client)
 
         if (micro.commandLineArguments.contains("--sync")) {
-            val service = ShareSynchronization(micro.hibernateDatabase, shareDao, client)
+            val service = ShareSynchronization(micro.hibernateDatabase, shareDao, userClientFactory)
             runBlocking {
                 service.synchronize()
             }

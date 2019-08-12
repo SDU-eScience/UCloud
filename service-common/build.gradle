@@ -3,10 +3,10 @@ import java.nio.channels.ReadableByteChannel
 import java.nio.file.Files
 
 buildscript {
-    ext.jacksonVersion = "2.9.8"
-    ext.kotlin_version = "1.3.20"
-    ext.ktor_version = "1.1.5"
-    ext.dokka_version = "0.9.17"
+    ext.jacksonVersion = "2.9.9.3"
+    ext.kotlin_version = "1.3.41"
+    ext.ktor_version = "1.2.3"
+    ext.dokka_version = "0.9.18"
 
     repositories {
         mavenCentral()
@@ -19,11 +19,11 @@ buildscript {
 }
 
 plugins {
-    id("io.gitlab.arturbosch.detekt").version("1.0.0.RC9.2")
+    id("io.gitlab.arturbosch.detekt").version("1.0.0-RC16")
 }
 
 detekt {
-    toolVersion = "1.0.0.RC9.2"
+    toolVersion = "1.0.0-RC16"
     input = files("src/main/kotlin")
     filters = ".*/resources/.*,.*/build/.*"
 
@@ -81,9 +81,6 @@ dependencies {
     // Kotlin
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
-    // Kafka
-    compile group: "org.apache.kafka", name: "kafka-clients", version: "2.1.0"
-
     // Redis
     compile 'io.lettuce:lettuce-core:5.1.6.RELEASE'
 
@@ -110,7 +107,7 @@ dependencies {
     compile 'eu.infomas:annotation-detector:3.0.5'
 
     // Client
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.1'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.2.2'
 
     compile "io.ktor:ktor-client-core:$ktor_version"
     compile "io.ktor:ktor-client-okhttp:$ktor_version"
@@ -121,23 +118,23 @@ dependencies {
     compile "io.ktor:ktor-client-cio:$ktor_version"
 
     // JWTs
-    compile "com.auth0:java-jwt:3.8.0"
+    compile "com.auth0:java-jwt:3.8.1"
 
     compile 'com.google.guava:guava:27.0.1-jre'
 
     // Testing
     testCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
     testCompile group: "junit", name: "junit", version: "4.12"
-    testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
-    testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
-    testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.12.0'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.12.0'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.12.0'
 
     // Exported via testing lib
     // TODO How could we mark them in a unified location?
     def withoutLogback = { exclude group: 'ch.qos.logback', module: 'logback-classic' }
 
     compile "io.ktor:ktor-server-test-host:$ktor_version", withoutLogback
-    compile "io.mockk:mockk:1.8.12.kotlin13"
+    compile "io.mockk:mockk:1.9.13"
 }
 
 compileKotlin {
@@ -145,6 +142,10 @@ compileKotlin {
 }
 compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+jacoco {
+    toolVersion = "0.8.4"
 }
 
 jacocoTestReport {
