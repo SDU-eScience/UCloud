@@ -244,7 +244,8 @@ class JobHibernateDao(
 
             while (scroller.next()) {
                 val next = scroller.get(0) as JobInformationEntity
-                yield(runBlocking { next.toModel(resolveTool = true) })
+                val value = runBlocking { next.toModel(resolveTool = true) }
+                if (value != null) yield(value!!)
             }
         }
     }
@@ -313,16 +314,26 @@ class JobHibernateDao(
                     )
                 )
             }
-        ).mapItems { it.toModel() }
+        ).mapItemsNotNull { it.toModel() }
+    }
+
+    private inline fun <T, R : Any> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
+        val newItems = items.mapNotNull(mapper)
+        return Page(
+            itemsInTotal,
+            itemsPerPage,
+            pageNumber,
+            newItems
+        )
     }
 
     private suspend fun JobInformationEntity.toModel(
         resolveTool: Boolean = false
-    ): VerifiedJobWithAccessToken {
+    ): VerifiedJobWithAccessToken? {
         val withoutTool = VerifiedJobWithAccessToken(
             VerifiedJob(
                 appStoreService.findByNameAndVersion(application.name, application.version)
-                    ?: throw RPCException("Application was not found", HttpStatusCode.BadRequest),
+                    ?: return null, // return null in case application no longer exists (issue #915)
                 name,
                 files,
                 systemId,

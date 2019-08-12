@@ -13,7 +13,7 @@ spec:
 
           containers:
           - name: redis-cleaner
-            image: registry.cloud.sdu.dk/sdu-cloud/redis-cleaner-service:0.1.2
+            image: registry.cloud.sdu.dk/sdu-cloud/redis-cleaner-service:0.1.3
             command:
             - /opt/service/bin/service
             - --config-dir
@@ -22,8 +22,6 @@ spec:
             - /etc/token-validation
             - --config-dir
             - /etc/psql
-            imagePullSecrets:
-            - name: esci-docker
             volumeMounts:
             - mountPath: /etc/refresh-token
               name: refresh-token
