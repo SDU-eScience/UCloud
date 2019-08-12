@@ -4,7 +4,7 @@ version '0.1.1'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.fs.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.18/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.19/sdu-cloud.gradle"
 
 buildscript {
     ext.serviceCommonVersion = "1.5.6"
