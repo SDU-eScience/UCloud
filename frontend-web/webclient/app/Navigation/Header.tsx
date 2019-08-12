@@ -114,7 +114,7 @@ function Header(props: HeaderProps) {
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
-                {inDevEnvironment() ? <Divider /> : null}
+                <Divider />
                 <Flex onClick={e => (e.preventDefault(), e.stopPropagation(), props.toggleTheme())}>
                     <ThemeToggler isLightTheme={isLightThemeStored()} />
                 </Flex>
@@ -123,9 +123,13 @@ function Header(props: HeaderProps) {
     )
 }
 
-export const Refresh = ({onClick, spin, headerLoading}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
-    <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading}
-        onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />;
+export const Refresh = ({
+    onClick,
+    spin,
+    headerLoading
+}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
+        <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading}
+            onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />;
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;

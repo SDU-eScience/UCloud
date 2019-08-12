@@ -249,7 +249,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                     </Tooltip>
                 </SidebarTextLabel> : null}
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                <SidebarTextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1}
+                <SidebarTextLabel height="25px" icon="verified" color2="darkGray" iconSize="1em" textSize={1}
                     space=".5em">
                     SDU Data Protection
                 </SidebarTextLabel>
