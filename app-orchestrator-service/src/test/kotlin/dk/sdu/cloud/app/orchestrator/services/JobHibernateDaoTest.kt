@@ -88,6 +88,7 @@ class JobHibernateDaoTest {
             val jobWithToken = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc,
+                    null,
                     emptyList(),
                     systemId,
                     user.username,
@@ -147,6 +148,7 @@ class JobHibernateDaoTest {
             val firstJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc,
+                    null,
                     emptyList(),
                     systemId,
                     user.username,
@@ -169,6 +171,7 @@ class JobHibernateDaoTest {
             val secondJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc2,
+                    null,
                     emptyList(),
                     UUID.randomUUID().toString(),
                     user.username,
@@ -231,6 +234,7 @@ class JobHibernateDaoTest {
             val firstJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc,
+                    null,
                     emptyList(),
                     systemId,
                     user.username,
@@ -253,6 +257,7 @@ class JobHibernateDaoTest {
             val secondJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc2,
+                    null,
                     emptyList(),
                     UUID.randomUUID().toString(),
                     user.username,
@@ -392,6 +397,7 @@ class JobHibernateDaoTest {
         val firstJob = VerifiedJobWithAccessToken(
             VerifiedJob(
                 normAppDesc,
+                null,
                 emptyList(),
                 systemId,
                 user.username,

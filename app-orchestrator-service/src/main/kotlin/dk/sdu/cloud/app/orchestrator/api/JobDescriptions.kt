@@ -31,6 +31,7 @@ enum class SortOrder {
 }
 
 enum class JobSortBy {
+    NAME,
     STATE,
     APPLICATION,
     STARTED_AT,
@@ -268,6 +269,11 @@ data class FollowStdStreamsResponse(
      * true if the application has completed (successfully or not) otherwise false
      */
     val complete: Boolean,
+
+    /**
+     * Time (in milliseconds) left of the job
+     */
+    val timeLeft: Int?,
 
     /**
      * The job ID

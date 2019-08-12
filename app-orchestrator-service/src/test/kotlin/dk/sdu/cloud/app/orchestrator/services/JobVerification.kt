@@ -29,6 +29,7 @@ class JobVerification {
     val unverifiedJob = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
+            "Test job",
             mapOf("int" to 5, "great" to "mojn", "missing" to 23),
             1,
             1,
@@ -93,6 +94,7 @@ class JobVerification {
     val unverifiedJobWithWrongParamType = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
+            "Test job",
             mapOf("int" to 2, "missing" to "NotAnInt"),
             1,
             1,
@@ -115,6 +117,7 @@ class JobVerification {
     val unverifiedJobWithMissingNonOptional = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
+            "Test job",
             mapOf("great" to "mojn"),
             1,
             1,
