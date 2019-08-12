@@ -475,6 +475,8 @@ export const sizeToString = (bytes: number | null): string => {
     }
 };
 
+export const directorySizeQuery = "/files/stats/directory-sizes";
+
 interface ShareFiles {
     files: File[],
     cloud: SDUCloud
