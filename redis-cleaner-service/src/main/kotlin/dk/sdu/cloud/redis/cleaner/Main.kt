@@ -7,7 +7,6 @@ import dk.sdu.cloud.micro.*
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(RedisCleanerServiceDescription, args)
-        install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
     }
 

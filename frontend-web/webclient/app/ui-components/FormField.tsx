@@ -37,7 +37,7 @@ const getFieldStyles = (showLabel: boolean) =>
     paddingTop: "9.5px",
     paddingBottom: "9.5px",
     transition: "padding-top 0.1s, padding-bottom 0.1s"
-  }
+  };
 
 const noop = () => { };
 
@@ -62,23 +62,23 @@ class FormField extends React.Component<{
     id: "d",
     onChange: noop,
     theme: theme
-  }
+  };
 
   // for backwards-compatibility
   handleChange = onChange => e => {
-    this.props.onChange(e)
-    if (typeof onChange !== "function") return
+    this.props.onChange(e);
+    if (typeof onChange !== "function") return;
     onChange(e)
-  }
+  };
 
   hasValue = () => {
-    const { children } = this.props
+    const { children } = this.props;
     return React.Children.toArray(children).reduce(
       (a, child: any) =>
         a || (child && isFormElement(child.type) && child.props.value),
       false
     )
-  }
+  };
 
   render() {
     const { label, icon, children, onChange, ...props } = this.props;
@@ -93,30 +93,30 @@ class FormField extends React.Component<{
     let iconAdjustment;
 
     React.Children.forEach(children, (child, index) => {
-      if (!child) return
+      if (!child) return;
 
       switch ((child as any).type) {
         case Label:
-          LabelChild = child
-          break
+          LabelChild = child;
+          break;
         case Input:
         case Select:
-          position = index
-          FieldChild = child
-          fieldId = props.id
+          position = index;
+          FieldChild = child;
+          fieldId = props.id;
           // For aria-label when Label child is not rendered
-          fieldPlaceholder = props.placeholder
-          break
+          fieldPlaceholder = props.placeholder;
+          break;
         case Icon:
           if (position < 0) {
-            BeforeIcon = child
+            BeforeIcon = child;
             iconAdjustment = (props.size ? props.size : 0) - 24
           } else {
             AfterIcon = child
           }
           break
       }
-    })
+    });
 
     // Handle old version on component's api
     if (icon) {
@@ -132,7 +132,7 @@ class FormField extends React.Component<{
     const showLabel =
       LabelChild && LabelChild.props.hidden
         ? false
-        : this.props.alwaysShowLabel || (LabelChild && this.hasValue())
+        : this.props.alwaysShowLabel || (LabelChild && this.hasValue());
 
     return (
       <Root>

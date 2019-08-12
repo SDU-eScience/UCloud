@@ -26,7 +26,7 @@ Table.defaultProps = {
     backgroundColor: "white",
     width: "100%",
     minWidth: "15em"
-}
+};
 
 export const TableBody = styled.tbody``;
 
@@ -58,7 +58,7 @@ export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string,
 TableRow.defaultProps = {
     backgroundColor: "white",
     cursor: "auto"
-}
+};
 
 TableRow.displayName = "TableRow";
 

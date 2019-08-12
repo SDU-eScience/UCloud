@@ -4,12 +4,12 @@ import {generateId as uniqueId} from 'UtilityFunctions';
 import Colors from './Colors'
 
 export default class ShirtCrewNeck extends React.Component {
-  static optionValue = 'ShirtCrewNeck'
-  private path1 = uniqueId('react-path-')
-  private mask1 = uniqueId('react-mask-')
+  static optionValue = 'ShirtCrewNeck';
+  private path1 = uniqueId('react-path-');
+  private mask1 = uniqueId('react-mask-');
 
   render () {
-    const { path1, mask1 } = this
+    const { path1, mask1 } = this;
     return (
       <g
         id='Clothing/Shirt-Crew-Neck'

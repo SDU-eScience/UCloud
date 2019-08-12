@@ -66,4 +66,4 @@ export const clearResource = (resource: string, subResource: string): ClearResou
     payload: {
         resource: resourceName(resource, subResource)
     }
-})
+});

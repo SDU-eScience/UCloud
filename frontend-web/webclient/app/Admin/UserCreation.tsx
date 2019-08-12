@@ -82,7 +82,7 @@ function UserCreation(props: UserCreationOperations) {
 
 
     const header = (<><Heading.h1>User Creation</Heading.h1>
-        <p>Admins can create new users on this page.</p></>)
+        <p>Admins can create new users on this page.</p></>);
 
     return (
         <MainContainer

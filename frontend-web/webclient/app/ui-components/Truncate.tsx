@@ -10,7 +10,7 @@ const Truncate = styled(Text)`
 
 Truncate.defaultProps = {
   theme
-}
+};
 
 Truncate.displayName = "Truncate";
 

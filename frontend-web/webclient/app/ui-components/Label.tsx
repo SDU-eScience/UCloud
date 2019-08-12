@@ -5,7 +5,7 @@ import theme from './theme';
 const nowrap = (props: { nowrap?: boolean }): { whiteSpace: "nowrap" } | null =>
   props.nowrap ? {
     whiteSpace: 'nowrap'
-  } : null
+  } : null;
 
 type accessiblyHide = {
   position: 'absolute',

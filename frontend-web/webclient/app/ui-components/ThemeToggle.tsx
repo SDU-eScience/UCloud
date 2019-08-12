@@ -112,7 +112,7 @@ const Switch = styled.div<ThemeToggleProps>`
 
 const activeCrater = ({active}) => active ? ({
     display: "none"
-}) : null
+}) : null;
 
 const Crater = styled.div`
     position: absolute;

@@ -52,7 +52,7 @@ const bannerColors = {
 };
 
 const Banner = props => {
-  const bannerColor = bannerColors[props.bg] || { color: "red" }
+  const bannerColor = bannerColors[props.bg] || { color: "red" };
   const icon: IconName = props.iconName || "starRibbon";
 
   return (

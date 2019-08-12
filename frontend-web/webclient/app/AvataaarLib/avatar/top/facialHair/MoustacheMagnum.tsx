@@ -4,13 +4,13 @@ import {generateId as uniqueId} from 'UtilityFunctions';
 import Colors from './Colors'
 
 export default class MoustacheMagnum extends React.Component {
-  static optionValue = 'MoustacheMagnum'
+  static optionValue = 'MoustacheMagnum';
 
-  private mask1 = uniqueId('react-mask-')
-  private path1 = uniqueId('react-path-')
+  private mask1 = uniqueId('react-mask-');
+  private path1 = uniqueId('react-path-');
 
   render () {
-    const { mask1, path1 } = this
+    const { mask1, path1 } = this;
     return (
       <g
         id='Facial-Hair/Moustache-Magnum'

@@ -13,6 +13,11 @@ data class VerifiedJob(
     val application: Application,
 
     /**
+     * A (optional) name for this job
+     */
+    val name: String? = null,
+
+    /**
      * A complete list of files gathered from input_directory and input_file parameters.
      */
     val files: List<ValidatedFileForUpload>,

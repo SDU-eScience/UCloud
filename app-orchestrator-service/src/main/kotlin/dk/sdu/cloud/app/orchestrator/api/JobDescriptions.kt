@@ -31,6 +31,7 @@ enum class SortOrder {
 }
 
 enum class JobSortBy {
+    NAME,
     STATE,
     APPLICATION,
     STARTED_AT,

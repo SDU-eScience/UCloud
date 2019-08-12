@@ -132,7 +132,7 @@ const ContentWrapper = styled(Box)`
     padding: 5px;
 `;
 
-const NoNotifications = () => <TextSpan>No notifications</TextSpan>
+const NoNotifications = () => <TextSpan>No notifications</TextSpan>;
 
 export interface Notification {
     type: string
