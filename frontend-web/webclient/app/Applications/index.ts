@@ -1,11 +1,12 @@
-import { File } from "Files";
-import { Page } from "Types";
-import { match } from "react-router";
+import {File, SortOrder} from "Files";
+import {Page} from "Types";
+import {match} from "react-router";
 import PromiseKeeper from "PromiseKeeper";
-import { History } from "history";
-import { DetailedResultReduxObject, ResponsiveReduxObject } from "DefaultObjects";
-import { ParameterValues } from "Utilities/ApplicationUtilities";
-import { SetStatusLoading } from "Navigation/Redux/StatusActions";
+import {History} from "history";
+import {ResponsiveReduxObject, AnalysisReduxObject} from "DefaultObjects";
+import {ParameterValues} from "Utilities/ApplicationUtilities";
+import {SetStatusLoading} from "Navigation/Redux/StatusActions";
+import * as React from "react";
 
 export interface Analysis {
     checked?: boolean
@@ -20,37 +21,36 @@ export interface Analysis {
     metadata: ApplicationMetadata
 }
 
-export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { }
+export type AnalysesStateProps = AnalysisReduxObject & {responsive: ResponsiveReduxObject}
+export type AnalysesProps = AnalysesStateProps & AnalysesOperations;
 
-export interface AnalysesStateProps {
-    page: Page<Analysis>
-    loading: boolean
-    responsive: ResponsiveReduxObject
-    error?: string
-}
+type FetchJobsOperation = (
+    itemsPerPage: number,
+    pageNumber: number,
+    sortOrder: SortOrder,
+    sortBy: RunsSortBy,
+    minTimestamp?: number,
+    maxTimestamp?: number,
+    filter?: AppState
+) => void
 
 export interface AnalysesOperations {
     setLoading: (loading: boolean) => void
-    fetchJobs: (itemsPerPage: number, pageNumber: number) => void
+    fetchJobs: FetchJobsOperation
     onInit: () => void
     setRefresh: (refresh?: () => void) => void
     checkAnalysis: (jobId: string, checked: boolean) => void
     checkAllAnalyses: (checked: boolean) => void
 }
 
-export interface AnalysesState {
-}
-
 export interface DetailedResultOperations {
-    receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
     setRefresh: (refresh?: () => void) => void
 }
 
-export interface DetailedResultProps extends DetailedResultReduxObject, DetailedResultOperations {
-    match: match<{ jobId: string }>
+export interface DetailedResultProps extends DetailedResultOperations {
+    match: match<{jobId: string}>
     history: History
 }
 
@@ -98,7 +98,7 @@ export interface ApplicationDescription {
     parameters: ApplicationParameter[]
     outputFileGlobs: string[]
     website?: string
-    resources: { multiNodeSupport: boolean }
+    resources: {multiNodeSupport: boolean}
     tags: string[]
 }
 
@@ -126,20 +126,12 @@ export interface DetailedResultState {
     stderrOldTop: number,
     reloadIntervalId: number
     promises: PromiseKeeper
-    fsError?: string
-    fsLoading: boolean
-    fsShown: boolean
-    fsPath: string
-    fsPage: Page<File>
-    fsDisallowedPaths: string[]
-    fsCallback: Function
-    fsIsFavorite: boolean
     outputFolder?: string
     appType?: ApplicationType
     webLink?: string
 }
 
-export type StdElement = { scrollTop: number, scrollHeight: number } | null
+export type StdElement = {scrollTop: number, scrollHeight: number} | null
 
 export interface MaxTime {
     hours: number
@@ -169,12 +161,13 @@ export interface RunAppState {
     promises: PromiseKeeper
     jobSubmitted: boolean
     initialSubmit: boolean
-    application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
+    application?: FullAppInfo
     parameterValues: ParameterValues
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
     favoriteLoading: boolean
     mountedFolders: RefReadPair[]
+    fsShown: boolean
 }
 
 export interface RunOperations extends SetStatusLoading {
@@ -182,13 +175,13 @@ export interface RunOperations extends SetStatusLoading {
 }
 
 export interface RunAppProps extends RunOperations {
-    match: match<{ appName: string, appVersion: string }>
+    match: match<{appName: string, appVersion: string}>
     history: History
     updatePageTitle: () => void
 }
 
 export interface NumberParameter extends BaseParameter {
-    defaultValue: { value: number, type: "double" | "int" } | null
+    defaultValue: {value: number, type: "double" | "int"} | null
     min: number | null
     max: number | null
     step: number | null
@@ -196,7 +189,7 @@ export interface NumberParameter extends BaseParameter {
 }
 
 export interface BooleanParameter extends BaseParameter {
-    defaultValue: { value: boolean, type: "bool" } | null
+    defaultValue: {value: boolean, type: "bool"} | null
     trueValue?: string | null
     falseValue?: string | null
     type: ParameterTypes.Boolean
@@ -213,7 +206,7 @@ export interface InputDirectoryParameter extends BaseParameter {
 }
 
 export interface TextParameter extends BaseParameter {
-    defaultValue: { value: string, type: "string" } | null
+    defaultValue: {value: string, type: "string"} | null
     type: ParameterTypes.Text
 }
 
@@ -246,7 +239,7 @@ interface VarInvocation {
     variableSeparator: string
 }
 
-type Info = { name: string, version: string }
+type Info = {name: string, version: string}
 export interface Description {
     info: Info
     tool: Info
@@ -370,4 +363,15 @@ export interface WithAppFavorite {
     favorite: boolean
 }
 
-export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata
+export enum RunsSortBy {
+    state = "STATE",
+    application = "APPLICATION",
+    startedAt = "STARTED_AT",
+    lastUpdate = "LAST_UPDATE",
+    createdAt = "CREATED_AT"
+}
+export interface WithAllAppTags {
+    tags: string[]
+}
+
+export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata & WithAllAppTags

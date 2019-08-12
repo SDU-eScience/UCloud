@@ -132,7 +132,7 @@ const ContentWrapper = styled(Box)`
     padding: 5px;
 `;
 
-const NoNotifications = () => <TextSpan>No notifications</TextSpan>
+const NoNotifications = () => <TextSpan>No notifications</TextSpan>;
 
 export interface Notification {
     type: string
@@ -217,7 +217,7 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
     receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
-    showUploader: () => dispatch(setUploaderVisible(true)),
+    showUploader: () => dispatch(setUploaderVisible(true, Cloud.homeFolder)),
     readAll: async () => dispatch(await readAllNotifications())    
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;

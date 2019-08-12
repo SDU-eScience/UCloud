@@ -1,8 +1,8 @@
-import styled, { keyframes } from "styled-components";
-import { themeGet, space, color, SpaceProps } from "styled-system";
-import theme, { ThemeColor, Theme } from "./theme";
+import styled, {keyframes} from "styled-components";
+import {space, color, SpaceProps} from "styled-system";
+import theme, {ThemeColor, Theme} from "./theme";
 
-export const colorScheme = (props: { theme: Theme, bg?: ThemeColor, color?: ThemeColor }) => {
+export const colorScheme = (props: {theme: Theme, bg?: ThemeColor, color?: ThemeColor}) => {
   const badgeColors = {
     blue: {
       backgroundColor: props.theme.colors.blue,
@@ -40,9 +40,9 @@ export const colorScheme = (props: { theme: Theme, bg?: ThemeColor, color?: Them
       backgroundColor: props.theme.colors.lightGray,
       color: props.theme.colors.text
     }
-  }
+  };
   return props.bg && props.color && (badgeColors[props.bg] || badgeColors.lightGray);
-}
+};
 
 const fadeIn = keyframes`
   from {
@@ -54,15 +54,15 @@ const fadeIn = keyframes`
   }
 `;
 
-const Badge = styled.div<SpaceProps & { color?: ThemeColor, bg?: ThemeColor }>`
+const Badge = styled.div<SpaceProps & {color?: ThemeColor, bg?: ThemeColor}>`
   border-radius: 99999px;
   display: inline-block;
   font-size: ${props => props.theme.fontSizes[0]}px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: ${themeGet("letterSpacings.caps")};
+  letter-spacing: ${({theme}) => theme.letterSpacings.caps};
   ${space} ${colorScheme} ${color};
-`
+`;
 
 Badge.displayName = "Badge";
 
@@ -70,10 +70,10 @@ Badge.defaultProps = {
   px: 2,
   py: 1,
   theme
-}
+};
 
 const DevelopmentBadgeBase = styled(Badge)`
-  background-color: ${({ theme }) => theme.colors.red};
+  background-color: ${({theme}) => theme.colors.red};
   margin: 15px 25px 14px 5px;
   color: white;
   animation: ${fadeIn} 1.5s ease 1.5s infinite alternate;
@@ -82,4 +82,4 @@ const DevelopmentBadgeBase = styled(Badge)`
 
 export default Badge;
 
-export { DevelopmentBadgeBase };
+export {DevelopmentBadgeBase};

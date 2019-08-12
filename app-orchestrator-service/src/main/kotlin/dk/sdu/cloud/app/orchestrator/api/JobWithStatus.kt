@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.store.api.WithAppMetadata
 
 data class JobWithStatus(
     val jobId: String,
+    val name: String?,
     val owner: String,
     val state: JobState,
     val status: String,

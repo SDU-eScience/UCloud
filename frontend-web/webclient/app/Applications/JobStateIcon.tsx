@@ -1,8 +1,8 @@
 import * as React from "react";
-import { AppState } from "Applications";
-import Icon, { IconName } from "ui-components/Icon";
-import { ThemeColor, colors } from "ui-components/theme";
-import { SpaceProps } from "styled-system";
+import {AppState} from "Applications";
+import Icon, {IconName} from "ui-components/Icon";
+import {ThemeColor, colors} from "ui-components/theme";
+import {SpaceProps} from "styled-system";
 
 export const JobStateIcon: React.FunctionComponent<{ state: AppState, size?: number | string, color?: ThemeColor } & SpaceProps> = (props) => {
     let iconName: IconName;
@@ -33,16 +33,16 @@ export const JobStateIcon: React.FunctionComponent<{ state: AppState, size?: num
             defaultColor = "red";
             break;
         default:
-            iconName = "ellipsis"
+            iconName = "ellipsis";
             break;
     }
 
     const color = props.color !== undefined ? props.color : defaultColor;
 
-    return <Icon 
-        name={iconName} 
-        color={color ? colors[color] : undefined} 
-        size={props.size} 
+    return <Icon
+        name={iconName}
+        color={color ? colors[color] : undefined}
+        size={props.size}
         {...props}
     />;
 };

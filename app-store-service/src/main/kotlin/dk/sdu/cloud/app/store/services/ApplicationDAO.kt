@@ -71,6 +71,22 @@ interface ApplicationDAO<Session> {
         originalDocument: String = ""
     )
 
+    fun createTags(
+        session: Session,
+        tags: List<String>,
+        applicationName: String,
+        applicationVersion: String,
+        user: String
+    )
+
+    fun deleteTags(
+        session: Session,
+        tags: List<String>,
+        applicationName: String,
+        applicationVersion: String,
+        user: String
+    )
+
     fun updateDescription(
         session: Session,
         user: String,

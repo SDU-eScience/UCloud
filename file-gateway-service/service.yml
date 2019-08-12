@@ -1,0 +1,14 @@
+---
+name: file-gateway
+
+namespaces:
+  - files.gateway
+  - shares.gateway
+  - fileSearch.gateway
+  - files.favorite.gateway
+
+dependencies:
+  - files
+  - shares
+  - filesearch
+  - files.favorite

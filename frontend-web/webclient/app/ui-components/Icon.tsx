@@ -11,13 +11,13 @@ const IconBase = ({ name, size, theme, color, color2, spin, ...props }): JSX.Ele
   const Component = icons[name];
   if (!Component) return (<></>);
   return <Component width={size} height={size} color2={theme.colors[color2]} {...props} />
-}
+};
 
 const hoverColor = style({
   prop: 'hoverColor',
   cssProperty: 'color',
   key: 'colors'
-})
+});
 export interface IconProps extends SpaceProps, ColorProps {
   name: IconName
   color2?: CSS.ColorProperty
@@ -55,14 +55,14 @@ const Icon = styled(IconBase) <IconProps>`
 
 `;
 
-Icon.displayName = "Icon"
+Icon.displayName = "Icon";
 
 Icon.defaultProps = {
   theme,
   cursor: "inherit",
   name: "notification",
   size: 24
-}
+};
 
 // Use to see every available icon in debugging.
 export const EveryIcon = () => (

@@ -51,7 +51,16 @@ class JobController<DBSession>(
 
         implement(JobDescriptions.listRecent) {
             val result = db.withTransaction {
-                jobDao.list(it, ctx.securityToken, request.normalize())
+                jobDao.list(
+                    it,
+                    ctx.securityToken,
+                    request.normalize(),
+                    request.order ?: SortOrder.DESCENDING,
+                    request.sortBy ?: JobSortBy.CREATED_AT,
+                    request.minTimestamp,
+                    request.maxTimestamp,
+                    request.filter
+                )
             }.mapItems { it.job.toJobWithStatus() }
 
             ok(result)
@@ -63,6 +72,16 @@ class JobController<DBSession>(
             if (maxTime != null && maxTime.toMillis() > JOB_MAX_TIME) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Maximum job time exceeded")
             }
+
+            // Check name
+            if (request.name != null) {
+                val invalidChars = Regex("""(\.|/|\\|\n)""")
+                if (invalidChars.containsMatchIn(request.name!!)) {
+                    error(CommonErrorMessage("Provided name not allowed"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
+            }
+
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     ctx.bearer!!,
@@ -125,6 +144,7 @@ class JobController<DBSession>(
         val job = this
         return JobWithStatus(
             job.id,
+            job.name,
             job.owner,
             job.currentState,
             job.status,

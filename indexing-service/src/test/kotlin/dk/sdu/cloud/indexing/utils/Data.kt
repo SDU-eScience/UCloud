@@ -44,7 +44,6 @@ val elasticFile = ElasticIndexedFile(
     FileType.FILE,
     22,
     Timestamps(12345678, 1234567, 12345678),
-    false,
     SensitivityLevel.CONFIDENTIAL
 )
 

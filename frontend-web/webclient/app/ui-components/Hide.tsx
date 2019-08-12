@@ -4,7 +4,7 @@ import theme, { Theme } from './theme'
 
 //const getMaxWidth = (em: number) => em - 0.01
 
-const getMaxWidth = (px: string) => (parseInt(px) - 1) + 'px' 
+const getMaxWidth = (px: string) => (parseInt(px) - 1) + 'px';
 
 
 //TODO: cleanup the media selectors below (maybe put in theme.tsx ?)
@@ -15,7 +15,7 @@ const breakpoints = (props: { theme: Theme }) => ({
   lg: `@media screen and (min-width: ${props.theme.breakpoints[2]}) and (max-width: ${getMaxWidth(props.theme.breakpoints[3])})`,
   xl: `@media screen and (min-width: ${props.theme.breakpoints[3]}) and (max-width: ${getMaxWidth(props.theme.breakpoints[4])})`,
   xxl:`@media screen and (min-width: ${props.theme.breakpoints[4]})`
-})
+});
 
 export const hidden = (key: any) => (props: any) =>
   props[key]
@@ -24,7 +24,7 @@ export const hidden = (key: any) => (props: any) =>
         display: "none"
       }
     }
-    : null
+    : null;
 
 export interface HideProps extends BoxProps {
   xs?: boolean

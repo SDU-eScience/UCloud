@@ -46,6 +46,7 @@ class JobVerificationService(
         userClient: AuthenticatedClient
     ): VerifiedJobWithAccessToken {
         val jobId = UUID.randomUUID().toString()
+        val name = unverifiedJob.request.name
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
         val verifiedParameters = verifyParameters(application, unverifiedJob)
@@ -78,6 +79,7 @@ class JobVerificationService(
                 application = application,
                 files = files,
                 id = jobId,
+                name = name,
                 owner = token.realUsername(),
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,

@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.3.2'
+version '1.3.3'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.trash.MainKt"

@@ -1,15 +1,16 @@
 import * as React from "react";
-import { PP, FileIcon, Arrow } from "../app/UtilityComponents";
-import { iconFromFilePath } from "../app/UtilityFunctions"
-import { newMockFolder } from "../app/Utilities/FileUtilities"
-import { configure, shallow } from "enzyme";
-import { create } from "react-test-renderer";
+import {PP, FileIcon, Arrow} from "../app/UtilityComponents";
+import {iconFromFilePath} from "../app/UtilityFunctions"
+import {mockFile} from "../app/Utilities/FileUtilities"
+import {configure, shallow} from "enzyme";
+import {create} from "react-test-renderer";
 import * as Adapter from "enzyme-adapter-react-16";
 import "jest-styled-components";
-import { theme } from "../app/ui-components";
-import { ThemeProvider } from "styled-components";
+import {theme} from "../app/ui-components";
+import {ThemeProvider} from "styled-components";
+import {SortBy, SortOrder} from "../app/Files";
 
-configure({ adapter: new Adapter() });
+configure({adapter: new Adapter()});
 
 describe("PP", () => {
 
@@ -23,7 +24,7 @@ describe("PP", () => {
 
     test.skip("Change PP-value", () => {
         const pP = shallow(<PP visible />);
-        pP.findWhere(it => !!it.props().type().range).simulate("change", { target: { value: "500" } });
+        pP.findWhere(it => !!it.props().type().range).simulate("change", {target: {value: "500"}});
         expect(pP.state()["duration"]).toBe(500);
     });
 });
@@ -31,16 +32,16 @@ describe("PP", () => {
 describe("FileIcon", () => {
 
     test("FileIcon, not link or shared", () => {
-        const mockFile = newMockFolder();
-        const iconType = iconFromFilePath(mockFile.path, mockFile.fileType, "/home/mail@mailhost.dk");
+        const mFile = mockFile({path: "path", type: "DIRECTORY"});
+        const iconType = iconFromFilePath(mFile.path, mFile.fileType, "/home/mail@mailhost.dk");
         expect(create(<FileIcon
             fileIcon={iconType}
         />)).toMatchSnapshot();
     });
 
     test("FileIcon, link", () => {
-        const mockFile = newMockFolder();
-        const iconType = iconFromFilePath(mockFile.path, mockFile.fileType, "/home/mail@mailhost.dk");
+        const mFile = mockFile({path: "path", type: "DIRECTORY"});
+        const iconType = iconFromFilePath(mFile.path, mFile.fileType, "/home/mail@mailhost.dk");
         expect(create(
             <ThemeProvider theme={theme}>
                 <FileIcon
@@ -50,8 +51,8 @@ describe("FileIcon", () => {
             </ThemeProvider>)).toMatchSnapshot();
     });
     test("FileIcon, shared", () => {
-        const mockFile = newMockFolder();
-        const iconType = iconFromFilePath(mockFile.path, mockFile.fileType, "/home/mail@mailhost.dk");
+        const mFile = mockFile({path: "path", type: "DIRECTORY"});
+        const iconType = iconFromFilePath(mFile.path, mFile.fileType, "/home/mail@mailhost.dk");
         expect(create(
             <ThemeProvider theme={theme}>
                 <FileIcon
@@ -64,14 +65,20 @@ describe("FileIcon", () => {
 
 describe("Arrow", () => {
     test("arrowUp", () => {
-        expect(create(<Arrow name="arrowUp" />)).toMatchSnapshot();
+        expect(create(
+            <Arrow activeSortBy={SortBy.PATH} sortBy={SortBy.PATH} order={SortOrder.ASCENDING} />
+        )).toMatchSnapshot();
     });
 
     test("arrowDown", () => {
-        expect(create(<Arrow name="arrowDown" />)).toMatchSnapshot();
+        expect(create(
+            <Arrow activeSortBy={SortBy.PATH} sortBy={SortBy.PATH} order={SortOrder.DESCENDING} />
+        )).toMatchSnapshot();
     });
 
     test("undefined", () => {
-        expect(create(<Arrow name={undefined} />)).toMatchSnapshot();
+        expect(create(
+            <Arrow activeSortBy={SortBy.PATH} sortBy={SortBy.FILE_TYPE} order={SortOrder.ASCENDING} />)
+        ).toMatchSnapshot();
     });
 })

@@ -14,24 +14,9 @@ import dk.sdu.cloud.calls.types.StreamingFile
 import dk.sdu.cloud.calls.types.StreamingRequest
 import io.ktor.http.HttpMethod
 
-data class UploadRequest(
-    val location: String,
-    val sensitivity: SensitivityLevel? = null,
-    val policy: WriteConflictPolicy? = null,
-    val upload: StreamingFile?
-)
-
 data class UploadRequestAudit(val path: String, val sensitivityLevel: SensitivityLevel?, val owner: String)
 
 data class MultiPartUploadAudit(val request: UploadRequestAudit?)
-
-data class BulkUploadRequest(
-    val location: String,
-    val policy: WriteConflictPolicy,
-    val format: String,
-    val sensitivity: SensitivityLevel? = null,
-    val upload: StreamingFile
-)
 
 data class BulkUploadErrorMessage(val message: String)
 data class BulkUploadAudit(val path: String, val policy: WriteConflictPolicy, val owner: String)
@@ -54,25 +39,6 @@ data class SimpleBulkUpload(
 
 object MultiPartUploadDescriptions : CallDescriptionContainer("files.upload") {
     const val baseContext = "/api/files/upload"
-
-    @Deprecated("Being removed")
-    val upload =
-        call<StreamingRequest<UploadRequest>, Unit, CommonErrorMessage>("upload") {
-            audit<MultiPartUploadAudit>()
-
-            auth {
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-                path {
-                    using(baseContext)
-                }
-
-                body { bindEntireRequestFromBody() }
-            }
-        }
 
     val simpleUpload = call<SimpleUploadRequest, Unit, CommonErrorMessage>("simpleUpload") {
         audit<MultiPartUploadAudit>()
@@ -128,27 +94,6 @@ object MultiPartUploadDescriptions : CallDescriptionContainer("files.upload") {
                 body {
                     bindToSubProperty(SimpleBulkUpload::file)
                 }
-            }
-        }
-
-    @Deprecated("Being removed")
-    val bulkUpload =
-        call<StreamingRequest<BulkUploadRequest>, BulkUploadErrorMessage, CommonErrorMessage>("bulkUpload") {
-            audit<BulkUploadAudit>()
-
-            auth {
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"bulk"
-                }
-
-                body { bindEntireRequestFromBody() }
             }
         }
 }

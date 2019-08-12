@@ -8,7 +8,6 @@ import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
-import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -18,7 +17,6 @@ import dk.sdu.cloud.file.api.BackgroundJobs
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
-import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse
@@ -58,9 +56,7 @@ data class MockConfiguration(
     val allowTokenRevoke: Boolean = true,
     val statOwner: String? = owner,
     val allowUserLookup: HttpStatusCode = HttpStatusCode.OK,
-    val allowLink: Boolean = true,
-    val allowAclUpdate: Boolean = true,
-    val allowJobQuery: Boolean = true
+    val allowAclUpdate: Boolean = true
 )
 
 class ShareServiceTest {
@@ -92,7 +88,6 @@ class ShareServiceTest {
     fun initializeMocks(config: MockConfiguration) {
         with(config) {
             initializeLinkLookupMocks()
-            initializeLinkMock()
             initializeNotificationMock()
             initializeTokenMocks()
             initializeVerificationMocks()
@@ -175,39 +170,12 @@ class ShareServiceTest {
         }
     }
 
-    fun MockConfiguration.initializeLinkMock() {
-        ClientMock.mockCall(FileDescriptions.createLink) {
-            if (allowLink) {
-                TestCallResult.Ok(
-                    StorageFile(
-                        FileType.FILE,
-                        "/home/$recipient/$sharedFile",
-                        ownerName = owner,
-                        link = true
-                    )
-                )
-            } else {
-                TestCallResult.Error(null, HttpStatusCode.InternalServerError)
-            }
-        }
-
-        ClientMock.mockCallSuccess(FileDescriptions.deleteFile, LongRunningResponse.Result(Unit))
-    }
-
     fun MockConfiguration.initializeACLMock() {
         ClientMock.mockCall(FileDescriptions.updateAcl) {
             if (allowAclUpdate) {
-                TestCallResult.Ok(FindByStringId("id"))
+                TestCallResult.Ok(Unit)
             } else {
                 TestCallResult.Error(null, HttpStatusCode.InternalServerError)
-            }
-        }
-
-        ClientMock.mockCall(BackgroundJobs.query) {
-            if (allowJobQuery) {
-                TestCallResult.Ok(BackgroundJobs.Query.Response(200, "{}"))
-            } else {
-                TestCallResult.Ok(BackgroundJobs.Query.Response(500, "{}"))
             }
         }
     }
@@ -343,16 +311,6 @@ class ShareServiceTest {
     }
 
     @Test
-    fun `test accepting with createLink failure`() = runBlocking {
-        initializeMocks(MockConfiguration())
-        assertEquals(0, createShare())
-
-        initializeMocks(MockConfiguration(allowLink = false))
-        acceptShare(ShareState.FAILURE)
-        return@runBlocking
-    }
-
-    @Test
     fun `test accepting with updateAcl failure`() = runBlocking {
         initializeMocks(MockConfiguration())
         assertEquals(0, createShare())
@@ -361,22 +319,6 @@ class ShareServiceTest {
         Thread {
             Thread.sleep(2000)
             initializeMocks(MockConfiguration())
-        }.start()
-
-        acceptShare(ShareState.FAILURE)
-        return@runBlocking
-    }
-
-    @Test
-    fun `test accepting with updateAcl query failure`() = runBlocking {
-        initializeMocks(MockConfiguration())
-        assertEquals(0, createShare())
-
-        initializeMocks(MockConfiguration(allowJobQuery = false))
-
-        Thread {
-            Thread.sleep(2000)
-            initializeMocks(MockConfiguration(allowJobQuery = true))
         }.start()
 
         acceptShare(ShareState.FAILURE)
@@ -411,23 +353,6 @@ class ShareServiceTest {
         Thread {
             Thread.sleep(2000)
             initializeMocks(MockConfiguration())
-        }.start()
-
-        updateShare(ShareState.FAILURE)
-        return@runBlocking
-    }
-
-    @Test
-    fun `test updating with accepted share and updateAcl query failure`() = runBlocking {
-        initializeMocks(MockConfiguration())
-        assertEquals(0, createShare())
-        acceptShare()
-        initializeMocks(MockConfiguration(allowJobQuery = false))
-
-        // Allow job query to function after a little while.
-        Thread {
-            Thread.sleep(2000)
-            initializeMocks(MockConfiguration(allowJobQuery = true))
         }.start()
 
         updateShare(ShareState.FAILURE)
@@ -502,18 +427,6 @@ class ShareServiceTest {
         assertStatusCode(HttpStatusCode.NotFound) { shareService.deleteShare("notme", 1L) }
         assertEquals(1, shareQueryService.list(owner, true).items.size)
         assertEquals(1, shareQueryService.list(recipient, false).items.size)
-        return@runBlocking
-    }
-
-    @Test
-    fun `test deleting failed`() = runBlocking {
-        initializeMocks(MockConfiguration())
-        assertEquals(0, createShare())
-        initializeMocks(MockConfiguration(allowLink = false))
-        acceptShare(ShareState.FAILURE)
-        shareService.deleteShare(owner, 1L)
-        assertEquals(0, shareQueryService.list(owner, true).items.size)
-        assertEquals(0, shareQueryService.list(recipient, false).items.size)
         return@runBlocking
     }
 

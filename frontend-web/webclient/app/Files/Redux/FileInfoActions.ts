@@ -52,4 +52,4 @@ type SetFileInfoLoading = SetLoadingAction<typeof SET_FILE_INFO_LOADING>
 export const setLoading = (loading: boolean): SetFileInfoLoading => ({
     type: SET_FILE_INFO_LOADING,
     payload: {loading}
-})
+});

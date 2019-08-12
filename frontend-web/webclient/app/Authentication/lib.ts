@@ -185,7 +185,7 @@ export default class SDUCloud {
         });
     }
 
-    computeURL(context: string, path: string): string {
+    public computeURL(context: string, path: string): string {
         let absolutePath = context + path;
         for (let i = 0; i < this.overrides.length; i++) {
             let override = this.overrides[i];
@@ -206,7 +206,7 @@ export default class SDUCloud {
     /**
      * Calls with the GET HTTP method. See call(method, path, body)
      */
-    async get<T = any>(path: string, context = this.apiContext,
+    public async get<T = any>(path: string, context = this.apiContext,
                        disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "GET", path, body: undefined, context, disallowProjects});
     }
@@ -214,7 +214,7 @@ export default class SDUCloud {
     /**
      * Calls with the POST HTTP method. See call(method, path, body)
      */
-    async post<T = any>(path: string, body?: object, context = this.apiContext,
+    public async post<T = any>(path: string, body?: object, context = this.apiContext,
                         disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "POST", path, body, context, disallowProjects});
     }
@@ -222,7 +222,7 @@ export default class SDUCloud {
     /**
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
-    async put<T = any>(path: string, body: object, context = this.apiContext,
+    public async put<T = any>(path: string, body: object, context = this.apiContext,
                        disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "PUT", path, body, context, disallowProjects});
     }
@@ -230,7 +230,7 @@ export default class SDUCloud {
     /**
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
-    async delete<T = void>(path: string, body: object, context = this.apiContext,
+    public async delete<T = void>(path: string, body: object, context = this.apiContext,
                           disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "DELETE", path, body, context, disallowProjects});
     }
@@ -238,7 +238,7 @@ export default class SDUCloud {
     /**
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
-    async patch<T = any>(path: string, body: object, context = this.apiContext,
+    public async patch<T = any>(path: string, body: object, context = this.apiContext,
                          disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "PATCH", path, body, context, disallowProjects});
     }
@@ -246,7 +246,7 @@ export default class SDUCloud {
     /**
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
-    async options<T = any>(path: string, body: object, context = this.apiContext,
+    public async options<T = any>(path: string, body: object, context = this.apiContext,
                            disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "OPTIONS", path, body, context, disallowProjects});
     }
@@ -254,7 +254,7 @@ export default class SDUCloud {
     /**
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
-    async head<T = any>(path: string, context = this.apiContext,
+    public async head<T = any>(path: string, context = this.apiContext,
                         disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "HEAD", path, body: undefined, context, disallowProjects});
     }
@@ -263,12 +263,12 @@ export default class SDUCloud {
      * Opens up a new page which contains the login page at the auth service. This login page will automatically
      * redirect back to the correct service (using serviceName).
      */
-    openBrowserLoginPage() {
+    public openBrowserLoginPage() {
         if (window.location.href !== this.context + "/app/login")
             window.location.href = this.context + "/app/login";
     }
 
-    openLandingPage() {
+    public openLandingPage() {
         if (window.location.href !== this.context + "/app/")
             window.location.href = this.context + "/app/";
     }
@@ -276,13 +276,13 @@ export default class SDUCloud {
     /**
      * @returns the username of the authenticated user or null
      */
-    get username(): string | undefined {
+    public get username(): string | undefined {
         let info = this.userInfo;
         if (info) return info.sub;
         else return undefined;
     }
 
-    get activeUsername(): string | undefined {
+    public get activeUsername(): string | undefined {
         if (this.useProjectToken(false) && !!this.projectDecodedToken) {
             return this.projectDecodedToken.payload.sub;
         } else {
@@ -293,7 +293,7 @@ export default class SDUCloud {
     /**
      * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
      */
-    get homeFolder(): string {
+    public get homeFolder(): string {
         let username = this.username;
         if (this.projectId !== undefined) {
             username = this.projectId;
@@ -301,18 +301,11 @@ export default class SDUCloud {
         return `/home/${username}/`
     }
 
-    /**
-     * @returns {string} the location of the jobs folder for the currently logged in user (with trailing slash)
-     */
-    get jobFolder(): string {
-        return `${this.homeFolder}Jobs/`
-    }
-
-    get trashFolder(): string {
+    public get trashFolder(): string {
         return `${this.homeFolder}Trash/`
     }
 
-    get isLoggedIn(): boolean {
+    public get isLoggedIn(): boolean {
         return this.userInfo != null;
     }
 
@@ -337,7 +330,7 @@ export default class SDUCloud {
      * will be able to put whatever they want in this. This is normally not a problem since all backend services _will_
      * verify the token.
      */
-    get userInfo(): undefined | JWT {
+    private get userInfo(): undefined | JWT {
         let token = this.decodedToken;
         if (!token) return undefined;
         else return this.decodedToken.payload;

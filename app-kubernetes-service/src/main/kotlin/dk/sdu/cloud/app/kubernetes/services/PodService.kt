@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.fabric8.kubernetes.api.model.*
@@ -340,7 +341,7 @@ class PodService(
 
                                 withContainers(
                                     container {
-                                        val uid = verifiedJob.uid + 1000
+                                        val uid = LINUX_FS_USER_UID.toLong()
                                         val app = verifiedJob.application.invocation
                                         val tool = verifiedJob.application.invocation.tool.tool!!.description
                                         val givenParameters =

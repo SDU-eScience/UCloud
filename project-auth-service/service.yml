@@ -1,0 +1,9 @@
+---
+name: project-auth
+
+namespaces:
+  - project.auth
+
+dependencies:
+  - files
+  - shares

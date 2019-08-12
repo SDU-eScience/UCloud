@@ -15,9 +15,9 @@ export const activityQuery = (scroll: ScrollRequest<number>, filter?: ActivityFi
     }
 
     return buildQueryString("/activity/browse/user", params);
-}
+};
 
 export const activityStreamByPath = (path: string) =>
-    `/activity/by-path?path=${encodeURIComponent(path)}`
+    `/activity/by-path?path=${encodeURIComponent(path)}`;
 
 export const getLatestActivity = () => undefined;

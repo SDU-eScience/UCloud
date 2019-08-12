@@ -6,8 +6,6 @@ export const SET_UPLOADER_LOADING = "SET_UPLOADER_LOADING";
 import {UploaderActions} from "./UploaderActions";
 import {UploaderReduxObject, initUploads} from "DefaultObjects";
 
-
-
 const uploader = (state: UploaderReduxObject = initUploads(), action: UploaderActions): UploaderReduxObject => {
     switch (action.type) {
         case SET_UPLOADER_ERROR:
@@ -21,6 +19,6 @@ const uploader = (state: UploaderReduxObject = initUploads(), action: UploaderAc
             return state;
         }
     }
-}
+};
 
 export default uploader;

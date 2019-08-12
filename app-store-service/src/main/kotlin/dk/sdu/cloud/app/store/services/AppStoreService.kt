@@ -129,6 +129,18 @@ class AppStoreService<DBSession>(
         }
     }
 
+    fun createTags(tags: List<String>, applicationName: String, applicationVersion: String, user: String) {
+        db.withTransaction { session ->
+            applicationDAO.createTags(session, tags, applicationName, applicationVersion, user)
+        }
+    }
+
+    fun deleteTags(tags: List<String>, applicationName: String, applicationVersion: String, user: String) {
+        db.withTransaction { session ->
+            applicationDAO.deleteTags(session, tags, applicationName, applicationVersion, user)
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
     }

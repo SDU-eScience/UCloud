@@ -19,7 +19,7 @@ export const Dropdown = styled.div<{ hover?: boolean, fullWidth?: boolean }>`
 
 Dropdown.defaultProps = {
     hover: true
-}
+};
 
 export const DropdownContent = styled.div<DropdownContentProps>`
     ${props => props.overflow ? 
@@ -75,7 +75,7 @@ DropdownContent.defaultProps = {
     minWidth: "138px",
     boxShadow: "md",
     visible: false
-}
+};
 
 Dropdown.displayName = "Dropdown";
 

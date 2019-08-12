@@ -6,7 +6,7 @@ metadata:
   annotations:
     getambassador.io/config: |
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: app-orchestrator
       prefix: ^/api/hpc/jobs(/.*)?$
@@ -16,7 +16,7 @@ metadata:
       timeout_ms: 0
 
       ---
-      apiVersion: ambassador/v0
+      apiVersion: ambassador/v1
       kind: Mapping
       name: app-orchestrator-compute
       prefix: ^/api/app/compute(/.*)?$

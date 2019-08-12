@@ -12,7 +12,7 @@ class FileSortByCompatibilityTest {
         "CREATED_AT" to FileSortBy.CREATED_AT,
         "MODIFIED_AT" to FileSortBy.MODIFIED_AT,
         "SIZE" to FileSortBy.SIZE,
-        "ACL" to FileSortBy.ACL,
+//        "ACL" to FileSortBy.ACL,
         "SENSITIVITY" to FileSortBy.SENSITIVITY
     )
 
@@ -22,7 +22,7 @@ class FileSortByCompatibilityTest {
         "createdAt" to FileSortBy.CREATED_AT,
         "modifiedAt" to FileSortBy.MODIFIED_AT,
         "size" to FileSortBy.SIZE,
-        "acl" to FileSortBy.ACL,
+//        "acl" to FileSortBy.ACL,
         "sensitivityLevel" to FileSortBy.SENSITIVITY
     )
 

@@ -33,16 +33,6 @@ Card.defaultProps = {
   theme: theme
 };
 
-export const CardGroup = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  flex-grow: 0;
-
-  & > * {
-    flex-shrink: 0;
-  }
-`;
-
 export const PlayIconBase = styled(Icon)`
   transition: ease 0.3s;
 
@@ -51,8 +41,6 @@ export const PlayIconBase = styled(Icon)`
     transition: ease 0.3s;
   }
 `;
-
-export const PlayIcon = () => (<PlayIconBase cursor="pointer" name="play" size={38} />);
 
 Card.displayName = "Card";
 

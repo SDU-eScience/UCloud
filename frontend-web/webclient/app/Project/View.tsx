@@ -37,7 +37,6 @@ const View: React.FunctionComponent<{ match: match<{ id: string }> }> = props =>
         e.preventDefault();
         let inputField = newMemberRef.current!;
         let username = inputField.value;
-        console.log(username);
 
         await createNewMember(addMemberInProject({
             projectId: id,

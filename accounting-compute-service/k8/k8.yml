@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: accounting-compute
-        image: registry.cloud.sdu.dk/sdu-cloud/accounting-compute-service:0.3.2
+        image: registry.cloud.sdu.dk/sdu-cloud/accounting-compute-service:1.2.4
         command:
         - /opt/service/bin/service
         - --config-dir

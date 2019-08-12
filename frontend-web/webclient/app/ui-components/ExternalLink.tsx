@@ -1,6 +1,6 @@
 import * as React from "react";
 import BaseLink from "./BaseLink";
-import { BaseLinkProps } from "./BaseLink";
+import {BaseLinkProps} from "./BaseLink";
 
 type AAttr = React.AnchorHTMLAttributes<HTMLAnchorElement>;
 

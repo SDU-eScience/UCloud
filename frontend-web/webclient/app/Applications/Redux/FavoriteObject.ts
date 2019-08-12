@@ -14,4 +14,4 @@ export const init = (): Wrapper => ({
     applicationsFavorite: {
         applications: emptyLoadableContent()
     }
-})
+});

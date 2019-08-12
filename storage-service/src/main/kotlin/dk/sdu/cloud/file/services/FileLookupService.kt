@@ -1,22 +1,17 @@
 package dk.sdu.cloud.file.services
 
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.StorageFileImpl
-import dk.sdu.cloud.file.api.acl
 import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.modifiedAt
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.api.sensitivityLevel
-import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -37,6 +32,7 @@ import dk.sdu.cloud.service.paginate
  * All service methods in this class can throw exceptions of type [FSException].
  */
 class FileLookupService<Ctx : FSUserContext>(
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>
 ) {
     suspend fun listDirectory(
@@ -47,7 +43,7 @@ class FileLookupService<Ctx : FSUserContext>(
         order: SortOrder = SortOrder.ASCENDING,
         attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList()
     ): Page<StorageFile> {
-        return listDirectorySorted(ctx, path, sortBy, order, attributes).paginate(pagination)
+        return listDirectorySorted(ctx, path, sortBy, order, attributes, pagination)
     }
 
     private suspend fun listDirectorySorted(
@@ -55,46 +51,26 @@ class FileLookupService<Ctx : FSUserContext>(
         path: String,
         sortBy: FileSortBy,
         order: SortOrder,
-        attributes: List<StorageFileAttribute>
-    ): List<StorageFile> {
+        attributes: List<StorageFileAttribute>,
+        pagination: NormalizedPaginationRequest? = null
+    ): Page<StorageFile> {
         val nativeAttributes = translateToNativeAttributes(attributes, sortBy)
 
         val cache = HashMap<String, SensitivityLevel>()
-        val allResults = coreFs.listDirectory(
-            ctx, path,
-            nativeAttributes
-        ).mapNotNull {
+
+        return coreFs.listDirectorySorted(ctx, path, nativeAttributes, sortBy, order, pagination).mapItemsNotNull {
             readStorageFile(ctx, it, cache, nativeAttributes.toList())
         }
+    }
 
-        return allResults.let { results ->
-            val naturalComparator: Comparator<StorageFile> = when (sortBy) {
-                FileSortBy.ACL -> Comparator.comparingInt { it.acl?.size ?: 0 }
-                FileSortBy.CREATED_AT -> Comparator.comparingLong { it.createdAt }
-                FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.modifiedAt }
-
-                FileSortBy.TYPE -> Comparator.comparing<StorageFile, String> {
-                    it.fileType.name
-                }.thenComparing(Comparator.comparing<StorageFile, String> {
-                    it.path.fileName().toLowerCase()
-                })
-
-                FileSortBy.PATH -> Comparator.comparing<StorageFile, String> {
-                    it.path.fileName().toLowerCase()
-                }
-                FileSortBy.SIZE -> Comparator.comparingLong { it.size }
-                FileSortBy.SENSITIVITY -> Comparator.comparing<StorageFile, String> {
-                    it.sensitivityLevel.name.toLowerCase()
-                }
-            }
-
-            val comparator = when (order) {
-                SortOrder.ASCENDING -> naturalComparator
-                SortOrder.DESCENDING -> naturalComparator.reversed()
-            }
-
-            results.sortedWith(comparator)
-        }
+    private inline fun <T, R : Any> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
+        val newItems = items.mapNotNull(mapper)
+        return Page(
+            itemsInTotal,
+            itemsPerPage,
+            pageNumber,
+            newItems
+        )
     }
 
     private fun translateToNativeAttributes(
@@ -106,7 +82,7 @@ class FileLookupService<Ctx : FSUserContext>(
             result.addAll(
                 when (attrib) {
                     StorageFileAttribute.fileType -> listOf(FileAttribute.FILE_TYPE)
-                    StorageFileAttribute.path -> listOf(FileAttribute.RAW_PATH)
+                    StorageFileAttribute.path -> listOf(FileAttribute.PATH)
                     StorageFileAttribute.createdAt -> listOf(FileAttribute.TIMESTAMPS)
                     StorageFileAttribute.modifiedAt -> listOf(FileAttribute.TIMESTAMPS)
                     StorageFileAttribute.ownerName -> listOf(FileAttribute.OWNER, FileAttribute.CREATOR)
@@ -114,12 +90,9 @@ class FileLookupService<Ctx : FSUserContext>(
                     StorageFileAttribute.acl -> listOf(FileAttribute.SHARES)
                     StorageFileAttribute.sensitivityLevel -> listOf(
                         FileAttribute.SENSITIVITY,
-                        FileAttribute.IS_LINK,
-                        FileAttribute.LINK_TARGET,
                         FileAttribute.PATH
                     )
                     StorageFileAttribute.ownSensitivityLevel -> listOf(FileAttribute.SENSITIVITY)
-                    StorageFileAttribute.link -> listOf(FileAttribute.IS_LINK)
                     StorageFileAttribute.fileId -> listOf(FileAttribute.INODE)
                     StorageFileAttribute.creator -> listOf(FileAttribute.CREATOR)
                     StorageFileAttribute.canonicalPath -> listOf(FileAttribute.PATH)
@@ -129,12 +102,12 @@ class FileLookupService<Ctx : FSUserContext>(
 
         result.addAll(
             when (sortBy) {
-                FileSortBy.TYPE -> listOf(FileAttribute.FILE_TYPE, FileAttribute.RAW_PATH)
-                FileSortBy.PATH -> listOf(FileAttribute.RAW_PATH)
+                FileSortBy.TYPE -> listOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
+                FileSortBy.PATH -> listOf(FileAttribute.PATH)
                 FileSortBy.CREATED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.MODIFIED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.SIZE -> listOf(FileAttribute.SIZE)
-                FileSortBy.ACL -> listOf(FileAttribute.SHARES)
+//                FileSortBy.ACL -> listOf(FileAttribute.SHARES)
                 FileSortBy.SENSITIVITY -> listOf(FileAttribute.SENSITIVITY, FileAttribute.PATH)
                 null -> emptyList()
             }
@@ -143,42 +116,43 @@ class FileLookupService<Ctx : FSUserContext>(
         return result
     }
 
-    private suspend fun lookupInheritedSensitivity(
-        ctx: Ctx,
-        realPath: String,
-        cache: MutableMap<String, SensitivityLevel>
-    ): SensitivityLevel {
-        val cached = cache[realPath]
-        if (cached != null) return cached
-        if (realPath.components().size < 2) return SensitivityLevel.PRIVATE
+    // Note: We run this lookup as SERVICE_USER to avoid a lot of ACL checks. At this point we should already have
+    // performed an access check. This will also ensure that we can read the correct sensitivity of files.
+    private suspend fun lookupInheritedSensitivity(realPath: String): SensitivityLevel {
+        val cache = HashMap<String, SensitivityLevel>()
 
-        val components = realPath.normalize().components()
-        val sensitivity = if (components.size == 2 && components[0] == "home") {
-            SensitivityLevel.PRIVATE
-        } else {
-            run {
-                val stat = coreFs.stat(
-                    ctx,
-                    realPath,
-                    setOf(
-                        FileAttribute.PATH,
-                        FileAttribute.SENSITIVITY,
-                        FileAttribute.IS_LINK,
-                        FileAttribute.LINK_TARGET
+        suspend fun lookupInheritedSensitivity(ctx: Ctx): SensitivityLevel {
+            val cached = cache[realPath]
+            if (cached != null) return cached
+            if (realPath.components().size < 2) return SensitivityLevel.PRIVATE
+
+            val components = realPath.normalize().components()
+            val sensitivity = if (components.size == 2 && components[0] == "home") {
+                SensitivityLevel.PRIVATE
+            } else {
+                run {
+                    val stat = coreFs.stat(
+                        ctx,
+                        realPath,
+                        setOf(
+                            FileAttribute.PATH,
+                            FileAttribute.SENSITIVITY
+                        )
                     )
-                )
-                if (stat.isLink) {
-                    log.info("linkTarget is ${stat.linkTarget}")
-                    lookupInheritedSensitivity(ctx, stat.linkTarget, cache)
-                } else {
-                    stat.sensitivityLevel ?: lookupInheritedSensitivity(ctx, stat.path.parent(), cache)
+
+                    stat.sensitivityLevel ?: lookupInheritedSensitivity(stat.path.parent())
                 }
             }
+
+            cache[realPath] = sensitivity
+            return sensitivity
         }
 
-        cache[realPath] = sensitivity
-        return sensitivity
+        return commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
+            lookupInheritedSensitivity(ctx)
+        }
     }
+
 
     private suspend fun readStorageFile(
         ctx: Ctx,
@@ -189,12 +163,16 @@ class FileLookupService<Ctx : FSUserContext>(
         val owner = row._owner?.takeIf { it.isNotBlank() } ?: row._creator
         val creator = row._creator
 
-        if (FileAttribute.OWNER in attributes && owner == null) return null
-        if (FileAttribute.CREATOR in attributes && creator == null) return null
+        if (FileAttribute.OWNER in attributes && owner == null) {
+            return null
+        }
+        if (FileAttribute.CREATOR in attributes && creator == null) {
+            return null
+        }
 
         return StorageFileImpl(
             fileTypeOrNull = row._fileType,
-            pathOrNull = row._rawPath,
+            pathOrNull = row._path,
             createdAtOrNull = row._timestamps?.created,
             modifiedAtOrNull = row._timestamps?.modified,
             ownerNameOrNull = owner,
@@ -202,20 +180,14 @@ class FileLookupService<Ctx : FSUserContext>(
             aclOrNull = row._shares,
             sensitivityLevelOrNull = run {
                 if (FileAttribute.SENSITIVITY in attributes) {
-                    if (row.isLink) lookupInheritedSensitivity(ctx, row.path, cache)
-                    else row.sensitivityLevel ?: lookupInheritedSensitivity(ctx, row.path.parent(), cache)
+                    row.sensitivityLevel ?: lookupInheritedSensitivity(row.path.parent())
                 } else {
                     null
                 }
             },
             ownSensitivityLevelOrNull = row._sensitivityLevel,
-            linkOrNull = row._isLink,
             fileIdOrNull = row._inode,
-            creatorOrNull = creator,
-            canonicalPathOrNull = run {
-                if (row.isLink) row._linkTarget
-                else row._rawPath
-            }
+            creatorOrNull = creator
         )
     }
 
@@ -229,8 +201,11 @@ class FileLookupService<Ctx : FSUserContext>(
     ): Page<StorageFile> {
         val normalizedItemsPerPage = NormalizedPaginationRequest(itemsPerPage, 0).itemsPerPage
 
-        val allFiles = listDirectorySorted(ctx, path.parent(), sortBy, order, attributes)
-        val index = allFiles.indexOfFirst { it.path.normalize() == path.normalize() }
+        val allFiles = listDirectorySorted(ctx, path.parent(), sortBy, order, attributes).items
+        println(allFiles)
+        // The file isn't found because we resolve the symlink in the returned path. We should just look for the file
+        // name
+        val index = allFiles.indexOfFirst { it.path.fileName() == path.fileName() }
         if (index == -1) throw FSException.NotFound()
 
         val page = index / normalizedItemsPerPage
@@ -253,19 +228,5 @@ class FileLookupService<Ctx : FSUserContext>(
 
     companion object : Loggable {
         override val log = logger()
-
-        @Suppress("ObjectPropertyNaming")
-        private val STORAGE_FILE_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.RAW_PATH,
-            FileAttribute.TIMESTAMPS,
-            FileAttribute.CREATOR,
-            FileAttribute.SIZE,
-            FileAttribute.SHARES,
-            FileAttribute.SENSITIVITY,
-            FileAttribute.INODE,
-            FileAttribute.IS_LINK,
-            FileAttribute.OWNER
-        )
     }
 }

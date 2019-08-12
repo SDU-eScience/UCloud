@@ -1,6 +1,6 @@
 import styled, {css} from 'styled-components'
 import {
-  space, themeGet, BorderProps, SpaceProps,
+  space, BorderProps, SpaceProps,
   BorderRadiusProps, borderRadius,
   fontSize, FontSizeProps, width, WidthProps
 } from 'styled-system'
@@ -44,7 +44,7 @@ const Input = styled.input<InputProps>`
   background-color: transparent;
   border-width: 0px;
   border-style: solid;
-  border-color: ${themeGet("colors.borderGray")};
+  border-color: ${({theme}) => theme.colors.borderGray};
 
   padding-top: 7px;
   padding-bottom: 7px;
@@ -58,7 +58,7 @@ const Input = styled.input<InputProps>`
   }` : null} 
   
   ::placeholder {
-    color: ${themeGet("colors.gray")};
+    color: ${({theme}) => theme.colors.gray};
   }
 
   ::-ms-clear {
@@ -100,7 +100,7 @@ export interface InputLabelProps extends WidthProps {
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`
-  border: ${themeGet("colors.borderGray")} solid 1px;
+  border: ${({theme}) => theme.colors.borderGray} solid 1px;
   margin: -1px;
   ${leftLabel}
   ${rightLabel}

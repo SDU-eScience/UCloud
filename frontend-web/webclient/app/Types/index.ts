@@ -18,6 +18,11 @@ export interface Page<T> {
     items: T[]
 }
 
+export interface TimeRange {
+    minTimeStamp?: number
+    maxTimeStamp?: number
+}
+
 export function singletonToPage<T>(item?: T | null, itemsPerPage: number = 50): Page<T> {
     if (item === undefined || item === null) return emptyPage;
     return {

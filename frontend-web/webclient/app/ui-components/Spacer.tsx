@@ -14,4 +14,4 @@ export const Spacer = ({ left, right, ...props }: SpacerProps) => (
         <Box ml="auto" />
         {right}
     </Flex>
-)
+);

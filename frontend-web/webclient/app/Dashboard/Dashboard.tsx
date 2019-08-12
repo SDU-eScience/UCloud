@@ -29,7 +29,6 @@ import {EllipsedText} from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {GridCardGroup} from "ui-components/Grid";
-import {TextSpan} from "ui-components/Text";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {notificationRead, readAllNotifications} from "Notifications/Redux/NotificationsActions";
 import {History} from "history";
@@ -64,7 +63,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
     }, []);
 
     function reload(loading: boolean) {
-        props.setAllLoading(loading)
+        props.setAllLoading(loading);
         props.fetchFavorites();
         props.fetchRecentFiles();
         props.fetchRecentAnalyses();
@@ -246,8 +245,8 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     fetchUsage: async () => {
-        dispatch(await fetchUsage("storage", "bytesUsed"))
-        dispatch(await fetchUsage("compute", "timeUsed"))
+        dispatch(await fetchUsage("storage", "bytesUsed"));
+        dispatch(await fetchUsage("compute", "timeUsed"));
     },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),

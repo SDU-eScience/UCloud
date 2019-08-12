@@ -4,7 +4,6 @@ import {AVATAR_SAVE, AVATAR_ERROR} from "./AvataaarReducer";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {saveAvatarQuery, findAvatarQuery} from "Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {AddSnack, addSnack} from "Snackbar/Redux/SnackbarsActions";
 import {SnackType} from "Snackbar/Snackbars";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -34,14 +33,15 @@ export const setAvatarError = (): SetAvatarError => ({
     type: AVATAR_ERROR,
 });
 
-export const findAvatar = async (): Promise<SaveAvataaar | AddSnack> => {
+export const findAvatar = async (): Promise<SaveAvataaar | null> => {
     try {
         const res = await Cloud.get<AvatarType>(findAvatarQuery, undefined, true);
         return saveAvataaar(res.response);
     } catch (e) {
-        return addSnack({
+        snackbarStore.addSnack({
             message: `Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`,
             type: SnackType.Failure
         });
+        return null;
     }
 };

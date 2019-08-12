@@ -17,7 +17,7 @@ export class DataList extends React.PureComponent<DataListProps, { text: string,
         super(props);
         this.state = {
             text: "",
-            fuse: new Fuse(this.props.options, this.options)
+            fuse: new Fuse(this.props.options, DataList.options)
         }
     }
 
@@ -29,7 +29,7 @@ export class DataList extends React.PureComponent<DataListProps, { text: string,
         else this.setState(() => ({ text: content }))
     }
 
-    get options(): Fuse.FuseOptions<ContentValuePair> {
+    static get options(): Fuse.FuseOptions<ContentValuePair> {
         return {
             shouldSort: true,
             threshold: 0.2,
