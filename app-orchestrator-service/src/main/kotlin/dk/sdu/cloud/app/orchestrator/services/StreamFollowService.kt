@@ -40,7 +40,8 @@ class StreamFollowService<DBSession>(
         ).orThrow()
 
         val timeLeft = if (job.startedAt != null) {
-            (job.startedAt + job.maxTime.toMillis() - System.currentTimeMillis()).toInt()
+            val left = (job.startedAt + job.maxTime.toMillis() - System.currentTimeMillis()).toInt()
+            if (left > 0) { left } else { 0 }
         } else {
             null
         }
