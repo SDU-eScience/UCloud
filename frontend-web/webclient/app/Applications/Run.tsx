@@ -19,7 +19,7 @@ import {
     WithAppMetadata
 } from ".";
 import {Dispatch} from "redux";
-import {Box, Button, ContainerForText, Flex, Label, OutlineButton, Text, VerticalButtonGroup} from "ui-components";
+import {Box, Button, ContainerForText, Flex, Label, OutlineButton, VerticalButtonGroup} from "ui-components";
 import Input, {HiddenInputField} from "ui-components/Input";
 import {MainContainer} from "MainContainer/MainContainer";
 import {InputDirectoryParameter, OptionalParameters, Parameter} from "./ParameterWidgets";
