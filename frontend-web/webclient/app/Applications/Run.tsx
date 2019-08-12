@@ -16,7 +16,7 @@ import {
     RunAppState,
     RunOperations,
     WithAppInvocation,
-    WithAppMetadata
+    WithAppMetadata,
 } from ".";
 import {Dispatch} from "redux";
 import {Box, Button, ContainerForText, Flex, Label, OutlineButton, Text, VerticalButtonGroup} from "ui-components";
@@ -73,6 +73,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 },
                 numberOfNodes: 1,
                 tasksPerNode: 1,
+                name: React.createRef()
             },
             favorite: false,
             favoriteLoading: false,
@@ -124,7 +125,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         // FIXME: Unify with extractParametersFromMap
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
             const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder);
-            console.log(it.ref.current!.value, expandedValue);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!,
@@ -149,6 +149,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             }
         }
 
+        const {name} = this.state.schedulingOptions;
+        const jobName = name.current && name.current.value;
+
         const job = {
             application: {
                 name: this.state.application!.metadata.name,
@@ -159,12 +162,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
             maxTime: maxTime,
             mounts,
-            type: "start"
+            type: "start",
+            name: !!jobName ? jobName : null
         };
 
-        this.setState(() => ({jobSubmitted: true}));
-        this.props.setLoading(true);
         try {
+            this.setState({jobSubmitted: true});
+            this.props.setLoading(true);
             const req = await Cloud.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
@@ -213,7 +217,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 schedulingOptions: {
                     maxTime: toolDescription.defaultTimeAllocation,
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
-                    tasksPerNode: toolDescription.defaultTasksPerNode
+                    tasksPerNode: toolDescription.defaultTasksPerNode,
+                    name: this.state.schedulingOptions.name
                 }
             }));
         } catch (e) {
@@ -313,7 +318,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 this.setState(() => ({
                     parameterValues,
-                    schedulingOptions: extractJobInfo({maxTime, numberOfNodes, tasksPerNode})
+                    schedulingOptions: extractJobInfo({maxTime, numberOfNodes, tasksPerNode, name: this.state.schedulingOptions.name})
                 }));
             } catch (e) {
                 console.warn(e);
@@ -603,7 +608,7 @@ interface JobSchedulingOptionsProps {
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
-    const {maxTime, numberOfNodes, tasksPerNode} = props.options;
+    const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
     return (
         <>
             <Flex mb="1em">
@@ -633,6 +638,10 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                     value={maxTime.seconds}
                     onChange={props.onChange}
                 />
+            </Flex>
+
+            <Flex mb="4px" mt="4px">
+                <Input ref={name} placeholder="Job name" />
             </Flex>
 
             {!props.app.invocation.resources.multiNodeSupport ? null :
@@ -674,7 +683,7 @@ function validateNameAndVersion(name: string, version: string, metadata: Applica
 }
 
 function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOptionsForInput {
-    let extractedJobInfo = {maxTime: {hours: 0, minutes: 0, seconds: 0}, numberOfNodes: 1, tasksPerNode: 1};
+    let extractedJobInfo = {maxTime: {hours: 0, minutes: 0, seconds: 0}, numberOfNodes: 1, tasksPerNode: 1, name: jobInfo.name};
     const {maxTime, numberOfNodes, tasksPerNode} = jobInfo;
     extractedJobInfo.maxTime.hours = Math.abs(maxTime.hours);
     extractedJobInfo.maxTime.minutes = Math.abs(maxTime.minutes);
