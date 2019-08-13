@@ -18,10 +18,7 @@ import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.EventServiceMock
-import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.service.test.*
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -329,17 +326,22 @@ class JobOrchestratorTest {
         }
 
         runBlocking {
-            assertEquals(JobState.VALIDATED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            retrySection {
+                assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            }
+        }
 
+        runBlocking {
             orchestrator.handleProposedStateChange(
                 JobStateChange(returnedID, JobState.FAILURE),
                 null,
                 TestUsers.user
             )
         }
-        runBlocking {
+
+       runBlocking {
             assertEquals(JobState.FAILURE, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
-            assertNotEquals(orchestrator.lookupOwnJob(returnedID, TestUsers.user).failedState, null)
+            assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).failedState)
         }
     }
 }
