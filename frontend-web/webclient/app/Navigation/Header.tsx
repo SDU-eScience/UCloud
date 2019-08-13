@@ -58,7 +58,7 @@ function Header(props: HeaderProps) {
     }, []);
 
     const {prioritizedSearch, history, refresh, spin} = props;
-    
+
     return (
         <HeaderContainer color="headerText" bg="headerBg">
             <Logo />
@@ -115,12 +115,15 @@ function Header(props: HeaderProps) {
                     Logout
                 </Flex>
                 <Divider />
-                <Flex onClick={e => (e.preventDefault(), e.stopPropagation(), props.toggleTheme())}>
-                    <ThemeToggler isLightTheme={isLightThemeStored()} />
+                <Flex cursor="auto">
+                    <ThemeToggler
+                        isLightTheme={isLightThemeStored()}
+                        onClick={e => (e.preventDefault(), e.stopPropagation(), props.toggleTheme())}
+                    />
                 </Flex>
             </ClickableDropdown>
         </HeaderContainer>
-    )
+    );
 }
 
 export const Refresh = ({
@@ -201,10 +204,10 @@ const SearchInput = styled(Flex)`
 
 
 interface SearchProps {
-    searchRef: React.RefObject<HTMLInputElement>
-    searchType: HeaderSearchType
-    navigate: () => void
-    setSearchType: (st: HeaderSearchType) => void
+    searchRef: React.RefObject<HTMLInputElement>;
+    searchType: HeaderSearchType;
+    navigate: () => void;
+    setSearchType: (st: HeaderSearchType) => void;
 }
 
 const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) => {
