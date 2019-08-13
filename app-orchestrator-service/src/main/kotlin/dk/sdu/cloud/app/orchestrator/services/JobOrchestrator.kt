@@ -255,7 +255,8 @@ class JobOrchestrator<DBSession>(
 
             if (!isReplay) {
                 db.withTransaction(autoFlush = true) {
-                    if (event.newState == JobState.FAILURE) {
+                    val failedStateOrNull = if (event.newState == JobState.FAILURE) jobWithToken.job.currentState else null
+                    jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus, failedStateOrNull)
                         jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus, oldState)
                     } else {
                         jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
