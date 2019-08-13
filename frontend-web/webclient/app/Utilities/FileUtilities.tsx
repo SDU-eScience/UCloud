@@ -256,9 +256,7 @@ export function mockFile(props: { path: string, type: FileType, fileId?: string,
         acl: [],
         favorited: false,
         sensitivityLevel: SensitivityLevelMap.PRIVATE,
-        isMockFolder: true,
         fileId: props.fileId ? props.fileId : "fileId" + new Date(),
-        link: false,
         ownSensitivityLevel: null,
         mockTag: props.tag
     };

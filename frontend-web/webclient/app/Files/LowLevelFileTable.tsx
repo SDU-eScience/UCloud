@@ -536,7 +536,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
                         <TableBody>
                             {allFiles.map(file => (
-                                <TableRow highlighted={file.isChecked} key={file.fileId!} data-tag={"fileRow"}>
+                                <TableRow highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined} key={file.fileId!} data-tag={"fileRow"}>
                                     <TableCell>
                                         {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
                                         <Flex flexDirection="row" alignItems="center" mx="9px">
@@ -667,7 +667,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const icon = <Box mr="10px" cursor="inherit">
         <FileIcon
             fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Cloud.homeFolder)}
-            size={38} link={props.file.link} shared={(props.file.acl != null ? props.file.acl.length : 0) > 0}
+            size={38} shared={(props.file.acl != null ? props.file.acl.length : 0) > 0}
         />
     </Box>;
 
@@ -676,8 +676,8 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             {icon}
 
             <Input
-                placeholder={props.file.isMockFolder ? "" : getFilenameFromPath(props.file.path)}
-                defaultValue={props.file.isMockFolder ? "" : getFilenameFromPath(props.file.path)}
+                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
                 p="0"
                 noBorder
                 maxLength={1024}

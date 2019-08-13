@@ -31,24 +31,12 @@ describe("PP", () => {
 
 describe("FileIcon", () => {
 
-    test("FileIcon, not link or shared", () => {
+    test("FileIcon, not shared", () => {
         const mFile = mockFile({path: "path", type: "DIRECTORY"});
         const iconType = iconFromFilePath(mFile.path, mFile.fileType, "/home/mail@mailhost.dk");
         expect(create(<FileIcon
             fileIcon={iconType}
         />)).toMatchSnapshot();
-    });
-
-    test("FileIcon, link", () => {
-        const mFile = mockFile({path: "path", type: "DIRECTORY"});
-        const iconType = iconFromFilePath(mFile.path, mFile.fileType, "/home/mail@mailhost.dk");
-        expect(create(
-            <ThemeProvider theme={theme}>
-                <FileIcon
-                    fileIcon={iconType}
-                    link
-                />
-            </ThemeProvider>)).toMatchSnapshot();
     });
     test("FileIcon, shared", () => {
         const mFile = mockFile({path: "path", type: "DIRECTORY"});

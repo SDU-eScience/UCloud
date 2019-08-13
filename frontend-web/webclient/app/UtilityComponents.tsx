@@ -174,14 +174,13 @@ export function rewritePolicyDialog({path, homeFolder, filesRemaining, allowOver
 }
 
 interface FileIconProps {
-    link?: boolean,
-    shared?: boolean,
-    fileIcon: FtIconProps,
+    shared?: boolean
+    fileIcon: FtIconProps
     size?: string | number
 }
 
-export const FileIcon = ({shared = false, link = false, fileIcon, size = 30}: FileIconProps) =>
-    link || shared ?
+export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps) =>
+    shared ?
         <RelativeFlex>
             <FtIcon size={size} fileIcon={fileIcon}/>
             <Absolute bottom={"-6px"} right={"-2px"}>

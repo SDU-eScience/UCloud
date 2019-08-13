@@ -26,12 +26,6 @@ export interface File {
     sensitivityLevel: SensitivityLevelMap | null
     ownSensitivityLevel: SensitivityLevelMap | null
     mockTag?: string
-
-    // TODO Delete below this line
-    isChecked?: boolean
-    beingRenamed?: boolean | null
-    link: boolean
-    isMockFolder?: boolean | null
 }
 
 export interface Acl {

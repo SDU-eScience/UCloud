@@ -135,7 +135,7 @@ const DashboardFavoriteFiles = ({files, isLoading, favorite}: {files: File[], is
         <List>
             {files.map(file => (
                 <Flex alignItems="center" key={file.fileId!} pt="0.5em" pb="6.4px">
-                    <ListFileContent file={file} link={false} pixelsWide={200} />
+                    <ListFileContent file={file} pixelsWide={200} />
                     <Icon ml="auto" size="1em" name="starFilled" color="blue" cursor="pointer" onClick={() => favorite(file)} />
                 </Flex>)
             )}
@@ -143,11 +143,11 @@ const DashboardFavoriteFiles = ({files, isLoading, favorite}: {files: File[], is
     </DashboardCard>
 );
 
-const ListFileContent = ({file, link, pixelsWide}: {file: File, link: boolean, pixelsWide: number}) => {
+const ListFileContent = ({file, pixelsWide}: {file: File, pixelsWide: number}) => {
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     return (
         <Flex alignItems="center">
-            <FileIcon fileIcon={iconType} link={link} />
+            <FileIcon fileIcon={iconType} />
             <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
                 <EllipsedText fontSize={2} width={pixelsWide}>
                     {getFilenameFromPath(replaceHomeFolder(file.path, Cloud.homeFolder))}
@@ -163,7 +163,7 @@ const DashboardRecentFiles = ({files, isLoading}: {files: File[], isLoading: boo
         <List>
             {files.map((file, i) => (
                 <Flex key={i} alignItems="center" pt="0.5em" pb="0.3em">
-                    <ListFileContent file={file} link={file.link} pixelsWide={130} />
+                    <ListFileContent file={file} pixelsWide={130} />
                     <Box ml="auto" />
                     <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt!)).fromNow()}</Text>
                 </Flex>

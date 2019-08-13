@@ -1,6 +1,6 @@
 import * as UF from "../app/UtilityFunctions";
-import { getFilenameFromPath, sizeToString } from "../app/Utilities/FileUtilities";
-import { SortBy, SortOrder, Acl } from "../app/Files";
+import {getFilenameFromPath, sizeToString} from "../app/Utilities/FileUtilities";
+import {SortBy, Acl} from "../app/Files";
 
 // TO LOWER CASE AND CAPITALIZE
 
@@ -71,19 +71,19 @@ test("Characters surrounded by whitespace", () =>
 // In range
 
 test("In range", () =>
-    expect(UF.inRange({ status: 10, min: 0, max: 20 })).toBe(true)
+    expect(UF.inRange({status: 10, min: 0, max: 20})).toBe(true)
 );
 
 test("Out of range", () =>
-    expect(UF.inRange({ status: 0, min: 1, max: 10 })).toBe(false)
+    expect(UF.inRange({status: 0, min: 1, max: 10})).toBe(false)
 );
 
 test("On lowest part of range", () =>
-    expect(UF.inRange({ status: 0, min: 0, max: 10 })).toBe(true)
+    expect(UF.inRange({status: 0, min: 0, max: 10})).toBe(true)
 );
 
 test("On highest part of range", () =>
-    expect(UF.inRange({ status: 10, min: 0, max: 10 })).toBe(true)
+    expect(UF.inRange({status: 10, min: 0, max: 10})).toBe(true)
 );
 
 // In success range
@@ -200,9 +200,9 @@ test("To same UUDI", () =>
 
 // Download allowed
 
-import { mockFiles_SensitivityConfidential, newMockFile } from "./mock/Files"
-import { dateToString } from "../app/Utilities/DateUtilities";
-import { SensitivityLevel, SensitivityLevelMap } from "../app/DefaultObjects";
+import {mockFiles_SensitivityConfidential, newMockFile} from "./mock/Files"
+import {dateToString} from "../app/Utilities/DateUtilities";
+import {SensitivityLevel, SensitivityLevelMap} from "../app/DefaultObjects";
 
 test("Download allowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(false)
@@ -217,7 +217,6 @@ const highSensitivityFile = newMockFile({
     ownerName: "user@user3.dk",
     sensitivityLevel: SensitivityLevelMap.SENSITIVE,
     favorited: false,
-    link: false,
     size: 128
 });
 
@@ -268,7 +267,7 @@ describe("If Present", () => {
 
 describe("defaultErrorHandler", () => {
     test.skip("Todo", () =>
-        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined })).toBe(0)
+        expect(UF.defaultErrorHandler({request: new XMLHttpRequest(), response: undefined})).toBe(0)
     );
 });
 
