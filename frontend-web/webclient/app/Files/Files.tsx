@@ -13,11 +13,13 @@ import {fileTablePage} from "Utilities/FileUtilities";
 import {defaultVirtualFolders} from "Files/VirtualFileTable"
 import {defaultFileOperations} from "Files/FileOperations";
 
-interface FilesProps extends RouteComponentProps {
+interface FilesOperations {
     onInit: () => void
     refreshHook: (register: boolean, fn: () => void) => void,
     setLoading: (loading: boolean) => void
 }
+
+type FilesProps = RouteComponentProps & FilesOperations;
 
 const Files: React.FunctionComponent<FilesProps> = props => {
     const urlPath = getQueryParamOrElse(props, "path", Cloud.homeFolder);
@@ -34,7 +36,7 @@ const Files: React.FunctionComponent<FilesProps> = props => {
     />;
 };
 
-const mapDispatchToProps = (dispatch: Dispatch) => ({
+const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     onInit: () => {
         dispatch(setPrioritizedSearch("files"));
         dispatch(updatePageTitle("Files"));
