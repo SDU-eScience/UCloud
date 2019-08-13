@@ -50,15 +50,15 @@ const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || in
     <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps) {
+    if (!Cloud.isLoggedIn) return null;
 
     const searchRef = React.useRef<HTMLInputElement>(null);
-
     React.useEffect(() => {
         props.fetchAvatar();
     }, []);
 
     const {prioritizedSearch, history, refresh, spin} = props;
-    if (!Cloud.isLoggedIn) return null;
+    
     return (
         <HeaderContainer color="headerText" bg="headerBg">
             <Logo />
