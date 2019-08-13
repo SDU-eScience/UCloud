@@ -1,0 +1,33 @@
+---
+# These are all up for debate. Create an issue with the discussion tag if you find a rule you don't agree with, 
+# or think that it is missing, and make a case for the change.
+extends: "tslint:recommended"
+rules:
+    max-line-length:
+        options: [120]
+    new-parens: true
+    no-arg: true
+    no-bitwise: true
+    object-literal-sort-keys: false
+    no-conditional-assignment: true
+    no-consecutive-blank-lines: false
+    interface-name: false
+    trailing-comma: false
+    curly: false
+    whitespace: false
+    jsx-space-before-trailing-slash: none
+    jsx-self-close: true
+    arrow-parens: false
+    no-console:
+        severity: warning
+        options:
+            - debug
+            - info
+            - log
+            - time
+            - timeEnd
+            - trace
+jsRules:
+    max-line-length:
+        options: [120]
+...

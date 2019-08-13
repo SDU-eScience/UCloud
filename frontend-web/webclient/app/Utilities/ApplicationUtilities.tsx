@@ -1,12 +1,19 @@
-import {removeTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
-import {ParameterTypes, WithAppFavorite, WithAppMetadata, ApplicationParameter, AppState, RunsSortBy, FullAppInfo, ApplicationMetadata, ApplicationInvocationDescription} from "Applications";
+import {
+    ApplicationInvocationDescription,
+    ApplicationMetadata,
+    ApplicationParameter,
+    AppState,
+    ParameterTypes,
+    RunsSortBy
+} from "Applications";
 import Cloud from "Authentication/lib";
-import {Page} from "Types";
-import {expandHomeFolder} from "./FileUtilities";
-import {addStandardDialog} from "UtilityComponents";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SortOrder} from "Files";
 import * as React from "react";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Page} from "Types";
+import {addStandardDialog} from "UtilityComponents";
+import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
+import {expandHomeFolder} from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -31,7 +38,8 @@ export function hpcJobsQuery(
     return query;
 }
 
-export const hpcFavoriteApp = (name: string, version: string) => `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
+export const hpcFavoriteApp = (name: string, version: string) => 
+    `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
 export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
     `/hpc/apps/favorites?itemsPerPage=${itemsPerPage}&page=${pageNumber}`;
@@ -67,10 +75,10 @@ interface FavoriteApplicationFromPage<T> {
     cloud: Cloud
 }
 /**
-* Favorites an application. 
-* @param {Application} Application the application to be favorited
-* @param {Cloud} cloud The cloud instance for requests
-*/
+ * Favorites an application.
+ * @param {Application} Application the application to be favorited
+ * @param {Cloud} cloud The cloud instance for requests
+ */
 export async function favoriteApplicationFromPage<T>({name, version, page, cloud}: FavoriteApplicationFromPage<T>): Promise<Page<T>> {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     try {
@@ -84,16 +92,16 @@ export async function favoriteApplicationFromPage<T>({name, version, page, cloud
 
 
 
-type StringMap = {[k: string]: string}
-interface AllowedParameterKey {name: string, type: ParameterTypes}
+interface StringMap {[k: string]: string;}
+interface AllowedParameterKey {name: string; type: ParameterTypes;}
 interface ExtractParameters {
-    parameters: StringMap
-    allowedParameterKeys: AllowedParameterKey[]
-    siteVersion: number
+    parameters: StringMap;
+    allowedParameterKeys: AllowedParameterKey[];
+    siteVersion: number;
 }
 
 export const extractParameters = ({parameters, allowedParameterKeys, siteVersion}: ExtractParameters): StringMap => {
-    let extractedParameters = {};
+    const extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({name, type}) => {
             if (parameters[name] !== undefined) {
@@ -114,7 +122,7 @@ const compareType = (type: ParameterTypes, parameter: string): boolean => {
         case ParameterTypes.Boolean:
             return parameter === "Yes" || parameter === "No" || parameter === "";
         case ParameterTypes.Integer:
-            return parseInt(parameter) % 1 === 0;
+            return parseInt(parameter, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
             return typeof parseFloat(parameter) === "number";
         case ParameterTypes.Text:
@@ -126,15 +134,15 @@ const compareType = (type: ParameterTypes, parameter: string): boolean => {
 };
 
 interface ExtractedParameters {
-    [key: string]: string | number | boolean | {source: string, destination: string}
+    [key: string]: string | number | boolean | {source: string, destination: string;}
 }
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
 
 interface ExtractParametersFromMap {
-    map: ParameterValues
-    appParameters: ApplicationParameter[]
-    cloud: Cloud
+    map: ParameterValues;
+    appParameters: ApplicationParameter[];
+    cloud: Cloud;
 }
 
 export function extractParametersFromMap({map, appParameters, cloud}: ExtractParametersFromMap): ExtractedParameters {
@@ -165,7 +173,7 @@ export function extractParametersFromMap({map, appParameters, cloud}: ExtractPar
                         return;
                 }
             case ParameterTypes.Integer:
-                extracted[key] = parseInt(current.value);
+                extracted[key] = parseInt(current.value, 10);
                 return;
             case ParameterTypes.FloatingPoint:
                 extracted[key] = parseFloat(current.value);
@@ -210,7 +218,10 @@ export function validateOptionalFields(
     return true;
 }
 
-export function checkForMissingParameters(parameters: ExtractedParameters, invocation: ApplicationInvocationDescription ): boolean {
+export function checkForMissingParameters(
+    parameters: ExtractedParameters,
+    invocation: ApplicationInvocationDescription
+): boolean {
     const requiredParams = invocation.parameters.filter(it => !it.optional);
     const missingParameters: string[] = [];
     requiredParams.forEach(rParam => {
@@ -229,7 +240,7 @@ export function checkForMissingParameters(parameters: ExtractedParameters, invoc
     if (missingParameters.length > 0) {
         snackbarStore.addFailure(
             `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
-                ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,    
+                ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,
             5000
         );
         return false;

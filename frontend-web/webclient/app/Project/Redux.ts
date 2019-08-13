@@ -1,5 +1,3 @@
-import {Project} from "Project/index";
-
 export interface State {
     project?: string;
 }

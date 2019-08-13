@@ -1,11 +1,11 @@
-import {SensitivityLevel} from "DefaultObjects";
 import {Cloud as currentCloud} from "Authentication/SDUCloudObject";
-import {SortBy, SortOrder, File, Acl, FileType} from "Files";
-import {dateToString} from "Utilities/DateUtilities";
-import {getFilenameFromPath, sizeToString, replaceHomeFolder, isDirectory} from "Utilities/FileUtilities";
-import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
+import {SensitivityLevel} from "DefaultObjects";
+import {Acl, File, FileType, SortBy} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {dateToString} from "Utilities/DateUtilities";
+import {getFilenameFromPath, isDirectory, replaceHomeFolder, sizeToString} from "Utilities/FileUtilities";
+import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
 /**
  * Sets theme based in input. Either "light" or "dark".
@@ -20,7 +20,7 @@ export const setSiteTheme = (isLightTheme: boolean): void => {
 /**
  * Returns whether or not the value "light", "dark" or null is stored. 
  * @returns {boolean} True if "light" or null is stored, otherwise "dark".
- * */
+ */
 export const isLightThemeStored = (): boolean => {
     const theme = window.localStorage.getItem("theme");
     if (theme === "dark") return false;
@@ -160,7 +160,7 @@ export interface FtIconProps {
 }
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FtIconProps => {
-    let icon: FtIconProps = {type: "FILE"};
+    const icon: FtIconProps = {type: "FILE"};
     if (isDirectory({fileType: type})) {
         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
         switch (homeFolderReplaced) {
@@ -225,7 +225,7 @@ export const prettierString = (str: string) => capitalized(str).replace(/_/g, " 
 export function defaultErrorHandler(
     error: {request: XMLHttpRequest, response: any}
 ): number {
-    let request: XMLHttpRequest = error.request;
+    const request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
     let why: string | null = null;
 
@@ -276,7 +276,7 @@ export function sortByToPrettierString(sortBy: SortBy): string {
 }
 
 export function requestFullScreen(el: Element, onFailure: () => void) {
-    //@ts-ignore
+    // @ts-ignore - Safari compatibility
     if (el.webkitRequestFullScreen) el.webkitRequestFullscreen();
     else if (el.requestFullscreen) el.requestFullscreen();
     else onFailure();
@@ -292,22 +292,22 @@ export function timestampUnixMs(): number {
 }
 
 export function humanReadableNumber(
-    number: number,
+    value: number,
     sectionDelim: string = ",",
     decimalDelim: string = ".",
     numDecimals: number = 2
 ): string {
     const regex = new RegExp("\\d(?=(\\d{3})+" + (numDecimals > 0 ? "\\D" : "$") + ")", "g");
-    const fixedNumber = number.toFixed(numDecimals);
+    const fixedNumber = value.toFixed(numDecimals);
 
     return fixedNumber
-        .replace('.', decimalDelim)
-        .replace(regex, '$&' + sectionDelim);
+        .replace(".", decimalDelim)
+        .replace(regex, "$&" + sectionDelim);
 }
 
 interface CopyToClipboard {
-    value: string | undefined
-    message: string
+    value: string | undefined;
+    message: string;
 }
 
 export function copyToClipboard({value, message}: CopyToClipboard) {
@@ -320,9 +320,12 @@ export function copyToClipboard({value, message}: CopyToClipboard) {
     snackbarStore.addSnack({message, type: SnackType.Success});
 }
 
-export function errorMessageOrDefault(err: {request: XMLHttpRequest, response: any} | {status: number, response: string}, defaultMessage: string): string {
+export function errorMessageOrDefault(
+    err: {request: XMLHttpRequest, response: any} | {status: number, response: string},
+    defaultMessage: string
+): string {
     try {
-        if (typeof err == "string") return err;
+        if (typeof err === "string") return err;
         if ("status" in err) {
             return err.response;
         } else {
@@ -342,11 +345,11 @@ export function delay(ms: number): Promise<void> {
 
 export const inDevEnvironment = () => process.env.NODE_ENV === "development";
 
-export var generateId = ((): (target: string) => string => {
+export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
     return (target = "default-target") => {
         const idCount = (store.get(target) || 0) + 1;
         store.set(target, idCount);
         return `${target}${idCount}`;
-    }
+    };
 })();
