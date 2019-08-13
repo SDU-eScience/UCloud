@@ -1,12 +1,1 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="100%" height="100%" viewBox="0 0 24 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
-    <g transform="matrix(1,0,0,1,-712.007,-489.02)">
-        <g id="Folder" transform="matrix(1,0,0,1,20.007,-3.98047)">
-            <path d="M692,514.313C692,514.691 692.27,515 692.6,515L715.4,515C715.73,515 716,514.691 716,514.313L716,497.812C716,497.434 715.73,497.125 715.4,497.125L702.8,497.125L699.2,493L692.6,493C692.27,493 692,493.309 692,493.687L692,514.313Z" style="fill:rgb(83,101,125);"/>
-            <g transform="matrix(0.210292,0,0,0.210292,563.097,455.582)">
-                <path d="M670,208L680.286,228.842L703.287,232.184L686.643,248.408L690.572,271.316L670,260.5L649.428,271.316L653.357,248.408L636.713,232.184L659.714,228.842L670,208Z" style="fill:rgb(131,147,167);"/>
-            </g>
-        </g>
-    </g>
-</svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="100%" height="100%" viewBox="0 0 25 23" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g id="Folder"><path d="M0,1.5c0,-0.398 0.158,-0.779 0.439,-1.061c0.282,-0.281 0.663,-0.439 1.061,-0.439c2.56,0 7.5,0 7.5,0l3,4l10.5,0c0.398,0 0.78,0.158 1.061,0.439c0.281,0.282 0.439,0.663 0.439,1.061c0,1.135 0,2.5 0,2.5l-24,0l0,-6.5Z" style="fill:#8393a7;"/><path d="M0,7.5c0,-0.828 0.672,-1.5 1.5,-1.5c4.309,0 16.691,0 21,0c0.829,0 1.5,0.672 1.5,1.5c0,3.232 0.001,10.779 0.001,13.5c0,0.265 -0.106,0.52 -0.293,0.707c-0.188,0.188 -0.442,0.293 -0.707,0.293c-3.905,0 -18.097,0 -22.001,0c-0.265,0 -0.52,-0.105 -0.707,-0.293c-0.188,-0.187 -0.293,-0.442 -0.293,-0.707c0,-2.721 0,-10.268 0,-13.5Z" style="fill:#53657d;"/><path d="M12,8l1.95,3.95l4.359,0.634l-3.154,3.074l0.744,4.342l-3.899,-2.05l-3.899,2.05l0.745,-4.342l-3.154,-3.074l4.359,-0.634l1.949,-3.95Z" style="fill:#8393a7;"/></g></svg>

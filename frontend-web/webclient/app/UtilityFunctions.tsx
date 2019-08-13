@@ -170,6 +170,9 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
             case "Home/Favorites":
                 icon.type = "FAVFOLDER";
                 break;
+            case "Home/Shares":
+                icon.type = "SHARESFOLDER";
+                break;
             case "Home/Trash":
                 icon.type = "TRASHFOLDER";
                 break;

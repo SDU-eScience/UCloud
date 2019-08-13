@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SvgFtFavFolder = (props: any) => (
+const SvgFtSharesFolder = (props: any) => (
   <svg
     viewBox="0 0 25 23"
     fillRule="evenodd"
@@ -17,10 +17,10 @@ const SvgFtFavFolder = (props: any) => (
       fill={undefined}
     />
     <path
-      d="M12 8l1.95 3.95 4.359.634-3.154 3.074.744 4.342L12 17.95 8.101 20l.745-4.342-3.154-3.074 4.359-.634L12 8z"
+      d="M19.059 14l-5.813 5v-3.333h-.83c-2.641 0-5.852 1.609-7.474 3.333.171-3.307 3.915-6.667 7.474-6.667h.83V9l5.813 5z"
       fill={props.color2 ? props.color2 : null}
     />
   </svg>
 );
 
-export default SvgFtFavFolder;
+export default SvgFtSharesFolder;

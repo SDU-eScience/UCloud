@@ -50,15 +50,15 @@ const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || in
     <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps) {
+    if (!Cloud.isLoggedIn) return null;
 
     const searchRef = React.useRef<HTMLInputElement>(null);
-
     React.useEffect(() => {
         props.fetchAvatar();
     }, []);
 
     const {prioritizedSearch, history, refresh, spin} = props;
-    if (!Cloud.isLoggedIn) return null;
+    
     return (
         <HeaderContainer color="headerText" bg="headerBg">
             <Logo />
@@ -88,7 +88,7 @@ function Header(props: HeaderProps) {
                 <Box ml="-17px" mr="-17px" pl="15px">
                     <ExternalLink color="black" href="https://status.cloud.sdu.dk">
                         <Flex color="black">
-                            <Icon name="cloudTryingItsBest" mr="0.5em" my="0.2em" size="1.3em" />
+                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
                             <TextSpan>Site status</TextSpan>
                         </Flex>
                     </ExternalLink>
@@ -114,7 +114,7 @@ function Header(props: HeaderProps) {
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
-                {inDevEnvironment() ? <Divider /> : null}
+                <Divider />
                 <Flex onClick={e => (e.preventDefault(), e.stopPropagation(), props.toggleTheme())}>
                     <ThemeToggler isLightTheme={isLightThemeStored()} />
                 </Flex>
@@ -123,9 +123,13 @@ function Header(props: HeaderProps) {
     )
 }
 
-export const Refresh = ({onClick, spin, headerLoading}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
-    <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading}
-        onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />;
+export const Refresh = ({
+    onClick,
+    spin,
+    headerLoading
+}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
+        <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading}
+            onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />;
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
