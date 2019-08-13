@@ -87,6 +87,7 @@ class JobVerificationService(
                 jobInput = verifiedParameters,
                 backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
                 currentState = JobState.VALIDATED,
+                failedState = null,
                 status = "Validated",
                 archiveInCollection = archiveInCollection,
                 _mounts = mounts,

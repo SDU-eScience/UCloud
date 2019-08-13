@@ -30,6 +30,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class JobOrchestratorTest {
 
@@ -317,6 +318,28 @@ class JobOrchestratorTest {
 
         runBlocking {
             assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+        }
+    }
+
+    @Test
+    fun `Handle failed state of unsuccessful job test`() {
+        val orchestrator = setup()
+        val returnedID = runBlocking {
+            orchestrator.startJob(startJobRequest, decodedJWT, client)
+        }
+
+        runBlocking {
+            assertEquals(JobState.VALIDATED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+
+            orchestrator.handleProposedStateChange(
+                JobStateChange(returnedID, JobState.FAILURE),
+                null,
+                TestUsers.user
+            )
+        }
+        runBlocking {
+            assertEquals(JobState.FAILURE, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            assertNotEquals(orchestrator.lookupOwnJob(returnedID, TestUsers.user).failedState, null)
         }
     }
 }

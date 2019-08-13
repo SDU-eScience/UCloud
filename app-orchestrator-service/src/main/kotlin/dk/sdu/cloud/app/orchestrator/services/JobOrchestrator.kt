@@ -251,9 +251,15 @@ class JobOrchestrator<DBSession>(
         isReplay: Boolean = false
     ): Job = OrchestrationScope.launch {
         withJobExceptionHandler(event.systemId, rethrow = false) {
+            val oldState: JobState = jobWithToken.job.currentState
+
             if (!isReplay) {
                 db.withTransaction(autoFlush = true) {
-                    jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
+                    if (event.newState == JobState.FAILURE) {
+                        jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus, oldState)
+                    } else {
+                        jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
+                    }
                 }
             }
 
@@ -261,7 +267,6 @@ class JobOrchestrator<DBSession>(
             val backend = computationBackendService.getAndVerifyByName(job.backend)
             val backendConfig = backend.config
 
-            log.info("New state ${job.id} is ${event.newState}")
             when (event.newState) {
                 JobState.VALIDATED -> {
                     var workspace: String? = null

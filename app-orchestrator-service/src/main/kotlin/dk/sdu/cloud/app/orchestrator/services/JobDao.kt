@@ -18,7 +18,8 @@ interface JobDao<Session> {
         session: Session,
         systemId: String,
         state: JobState,
-        status: String? = null
+        status: String? = null,
+        failedState: JobState? = null
     )
 
     fun updateStatus(
