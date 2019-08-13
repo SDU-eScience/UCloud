@@ -1,16 +1,19 @@
-import {createStore, combineReducers, Store, AnyAction, Action} from "redux";
-import {composeWithDevTools} from 'redux-devtools-extension';
-import {ReduxObject, initObject} from "DefaultObjects";
-import {responsiveBP} from "ui-components/theme";
+import {initObject, ReduxObject} from "DefaultObjects";
+import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
+import {Action, AnyAction, combineReducers, createStore, Store} from "redux";
+import {composeWithDevTools} from "redux-devtools-extension";
 import {createResponsiveStateReducer} from "redux-responsive";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {CONTEXT_SWITCH, USER_LOGOUT, USER_LOGIN} from "Navigation/Redux/HeaderReducer";
+import {responsiveBP} from "ui-components/theme";
 
-export function configureStore(initialObject: Partial<ReduxObject>, reducers, enhancers?): Store<ReduxObject, AnyAction> {
+export function configureStore(
+    initialObject: Partial<ReduxObject>,
+    reducers,
+    enhancers?
+): Store<ReduxObject, AnyAction> {
     const combinedReducers = combineReducers<ReduxObject, AnyAction>(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
         if ([USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH].some(it => it === action.type)) {
-            state = initObject(Cloud.homeFolder);
+            state = initObject();
         }
         return combinedReducers(state, action);
     };

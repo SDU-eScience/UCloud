@@ -1,13 +1,13 @@
 import * as jwt from "jsonwebtoken";
 import {
     inRange,
-    is5xxStatusCode,
-    inSuccessRange
+    inSuccessRange,
+    is5xxStatusCode
 } from "UtilityFunctions";
+import {ReduxObject} from "DefaultObjects";
+import {Store} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Store} from "redux";
-import {ReduxObject} from "DefaultObjects";
 
 export interface Override {
     path: string,

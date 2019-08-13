@@ -200,12 +200,12 @@ test("To same UUDI", () =>
 
 // Download allowed
 
-import {mockFiles_SensitivityConfidential, newMockFile} from "./mock/Files"
+import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files"
 import {dateToString} from "../app/Utilities/DateUtilities";
 import {SensitivityLevel, SensitivityLevelMap} from "../app/DefaultObjects";
 
 test("Download allowed", () =>
-    expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(false)
+    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items)).toBe(false)
 );
 
 const highSensitivityFile = newMockFile({
@@ -221,12 +221,12 @@ const highSensitivityFile = newMockFile({
 });
 
 test("Download disallowed", () =>
-    expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
+    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
 
 describe("sortingColumnToValue", () => {
-    const file = mockFiles_SensitivityConfidential.items[0];
-    const favoritedFile = mockFiles_SensitivityConfidential.items[1];
+    const file = mockFilesSensitivityConfidential.items[0];
+    const favoritedFile = mockFilesSensitivityConfidential.items[1];
 
     test("TYPE", () => {
         expect(UF.sortingColumnToValue(SortBy.FILE_TYPE, file)).toBe(UF.capitalized(file.fileType))
@@ -247,7 +247,8 @@ describe("sortingColumnToValue", () => {
         expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getMembersString(file.acl as Acl[]))
     })
     test("SENSITIVITY", () => {
-        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file)).toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
+        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file))
+         .toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
     })
 });
 
