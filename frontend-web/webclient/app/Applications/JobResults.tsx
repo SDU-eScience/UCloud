@@ -289,6 +289,10 @@ const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProp
             <JobResultsHeaderCell width="4%" textAlign="center">
                 {masterCheckbox}
             </JobResultsHeaderCell>
+            <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.name)}>
+                <Arrow sortBy={RunsSortBy.name} activeSortBy={sortBy} order={sortOrder} />
+                Name
+            </JobResultsHeaderCell>
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.state)}>
                 <Arrow sortBy={RunsSortBy.state} activeSortBy={sortBy} order={sortOrder} />
                 State
@@ -322,6 +326,7 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             <TableCell textAlign="center">
                 {children}
             </TableCell>
+            <TableCell onClick={to}>{analysis.name}</TableCell>
             <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>

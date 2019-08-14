@@ -9,6 +9,7 @@ import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 
 export interface Analysis {
+    name: string
     checked?: boolean
     status: string
     state: AppState
@@ -369,7 +370,8 @@ export enum RunsSortBy {
     application = "APPLICATION",
     startedAt = "STARTED_AT",
     lastUpdate = "LAST_UPDATE",
-    createdAt = "CREATED_AT"
+    createdAt = "CREATED_AT",
+    name = "NAME"
 }
 export interface WithAllAppTags {
     tags: string[]
