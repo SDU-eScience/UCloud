@@ -115,6 +115,7 @@ export enum AppState {
 }
 
 export interface DetailedResultState {
+    name: string
     complete: boolean
     appState: AppState
     status: string
