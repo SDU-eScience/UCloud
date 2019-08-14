@@ -195,7 +195,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             {key: "Status", value: this.state.status},
         ];
 
-        if (this.state.name) entries = [{key: "Name", value: this.state.name}].concat(entries);
+        if (this.state.name) entries.unshift([{key: "Name", value: this.state.name}]);
 
         let domEntries = entries.map(it => <Box pt="0.8em" pb="0.8em" key={it.key}><b>{it.key}</b>: {it.value}</Box>);
 
