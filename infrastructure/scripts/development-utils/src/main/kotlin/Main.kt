@@ -67,18 +67,19 @@ fun main(args: Array<String>) {
 
     val targetServiceWithDir = services.find { it.service.name == targetService } ?: panic("No such target service")
 
-    val servicesToStart =
+    val servicesForConfig =
         (findDependencies("auth", services) +
-                findDependencies(targetServiceWithDir.service.namespaces.first(), services))
-            .filter { (service, _) ->
-                service.name != targetService && service.name !in excludeList
-            }
+                findDependencies(targetServiceWithDir.service.namespaces.first(), services)) + targetServiceWithDir
+
+    val servicesToStart = servicesForConfig.filter { it != targetServiceWithDir && it.service.name !in excludeList }
 
     val configDir = Files.createTempDirectory("config").toFile()
     val overrides = HashMap<String, Any?>()
 
     var port = 8001
-    servicesToStart.forEach { (service, _) ->
+    servicesForConfig.forEach { (service, _) ->
+        if (service == targetServiceWithDir.service) return@forEach
+
         overrides[service.name] = ":$port"
         service.namespaces.forEach { overrides[it] = ":$port" }
         port++
