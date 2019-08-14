@@ -212,6 +212,18 @@ export interface TextParameter extends BaseParameter {
     type: ParameterTypes.Text
 }
 
+export interface PeerParameter extends BaseParameter {
+    suggestedApplication: string | null
+    type: ParameterTypes.Peer
+}
+
+export interface SharedFileSystemParameter extends BaseParameter {
+    fsType: "EPHEMERAL" | "PERSISTENT"
+    mountLocation: string | null
+    exportToPeers: boolean
+    type: ParameterTypes.SharedFileSystem
+}
+
 interface BaseParameter {
     name: string
     optional: boolean
@@ -222,7 +234,8 @@ interface BaseParameter {
     visible?: boolean
 }
 
-export type ApplicationParameter = InputFileParameter | InputDirectoryParameter | NumberParameter | BooleanParameter | TextParameter;
+export type ApplicationParameter = InputFileParameter | InputDirectoryParameter | NumberParameter | BooleanParameter |
+    TextParameter | PeerParameter | SharedFileSystemParameter;
 
 type Invocation = WordInvocation | VarInvocation
 
@@ -260,7 +273,9 @@ export enum ParameterTypes {
     Integer = "integer",
     FloatingPoint = "floating_point",
     Text = "text",
-    Boolean = "boolean"
+    Boolean = "boolean",
+    Peer = "peer",
+    SharedFileSystem = "shared_file_system"
 }
 
 export interface SearchFieldProps {

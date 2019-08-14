@@ -22,7 +22,7 @@ import {Dispatch} from "redux";
 import {Box, Button, ContainerForText, Flex, Label, OutlineButton, Text, VerticalButtonGroup} from "ui-components";
 import Input, {HiddenInputField} from "ui-components/Input";
 import {MainContainer} from "MainContainer/MainContainer";
-import {InputDirectoryParameter, OptionalParameters, Parameter} from "./ParameterWidgets";
+import {Parameter} from "./Widgets/Parameter";
 import {
     extractParameters,
     extractParametersFromMap,
@@ -54,6 +54,8 @@ import FileSelector from "Files/FileSelector";
 import {AccessRight} from "Types";
 import * as AppFS from "Applications/FileSystems";
 import Networking from "Applications/Networking";
+import {OptionalParameters} from "Applications/OptionalParameters";
+import {InputDirectoryParameter} from "Applications/Widgets/FileParameter";
 
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -80,7 +82,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             favoriteLoading: false,
             fsShown: false,
 
-            sharedFileSystems: { mounts: [] }
+            sharedFileSystems: {mounts: []}
         };
     };
 
@@ -326,7 +328,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    private onFileSelection(file: {path: string}) {
+    private onFileSelection(file: { path: string }) {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -339,7 +341,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: {path: string}) => {
+    private fetchAndImportParameters = async (file: { path: string }) => {
         const fileStat = await Cloud.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
@@ -540,16 +542,20 @@ const Parameters = (props: ParameterProps) => {
                             description: "",
                             defaultValue: "",
                             visible: true,
-                            unitName: (<Box width="105px"><ClickableDropdown
-                                chevron
-                                minWidth="150px"
-                                onChange={key => props.onAccessChange(i, key === "READ")}
-                                trigger={entry.readOnly ? "Read only" : "Read/Write"}
-                                options={[
-                                    {text: "Read only", value: "READ"},
-                                    {text: "Read/Write", value: "READ/WRITE"}
-                                ]}
-                            ><Box>Read only</Box><Box>Read/Write</Box></ClickableDropdown></Box>),
+                            unitName: (
+                                <Box width="105px">
+                                    <ClickableDropdown
+                                        chevron
+                                        minWidth="150px"
+                                        onChange={key => props.onAccessChange(i, key === "READ")}
+                                        trigger={entry.readOnly ? "Read only" : "Read/Write"}
+                                        options={[
+                                            {text: "Read only", value: "READ"},
+                                            {text: "Read/Write", value: "READ/WRITE"}
+                                        ]}
+                                    />
+                                </Box>
+                            ),
                         }}
                     />
                 </Box>))}
@@ -558,7 +564,7 @@ const Parameters = (props: ParameterProps) => {
             <AppFS.Management onMountsChange={mounts => 42}/>
 
             <Heading.h4>Networking Peers</Heading.h4>
-            <Networking />
+            <Networking/>
 
             <Heading.h4>Scheduling</Heading.h4>
             <JobSchedulingOptions
@@ -707,7 +713,7 @@ function exportParameters({application, schedulingOptions, parameterValues, moun
     const jobInfo = extractJobInfo(schedulingOptions);
     const element = document.createElement("a");
 
-    const values: {[key: string]: string} = {};
+    const values: { [key: string]: string } = {};
 
     for (const [key, ref] of parameterValues[Symbol.iterator]()) {
         if (ref && ref.current) values[key] = ref.current.value;
