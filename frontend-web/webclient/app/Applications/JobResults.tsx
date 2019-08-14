@@ -1,5 +1,5 @@
 import * as React from "react";
-import {capitalized, errorMessageOrDefault} from "UtilityFunctions"
+import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions"
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
@@ -18,7 +18,7 @@ import {Spacer} from "ui-components/Spacer";
 import * as moment from "moment";
 import "moment/locale/en-gb";
 import {JobStateIcon} from "./JobStateIcon";
-import {TextSpan} from "ui-components/Text";
+import {italic, TextSpan} from "ui-components/Text";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {prettierString} from "UtilityFunctions";
@@ -326,7 +326,7 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             <TableCell textAlign="center">
                 {children}
             </TableCell>
-            <TableCell onClick={to}>{analysis.name}</TableCell>
+            <TableCell onClick={to}>{analysis.name ? analysis.name : shortUUID(analysis.jobId) }</TableCell>
             <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
