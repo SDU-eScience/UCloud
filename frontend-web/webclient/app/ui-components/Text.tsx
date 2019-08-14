@@ -29,7 +29,7 @@ export const regular = (props: { regular?: boolean, theme: Theme }) =>
 export const bold = (props: { bold?: boolean, theme: Theme }) =>
   props.bold ? { fontWeight: props.theme.bold } : null;
 
-export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null)
+export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null);
 
 export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps {
   align?: "left" | "right"

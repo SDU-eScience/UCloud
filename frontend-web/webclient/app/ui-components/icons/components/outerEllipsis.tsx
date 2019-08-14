@@ -11,8 +11,8 @@ const SvgOuterEllipsis = (props: any) => (
     {...props}
   >
     <style />
-    <ellipse cx={5} cy={12} rx={3} ry={3} />
-    <ellipse cx={19} cy={12} rx={3} ry={3} />
+    <circle cx={5} cy={12} r={3} />
+    <circle cx={19} cy={12} r={3} />
   </svg>
 );
 

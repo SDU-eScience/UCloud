@@ -70,19 +70,6 @@ class WebService(
     private val domain: String = "cloud.sdu.dk",
     private val cookieName: String = "appRefreshToken"
 ) {
-    private val client = HttpClient(OkHttp) {
-        followRedirects = false
-        engine {
-            config {
-                // NOTE(Dan): Anything which takes more than 15 minutes is definitely broken.
-                // I do not believe we should increase this to fix other peoples broken software.
-                readTimeout(15, TimeUnit.MINUTES)
-                writeTimeout(15, TimeUnit.MINUTES)
-                followRedirects(false)
-            }
-        }
-    }
-
     data class Communication(
         var isDone: Boolean = false,
         var read: Long = 0
@@ -205,7 +192,21 @@ class WebService(
     }
 
     private suspend fun PipelineContext<Unit, ApplicationCall>.proxyToServer(tunnel: Tunnel): HttpClientCall {
-        val requestPath = call.parameters.getAll("path")?.joinToString("/") ?: "/"
+        // Note(Dan): It appears that if we don't do this the client will start sending other people's responses.
+        val client = HttpClient(OkHttp) {
+            followRedirects = false
+            engine {
+                config {
+                    // NOTE(Dan): Anything which takes more than 15 minutes is definitely broken.
+                    // I do not believe we should increase this to fix other peoples broken software.
+                    readTimeout(15, TimeUnit.MINUTES)
+                    writeTimeout(15, TimeUnit.MINUTES)
+                    followRedirects(false)
+                }
+            }
+        }
+
+        val requestPath = call.request.path()
         val requestQueryParameters = call.request.queryParameters
         val method = call.request.httpMethod
         val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
@@ -307,13 +308,21 @@ class WebService(
             EmptyContent
         } else {
             val readState = Communication()
-            GlobalScope.launch { producer(fileChannel, clientCall.response.content, readState) }
+            GlobalScope.launch {
+                producer(
+                    fileChannel,
+                    clientCall.response.content,
+                    readState,
+                    tempResponse.fileName.toString()
+                )
+            }
 
             object : OutgoingContent.ReadChannelContent() {
                 override fun readFrom(): ByteReadChannel = if (responseContentLength != null) {
-                    tempResponse.toFile().keepReadingChannel(responseContentLength, null)
+                    tempResponse.toFile()
+                        .keepReadingChannel(responseContentLength, null, tempResponse.fileName.toString())
                 } else {
-                    tempResponse.toFile().keepReadingChannel(null, readState)
+                    tempResponse.toFile().keepReadingChannel(null, readState, tempResponse.fileName.toString())
                 }
 
                 override val contentLength: Long? = responseContentLength
@@ -345,6 +354,7 @@ class WebService(
     fun File.keepReadingChannel(
         length: Long?,
         readState: Communication?,
+        debug: String?,
         coroutineContext: CoroutineContext = Dispatchers.IO
     ): ByteReadChannel {
         val file = RandomAccessFile(this@keepReadingChannel, "r")
@@ -414,7 +424,12 @@ class WebService(
         }.channel
     }
 
-    suspend fun producer(fileChannel: FileChannel, byteReadChannel: ByteReadChannel, readState: Communication) {
+    suspend fun producer(
+        fileChannel: FileChannel,
+        byteReadChannel: ByteReadChannel,
+        readState: Communication,
+        debug: String
+    ) {
         val buffer = ByteBuffer.allocate(1024 * 64)
         var totalRead = 0L
         do {

@@ -13,6 +13,6 @@ const Avatar = (state: AvatarType = initAvatar(), action: AvatarActions) => {
         default:
             return state;
     }
-}
+};
 
 export default Avatar;

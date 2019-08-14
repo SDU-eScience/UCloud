@@ -80,8 +80,13 @@ fun main(args: Array<String>) {
     var port = 8001
     servicesToStart.forEach { (service, _) ->
         overrides[service.name] = ":$port"
-        service.dependencies.forEach { overrides[it] = ":$port" }
+        service.namespaces.forEach { overrides[it] = ":$port" }
         port++
+    }
+
+    targetServiceWithDir.let { (service, _) ->
+        overrides[service.name] = ":8800"
+        service.namespaces.forEach { overrides[it] = ":8800"}
     }
 
     File(configDir, "overrides.yml").writeText(
@@ -89,6 +94,8 @@ fun main(args: Array<String>) {
             mapOf("development" to mapOf("serviceDiscovery" to overrides))
         )
     )
+
+    val authConfigFile = Files.createTempFile("conf", ".yml").toFile().also { it.writeText("refreshToken: None") }
 
     val userHome = System.getProperty("user.home")
     val sducloudConfig = File(userHome, "sducloud").absolutePath
@@ -122,7 +129,7 @@ fun main(args: Array<String>) {
         scriptBuilder.append(
             """
                 cd ${authService.directory.absolutePath}
-                prefixed "auth" gradle run -PappArgs='["--dev", "--config-dir", "$sducloudConfig", "--config-dir", "${configDir.absolutePath}", "--save-config", "$refreshConfig"]'
+                prefixed "auth" gradle run -PappArgs='["--dev", "--config-dir", "$sducloudConfig", "--config-dir", "${configDir.absolutePath}", "--config", "${authConfigFile.absolutePath}", "--save-config", "$refreshConfig"]'
                 
                 while [ ! -f $refreshConfig ]; do sleep 1; done
                 

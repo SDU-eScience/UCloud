@@ -29,7 +29,7 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import {SortOrder} from "Files";
-import {getStartOfWeek} from "Activity/Page";
+import {getStartOfWeek, getStartOfDay} from "Activity/Page";
 import Button from "ui-components/Button";
 import InputGroup from "ui-components/InputGroup";
 import Label from "ui-components/Label";
@@ -44,7 +44,7 @@ interface FetchJobsOptions {
     sortOrder?: SortOrder
     minTimestamp?: number
     maxTimestamp?: number
-    filter?: AppState
+    filter?: string
 }
 
 /* FIXME: Almost identical to similar one in FilesTable.tsx */
@@ -56,7 +56,7 @@ const JobResultsHeaderCell = styled(TableHeaderCell) <{pointer?: boolean}>`
     position: sticky;
 `;
 
-function JobResults(props: AnalysesProps & { history: History }) {
+function JobResults(props: AnalysesProps & {history: History}) {
 
     React.useEffect(() => {
         moment.locale("en-gb");
@@ -67,7 +67,7 @@ function JobResults(props: AnalysesProps & { history: History }) {
     }, []);
 
     function fetchJobs(options?: FetchJobsOptions) {
-        const opts = options || {}; 
+        const opts = options || {};
         const {page, setLoading} = props;
         const itemsPerPage = opts.itemsPerPage != null ? opts.itemsPerPage : page.itemsPerPage;
         const pageNumber = opts.pageNumber != null ? opts.pageNumber : page.pageNumber;
@@ -75,11 +75,12 @@ function JobResults(props: AnalysesProps & { history: History }) {
         const sortBy = opts.sortBy != null ? opts.sortBy : props.sortBy;
         const minTimestamp = opts.minTimestamp != null ? opts.minTimestamp : undefined;
         const maxTimestamp = opts.maxTimestamp != null ? opts.maxTimestamp : undefined;
-        const filter = opts.filter != null ? opts.filter : undefined;
+        const filterValue = opts.filter && opts.filter !== "Don't filter" ? opts.filter as AppState : undefined;
+    
         setLoading(true);
-        props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter);
+        props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filterValue);
         props.setRefresh(() =>
-            props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter)
+            props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filterValue)
         );
     }
 
@@ -95,7 +96,7 @@ function JobResults(props: AnalysesProps & { history: History }) {
         checked={masterCheckboxChecked}
         onClick={checked => props.checkAllAnalyses(checked)}
     />;
-    
+
     const content = <List
         customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
         loading={loading}
@@ -138,12 +139,13 @@ function JobResults(props: AnalysesProps & { history: History }) {
         onPageChanged={pageNumber => fetchJobs({pageNumber})}
     />;
 
-    const [filter, setFilter] = React.useState({text: "Don't filter", value: "Don't filter"});
+    const defaultFilter = {text: "Don't filter", value: "Don't filter"}
+    const [filter, setFilter] = React.useState(defaultFilter);
     const [firstDate, setFirstDate] = React.useState<Date | null>(null);
     const [secondDate, setSecondDate] = React.useState<Date | null>(null);
 
-    const appStates = Object.keys(AppState).map(it => ({text: prettierString(it), value: it}))
-    appStates.push({text: "Don't Filter", value: "Don't filter"});
+    const appStates = Object.keys(AppState).map(it => ({text: prettierString(it), value: it}));
+    appStates.push(defaultFilter);
 
     function fetchJobsInRange(minDate: Date | null, maxDate: Date | null) {
         return () => fetchJobs({
@@ -152,14 +154,14 @@ function JobResults(props: AnalysesProps & { history: History }) {
             sortOrder,
             sortBy,
             minTimestamp: minDate == null ? undefined : minDate.getTime(),
-            maxTimestamp: maxDate == null ? undefined : maxDate.getTime()
+            maxTimestamp: maxDate == null ? undefined : maxDate.getTime(),
+            filter: filter.value === "Don't filter" ? undefined : filter.value
         })
     }
 
-    const now = new Date().getTime();
+    const startOfToday = getStartOfDay(new Date());
     const dayInMillis = 24 * 60 * 60 * 1000;
-    const yesterday = new Date(new Date().getTime() - dayInMillis);
-    const startOfYesterday = yesterday.getTime() - yesterday.getMilliseconds();
+    const startOfYesterday = getStartOfDay(new Date(startOfToday.getTime() - dayInMillis));
     const startOfWeek = getStartOfWeek(new Date()).getTime();
 
     function updateFilterAndFetchJobs(value: string) {
@@ -177,8 +179,8 @@ function JobResults(props: AnalysesProps & { history: History }) {
         <Heading.h3>
             Quick Filters
         </Heading.h3>
-        <Box cursor="pointer" onClick={fetchJobsInRange(new Date(now - new Date().getMilliseconds()), null)}><TextSpan>Today</TextSpan></Box>
-        <Box cursor="pointer" onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday + dayInMillis))}>
+        <Box cursor="pointer" onClick={fetchJobsInRange(getStartOfDay(new Date()), null)}><TextSpan>Today</TextSpan></Box>
+        <Box cursor="pointer" onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday.getTime() + dayInMillis))}>
             <TextSpan>Yesterday</TextSpan>
         </Box>
         <Box cursor="pointer" onClick={fetchJobsInRange(new Date(startOfWeek), null)}><TextSpan>This week</TextSpan></Box>
@@ -226,7 +228,7 @@ function JobResults(props: AnalysesProps & { history: History }) {
                 />
             </InputGroup>
         </Box>
-        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()}/>
+        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
     </Box>);
 
     return (<MainContainer
@@ -288,24 +290,20 @@ const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProp
                 {masterCheckbox}
             </JobResultsHeaderCell>
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.state)}>
-                <Arrow name={sortBy === RunsSortBy.state ?
-                    sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowUp" : undefined} />
+                <Arrow sortBy={RunsSortBy.state} activeSortBy={sortBy} order={sortOrder} />
                 State
             </JobResultsHeaderCell>
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.application)}>
-                <Arrow name={sortBy === RunsSortBy.application ?
-                    sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowUp" : undefined} />
+                <Arrow sortBy={RunsSortBy.application} activeSortBy={sortBy} order={sortOrder} />
                 Application
             </JobResultsHeaderCell>
             {hide ? null :
                 <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.createdAt)}>
-                    <Arrow name={sortBy === RunsSortBy.createdAt ?
-                        sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowUp" : undefined} />
+                    <Arrow sortBy={RunsSortBy.createdAt} activeSortBy={sortBy} order={sortOrder} />
                     Created at
                 </JobResultsHeaderCell>}
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
-                <Arrow name={sortBy === RunsSortBy.lastUpdate ?
-                    sortOrder === SortOrder.ASCENDING ? "arrowDown" : "arrowUp" : undefined} />
+                <Arrow sortBy={RunsSortBy.lastUpdate} activeSortBy={sortBy} order={sortOrder} />
                 Last update
             </JobResultsHeaderCell>
         </TableRow>

@@ -1,6 +1,6 @@
 import * as UF from "../app/UtilityFunctions";
-import { getFilenameFromPath, sizeToString } from "../app/Utilities/FileUtilities";
-import { SortBy, SortOrder, Acl } from "../app/Files";
+import {getFilenameFromPath, sizeToString} from "../app/Utilities/FileUtilities";
+import {SortBy, Acl} from "../app/Files";
 
 // TO LOWER CASE AND CAPITALIZE
 
@@ -71,19 +71,19 @@ test("Characters surrounded by whitespace", () =>
 // In range
 
 test("In range", () =>
-    expect(UF.inRange({ status: 10, min: 0, max: 20 })).toBe(true)
+    expect(UF.inRange({status: 10, min: 0, max: 20})).toBe(true)
 );
 
 test("Out of range", () =>
-    expect(UF.inRange({ status: 0, min: 1, max: 10 })).toBe(false)
+    expect(UF.inRange({status: 0, min: 1, max: 10})).toBe(false)
 );
 
 test("On lowest part of range", () =>
-    expect(UF.inRange({ status: 0, min: 0, max: 10 })).toBe(true)
+    expect(UF.inRange({status: 0, min: 0, max: 10})).toBe(true)
 );
 
 test("On highest part of range", () =>
-    expect(UF.inRange({ status: 10, min: 0, max: 10 })).toBe(true)
+    expect(UF.inRange({status: 10, min: 0, max: 10})).toBe(true)
 );
 
 // In success range
@@ -112,20 +112,6 @@ test("Outside 5xx range", () =>
 
 test("Upper 5xx range", () =>
     expect(UF.is5xxStatusCode(599)).toBe(true)
-);
-
-// Get sorting icon
-
-test("Arrow up", () =>
-    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.ASCENDING, SortBy.PATH)).toBe("arrowUp")
-);
-
-test("Arrow down", () =>
-    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.DESCENDING, SortBy.PATH)).toBe("arrowDown")
-);
-
-test("Undefined", () =>
-    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.ASCENDING, SortBy.MODIFIED_AT)).toBeUndefined()
 );
 
 // Get owner from ACL
@@ -214,12 +200,12 @@ test("To same UUDI", () =>
 
 // Download allowed
 
-import { mockFiles_SensitivityConfidential, newMockFile } from "./mock/Files"
-import { dateToString } from "../app/Utilities/DateUtilities";
-import { SensitivityLevel, SensitivityLevelMap } from "../app/DefaultObjects";
+import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files"
+import {dateToString} from "../app/Utilities/DateUtilities";
+import {SensitivityLevel, SensitivityLevelMap} from "../app/DefaultObjects";
 
 test("Download allowed", () =>
-    expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(false)
+    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items)).toBe(false)
 );
 
 const highSensitivityFile = newMockFile({
@@ -231,27 +217,16 @@ const highSensitivityFile = newMockFile({
     ownerName: "user@user3.dk",
     sensitivityLevel: SensitivityLevelMap.SENSITIVE,
     favorited: false,
-    link: false,
     size: 128
 });
 
 test("Download disallowed", () =>
-    expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
+    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
 
-describe("Get sorting icon", () => {
-    test("Matching sortBy, up", () =>
-        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.ASCENDING, SortBy.ACL)).toBe("arrowUp")
-    )
-
-    test("Matching sortBy, down", () =>
-        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.DESCENDING, SortBy.ACL)).toBe("arrowDown")
-    )
-});
-
 describe("sortingColumnToValue", () => {
-    const file = mockFiles_SensitivityConfidential.items[0];
-    const favoritedFile = mockFiles_SensitivityConfidential.items[1];
+    const file = mockFilesSensitivityConfidential.items[0];
+    const favoritedFile = mockFilesSensitivityConfidential.items[1];
 
     test("TYPE", () => {
         expect(UF.sortingColumnToValue(SortBy.FILE_TYPE, file)).toBe(UF.capitalized(file.fileType))
@@ -272,7 +247,8 @@ describe("sortingColumnToValue", () => {
         expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getMembersString(file.acl as Acl[]))
     })
     test("SENSITIVITY", () => {
-        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file)).toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
+        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file))
+         .toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
     })
 });
 
@@ -292,7 +268,7 @@ describe("If Present", () => {
 
 describe("defaultErrorHandler", () => {
     test.skip("Todo", () =>
-        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined })).toBe(0)
+        expect(UF.defaultErrorHandler({request: new XMLHttpRequest(), response: undefined})).toBe(0)
     );
 });
 

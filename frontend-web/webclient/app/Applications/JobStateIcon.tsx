@@ -33,7 +33,7 @@ export const JobStateIcon: React.FunctionComponent<{ state: AppState, size?: num
             defaultColor = "red";
             break;
         default:
-            iconName = "ellipsis"
+            iconName = "ellipsis";
             break;
     }
 

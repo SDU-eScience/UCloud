@@ -1,8 +1,7 @@
 import {Cloud} from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import {File, FileOperation, FileResource, FileType, MoveCopyOperations, SortBy, SortOrder} from "Files";
-import {Operation, Page} from "Types";
-import {History} from "history";
+import {File, FileResource, FileType, MoveCopyOperations, SortBy, SortOrder} from "Files";
+import {Page} from "Types";
 import * as UF from "UtilityFunctions";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
@@ -217,7 +216,6 @@ const toAttributesString = (attrs: FileResource[]) =>
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH, attrs: FileResource[] = []): string =>
     `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
 
-// FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH, attrs: FileResource[]): string =>
     `files/lookup?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
 
@@ -258,9 +256,7 @@ export function mockFile(props: { path: string, type: FileType, fileId?: string,
         acl: [],
         favorited: false,
         sensitivityLevel: SensitivityLevelMap.PRIVATE,
-        isMockFolder: true,
         fileId: props.fileId ? props.fileId : "fileId" + new Date(),
-        link: false,
         ownSensitivityLevel: null,
         mockTag: props.tag
     };
@@ -339,7 +335,7 @@ export const reclassifyFile = async ({file, sensitivity, cloud}: ReclassifyFile)
         sensitivity: serializedSensitivity
     }));
     if (isError(callResult)) {
-        snackbarStore.addSnack({message: (callResult as ErrorMessage).errorMessage, type: SnackType.Failure})
+        snackbarStore.addSnack({message: (callResult as ErrorMessage).errorMessage, type: SnackType.Failure});
         return file;
     }
     return {...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity};
@@ -351,8 +347,8 @@ export const toFileText = (selectedFiles: File[]): string =>
 export const isDirectory = (file: { fileType: FileType }): boolean => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
 export const expandHomeFolder = (path: string, homeFolder: string): string => {
-    if (path.startsWith("Home/"))
-        return path.replace("Home/", homeFolder);
+    if (path.startsWith("/Home/"))
+        return path.replace("/Home/", homeFolder);
     return path;
 };
 
@@ -476,6 +472,8 @@ export const sizeToString = (bytes: number | null): string => {
         return `${(bytes / 1000 ** 6).toFixed(2)} EB`;
     }
 };
+
+export const directorySizeQuery = "/files/stats/directory-sizes";
 
 interface ShareFiles {
     files: File[],

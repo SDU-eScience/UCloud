@@ -14,7 +14,7 @@ export type SetRefreshFunction = PayloadAction<typeof SET_REFRESH_FUNCTION, { re
 export const setRefreshFunction = (refresh?: () => void): SetRefreshFunction => ({
     type: SET_REFRESH_FUNCTION,
     payload: { refresh }
-})
+});
 
 type UserLogOut = { type: typeof USER_LOGOUT }
 export const logout = (): UserLogOut => ({

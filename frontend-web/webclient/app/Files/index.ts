@@ -11,7 +11,7 @@ export enum SortOrder {
     DESCENDING = "DESCENDING"
 }
 
-export type FileType = "FILE" | "DIRECTORY" | "FAVFOLDER" | "TRASHFOLDER" | "RESULTFOLDER";
+export type FileType = "FILE" | "DIRECTORY" | "FAVFOLDER" | "SHARESFOLDER" | "TRASHFOLDER" | "RESULTFOLDER";
 export interface File {
     fileType: FileType
     path: string
@@ -26,12 +26,6 @@ export interface File {
     sensitivityLevel: SensitivityLevelMap | null
     ownSensitivityLevel: SensitivityLevelMap | null
     mockTag?: string
-
-    // TODO Delete below this line
-    isChecked?: boolean
-    beingRenamed?: boolean | null
-    link: boolean
-    isMockFolder?: boolean | null
 }
 
 export interface Acl {

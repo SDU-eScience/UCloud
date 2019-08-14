@@ -17,7 +17,7 @@ const ToggleBadge = styled.button<ToggleBadge>`
   &:hover {
     background-color: ${(props) => props.theme.colors[props.bg]};
   }
-`
+`;
 
 ToggleBadge.displayName = "ToggleBadge";
 
@@ -34,6 +34,6 @@ ToggleBadge.defaultProps = {
   color: 'blue',
   bg: 'lightBlue',
   unSelectedBg: 'transparent'
-}
+};
 
 export default ToggleBadge

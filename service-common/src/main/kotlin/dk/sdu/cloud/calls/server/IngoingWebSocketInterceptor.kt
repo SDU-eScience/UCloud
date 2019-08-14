@@ -166,13 +166,17 @@ class IngoingWebSocketInterceptor(
 
                                 // We silently discard messages that don't follow the correct format
                                 val requestedCall =
-                                    parsedMessage[WSRequest.CALL_FIELD]?.takeIf { !it.isNull && it.isTextual }?.textValue()
+                                    parsedMessage[WSRequest.CALL_FIELD]
+                                        ?.takeIf { !it.isNull && it.isTextual }
+                                        ?.textValue()
                                         ?: continue
 
                                 if (parsedMessage[WSRequest.PAYLOAD_FIELD]?.isNull != false) continue
 
                                 val streamId =
-                                    parsedMessage[WSRequest.STREAM_ID_FIELD]?.takeIf { !it.isNull && it.isTextual }?.textValue()
+                                    parsedMessage[WSRequest.STREAM_ID_FIELD]
+                                        ?.takeIf { !it.isNull && it.isTextual }
+                                        ?.textValue()
                                         ?: continue
 
                                 // We alert the caller if the send a well-formed message that we cannot handle

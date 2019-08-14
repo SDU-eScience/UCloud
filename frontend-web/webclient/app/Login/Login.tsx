@@ -30,7 +30,7 @@ const BGLogo = styled(Absolute) <{image: string}>`
 `;
 
 
-const inDevEnvironment = process.env.NODE_ENV === "development"
+const inDevEnvironment = process.env.NODE_ENV === "development";
 const enabledWayf = true;
 const wayfService = inDevEnvironment ? "dev-web" : "web";
 
@@ -121,7 +121,7 @@ export const LoginPage = (props: {history: History, initialState?: any}) => {
         }
     }
     return (<>
-        <Absolute top="43px" left="80px"><Box width="200px"><Icon color="white" name="logoSdu" size="20vw" /></Box></Absolute>
+        <Absolute top="-3vw" left="8vw"><Box width="20vw"><Icon color="white" name="logoSdu" size="20vw" /></Box></Absolute>
         <BGLogo image={bg1} bottom="0px" height="50%" width="100%"/>
         <BackgroundImage image={bg2} >
             <Flex alignItems={"top"} justifyContent={"center"} width={"100vw"} height={"100vh"} pt="20vh">
@@ -174,7 +174,7 @@ export const LoginPage = (props: {history: History, initialState?: any}) => {
         </BackgroundImage>
     </>);
 
-}
+};
 
 const TwoFactor = ({enabled2fa, inputRef}: {enabled2fa: string, inputRef: React.RefObject<HTMLInputElement>}) => enabled2fa ? (
     <Input ref={inputRef} autoComplete="off" autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />

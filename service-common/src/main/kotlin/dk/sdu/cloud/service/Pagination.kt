@@ -50,8 +50,11 @@ inline fun <T, R> Page<T>.mapItems(mapper: (T) -> R): Page<R> {
 fun <T> List<T>.paginate(request: NormalizedPaginationRequest): Page<T> {
     val startIndex = request.itemsPerPage * request.page
     val items =
-        if (startIndex > size) emptyList()
-        else subList(startIndex, min(startIndex + request.itemsPerPage, size))
+        if (startIndex > size) {
+            emptyList()
+        } else {
+            subList(startIndex, min(startIndex + request.itemsPerPage, size))
+        }
 
     return Page(size, request.itemsPerPage, request.page, items)
 }

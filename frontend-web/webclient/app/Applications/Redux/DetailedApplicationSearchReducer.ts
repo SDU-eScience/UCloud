@@ -4,7 +4,6 @@ import {DetailedAppActions} from "./DetailedApplicationSearchActions";
 
 export const DETAILED_APPS_SET_VERSION = "DETAILED_APPS_SET_VERSION";
 export const DETAILED_APPS_SET_NAME = "DETAILED_APPS_SET_NAME";
-export const DETAILED_APPLICATIONS_RECEIVE_PAGE = "DETAILED_APPLICATIONS_RECEIVE_PAGE";
 export const DETAILED_APPLICATION_SET_ERROR = "DETAILED_APPLICATION_SET_ERROR";
 
 const detailedApplicationSearch = (
@@ -21,6 +20,6 @@ const detailedApplicationSearch = (
             return state;
         }
     }
-}
+};
 
 export default detailedApplicationSearch;

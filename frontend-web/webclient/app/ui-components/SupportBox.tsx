@@ -67,7 +67,7 @@ function Support() {
     return (
         <ClickableDropdown colorOnHover={false} keepOpenOnClick trigger={
             <Flex width="48px" justifyContent="center">
-                <Icon name={"chat"} size="24px" color="headerIconColor" color2={"headerBg"} />
+                <Icon name={"chat"} size="24px" color="headerIconColor" color2="headerBg" />
             </Flex>
         }
             width="650px"
@@ -92,7 +92,7 @@ function Support() {
                 <form onSubmit={e => onSubmit(e)}>
                     <TextArea width="100%" ref={textArea} rows={6} />
                     <Button mt="0.4em" fullWidth type="submit" disabled={loading}>
-                        <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
+                        <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="darkGray" />
                         <TextSpan fontSize={2}>Send</TextSpan> 
                     </Button>
                 </form>

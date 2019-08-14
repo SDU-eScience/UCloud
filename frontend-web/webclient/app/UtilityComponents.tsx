@@ -21,26 +21,27 @@ import styled from "styled-components";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {dialogStore} from "Dialog/DialogStore";
 import {SensitivityLevelMap} from "DefaultObjects";
+import {SortOrder} from "Files";
 
 interface StandardDialog {
-    title?: string
-    message: string | JSX.Element
-    onConfirm: () => void
-    onCancel?: () => void
-    cancelText?: string
-    confirmText?: string
-    validator?: () => boolean
+    title?: string;
+    message: string | JSX.Element;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    cancelText?: string;
+    confirmText?: string;
+    validator?: () => boolean;
 }
 
 export function addStandardDialog({
-                                      title,
-                                      message,
-                                      onConfirm,
-                                      onCancel = () => undefined,
-                                      validator = () => true,
-                                      cancelText = "Cancel",
-                                      confirmText = "Confirm"
-                                  }: StandardDialog) {
+    title,
+    message,
+    onConfirm,
+    onCancel = () => undefined,
+    validator = () => true,
+    cancelText = "Cancel",
+    confirmText = "Confirm"
+}: StandardDialog) {
     dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>{title}</Heading.h3>
@@ -137,7 +138,12 @@ interface RewritePolicy {
 
 type RewritePolicyResult = { policy: string, applyToAll: boolean } | false
 
-export function rewritePolicyDialog({path, homeFolder, filesRemaining, allowOverwrite}: RewritePolicy): Promise<RewritePolicyResult> {
+export function rewritePolicyDialog({
+    path,
+    homeFolder,
+    filesRemaining,
+    allowOverwrite
+}: RewritePolicy): Promise<RewritePolicyResult> {
     let policy = "RENAME";
     let applyToAll = false;
     return new Promise(resolve => dialogStore.addDialog(<Box>
@@ -145,7 +151,8 @@ export function rewritePolicyDialog({path, homeFolder, filesRemaining, allowOver
             <Heading.h3>File exists</Heading.h3>
             <Divider/>
             {replaceHomeFolder(path, homeFolder)} already
-            exists. {allowOverwrite ? "Do you want to overwrite it?" : "Do you wish to continue? Folders cannot be overwritten."}
+            exists. {allowOverwrite ? "Do you want to overwrite it?" :
+                                      "Do you wish to continue? Folders cannot be overwritten."}
             <Box mt="10px">
                 <Select onChange={e => policy = e.target.value} defaultValue="RENAME">
                     <option value="RENAME">Rename</option>
@@ -173,14 +180,13 @@ export function rewritePolicyDialog({path, homeFolder, filesRemaining, allowOver
 }
 
 interface FileIconProps {
-    link?: boolean,
-    shared?: boolean,
-    fileIcon: FtIconProps,
-    size?: string | number
+    shared?: boolean;
+    fileIcon: FtIconProps;
+    size?: string | number;
 }
 
-export const FileIcon = ({shared = false, link = false, fileIcon, size = 30}: FileIconProps) =>
-    link || shared ?
+export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps) =>
+    shared ?
         <RelativeFlex>
             <FtIcon size={size} fileIcon={fileIcon}/>
             <Absolute bottom={"-6px"} right={"-2px"}>
@@ -191,30 +197,32 @@ export const FileIcon = ({shared = false, link = false, fileIcon, size = 30}: Fi
                     </DropdownContent>
                 </Dropdown>
             </Absolute>
-        </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>
+        </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>;
 
 const RelativeFlex = styled(Flex)`
     position: relative;
 `;
 
-/* FIXME: Add logic for arrows inside Arrow from SortBys and SortOrder */
-interface Arrow {
-    name: "arrowUp" | "arrowDown" | undefined
+interface Arrow<T> {
+    sortBy: T;
+    activeSortBy: T;
+    order: SortOrder;
 }
 
-export function Arrow({name}: Arrow) {
-    if (name === "arrowUp") return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em"/>);
-    else if (name === "arrowDown") return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
-    return null;
+export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
+    if (sortBy !== activeSortBy) return null;
+    if (order === SortOrder.ASCENDING) 
+        return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em"/>);
+    return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
 }
 
 export class PP extends React.Component<{ visible: boolean }, { duration: number }> {
-
-    state = {
-        duration: 500
-    };
-
-    private updateDuration = (duration: number) => this.setState(() => ({duration}));
+    constructor(props) {
+        super(props);
+        this.state = {
+            duration: 500
+        };
+    }
 
     public render() {
         if (!this.props.visible) return null;
@@ -287,10 +295,12 @@ export class PP extends React.Component<{ visible: boolean }, { duration: number
                     </ellipse>
                 </svg>
                 <RTLInput type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration"
-                          onChange={({target}) => this.updateDuration(parseInt(target.value))}/>
+                          onChange={({target}) => this.updateDuration(parseInt(target.value, 10))}/>
             </div>
-        )
+        );
     }
+
+    private updateDuration = (duration: number) => this.setState(() => ({duration}));
 }
 
 export const RTLInput = styled.input`
@@ -298,8 +308,8 @@ export const RTLInput = styled.input`
 `;
 
 interface MasterCheckbox {
-    onClick: (e: boolean) => void
-    checked: boolean
+    onClick: (e: boolean) => void;
+    checked: boolean;
 }
 
 export const MasterCheckbox = ({onClick, checked}: MasterCheckbox) => (

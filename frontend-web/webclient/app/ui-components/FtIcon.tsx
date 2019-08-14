@@ -29,7 +29,7 @@ const ftColor = (fType: string): string => {
     default:
       return "red";
   }
-}
+};
 
 // Label for file type icons
 const SvgFtLabel = ({ hasExt, ext, type }: { hasExt: boolean, ext: string, type: string }) => {
@@ -59,7 +59,7 @@ const SvgFtLabel = ({ hasExt, ext, type }: { hasExt: boolean, ext: string, type:
       </text>
     </>
   )
-}
+};
 
 // Decoration for file type icons
 const SvgFtType = ({ type }: { type: string}) => {
@@ -165,7 +165,7 @@ const SvgFtType = ({ type }: { type: string}) => {
   }
 
   return null;
-}
+};
 
 // File type icon component
 const SvgFt = ({ color, color2, hasExt, ext, type, ...props }) => (
@@ -223,6 +223,8 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
   const type = hasExt ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
 
   switch (fileIcon.type) {
+    case "SHARESFOLDER":
+      return (<Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "FAVFOLDER":
       return (<Icon name={"ftFavFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "TRASHFOLDER":
@@ -239,7 +241,7 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
       color={theme.colors["FtIconColor"]} color2={theme.colors["FtIconColor2"]}
       hasExt={hasExt} ext={ext4} type={type} {...props} />
   );
-}
+};
 
 export interface FtIconProps extends SpaceProps, ColorProps {
   fileIcon: UFFtIconProps,
@@ -259,6 +261,6 @@ FtIcon.defaultProps = {
   theme,
   cursor: "inherit",
   size: 24
-}
+};
 
 export default FtIcon

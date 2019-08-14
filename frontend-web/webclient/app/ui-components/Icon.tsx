@@ -1,30 +1,30 @@
+import * as CSS from "csstype";
 import * as React from 'react'
 import styled from 'styled-components'
-import { style, space, color, SpaceProps, ColorProps, ResponsiveValue } from "styled-system"
+import { color, ColorProps, ResponsiveValue, space, SpaceProps, style } from "styled-system"
 import * as icons from './icons';
 import theme from './theme'
-import * as CSS from "csstype";
 import { Cursor } from './Types';
 
 
 const IconBase = ({ name, size, theme, color, color2, spin, ...props }): JSX.Element => {
   const Component = icons[name];
   if (!Component) return (<></>);
-  return <Component width={size} height={size} color2={theme.colors[color2]} {...props} />
-}
+  return <Component width={size} height={size} color2={theme.colors[color2]} {...props} />;
+};
 
 const hoverColor = style({
-  prop: 'hoverColor',
-  cssProperty: 'color',
-  key: 'colors'
-})
+  prop: "hoverColor",
+  cssProperty: "color",
+  key: "colors"
+});
 export interface IconProps extends SpaceProps, ColorProps {
-  name: IconName
-  color2?: CSS.ColorProperty
-  rotation?: number
-  cursor?: Cursor
-  spin?: boolean
-  hoverColor?: ResponsiveValue<CSS.ColorProperty>
+  name: IconName;
+  color2?: CSS.ColorProperty;
+  rotation?: number;
+  cursor?: Cursor;
+  spin?: boolean;
+  hoverColor?: ResponsiveValue<CSS.ColorProperty>;
 }
 
 const spin = (props: { spin?: boolean }) => props.spin ? `
@@ -34,7 +34,7 @@ const spin = (props: { spin?: boolean }) => props.spin ? `
     0% { -webkit-transform: rotate(0deg); }
     100% { -webkit-transform: rotate(360deg); }
   }
-  
+
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -48,21 +48,21 @@ const Icon = styled(IconBase) <IconProps>`
   ${props => props.rotation ? `transform: rotate(${props.rotation}deg);` : ""}
   ${space} ${color};
   ${spin};
-  
+
   &:hover {
     ${hoverColor};
   }
 
 `;
 
-Icon.displayName = "Icon"
+Icon.displayName = "Icon";
 
 Icon.defaultProps = {
   theme,
   cursor: "inherit",
   name: "notification",
   size: 24
-}
+};
 
 // Use to see every available icon in debugging.
 export const EveryIcon = () => (
@@ -75,4 +75,4 @@ export const EveryIcon = () => (
 
 export type IconName = keyof typeof icons;
 
-export default Icon
+export default Icon;

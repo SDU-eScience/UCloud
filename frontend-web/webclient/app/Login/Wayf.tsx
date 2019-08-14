@@ -5,9 +5,9 @@ import { inDevEnvironment } from "UtilityFunctions";
 
 // https://stackoverflow.com/a/2138471
 function setCookie(name: string, value: string, days: number) {
-    var expires = "";
+    let expires = "";
     if (days) {
-        var date = new Date();
+        let date = new Date();
         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
         expires = "; expires=" + date.toUTCString();
     }
@@ -15,10 +15,10 @@ function setCookie(name: string, value: string, days: number) {
 }
 
 function getCookie(name: string): string | null {
-    var nameEQ = name + "=";
-    var ca = document.cookie.split(';');
-    for (var i = 0; i < ca.length; i++) {
-        var c = ca[i];
+    let nameEQ = name + "=";
+    let ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
         while (c.charAt(0) == ' ') c = c.substring(1, c.length);
         if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
     }
@@ -71,7 +71,7 @@ function Wayf(props: { history: History }) {
         return <LoginPage history={props.history} initialState={authState} />;
     }
 
-    props.history.push("/")
+    props.history.push("/");
     return null;
 }
 

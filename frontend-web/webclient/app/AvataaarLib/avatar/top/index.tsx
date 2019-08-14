@@ -39,7 +39,7 @@ import { Selector, TopOption } from '../../options'
 
 export default class Top extends React.Component {
   render () {
-    const { children } = this.props
+    const { children } = this.props;
     return (
       <Selector defaultOption={LongHairStraight} option={TopOption}>
         <NoHair>{children}</NoHair>

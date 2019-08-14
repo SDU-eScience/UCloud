@@ -40,6 +40,7 @@ val CommonServer.isRunning: Boolean
 
 fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
     log.info("Starting Event Stream Services")
+    @Suppress("TooGenericExceptionCaught")
     try {
         micro.eventStreamService.start()
     } catch (ex: Exception) {
@@ -75,6 +76,7 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
 fun CommonServer.stopServices() {
     val serverFeature = micro.featureOrNull(ServerFeature)
     if (serverFeature != null) {
+        @Suppress("TooGenericExceptionCaught")
         try {
             log.info("Stopping RPC server")
             serverFeature.server.stop()
@@ -84,6 +86,7 @@ fun CommonServer.stopServices() {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     try {
         micro.featureOrNull(DeinitFeature)?.runHandlers()
     } catch (ex: Throwable) {

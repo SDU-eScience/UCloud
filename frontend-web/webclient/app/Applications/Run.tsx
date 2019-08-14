@@ -29,7 +29,9 @@ import {
     hpcFavoriteApp,
     hpcJobQueryPost,
     isFileOrDirectoryParam,
-    ParameterValues
+    ParameterValues,
+    validateOptionalFields,
+    checkForMissingParameters
 } from "Utilities/ApplicationUtilities";
 import {AppHeader} from "./View";
 import * as Heading from "ui-components/Heading";
@@ -109,68 +111,20 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             appParameters: this.state.application!.invocation.parameters,
             cloud: Cloud
         });
-        const requiredParams = invocation.parameters.filter(it => !it.optional);
-        const missingParameters: string[] = [];
-        requiredParams.forEach(rParam => {
-            const parameterValue = parameters[rParam.name];
-            // Number, string, boolean 
-            if (!parameterValue) missingParameters.push(rParam.title);
-            // { source, destination }, might need refactoring in the event that other types become objects
-            else if (typeof parameterValue === "object") {
-                if (!parameterValue.source) {
-                    missingParameters.push(rParam.title);
-                }
-            }
-        });
 
-        // FIXME: Not DRY 
-
-        // Check missing values for required input fields.
-        if (missingParameters.length > 0) {
-            snackbarStore.addSnack({
-                message: `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
-                 ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,
-                type: SnackType.Failure,
-                lifetime: 5000
-            });
-            return;
-        }
-
-        // Check optional input fields with errors
-        const optionalErrors = [] as string[];
-        const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it =>
-            ({name: it.name, title: it.title})
-        );
-        optionalParams.forEach(it => {
-            const param = this.state.parameterValues.get(it.name)!;
-            if (!param.current!.checkValidity()) optionalErrors.push(it.title);
-        });
-
-        if (optionalErrors.length > 0) {
-            snackbarStore.addSnack({
-                message: `Invalid values for ${optionalErrors.slice(0, 3).join(", ")}
-                    ${optionalErrors.length > 3 ? `and ${optionalErrors.length - 3} others` : ""}`,
-                type: SnackType.Failure,
-                lifetime: 5000
-            });
-            return;
-        }
-
-        // FIXME END
+        if (!checkForMissingParameters(parameters, invocation)) return;
+        if (!validateOptionalFields(invocation, this.state.parameterValues)) return;
 
         const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
-            snackbarStore.addSnack({
-                message: "Scheduling times must be more than 0 seconds.",
-                type: SnackType.Failure,
-                lifetime: 5000
-            });
+            snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", 5000);
             return;
         }
 
         // FIXME: Unify with extractParametersFromMap
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
             const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder);
+            console.log(it.ref.current!.value, expandedValue);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!,
@@ -184,11 +138,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 const stat = await statFileOrNull(mount.source);
                 if (stat !== null) {
                     if (!allFilesHasAccessRight(AccessRight.WRITE, [stat])) {
-                        snackbarStore.addSnack({
-                            message: `Cannot mount ${mount.source} as read/write because share is read-only`,
-                            type: SnackType.Failure,
-                            lifetime: 5000
-                        });
+                        snackbarStore.addFailure(
+                            `Cannot mount ${mount.source} as read/write because share is read-only`,
+                            5000
+                        );
 
                         return;
                     }
@@ -327,7 +280,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 // FIXME: Could be done using defaultValue
                 // Add mountedFolders and fill out ref values
                 this.setState(() => ({mountedFolders: this.state.mountedFolders.concat(validMountFolders)}));
-                const emptyMountedFolders = this.state.mountedFolders.slice(this.state.mountedFolders.length - mountedFolders.length);
+                const emptyMountedFolders = this.state.mountedFolders.slice(
+                    this.state.mountedFolders.length - mountedFolders.length
+                );
                 emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
 
 
@@ -368,7 +323,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    private onFileSelection(file: { path: string }) {
+    private onFileSelection(file: {path: string}) {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -381,7 +336,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: { path: string }) => {
+    private fetchAndImportParameters = async (file: {path: string}) => {
         const fileStat = await Cloud.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
@@ -603,9 +558,7 @@ const Parameters = (props: ParameterProps) => {
             />
 
             {optional.length > 0 ?
-                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)}/>
-                : null
-            }
+                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)}/> : null}
         </form>
     )
 };
@@ -744,7 +697,7 @@ function exportParameters({application, schedulingOptions, parameterValues, moun
     const jobInfo = extractJobInfo(schedulingOptions);
     const element = document.createElement("a");
 
-    const values: { [key: string]: string } = {};
+    const values: {[key: string]: string} = {};
 
     for (const [key, ref] of parameterValues[Symbol.iterator]()) {
         if (ref && ref.current) values[key] = ref.current.value;

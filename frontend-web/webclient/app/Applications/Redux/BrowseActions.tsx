@@ -18,7 +18,7 @@ export const receivePage = (page: Page<WithAppMetadata>): ReceiveApp => ({
         type: LoadableEventTag.CONTENT,
         content: page
     }
-})
+});
 
 export const fetchByTag = async (tag: string, itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
     type: Tag.RECEIVE_APP,
@@ -32,7 +32,7 @@ export const fetchByTag = async (tag: string, itemsPerPage: number, page: number
             }
         ))
     )
-})
+});
 
 export const fetch = async (itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
     type: Tag.RECEIVE_APP,

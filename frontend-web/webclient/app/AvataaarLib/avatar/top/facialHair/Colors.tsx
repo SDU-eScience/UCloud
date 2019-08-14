@@ -21,20 +21,20 @@ function makeColor (name: string, color: string) {
       )
     }
   }
-  const anyComponent = ColorComponent as any
-  anyComponent.displayName = name
-  anyComponent.optionValue = name
+  const anyComponent = ColorComponent as any;
+  anyComponent.displayName = name;
+  anyComponent.optionValue = name;
   return anyComponent
 }
 
-const Auburn = makeColor('Auburn', '#A55728')
-const Black = makeColor('Black', '#2C1B18')
-const Blonde = makeColor('Blonde', '#B58143')
-const BlondeGolden = makeColor('BlondeGolden', '#D6B370')
-const Brown = makeColor('Brown', '#724133')
-const BrownDark = makeColor('BrownDark', '#4A312C')
-const Platinum = makeColor('Platinum', '#ECDCBF')
-const Red = makeColor('Red', '#C93305')
+const Auburn = makeColor('Auburn', '#A55728');
+const Black = makeColor('Black', '#2C1B18');
+const Blonde = makeColor('Blonde', '#B58143');
+const BlondeGolden = makeColor('BlondeGolden', '#D6B370');
+const Brown = makeColor('Brown', '#724133');
+const BrownDark = makeColor('BrownDark', '#4A312C');
+const Platinum = makeColor('Platinum', '#ECDCBF');
+const Red = makeColor('Red', '#C93305');
 
 export default class Colors extends React.Component<Props> {
   render () {

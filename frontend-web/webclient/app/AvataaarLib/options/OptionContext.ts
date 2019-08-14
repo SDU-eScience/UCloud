@@ -10,11 +10,11 @@ export interface OptionState {
 export type OptionContextState = { [index: string]: OptionState }
 
 export default class OptionContext {
-  private stateChangeListeners = new Set<Function>()
-  private valueChangeListeners = new Set<Function>()
-  private _state: OptionContextState = {}
-  private _data: { [index: string]: string } = {}
-  private readonly _options: Array<Option>
+  private stateChangeListeners = new Set<Function>();
+  private valueChangeListeners = new Set<Function>();
+  private _state: OptionContextState = {};
+  private _data: { [index: string]: string } = {};
+  private readonly _options: Array<Option>;
 
   get options () {
     return this._options
@@ -25,7 +25,7 @@ export default class OptionContext {
   }
 
   constructor (options: Array<Option>) {
-    this._options = options
+    this._options = options;
     for (const option of options) {
       this._state[option.key] = {
         key: option.key,
@@ -53,7 +53,7 @@ export default class OptionContext {
 
   optionEnter (key: string) {
     // TODO:
-    const optionState = this.getOptionState(key)!
+    const optionState = this.getOptionState(key)!;
     this.setState({
       [key]: {
         ...optionState,
@@ -63,7 +63,7 @@ export default class OptionContext {
   }
 
   optionExit (key: string) {
-    const optionState = this.getOptionState(key)!
+    const optionState = this.getOptionState(key)!;
     this.setState({
       [key]: {
         ...optionState,
@@ -77,11 +77,11 @@ export default class OptionContext {
   }
 
   getValue (key: string): string | null {
-    const optionState = this.getOptionState(key)!
+    const optionState = this.getOptionState(key)!;
     if (!optionState) {
       return null
     }
-    const value = this._data[key]
+    const value = this._data[key];
     if (value) {
       return value
     }
@@ -96,12 +96,12 @@ export default class OptionContext {
 
   // set single source of truth
   setData (data: { [index: string]: string }) {
-    this._data = data
+    this._data = data;
     this.notifyListener()
   }
 
   setDefaultValue (key: string, defaultValue: string) {
-    const optionState = this.getOptionState(key)!
+    const optionState = this.getOptionState(key)!;
     this.setState({
       [key]: {
         ...optionState,
@@ -124,7 +124,7 @@ export default class OptionContext {
     this._state = {
       ...this.state,
       ...state
-    }
+    };
     this.notifyListener()
   }
 

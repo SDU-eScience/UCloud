@@ -71,7 +71,7 @@ export const notificationRead = async (id: number): Promise<ReadAction | SetNoti
             payload: {id}
         };
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "Could not mark notification as read"))
+        snackbarStore.addFailure(errorMessageOrDefault(e, "Could not mark notification as read"));
         return notificationError();
     }
 };
@@ -90,11 +90,11 @@ export const readAllNotifications = async (): Promise<ReadAllAction | SetNotific
         await Cloud.post(readAllNotificationsQuery);
         return {type: READ_ALL};
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to mark notifications as read, please try again later"))
+        snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to mark notifications as read, please try again later"));
         return notificationError();
     }
 
-}
+};
 
 interface SetRedirectToAction extends PayloadAction<typeof SET_REDIRECT, {redirectTo: string}> {}
 /**
