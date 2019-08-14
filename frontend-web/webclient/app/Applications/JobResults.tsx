@@ -1,5 +1,5 @@
 import * as React from "react";
-import {capitalized, errorMessageOrDefault} from "UtilityFunctions"
+import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions"
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {List} from "Pagination/List";
 import {connect} from "react-redux";
@@ -18,7 +18,7 @@ import {Spacer} from "ui-components/Spacer";
 import * as moment from "moment";
 import "moment/locale/en-gb";
 import {JobStateIcon} from "./JobStateIcon";
-import {TextSpan} from "ui-components/Text";
+import {italic, TextSpan} from "ui-components/Text";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {prettierString} from "UtilityFunctions";
@@ -289,6 +289,10 @@ const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProp
             <JobResultsHeaderCell width="4%" textAlign="center">
                 {masterCheckbox}
             </JobResultsHeaderCell>
+            <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.name)}>
+                <Arrow sortBy={RunsSortBy.name} activeSortBy={sortBy} order={sortOrder} />
+                Name
+            </JobResultsHeaderCell>
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.state)}>
                 <Arrow sortBy={RunsSortBy.state} activeSortBy={sortBy} order={sortOrder} />
                 State
@@ -322,6 +326,7 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             <TableCell textAlign="center">
                 {children}
             </TableCell>
+            <TableCell onClick={to}>{analysis.name ? analysis.name : shortUUID(analysis.jobId) }</TableCell>
             <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>

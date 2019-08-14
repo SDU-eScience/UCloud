@@ -45,6 +45,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     constructor(props: Readonly<DetailedResultProps>) {
         super(props);
         this.state = {
+            name: "",
             complete: false,
             appState: AppState.VALIDATED,
             status: "",
@@ -193,6 +194,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             {key: "Application", value: `${app.title} v${app.version}`},
             {key: "Status", value: this.state.status},
         ];
+
+        if (this.state.name) entries.unshift([{key: "Name", value: this.state.name}]);
 
         let domEntries = entries.map(it => <Box pt="0.8em" pb="0.8em" key={it.key}><b>{it.key}</b>: {it.value}</Box>);
 

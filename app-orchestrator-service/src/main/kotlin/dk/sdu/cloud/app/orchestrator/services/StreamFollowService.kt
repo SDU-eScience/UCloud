@@ -57,6 +57,7 @@ class StreamFollowService<DBSession>(
             job.failedState,
             timeLeft,
             job.id,
+            job.name,
             jobFileService.jobFolder(job),
             job.application.metadata
         )
