@@ -18,6 +18,7 @@ import dk.sdu.cloud.app.orchestrator.services.WebService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -29,6 +30,7 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
+import io.ktor.routing.routing
 
 class Server(override val micro: Micro, val config: Configuration) : CommonServer {
     override val log = logger()
@@ -94,7 +96,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 CallbackController(jobOrchestrator)
             )
         }
-
 
         log.info("Replaying lost jobs")
         @Suppress("TooGenericExceptionCaught")

@@ -42,8 +42,6 @@ export default class SDUCloud {
     private decodedToken: any;
     private forceRefresh: boolean = false;
 
-
-    // private projectId: string | undefined = "9aa73f48-7cec-4a25-9a52-f2a784ff9ad2";
     private projectId: string | undefined = undefined;
     private projectAccessToken: string | undefined = undefined;
     private projectDecodedToken: any | undefined = undefined;
