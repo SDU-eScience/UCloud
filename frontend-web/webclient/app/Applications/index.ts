@@ -149,6 +149,7 @@ export interface JobSchedulingOptionsForInput {
     maxTime: MaxTimeForInput
     numberOfNodes: number
     tasksPerNode: number
+    name: React.RefObject<HTMLInputElement>
 }
 
 export interface RefReadPair {
