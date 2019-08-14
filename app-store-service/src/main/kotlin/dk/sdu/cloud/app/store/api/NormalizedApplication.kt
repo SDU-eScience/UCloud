@@ -46,8 +46,22 @@ data class ApplicationInvocationDescription(
     val vnc: VncDescription? = null,
     val web: WebDescription? = null,
     val container: ContainerDescription? = null,
-    val environment: Map<String, InvocationParameter>? = null
-)
+    val environment: Map<String, InvocationParameter>? = null,
+    private val allowAdditionalMounts: Boolean? = null,
+    private val allowAdditionalPeers: Boolean? = null
+) {
+    val shouldAllowAdditionalMounts: Boolean
+        get() {
+            if (allowAdditionalMounts != null) return allowAdditionalMounts
+            return applicationType in setOf(ApplicationType.VNC, ApplicationType.WEB)
+        }
+
+    val shouldAllowAdditionalPeers: Boolean
+        get() {
+            if (allowAdditionalPeers != null) return allowAdditionalPeers
+            return applicationType in setOf(ApplicationType.VNC, ApplicationType.WEB)
+        }
+}
 
 interface WithAppMetadata {
     val metadata: ApplicationMetadata

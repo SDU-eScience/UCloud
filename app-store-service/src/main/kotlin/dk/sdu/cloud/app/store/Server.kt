@@ -44,6 +44,7 @@ class Server(override val micro: Micro) : CommonServer {
             }
 
             if (listOfApps.itemsInTotal == 0) {
+                @Suppress("TooGenericExceptionCaught")
                 db.withTransaction { session ->
                     val tools = File("yaml", "tools")
                     tools.listFiles().forEach {

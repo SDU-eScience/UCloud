@@ -1,0 +1,38 @@
+---
+application: v1
+
+title: Slave
+name: slave
+version: 1.0.0
+
+applicationType: WEB
+
+tool:
+  name: jupyter-all-spark
+  version: 1.2.1
+
+authors:
+- Dan Thrane
+
+description: ""
+tags: []
+
+invocation:
+- start_jupyter
+
+web:
+  port: 8888
+
+container:
+  changeWorkingDirectory: true
+  runAsRoot: true
+
+parameters:
+  master:
+    type: peer
+    title: ""
+    description: ""
+    suggestedApplication: master
+
+outputFileGlobs:
+  - "*"

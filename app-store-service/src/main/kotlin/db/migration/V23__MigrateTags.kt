@@ -6,6 +6,7 @@ import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
 import java.sql.Statement
 
+@Suppress("ClassNaming", "NestedBlockDepth")
 class V23__MigrateMetadata : BaseJavaMigration() {
     override fun migrate(context: Context) {
         val connection = context.connection
@@ -24,7 +25,11 @@ class V23__MigrateMetadata : BaseJavaMigration() {
                         connection.createStatement().use { statement ->
 
                             val exists = connection.prepareStatement(
-                                "SELECT * FROM application_tags WHERE (tag=? AND application_name=? AND application_version=?)"
+                                """
+                                    SELECT * 
+                                    FROM application_tags 
+                                    WHERE (tag=? AND application_name=? AND application_version=?)
+                                """.trimIndent()
                             ).apply {
                                 setString(1,tag)
                                 setString(2,name)
@@ -39,7 +44,10 @@ class V23__MigrateMetadata : BaseJavaMigration() {
                                 id.next()
 
                                 connection.prepareStatement(
-                                    "INSERT INTO application_tags (id,tag,application_name,application_version) VALUES (?,?,?,?);"
+                                    """
+                                        INSERT INTO application_tags (id,tag,application_name,application_version) 
+                                        VALUES (?,?,?,?);
+                                    """.trimIndent()
                                 )
                                     .apply {
                                         setInt(1, id.getInt(1))

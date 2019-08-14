@@ -10,3 +10,4 @@ dependencies:
   - hpc.tools
   - files
   - files.upload
+  - app.fs

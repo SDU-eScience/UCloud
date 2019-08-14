@@ -1,13 +1,17 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
+import dk.sdu.cloud.app.orchestrator.api.ApplicationBackend
+import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsRequest
+import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobStateChange
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normTool
 import dk.sdu.cloud.app.orchestrator.utils.normToolDesc
 import dk.sdu.cloud.app.orchestrator.utils.startJobRequest
 import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
@@ -17,7 +21,6 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.TestUsers
@@ -56,7 +59,12 @@ class JobOrchestratorTest {
         val backendName = "backend"
         val compBackend = ComputationBackendService(listOf(ApplicationBackend(backendName)), true)
 
-        coEvery { appDao.findByNameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version) } returns normAppDesc
+        coEvery {
+            appDao.findByNameAndVersion(
+                normAppDesc.metadata.name,
+                normAppDesc.metadata.version
+            )
+        } returns normAppDesc
         coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
 
         val jobFileService = JobFileService(client)
@@ -64,7 +72,15 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(appDao, toolDao, tokenValidation, backendName, SharedMountVerificationService()),
+            JobVerificationService(
+                appDao,
+                toolDao,
+                SharedMountVerificationService(),
+                jobDao,
+                db,
+                tokenValidation,
+                backendName
+            ),
             compBackend,
             jobFileService,
             jobDao,

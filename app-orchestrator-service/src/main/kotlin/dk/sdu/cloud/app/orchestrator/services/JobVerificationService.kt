@@ -1,7 +1,13 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
+import dk.sdu.cloud.app.orchestrator.api.FileForUploadArchiveType
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
+import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationParameter
@@ -15,6 +21,8 @@ import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -34,12 +42,14 @@ data class VerifiedJobWithAccessToken(
 
 private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransferDescription>, FileTransferDescription>
 
-class JobVerificationService(
+class JobVerificationService<Session>(
     private val appStore: AppStoreService,
     private val toolStore: ToolStoreService,
+    private val sharedMountVerificationService: SharedMountVerificationService,
+    private val dao: JobDao<Session>,
+    private val db: DBSessionFactory<Session>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val defaultBackend: String,
-    private val sharedMountVerificationService: SharedMountVerificationService
+    private val defaultBackend: String
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -71,8 +81,70 @@ class JobVerificationService(
 
         val token = tokenValidation.decodeToken(unverifiedJob.principal)
 
-        val sharedMounts =
-            sharedMountVerificationService.verifyMounts(unverifiedJob.request.sharedFileSystemMounts, userClient)
+        val (allPeers, resolvedPeers) = run {
+            // TODO we should enforce in the app store that the parameter is a valid hostname
+            val parameterPeers = application.invocation.parameters
+                .filterIsInstance<ApplicationParameter.Peer>()
+                .map { parameter ->
+                    val peerApplicationParameter = verifiedParameters[parameter]!!
+                    ApplicationPeer(parameter.name, peerApplicationParameter.peerJobId)
+                }
+
+            val allPeers = unverifiedJob.request.peers + parameterPeers
+            val duplicatePeers = allPeers
+                .map { it.name }
+                .groupBy { it }
+                .filter { it.value.size > 1 }
+
+            if (duplicatePeers.isNotEmpty()) {
+                throw JobException.VerificationError(
+                    "Duplicate hostname detected: " + duplicatePeers.keys.joinToString()
+                )
+            }
+
+            val resolvedPeers = db.withTransaction { session ->
+                dao.find(session, allPeers.map { it.jobId }, token)
+            }
+
+            val resolvedPeerIds = resolvedPeers.map { it.job.id }
+
+            val missingPeer = allPeers.find { it.jobId !in resolvedPeerIds }
+            if (missingPeer != null) {
+                throw JobException.VerificationError("Could not find peer with id '${missingPeer.jobId}'")
+            }
+
+            Pair(allPeers, resolvedPeers)
+        }
+
+        val sharedMounts = run {
+            val additionalSharedMounts =
+                sharedMountVerificationService.verifyMounts(unverifiedJob.request.sharedFileSystemMounts, userClient)
+
+            val parameterSharedMounts =
+                sharedMountVerificationService.verifyMounts(
+                    application.invocation.parameters,
+                    verifiedParameters,
+                    userClient
+                )
+
+            val peerMounts =
+                resolvedPeers.flatMap { peer -> peer.job.sharedFileSystemMounts.filter { it.exportToPeers } }
+
+            val allMounts = additionalSharedMounts + parameterSharedMounts + peerMounts
+
+            val duplicateMountLocations = allMounts
+                .groupBy { it.mountedAt }
+                .filter { it.value.size > 1 }
+
+            if (duplicateMountLocations.isNotEmpty()) {
+                throw JobException.VerificationError(
+                    "Duplicate mounts detected at " +
+                            duplicateMountLocations.keys.joinToString()
+                )
+            }
+
+            allMounts
+        }
 
         return VerifiedJobWithAccessToken(
             VerifiedJob(
@@ -95,7 +167,7 @@ class JobVerificationService(
                 uid = token.principal.uid,
                 project = token.projectOrNull(),
                 _sharedFileSystemMounts = sharedMounts,
-                _peers = unverifiedJob.request.peers
+                _peers = allPeers
             ),
             unverifiedJob.principal.token
         )

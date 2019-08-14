@@ -1,0 +1,40 @@
+---
+application: v1
+
+title: Master
+name: master
+version: 1.0.0
+
+applicationType: WEB
+
+tool:
+  name: jupyter-all-spark
+  version: 1.2.1
+
+authors:
+- Dan Thrane
+
+description: ""
+tags: []
+
+invocation:
+- start_jupyter
+
+web:
+  port: 8888
+
+container:
+  changeWorkingDirectory: true
+  runAsRoot: true
+
+parameters:
+  primaryFs:
+    type: shared_file_system
+    title: Primary FS
+    description: ""
+    fsType: PERSISTENT
+    mountLocation: /mnt/shared
+    exportToPeers: true
+
+outputFileGlobs:
+  - "*"

@@ -6,3 +6,4 @@ namespaces:
 
 dependencies:
   - app.compute
+  - app.fs.kubernetes

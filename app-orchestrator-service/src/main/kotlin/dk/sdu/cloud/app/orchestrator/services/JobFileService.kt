@@ -215,6 +215,7 @@ class JobFileService(
         replay: Boolean
     ) {
         val (job, _) = jobWithToken
+        @Suppress("TooGenericExceptionCaught")
         try {
             WorkspaceDescriptions.transfer.call(
                 Workspaces.Transfer.Request(

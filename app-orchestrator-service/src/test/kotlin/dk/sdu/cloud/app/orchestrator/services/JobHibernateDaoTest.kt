@@ -137,7 +137,7 @@ class JobHibernateDaoTest {
 
         db.withTransaction(autoFlush = true) {
             val result =
-                runBlocking { jobHibDao.list(it, user.createToken(), NormalizedPaginationRequest(10, 0), null) }
+                runBlocking { jobHibDao.list(it, user.createToken(), NormalizedPaginationRequest(10, 0)) }
             assertEquals(1, result.itemsInTotal)
         }
     }

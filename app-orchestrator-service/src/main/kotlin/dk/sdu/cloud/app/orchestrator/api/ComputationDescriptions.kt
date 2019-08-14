@@ -169,7 +169,9 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
     }
 
     val queryInternalVncParameters =
-        call<QueryInternalVncParametersRequest, QueryInternalVncParametersResponse, CommonErrorMessage>("queryInternalVncParameters") {
+        call<QueryInternalVncParametersRequest, QueryInternalVncParametersResponse, CommonErrorMessage>(
+            "queryInternalVncParameters"
+        ) {
             auth {
                 roles = Roles.PRIVILEDGED
                 access = AccessRight.READ
@@ -188,7 +190,9 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
         }
 
     val queryInternalWebParameters =
-        call<QueryInternalWebParametersRequest, QueryInternalWebParametersResponse, CommonErrorMessage>("queryInternalWebParameters") {
+        call<QueryInternalWebParametersRequest, QueryInternalWebParametersResponse, CommonErrorMessage>(
+            "queryInternalWebParameters"
+        ) {
             auth {
                 access = AccessRight.READ
                 roles = Roles.PRIVILEDGED

@@ -15,6 +15,7 @@ import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
@@ -41,7 +42,7 @@ class JobVerification {
         }
     )
 
-    lateinit var service: JobVerificationService
+    lateinit var service: JobVerificationService<HibernateSession>
     val cloud = ClientMock.authenticatedClient
 
 
@@ -70,7 +71,15 @@ class JobVerification {
         } returns tool
 
         service =
-            JobVerificationService(appDao, toolDao, tokenValidation, "abacus", SharedMountVerificationService())
+            JobVerificationService(
+                appDao,
+                toolDao,
+                SharedMountVerificationService(),
+                JobHibernateDao(appDao, toolDao, tokenValidation),
+                db,
+                tokenValidation,
+                "abacus"
+            )
     }
 
     @Test

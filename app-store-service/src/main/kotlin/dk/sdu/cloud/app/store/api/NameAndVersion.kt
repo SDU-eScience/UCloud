@@ -10,4 +10,5 @@ data class NameAndVersionImpl(override val name: String, override val version: S
     override fun toString() = "$name@$version"
 }
 
+@Suppress("FunctionNaming")
 fun NameAndVersion(name: String, version: String): NameAndVersion = NameAndVersionImpl(name, version)

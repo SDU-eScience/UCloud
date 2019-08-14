@@ -60,7 +60,7 @@ class JobOrchestrator<DBSession>(
     private val accountingEventProducer: EventProducer<JobCompletedEvent>,
 
     private val db: DBSessionFactory<DBSession>,
-    private val jobVerificationService: JobVerificationService,
+    private val jobVerificationService: JobVerificationService<DBSession>,
     private val computationBackendService: ComputationBackendService,
     private val jobFileService: JobFileService,
     private val jobDao: JobDao<DBSession>,
