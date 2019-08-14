@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
+import kotlin.math.max
 
 class StreamFollowService<DBSession>(
     private val jobFileService: JobFileService,
@@ -39,12 +40,6 @@ class StreamFollowService<DBSession>(
             serviceClient
         ).orThrow()
 
-        val timeLeft = if (job.startedAt != null) {
-            (job.startedAt + job.maxTime.toMillis() - System.currentTimeMillis()).toInt()
-        } else {
-            null
-        }
-
         return FollowStdStreamsResponse(
             internalResult.stdout,
             internalResult.stdoutNextLine,
@@ -55,7 +50,7 @@ class StreamFollowService<DBSession>(
             job.status,
             job.currentState.isFinal(),
             job.failedState,
-            timeLeft,
+            job.timeLeft,
             job.id,
             job.name,
             jobFileService.jobFolder(job),

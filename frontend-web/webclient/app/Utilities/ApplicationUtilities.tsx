@@ -17,7 +17,13 @@ import {expandHomeFolder} from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
-export const hpcJobQuery = (id: string, stdoutLine: number, stderrLine: number, stdoutMaxLines: number = 1000, stderrMaxLines: number = 1000) =>
+export const hpcJobQuery = (
+    id: string,
+    stdoutLine: number,
+    stderrLine: number,
+    stdoutMaxLines: number = 1000,
+    stderrMaxLines: number = 1000
+) =>
     `/hpc/jobs/follow/${encodeURIComponent(id)}?stdoutLineStart=${stdoutLine}&stdoutMaxLines=${stdoutMaxLines}&stderrLineStart=${stderrLine}&stderrMaxLines=${stderrMaxLines}`;
 
 export function hpcJobsQuery(

@@ -131,6 +131,7 @@ export interface DetailedResultState {
     outputFolder?: string
     appType?: ApplicationType
     webLink?: string
+    timeLeft: number | null
 }
 
 export type StdElement = {scrollTop: number, scrollHeight: number} | null

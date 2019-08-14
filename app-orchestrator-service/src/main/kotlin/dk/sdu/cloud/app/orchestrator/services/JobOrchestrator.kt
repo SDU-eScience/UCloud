@@ -251,16 +251,11 @@ class JobOrchestrator<DBSession>(
         isReplay: Boolean = false
     ): Job = OrchestrationScope.launch {
         withJobExceptionHandler(event.systemId, rethrow = false) {
-            val oldState: JobState = jobWithToken.job.currentState
 
             if (!isReplay) {
                 db.withTransaction(autoFlush = true) {
                     val failedStateOrNull = if (event.newState == JobState.FAILURE) jobWithToken.job.currentState else null
                     jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus, failedStateOrNull)
-                        jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus, oldState)
-                    } else {
-                        jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
-                    }
                 }
             }
 
