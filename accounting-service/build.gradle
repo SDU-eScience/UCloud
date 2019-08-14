@@ -1,17 +1,17 @@
 group 'dk.sdu.cloud'
-version '1.1.1'
+version '1.1.2'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.accounting.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
 
 repositories {
     jcenter()
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.1"
+    ext.serviceCommonVersion = "1.5.7"
 }
 
 dependencies {

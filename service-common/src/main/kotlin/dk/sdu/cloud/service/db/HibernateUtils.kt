@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package dk.sdu.cloud.service.db
 
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -32,6 +34,7 @@ interface WithTimestamps {
     var createdAt: Date
     var modifiedAt: Date
 
+    @Suppress("FunctionNaming")
     @PreUpdate
     fun _updateModifiedAt() {
         modifiedAt = Date()
@@ -275,8 +278,11 @@ abstract class CriteriaBuilderGeneralContext {
     }
 
     infix fun <E> Expression<E>.isInCollection(expression: Collection<E>): Predicate {
-        return if (expression.isEmpty()) literal(false).toPredicate()
-        else this.`in`(expression)
+        return if (expression.isEmpty()) {
+            literal(false).toPredicate()
+        } else {
+            this.`in`(expression)
+        }
     }
 
     infix fun <E> Expression<E>.isInCollection(expression: Expression<Collection<E>>): Predicate {

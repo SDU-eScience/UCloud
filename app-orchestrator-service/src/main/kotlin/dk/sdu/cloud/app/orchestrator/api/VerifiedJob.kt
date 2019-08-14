@@ -73,6 +73,11 @@ data class VerifiedJob(
     val status: String,
 
     /**
+     * The state of the job when the job entered the failed state
+     */
+    var failedState: JobState?,
+
+    /**
      * The collection to put the results in. This defaults to [Application.metadata.title].
      */
     val archiveInCollection: String,

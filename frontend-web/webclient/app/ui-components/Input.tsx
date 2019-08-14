@@ -61,18 +61,13 @@ const Input = styled.input<InputProps>`
     color: ${({theme}) => theme.colors.gray};
   }
 
-  ::-ms-clear {
-    display: none;
-  }
-
   &:focus {
     outline: none;
-    background-color: ${({theme}) => theme.colors.white};
+    background-color: transparent;
   }
 
   ${borders} ${space} ${borderRadius}
-  ${left} ${width}
-  ${right}
+  ${left} ${width} ${right}
 `;
 
 Input.displayName = "Input";

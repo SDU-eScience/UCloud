@@ -1,9 +1,8 @@
-import { File, FileType } from "../../app/Files";
-import { Page } from "../../app/Types";
-import { SensitivityLevelMap, SensitivityLevel } from "../../app/DefaultObjects";
+import {SensitivityLevelMap} from "../../app/DefaultObjects";
+import {File, FileType} from "../../app/Files";
+import {Page} from "../../app/Types";
 
-export const mockFiles_SensitivityConfidential: Page<File> =
-{
+export const mockFilesSensitivityConfidential: Page<File> = {
     itemsInTotal: 12,
     itemsPerPage: 10,
     pageNumber: 0,
@@ -18,7 +17,6 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             creator: "God",
             fileId: "NotG0D",
             ownSensitivityLevel: SensitivityLevelMap.SENSITIVE
@@ -29,10 +27,9 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             modifiedAt: 1534858191000,
             ownerName: "user@user.telecity",
             size: 1,
-            acl: [{ entity: "user3@test.dk", rights: ["WRITE", "EXECUTE"], "group": false }], 
+            acl: [{entity: "user3@test.dk", rights: ["WRITE", "EXECUTE"], "group": false}],
             favorited: true,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             creator: "GOD",
             fileId: "notG0D",
             ownSensitivityLevel: SensitivityLevelMap.SENSITIVE
@@ -46,7 +43,6 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             creator: null,
             fileId: "HashingFunctionOfMe",
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
@@ -60,7 +56,6 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             creator: null,
             fileId: null,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
@@ -74,7 +69,6 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             creator: null,
             fileId: null,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
@@ -88,13 +82,12 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: true,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             creator: null,
             fileId: null,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
         }, {
             fileType: "DIRECTORY",
-            path: "/home/user@user.telecity/rehjoerijhoerijh", 
+            path: "/home/user@user.telecity/rehjoerijhoerijh",
             createdAt: 1535026061000,
             modifiedAt: 1534170588000,
             ownerName: "user@user.telecity",
@@ -102,7 +95,6 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
             fileId: null
@@ -116,7 +108,6 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
             fileId: null
@@ -130,7 +121,6 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             creator: null,
             fileId: null,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
@@ -144,7 +134,6 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            link: false,
             creator: null,
             fileId: null,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
@@ -161,8 +150,7 @@ export const newMockFile = ({
     size = 128,
     acl = [],
     favorited = false,
-    sensitivityLevel = SensitivityLevelMap.PRIVATE,
-    link = false
+    sensitivityLevel = SensitivityLevelMap.PRIVATE
 }): File => ({
     fileType: type as FileType,
     path: `/home/${ownerName}/${path}`,
@@ -175,8 +163,7 @@ export const newMockFile = ({
     ownSensitivityLevel: sensitivityLevel,
     ownerName,
     favorited,
-    sensitivityLevel,
-    link
+    sensitivityLevel
 });
 
 test("Error silencer", () =>

@@ -1,11 +1,11 @@
-import * as React from "react";
-import {create} from "react-test-renderer";
-import {BreadCrumbs} from "../../app/ui-components/Breadcrumbs";
-import theme from "../../app/ui-components/theme";
 import {configure, mount} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import "jest-styled-components";
+import * as React from "react";
+import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
+import {BreadCrumbs} from "../../app/ui-components/Breadcrumbs";
+import theme from "../../app/ui-components/theme";
 configure({adapter: new Adapter()});
 
 

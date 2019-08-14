@@ -152,7 +152,11 @@ const initialPageParameters: ListDirectoryRequest = {
     path: "TO_BE_REPLACED"
 };
 
-function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTableAPI {
+function apiForComponent(
+    props,
+    sortByColumns: [SortBy, SortBy],
+    setSortByColumns: (s: [SortBy, SortBy]) => void
+): InternalFileTableAPI {
     let api: InternalFileTableAPI;
 
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
@@ -225,7 +229,7 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
             });
         };
 
-        const sortingIcon = (other: SortBy): React.ReactNode => 
+        const sortingIcon = (other: SortBy): React.ReactNode =>
             <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order} />;
 
         const reload = () => loadManaged(pageParameters);
@@ -243,8 +247,8 @@ function apiForComponent(props, sortByColumns, setSortByColumns): InternalFileTa
 
 const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     RouteComponentProps &
-    { responsive: ResponsiveReduxObject } &
-    { showUploader: (path: string) => void }> = props => {
+{responsive: ResponsiveReduxObject} &
+{showUploader: (path: string) => void}> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -281,17 +285,17 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             if (props.path === undefined) return;
             let fileId = "newFolderId";
             setInjectedViaState([
-                    mockFile({
-                        path: `${props.path}/newFolder`,
-                        fileId,
-                        tag: MOCK_RENAME_TAG,
-                        type: "DIRECTORY"
-                    })
-                ]
+                mockFile({
+                    path: `${props.path}/newFolder`,
+                    fileId,
+                    tag: MOCK_RENAME_TAG,
+                    type: "DIRECTORY"
+                })
+            ]
             );
             setFileBeingRenamed(fileId);
 
-            if (!isEmbedded) window.scrollTo({ top: 0 });
+            if (!isEmbedded) window.scrollTo({top: 0});
         },
         startRenaming: file => setFileBeingRenamed(file.fileId!),
         requestFileSelector: async (allowFolders: boolean, canOnlySelectFolders: boolean) => {
@@ -330,7 +334,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         setCheckedFiles(new Set());
         setFileBeingRenamed(null);
         setInjectedViaState([]);
-        if (!isEmbedded) window.scrollTo({ top: 0 });
+        if (!isEmbedded) window.scrollTo({top: 0});
         props.onFileNavigation(path);
     };
 
@@ -357,7 +361,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         setCheckedFiles(checked);
     };
 
-    const onRenameFile = (key: number, file: File, name: string) => {
+    const onRenameFile = (key: number, name: string) => {
         if (key === KeyCode.ESC) {
             setInjectedViaState([]);
             setFileBeingRenamed(null);
@@ -484,7 +488,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
                                     return <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
                                         <Flex backgroundColor="white" alignItems="center" cursor="pointer"
-                                              justifyContent="left">
+                                            justifyContent="left">
                                             <Box
                                                 onClick={() => setSorting(column, invertSortOrder(order), i)}>
                                                 {sortingIcon(column)}
@@ -496,22 +500,22 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                     trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
                                                     chevron>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
-                                                         hidden={(order === SortOrder.ASCENDING && isSortedBy) || column === SortBy.ACL}
-                                                         onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
+                                                        hidden={(order === SortOrder.ASCENDING && isSortedBy) || column === SortBy.ACL}
+                                                        onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
                                                     >
                                                         {UF.prettierString(SortOrder.ASCENDING)}
                                                     </Box>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
-                                                         onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                         hidden={(order === SortOrder.DESCENDING && isSortedBy) || column === SortBy.ACL}
+                                                        onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
+                                                        hidden={(order === SortOrder.DESCENDING && isSortedBy) || column === SortBy.ACL}
                                                     >
                                                         {UF.prettierString(SortOrder.DESCENDING)}
                                                     </Box>
                                                     <Divider ml="-16px" mr="-16px"/>
                                                     {Object.values(SortBy).map((sortByKey: SortBy, j) => (
                                                         <Box ml="-16px" mr="-16px" pl="15px" key={j}
-                                                             onClick={() => setSorting(sortByKey, order, i)}
-                                                             hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
+                                                            onClick={() => setSorting(sortByKey, order, i)}
+                                                            hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
                                                         >
                                                             {UF.sortByToPrettierString(sortByKey)}
                                                         </Box>
@@ -536,7 +540,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
                         <TableBody>
                             {allFiles.map(file => (
-                                <TableRow highlighted={file.isChecked} key={file.fileId!} data-tag={"fileRow"}>
+                                <TableRow highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined} key={file.fileId!} data-tag={"fileRow"}>
                                     <TableCell>
                                         {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
                                         <Flex flexDirection="row" alignItems="center" mx="9px">
@@ -553,9 +557,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                             }
                                             <Box ml="5px" pr="5px"/>
                                             <NameBox file={file} onRenameFile={onRenameFile}
-                                                     onNavigate={onFileNavigation}
-                                                     callbacks={callbacks}
-                                                     fileBeingRenamed={fileBeingRenamed}/>
+                                                onNavigate={onFileNavigation}
+                                                callbacks={callbacks}
+                                                fileBeingRenamed={fileBeingRenamed}/>
                                         </Flex>
                                     </TableCell>
 
@@ -651,7 +655,7 @@ const SidebarContent = styled.div`
 
 interface NameBoxProps {
     file: File
-    onRenameFile: (keycode: number, file: File, value: string) => void
+    onRenameFile: (keycode: number, value: string) => void
     onNavigate: (path: string) => void
     fileBeingRenamed: string | null
     callbacks: FileOperationCallback
@@ -667,7 +671,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const icon = <Box mr="10px" cursor="inherit">
         <FileIcon
             fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Cloud.homeFolder)}
-            size={38} link={props.file.link} shared={(props.file.acl != null ? props.file.acl.length : 0) > 0}
+            size={38} shared={(props.file.acl != null ? props.file.acl.length : 0) > 0}
         />
     </Box>;
 
@@ -676,8 +680,8 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             {icon}
 
             <Input
-                placeholder={props.file.isMockFolder ? "" : getFilenameFromPath(props.file.path)}
-                defaultValue={props.file.isMockFolder ? "" : getFilenameFromPath(props.file.path)}
+                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
                 p="0"
                 noBorder
                 maxLength={1024}
@@ -687,7 +691,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 autoFocus
                 data-tag="renameField"
                 onKeyDown={e => {
-                    if (!!props.onRenameFile) props.onRenameFile(e.keyCode, props.file, (e.target as HTMLInputElement).value)
+                    if (!!props.onRenameFile) props.onRenameFile(e.keyCode, (e.target as HTMLInputElement).value)
                 }}
             />
 
@@ -697,7 +701,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 ml="9px"
                 name="close"
                 onClick={() => {
-                    if (!!props.onRenameFile) props.onRenameFile(KeyCode.ESC, props.file, "")
+                    if (!!props.onRenameFile) props.onRenameFile(KeyCode.ESC, "")
                 }}
             />
         </>;
@@ -751,18 +755,18 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     }
 };
 
-const notSticky = ({notSticky}: { notSticky?: boolean }): { position: "sticky" } | null =>
+const notSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} | null =>
     notSticky ? null : {position: "sticky"};
 
-const FileTableHeaderCell = styled(TableHeaderCell) <{ notSticky?: boolean }>`
-        background-color: ${({theme}) => theme.colors.white};
-        top: 144px; //topmenu + header size
-        z-index: 10;
-        ${notSticky}
-        `;
+const FileTableHeaderCell = styled(TableHeaderCell) <{notSticky?: boolean}>`
+    background-color: ${({theme}) => theme.colors.white};
+    top: 144px; //topmenu + header size
+    z-index: 10;
+    ${notSticky}
+`;
 
-const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => {
-    type IconDef = { color: string, text: string, shortText: string };
+const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
+    type IconDef = {color: string, text: string, shortText: string};
     let def: IconDef;
 
     switch (props.sensitivity) {
@@ -784,7 +788,7 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => 
     return <Tooltip right={"0"} top={"1"} mb="50px" trigger={badge}>{def.text}</Tooltip>;
 };
 
-const SensitivityBadge = styled.div<{ bg: string }>`
+const SensitivityBadge = styled.div<{bg: string}>`
     content: '';
     height: 2em;
     width: 2em;
@@ -809,7 +813,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
     const buttons: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode === true);
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
-    const Operation = ({fileOp}: { fileOp: FileOperation }) => {
+    const Operation = ({fileOp}: {fileOp: FileOperation}) => {
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;

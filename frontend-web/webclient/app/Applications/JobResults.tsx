@@ -44,7 +44,7 @@ interface FetchJobsOptions {
     sortOrder?: SortOrder
     minTimestamp?: number
     maxTimestamp?: number
-    filter?: AppState
+    filter?: string
 }
 
 /* FIXME: Almost identical to similar one in FilesTable.tsx */
@@ -75,11 +75,12 @@ function JobResults(props: AnalysesProps & {history: History}) {
         const sortBy = opts.sortBy != null ? opts.sortBy : props.sortBy;
         const minTimestamp = opts.minTimestamp != null ? opts.minTimestamp : undefined;
         const maxTimestamp = opts.maxTimestamp != null ? opts.maxTimestamp : undefined;
-        const filter = opts.filter != null ? opts.filter : undefined;
+        const filterValue = opts.filter && opts.filter !== "Don't filter" ? opts.filter as AppState : undefined;
+    
         setLoading(true);
-        props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter);
+        props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filterValue);
         props.setRefresh(() =>
-            props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter)
+            props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filterValue)
         );
     }
 
@@ -138,12 +139,13 @@ function JobResults(props: AnalysesProps & {history: History}) {
         onPageChanged={pageNumber => fetchJobs({pageNumber})}
     />;
 
-    const [filter, setFilter] = React.useState({text: "Don't filter", value: "Don't filter"});
+    const defaultFilter = {text: "Don't filter", value: "Don't filter"}
+    const [filter, setFilter] = React.useState(defaultFilter);
     const [firstDate, setFirstDate] = React.useState<Date | null>(null);
     const [secondDate, setSecondDate] = React.useState<Date | null>(null);
 
     const appStates = Object.keys(AppState).map(it => ({text: prettierString(it), value: it}));
-    appStates.push({text: "Don't Filter", value: "Don't filter"});
+    appStates.push(defaultFilter);
 
     function fetchJobsInRange(minDate: Date | null, maxDate: Date | null) {
         return () => fetchJobs({
@@ -152,7 +154,8 @@ function JobResults(props: AnalysesProps & {history: History}) {
             sortOrder,
             sortBy,
             minTimestamp: minDate == null ? undefined : minDate.getTime(),
-            maxTimestamp: maxDate == null ? undefined : maxDate.getTime()
+            maxTimestamp: maxDate == null ? undefined : maxDate.getTime(),
+            filter: filter.value === "Don't filter" ? undefined : filter.value
         })
     }
 

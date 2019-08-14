@@ -281,10 +281,6 @@ The report with feedback scan/pen test report is returned is added to the branch
 
 [infrastructure](../../indexing-service/README.md)
 
-[integration-testing](../../integration-testing/README.md)
-
-[metadata-service](../../metadata-service/README.md)
-
 [notification-service](../../notification-service/README.md)
 
 [project-auth-service](../../project-auth-service/README.md)
@@ -303,7 +299,7 @@ The report with feedback scan/pen test report is returned is added to the branch
 
 [support-service](../../support-service/README.md)
 
-[zenodo-service](../../zenodo-service/README.md)
+
 
 
 

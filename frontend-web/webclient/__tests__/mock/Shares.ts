@@ -1,5 +1,5 @@
-import { SharesByPath, ShareState } from "../../app/Shares";
-import { Page, AccessRight } from "../../app/Types";
+import {SharesByPath, ShareState} from "../../app/Shares";
+import {AccessRight, Page} from "../../app/Types";
 
 export const shares: Page<SharesByPath> = {
     itemsInTotal: 1,

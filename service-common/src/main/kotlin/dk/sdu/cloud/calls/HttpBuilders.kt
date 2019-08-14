@@ -9,7 +9,9 @@ import kotlin.reflect.KProperty1
 
 class HttpDSLException(why: String) : RuntimeException(why)
 
-class HttpRequestBuilder<R : Any, S : Any, E : Any> internal constructor(private val context: CallDescription<R, S, E>) {
+class HttpRequestBuilder<R : Any, S : Any, E : Any> internal constructor(
+    private val context: CallDescription<R, S, E>
+) {
     var method: HttpMethod = HttpMethod.Get
     internal var body: HttpBody<R, *>? = null
     internal var path: HttpPath<R>? = null

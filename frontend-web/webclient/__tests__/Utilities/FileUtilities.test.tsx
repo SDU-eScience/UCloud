@@ -5,11 +5,11 @@ import {
     replaceHomeFolder,
     filepathQuery
 } from "../../app/Utilities/FileUtilities";
-import { mockFiles_SensitivityConfidential } from "../mock/Files";
+import { mockFilesSensitivityConfidential } from "../mock/Files";
 
 describe("To file text", () => {
     test("Single file", () => {
-        const firstFile = mockFiles_SensitivityConfidential.items[0];
+        const firstFile = mockFilesSensitivityConfidential.items[0];
         expect(toFileText([firstFile])).toBe("1 file selected");
     });
 });
@@ -72,7 +72,8 @@ describe("Replace homefolder", () => {
     );
 
     test("Replace homefolder subfolder", () =>
-        expect(replaceHomeFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder)).toBe("Home/subFolder/withSomething")
+        expect(replaceHomeFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder))
+         .toBe("Home/subFolder/withSomething")
     );
 
     const noHomeFolder = "NotHomeFolder/subfolder/";

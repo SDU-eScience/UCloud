@@ -75,6 +75,7 @@ internal class ClassDiscovery(
     private fun loadFromName(name: String) {
         val className = normalizeName(name) ?: return
         if (packagesToLoadFrom.any { pkg -> className.startsWith(pkg) }) {
+            @Suppress("TooGenericExceptionCaught")
             try {
                 val klass = classLoader.loadClass(className)
                 if (klass.isKotlinClass()) {

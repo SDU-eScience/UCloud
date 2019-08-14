@@ -84,8 +84,11 @@ val IngoingCall.securityPrincipal: SecurityPrincipal
 var IngoingCall.bearer: String?
     get() = attributes.getOrNull(AuthInterceptor.bearerKey)
     internal set(value) {
-        if (value != null) attributes[AuthInterceptor.bearerKey] = value
-        else attributes.remove(AuthInterceptor.bearerKey)
+        if (value != null) {
+            attributes[AuthInterceptor.bearerKey] = value
+        } else {
+            attributes.remove(AuthInterceptor.bearerKey)
+        }
     }
 
 val CallDescription<*, *, *>.requiredAuthScope: SecurityScope

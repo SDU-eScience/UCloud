@@ -223,6 +223,8 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
   const type = hasExt ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
 
   switch (fileIcon.type) {
+    case "SHARESFOLDER":
+      return (<Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "FAVFOLDER":
       return (<Icon name={"ftFavFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "TRASHFOLDER":

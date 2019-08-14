@@ -128,7 +128,8 @@ class AuditToEventStream(
 
                 if (auditDescription != null) {
                     if (auditPayload == null) {
-                        // We can, in this case, still produce a message. But only because the audit payload will be null.
+                        // We can, in this case, still produce a message. But only because the audit payload will be
+                        // null.
                     } else {
                         val expectedType = auditDescription.auditType.type.jvmClass
                         if (expectedType != auditPayload.javaClass) {

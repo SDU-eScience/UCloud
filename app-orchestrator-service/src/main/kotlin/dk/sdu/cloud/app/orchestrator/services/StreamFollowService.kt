@@ -49,6 +49,7 @@ class StreamFollowService<DBSession>(
             job.currentState,
             job.status,
             job.currentState.isFinal(),
+            job.failedState,
             job.timeLeft,
             job.id,
             jobFileService.jobFolder(job),
