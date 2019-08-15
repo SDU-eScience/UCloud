@@ -308,7 +308,7 @@ const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProp
                 </JobResultsHeaderCell>}
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
                 <Arrow sortBy={RunsSortBy.lastUpdate} activeSortBy={sortBy} order={sortOrder} />
-                Last update
+                Expiration
             </JobResultsHeaderCell>
         </TableRow>
     </TableHeader>
@@ -321,6 +321,7 @@ interface RowProps {
 }
 const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) => {
     const metadata = analysis.metadata;
+
     return (
         <TableRow cursor={"pointer"}>
             <TableCell textAlign="center">
@@ -331,7 +332,7 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
             {hide ? null : <TableCell onClick={to}>{moment(analysis.createdAt).calendar()}</TableCell>}
-            <TableCell onClick={to}>{moment(analysis.modifiedAt).calendar()}</TableCell>
+            <TableCell onClick={to}>{analysis.expiresAt ? moment(analysis.expiresAt).calendar() : "N/A"}</TableCell>
         </TableRow>)
 };
 
