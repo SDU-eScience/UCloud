@@ -119,6 +119,7 @@ export interface DetailedResultState {
     name: string
     complete: boolean
     appState: AppState
+    failedState?: AppState
     status: string
     app?: ApplicationMetadata
     stdout: string

@@ -1,23 +1,23 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {shortUUID, errorMessageOrDefault} from "UtilityFunctions";
+import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {Link} from "react-router-dom";
 import {connect} from "react-redux";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {
+    AppState,
+    DetailedResultOperations,
     DetailedResultProps,
     DetailedResultState,
     StdElement,
-    DetailedResultOperations,
-    AppState,
     WithAppInvocation
 } from ".";
 import {fileTablePage} from "Utilities/FileUtilities";
-import {hpcJobQuery, cancelJobDialog, inCancelableState, cancelJob} from "Utilities/ApplicationUtilities";
+import {cancelJob, cancelJobDialog, hpcJobQuery, inCancelableState} from "Utilities/ApplicationUtilities";
 import {Dispatch} from "redux";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
-import {Flex, Box, List, Card, ContainerForText, ExternalLink, Button} from "ui-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Flex, List} from "ui-components";
 import {Step, StepGroup} from "ui-components/Step";
 import styled from "styled-components";
 import {TextSpan} from "ui-components/Text";
@@ -49,6 +49,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             name: "",
             complete: false,
             appState: AppState.VALIDATED,
+            failedState: undefined,
             status: "",
             stdout: "",
             stderr: "",
@@ -141,6 +142,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 name: response.name,
                 status: response.status,
                 appState: response.state,
+                failedState: response.failedState,
                 complete: response.complete,
                 outputFolder: response.outputFolder,
                 timeLeft: response.timeLeft
@@ -173,19 +175,24 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             <StepGroup>
                 <StepTrackerItem
                     stateToDisplay={AppState.VALIDATED}
-                    currentState={this.state.appState} />
+                    currentState={this.state.appState}
+                    failedState={this.state.failedState} />
                 <StepTrackerItem
                     stateToDisplay={AppState.PREPARED}
-                    currentState={this.state.appState} />
+                    currentState={this.state.appState}
+                    failedState={this.state.failedState} />
                 <StepTrackerItem
                     stateToDisplay={AppState.SCHEDULED}
-                    currentState={this.state.appState} />
+                    currentState={this.state.appState}
+                    failedState={this.state.failedState} />
                 <StepTrackerItem
                     stateToDisplay={AppState.RUNNING}
-                    currentState={this.state.appState} />
+                    currentState={this.state.appState}
+                    failedState={this.state.failedState} />
                 <StepTrackerItem
                     stateToDisplay={AppState.TRANSFER_SUCCESS}
-                    currentState={this.state.appState} />
+                    currentState={this.state.appState}
+                    failedState={this.state.failedState} />
             </StepGroup>
         </Panel>
     );
@@ -378,16 +385,19 @@ const stateToTitle = (state: AppState): string => {
     }
 };
 
-const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, currentState: AppState}> = ({
-    stateToDisplay, currentState
+const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, currentState: AppState, failedState?: AppState}> = ({
+    stateToDisplay, currentState, failedState
 }) => {
     const active = stateToDisplay === currentState;
     const complete = isStateComplete(stateToDisplay, currentState);
     const failed = currentState === AppState.FAILURE;
+    const failedNum = failedState ? stateToOrder(failedState) : 10;
+    const thisFailed = stateToOrder(stateToDisplay) >= failedNum;
+
     return (
         <Step active={active}>
             {complete ?
-                <Icon name={failed ? "close" : "check"} color={failed ? "red" : "green"} mr="0.7em" size="30px" /> :
+                <Icon name={thisFailed ? "close" : "check"} color={thisFailed ? "red" : "green"} mr="0.7em" size="30px" /> :
                 <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px" />
             }
             <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
