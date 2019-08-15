@@ -143,6 +143,9 @@ class JobController<DBSession>(
 
     private fun VerifiedJob.toJobWithStatus(): JobWithStatus {
         val job = this
+        val expiresAt = job.startedAt?.let {
+            job.startedAt + job.maxTime.toMillis()
+        }
 
         return JobWithStatus(
             job.id,
@@ -154,7 +157,7 @@ class JobController<DBSession>(
             job.application.metadata.version,
             job.createdAt,
             job.modifiedAt,
-            job.timeLeft,
+            expiresAt,
             job.application.metadata
         )
     }

@@ -18,6 +18,7 @@ export interface Analysis {
     appVersion: string
     createdAt: number
     modifiedAt: number
+    expiresAt?: number;
     owner: string
     metadata: ApplicationMetadata
 }

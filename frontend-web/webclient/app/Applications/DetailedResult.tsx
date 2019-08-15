@@ -138,6 +138,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 stderrLine: response.stderrNextLine,
 
                 app: response.metadata,
+                name: response.name,
                 status: response.status,
                 appState: response.state,
                 complete: response.complete,
