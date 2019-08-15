@@ -574,7 +574,7 @@ class ApplicationHibernateDAO(
                             fav.applicationVersion == item.metadata.version
                 }
                 val allTagsForApplication =
-                    allTagsForApplicationsOnPage.filter { item.metadata.name == it.applicationName }.map { it.tag }
+                    allTagsForApplicationsOnPage.filter { (item.metadata.name == it.applicationName) and (item.metadata.version == it.applicationVersion)}.map { it.tag }
 
                 ApplicationWithFavorite(item.metadata, item.invocation, isFavorite, allTagsForApplication)
             }
