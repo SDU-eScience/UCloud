@@ -17,7 +17,7 @@ data class JobWithStatus(
 
     val createdAt: Long,
     val modifiedAt: Long,
-    val timeLeft: Int?,
+    val expiresAt: Long?,
 
     override val metadata: ApplicationMetadata
 ) : WithAppMetadata
