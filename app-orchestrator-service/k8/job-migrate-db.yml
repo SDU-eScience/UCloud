@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: app-orchestrator-service
-          image: registry.cloud.sdu.dk/sdu-cloud/app-orchestrator-service:0.3.2
+          image: registry.cloud.sdu.dk/sdu-cloud/app-orchestrator-service:0.3.4
           args:
           - /opt/service/bin/service
           - --config-dir

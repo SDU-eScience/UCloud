@@ -44,6 +44,7 @@ data class JobInformationEntity(
     @Enumerated(EnumType.STRING)
     var state: JobState,
 
+    @Enumerated(EnumType.STRING)
     var failedState: JobState?,
 
     var nodes: Int,

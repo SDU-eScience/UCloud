@@ -15,6 +15,9 @@ dependencies {
     compile 'com.fasterxml.jackson.core:jackson-core:2.9.9'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.9.9'
     compile 'com.fasterxml.jackson.module:jackson-module-kotlin:2.9.9'
+
+    compile "io.ktor:ktor-server-core:1.2.3"
+    compile "io.ktor:ktor-server-netty:1.2.3"
 }
 
 compileKotlin {
