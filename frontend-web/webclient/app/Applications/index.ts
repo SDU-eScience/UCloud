@@ -10,6 +10,7 @@ import * as React from "react";
 import {SharedFileSystemMount} from "Applications/FileSystems";
 
 export interface Analysis {
+    name: string
     checked?: boolean
     status: string
     state: AppState
@@ -18,6 +19,7 @@ export interface Analysis {
     appVersion: string
     createdAt: number
     modifiedAt: number
+    expiresAt?: number;
     owner: string
     metadata: ApplicationMetadata
 }
@@ -115,6 +117,7 @@ export enum AppState {
 }
 
 export interface DetailedResultState {
+    name: string
     complete: boolean
     appState: AppState
     status: string
@@ -130,6 +133,7 @@ export interface DetailedResultState {
     outputFolder?: string
     appType?: ApplicationType
     webLink?: string
+    timeLeft: number | null
 }
 
 export type StdElement = {scrollTop: number, scrollHeight: number} | null
@@ -150,6 +154,7 @@ export interface JobSchedulingOptionsForInput {
     maxTime: MaxTimeForInput
     numberOfNodes: number
     tasksPerNode: number
+    name: React.RefObject<HTMLInputElement>
 }
 
 export interface RefReadPair {
@@ -385,7 +390,8 @@ export enum RunsSortBy {
     application = "APPLICATION",
     startedAt = "STARTED_AT",
     lastUpdate = "LAST_UPDATE",
-    createdAt = "CREATED_AT"
+    createdAt = "CREATED_AT",
+    name = "NAME"
 }
 export interface WithAllAppTags {
     tags: string[]

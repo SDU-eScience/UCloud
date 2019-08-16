@@ -9,7 +9,7 @@ const SvgLicense = (props: any) => (
     {...props}
   >
     <path
-      d="M21 24.001H3a3 3 0 0 1-3-3v-18a3 3 0 0 1 3-3h18a3 3 0 0 1 3 3v18a3.004 3.004 0 0 1-3 3zm-3-3l3-3v-12l-3-3H6l-3 3v12l3 3h12z"
+      d="M21 24.001H3a3 3 0 01-3-3v-18a3 3 0 013-3h18a3 3 0 013 3v18a3.004 3.004 0 01-3 3zm-3-3l3-3v-12l-3-3H6l-3 3v12l3 3h12z"
       fill={undefined}
     />
     <path

@@ -21,10 +21,8 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.EventServiceMock
-import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.*
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -33,6 +31,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class JobOrchestratorTest {
 
@@ -333,6 +332,33 @@ class JobOrchestratorTest {
 
         runBlocking {
             assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+        }
+    }
+
+    @Test
+    fun `Handle failed state of unsuccessful job test`() {
+        val orchestrator = setup()
+        val returnedID = runBlocking {
+            orchestrator.startJob(startJobRequest, decodedJWT, client)
+        }
+
+        runBlocking {
+            retrySection {
+                assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            }
+        }
+
+        runBlocking {
+            orchestrator.handleProposedStateChange(
+                JobStateChange(returnedID, JobState.FAILURE),
+                null,
+                TestUsers.user
+            )
+        }
+
+       runBlocking {
+            assertEquals(JobState.FAILURE, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).failedState)
         }
     }
 }

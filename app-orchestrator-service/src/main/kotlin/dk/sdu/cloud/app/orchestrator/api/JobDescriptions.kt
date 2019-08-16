@@ -271,6 +271,11 @@ data class FollowStdStreamsResponse(
     val complete: Boolean,
 
     /**
+     * The state that was reached when the job failed, null if the job did not fail
+     */
+    val failedState: JobState?,
+
+    /**
      * Time (in milliseconds) left of the job
      */
     val timeLeft: Int?,
@@ -279,6 +284,12 @@ data class FollowStdStreamsResponse(
      * The job ID
      */
     val id: String,
+
+    /**
+     * The job name
+     */
+    val name: String?,
+
 
     val outputFolder: String? = null,
 

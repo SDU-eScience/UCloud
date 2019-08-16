@@ -1,9 +1,8 @@
-import { File, FileType } from "../../app/Files";
-import { Page } from "../../app/Types";
-import { SensitivityLevelMap, SensitivityLevel } from "../../app/DefaultObjects";
+import {SensitivityLevelMap} from "../../app/DefaultObjects";
+import {File, FileType} from "../../app/Files";
+import {Page} from "../../app/Types";
 
-export const mockFiles_SensitivityConfidential: Page<File> =
-{
+export const mockFilesSensitivityConfidential: Page<File> = {
     itemsInTotal: 12,
     itemsPerPage: 10,
     pageNumber: 0,
@@ -28,7 +27,7 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             modifiedAt: 1534858191000,
             ownerName: "user@user.telecity",
             size: 1,
-            acl: [{ entity: "user3@test.dk", rights: ["WRITE", "EXECUTE"], "group": false }], 
+            acl: [{entity: "user3@test.dk", rights: ["WRITE", "EXECUTE"], "group": false}],
             favorited: true,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: "GOD",
@@ -88,7 +87,7 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
         }, {
             fileType: "DIRECTORY",
-            path: "/home/user@user.telecity/rehjoerijhoerijh", 
+            path: "/home/user@user.telecity/rehjoerijhoerijh",
             createdAt: 1535026061000,
             modifiedAt: 1534170588000,
             ownerName: "user@user.telecity",

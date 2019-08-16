@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import kotlin.math.max
 
 data class VerifiedJob(
     /**
@@ -72,6 +73,11 @@ data class VerifiedJob(
     val status: String,
 
     /**
+     * The state of the job when the job entered the failed state
+     */
+    var failedState: JobState?,
+
+    /**
      * The collection to put the results in. This defaults to [Application.metadata.title].
      */
     val archiveInCollection: String,
@@ -110,6 +116,15 @@ data class VerifiedJob(
      * Timestamp for when this job started execution.
      */
     val startedAt: Long? = null,
+
+    /**
+     * Seconds left of job from the job is started, null if the job is not started
+     */
+    val timeLeft: Int? = if (startedAt != null) {
+        max((startedAt + maxTime.toMillis() - System.currentTimeMillis()).toInt(), 0)
+    } else {
+        null
+    },
 
     /**
      * The username of the user who initiated the job.

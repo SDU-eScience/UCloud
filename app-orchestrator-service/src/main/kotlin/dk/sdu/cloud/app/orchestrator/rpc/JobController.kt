@@ -27,6 +27,7 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
+import kotlin.math.max
 
 internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 24L
 
@@ -142,6 +143,10 @@ class JobController<DBSession>(
 
     private fun VerifiedJob.toJobWithStatus(): JobWithStatus {
         val job = this
+        val expiresAt = job.startedAt?.let {
+            job.startedAt + job.maxTime.toMillis()
+        }
+
         return JobWithStatus(
             job.id,
             job.name,
@@ -152,6 +157,7 @@ class JobController<DBSession>(
             job.application.metadata.version,
             job.createdAt,
             job.modifiedAt,
+            expiresAt,
             job.application.metadata
         )
     }

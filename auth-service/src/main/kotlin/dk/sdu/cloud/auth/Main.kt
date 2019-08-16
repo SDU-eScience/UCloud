@@ -88,6 +88,9 @@ fun main(args: Array<String>) {
     val configuration = micro.configuration.requestChunkAtOrNull("auth") ?: AuthConfiguration()
     KtorUtils.runningInProduction = configuration.production
     configuration.services.forEach { ServiceDAO.insert(it) }
+    if (micro.developmentModeEnabled) {
+        ServiceDAO.insert(Service("dev-web", "http://localhost:9000/app/login/wayf", 1000 * 60 * 60 * 24 * 365L))
+    }
 
     val samlProperties = Properties().apply {
         load(Server::class.java.classLoader.getResourceAsStream("saml.properties"))

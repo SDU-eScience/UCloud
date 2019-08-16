@@ -1,16 +1,18 @@
 import * as jwt from "jsonwebtoken";
 import {
+    inDevEnvironment,
     inRange,
-    is5xxStatusCode,
-    inSuccessRange
+    inSuccessRange,
+    is5xxStatusCode
 } from "UtilityFunctions";
+import {ReduxObject} from "DefaultObjects";
+import {Store} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Store} from "redux";
-import {ReduxObject} from "DefaultObjects";
 
 export interface Override {
     path: string,
+    method: { value: string }
     destination: {
         scheme?: string
         host?: string
@@ -41,6 +43,7 @@ export default class SDUCloud {
     private csrfToken: string;
     private decodedToken: any;
     private forceRefresh: boolean = false;
+    private overridesPromise: Promise<void> | null = null;
 
     private projectId: string | undefined = undefined;
     private projectAccessToken: string | undefined = undefined;
@@ -77,6 +80,14 @@ export default class SDUCloud {
         let csrfToken = SDUCloud.storedCsrfToken;
         if (accessToken && csrfToken) {
             this.setTokens(accessToken, csrfToken);
+        }
+
+        if (process.env.NODE_ENV === "development") {
+            this.overridesPromise = (async () => {
+                const jsonResponse: Override[] = await (await fetch("http://localhost:9900/")).json();
+                console.log("Got back the following response:", jsonResponse);
+                this.overrides = jsonResponse;
+            })();
         }
     }
 
@@ -120,6 +131,14 @@ export default class SDUCloud {
             disallowProjects = false
         }: CallParameters
     ): Promise<any> {
+        if (this.overridesPromise != null) {
+            try {
+                await this.overridesPromise;
+            } catch (ignored) {
+            }
+            this.overridesPromise = null;
+        }
+
         if (path.indexOf("/") !== 0) path = "/" + path;
         return this.receiveAccessTokenOrRefreshIt(disallowProjects).then(token => {
             return new Promise((resolve, reject) => {
@@ -205,7 +224,7 @@ export default class SDUCloud {
      * Calls with the GET HTTP method. See call(method, path, body)
      */
     public async get<T = any>(path: string, context = this.apiContext,
-                       disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+                              disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "GET", path, body: undefined, context, disallowProjects});
     }
 
@@ -213,7 +232,7 @@ export default class SDUCloud {
      * Calls with the POST HTTP method. See call(method, path, body)
      */
     public async post<T = any>(path: string, body?: object, context = this.apiContext,
-                        disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "POST", path, body, context, disallowProjects});
     }
 
@@ -221,7 +240,7 @@ export default class SDUCloud {
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
     public async put<T = any>(path: string, body: object, context = this.apiContext,
-                       disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+                              disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "PUT", path, body, context, disallowProjects});
     }
 
@@ -229,7 +248,7 @@ export default class SDUCloud {
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
     public async delete<T = void>(path: string, body: object, context = this.apiContext,
-                          disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "DELETE", path, body, context, disallowProjects});
     }
 
@@ -237,7 +256,7 @@ export default class SDUCloud {
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
     public async patch<T = any>(path: string, body: object, context = this.apiContext,
-                         disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+                                disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "PATCH", path, body, context, disallowProjects});
     }
 
@@ -245,7 +264,7 @@ export default class SDUCloud {
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
     public async options<T = any>(path: string, body: object, context = this.apiContext,
-                           disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "OPTIONS", path, body, context, disallowProjects});
     }
 
@@ -253,7 +272,7 @@ export default class SDUCloud {
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
     public async head<T = any>(path: string, context = this.apiContext,
-                        disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "HEAD", path, body: undefined, context, disallowProjects});
     }
 
@@ -360,7 +379,15 @@ export default class SDUCloud {
      *
      * @return {Promise} a promise of an access token
      */
-    receiveAccessTokenOrRefreshIt(disallowProjects: boolean = false): Promise<any> {
+    async receiveAccessTokenOrRefreshIt(disallowProjects: boolean = false): Promise<any> {
+        if (this.overridesPromise != null) {
+            try {
+                await this.overridesPromise;
+            } catch (ignored) {
+            }
+            this.overridesPromise = null;
+        }
+
         let tokenPromise: Promise<any> | null = null;
         if (this.isTokenExpired(disallowProjects) || this.forceRefresh) {
             tokenPromise = this.refresh(disallowProjects);
@@ -422,7 +449,7 @@ export default class SDUCloud {
                 });
             }
 
-            let refreshPath = this.context + this.authContext + "/refresh/web";
+            let refreshPath = this.computeURL(this.authContext, "/refresh/web");
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
                 req.open("POST", refreshPath);

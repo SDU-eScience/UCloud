@@ -99,6 +99,7 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
+                    null,
                     archiveInCollection = normAppDesc.metadata.title,
                     uid = 1337L
                 ),
@@ -160,6 +161,7 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
+                    null,
                     archiveInCollection = normAppDesc.metadata.title,
                     uid = 1337L
                 ),
@@ -183,6 +185,7 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
+                    null,
                     archiveInCollection = normAppDesc2.metadata.title,
                     uid = 1337L
                 ),
@@ -246,6 +249,7 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
+                    null,
                     archiveInCollection = normAppDesc.metadata.title,
                     uid = 1337L
                 ),
@@ -269,6 +273,7 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
+                    null,
                     archiveInCollection = normAppDesc2.metadata.title,
                     uid = 1337L
                 ),
@@ -409,6 +414,7 @@ class JobHibernateDaoTest {
                 "abacus",
                 JobState.VALIDATED,
                 "Unknown",
+                null,
                 archiveInCollection = normAppDesc.metadata.title,
                 uid = 1337L
             ),

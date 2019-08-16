@@ -71,6 +71,9 @@ data class JobInformationEntity(
     @Enumerated(EnumType.STRING)
     var state: JobState,
 
+    @Enumerated(EnumType.STRING)
+    var failedState: JobState?,
+
     var nodes: Int,
 
     var tasksPerNode: Int,
@@ -182,6 +185,7 @@ class JobHibernateDao(
             job.application.metadata.toEmbedded(),
             "Verified",
             job.currentState,
+            job.failedState,
             job.nodes,
             job.tasksPerNode,
             job.jobInput.asMap(),
@@ -216,12 +220,13 @@ class JobHibernateDao(
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
-    override fun updateStateAndStatus(session: HibernateSession, systemId: String, state: JobState, status: String?) {
+    override fun updateStateAndStatus(session: HibernateSession, systemId: String, state: JobState, status: String?, failedState: JobState?) {
         session.updateCriteria<JobInformationEntity>(
             where = { entity[JobInformationEntity::systemId] equal systemId },
             setProperties = {
                 criteria.set(entity[JobInformationEntity::modifiedAt], Date(System.currentTimeMillis()))
                 criteria.set(entity[JobInformationEntity::state], state)
+                criteria.set(entity[JobInformationEntity::failedState], failedState)
                 if (status != null) {
                     criteria.set(entity[JobInformationEntity::status], status)
                 }
@@ -377,6 +382,7 @@ class JobHibernateDao(
                 backendName,
                 state,
                 status,
+                failedState,
                 archiveInCollection,
                 tokenValidation.validateAndDecodeOrNull(accessToken)?.principal?.uid
                     ?: Long.MAX_VALUE, // TODO This is a safe value to map to, but we shouldn't just map it to long max

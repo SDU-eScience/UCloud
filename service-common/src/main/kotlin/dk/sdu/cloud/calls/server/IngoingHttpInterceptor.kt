@@ -233,7 +233,6 @@ class IngoingHttpInterceptor(
                 val hasRequiredHeader = ctx.call.request.headers.contains(header)
                 if (!hasRequiredHeader) {
                     log.debug("Missing header '$header'")
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
                 null
             }

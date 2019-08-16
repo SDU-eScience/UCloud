@@ -226,10 +226,12 @@ interface IngoingRequestInterceptor<Ctx : IngoingCall, Companion : IngoingCallCo
     val companion: Companion
 
     @Suppress("EmptyFunctionBlock")
-    fun onStart() {}
+    fun onStart() {
+    }
 
     @Suppress("EmptyFunctionBlock")
-    fun onStop() {}
+    fun onStop() {
+    }
 
     /**
      * Notifies the interceptor that it should start listening for calls that match the description in [call].
@@ -260,15 +262,9 @@ class RpcServer {
     private val requestInterceptors = HashMap<IngoingCallCompanion<*>, IngoingRequestInterceptor<*, *>>()
     private val filters = ArrayList<IngoingCallFilter>()
     private val handlers = HashMap<CallDescription<*, *, *>, suspend CallHandler<*, *, *>.() -> Unit>()
-    private val delayedHandlers = ArrayList<DelayedHandler<*, *, *>>()
+    internal val delayedHandlers = ArrayList<DelayedHandler<*, *, *>>()
     var isRunning: Boolean = false
         private set
-
-    private data class DelayedHandler<R : Any, S : Any, E : Any>(
-        val call: CallDescription<R, S, E>,
-        val requiredContext: Set<IngoingCallCompanion<*>>?,
-        val handler: suspend CallHandler<R, S, E>.() -> Unit
-    )
 
     fun attachFilter(serverFilter: IngoingCallFilter) {
         log.debug("Attaching filter: $serverFilter")
@@ -435,5 +431,12 @@ class RpcServer {
 
     companion object : Loggable {
         override val log = logger()
+
+        data class DelayedHandler<R : Any, S : Any, E : Any>(
+            val call: CallDescription<R, S, E>,
+            val requiredContext: Set<IngoingCallCompanion<*>>?,
+            val handler: suspend CallHandler<R, S, E>.() -> Unit
+        )
+
     }
 }

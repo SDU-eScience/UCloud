@@ -263,7 +263,7 @@ function InfoAttribute(props: {
     </Box>;
 }
 
-const pad = (value: string | number, length: number) =>
+export const pad = (value: string | number, length: number) =>
     (value.toString().length < length) ? pad("0" + value, length) : value;
 
 const InfoAttributes = styled.div`

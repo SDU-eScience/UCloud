@@ -90,9 +90,13 @@ fun main(args: Array<String>) {
         service.namespaces.forEach { overrides[it] = ":8800"}
     }
 
+    val frontendDirectory = Files.createTempDirectory("frontend").toFile()
     File(configDir, "overrides.yml").writeText(
         yamlMapper.writeValueAsString(
-            mapOf("development" to mapOf("serviceDiscovery" to overrides))
+            mapOf("development" to mapOf(
+                "serviceDiscovery" to overrides,
+                "frontend" to mapOf("configDir" to frontendDirectory.absolutePath)
+            ))
         )
     )
 
@@ -148,6 +152,8 @@ fun main(args: Array<String>) {
         }
     )
 
+    scriptBuilder.appendln("prefixed frontend-helper dependencies-frontend-server \"${frontendDirectory.absolutePath}\" < /dev/null")
+
     scriptBuilder.appendln("read -r line")
     scriptBuilder.appendln("kill `jobs -p`")
 
@@ -176,3 +182,4 @@ fun panic(message: String): Nothing {
     println(message)
     exitProcess(1)
 }
+
