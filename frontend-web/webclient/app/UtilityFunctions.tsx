@@ -135,10 +135,16 @@ export const extensionType = (ext: string): ExtensionType => {
             return "pdf";
         case "wav":
         case "mp3":
+        case "ogg":
+        case "aac":
+        case "pcm":
+        case "aac":
             return "audio";
         case "mpg":
         case "mp4":
         case "avi":
+        case "mov":
+        case "wmv": 
             return "video";
         case "gz":
         case "zip":
