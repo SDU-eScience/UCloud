@@ -104,6 +104,12 @@ fun main(args: Array<String>) {
 
     val userHome = System.getProperty("user.home")
     val sducloudConfig = File(userHome, "sducloud").absolutePath
+    File(sducloudConfig, "start-dependencies.yml").writeText("""
+        ---
+        config:
+          additionalDirectories:
+          - ${configDir.absolutePath}
+    """.trimIndent())
     val scriptBuilder = StringBuilder()
 
     // Use this to make output pretty https://unix.stackexchange.com/questions/440426/how-to-prefix-any-output-in-a-bash-script
