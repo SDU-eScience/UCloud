@@ -38,7 +38,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version '1.5.8'
+version '1.5.10'
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
