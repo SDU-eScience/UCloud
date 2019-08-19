@@ -326,7 +326,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 this.setState(() => ({
                     parameterValues,
-                    schedulingOptions: extractJobInfo({maxTime, numberOfNodes, tasksPerNode, name: this.state.schedulingOptions.name})
+                    schedulingOptions: extractJobInfo({
+                        maxTime,
+                        numberOfNodes,
+                        tasksPerNode,
+                        name: this.state.schedulingOptions.name
+                    })
                 }));
             } catch (e) {
                 console.warn(e);
@@ -336,7 +341,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    private onFileSelection(file: { path: string }) {
+    private onImportFileSelected(file: { path: string }) {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -359,6 +364,44 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (response.ok) this.importParameters(new File([await response.blob()], "params"))
     };
 
+    private exportParameters() {
+        const {application, schedulingOptions, parameterValues, mountedFolders} = this.state;
+        const siteVersion = this.siteVersion;
+
+        if (!application) return;
+        const appInfo = application.metadata;
+
+        const jobInfo = extractJobInfo(schedulingOptions);
+        const element = document.createElement("a");
+
+        const values: { [key: string]: string } = {};
+
+        for (const [key, ref] of parameterValues[Symbol.iterator]()) {
+            if (ref && ref.current) values[key] = ref.current.value;
+        }
+
+        element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+            siteVersion: siteVersion,
+            application: {
+                name: appInfo.name,
+                version: appInfo.version
+            },
+            parameters: values,
+            mountedFolders: mountedFolders.map(it =>
+                ({ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
+            numberOfNodes: jobInfo.numberOfNodes,
+            tasksPerNode: jobInfo.tasksPerNode,
+            maxTime: jobInfo.maxTime,
+        })));
+
+        element.setAttribute("download", `${application.metadata.name}-${application.metadata.version}-params.json`);
+        element.style.display = "none";
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    }
+
+
     render() {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
         if (!application) return (
@@ -373,89 +416,183 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             this.setState(() => ({mountedFolders}));
         };
 
-        const header = (
-            <Flex ml="12%">
-                <AppHeader slim application={application}/>
-            </Flex>
+        const parameters = application.invocation.parameters;
+        const mandatory = parameters.filter(parameter => !parameter.optional);
+        const visible = parameters.filter(parameter =>
+            parameter.optional && (parameter.visible === true || parameterValues.get(parameter.name)!.current != null)
         );
+        const optional = parameters.filter(parameter =>
+            parameter.optional && parameter.visible !== true && parameterValues.get(parameter.name)!.current == null);
 
-        const main = (
-            <ContainerForText>
-                <Parameters
+        const onParameterChange = (parameter: ApplicationParameter, visible: boolean) => {
+            parameter.visible = visible;
+            if (!visible) {
+                parameterValues.set(parameter.name, React.createRef<HTMLSelectElement | HTMLInputElement>());
+            }
+            this.setState(() => ({application: this.state.application}));
+        };
+
+        const mapParamToComponent = (parameter: ApplicationParameter) => {
+            let ref = parameterValues.get(parameter.name)!;
+
+            return (
+                <Parameter
+                    key={parameter.name}
                     initialSubmit={this.state.initialSubmit}
-                    addFolder={() => this.setState(s => ({
-                        mountedFolders: s.mountedFolders.concat([{
-                            ref: React.createRef<HTMLInputElement>(),
-                            readOnly: true
-                        }])
-                    }))}
-                    removeDirectory={index =>
-                        this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, index)}))}
-                    additionalDirectories={this.state.mountedFolders}
-                    values={parameterValues}
-                    onAccessChange={onAccessChange}
-                    parameters={application.invocation.parameters}
-                    onSubmit={this.onSubmit}
-                    schedulingOptions={schedulingOptions}
-                    app={application}
-                    onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                    onParameterChange={(p, visible) => {
-                        p.visible = visible;
-                        if (!visible)
-                            parameterValues.set(p.name, React.createRef<HTMLSelectElement | HTMLInputElement>());
-                        this.setState(() => ({application: this.state.application}));
-                    }}
+                    parameterRef={ref}
+                    parameter={parameter}
+                    onParamRemove={() => onParameterChange(parameter, false)}
+                    application={application}
                 />
-            </ContainerForText>
-        );
+            );
+        };
 
-        const sidebar = (
-            <VerticalButtonGroup>
-                <OutlineButton
-                    fullWidth
-                    color="darkGreen"
-                    onClick={() => exportParameters({
-                        application: this.state.application,
-                        schedulingOptions: this.state.schedulingOptions,
-                        parameterValues: this.state.parameterValues,
-                        siteVersion: this.siteVersion,
-                        mountedFolders: this.state.mountedFolders
-                    })}>
-                    Export parameters
-                </OutlineButton>
-                <OutlineButton
-                    onClick={() => importParameterDialog(
-                        file => this.importParameters(file),
-                        () => this.setState(() => ({fsShown: true}))
-                    )}
-                    fullWidth
-                    color="darkGreen"
-                    as="label"
-                >
-                    Import parameters
-                </OutlineButton>
-                <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
-                    {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
-                </Button>
-                <Button onClick={this.onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>
-            </VerticalButtonGroup>
-        );
-
-        const additional = <FileSelector
-            onFileSelect={it => {
-                if (!!it) this.onFileSelection(it);
-                this.setState(() => ({fsShown: false}));
-            }}
-            trigger={null}
-            visible={this.state.fsShown}/>;
+        let mandatoryParams = mandatory.map(mapParamToComponent);
+        let visibleParams = visible.map(mapParamToComponent);
 
         return (
             <MainContainer
-                header={header}
                 headerSize={64}
-                main={main}
-                sidebar={sidebar}
-                additional={additional}
+                header={
+                    <Flex ml="12%">
+                        <AppHeader slim application={application}/>
+                    </Flex>
+                }
+
+                sidebar={
+                    <VerticalButtonGroup>
+                        <OutlineButton
+                            fullWidth
+                            color="darkGreen"
+                            onClick={() => this.exportParameters()}>
+                            Export parameters
+                        </OutlineButton>
+                        <OutlineButton
+                            onClick={() => importParameterDialog(
+                                file => this.importParameters(file),
+                                () => this.setState(() => ({fsShown: true}))
+                            )}
+                            fullWidth
+                            color="darkGreen"
+                            as="label"
+                        >
+                            Import parameters
+                        </OutlineButton>
+                        <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
+                            {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
+                        </Button>
+                        <Button onClick={this.onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>
+                    </VerticalButtonGroup>
+                }
+
+                additional={
+                    <FileSelector
+                        onFileSelect={it => {
+                            if (!!it) this.onImportFileSelected(it);
+                            this.setState(() => ({fsShown: false}));
+                        }}
+                        trigger={null}
+                        visible={this.state.fsShown}
+                    />
+                }
+
+                main={
+                    <ContainerForText>
+                        <form onSubmit={props.onSubmit}>
+                            <Heading.h4>Mandatory Parameters ({mandatoryParams.length})</Heading.h4>
+                            {mandatoryParams}
+
+                            {visibleParams.length > 0 ?
+                                <>
+                                    <Heading.h4>Additional Parameters Used</Heading.h4>
+                                    {visibleParams}
+                                </>
+                                : null
+                            }
+                            <Heading.h4 mb="4px">
+                                <Flex>
+                                    Mount additional folders <Button type="button" ml="5px" onClick={props.addFolder}>+</Button>
+                                </Flex>
+                            </Heading.h4>
+                            {this.state.mountedFolders.every(it => it.readOnly) ? "" :
+                                "Note: Giving folders read/write access will make the startup and shutdown of the application longer."}
+                            {this.state.mountedFolders.map((entry, i) => (
+                                <Box key={i} mb="7px">
+                                    <InputDirectoryParameter
+                                        application={application}
+                                        defaultValue={entry.defaultValue}
+                                        initialSubmit={false}
+                                        parameterRef={entry.ref}
+                                        onRemove={() => {
+                                            this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, i)}))}
+                                        }
+                                        parameter={{
+                                            type: ParameterTypes.InputDirectory,
+                                            name: "",
+                                            optional: true,
+                                            title: "",
+                                            description: "",
+                                            defaultValue: "",
+                                            visible: true,
+                                            unitName: (
+                                                <Box width="105px">
+                                                    <ClickableDropdown
+                                                        chevron
+                                                        minWidth="150px"
+                                                        onChange={key => onAccessChange(i, key === "READ")}
+                                                        trigger={entry.readOnly ? "Read only" : "Read/Write"}
+                                                        options={[
+                                                            {text: "Read only", value: "READ"},
+                                                            {text: "Read/Write", value: "READ/WRITE"}
+                                                        ]}
+                                                    />
+                                                </Box>
+                                            ),
+                                        }}
+                                    />
+                                </Box>))}
+
+                            <Heading.h4>Networking Peers</Heading.h4>
+                            <Networking/>
+
+                            <Heading.h4>Scheduling</Heading.h4>
+                            <JobSchedulingOptions
+                                onChange={this.onJobSchedulingParamsChange}
+                                options={schedulingOptions}
+                                app={application}
+                            />
+
+                            {optional.length > 0 ?
+                                <OptionalParameters parameters={optional} onUse={p => onParameterChange(p, true)}/> : null}
+                        </form>
+
+                        {/*<Parameters*/}
+                        {/*    initialSubmit={this.state.initialSubmit}*/}
+                        {/*    addFolder={() => this.setState(s => ({*/}
+                        {/*        mountedFolders: s.mountedFolders.concat([{*/}
+                        {/*            ref: React.createRef<HTMLInputElement>(),*/}
+                        {/*            readOnly: true*/}
+                        {/*        }])*/}
+                        {/*    }))}*/}
+                        {/*    removeDirectory={index =>*/}
+                        {/*        this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, index)}))}*/}
+                        {/*    additionalDirectories={this.state.mountedFolders}*/}
+                        {/*    values={parameterValues}*/}
+                        {/*    onAccessChange={onAccessChange}*/}
+                        {/*    parameters={application.invocation.parameters}*/}
+                        {/*    onSubmit={this.onSubmit}*/}
+                        {/*    schedulingOptions={schedulingOptions}*/}
+                        {/*    app={application}*/}
+                        {/*    onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}*/}
+                        {/*    onParameterChange={(p, visible) => {*/}
+                        {/*        p.visible = visible;*/}
+                        {/*        if (!visible)*/}
+                        {/*            parameterValues.set(p.name, React.createRef<HTMLSelectElement | HTMLInputElement>());*/}
+                        {/*        this.setState(() => ({application: this.state.application}));*/}
+                        {/*    }}*/}
+                        {/*/>*/}
+                    </ContainerForText>
+                }
             />
         )
     }
@@ -604,7 +741,6 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
     </Label>
 );
 
-
 interface JobSchedulingOptionsProps {
     onChange: (a, b, c) => void
     options: JobSchedulingOptionsForInput
@@ -646,7 +782,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
             </Flex>
 
             <Flex mb="4px" mt="4px">
-                <Input ref={name} placeholder="Job name" />
+                <Input ref={name} placeholder="Job name"/>
             </Flex>
 
             {!props.app.invocation.resources.multiNodeSupport ? null :
@@ -688,7 +824,12 @@ function validateNameAndVersion(name: string, version: string, metadata: Applica
 }
 
 function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOptionsForInput {
-    let extractedJobInfo = {maxTime: {hours: 0, minutes: 0, seconds: 0}, numberOfNodes: 1, tasksPerNode: 1, name: jobInfo.name};
+    let extractedJobInfo = {
+        maxTime: {hours: 0, minutes: 0, seconds: 0},
+        numberOfNodes: 1,
+        tasksPerNode: 1,
+        name: jobInfo.name
+    };
     const {maxTime, numberOfNodes, tasksPerNode} = jobInfo;
     extractedJobInfo.maxTime.hours = Math.abs(maxTime.hours);
     extractedJobInfo.maxTime.minutes = Math.abs(maxTime.minutes);
@@ -698,45 +839,6 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
     return extractedJobInfo;
 }
 
-function exportParameters({application, schedulingOptions, parameterValues, mountedFolders, siteVersion}: {
-    application?: FullAppInfo
-    schedulingOptions: JobSchedulingOptionsForInput,
-    parameterValues: ParameterValues,
-    mountedFolders: RefReadPair[]
-    siteVersion: number
-}) {
-    if (!application) return;
-    const appInfo = application.metadata;
-
-    const jobInfo = extractJobInfo(schedulingOptions);
-    const element = document.createElement("a");
-
-    const values: { [key: string]: string } = {};
-
-    for (const [key, ref] of parameterValues[Symbol.iterator]()) {
-        if (ref && ref.current) values[key] = ref.current.value;
-    }
-
-    element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-        siteVersion: siteVersion,
-        application: {
-            name: appInfo.name,
-            version: appInfo.version
-        },
-        parameters: values,
-        mountedFolders: mountedFolders.map(it =>
-            ({ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
-        numberOfNodes: jobInfo.numberOfNodes,
-        tasksPerNode: jobInfo.tasksPerNode,
-        maxTime: jobInfo.maxTime,
-    })));
-
-    element.setAttribute("download", `${application.metadata.name}-${application.metadata.version}-params.json`);
-    element.style.display = "none";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-}
 
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
