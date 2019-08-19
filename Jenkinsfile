@@ -105,6 +105,12 @@ volumes: [
                     }
                 }
                 sendAlert(message)
+                junit '**/build/test-results/**/*.xml'      
+                jacoco(
+                    execPattern: '**/**.exec',
+                    exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
+                    sourcePattern: '**/src/main/kotlin/**'
+                )
                 error('Job failed - message have been sent. JobInfo: $resultList \n Message: $message')
             }
 
