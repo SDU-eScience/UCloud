@@ -2,7 +2,12 @@ import * as React from "react";
 import {createRef, useState} from "react";
 import {APICallParameters, APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import * as Heading from "ui-components/Heading";
-import {createFileSystem, listFileSystems, SharedFileSystem, SharedFileSystemMount} from "Applications/FileSystems/index";
+import {
+    createFileSystem,
+    listFileSystems,
+    SharedFileSystem,
+    SharedFileSystemMount
+} from "Applications/FileSystems/index";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
@@ -22,19 +27,43 @@ import ButtonGroup from "ui-components/ButtonGroup";
 import Label from "ui-components/Label";
 import * as ReactModal from "react-modal";
 import {inDevEnvironment} from "UtilityFunctions";
+import Icon from "ui-components/Icon";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {WithAppInvocation, WithAppMetadata} from "Applications";
+import {Cloud} from "Authentication/SDUCloudObject";
+import styled from "styled-components";
 
 interface ManagementProps {
-    onMountsChange?: (mounts: SharedFileSystemMount[]) => void
+    application: WithAppMetadata & WithAppInvocation
+    mountLocation: string
+    onMountsChange?: (mounts: SharedFileSystemMount) => void
+    parameterRef: React.RefObject<HTMLInputElement>
+}
+
+function fakeMount(id: string, name: string, mountedAt: string): SharedFileSystemMount {
+    return {
+        mountedAt,
+        sharedFileSystem: {
+            id,
+            backend: "",
+            createdAt: new Date().getTime(),
+            title: name,
+            owner: Cloud.username ? Cloud.username : "nobody"
+        }
+    }
 }
 
 const Management: React.FunctionComponent<ManagementProps> = (
     {
+        mountLocation,
+        application,
+        parameterRef,
         onMountsChange = (mounts) => 42
     }: ManagementProps
 ) => {
     if (!inDevEnvironment()) return null;
 
-    const [selectedMounts, setSelectedMounts] = useState<SharedFileSystemMount[]>([]);
+    const [selectedMount, setSelectedMount] = useState<SharedFileSystemMount | null>(null);
 
     const [currentPage, setListParams] = useCloudAPI<Page<SharedFileSystem>>(
         listFileSystems({}),
@@ -46,74 +75,75 @@ const Management: React.FunctionComponent<ManagementProps> = (
     const [isMountDialogOpen, setIsMountDialogOpen] = useState(false);
 
     return <Box mb={16}>
-        <Box mb={16}>
-            Shared file systems can be mounted by multiple running applications.
-            Changes from one applications is immediately visible by others. The contents of a shared file system
-            is not visible in SDUCloud.
-        </Box>
-
-        {
-            selectedMounts.map(m =>
-                <Flex mt={8} alignItems={"center"}>
-                    <Box as={"p"}>
-                        {m.sharedFileSystem.title} at <code>{m.mountedAt}</code>
-                    </Box>
-                    <Box ml={"auto"}/>
-                    <Button
-                        color={"blue"}
-                        type={"button"}
-                        onClick={() => {
-                            let newSelectedMounts = selectedMounts.filter(it => it.sharedFileSystem.id !== m.sharedFileSystem.id);
-                            setSelectedMounts(newSelectedMounts);
-                            onMountsChange(newSelectedMounts);
-                        }}>
-                        ✗
-                    </Button>
-                </Flex>
-            )
-        }
-
-        <ButtonGroup>
-            <Button fullWidth type={"button"} onClick={() => setIsMountDialogOpen(true)}>
-                Mount existing file system
-            </Button>
-
-            <Button
-                fullWidth
-                type={"button"}
-                color={"green"}
-                disabled={isCommandLoading}
-                onClick={async () => {
-                    const {command} = await createNewDialog();
-                    if (command !== undefined && !isCommandLoading) {
-                        await invokeCommand(command);
-                        setListParams(listFileSystems({}));
-                    }
-                }}
-            >
-                Create new file system
-            </Button>
-
-            <MountDialogStep1
-                isOpen={isMountDialogOpen}
-                selectedMounts={selectedMounts}
-                currentPage={currentPage}
-                onPageChanged={(page) => setListParams(listFileSystems({page}))}
-                resolve={async (data) => {
-                    setIsMountDialogOpen(false);
-                    const {mount} = await mountDialog(selectedMounts, data.sharedFileSystem);
-                    if (mount !== undefined) {
-                        let newSelectedMounts = selectedMounts.concat([mount]);
-                        setSelectedMounts(newSelectedMounts);
-                        onMountsChange(newSelectedMounts);
-                    }
-                }}
-
+        <Flex>
+            <PointerInput
+                placeholder={"No selected file system"}
+                onClick={() => setIsMountDialogOpen(true)}
+                value={!selectedMount ? "" : `${selectedMount.sharedFileSystem.title} (${dateToString(selectedMount.sharedFileSystem.createdAt)})`}
             />
-        </ButtonGroup>
 
+            <input type={"hidden"} ref={parameterRef} value={!selectedMount ? "" : selectedMount.sharedFileSystem.id} />
+
+            <ButtonGroup ml={"6px"} width={"115px"}>
+                <Button
+                    fullWidth
+                    type={"button"}
+                    color={"blue"}
+                    disabled={isCommandLoading}
+                    onClick={async () => {
+                        const resp = await invokeCommand<{ id: string }>(createFileSystem({title: application.metadata.name}));
+                        if (resp !== null) {
+                            setSelectedMount(fakeMount(resp.id, application.metadata.name, mountLocation));
+                        }
+                    }}
+                >
+                    New
+                </Button>
+
+                <ClickableDropdown
+                    trigger={
+                        <Button color={"darkBlue"} type={"button"}>
+                            <Icon name="chevronDown" size=".7em" m=".7em"/>
+                        </Button>
+                    }
+                    options={[{text: "New custom FS", value: "fs_customize"}]}
+                    onChange={async () => {
+                        const {command} = await createNewDialog();
+                        if (command !== undefined && !isCommandLoading) {
+                            const resp = await invokeCommand<{ id: string }>(command);
+                            if (resp !== null) {
+                                setSelectedMount(fakeMount(resp.id, command.parameters["title"], mountLocation));
+                            }
+                            setListParams(listFileSystems({}));
+                        }
+                    }}
+                />
+            </ButtonGroup>
+        </Flex>
+
+
+        <MountDialogStep1
+            isOpen={isMountDialogOpen}
+            selectedMount={selectedMount}
+            currentPage={currentPage}
+            onPageChanged={(page) => setListParams(listFileSystems({page}))}
+            resolve={async (data) => {
+                setIsMountDialogOpen(false);
+                const fs = await mountDialog(selectedMount, data.sharedFileSystem);
+                if (fs !== null) {
+                    const mount = {mountedAt: mountLocation, sharedFileSystem: fs};
+                    setSelectedMount(mount);
+                    onMountsChange(mount);
+                }
+            }}
+
+        />
     </Box>;
 };
+
+const PointerInput = styled(Input)`
+    cursor: pointer;
+`;
 
 const blacklistLocations = [
     "",
@@ -183,7 +213,7 @@ async function createNewDialog(): Promise<{ command?: APICallParameters }> {
 
 const MountDialogStep1: React.FunctionComponent<{
     isOpen: boolean,
-    selectedMounts: SharedFileSystemMount[],
+    selectedMount: SharedFileSystemMount | null,
     currentPage: APICallState<Page<SharedFileSystem>>,
     onPageChanged: (page: number) => void,
     resolve: (data: { sharedFileSystem?: SharedFileSystem }) => void
@@ -242,25 +272,24 @@ const MountDialogStep1: React.FunctionComponent<{
 };
 
 async function mountDialog(
-    selectedMounts: SharedFileSystemMount[],
+    selectedMount: SharedFileSystemMount | null,
     sharedFileSystem?: SharedFileSystem
-): Promise<{ mount?: SharedFileSystemMount }> {
-    if (sharedFileSystem === undefined) return {};
-    if (selectedMounts.find(it => it.sharedFileSystem.id === sharedFileSystem.id) !== undefined) {
+): Promise<SharedFileSystem | null> {
+    if (sharedFileSystem === undefined) return null;
+    if (selectedMount !== null && selectedMount.sharedFileSystem.id === sharedFileSystem.id) {
         snackbarStore.addSnack({
             type: SnackType.Failure,
             message: "File system has already been mounted"
         });
-        return {};
+        return null;
     }
-    const {mountedAt} = await mountDialogStep2(sharedFileSystem.title, selectedMounts);
-    if (mountedAt === undefined) return {};
-    return {mount: {sharedFileSystem, mountedAt}};
+
+    return sharedFileSystem;
 }
 
 function mountDialogStep2(
     mountTitle: string,
-    selectedMounts: SharedFileSystemMount[]
+    selectedMount: SharedFileSystemMount | null
 ): Promise<{ mountedAt?: string }> {
     const ref = createRef<HTMLInputElement>();
     return new Promise(resolve => {
@@ -278,7 +307,7 @@ function mountDialogStep2(
                 return false;
             }
 
-            if (selectedMounts.find(it => normalize(it.mountedAt) === normalize(location)) !== undefined) {
+            if (selectedMount !== null && normalize(selectedMount.mountedAt) === normalize(location)) {
                 snackbarStore.addSnack({
                     message: `Another file system is already mounted at this location: ${location}`,
                     type: SnackType.Failure

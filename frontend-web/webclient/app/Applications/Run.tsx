@@ -119,6 +119,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             cloud: Cloud
         });
 
+        console.log(parameters);
+
         if (!checkForMissingParameters(parameters, invocation)) return;
         if (!validateOptionalFields(invocation, this.state.parameterValues)) return;
 
@@ -507,6 +509,7 @@ const Parameters = (props: ParameterProps) => {
                 parameterRef={ref}
                 parameter={parameter}
                 onParamRemove={() => props.onParameterChange(parameter, false)}
+                application={props.app}
             />
         );
     };
@@ -536,6 +539,7 @@ const Parameters = (props: ParameterProps) => {
             {props.additionalDirectories.map((entry, i) => (
                 <Box key={i} mb="7px">
                     <InputDirectoryParameter
+                        application={props.app}
                         defaultValue={entry.defaultValue}
                         initialSubmit={false}
                         parameterRef={entry.ref}
@@ -565,9 +569,6 @@ const Parameters = (props: ParameterProps) => {
                         }}
                     />
                 </Box>))}
-
-            <Heading.h4>Shared File Systems</Heading.h4>
-            <AppFS.Management onMountsChange={mounts => 42}/>
 
             <Heading.h4>Networking Peers</Heading.h4>
             <Networking/>

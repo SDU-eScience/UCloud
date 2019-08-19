@@ -6,6 +6,8 @@ import {FloatingParameter, IntegerParameter} from "Applications/Widgets/NumberPa
 import {BooleanParameter} from "Applications/Widgets/BooleanParameter";
 import {TextParameter} from "Applications/Widgets/TextParameter";
 import {InputDirectoryParameter, InputFileParameter} from "Applications/Widgets/FileParameter";
+import {PeerParameter} from "Applications/Widgets/PeerParameter";
+import {SharedFileSystemParameter} from "Applications/Widgets/SharedFileSystemParameter";
 
 export const Parameter = (props: ParameterProps) => {
     let component = (<div/>);
@@ -22,6 +24,7 @@ export const Parameter = (props: ParameterProps) => {
                 initialSubmit={props.initialSubmit}
                 parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 parameter={props.parameter}
+                application={props.application}
             />;
             break;
         case Types.ParameterTypes.FloatingPoint:
@@ -30,6 +33,7 @@ export const Parameter = (props: ParameterProps) => {
                 initialSubmit={props.initialSubmit}
                 parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
                 parameter={props.parameter}
+                application={props.application}
             />;
             break;
         case Types.ParameterTypes.Text:
@@ -38,6 +42,7 @@ export const Parameter = (props: ParameterProps) => {
                 initialSubmit={props.initialSubmit}
                 parameterRef={props.parameterRef}
                 parameter={props.parameter}
+                application={props.application}
             />;
             break;
         case Types.ParameterTypes.Boolean:
@@ -46,6 +51,23 @@ export const Parameter = (props: ParameterProps) => {
                 initialSubmit={props.initialSubmit}
                 parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>}
                 parameter={props.parameter}
+                application={props.application}
+            />;
+            break;
+        case Types.ParameterTypes.Peer:
+            component = <PeerParameter
+                parameter={props.parameter}
+                initialSubmit={props.initialSubmit}
+                parameterRef={props.parameterRef}
+                application={props.application}
+            />;
+            break;
+        case Types.ParameterTypes.SharedFileSystem:
+            component = <SharedFileSystemParameter
+                parameter={props.parameter}
+                initialSubmit={props.initialSubmit}
+                parameterRef={props.parameterRef}
+                application={props.application}
             />;
             break;
     }

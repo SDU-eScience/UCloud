@@ -85,7 +85,6 @@ export default class SDUCloud {
         if (process.env.NODE_ENV === "development") {
             this.overridesPromise = (async () => {
                 const jsonResponse: Override[] = await (await fetch("http://localhost:9900/")).json();
-                console.log("Got back the following response:", jsonResponse);
                 this.overrides = jsonResponse;
             })();
         }
@@ -95,7 +94,6 @@ export default class SDUCloud {
         store.subscribe(() => {
             const project = store.getState().project.project;
             if (project !== this.projectId) {
-                console.log("Something");
                 this.projectId = project;
                 this.projectDecodedToken = undefined;
                 this.projectAccessToken = undefined;
@@ -454,6 +452,10 @@ export default class SDUCloud {
                 let req = new XMLHttpRequest();
                 req.open("POST", refreshPath);
                 req.setRequestHeader("X-CSRFToken", csrfToken);
+                if (process.env.NODE_ENV === "development") {
+                    req.withCredentials = true;
+                }
+
                 req.onload = () => {
                     try {
                         if (inSuccessRange(req.status)) {
@@ -493,7 +495,6 @@ export default class SDUCloud {
 
         this.csrfToken = csrfToken;
         SDUCloud.storedCsrfToken = csrfToken;
-
 
         this.decodedToken = this.decodeToken(accessToken);
     }

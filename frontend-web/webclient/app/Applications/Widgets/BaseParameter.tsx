@@ -1,12 +1,15 @@
 import * as React from "react";
 import * as Types from "Applications";
 import {Box, Flex, Icon, Label, Markdown, Text} from "ui-components";
+import {WithAppMetadata} from "Applications";
+import {WithAppInvocation} from "Applications";
 
 export interface ParameterProps {
     initialSubmit: boolean
     parameter: Types.ApplicationParameter
     parameterRef: React.RefObject<HTMLInputElement | HTMLSelectElement>
     onParamRemove?: () => void
+    application: WithAppMetadata & WithAppInvocation
 }
 
 export const BaseParameter: React.FunctionComponent<{ parameter: Types.ApplicationParameter, onRemove?: () => void }> = ({parameter, children, onRemove}) => (

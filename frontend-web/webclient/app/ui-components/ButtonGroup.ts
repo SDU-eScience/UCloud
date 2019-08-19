@@ -3,7 +3,7 @@ import Button from "./Button";
 import Flex from "./Flex";
 
 const ButtonGroup = styled(Flex)`
-    & > ${Button} {
+    & ${Button} {
         height: 35px;
         width: 100%;
         padding: 0 0 0 0;

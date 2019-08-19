@@ -25,7 +25,8 @@ export const createFileSystem = ({title, backend}: CreateFileSystemParameters): 
     method: "PUT",
     path: "/app/fs",
     reloadId: Math.random(),
-    payload: {title, backend}
+    payload: {title, backend},
+    parameters: {title, backend}
 });
 
 export const deleteFileSystem = (id: string): APICallParameters => ({
