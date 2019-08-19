@@ -110,12 +110,12 @@ val verifiedJob = VerifiedJob(
     null,
     archiveInCollection = normAppDesc.metadata.title,
     createdAt = 12345678,
-    modifiedAt = 123456789,
-    uid = 1337L
+    modifiedAt = 123456789
 )
 
 val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(
     verifiedJob,
+    "token",
     "token"
 )
 

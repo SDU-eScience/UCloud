@@ -223,12 +223,12 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 const {timeLeft} = this.state;
                 const seconds = (timeLeft! / 1000) % 60;
                 const minutes = ((timeLeft! / (1000 * 60)) % 60);
-                const hours = ((timeLeft! / (1000 * 60 * 60)) % 24);
+                const hours = (timeLeft! / (1000 * 60 * 60));
                 domEntries.push(
                     <Box key={AppState.RUNNING} pt="0.8em" pb="0.8em">
                         <b>Time remaining</b>: {pad(hours | 0, 2)}:{pad(minutes | 0, 2)}:{pad(seconds | 0, 2)}
                     </Box>
-                )
+                );
                 break;
         }
 

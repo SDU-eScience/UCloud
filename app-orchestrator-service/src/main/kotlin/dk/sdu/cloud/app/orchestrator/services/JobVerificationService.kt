@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.Application
@@ -14,7 +14,6 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -24,12 +23,14 @@ import java.util.*
 
 data class UnverifiedJob(
     val request: StartJobRequest,
-    val principal: DecodedJWT
+    val decodedToken: SecurityPrincipalToken,
+    val refreshToken: String
 )
 
 data class VerifiedJobWithAccessToken(
     val job: VerifiedJob,
-    val accessToken: String
+    val accessToken: String?,
+    val refreshToken: String?
 )
 
 private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransferDescription>, FileTransferDescription>
@@ -37,7 +38,6 @@ private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransfer
 class JobVerificationService(
     private val appStore: AppStoreService,
     private val toolStore: ToolStoreService,
-    private val tokenValidation: TokenValidation<DecodedJWT>,
     private val defaultBackend: String,
     private val sharedMountVerificationService: SharedMountVerificationService
 ) {
@@ -69,8 +69,6 @@ class JobVerificationService(
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
 
-        val token = tokenValidation.decodeToken(unverifiedJob.principal)
-
         val sharedMounts =
             sharedMountVerificationService.verifyMounts(unverifiedJob.request.sharedFileSystemMounts, userClient)
 
@@ -80,7 +78,7 @@ class JobVerificationService(
                 files = files,
                 id = jobId,
                 name = name,
-                owner = token.realUsername(),
+                owner = unverifiedJob.decodedToken.realUsername(),
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,
                 maxTime = allocatedTime,
@@ -92,13 +90,13 @@ class JobVerificationService(
                 archiveInCollection = archiveInCollection,
                 _mounts = mounts,
                 startedAt = null,
-                user = token.principal.username,
-                uid = token.principal.uid,
-                project = token.projectOrNull(),
+                user = unverifiedJob.decodedToken.principal.username,
+                project = unverifiedJob.decodedToken.projectOrNull(),
                 _sharedFileSystemMounts = sharedMounts,
                 _peers = unverifiedJob.request.peers
             ),
-            unverifiedJob.principal.token
+            null,
+            unverifiedJob.refreshToken
         )
     }
 

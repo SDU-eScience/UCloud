@@ -79,43 +79,24 @@ val verifiedJobInput = VerifiedJobInput(
 
 val verifiedJob = VerifiedJob(
     application,
-    listOf(),
-    "1",
+    null,
+    emptyList(),
+    "verifiedId",
     "owner",
     1,
     1,
-    SimpleDuration(1,0,0),
-    verifiedJobInput,
-    "DOCKER",
-    JobState.VALIDATED,
-    "status",
-    "archive",
-    12,
+    SimpleDuration(0, 1, 0),
+    VerifiedJobInput(emptyMap()),
+    "backend",
+    JobState.SCHEDULED,
+    "scheduled",
     null,
-    123456789,
-    1234567890,
-    null,
-    null,
-    TestUsers.admin.username
+    archiveInCollection = application.metadata.title,
+    createdAt = 12345678,
+    modifiedAt = 123456789
 )
 
-val jobVerifiedRequest = VerifiedJob(
-    application,
-    listOf(),
-    "1",
-    "owner of job",
-    1,
-    1,
-    SimpleDuration(1,0,0),
-    verifiedJobInput,
-    "DOCKER",
-    JobState.VALIDATED,
-    "Validating",
-    "archive",
-    12345,
-    null,
-    123456789,
-    1234567890,
+val jobVerifiedRequest = verifiedJob.copy(
     _sharedFileSystemMounts = listOf(SharedFileSystemMount(SharedFileSystem("1", "owner", "kubernetes"),"mountedAt"))
 )
 

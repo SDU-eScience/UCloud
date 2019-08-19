@@ -16,6 +16,7 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
 import io.mockk.every
@@ -36,9 +37,8 @@ class JobVerification {
             SimpleDuration(1, 0, 0),
             "backend"
         ),
-        mockk<DecodedJWT>(relaxed = true).also {
-            every { it.subject } returns "user"
-        }
+        TestUsers.user.createToken(),
+        "token"
     )
 
     lateinit var service: JobVerificationService
@@ -70,7 +70,7 @@ class JobVerification {
         } returns tool
 
         service =
-            JobVerificationService(appDao, toolDao, tokenValidation, "abacus", SharedMountVerificationService())
+            JobVerificationService(appDao, toolDao, "abacus", SharedMountVerificationService())
     }
 
     @Test
@@ -101,9 +101,8 @@ class JobVerification {
             SimpleDuration(1, 0, 0),
             "backend"
         ),
-        mockk<DecodedJWT>(relaxed = true).also {
-            every { it.subject } returns "user"
-        }
+        TestUsers.user.createToken(),
+        "token"
     )
 
     @Test(expected = JobException.VerificationError::class)
@@ -124,9 +123,8 @@ class JobVerification {
             SimpleDuration(1, 0, 0),
             "backend"
         ),
-        mockk<DecodedJWT>(relaxed = true).also {
-            every { it.subject } returns "user"
-        }
+        TestUsers.user.createToken(),
+        "token"
     )
 
     @Test(expected = JobException.VerificationError::class)
