@@ -6,14 +6,14 @@ import {Page} from "Types";
 import {WithAppFavorite, WithAppMetadata} from ".";
 import {setPrioritizedSearch, HeaderActions, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {Dispatch} from "redux";
-import {ReduxObject} from "DefaultObjects";
+import {ReduxObject, emptyPage} from "DefaultObjects";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
-import {ApplicationCard} from "./Card";
+import {ApplicationCard, AppCard, CardHomerContainer, CardCellRangerContainer, HomerCard} from "./Card";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
-import {Link} from "ui-components";
-import {GridCardGroup} from "ui-components/Grid";
-import {getQueryParam, RouterLocationProps, getQueryParamOrElse} from "Utilities/URIUtilities";
+import {Link, Box} from "ui-components";
+import Grid, {GridCardGroup} from "ui-components/Grid";
+import {getQueryParam, RouterLocationProps, getQueryParamOrElse, buildQueryString} from "Utilities/URIUtilities";
 import * as Pages from "./Pages";
 import {Type as ReduxType} from "./Redux/BrowseObject";
 import * as Actions from "./Redux/BrowseActions";
@@ -22,6 +22,9 @@ import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
+import { width } from "styled-system";
+import { hidden } from "ui-components/Hide";
+import { number } from "prop-types";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -31,14 +34,22 @@ const CategoryList = styled.ul`
     }
 `;
 
-const CategoryItem: React.FunctionComponent<{tag?: string}> = props => (
-    <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
+const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
+    <Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
+//const CategoryItem: React.FunctionComponent<{tag?: string}> = props => (
+ //   <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
+//);
 
-const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}) => (<>
-    <Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
+/* const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}) => (<> */
+    
+    // <Box>
+    //    {<Spacer left={<Heading.h4>Featured</Heading.h4>} right={<ShowAllTagItem tag = "Featured">Show All</ShowAllTagItem>}/>}
+    //</Box>    
+    
+    //<Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
 
-    <Heading.h4 m="0 0 -14px">Categories</Heading.h4>
+    /*<Heading.h4 m="0 0 -14px">Categories</Heading.h4>
     <CategoryList>
         <CategoryItem tag="Bioinformatics">Bioinformatics</CategoryItem>
         <CategoryItem tag="Natural Science">Natural Sciences</CategoryItem>
@@ -54,7 +65,7 @@ const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}
         <CategoryItem tag="Salmon">Salmon</CategoryItem>
         <CategoryItem tag="SAMtools">SAMtools</CategoryItem>
     </CategoryList>
-</>);
+</>); */
 
 export interface ApplicationsOperations {
     onInit: () => void
@@ -66,13 +77,47 @@ export interface ApplicationsOperations {
 
 export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
 
-class Applications extends React.Component<ApplicationsProps> {
-    public componentDidMount() {
+//J
+interface ApplicationState {
+    Featured: Page<WithAppMetadata>
+    homer: Page<WithAppMetadata>
+    cell_ranger: Page<WithAppMetadata>
+    kallisto:  Page<WithAppMetadata>
+    macs2: Page<WithAppMetadata>
+    salmon: Page<WithAppMetadata>
+    SAMtools: Page<WithAppMetadata>
+}
+
+//class Applications extends React.Component<ApplicationsProps> {
+    //J
+    class Applications extends React.Component<ApplicationsProps, ApplicationState> {
+    constructor(props: ApplicationsProps) {
+        super(props);
+        this.state = {
+            Featured: emptyPage,
+            homer: emptyPage,
+            cell_ranger: emptyPage,
+            kallisto:  emptyPage,
+            macs2: emptyPage,
+            salmon: emptyPage,
+            SAMtools: emptyPage
+        }
+    }
+     
+    //public componentDidMount() {   
+    //J
+    public async componentDidMount() {    
         const {props} = this;
         props.onInit();
 
         this.fetch();
         props.setRefresh(() => this.fetch());
+        //J
+        const page = await this.fetchSpecificTag(25, 0, "FEATURED");
+        this.setState(() => ({ Featured: page }));
+        
+        // fetch for Homer
+        // save to homer field in state (this.setState(() => ({ homer: result })))
     }
 
     public componentDidUpdate(prevProps: ApplicationsProps) {
@@ -127,45 +172,87 @@ class Applications extends React.Component<ApplicationsProps> {
         }
     }
 
+    //J
+    private async fetchSpecificTag(itemsPerPage: number, page: number, tag: string): Promise<Page<WithAppMetadata>> {
+        const {response} = await Cloud.get<Page<WithAppMetadata>>(buildQueryString(
+            "/hpc/apps/searchTags",
+            {
+                query: tag,
+                itemsPerPage,
+                page
+            }
+        ))
+        return response
+    }
+
+
     public render() {
         const main = (
             <Pagination.List
                 loading={this.props.applications.loading}
                 pageRenderer={(page: Page<WithAppMetadata & WithAppFavorite>) =>
-                    <GridCardGroup>
+                <>
+                {<Box>
+                {<Spacer left={<Heading.h4>Featured</Heading.h4>} right={<ShowAllTagItem tag = "Featured">Show All</ShowAllTagItem>}/>}
+                </Box>}     
+                   <Box style={{ overflowX: "scroll" }}>
+                    <Grid gridTemplateColumns={`repeat(9, 1fr)`} gridGap = {20} >
                         {page.items.map((app, index) =>
-                            <ApplicationCard
+                            <ApplicationCard 
                                 key={index}
                                 onFavorite={async () =>
                                     this.props.receiveApplications(await favoriteApplicationFromPage({
                                         name: app.metadata.name,
-                                        version: app.metadata.version, page, cloud: Cloud,
+                                        version: app.metadata.version, page, cloud: Cloud, 
                                     }))
-                                }
+                                }                    
                                 app={app}
                                 isFavorite={app.favorite}
                             />
                         )}
-                    </GridCardGroup>
+                    </Grid>
+                    </Box>
+                    
+                        <CardHomerContainer mt={`20px`}>
+                            <HomerCard>
+                                
+                            </HomerCard>
+                            <GridCardGroup>
+
+                            </GridCardGroup>
+                                
+                            </CardHomerContainer>
+
+                           <CardCellRangerContainer mt={`20px`}>
+                            <GridCardGroup>
+
+                            </GridCardGroup>
+                            </CardCellRangerContainer>
+                    </>
+                    
                 }
                 page={this.props.applications.content as Page<WithAppMetadata>}
                 onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
-            />
+           
+            />         
         );
-
         return (
-            <LoadableMainContainer
-                header={<Spacer left={<Heading.h1>Applications</Heading.h1>} right={
-                    <Pagination.EntriesPerPageSelector
-                        content="Apps per page"
-                        entriesPerPage={this.itemsPerPage()}
-                        onChange={itemsPerPage => this.props.history.push(this.updateItemsPerPage(itemsPerPage))}
-                    />
-                } />}
+            <LoadableMainContainer               
+                   
+                    //headerSize={50}
+                    //header={<Spacer left={<Heading.h4>Interactives</Heading.h4>} right={<ShowAllTagItem tag = "HOMER">Show All</ShowAllTagItem>}/>}
+                    
+                    //header={<Spacer left={<Heading.h1>Applications</Heading.h1>} right={
+                    //<Pagination.EntriesPerPageSelector
+                        //content="Apps per page"
+                        //entriesPerPage={this.itemsPerPage()}
+                      //  onChange={itemsPerPage => this.props.history.push(this.updateItemsPerPage(itemsPerPage))}
+
+                //} ///>}
                 loadable={this.props.applications}
                 main={main}
-                fallbackSidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
-                sidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
+//                fallbackSidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
+//                sidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
             />
         );
     }

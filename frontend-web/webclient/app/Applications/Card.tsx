@@ -10,6 +10,8 @@ import styled, {css} from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"
 
+const homerImg = require("Assets/Images/APPTools/pic2.gif");
+
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void
     app: WithAppMetadata
@@ -327,3 +329,188 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
         </AppCard>
     );
 };
+  
+export const CardHomerContainer = styled(Link)`
+    padding: 50px;
+    width: 100%;
+    height: 300px;
+    display: grid;
+    grid-template-columns: repeat(7, 50px [col-start]);
+    flex-direction: column;
+    align-items: flex-start;
+    border-radius: ${props => props.theme.radius};
+    position: relative;
+    overflow: hidden;
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
+    //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
+
+    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    will-change: transform;
+
+    //&:hover {
+    //    transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    //   transform: scale(1.02);
+    //   box-shadow: ${({theme}) => theme.shadows["md"]};
+    }
+
+    // Background
+    &:before {
+        pointer-events: none;
+        content: "";
+        position: absolute;
+        width: 104%;
+        height: 280%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        background-color: ${props => props.theme.colors.appCard};
+        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
+        background-repeat: repeat;
+        transform: rotate(15deg) translate(0,-60%);
+        transform-origin: 0 0;
+    }
+
+    &:after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        //background-image: src={homerImg};
+        //url(file:///Users/federica/Desktop/pic2-FG.gif);
+        background-image: url("http://homer.ucsd.edu/homer/pic2.gif");
+        background-size: 200px 200px;
+        background-position: bottom left;
+        //border: 2px solid 
+        //${props => props.theme.colors.textHighlight};
+        //opacity: 0;
+        border-radius: ${props => props.theme.radius};
+        pointer-events: none; //needed for star-badge
+        will-change: opacity;
+    }
+
+    &:hover:after {
+        opacity: 1;
+    }
+`;
+
+export const CardCellRangerContainer = styled(Link)`
+    padding: 10px;
+    width: 100%;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    border-radius: ${props => props.theme.radius};
+    position: relative;
+    overflow: hidden;
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
+
+    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    will-change: transform;
+
+    // Background
+    &:before {
+        pointer-events: none;
+        content: "";
+        position: absolute;
+        width: 104%;
+        height: 280%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        background-color: ${props => props.theme.colors.appCard};
+        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
+        background-repeat: repeat;
+        transform: rotate(15deg) translate(0,-60%);
+        transform-origin: 0 0;
+    }
+
+    &:after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        background-image: url("https://cyverseuk.herokuapp.com/static/japps/images/samtools.png");
+        //https://commons.wikimedia.org/wiki/File:10x_Genomics_logo.svg#/media/File:10x_Genomics_logo.svg");
+        //border: 2px solid 
+        //${props => props.theme.colors.textHighlight};
+        //opacity: 0;
+        border-radius: ${props => props.theme.radius};
+        pointer-events: none; //needed for star-badge
+        will-change: opacity;
+    }
+
+    &:hover:after {
+        opacity: 1;
+    }
+`;
+
+export const HomerCard = styled(Link)`
+
+    padding: 10px;
+    width: 20%;
+    min-width: 180px;
+    height: 80px;
+    display: grid;
+    
+    grid-column: 7 / span 1;
+    //flex-direction: column;
+    //align-items: flex-start;
+    background: rgb(16,49,217);
+    background: linear-gradient(90deg, rgba(16,49,217,1) 0%, rgba(55,35,164,1) 0%, rgba(0,212,255,1) 100%);
+    border-radius: ${props => props.theme.radius};
+    position: relative;
+    overflow: hidden;
+    //box-shadow: ${({theme}) => theme.shadows["sm"]};
+
+    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    will-change: transform;
+
+    &:hover {
+        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+        transform: scale(1.02);
+        box-shadow: ${({theme}) => theme.shadows["md"]};
+    }
+
+    // Background
+    &:before {
+        pointer-events: none;
+        content: "";
+        position: absolute;
+        //width: 104%;
+        //height: 280%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        //background-color: ${props => props.theme.colors.appCard};
+        //background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
+        //background-repeat: repeat;
+        //transform: rotate(15deg) translate(0,-60%);
+        //transform-origin: 0 0;
+    }
+
+    &:after {
+        content: "";
+        position: absolute;
+        //width: 100%;
+        //height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        border: 2px solid ${props => props.theme.colors.textHighlight};
+        opacity: 0;
+        border-radius: ${props => props.theme.radius};
+        pointer-events: none; //needed for star-badge
+        will-change: opacity;
+    }
+
+    &:hover:after {
+        opacity: 1;
+    }
+`;
