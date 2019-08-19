@@ -102,7 +102,7 @@ const Management: React.FunctionComponent<ManagementProps> = (
 
                 <ClickableDropdown
                     trigger={
-                        <Button color={"darkBlue"} type={"button"}>
+                        <Button color={"darkBlue"} type={"button"} className={"last"}>
                             <Icon name="chevronDown" size=".7em" m=".7em"/>
                         </Button>
                     }
