@@ -30,8 +30,8 @@ container:
 parameters:
   master:
     type: peer
-    title: ""
-    description: ""
+    title: Master
+    description: "The master node"
     suggestedApplication: master
 
 outputFileGlobs:

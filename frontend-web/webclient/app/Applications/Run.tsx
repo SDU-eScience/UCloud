@@ -437,11 +437,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                     {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
                 </Button>
-                <SubmitButton
-                    parameters={application.invocation.parameters}
-                    jobSubmitted={jobSubmitted}
-                    onSubmit={this.onSubmit}
-                />
+                <Button onClick={this.onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>
             </VerticalButtonGroup>
         );
 
@@ -464,15 +460,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         )
     }
 }
-
-interface SubmitButton {
-    parameters: ApplicationParameter[]
-    onSubmit: (e: React.FormEvent) => void
-    jobSubmitted: boolean
-}
-
-const SubmitButton = ({onSubmit, jobSubmitted}: SubmitButton) =>
-    (<Button onClick={onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>);
 
 interface ParameterProps {
     initialSubmit: boolean
