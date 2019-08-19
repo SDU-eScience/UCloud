@@ -1,16 +1,28 @@
 package dk.sdu.cloud.app.orchestrator.services
-import com.auth0.jwt.interfaces.DecodedJWT
+
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
+import dk.sdu.cloud.app.orchestrator.api.CancelInternalRequest
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
+import dk.sdu.cloud.app.orchestrator.api.JobCompletedEvent
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobStateChange
+import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.orchestrator.rpc.JOB_MAX_TIME
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.throwIfInternal
+import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -60,7 +72,7 @@ class JobOrchestrator<DBSession>(
     private val accountingEventProducer: EventProducer<JobCompletedEvent>,
 
     private val db: DBSessionFactory<DBSession>,
-    private val jobVerificationService: JobVerificationService<DBSession>,
+    private val jobVerificationService: JobVerificationService<*>,
     private val computationBackendService: ComputationBackendService,
     private val jobFileService: JobFileService,
     private val jobDao: JobDao<DBSession>,
@@ -118,13 +130,14 @@ class JobOrchestrator<DBSession>(
 
     suspend fun startJob(
         req: StartJobRequest,
-        principal: DecodedJWT,
+        decodedToken: SecurityPrincipalToken,
+        refreshToken: String,
         userCloud: AuthenticatedClient
     ): String {
         log.debug("starting job ${req.application.name}@${req.application.version}")
         val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend, defaultBackend))
         log.debug("Verifying job")
-        val unverifiedJob = UnverifiedJob(req, principal)
+        val unverifiedJob = UnverifiedJob(req, decodedToken, refreshToken)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
         val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
         log.debug("Notifying compute")
@@ -150,7 +163,7 @@ class JobOrchestrator<DBSession>(
 
             val proposedState = event.newState
             val jobWithToken = findJobForId(event.systemId, jobOwner)
-            val (job, _) = jobWithToken
+            val (job) = jobWithToken
             computationBackendService.getAndVerifyByName(job.backend, computeBackend)
 
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
@@ -174,7 +187,7 @@ class JobOrchestrator<DBSession>(
 
     suspend fun handleAddStatus(jobId: String, newStatus: String, securityPrincipal: SecurityPrincipal) {
         // We don't cancel the job if this fails
-        val (job, _) = findJobForId(jobId)
+        val (job) = findJobForId(jobId)
         computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
 
         db.withTransaction {
@@ -189,7 +202,7 @@ class JobOrchestrator<DBSession>(
         securityPrincipal: SecurityPrincipal
     ) {
         withJobExceptionHandler(jobId) {
-            val (job, _) = findJobForId(jobId)
+            val (job) = findJobForId(jobId)
             computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
 
             val actualDuration = if (wallDuration != null) {
@@ -254,12 +267,13 @@ class JobOrchestrator<DBSession>(
 
             if (!isReplay) {
                 db.withTransaction(autoFlush = true) {
-                    val failedStateOrNull = if (event.newState == JobState.FAILURE) jobWithToken.job.currentState else null
+                    val failedStateOrNull =
+                        if (event.newState == JobState.FAILURE) jobWithToken.job.currentState else null
                     jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus, failedStateOrNull)
                 }
             }
 
-            val (job, _) = jobWithToken
+            val (job) = jobWithToken
             val backend = computationBackendService.getAndVerifyByName(job.backend)
             val backendConfig = backend.config
 
@@ -307,6 +321,13 @@ class JobOrchestrator<DBSession>(
                 }
 
                 JobState.SUCCESS, JobState.FAILURE -> {
+                    if (jobWithToken.refreshToken != null) {
+                        AuthDescriptions.logout.call(
+                            Unit,
+                            serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
+                        ).throwIfInternal()
+                    }
+
                     // This one should _NEVER_ throw an exception
                     val resp = backend.cleanup.call(job, serviceClient)
                     if (resp is IngoingCallResponse.Error) {

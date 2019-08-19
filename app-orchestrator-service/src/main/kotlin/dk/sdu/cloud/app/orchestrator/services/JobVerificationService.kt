@@ -1,13 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
-import dk.sdu.cloud.app.orchestrator.api.FileForUploadArchiveType
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
-import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
+import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationParameter
@@ -20,7 +14,6 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
@@ -32,12 +25,14 @@ import java.util.*
 
 data class UnverifiedJob(
     val request: StartJobRequest,
-    val principal: DecodedJWT
+    val decodedToken: SecurityPrincipalToken,
+    val refreshToken: String
 )
 
 data class VerifiedJobWithAccessToken(
     val job: VerifiedJob,
-    val accessToken: String
+    val accessToken: String?,
+    val refreshToken: String?
 )
 
 private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransferDescription>, FileTransferDescription>
@@ -45,11 +40,10 @@ private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransfer
 class JobVerificationService<Session>(
     private val appStore: AppStoreService,
     private val toolStore: ToolStoreService,
+    private val defaultBackend: String,
     private val sharedMountVerificationService: SharedMountVerificationService,
-    private val dao: JobDao<Session>,
     private val db: DBSessionFactory<Session>,
-    private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val defaultBackend: String
+    private val dao: JobDao<Session>
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -79,8 +73,6 @@ class JobVerificationService<Session>(
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
 
-        val token = tokenValidation.decodeToken(unverifiedJob.principal)
-
         val (allPeers, resolvedPeers) = run {
             // TODO we should enforce in the app store that the parameter is a valid hostname
             val parameterPeers = application.invocation.parameters
@@ -103,7 +95,7 @@ class JobVerificationService<Session>(
             }
 
             val resolvedPeers = db.withTransaction { session ->
-                dao.find(session, allPeers.map { it.jobId }, token)
+                dao.find(session, allPeers.map { it.jobId }, unverifiedJob.decodedToken)
             }
 
             val resolvedPeerIds = resolvedPeers.map { it.job.id }
@@ -152,7 +144,7 @@ class JobVerificationService<Session>(
                 files = files,
                 id = jobId,
                 name = name,
-                owner = token.realUsername(),
+                owner = unverifiedJob.decodedToken.realUsername(),
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,
                 maxTime = allocatedTime,
@@ -164,13 +156,13 @@ class JobVerificationService<Session>(
                 archiveInCollection = archiveInCollection,
                 _mounts = mounts,
                 startedAt = null,
-                user = token.principal.username,
-                uid = token.principal.uid,
-                project = token.projectOrNull(),
+                user = unverifiedJob.decodedToken.principal.username,
+                project = unverifiedJob.decodedToken.projectOrNull(),
                 _sharedFileSystemMounts = sharedMounts,
                 _peers = allPeers
             ),
-            unverifiedJob.principal.token
+            null,
+            unverifiedJob.refreshToken
         )
     }
 

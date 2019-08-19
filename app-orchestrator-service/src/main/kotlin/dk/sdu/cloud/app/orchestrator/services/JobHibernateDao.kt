@@ -13,24 +13,8 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.JSONB_LIST_PARAM_TYPE
-import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
-import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
-import dk.sdu.cloud.service.db.WithId
-import dk.sdu.cloud.service.db.WithTimestamps
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
-import dk.sdu.cloud.service.db.updateCriteria
-import dk.sdu.cloud.service.validateAndDecodeOrNull
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.*
 import kotlinx.coroutines.runBlocking
 import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
@@ -38,15 +22,7 @@ import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
 import org.slf4j.Logger
 import java.util.*
-import javax.persistence.AttributeOverride
-import javax.persistence.AttributeOverrides
-import javax.persistence.Column
-import javax.persistence.Embedded
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.Id
-import javax.persistence.Table
+import javax.persistence.*
 
 @Entity
 @Table(name = "job_information")
@@ -115,14 +91,14 @@ data class JobInformationEntity(
     )
     var mounts: List<ValidatedFileForUpload>,
 
+    var maxTimeHours: Int,
+
     var maxTimeMinutes: Int,
 
     var maxTimeSeconds: Int,
 
-    var backendName: String,
-
     @Column(length = 4096)
-    var accessToken: String,
+    var accessToken: String?,
 
     @Column(length = 1024)
     var archiveInCollection: String,
@@ -130,7 +106,7 @@ data class JobInformationEntity(
     @Column(length = 1024)
     var workspace: String?,
 
-    var maxTimeHours: Int,
+    var backendName: String,
 
     var startedAt: Date?,
 
@@ -164,7 +140,10 @@ data class JobInformationEntity(
             )
         ]
     )
-    var peers: List<ApplicationPeer>?
+    var peers: List<ApplicationPeer>?,
+
+    @Column(length = 1024)
+    var refreshToken: String?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -172,11 +151,10 @@ data class JobInformationEntity(
 
 class JobHibernateDao(
     private val appStoreService: AppStoreService,
-    private val toolStoreService: ToolStoreService,
-    private val tokenValidation: TokenValidation<*>
+    private val toolStoreService: ToolStoreService
 ) : JobDao<HibernateSession> {
     override fun create(session: HibernateSession, jobWithToken: VerifiedJobWithAccessToken) {
-        val (job, token) = jobWithToken
+        val (job, token, refreshToken) = jobWithToken
 
         val entity = JobInformationEntity(
             job.id,
@@ -191,20 +169,21 @@ class JobHibernateDao(
             job.jobInput.asMap(),
             job.files,
             job.mounts,
+            job.maxTime.hours,
             job.maxTime.minutes,
             job.maxTime.seconds,
-            job.backend,
             token,
             job.archiveInCollection,
             job.workspace,
-            job.maxTime.hours,
+            job.backend,
             null,
             Date(System.currentTimeMillis()),
             Date(System.currentTimeMillis()),
             job.user,
             job.project,
             job.sharedFileSystemMounts,
-            job.peers
+            job.peers,
+            refreshToken
         )
 
         session.save(entity)
@@ -384,8 +363,6 @@ class JobHibernateDao(
                 status,
                 failedState,
                 archiveInCollection,
-                tokenValidation.validateAndDecodeOrNull(accessToken)?.principal?.uid
-                    ?: Long.MAX_VALUE, // TODO This is a safe value to map to, but we shouldn't just map it to long max
                 workspace,
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
@@ -396,7 +373,8 @@ class JobHibernateDao(
                 _sharedFileSystemMounts = sharedFileSystemMounts,
                 _peers = peers
             ),
-            accessToken
+            accessToken,
+            refreshToken
         )
 
         if (!resolveTool) return withoutTool

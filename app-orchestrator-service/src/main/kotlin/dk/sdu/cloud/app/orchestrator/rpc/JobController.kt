@@ -6,12 +6,12 @@ import dk.sdu.cloud.app.fs.api.AppFileSystems
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.IngoingCallResponse
-import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
@@ -27,23 +27,22 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
-import kotlin.math.max
 
-internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 24L
+internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 200L
 
 class JobController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val jobOrchestrator: JobOrchestrator<DBSession>,
     private val jobDao: JobDao<DBSession>,
     private val streamFollowService: StreamFollowService<DBSession>,
-    private val tokenValidation: TokenValidation<DecodedJWT>,
+    private val userClientFactory: (String?, String?) -> AuthenticatedClient,
     private val serviceClient: AuthenticatedClient,
     private val vncService: VncService<DBSession>,
     private val webService: WebService<DBSession>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
-            val (job, _) = db.withTransaction { session ->
+            val (job) = db.withTransaction { session ->
                 jobDao.findOrNull(session, request.id, ctx.securityToken)
             } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -76,7 +75,7 @@ class JobController<DBSession>(
 
             // Check name
             if (request.name != null) {
-                val invalidChars = Regex("""(\.|/|\\|\n)""")
+                val invalidChars = Regex("""([./\\\n])""")
                 if (invalidChars.containsMatchIn(request.name!!)) {
                     error(CommonErrorMessage("Provided name not allowed"), HttpStatusCode.BadRequest)
                     return@implement
@@ -94,7 +93,8 @@ class JobController<DBSession>(
                         FileDescriptions.extract.requiredAuthScope.toString(),
                         AppFileSystems.view.requiredAuthScope.toString()
                     ),
-                    JOB_MAX_TIME
+                    1000L * 60 * 60 * 5,
+                    allowRefreshes = true
                 ),
                 serviceClient
             )
@@ -104,15 +104,11 @@ class JobController<DBSession>(
                 return@implement
             }
 
-            log.debug("Validating response")
-            val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
-
-            log.debug("Creating client")
-            val userClient =
-                ClientAndBackend(serviceClient.client, serviceClient.companion).bearerAuth(extendedToken.token)
+            val refreshToken = extensionResponse.result.refreshToken!!
+            val userClient = userClientFactory(null, refreshToken)
 
             log.debug("Starting job")
-            val jobId = jobOrchestrator.startJob(request, extendedToken, userClient)
+            val jobId = jobOrchestrator.startJob(request, ctx.securityToken, refreshToken, userClient)
 
             log.debug("Complete")
             ok(JobStartedResponse(jobId))

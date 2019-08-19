@@ -32,8 +32,7 @@ data class VerifiedJob(
      * The real username of the user who created this job.
      *
      * If this is started by a project proxy user this will point to the real user (as indicated by the
-     * extendedByChain). This attribute should not be used ACL checks against the file system. Instead you should use
-     * the [uid] attribute.
+     * extendedByChain).
      */
     val owner: String,
 
@@ -83,14 +82,6 @@ data class VerifiedJob(
     val archiveInCollection: String,
 
     /**
-     * The UID of the user who initiated the job. This is the UID of [user].
-     *
-     * If this is started by a project proxy user then this will point to the uid of that proxy user.
-     */
-    @get:JsonAlias("ownerUid")
-    val uid: Long,
-
-    /**
      * The workspace to use for files.
      */
     val workspace: String? = null,
@@ -118,10 +109,10 @@ data class VerifiedJob(
     val startedAt: Long? = null,
 
     /**
-     * Seconds left of job from the job is started, null if the job is not started
+     * Milliseconds left of job from the job is started, null if the job is not started
      */
-    val timeLeft: Int? = if (startedAt != null) {
-        max((startedAt + maxTime.toMillis() - System.currentTimeMillis()).toInt(), 0)
+    val timeLeft: Long? = if (startedAt != null) {
+        max((startedAt + maxTime.toMillis()) - System.currentTimeMillis(), 0)
     } else {
         null
     },
@@ -169,9 +160,6 @@ data class VerifiedJob(
     @get:JsonIgnore
     val sharedFileSystemMounts: List<SharedFileSystemMount>
         get() = _sharedFileSystemMounts ?: emptyList()
-
-    @Deprecated("Renamed to uid to avoid confusion between user and owner attributes", ReplaceWith("uid"))
-    val ownerUid: Long = uid
 
     override fun toString() = "VerifiedJob(${application.metadata.name}@${application.metadata.version})"
 }

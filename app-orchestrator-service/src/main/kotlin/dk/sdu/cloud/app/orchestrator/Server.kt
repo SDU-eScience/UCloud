@@ -15,8 +15,12 @@ import dk.sdu.cloud.app.orchestrator.services.StreamFollowService
 import dk.sdu.cloud.app.orchestrator.services.ToolStoreService
 import dk.sdu.cloud.app.orchestrator.services.VncService
 import dk.sdu.cloud.app.orchestrator.services.WebService
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.developmentModeEnabled
@@ -42,10 +46,30 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val appStoreService = AppStoreService(serviceClient)
         val toolStoreService = ToolStoreService(serviceClient)
-        val jobHibernateDao = JobHibernateDao(appStoreService, toolStoreService, micro.tokenValidation)
+        val jobHibernateDao = JobHibernateDao(appStoreService, toolStoreService)
         val sharedMountVerificationService = SharedMountVerificationService()
         val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
-        val jobFileService = JobFileService(serviceClient)
+        val userClientFactory: (String?, String?) -> AuthenticatedClient = { accessToken, refreshToken ->
+            when {
+                accessToken != null -> {
+                    serviceClient.withoutAuthentication().bearerAuth(accessToken)
+                }
+
+                refreshToken != null -> {
+                    RefreshingJWTAuthenticator(
+                        serviceClient.client,
+                        refreshToken,
+                        micro.tokenValidation as TokenValidationJWT
+                    ).authenticateClient(OutgoingHttpCall)
+                }
+
+                else -> {
+                    throw IllegalStateException("No token found!")
+                }
+            }
+        }
+
+        val jobFileService = JobFileService(serviceClient, userClientFactory)
 
         val vncService = VncService(computationBackendService, db, jobHibernateDao, serviceClient)
         val webService = WebService(computationBackendService, db, jobHibernateDao, serviceClient)
@@ -53,12 +77,12 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val jobVerificationService = JobVerificationService(
             appStoreService,
             toolStoreService,
+            config.defaultBackend,
             sharedMountVerificationService,
-            jobHibernateDao,
             db,
-            micro.tokenValidation as TokenValidationJWT,
-            config.defaultBackend
+            jobHibernateDao
         )
+
 
         val jobOrchestrator =
             JobOrchestrator(
@@ -88,7 +112,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                     jobOrchestrator,
                     jobHibernateDao,
                     streamFollowService,
-                    micro.tokenValidation as TokenValidationJWT,
+                    userClientFactory,
                     serviceClient,
                     vncService,
                     webService

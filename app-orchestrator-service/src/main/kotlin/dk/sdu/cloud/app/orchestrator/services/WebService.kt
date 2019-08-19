@@ -18,7 +18,7 @@ class WebService<DBSession>(
     private val serviceClient: AuthenticatedClient
 ) {
     suspend fun queryWebParameters(jobId: String, requestedBy: String): QueryInternalWebParametersResponse {
-        val (job, _) = db.withTransaction { jobDao.find(it, jobId) }
+        val (job) = db.withTransaction { jobDao.find(it, jobId) }
         if (job.owner != requestedBy) throw RPCException("Not found", HttpStatusCode.NotFound)
 
         val backend = computationBackendService.getAndVerifyByName(job.backend)

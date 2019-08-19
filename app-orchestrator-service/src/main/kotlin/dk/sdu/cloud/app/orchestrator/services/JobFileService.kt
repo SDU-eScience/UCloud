@@ -6,14 +6,25 @@ import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.ClientAndBackend
-import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
-import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.CreateDirectoryRequest
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.ExtractRequest
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SimpleUploadRequest
+import dk.sdu.cloud.file.api.WorkspaceDescriptions
+import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.api.Workspaces
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
@@ -33,19 +44,16 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 class JobFileService(
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val userClientFactory: (accessToken: String?, refreshToken: String?) -> AuthenticatedClient
 ) {
-    private fun AuthenticatedClient.bearerAuth(token: String): AuthenticatedClient {
-        return ClientAndBackend(client, companion).bearerAuth(token)
-    }
-
     suspend fun initializeResultFolder(
         jobWithToken: VerifiedJobWithAccessToken,
         isReplay: Boolean = false
     ) {
-        val (job, accessToken) = jobWithToken
+        val (job, accessToken, refreshToken) = jobWithToken
 
-        val userCloud = serviceClient.bearerAuth(accessToken)
+        val userCloud = userClientFactory(accessToken, refreshToken)
 
         val sensitivityLevel =
             jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
@@ -79,6 +87,11 @@ class JobFileService(
         fileData: ByteReadChannel,
         needsExtraction: Boolean
     ) {
+        val userClient = run {
+            val (_, accessToken, refreshToken) = jobWithToken
+            userClientFactory(accessToken, refreshToken)
+        }
+
         log.debug("Accepting file at $filePath for ${jobWithToken.job.id}")
 
         val parsedFilePath = File(filePath)
@@ -99,7 +112,6 @@ class JobFileService(
             jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
                 ?: SensitivityLevel.PRIVATE
 
-        val (_, accessToken) = jobWithToken
         MultiPartUploadDescriptions.simpleUpload.call(
             SimpleUploadRequest(
                 location = destPath.path,
@@ -110,7 +122,7 @@ class JobFileService(
                     contentType = ContentType.defaultForFilePath(filePath)
                 )
             ),
-            serviceClient.bearerAuth(accessToken)
+            userClient
         ).orThrow()
 
         if (needsExtraction) {
@@ -119,7 +131,7 @@ class JobFileService(
                     destPath.path,
                     removeOriginalArchive = true
                 ),
-                serviceClient.bearerAuth(accessToken)
+                userClient
             ).orThrow()
         }
     }
@@ -159,12 +171,12 @@ class JobFileService(
     }
 
     suspend fun transferFilesToBackend(jobWithToken: VerifiedJobWithAccessToken, backend: ComputationDescriptions) {
-        val (job, accessToken) = jobWithToken
+        val (job) = jobWithToken
         coroutineScope {
             (job.files + job.mounts).map { file ->
                 async {
                     runCatching {
-                        val userCloud = serviceClient.withoutAuthentication().bearerAuth(accessToken)
+                        val userCloud = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
                         val fileStream = FileDescriptions.download.call(
                             DownloadByURI(file.sourcePath, null),
                             userCloud
@@ -194,7 +206,7 @@ class JobFileService(
     }
 
     suspend fun createWorkspace(jobWithToken: VerifiedJobWithAccessToken): String {
-        val (job, _) = jobWithToken
+        val (job) = jobWithToken
         val mounts = (job.files + job.mounts).map { file ->
             WorkspaceMount(file.sourcePath, file.destinationPath, readOnly = file.readOnly)
         }
@@ -214,7 +226,7 @@ class JobFileService(
         jobWithToken: VerifiedJobWithAccessToken,
         replay: Boolean
     ) {
-        val (job, _) = jobWithToken
+        val (job) = jobWithToken
         @Suppress("TooGenericExceptionCaught")
         try {
             WorkspaceDescriptions.transfer.call(

@@ -18,7 +18,7 @@ class JobFileTest{
     @Test
     fun `initialize Result folder test`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService(authClient)
+        val service = JobFileService(authClient) { _, _ -> ClientMock.authenticatedClient }
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -37,7 +37,7 @@ class JobFileTest{
     @Test
     fun `test accept File - no extract also absolute path`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService(authClient)
+        val service = JobFileService(authClient) { _, _ -> authClient }
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -64,7 +64,7 @@ class JobFileTest{
     @Test
     fun `test accept File - with extract`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService(authClient)
+        val service = JobFileService(authClient) { _, _ -> authClient }
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -96,7 +96,7 @@ class JobFileTest{
     @Test
     fun `jobFolder test`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService(authClient)
+        val service = JobFileService(authClient) { _, _ -> ClientMock.authenticatedClient }
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
