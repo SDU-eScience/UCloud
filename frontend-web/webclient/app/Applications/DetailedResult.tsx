@@ -274,12 +274,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     <Box width={1} backgroundColor="lightGray">
                         <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
                     </Box>
-                    <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
-                        <Heading.h5>Information</Heading.h5>
-                    </Box>
-                    <Box width={1} backgroundColor="lightGray">
-                        <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
-                    </Box>
                 </Flex>
             </Box>
         );
