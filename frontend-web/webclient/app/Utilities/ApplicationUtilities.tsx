@@ -100,7 +100,7 @@ export async function favoriteApplicationFromPage<T>({name, version, page, cloud
         snackbarStore.addFailure(errorMessageOrDefault(e, `An error ocurred favoriting ${name}`));
     }
     return page;
-};
+}
 
 
 interface StringMap {
@@ -113,18 +113,18 @@ interface AllowedParameterKey {
 }
 
 interface ExtractParameters {
-    parameters: StringMap;
+    nameToValue: StringMap;
     allowedParameterKeys: AllowedParameterKey[];
     siteVersion: number;
 }
 
-export const extractParameters = ({parameters, allowedParameterKeys, siteVersion}: ExtractParameters): StringMap => {
+export const findKnownParameterValues = ({nameToValue, allowedParameterKeys, siteVersion}: ExtractParameters): StringMap => {
     const extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({name, type}) => {
-            if (parameters[name] !== undefined) {
-                if (compareType(type, parameters[name])) {
-                    extractedParameters[name] = parameters[name];
+            if (nameToValue[name] !== undefined) {
+                if (typeMatchesValue(type, nameToValue[name])) {
+                    extractedParameters[name] = nameToValue[name];
                 }
             }
         });
@@ -134,8 +134,7 @@ export const extractParameters = ({parameters, allowedParameterKeys, siteVersion
 
 export const isFileOrDirectoryParam = ({type}: { type: string }) => type === "input_file" || type === "input_directory";
 
-
-const compareType = (type: ParameterTypes, parameter: string): boolean => {
+const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
             return parameter === "Yes" || parameter === "No" || parameter === "";
@@ -165,7 +164,7 @@ interface ExtractParametersFromMap {
     cloud: Cloud;
 }
 
-export function extractParametersFromMap({map, appParameters, cloud}: ExtractParametersFromMap): ExtractedParameters {
+export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractParametersFromMap): ExtractedParameters {
     const extracted: ExtractedParameters = {};
     map.forEach(({current}, key) => {
         const parameter = appParameters.find(it => it.name === key);

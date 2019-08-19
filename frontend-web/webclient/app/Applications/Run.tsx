@@ -24,8 +24,8 @@ import Input, {HiddenInputField} from "ui-components/Input";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Parameter} from "./Widgets/Parameter";
 import {
-    extractParameters,
-    extractParametersFromMap,
+    findKnownParameterValues,
+    extractValuesFromWidgets,
     hpcFavoriteApp,
     hpcJobQueryPost,
     isFileOrDirectoryParam,
@@ -52,7 +52,6 @@ import {File as CloudFile} from "Files";
 import {dialogStore} from "Dialog/DialogStore";
 import FileSelector from "Files/FileSelector";
 import {AccessRight} from "Types";
-import * as AppFS from "Applications/FileSystems";
 import Networking from "Applications/Networking";
 import {OptionalParameters} from "Applications/OptionalParameters";
 import {InputDirectoryParameter} from "Applications/Widgets/FileParameter";
@@ -107,13 +106,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     };
 
     private onSubmit = async (event: React.FormEvent) => {
-        event.preventDefault();
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
         const {invocation} = this.state.application;
         this.setState(() => ({initialSubmit: true}));
 
-        const parameters = extractParametersFromMap({
+        const parameters = extractValuesFromWidgets({
             map: this.state.parameterValues,
             appParameters: this.state.application!.invocation.parameters,
             cloud: Cloud
@@ -124,13 +122,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (!checkForMissingParameters(parameters, invocation)) return;
         if (!validateOptionalFields(invocation, this.state.parameterValues)) return;
 
+        // Validate max time
         const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
             snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", 5000);
             return;
         }
 
-        // FIXME: Unify with extractParametersFromMap
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
             const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder);
             return {
@@ -139,19 +137,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 readOnly: it.readOnly
             };
         });
-        // FIXME end
 
-        for (const mount of mounts) {
-            if (!mount.readOnly) {
-                const stat = await statFileOrNull(mount.source);
-                if (stat !== null) {
-                    if (!allFilesHasAccessRight(AccessRight.WRITE, [stat])) {
-                        snackbarStore.addFailure(
-                            `Cannot mount ${mount.source} as read/write because share is read-only`,
-                            5000
-                        );
+        {
+            // Validate additional mounts
+            for (const mount of mounts) {
+                if (!mount.readOnly) {
+                    const stat = await statFileOrNull(mount.source);
+                    if (stat !== null) {
+                        if (!allFilesHasAccessRight(AccessRight.WRITE, [stat])) {
+                            snackbarStore.addFailure(
+                                `Cannot mount ${mount.source} as read/write because share is read-only`,
+                                5000
+                            );
 
-                        return;
+                            return;
+                        }
                     }
                 }
             }
@@ -236,14 +236,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
     }
 
-    /* FIXME: Refactor into smaller functions */
     private importParameters(file: File) {
         const thisApp = this.state.application;
         if (!thisApp) return;
 
         const fileReader = new FileReader();
         fileReader.onload = async () => {
-            const result = fileReader.result as string;
+            const rawInputFile = fileReader.result as string;
             try {
                 const {
                     application,
@@ -253,79 +252,94 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     tasksPerNode,
                     maxTime,
                     siteVersion
-                } = JSON.parse(result);
+                } = JSON.parse(rawInputFile);
 
-                if (!validateNameAndVersion(application.name, application.version, thisApp.metadata)) return;
+                // Verify metadata
+                if (application.name !== thisApp.metadata.name) {
+                    snackbarStore.addSnack({
+                        message: "Application name does not match",
+                        type: SnackType.Failure
+                    });
+                    return;
+                } else if (application.version !== thisApp.metadata.version) {
+                    snackbarStore.addSnack({
+                        message: "Application version does not match. Some parameters may not be filled out correctly.",
+                        type: SnackType.Information
+                    });
+                }
 
-                const extractedParameters = extractParameters({
-                    parameters,
+                // Finds the values to parameters that are still valid in this version of the application.
+                const userInputValues = findKnownParameterValues({
+                    nameToValue: parameters,
                     allowedParameterKeys: thisApp.invocation.parameters.map(it => ({
                         name: it.name, type: it.type
                     })),
                     siteVersion
                 });
 
-                const fileParams = thisApp.invocation.parameters.filter(p => isFileOrDirectoryParam(p));
+                const parametersFromUser = Object.keys(userInputValues);
 
-                const invalidFiles: string[] = [];
-
-                for (const paramKey in fileParams) {
-                    const param = fileParams[paramKey];
-                    if (!!extractedParameters[param.name])
-                        if (!await checkIfFileExists(expandHomeFolder(extractedParameters[param.name], Cloud.homeFolder), Cloud)) {
-                            invalidFiles.push(extractedParameters[param.name]);
-                            delete extractedParameters[param.name];
+                {
+                    // Remove invalid input files from userInputValues
+                    const fileParams = thisApp.invocation.parameters.filter(p => isFileOrDirectoryParam(p));
+                    const invalidFiles: string[] = [];
+                    for (const paramKey in fileParams) {
+                        const param = fileParams[paramKey];
+                        if (!!userInputValues[param.name]) {
+                            const path = expandHomeFolder(userInputValues[param.name], Cloud.homeFolder);
+                            if (!await checkIfFileExists(path, Cloud)) {
+                                invalidFiles.push(userInputValues[param.name]);
+                                delete userInputValues[param.name];
+                            }
                         }
-                }
+                    }
 
-                const invalidMountIndices = [] as number[];
-                const validMountFolders = [] as RefReadPair[];
-
-                for (let i = 0; i < mountedFolders.length; i++) {
-                    if (!await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Cloud.homeFolder), Cloud)) {
-                        invalidMountIndices.push(i);
-                    } else {
-                        const ref = React.createRef<HTMLInputElement>();
-                        validMountFolders.push({ref, readOnly: mountedFolders[i].readOnly});
+                    if (invalidFiles.length > 0) {
+                        snackbarStore.addSnack({
+                            message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
+                            type: SnackType.Failure
+                        });
                     }
                 }
 
-                // FIXME: Could be done using defaultValue
-                // Add mountedFolders and fill out ref values
-                this.setState(() => ({mountedFolders: this.state.mountedFolders.concat(validMountFolders)}));
-                const emptyMountedFolders = this.state.mountedFolders.slice(
-                    this.state.mountedFolders.length - mountedFolders.length
-                );
-                emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
+                {
+                    // Verify and load additional mounts
+                    const validMountFolders = [] as RefReadPair[];
+                    for (let i = 0; i < mountedFolders.length; i++) {
+                        if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Cloud.homeFolder), Cloud)) {
+                            const ref = React.createRef<HTMLInputElement>();
+                            validMountFolders.push({ref, readOnly: mountedFolders[i].readOnly});
+                        }
+                    }
 
+                    this.setState(() => ({mountedFolders: this.state.mountedFolders.concat(validMountFolders)}));
+                    const emptyMountedFolders = this.state.mountedFolders.slice(
+                        this.state.mountedFolders.length - mountedFolders.length
+                    );
+                    emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
+                }
 
-                if (invalidFiles.length) {
-                    snackbarStore.addSnack({
-                        message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
-                        type: SnackType.Failure
+                {
+                    // Show hidden fields.
+                    parametersFromUser.forEach(key =>
+                        thisApp.invocation.parameters.find(it => it.name === key)!.visible = true
+                    );
+                }
+
+                {
+                    // Initialize widget values
+                    parametersFromUser.forEach(key => {
+                        thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
+                        const ref = this.state.parameterValues.get(key);
+                        if (ref && ref.current) {
+                            ref.current.value = userInputValues[key];
+                            this.state.parameterValues.set(key, ref);
+                        }
                     });
                 }
-                const {parameterValues} = this.state;
-
-                const extractedParameterKeys = Object.keys(extractedParameters);
-
-                // Show hidden fields.
-                extractedParameterKeys.forEach(key =>
-                    thisApp.invocation.parameters.find(it => it.name === key)!.visible = true
-                );
-                this.setState(() => ({application: thisApp}));
-
-                extractedParameterKeys.forEach(key => {
-                    thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
-                    const ref = parameterValues.get(key);
-                    if (ref && ref.current) {
-                        ref.current.value = extractedParameters[key];
-                        parameterValues.set(key, ref);
-                    }
-                });
 
                 this.setState(() => ({
-                    parameterValues,
+                    application: thisApp,
                     schedulingOptions: extractJobInfo({
                         maxTime,
                         numberOfNodes,
@@ -335,7 +349,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }));
             } catch (e) {
                 console.warn(e);
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error ocurred"));
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
             }
         };
         fileReader.readAsText(file);
@@ -401,20 +415,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         document.body.removeChild(element);
     }
 
-
     render() {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
-        if (!application) return (
-            <MainContainer
-                main={<LoadingIcon size={18}/>}
-            />
-        );
-
-        const onAccessChange = (index: number, readOnly: boolean) => {
-            const {mountedFolders} = this.state;
-            mountedFolders[index].readOnly = readOnly;
-            this.setState(() => ({mountedFolders}));
-        };
+        if (!application) return <MainContainer main={<LoadingIcon size={18}/>}/>;
 
         const parameters = application.invocation.parameters;
         const mandatory = parameters.filter(parameter => !parameter.optional);
@@ -481,7 +484,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                             {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
                         </Button>
-                        <Button onClick={this.onSubmit} disabled={jobSubmitted} color="blue">Submit</Button>
+                        <Button type={"button"} onClick={this.onSubmit} disabled={jobSubmitted}
+                                color="blue">Submit</Button>
                     </VerticalButtonGroup>
                 }
 
@@ -498,24 +502,36 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 main={
                     <ContainerForText>
-                        <form onSubmit={props.onSubmit}>
+                        <form onSubmit={this.onSubmit}>
                             <Heading.h4>Mandatory Parameters ({mandatoryParams.length})</Heading.h4>
                             {mandatoryParams}
 
-                            {visibleParams.length > 0 ?
-                                <>
-                                    <Heading.h4>Additional Parameters Used</Heading.h4>
-                                    {visibleParams}
-                                </>
-                                : null
-                            }
+                            {visibleParams.length <= 0 ? null : <>
+                                <Heading.h4>Additional Parameters Used</Heading.h4>
+                                {visibleParams}
+                            </>}
                             <Heading.h4 mb="4px">
                                 <Flex>
-                                    Mount additional folders <Button type="button" ml="5px" onClick={props.addFolder}>+</Button>
+                                    Mount additional folders
+                                    <Button
+                                        type="button"
+                                        ml="5px"
+                                        onClick={() => {
+                                            this.setState(s => ({
+                                                mountedFolders: s.mountedFolders.concat([
+                                                    {ref: React.createRef<HTMLInputElement>(), readOnly: true}
+                                                ])
+                                            }));
+                                        }}
+                                    >
+                                        +
+                                    </Button>
                                 </Flex>
                             </Heading.h4>
+
                             {this.state.mountedFolders.every(it => it.readOnly) ? "" :
                                 "Note: Giving folders read/write access will make the startup and shutdown of the application longer."}
+
                             {this.state.mountedFolders.map((entry, i) => (
                                 <Box key={i} mb="7px">
                                     <InputDirectoryParameter
@@ -524,8 +540,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         initialSubmit={false}
                                         parameterRef={entry.ref}
                                         onRemove={() => {
-                                            this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, i)}))}
-                                        }
+                                            this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, i)}))
+                                        }}
                                         parameter={{
                                             type: ParameterTypes.InputDirectory,
                                             name: "",
@@ -539,7 +555,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     <ClickableDropdown
                                                         chevron
                                                         minWidth="150px"
-                                                        onChange={key => onAccessChange(i, key === "READ")}
+                                                        onChange={key => {
+                                                            const {mountedFolders} = this.state;
+                                                            mountedFolders[i].readOnly = key === "READ";
+                                                            this.setState(() => ({mountedFolders}));
+                                                        }}
                                                         trigger={entry.readOnly ? "Read only" : "Read/Write"}
                                                         options={[
                                                             {text: "Read only", value: "READ"},
@@ -550,7 +570,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                             ),
                                         }}
                                     />
-                                </Box>))}
+                                </Box>
+                            ))}
 
                             <Heading.h4>Networking Peers</Heading.h4>
                             <Networking/>
@@ -562,153 +583,19 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 app={application}
                             />
 
-                            {optional.length > 0 ?
-                                <OptionalParameters parameters={optional} onUse={p => onParameterChange(p, true)}/> : null}
+                            {optional.length <= 0 ? null :
+                                <OptionalParameters
+                                    parameters={optional}
+                                    onUse={p => onParameterChange(p, true)}
+                                />
+                            }
                         </form>
-
-                        {/*<Parameters*/}
-                        {/*    initialSubmit={this.state.initialSubmit}*/}
-                        {/*    addFolder={() => this.setState(s => ({*/}
-                        {/*        mountedFolders: s.mountedFolders.concat([{*/}
-                        {/*            ref: React.createRef<HTMLInputElement>(),*/}
-                        {/*            readOnly: true*/}
-                        {/*        }])*/}
-                        {/*    }))}*/}
-                        {/*    removeDirectory={index =>*/}
-                        {/*        this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, index)}))}*/}
-                        {/*    additionalDirectories={this.state.mountedFolders}*/}
-                        {/*    values={parameterValues}*/}
-                        {/*    onAccessChange={onAccessChange}*/}
-                        {/*    parameters={application.invocation.parameters}*/}
-                        {/*    onSubmit={this.onSubmit}*/}
-                        {/*    schedulingOptions={schedulingOptions}*/}
-                        {/*    app={application}*/}
-                        {/*    onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}*/}
-                        {/*    onParameterChange={(p, visible) => {*/}
-                        {/*        p.visible = visible;*/}
-                        {/*        if (!visible)*/}
-                        {/*            parameterValues.set(p.name, React.createRef<HTMLSelectElement | HTMLInputElement>());*/}
-                        {/*        this.setState(() => ({application: this.state.application}));*/}
-                        {/*    }}*/}
-                        {/*/>*/}
                     </ContainerForText>
                 }
             />
         )
     }
 }
-
-interface ParameterProps {
-    initialSubmit: boolean
-    values: ParameterValues
-    parameters: ApplicationParameter[]
-    schedulingOptions: JobSchedulingOptionsForInput
-    additionalDirectories: RefReadPair[]
-    app: WithAppMetadata & WithAppInvocation
-    onSubmit: (e: React.FormEvent) => void
-    onJobSchedulingParamsChange: (field: string, value: number | string, subField: number | string) => void
-    onParameterChange: (parameter: ApplicationParameter, visible: boolean) => void
-    addFolder: () => void
-    removeDirectory: (index: number) => void
-    onAccessChange: (index: number, readOnly: boolean) => void
-}
-
-const Parameters = (props: ParameterProps) => {
-    if (!props.parameters) return null;
-
-    const mandatory = props.parameters.filter(parameter => !parameter.optional);
-    const visible = props.parameters.filter(parameter =>
-        parameter.optional && (parameter.visible === true || props.values.get(parameter.name)!.current != null)
-    );
-    const optional = props.parameters.filter(parameter =>
-        parameter.optional && parameter.visible !== true && props.values.get(parameter.name)!.current == null);
-
-    const mapParamToComponent = (parameter: ApplicationParameter) => {
-        let ref = props.values.get(parameter.name)!;
-
-        return (
-            <Parameter
-                key={parameter.name}
-                initialSubmit={props.initialSubmit}
-                parameterRef={ref}
-                parameter={parameter}
-                onParamRemove={() => props.onParameterChange(parameter, false)}
-                application={props.app}
-            />
-        );
-    };
-
-    let mandatoryParams = mandatory.map(mapParamToComponent);
-    let visibleParams = visible.map(mapParamToComponent);
-
-    return (
-        <form onSubmit={props.onSubmit}>
-            <Heading.h4>Mandatory Parameters ({mandatoryParams.length})</Heading.h4>
-            {mandatoryParams}
-
-            {visibleParams.length > 0 ?
-                <>
-                    <Heading.h4>Additional Parameters Used</Heading.h4>
-                    {visibleParams}
-                </>
-                : null
-            }
-            <Heading.h4 mb="4px">
-                <Flex>
-                    Mount additional folders <Button type="button" ml="5px" onClick={props.addFolder}>+</Button>
-                </Flex>
-            </Heading.h4>
-            {props.additionalDirectories.every(it => it.readOnly) ? "" :
-                "Note: Giving folders read/write access will make the startup and shutdown of the application longer."}
-            {props.additionalDirectories.map((entry, i) => (
-                <Box key={i} mb="7px">
-                    <InputDirectoryParameter
-                        application={props.app}
-                        defaultValue={entry.defaultValue}
-                        initialSubmit={false}
-                        parameterRef={entry.ref}
-                        onRemove={() => props.removeDirectory(i)}
-                        parameter={{
-                            type: ParameterTypes.InputDirectory,
-                            name: "",
-                            optional: true,
-                            title: "",
-                            description: "",
-                            defaultValue: "",
-                            visible: true,
-                            unitName: (
-                                <Box width="105px">
-                                    <ClickableDropdown
-                                        chevron
-                                        minWidth="150px"
-                                        onChange={key => props.onAccessChange(i, key === "READ")}
-                                        trigger={entry.readOnly ? "Read only" : "Read/Write"}
-                                        options={[
-                                            {text: "Read only", value: "READ"},
-                                            {text: "Read/Write", value: "READ/WRITE"}
-                                        ]}
-                                    />
-                                </Box>
-                            ),
-                        }}
-                    />
-                </Box>))}
-
-            <Heading.h4>Networking Peers</Heading.h4>
-            <Networking/>
-
-            <Heading.h4>Scheduling</Heading.h4>
-            <JobSchedulingOptions
-                onChange={props.onJobSchedulingParamsChange}
-                options={props.schedulingOptions}
-                app={props.app}
-            />
-
-            {optional.length > 0 ?
-                <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)}/> : null}
-        </form>
-    )
-};
 
 interface SchedulingFieldProps {
     text: string
@@ -807,22 +694,6 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
         </>)
 };
 
-function validateNameAndVersion(name: string, version: string, metadata: ApplicationMetadata): boolean {
-    if (name !== metadata.name) {
-        snackbarStore.addSnack({
-            message: "Application name does not match",
-            type: SnackType.Failure
-        });
-        return false;
-    } else if (version !== metadata.version) {
-        snackbarStore.addSnack({
-            message: "Application version does not match. Some parameters may not be filled out correctly.",
-            type: SnackType.Information
-        });
-    }
-    return true;
-}
-
 function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOptionsForInput {
     let extractedJobInfo = {
         maxTime: {hours: 0, minutes: 0, seconds: 0},
@@ -846,7 +717,6 @@ const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
 });
 
 export default connect(null, mapDispatchToProps)(Run);
-
 
 export function importParameterDialog(importParameters: (file: File) => void, showFileSelector: () => void) {
     dialogStore.addDialog(<Box>
