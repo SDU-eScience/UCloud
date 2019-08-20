@@ -1,6 +1,6 @@
 import {Terminal} from "xterm";
 import * as React from "react";
-import {memo, useEffect, useMemo, useState} from "react";
+import {useEffect, useState} from "react";
 import "xterm/dist/xterm.css";
 
 interface XtermProps {

@@ -1,8 +1,6 @@
 import {APICallParameters} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 
-export {default as Management} from "./Management";
-
 export interface SharedFileSystem {
     id: string,
     owner: string,
