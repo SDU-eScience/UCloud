@@ -17,7 +17,6 @@ rules:
     whitespace: false
     jsx-space-before-trailing-slash: none
     jsx-self-close: true
-    no-bitwise: false
     arrow-parens: false
     no-console:
         severity: warning
