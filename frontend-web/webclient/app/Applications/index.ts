@@ -127,8 +127,6 @@ export interface DetailedResultState {
     stderr: string
     stdoutLine: number
     stderrLine: number
-    stdoutOldTop: number,
-    stderrOldTop: number,
     reloadIntervalId: number
     promises: PromiseKeeper
     outputFolder?: string
