@@ -1,54 +1,49 @@
-import * as React from "react";
-import styled from "styled-components";
-
 import {FullAppInfo, WithAppInvocation, WithAppMetadata} from "Applications";
-import {Page} from "Types";
-import {loadingEvent, LoadableContent} from "LoadableContent";
-
 import {ReduxObject} from "DefaultObjects";
-import {Dispatch} from "redux";
-import {connect} from "react-redux";
-import * as Actions from "./Redux/ViewActions";
-import * as ViewObject from "./Redux/ViewObject";
-import {updatePageTitle, UpdatePageTitleAction} from "Navigation/Redux/StatusActions";
-
-import {
-    VerticalButtonGroup,
-    Box,
-    Image,
-    OutlineButton,
-    ActionButton,
-    Link,
-    ExternalLink,
-    Markdown
-} from "ui-components";
-import {TextSpan} from "ui-components/Text";
-import * as Heading from "ui-components/Heading"
-import ContainerForText from "ui-components/ContainerForText";
-
-import {dateToString} from "Utilities/DateUtilities";
-import {capitalized} from "UtilityFunctions"
+import {LoadableContent, loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
+import {updatePageTitle, UpdatePageTitleAction} from "Navigation/Redux/StatusActions";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import styled from "styled-components";
+import {Page} from "Types";
+import {
+    ActionButton,
+    Box,
+    ExternalLink,
+    Image,
+    Link,
+    Markdown,
+    OutlineButton,
+    VerticalButtonGroup
+} from "ui-components";
+import ContainerForText from "ui-components/ContainerForText";
+import * as Heading from "ui-components/Heading";
+import {TextSpan} from "ui-components/Text";
+import {dateToString} from "Utilities/DateUtilities";
+import {capitalized} from "UtilityFunctions";
 import {ApplicationCardContainer, SlimApplicationCard} from "./Card";
 import {AppLogo, hashF} from "./Card";
-
 import * as Pages from "./Pages";
+import * as Actions from "./Redux/ViewActions";
+import * as ViewObject from "./Redux/ViewObject";
 
 interface MainContentProps {
-    onFavorite?: () => void
-    application: FullAppInfo
-    favorite?: LoadableContent<void>
+    onFavorite?: () => void;
+    application: FullAppInfo;
+    favorite?: LoadableContent<void>;
 }
 
 interface OperationProps {
-    fetchApp: (name: string, version: string) => void
-    onFavorite: (name: string, version: string) => void
+    fetchApp: (name: string, version: string) => void;
+    onFavorite: (name: string, version: string) => void;
 }
 
 type StateProps = ViewObject.Type;
 
 interface OwnProps {
-    match: any
+    match: any;
 }
 
 type ViewProps = OperationProps & StateProps & OwnProps;
@@ -70,8 +65,8 @@ function View(props: ViewProps) {
     });
 
     function fetchApp() {
-        const {appName, appVersion} = props.match.params;
-        props.fetchApp(appName, appVersion);
+        const {params} = props.match;
+        props.fetchApp(params.appName, params.appVersion);
     }
 
     const {previous} = props;
@@ -128,7 +123,7 @@ const AppHeaderDetails = styled.div`
 
 export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boolean}> = props => {
     const isSlim = props.slim === true;
-    const size = isSlim ? "32px" : "128px"; 
+    const size = isSlim ? "32px" : "128px";
     return (
         <AppHeaderBase>
             <Box mr={16} >
@@ -144,7 +139,7 @@ export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boole
                         <Heading.h3>v{props.application.metadata.version}</Heading.h3>
                         <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
                         <Heading.h6>
-                        <Tags tags={props.application.tags} />
+                            <Tags tags={props.application.tags} />
                         </Heading.h6>
                     </>
                 }
@@ -157,7 +152,7 @@ const Sidebar: React.FunctionComponent<MainContentProps> = props => (
     <VerticalButtonGroup>
         <ActionButton
             fullWidth
-            onClick={() => {if (!!props.onFavorite) props.onFavorite()}}
+            onClick={() => {if (!!props.onFavorite) props.onFavorite();}}
             loadable={props.favorite as LoadableContent}
             color="blue">
             {props.application.favorite ? "Remove from favorites" : "Add to favorites"}
@@ -211,7 +206,7 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullApp
                     <Heading.h4>Others Versions</Heading.h4>
                     <ApplicationCardContainer>
                         {props.previousVersions.items.map((it, idx) => (
-                            <SlimApplicationCard app={it} key={idx} tags={it.tags}/>
+                            <SlimApplicationCard app={it} key={idx} tags={it.tags} />
                         ))}
                     </ApplicationCardContainer>
                 </div>
@@ -244,7 +239,7 @@ function Tags({tags}: {tags: string[]}) {
         <TagBase>
             {
                 tags.slice(0, 5).map(tag => (
-                    <TagStyle to={Pages.browseByTag(tag)}>{tag}</TagStyle> 
+                    <TagStyle to={Pages.browseByTag(tag)}>{tag}</TagStyle>
                 ))
             }
         </TagBase>

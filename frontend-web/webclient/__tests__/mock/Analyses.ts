@@ -1,11 +1,12 @@
-import { Analysis, AppState } from "Applications";
-import { Page } from "Types";
+import {Analysis, AppState} from "../../app/Applications";
+import {Page} from "../../app/Types";
 
 export const analyses: Page<Analysis> = {
     itemsInTotal: 4,
     itemsPerPage: 25,
     pageNumber: 0,
     items: [{
+        name: "Thomas",
         jobId: "bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee",
         owner: "jonas@hinchely.dk",
         state: AppState.FAILURE,
@@ -24,6 +25,7 @@ export const analyses: Page<Analysis> = {
             website: ""
         }
     }, {
+        name: "Johnny",
         jobId: "15274bec-ef72-4ed2-97ff-2be1829a2db1",
         owner: "jonas@hinchely.dk",
         state: AppState.FAILURE,
@@ -42,6 +44,7 @@ export const analyses: Page<Analysis> = {
             website: ""
         }
     }, {
+        name: "Fred",
         jobId: "3544b177-e9a7-4323-bcde-c4d6e442dc36",
         owner: "jonas@hinchely.dk",
         state: AppState.FAILURE,
@@ -60,6 +63,7 @@ export const analyses: Page<Analysis> = {
             website: ""
         }
     }, {
+        name: "Nathan",
         jobId: "e28defb0-d66c-4461-91f6-b09afd85480c",
         owner: "jonas@hinchely.dk",
         state: AppState.SUCCESS,

@@ -1,19 +1,19 @@
-import * as React from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {defaultVirtualFolders, VirtualFileTable} from "Files/VirtualFileTable";
+import * as React from "react";
+import {useEffect, useState} from "react";
+import * as ReactModal from "react-modal";
+import {Flex} from "ui-components";
 import {
     MOCK_RELATIVE,
     mockFile,
     resolvePath
 } from "Utilities/FileUtilities";
+import {addTrailingSlash} from "UtilityFunctions";
 import {
     File,
     FileSelectorProps,
 } from ".";
-import {Flex} from "ui-components";
-import * as ReactModal from "react-modal";
-import {addTrailingSlash} from "UtilityFunctions";
-import {useEffect, useState} from "react";
-import {defaultVirtualFolders, VirtualFileTable} from "Files/VirtualFileTable";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const [path, setPath] = useState<string>(Cloud.homeFolder);
@@ -21,7 +21,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
         if (props.initialPath !== undefined) setPath(props.initialPath);
     }, [props.initialPath]);
 
-    let virtualFolders = defaultVirtualFolders();
+    const virtualFolders = defaultVirtualFolders();
     const injectedFiles: File[] = [];
     if (resolvePath(path) !== resolvePath(Cloud.homeFolder)) {
         injectedFiles.push(mockFile({
@@ -69,16 +69,16 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             return !(files.length === 1 && (
                                 (canSelectFolders && files[0].fileType === "DIRECTORY") ||
                                 (!canSelectFolders && files[0].fileType === "FILE")
-                            ))
+                            ));
                         }
                     }]}
                     fileFilter={file => !props.onlyAllowFolders || file.fileType === "DIRECTORY"}
-                    onFileNavigation={path => setPath(path)}
+                    onFileNavigation={p => setPath(p)}
                     injectedFiles={injectedFiles}
                     path={path}/>
             </ReactModal>
         </Flex>
-    )
+    );
 };
 
 const FileSelectorModalStyle = {

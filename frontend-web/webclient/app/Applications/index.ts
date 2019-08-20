@@ -1,25 +1,24 @@
-import {File, SortOrder} from "Files";
-import {Page} from "Types";
-import {match} from "react-router";
-import PromiseKeeper from "PromiseKeeper";
+import {AnalysisReduxObject, ResponsiveReduxObject} from "DefaultObjects";
+import {SortOrder} from "Files";
 import {History} from "history";
-import {ResponsiveReduxObject, AnalysisReduxObject} from "DefaultObjects";
-import {ParameterValues} from "Utilities/ApplicationUtilities";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
+import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
+import {match} from "react-router";
+import {ParameterValues} from "Utilities/ApplicationUtilities";
 
 export interface Analysis {
-    name: string
-    checked?: boolean
-    status: string
-    state: AppState
-    jobId: string
-    appName: string
-    appVersion: string
-    createdAt: number
-    modifiedAt: number
+    name: string;
+    checked?: boolean;
+    status: string;
+    state: AppState;
+    jobId: string;
+    appName: string;
+    appVersion: string;
+    createdAt: number;
+    modifiedAt: number;
     expiresAt?: number;
-    owner: string
+    owner: string;
     metadata: ApplicationMetadata
 }
 
@@ -34,42 +33,42 @@ type FetchJobsOperation = (
     minTimestamp?: number,
     maxTimestamp?: number,
     filter?: AppState
-) => void
+) => void;
 
 export interface AnalysesOperations {
-    setLoading: (loading: boolean) => void
-    fetchJobs: FetchJobsOperation
-    onInit: () => void
-    setRefresh: (refresh?: () => void) => void
-    checkAnalysis: (jobId: string, checked: boolean) => void
-    checkAllAnalyses: (checked: boolean) => void
+    setLoading: (loading: boolean) => void;
+    fetchJobs: FetchJobsOperation;
+    onInit: () => void;
+    setRefresh: (refresh?: () => void) => void;
+    checkAnalysis: (jobId: string, checked: boolean) => void;
+    checkAllAnalyses: (checked: boolean) => void;
 }
 
 export interface DetailedResultOperations {
-    setPageTitle: (jobId: string) => void
-    setLoading: (loading: boolean) => void
-    setRefresh: (refresh?: () => void) => void
+    setPageTitle: (jobId: string) => void;
+    setLoading: (loading: boolean) => void;
+    setRefresh: (refresh?: () => void) => void;
 }
 
 export interface DetailedResultProps extends DetailedResultOperations {
-    match: match<{jobId: string}>
-    history: History
+    match: match<{jobId: string}>;
+    history: History;
 }
 
 export interface Application {
-    favorite: boolean
-    owner: string
-    createdAt: number
-    modifiedAt: number
-    description: ApplicationDescription
-    tool: ApplicationTool
-    imageUrl: string
+    favorite: boolean;
+    owner: string;
+    createdAt: number;
+    modifiedAt: number;
+    description: ApplicationDescription;
+    tool: ApplicationTool;
+    imageUrl: string;
 }
 
 interface ApplicationTool {
-    owner: string
-    createdAt: number
-    modifiedAt: number
+    owner: string;
+    createdAt: number;
+    modifiedAt: number;
     description: {
         info: ApplicationInfo
         container: string
@@ -82,26 +81,26 @@ interface ApplicationTool {
         description: string
         backend: string
         license: string
-    }
+    };
 }
 
 interface ApplicationInfo {
-    name: string
-    version: string
+    name: string;
+    version: string;
 }
 
 export interface ApplicationDescription {
-    info: ApplicationInfo
-    tool: ApplicationInfo
-    authors: string[]
-    title: string
-    description: string
-    invocation: any[]
-    parameters: ApplicationParameter[]
-    outputFileGlobs: string[]
-    website?: string
-    resources: {multiNodeSupport: boolean}
-    tags: string[]
+    info: ApplicationInfo;
+    tool: ApplicationInfo;
+    authors: string[];
+    title: string;
+    description: string;
+    invocation: any[]; // FIXME: Add type
+    parameters: ApplicationParameter[];
+    outputFileGlobs: string[];
+    website?: string;
+    resources: {multiNodeSupport: boolean};
+    tags: string[];
 }
 
 export enum AppState {
@@ -116,146 +115,151 @@ export enum AppState {
 }
 
 export interface DetailedResultState {
-    name: string
-    complete: boolean
-    appState: AppState
-    failedState?: AppState
-    status: string
-    app?: ApplicationMetadata
-    stdout: string
-    stderr: string
-    stdoutLine: number
-    stderrLine: number
-    stdoutOldTop: number,
-    stderrOldTop: number,
-    reloadIntervalId: number
-    promises: PromiseKeeper
-    outputFolder?: string
-    appType?: ApplicationType
-    webLink?: string
-    timeLeft: number | null
+    name: string;
+    complete: boolean;
+    appState: AppState;
+    failedState?: AppState;
+    status: string;
+    app?: ApplicationMetadata;
+    stdout: string;
+    stderr: string;
+    stdoutLine: number;
+    stderrLine: number;
+    stdoutOldTop: number;
+    stderrOldTop: number;
+    reloadIntervalId: number;
+    promises: PromiseKeeper;
+    outputFolder?: string;
+    appType?: ApplicationType;
+    webLink?: string;
+    timeLeft: number | null;
 }
 
-export type StdElement = {scrollTop: number, scrollHeight: number} | null
+export type StdElement = {scrollTop: number, scrollHeight: number} | null;
 
 export interface MaxTime {
-    hours: number
-    minutes: number
-    seconds: number
+    hours: number;
+    minutes: number;
+    seconds: number;
 }
 
 export interface MaxTimeForInput {
-    hours: number
-    minutes: number
-    seconds: number
+    hours: number;
+    minutes: number;
+    seconds: number;
 }
 
 export interface JobSchedulingOptionsForInput {
-    maxTime: MaxTimeForInput
-    numberOfNodes: number
-    tasksPerNode: number
-    name: React.RefObject<HTMLInputElement>
+    maxTime: MaxTimeForInput;
+    numberOfNodes: number;
+    tasksPerNode: number;
+    name: React.RefObject<HTMLInputElement>;
 }
 
 export interface RefReadPair {
-    readOnly: boolean
-    ref: React.RefObject<HTMLInputElement>
-    defaultValue?: string
+    readOnly: boolean;
+    ref: React.RefObject<HTMLInputElement>;
+    defaultValue?: string;
 }
 
 export interface RunAppState {
-    promises: PromiseKeeper
-    jobSubmitted: boolean
-    initialSubmit: boolean
-    application?: FullAppInfo
-    parameterValues: ParameterValues
-    schedulingOptions: JobSchedulingOptionsForInput
-    favorite: boolean
-    favoriteLoading: boolean
-    mountedFolders: RefReadPair[]
-    fsShown: boolean
+    promises: PromiseKeeper;
+    jobSubmitted: boolean;
+    initialSubmit: boolean;
+    application?: FullAppInfo;
+    parameterValues: ParameterValues;
+    schedulingOptions: JobSchedulingOptionsForInput;
+    favorite: boolean;
+    favoriteLoading: boolean;
+    mountedFolders: RefReadPair[];
+    fsShown: boolean;
 }
 
 export interface RunOperations extends SetStatusLoading {
-    updatePageTitle: () => void
+    updatePageTitle: () => void;
 }
 
 export interface RunAppProps extends RunOperations {
-    match: match<{appName: string, appVersion: string}>
-    history: History
-    updatePageTitle: () => void
+    match: match<{appName: string, appVersion: string}>;
+    history: History;
+    updatePageTitle: () => void;
 }
 
 export interface NumberParameter extends BaseParameter {
-    defaultValue: {value: number, type: "double" | "int"} | null
-    min: number | null
-    max: number | null
-    step: number | null
-    type: ParameterTypes.Integer | ParameterTypes.FloatingPoint
+    defaultValue: {value: number, type: "double" | "int"} | null;
+    min: number | null;
+    max: number | null;
+    step: number | null;
+    type: ParameterTypes.Integer | ParameterTypes.FloatingPoint;
 }
 
 export interface BooleanParameter extends BaseParameter {
-    defaultValue: {value: boolean, type: "bool"} | null
-    trueValue?: string | null
-    falseValue?: string | null
-    type: ParameterTypes.Boolean
+    defaultValue: {value: boolean, type: "bool"} | null;
+    trueValue?: string | null;
+    falseValue?: string | null;
+    type: ParameterTypes.Boolean;
 }
 
 export interface InputFileParameter extends BaseParameter {
-    defaultValue: string | null
-    type: ParameterTypes.InputFile
+    defaultValue: string | null;
+    type: ParameterTypes.InputFile;
 }
 
 export interface InputDirectoryParameter extends BaseParameter {
-    defaultValue: string | null
-    type: ParameterTypes.InputDirectory
+    defaultValue: string | null;
+    type: ParameterTypes.InputDirectory;
 }
 
 export interface TextParameter extends BaseParameter {
-    defaultValue: {value: string, type: "string"} | null
-    type: ParameterTypes.Text
+    defaultValue: {value: string, type: "string"} | null;
+    type: ParameterTypes.Text;
 }
 
 interface BaseParameter {
-    name: string
-    optional: boolean
-    title: string
-    description: string
-    unitName?: string | React.ReactNode | null
-    type: string
-    visible?: boolean
+    name: string;
+    optional: boolean;
+    title: string;
+    description: string;
+    unitName?: string | React.ReactNode | null;
+    type: string;
+    visible?: boolean;
 }
 
-export type ApplicationParameter = InputFileParameter | InputDirectoryParameter | NumberParameter | BooleanParameter | TextParameter;
+export type ApplicationParameter =
+    InputFileParameter |
+    InputDirectoryParameter |
+    NumberParameter |
+    BooleanParameter |
+    TextParameter;
 
-type Invocation = WordInvocation | VarInvocation
+type Invocation = WordInvocation | VarInvocation;
 
 interface WordInvocation {
-    type: "word"
-    word: string
+    type: "word";
+    word: string;
 }
 
 interface VarInvocation {
-    type: "var"
-    variableNames: string[]
-    prefixGlobal: string
-    suffixGlobal: string
-    prefixVariable: string
-    suffixVariable: string
-    variableSeparator: string
+    type: "var";
+    variableNames: string[];
+    prefixGlobal: string;
+    suffixGlobal: string;
+    prefixVariable: string;
+    suffixVariable: string;
+    variableSeparator: string;
 }
 
-type Info = {name: string, version: string}
+interface Info {name: string; version: string;}
 export interface Description {
-    info: Info
-    tool: Info
-    authors: string[]
-    title: string
-    description: string
-    invocation: Invocation[]
-    parameters: ApplicationParameter[]
-    outputFileGlobs: [string, string]
-    tags: string[]
+    info: Info;
+    tool: Info;
+    authors: string[];
+    title: string;
+    description: string;
+    invocation: Invocation[];
+    parameters: ApplicationParameter[];
+    outputFileGlobs: [string, string];
+    tags: string[];
 }
 
 export enum ParameterTypes {
@@ -268,105 +272,105 @@ export enum ParameterTypes {
 }
 
 export interface SearchFieldProps {
-    onSubmit: () => void
-    icon: string
-    placeholder: string
-    value: string
-    loading: boolean
-    onValueChange: (value: string) => void
+    onSubmit: () => void;
+    icon: string;
+    placeholder: string;
+    value: string;
+    loading: boolean;
+    onValueChange: (value: string) => void;
 }
 
 export interface DetailedApplicationSearchReduxState {
-    hidden: boolean
-    appName: string
-    appVersion: string
-    tags: string
-    error?: string
-    loading: boolean
+    hidden: boolean;
+    appName: string;
+    appVersion: string;
+    tags: string;
+    error?: string;
+    loading: boolean;
 }
 
 export interface DetailedApplicationOperations {
-    setAppName: (n: string) => void
-    setVersionName: (v: string) => void
-    fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void
-    fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void
+    setAppName: (n: string) => void;
+    setVersionName: (v: string) => void;
+    fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void;
+    fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void;
 }
 
 
 
 // New interfaces
 export interface ApplicationMetadata {
-    name: string
-    version: string
-    authors: string[]
-    title: string
-    description: string
-    tags: string[]
-    website?: string
+    name: string;
+    version: string;
+    authors: string[];
+    title: string;
+    description: string;
+    tags: string[];
+    website?: string;
 }
 
 type ApplicationType = "BATCH" | "VNC" | "WEB"
 
 export interface ApplicationInvocationDescription {
-    tool: Tool
-    invocation: Invocation[]
-    parameters: ApplicationParameter[]
-    outputFileGlobs: string[]
-    applicationType: ApplicationType
-    resources: Resources
+    tool: Tool;
+    invocation: Invocation[];
+    parameters: ApplicationParameter[];
+    outputFileGlobs: string[];
+    applicationType: ApplicationType;
+    resources: Resources;
 }
 
 interface Resources {
-    multiNodeSupport: boolean
-    coreRequirements: number
-    memoryRequirementsMb: number
-    gpuRequirements: number
-    tempStorageRequirementsGb: number
-    persistentStorageRequirementsGb: number
+    multiNodeSupport: boolean;
+    coreRequirements: number;
+    memoryRequirementsMb: number;
+    gpuRequirements: number;
+    tempStorageRequirementsGb: number;
+    persistentStorageRequirementsGb: number;
 }
 
 interface Tool {
-    name: string
-    version: string
-    tool: ToolReference
+    name: string;
+    version: string;
+    tool: ToolReference;
 }
 
 interface ToolReference {
-    owner: string
-    createdAt: number
-    modifiedAt: number
-    description: ToolDescription
+    owner: string;
+    createdAt: number;
+    modifiedAt: number;
+    description: ToolDescription;
 }
 
 interface NameAndVersion {
-    name: string
-    version: string
+    name: string;
+    version: string;
 }
 
 interface ToolDescription {
-    info: NameAndVersion
-    container: string
-    defaultNumberOfNodes: number
-    defaultTasksPerNode: number
-    defaultTimeAllocation: MaxTime
-    requiredModules: string[]
-    authors: string[]
-    title: string
-    description: string
-    backend: string
-    license: string
+    info: NameAndVersion;
+    container: string;
+    defaultNumberOfNodes: number;
+    defaultTasksPerNode: number;
+    defaultTimeAllocation: MaxTime;
+    requiredModules: string[];
+    authors: string[];
+    title: string;
+    description: string;
+    backend: string;
+    license: string;
 }
 
 export interface WithAppMetadata {
-    metadata: ApplicationMetadata
+    metadata: ApplicationMetadata;
 }
 
 export interface WithAppInvocation {
-    invocation: ApplicationInvocationDescription
+    invocation: ApplicationInvocationDescription;
 }
 
 export interface WithAppFavorite {
-    favorite: boolean
+    favorite: boolean;
 }
 
 export enum RunsSortBy {
@@ -378,7 +382,7 @@ export enum RunsSortBy {
     name = "NAME"
 }
 export interface WithAllAppTags {
-    tags: string[]
+    tags: string[];
 }
 
-export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata & WithAllAppTags
+export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata & WithAllAppTags;

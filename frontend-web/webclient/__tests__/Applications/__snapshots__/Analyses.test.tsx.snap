@@ -1311,6 +1311,47 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   z-index: 45;
 }
 
+.c22 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  font-size: 14px;
+  background-color: transparent;
+  border-radius: 5px;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+}
+
+.c22::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c22::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c22:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c22::placeholder {
+  color: #8393A7;
+}
+
+.c22::-ms-clear {
+  display: none;
+}
+
 .c28 {
   background-color: #fff;
   border: 0px;
@@ -1358,47 +1399,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   background-color: #fff;
   padding-top: 11px;
   padding-bottom: 11px;
-}
-
-.c22 {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  display: block;
-  width: 100%;
-  font-family: inherit;
-  color: inherit;
-  font-size: 14px;
-  background-color: transparent;
-  border-radius: 5px;
-  border-width: 0px;
-  border-style: solid;
-  border-color: #c9d3df;
-  padding-top: 14px;
-  padding-bottom: 14px;
-  padding-left: 12px;
-  padding-right: 12px;
-  margin: 0;
-}
-
-.c22::-webkit-input-placeholder {
-  color: #8393A7;
-}
-
-.c22::-moz-placeholder {
-  color: #8393A7;
-}
-
-.c22:-ms-input-placeholder {
-  color: #8393A7;
-}
-
-.c22::placeholder {
-  color: #8393A7;
-}
-
-.c22::-ms-clear {
-  display: none;
 }
 
 .c31 {
@@ -2162,6 +2162,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 className="c35"
                 onClick={[Function]}
               >
+                Name
+              </th>
+              <th
+                className="c35"
+                onClick={[Function]}
+              >
                 State
               </th>
               <th
@@ -2195,7 +2201,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 className="c35"
                 onClick={[Function]}
               >
-                Last update
+                Expiration
               </th>
             </tr>
           </thead>
@@ -2268,6 +2274,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 className="c38 c41"
                 onClick={[Function]}
               >
+                Thomas
+              </td>
+              <td
+                className="c38 c41"
+                onClick={[Function]}
+              >
                 <svg
                   className="c42"
                   clipRule="evenodd"
@@ -2306,7 +2318,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 className="c38 c41"
                 onClick={[Function]}
               >
-                30/08/2018
+                N/A
               </td>
             </tr>
             <tr
@@ -2370,6 +2382,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                     </div>
                   </label>
                 </div>
+              </td>
+              <td
+                className="c38 c41"
+                onClick={[Function]}
+              >
+                Johnny
               </td>
               <td
                 className="c38 c41"
@@ -2413,7 +2431,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 className="c38 c41"
                 onClick={[Function]}
               >
-                30/08/2018
+                N/A
               </td>
             </tr>
             <tr
@@ -2477,6 +2495,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                     </div>
                   </label>
                 </div>
+              </td>
+              <td
+                className="c38 c41"
+                onClick={[Function]}
+              >
+                Fred
               </td>
               <td
                 className="c38 c41"
@@ -2520,7 +2544,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 className="c38 c41"
                 onClick={[Function]}
               >
-                30/08/2018
+                N/A
               </td>
             </tr>
             <tr
@@ -2589,6 +2613,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 className="c38 c41"
                 onClick={[Function]}
               >
+                Nathan
+              </td>
+              <td
+                className="c38 c41"
+                onClick={[Function]}
+              >
                 <svg
                   className="c43"
                   clipRule="evenodd"
@@ -2627,7 +2657,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 className="c38 c41"
                 onClick={[Function]}
               >
-                03/09/2018
+                N/A
               </td>
             </tr>
           </tbody>
