@@ -1,9 +1,9 @@
 import {
-    sizeToString,
-    toFileText,
+    filepathQuery,
     getFilenameFromPath,
     replaceHomeFolder,
-    filepathQuery
+    sizeToString,
+    toFileText,
 } from "../../app/Utilities/FileUtilities";
 import { mockFilesSensitivityConfidential } from "../mock/Files";
 
@@ -88,5 +88,5 @@ describe("Filepath query", () => {
         expect(filepathQuery("/path", 0, 25)).toBe(
             "files?path=%2Fpath&itemsPerPage=25&page=0&order=ASCENDING&sortBy=path"
         )
-    )
+    );
 });
