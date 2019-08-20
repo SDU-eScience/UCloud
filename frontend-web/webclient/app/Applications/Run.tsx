@@ -651,6 +651,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
             <Flex mb="1em">
                 <SchedulingField
                     min={0}
+                    max={200}
                     field="maxTime"
                     subField="hours"
                     text="Hours"
@@ -660,6 +661,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                 <Box ml="4px"/>
                 <SchedulingField
                     min={0}
+                    max={59}
                     field="maxTime"
                     subField="minutes"
                     text="Minutes"
@@ -669,6 +671,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                 <Box ml="4px"/>
                 <SchedulingField
                     min={0}
+                    max={59}
                     field="maxTime"
                     subField="seconds"
                     text="Seconds"
