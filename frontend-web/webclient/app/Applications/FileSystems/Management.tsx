@@ -32,6 +32,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {WithAppInvocation, WithAppMetadata} from "Applications";
 import {Cloud} from "Authentication/SDUCloudObject";
 import styled from "styled-components";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
 
 interface ManagementProps {
     application: WithAppMetadata & WithAppInvocation
@@ -61,8 +62,6 @@ const Management: React.FunctionComponent<ManagementProps> = (
         onMountsChange = (mounts) => 42
     }: ManagementProps
 ) => {
-    if (!inDevEnvironment()) return null;
-
     const [selectedMount, setSelectedMount] = useState<SharedFileSystemMount | null>(null);
 
     const [currentPage, setListParams] = useCloudAPI<Page<SharedFileSystem>>(
@@ -77,6 +76,7 @@ const Management: React.FunctionComponent<ManagementProps> = (
     return <Box mb={16}>
         <Flex>
             <PointerInput
+                readOnly
                 placeholder={"No selected file system"}
                 onClick={() => setIsMountDialogOpen(true)}
                 value={!selectedMount ? "" : `${selectedMount.sharedFileSystem.title} (${dateToString(selectedMount.sharedFileSystem.createdAt)})`}
@@ -223,17 +223,7 @@ const MountDialogStep1: React.FunctionComponent<{
         shouldCloseOnEsc={true}
         onRequestClose={() => props.resolve({})}
         ariaHideApp={false}
-        style={{
-            content: {
-                top: "50%",
-                left: "50%",
-                right: "auto",
-                bottom: "auto",
-                marginRight: "-50%",
-                transform: "translate(-50%, -50%)",
-                background: ""
-            }
-        }}
+        style={defaultModalStyle}
     >
         <>
             <Box>

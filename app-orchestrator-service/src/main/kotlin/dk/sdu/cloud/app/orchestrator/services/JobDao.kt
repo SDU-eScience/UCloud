@@ -48,7 +48,9 @@ interface JobDao<Session> {
         sortBy: JobSortBy = JobSortBy.STARTED_AT,
         minTimestamp: Long? = null,
         maxTimestamp: Long? = null,
-        filter: JobState? = null
+        filter: JobState? = null,
+        application: String? = null,
+        version: String? = null
     ): Page<VerifiedJobWithAccessToken>
 
     suspend fun findJobsCreatedBefore(

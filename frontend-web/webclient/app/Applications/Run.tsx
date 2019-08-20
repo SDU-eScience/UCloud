@@ -50,7 +50,6 @@ import {File as CloudFile} from "Files";
 import {dialogStore} from "Dialog/DialogStore";
 import FileSelector from "Files/FileSelector";
 import {AccessRight} from "Types";
-import Networking from "Applications/Networking";
 import {OptionalParameters} from "Applications/OptionalParameters";
 import {InputDirectoryParameter} from "Applications/Widgets/FileParameter";
 
@@ -582,9 +581,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 </Box>
                             ))}
 
-                            <Heading.h4>Networking Peers</Heading.h4>
-                            <Networking/>
-
                             <Heading.h4>Scheduling</Heading.h4>
                             <JobSchedulingOptions
                                 onChange={this.onJobSchedulingParamsChange}
@@ -722,7 +718,6 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
     return extractedJobInfo;
 }
 
-
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
     setLoading: loading => dispatch(setLoading(loading))
@@ -740,10 +735,11 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                     onChange={e => {
                         if (e.target.files) {
                             const file = e.target.files[0];
-                            if (file.size > 10_000_000)
+                            if (file.size > 10_000_000) {
                                 snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                            else
+                            } else {
                                 importParameters(file);
+                            }
                             dialogStore.popDialog();
                         }
                     }}/>
