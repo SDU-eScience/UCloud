@@ -6,7 +6,7 @@ import styled from "styled-components";
 import Flex from "ui-components/Flex";
 import Text from "ui-components/Text";
 import {Link} from "react-router-dom";
-import {useState} from "react";
+import {RefObject, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {Analysis, Application, AppState, RunAppState, WithAppMetadata} from "Applications";
 import {Page} from "Types";
@@ -74,6 +74,7 @@ export const PeerParameter: React.FunctionComponent<PeerParameterProps> = props 
             <PointerInput
                 readOnly
                 placeholder={"No selected job"}
+                ref={props.parameterRef as RefObject<HTMLInputElement>}
                 value={selectedPeer ? selectedPeer : ""}
                 onClick={() => {
                     setAllowAutoConfigure(false);

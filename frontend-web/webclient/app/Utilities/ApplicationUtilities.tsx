@@ -153,7 +153,10 @@ const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
 };
 
 interface ExtractedParameters {
-    [key: string]: string | number | boolean | { source: string, destination: string; } | { fileSystemId: string }
+    [key: string]: string | number | boolean |
+        { source: string, destination: string; } |
+        { fileSystemId: string } |
+        { jobId: string }
 }
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
@@ -204,6 +207,9 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
             case ParameterTypes.SharedFileSystem:
                 console.log(current.value);
                 extracted[key] = {fileSystemId: current.value};
+                return;
+            case ParameterTypes.Peer:
+                extracted[key] = {jobId: current.value};
                 return;
         }
     });
