@@ -65,6 +65,7 @@ class JobOrchestratorTest {
         } returns normAppDesc
         coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
 
+
         val jobFileService = JobFileService(client) { _, _ -> client}
         val orchestrator = JobOrchestrator(
             client,

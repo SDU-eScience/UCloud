@@ -6,7 +6,6 @@ import {connect} from "react-redux";
 import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {
-    ApplicationMetadata,
     ApplicationParameter,
     FullAppInfo,
     JobSchedulingOptionsForInput,
@@ -29,7 +28,6 @@ import {
     hpcFavoriteApp,
     hpcJobQueryPost,
     isFileOrDirectoryParam,
-    ParameterValues,
     validateOptionalFields,
     checkForMissingParameters
 } from "Utilities/ApplicationUtilities";
@@ -90,10 +88,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.props.updatePageTitle();
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
-        this.retrieveApplication(name, version);
+        this.state.promises.makeCancelable(
+            this.retrieveApplication(name, version)
+        );
     }
 
     public componentWillUnmount = () => this.state.promises.cancelPromises();
+
+    public componentDidUpdate(prevProps: Readonly<RunAppProps>, prevState: Readonly<RunAppState>) {
+        if (prevProps.match.params.appName !== this.props.match.params.appName ||
+            prevProps.match.params.appVersion !== this.props.match.params.appVersion) {
+            this.state.promises.makeCancelable(
+                this.retrieveApplication(this.props.match.params.appName, this.props.match.params.appVersion)
+            );
+        }
+    }
 
     private onJobSchedulingParamsChange = (field: string | number, value: number, timeField: string) => {
         const {schedulingOptions} = this.state;
@@ -320,7 +329,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }
 
                 {
-                    // Show hidden fields.
+                    // Make sure all the fields we are using are visible
                     parametersFromUser.forEach(key =>
                         thisApp.invocation.parameters.find(it => it.name === key)!.visible = true
                     );

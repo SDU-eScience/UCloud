@@ -54,6 +54,7 @@ import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
+import kotlin.system.exitProcess
 
 class Server(
     private val config: StorageConfiguration,
@@ -199,12 +200,26 @@ class Server(
             micro.configuration.requestChunkAtOrNull<HibernateFeature.Feature.Config>(*HibernateFeature.CONFIG_PATH)
                 ?: return
 
-        if (config.dialect == H2_DIALECT) {
+        if (config.dialect == H2_DIALECT || config.profile == HibernateFeature.Feature.Profile.TEST_H2 ||
+            config.profile == HibernateFeature.Feature.Profile.PERSISTENT_H2
+        ) {
             // Add database 'polyfill' for postgres reverse function.
+            log.info("Adding the H2 polyfill")
             micro.hibernateDatabase.withTransaction { session ->
-                session.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ " +
-                        "String reverse(String s) { return new StringBuilder(s).reverse().toString(); } " +
-                        "\$\$;").executeUpdate()
+                session.createNativeQuery(
+                    "CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ " +
+                            "String reverse(String s) { return new StringBuilder(s).reverse().toString(); } " +
+                            "\$\$;"
+                ).executeUpdate()
+            }
+        }
+
+        micro.hibernateDatabase.withTransaction { session ->
+            try {
+                session.createNativeQuery("select REVERSE('foo')").list().first().toString()
+            } catch (ex: Throwable) {
+                log.error("Could not reverse string in database!")
+                exitProcess(1)
             }
         }
     }
