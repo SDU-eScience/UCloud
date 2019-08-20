@@ -1,27 +1,27 @@
-import * as React from "react";
-import * as Pagination from "Pagination";
-import {connect} from "react-redux";
-import {updatePageTitle, StatusActions, setActivePage} from "Navigation/Redux/StatusActions";
-import {Page} from "Types";
-import {FullAppInfo, WithAllAppTags, WithAppFavorite, WithAppMetadata} from ".";
-import {setPrioritizedSearch, HeaderActions, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Dispatch} from "redux";
+import {Cloud} from "Authentication/SDUCloudObject";
 import {ReduxObject} from "DefaultObjects";
+import {loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
-import {ApplicationCard} from "./Card";
+import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
+import * as Pagination from "Pagination";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
 import styled from "styled-components";
-import * as Heading from "ui-components/Heading";
+import {Page} from "Types";
 import {Link} from "ui-components";
 import {GridCardGroup} from "ui-components/Grid";
-import {getQueryParam, RouterLocationProps, getQueryParamOrElse} from "Utilities/URIUtilities";
-import * as Pages from "./Pages";
-import {Type as ReduxType} from "./Redux/BrowseObject";
-import * as Actions from "./Redux/BrowseActions";
-import {loadingEvent} from "LoadableContent";
-import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
-import {Cloud} from "Authentication/SDUCloudObject";
+import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
+import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
+import {getQueryParam, getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
+import {FullAppInfo, WithAppMetadata} from ".";
+import {ApplicationCard} from "./Card";
+import * as Pages from "./Pages";
+import * as Actions from "./Redux/BrowseActions";
+import {Type as ReduxType} from "./Redux/BrowseObject";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -57,11 +57,11 @@ const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}
 </>);
 
 export interface ApplicationsOperations {
-    onInit: () => void
-    fetchDefault: (itemsPerPage: number, page: number) => void
-    fetchByTag: (tag: string, itemsPerPage: number, page: number) => void
-    receiveApplications: (page: Page<WithAppMetadata>) => void
-    setRefresh: (refresh?: () => void) => void
+    onInit: () => void;
+    fetchDefault: (itemsPerPage: number, page: number) => void;
+    fetchByTag: (tag: string, itemsPerPage: number, page: number) => void;
+    receiveApplications: (page: Page<WithAppMetadata>) => void;
+    setRefresh: (refresh?: () => void) => void;
 }
 
 export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
@@ -83,48 +83,6 @@ class Applications extends React.Component<ApplicationsProps> {
 
     public componentWillUnmount() {
         this.props.setRefresh();
-    }
-
-    private pageNumber(props: ApplicationsProps = this.props): number {
-        return parseInt(getQueryParamOrElse(props, "page", "0"));
-    }
-
-    private itemsPerPage(props: ApplicationsProps = this.props): number {
-        return parseInt(getQueryParamOrElse(props, "itemsPerPage", "25"));
-    }
-
-    private tag(props: ApplicationsProps = this.props): string | null {
-        return getQueryParam(props, "tag");
-    }
-
-    private updateItemsPerPage(newItemsPerPage: number): string {
-        const tag = this.tag();
-        if (tag === null) {
-            return Pages.browse(newItemsPerPage, this.pageNumber());
-        } else {
-            return Pages.browseByTag(tag, newItemsPerPage, this.pageNumber());
-        }
-    }
-
-    private updatePage(newPage: number): string {
-        const tag = this.tag();
-        if (tag === null) {
-            return Pages.browse(this.itemsPerPage(), newPage);
-        } else {
-            return Pages.browseByTag(tag, this.itemsPerPage(), newPage);
-        }
-    }
-
-    private fetch() {
-        const itemsPerPage = this.itemsPerPage(this.props);
-        const pageNumber = this.pageNumber(this.props);
-        const tag = this.tag(this.props);
-
-        if (tag === null) {
-            this.props.fetchDefault(itemsPerPage, pageNumber);
-        } else {
-            this.props.fetchByTag(tag, itemsPerPage, pageNumber);
-        }
     }
 
     public render() {
@@ -170,9 +128,53 @@ class Applications extends React.Component<ApplicationsProps> {
             />
         );
     }
+
+    private pageNumber(props: ApplicationsProps = this.props): number {
+        return parseInt(getQueryParamOrElse(props, "page", "0"), 10);
+    }
+
+    private itemsPerPage(props: ApplicationsProps = this.props): number {
+        return parseInt(getQueryParamOrElse(props, "itemsPerPage", "25"), 10);
+    }
+
+    private tag(props: ApplicationsProps = this.props): string | null {
+        return getQueryParam(props, "tag");
+    }
+
+    private updateItemsPerPage(newItemsPerPage: number): string {
+        const tag = this.tag();
+        if (tag === null) {
+            return Pages.browse(newItemsPerPage, this.pageNumber());
+        } else {
+            return Pages.browseByTag(tag, newItemsPerPage, this.pageNumber());
+        }
+    }
+
+    private updatePage(newPage: number): string {
+        const tag = this.tag();
+        if (tag === null) {
+            return Pages.browse(this.itemsPerPage(), newPage);
+        } else {
+            return Pages.browseByTag(tag, this.itemsPerPage(), newPage);
+        }
+    }
+
+    private fetch() {
+        const itemsPerPage = this.itemsPerPage(this.props);
+        const pageNumber = this.pageNumber(this.props);
+        const tag = this.tag(this.props);
+
+        if (tag === null) {
+            this.props.fetchDefault(itemsPerPage, pageNumber);
+        } else {
+            this.props.fetchByTag(tag, itemsPerPage, pageNumber);
+        }
+    }
 }
 
-const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>): ApplicationsOperations => ({
+const mapDispatchToProps = (
+    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
+): ApplicationsOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Applications"));
         dispatch(setPrioritizedSearch("applications"));
@@ -193,7 +195,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
-const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {favCount} => ({
+const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {favCount: number} => ({
     ...applicationsBrowse,
     favCount: applicationsBrowse.applications.content ?
         applicationsBrowse.applications.content.items.filter((it: any) => it.favorite).length : 0

@@ -136,7 +136,7 @@ export const AppCard = styled(Link)`
     will-change: transform;
 
     &:hover {
-        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+        transition: transform ${({theme}) => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
         transform: scale(1.02);
         box-shadow: ${({theme}) => theme.shadows["md"]};
     }
@@ -222,14 +222,14 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color
     return (
         <svg
             width={size} height={size}
-            viewBox={`-1 -${s32} 2 ${(2 * s32)}`}
+            viewBox={`-1 -${s32} 2 ${2 * s32}`}
             fillRule="evenodd"
             clipRule="evenodd"
         >
             <defs>
-                <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${(s32 * r1)}H-${(0.5 * r1)}Z`} />
+                <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${s32 * r1}H-${0.5 * r1}Z`} />
                 <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fillOpacity=".55" />
-                <path id="hex_th___" d={`M-${r3} 0L-${(0.5 * r3)} ${(s32 * r3)}H${(0.5 * r3)}L${r3} 0L${(0.5 * r3)} -${(s32 * r3)}H-${(0.5 * r3)}Z`} />
+                <path id="hex_th___" d={`M-${r3} 0L-${0.5 * r3} ${s32 * r3}H${0.5 * r3}L${r3} 0L${0.5 * r3} -${s32 * r3}H-${0.5 * r3}Z`} />
             </defs>
             <g transform={`rotate(${rot} 0 0)`} >
                 <use xlinkHref="#hex_th___" fill="#fff" />
@@ -267,8 +267,8 @@ const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
 
 
 export function hashF(str: string): number {
-    let hash = 5381,
-        i = str.length;
+    let hash = 5381;
+    let i = str.length;
 
     while (i) {
         hash = (hash * 33) ^ str.charCodeAt(--i);
@@ -283,14 +283,19 @@ export function hashF(str: string): number {
 }
 
 function appColor(hash: number): number {
-    return (hash >>> 22) % (nColors - 1); //last color not used
+    return (hash >>> 22) % (nColors - 1); // last color not used
 }
 
 const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
 `;
 
-export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({app, onFavorite, isFavorite, linkToRun}: ApplicationCardProps) => {
+export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
+    app,
+    onFavorite,
+    isFavorite,
+    linkToRun
+}: ApplicationCardProps) => {
     const hash = hashF(app.metadata.title);
     const {metadata} = app;
     const appC = appColor(hash);
@@ -305,7 +310,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                     right={0}
                     top={0}
                     favorite={isFavorite}
-                    onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(metadata.name, metadata.version)) : undefined}
+                    onClick={onFavoriteClick}
                 >
                     <Icon name={"starRibbon"} color="red" size={48} />
                 </AppRibbonContainer>
@@ -324,8 +329,32 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
             </Flex>
             <Box mt="auto" />
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
-                {app.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
+                {buildTags(app.tags).map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </AppCard>
     );
+
+    function onFavoriteClick(e: React.MouseEvent<HTMLDivElement, MouseEvent>): void {
+        if (!!onFavorite) {
+            e.preventDefault();
+            onFavorite(metadata.name, metadata.version);
+        }
+    }
 };
+
+function buildTags(tags: string[]): string[] {
+    const limit = 40;
+    if (tags.join().length <= limit) return tags;
+    let remainingLength = limit;
+    const result: string[] = [];
+    tags.forEach(t => {
+        if (remainingLength < t.length) return;
+        result.push(t);
+        remainingLength -= t.length;
+    });
+    if (result.length < tags.length) {
+        result.pop();
+        result.push(`+${tags.length - result.length + 1} more`);
+    }
+    return result;
+}
