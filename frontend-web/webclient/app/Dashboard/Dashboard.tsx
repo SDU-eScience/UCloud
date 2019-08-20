@@ -20,7 +20,7 @@ import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
-import {EllipsedText} from "ui-components/Text"
+import {EllipsedText} from "ui-components/Text";
 import {
     favoriteFile,
     getFilenameFromPath,

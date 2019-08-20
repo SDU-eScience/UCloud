@@ -59,10 +59,10 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2
 }
 
 export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
-    let method = parameters.method !== undefined ? parameters.method : "GET";
-    if (parameters.path === undefined) throw "Missing path";
+    const method = parameters.method !== undefined ? parameters.method : "GET";
+    if (parameters.path === undefined) throw Error("Missing path");
     return (await Cloud.call({
-        method: method,
+        method,
         path: parameters.path,
         body: parameters.payload,
         context: parameters.context,
@@ -109,7 +109,7 @@ export function useCloudAPI<T, Parameters = any>(
                         }
                     } catch (e) {
                         if (!didCancel) {
-                            let statusCode = e.request.status;
+                            const statusCode = e.request.status;
                             let why = "Internal Server Error";
                             if (!!e.response && e.response.why) {
                                 why = e.response.why;

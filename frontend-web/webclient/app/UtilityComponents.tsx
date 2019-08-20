@@ -83,7 +83,7 @@ export function shareDialog(): Promise<{ cancelled: true } | { username: string,
     let username = "";
     let readOrEdit: "read" | "read_edit" = "read";
     let error = false;
-    // FIXME: Less than dry, however, this needed to be wrapped in a from. Can be make standard dialog do similar?
+    // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
     return new Promise(resolve => dialogStore.addDialog(
         <form onSubmit={e => e.preventDefault()}>
             <Heading.h3>Share</Heading.h3>
@@ -103,19 +103,19 @@ export function shareDialog(): Promise<{ cancelled: true } | { username: string,
             <Flex mt="20px">
                 <Button type="button" onClick={() => {
                     dialogStore.popDialog();
-                    resolve({cancelled: true})
+                    resolve({cancelled: true});
                 }} color="red" mr="5px">Cancel</Button>
                 <Button onClick={() => {
                     if (username) {
                         dialogStore.popDialog();
-                        resolve({username, readOrEdit})
+                        resolve({username, readOrEdit});
                     } else {
                         error = true;
                     }
                 }} color="green">Share</Button>
             </Flex>
         </form>
-    ))
+    ));
 }
 
 export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
