@@ -343,13 +343,13 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
 };
 
 function buildTags(tags: string[]): string[] {
-    let limit = 38;
+    let limit = 40;
     if (tags.join().length < limit && tags.length < 4) return tags;
     const result: string[] = [];
     tags.forEach(t => {
         if (t.length > limit) return;
         result.push(t);
-        limit -= t.length;
+        limit -= t.length + 2.4;
     });
     if (result.length < tags.length) {
         result.pop();
