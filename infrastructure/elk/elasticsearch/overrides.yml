@@ -23,14 +23,14 @@ esConfig:
 #  replicas: 4
 #  persistence:
 #    storageClass: rbd
-#    size: 1000Gi
-#  heapSize: 12288m
+#    size: 5000Gi
+#  heapSize: 32768m
 #  resources:
 #    limits:
-#      cpu: "6000m"
+#      cpu: "16000m"
 #    requests:
-#      cpu: "6000m"
-#      memory: "25Gi"
+#      cpu: "8000m"
+#      memory: "32Gi"
 
 #client:
 #  heapSize: 2048m
