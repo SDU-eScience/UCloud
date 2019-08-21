@@ -79,44 +79,56 @@ export function sensitivityDialog(): Promise<{ cancelled: true } | { option: Sen
     }));
 }
 
-export function shareDialog(): Promise<{ cancelled: true } | { username: string, readOrEdit: "read" | "read_edit" }> {
-    let username = "";
-    let readOrEdit: "read" | "read_edit" = "read";
-    let error = false;
+export function shareDialog(): Promise<{ cancelled: true } | { username: string, access: "read" | "read_edit" }> {
     // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
     return new Promise(resolve => dialogStore.addDialog(
-        <form onSubmit={e => e.preventDefault()}>
-            <Heading.h3>Share</Heading.h3>
-            <Divider/>
-            <Flex mb="10px">
-                <Label>
-                    <Radio name="right" defaultChecked onClick={() => readOrEdit = "read"}/> {" "} Can view
-                </Label>
-                <Label>
-                    <Radio name="right" onClick={() => readOrEdit = "read_edit"}/> {" "} Can edit
-                </Label>
-            </Flex>
-            <Label>
-                <Input required type="text" onChange={e => username = e.target.value}
-                       placeholder="Enter username..."/>
-            </Label>
-            <Flex mt="20px">
-                <Button type="button" onClick={() => {
-                    dialogStore.popDialog();
-                    resolve({cancelled: true});
-                }} color="red" mr="5px">Cancel</Button>
-                <Button onClick={() => {
-                    if (username) {
-                        dialogStore.popDialog();
-                        resolve({username, readOrEdit});
-                    } else {
-                        error = true;
-                    }
-                }} color="green">Share</Button>
-            </Flex>
-        </form>
+        <SharePrompt resolve={resolve} />
     ));
 }
+
+function SharePrompt({resolve}) {
+    const username = React.useRef<HTMLInputElement>(null);
+    const [access, setAccess] =  React.useState<"read" | "read_edit">("read");
+    return (<form onSubmit={e => e.preventDefault()}>
+    <Heading.h3>Share</Heading.h3>
+    <Divider/>
+    <Flex mb="10px">
+        <Label>
+            <Radio
+                name="right"
+                checked={access === "read"}
+                onClick={() => setAccess("read")}
+                onChange={() => setAccess("read")}
+            /> {" "} Can view
+        </Label>
+        <Label>
+            <Radio
+                name="right"
+                checked={access === "read_edit"}
+                onClick={() => setAccess("read_edit")}
+                onChange={() => setAccess("read_edit")}
+            /> {" "} Can edit
+        </Label>
+    </Flex>
+    <Label>
+        <Input required type="text" ref={username}
+               placeholder="Enter username..."/>
+    </Label>
+    <Flex mt="20px">
+        <Button type="button" onClick={() => {
+            dialogStore.popDialog();
+            resolve({cancelled: true});
+        }} color="red" mr="5px">Cancel</Button>
+        <Button onClick={() => {
+            if (username.current && username.current.value) {
+                dialogStore.popDialog();
+                resolve({username: username.current.value, access});
+            }
+        }} color="green">Share</Button>
+        </Flex>
+    </form>);
+}
+
 
 export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
     return new Promise(resolve => addStandardDialog({

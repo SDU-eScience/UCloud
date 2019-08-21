@@ -1,19 +1,19 @@
-import {Cloud} from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import {File, FileResource, FileType, MoveCopyOperations, SortBy, SortOrder} from "Files";
-import {Page} from "Types";
-import * as UF from "UtilityFunctions";
+import {Cloud} from "Authentication/SDUCloudObject";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {ErrorMessage, isError, unwrap} from "./XHRUtils";
-import {UploadPolicy} from "Uploader/api";
-import {SnackType} from "Snackbar/Snackbars";
-import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} from "UtilityComponents";
 import {dialogStore} from "Dialog/DialogStore";
+import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
+import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Page} from "Types";
+import {UploadPolicy} from "Uploader/api";
+import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} from "UtilityComponents";
+import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
+import {ErrorMessage, isError, unwrap} from "./XHRUtils";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
-    return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`
+    return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
 }
 
 export enum CopyOrMove {
@@ -21,26 +21,18 @@ export enum CopyOrMove {
     Copy
 }
 
-interface CopyOrMoveFiles {
-    operation: CopyOrMove
-    files: File[]
-    copyMoveOps: MoveCopyOperations
-    cloud: SDUCloud
-    setLoading: () => void
-}
-
 export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], targetPathFolder: string) {
     const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
     let successes = 0;
     let failures = 0;
-    let failurePaths: string[] = [];
+    const failurePaths: string[] = [];
     let applyToAll = false;
     let policy = UploadPolicy.REJECT;
     let allowRewrite = false;
 
     for (let i = 0; i < files.length; i++) {
-        let f = files[i];
-        let {exists, newPathForFile, allowOverwrite} = await moveCopySetup({
+        const f = files[i];
+        const {exists, newPathForFile, allowOverwrite} = await moveCopySetup({
             targetPath: targetPathFolder,
             path: f.path,
             cloud: Cloud
@@ -52,7 +44,7 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
                 filesRemaining: files.length - i,
                 allowOverwrite
             });
-            if (result != false) {
+            if (result !== false) {
                 allowRewrite = !!result.policy;
                 policy = result.policy as UploadPolicy;
                 if (files.length - i > 1) applyToAll = result.applyToAll;
@@ -66,7 +58,7 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
                 if (request.status === 202) snackbarStore.addSnack({
                     message: `Operation for ${f.path} is in progress.`,
                     type: SnackType.Success
-                })
+                });
             } catch {
                 failures++;
                 failurePaths.push(getFilenameFromPath(f.path))
@@ -84,9 +76,9 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
 }
 
 interface MoveCopySetup {
-    targetPath: string
-    path: string
-    cloud: SDUCloud
+    targetPath: string;
+    path: string;
+    cloud: SDUCloud;
 }
 
 async function moveCopySetup({targetPath, path, cloud}: MoveCopySetup) {
@@ -476,16 +468,16 @@ export const sizeToString = (bytes: number | null): string => {
 export const directorySizeQuery = "/files/stats/directory-sizes";
 
 interface ShareFiles {
-    files: File[],
-    cloud: SDUCloud
+    files: File[];
+    cloud: SDUCloud;
 }
 
 export const shareFiles = async ({files, cloud}: ShareFiles) => {
     const input = await shareDialog();
     if ("cancelled" in input) return;
     const rights: string[] = [];
-    if (input.readOrEdit.includes("read")) rights.push("READ");
-    if (input.readOrEdit.includes("read_edit")) rights.push("WRITE");
+    if (input.access.includes("read")) rights.push("READ");
+    if (input.access.includes("read_edit")) rights.push("WRITE");
     let iteration = 0;
     // Replace with Promise.all
     files.map(f => f.path).forEach((path, _, paths) => {
@@ -499,7 +491,7 @@ export const shareFiles = async ({files, cloud}: ShareFiles) => {
                 if (++iteration === paths.length) snackbarStore.addSnack({
                     message: "Files shared successfully",
                     type: SnackType.Success
-                })
+                });
             })
             .catch(({response}) => snackbarStore.addSnack({message: `${response.why}`, type: SnackType.Failure}));
     });
@@ -524,13 +516,13 @@ export function clearTrashDialog({onConfirm, onCancel}: { onConfirm: () => void,
         confirmText: "Confirm",
         cancelText: "Cancel",
         onConfirm
-    })
+    });
 }
 
 interface ResultToNotification {
-    failures: string[]
-    paths: string[]
-    homeFolder: string
+    failures: string[];
+    paths: string[];
+    homeFolder: string;
 }
 
 function resultToNotification({failures, paths, homeFolder}: ResultToNotification) {
@@ -551,15 +543,17 @@ function resultToNotification({failures, paths, homeFolder}: ResultToNotificatio
 }
 
 const successResponse = (paths: string[], homeFolder: string) =>
-    paths.length > 1 ? `${paths.length} files moved to trash.` : `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
+    paths.length > 1 ?
+        `${paths.length} files moved to trash.` :
+        `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
 
-type Failures = { failures: string[] }
+interface Failures { failures: string[]; }
 
 interface MoveToTrash {
-    files: File[]
-    cloud: SDUCloud
-    setLoading: () => void
-    callback: () => void
+    files: File[];
+    cloud: SDUCloud;
+    setLoading: () => void;
+    callback: () => void;
 }
 
 export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) => {
@@ -581,11 +575,11 @@ export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) =
 };
 
 interface MoveFile {
-    oldPath: string
-    newPath: string
-    cloud: SDUCloud
-    setLoading: () => void
-    onSuccess: () => void
+    oldPath: string;
+    newPath: string;
+    cloud: SDUCloud;
+    setLoading: () => void;
+    onSuccess: () => void;
 }
 
 export async function moveFile({oldPath, newPath, cloud, setLoading, onSuccess}: MoveFile): Promise<void> {
@@ -599,9 +593,9 @@ export async function moveFile({oldPath, newPath, cloud, setLoading, onSuccess}:
 }
 
 interface CreateFolder {
-    path: string
-    cloud: SDUCloud
-    onSuccess: () => void
+    path: string;
+    cloud: SDUCloud;
+    onSuccess: () => void;
 }
 
 export async function createFolder({path, cloud, onSuccess}: CreateFolder): Promise<void> {

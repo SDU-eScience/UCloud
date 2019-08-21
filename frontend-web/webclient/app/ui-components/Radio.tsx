@@ -1,24 +1,24 @@
-import * as React from 'react';
-import styled from 'styled-components';
-import theme from './theme';
-import Icon from './Icon';
+import * as React from "react";
+import styled from "styled-components";
+import Icon from "./Icon";
+import theme from "./theme";
 
 const Radio = props => {
     const {checked, disabled} = props;
 
-    const radioIconName = checked ? 'radioChecked' : 'radioEmpty';
+    const radioIconName = checked ? "radioChecked" : "radioEmpty";
 
     return (
         <RadioWrap checked={checked} disabled={disabled}>
             <RadioInput type="radio" {...props} />
             <RadioIcon name={radioIconName} size={24}/>
         </RadioWrap>
-    )
+    );
 };
 
 interface RadioWrapProps {
-    checked: boolean
-    disabled: boolean
+    checked: boolean;
+    disabled: boolean;
 }
 
 const RadioWrap = styled.div<RadioWrapProps>`
