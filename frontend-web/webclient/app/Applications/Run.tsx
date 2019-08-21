@@ -682,21 +682,13 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                 <Input ref={name} placeholder="Job name"/>
             </Flex>
 
-            {!props.app.invocation.resources.multiNodeSupport ? null :
+            {!props.app.invocation.allowMultiNode ? null :
                 <Flex mb="1em">
                     <SchedulingField
                         min={1}
                         field="numberOfNodes"
                         text="Number of Nodes"
                         value={numberOfNodes}
-                        onChange={props.onChange}
-                    />
-                    <Box ml="5px"/>
-                    <SchedulingField
-                        min={1}
-                        field="tasksPerNode"
-                        text="Tasks per Node"
-                        value={tasksPerNode}
                         onChange={props.onChange}
                     />
                 </Flex>

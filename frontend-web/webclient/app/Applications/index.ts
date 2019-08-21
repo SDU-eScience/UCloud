@@ -333,8 +333,8 @@ export interface ApplicationInvocationDescription {
     parameters: ApplicationParameter[];
     outputFileGlobs: string[];
     applicationType: ApplicationType;
-    resources: Resources;
     shouldAllowAdditionalMounts: boolean
+    allowMultiNode: boolean
 }
 
 interface Resources {

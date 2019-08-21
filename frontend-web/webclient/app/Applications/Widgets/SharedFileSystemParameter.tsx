@@ -113,7 +113,7 @@ export const SharedFileSystemParameter: React.FunctionComponent<SharedFileSystem
                 }}
 
             />
-        </Box>;
+        </Box>
     </BaseParameter>;
 };
 

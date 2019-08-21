@@ -42,13 +42,13 @@ data class ApplicationInvocationDescription(
     val parameters: List<ApplicationParameter<*>>,
     val outputFileGlobs: List<String>,
     val applicationType: ApplicationType = ApplicationType.BATCH,
-    val resources: ResourceRequirements = ResourceRequirements(),
     val vnc: VncDescription? = null,
     val web: WebDescription? = null,
     val container: ContainerDescription? = null,
     val environment: Map<String, InvocationParameter>? = null,
     private val allowAdditionalMounts: Boolean? = null,
-    private val allowAdditionalPeers: Boolean? = null
+    private val allowAdditionalPeers: Boolean? = null,
+    val allowMultiNode: Boolean = false
 ) {
     val shouldAllowAdditionalMounts: Boolean
         get() {

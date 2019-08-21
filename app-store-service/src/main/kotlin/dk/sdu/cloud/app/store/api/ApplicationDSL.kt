@@ -39,7 +39,8 @@ sealed class ApplicationDescription(val application: String) {
         val container: ContainerDescription? = null,
         environment: Map<String, Any>? = null,
         val allowAdditionalMounts: Boolean? = null,
-        val allowAdditionalPeers: Boolean? = null
+        val allowAdditionalPeers: Boolean? = null,
+        val allowMultiNode: Boolean? = false
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
         val environment: Map<String, InvocationParameter>?
@@ -247,7 +248,8 @@ sealed class ApplicationDescription(val application: String) {
                 container = container,
                 environment = environment,
                 allowAdditionalMounts = allowAdditionalMounts,
-                allowAdditionalPeers = allowAdditionalPeers
+                allowAdditionalPeers = allowAdditionalPeers,
+                allowMultiNode = allowMultiNode ?: false
             )
 
             return Application(metadata, invocation)
@@ -280,11 +282,3 @@ enum class ApplicationType {
     WEB
 }
 
-data class ResourceRequirements(
-    val multiNodeSupport: Boolean = false,
-    val coreRequirements: Int = -1,
-    val memoryRequirementsMb: Int = -1,
-    val gpuRequirements: Int = -1,
-    val tempStorageRequirementsGb: Int = -1,
-    val persistentStorageRequirementsGb: Int = -1
-)
