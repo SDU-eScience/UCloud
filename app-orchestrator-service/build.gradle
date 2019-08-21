@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.4.0-MULTINODE.0'
+version '0.4.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
@@ -9,7 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.5.12"
     ext.authApiVersion = "1.21.0"
-    ext.appStoreApiVersion = "0.4.0-MULTINODE.1"
+    ext.appStoreApiVersion = "0.4.0"
     ext.fileApiVersion = "2.1.0"
     ext.appFsVersion = "0.1.0"
 }
