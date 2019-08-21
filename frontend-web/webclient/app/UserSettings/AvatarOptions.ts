@@ -122,9 +122,9 @@ export enum ClothesGraphic {
     Bear = "Bear",
     SkullOutline = "SkullOutline",
     Skull = "Skull",
-    /* Espie = "Espie"
+    Espie = "Espie",
     EScienceLogo = "eScienceLogo",
-    Teeth = "Teeth" */
+    Teeth = "Teeth"
 }
 
 export enum Eyes {

@@ -1,15 +1,14 @@
-import * as React from 'react'
-import {generateId as uniqueId} from 'UtilityFunctions';
-
-import {GraphicOption, Selector} from '../../options'
+import * as React from "react";
+import {generateId as uniqueId} from "UtilityFunctions";
+import {GraphicOption, Selector} from "../../options";
 
 export interface Props {
-  maskID: string
+  maskID: string;
 }
 
 export class Skull extends React.Component<Props> {
   static optionValue = 'Skull'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Skull'
@@ -26,7 +25,7 @@ export class Skull extends React.Component<Props> {
 
 export class SkullOutline extends React.Component<Props> {
   static optionValue = 'SkullOutline'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Skull-Outline'
@@ -64,7 +63,7 @@ export class SkullOutline extends React.Component<Props> {
 
 export class Bat extends React.Component<Props> {
   static optionValue = 'Bat'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Bat'
@@ -81,7 +80,7 @@ export class Bat extends React.Component<Props> {
 
 export class Cumbia extends React.Component<Props> {
   static optionValue = 'Cumbia'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Cumbia'
@@ -144,7 +143,7 @@ export class Cumbia extends React.Component<Props> {
 
 export class Deer extends React.Component<Props> {
   static optionValue = 'Deer'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Deer'
@@ -161,7 +160,7 @@ export class Deer extends React.Component<Props> {
 
 export class Diamond extends React.Component<Props> {
   static optionValue = 'Diamond'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Diamond'
@@ -199,7 +198,7 @@ export class Diamond extends React.Component<Props> {
 
 export class Hola extends React.Component<Props> {
   static optionValue = 'Hola'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Hola'
@@ -216,7 +215,7 @@ export class Hola extends React.Component<Props> {
 
 export class Selena extends React.Component<Props> {
   static optionValue = 'Selena'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Selena'
@@ -249,7 +248,7 @@ export class Selena extends React.Component<Props> {
 
 export class Pizza extends React.Component<Props> {
   static optionValue = 'Pizza'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Pizza'
@@ -283,7 +282,7 @@ export class Pizza extends React.Component<Props> {
 export class Resist extends React.Component<Props> {
   static optionValue = 'Resist'
 
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Resist'
@@ -344,7 +343,7 @@ export class Bear extends React.Component<Props> {
   private mask1 = uniqueId('react-mask-')
   private path1 = uniqueId('react-path-')
 
-  render() {
+  public render() {
     const {mask1, path1} = this
     return (
       <g
@@ -379,7 +378,7 @@ export class Bear extends React.Component<Props> {
 export class EScienceLogo extends React.Component<Props> {
   static optionValue = "EScienceLogo";
 
-  render() {
+  public render() {
     return (
       <g
       id='Clothing/Graphic/EScienceLogo'
@@ -589,7 +588,7 @@ export class Teeth extends React.Component<Props> {
 export class Espie extends React.Component<Props> {
   static optionValue = "Espie";
 
-  render() {
+  public render() {
     return (
       <g
     id='Clothing/Graphic/Espie'
@@ -905,7 +904,7 @@ export class Espie extends React.Component<Props> {
 }
 
 export default class Graphics extends React.Component<Props> {
-  render() {
+  public render() {
     return (
       <Selector option={GraphicOption} defaultOption={Skull}>
         <Bat maskID={this.props.maskID} />
