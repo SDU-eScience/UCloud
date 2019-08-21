@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.2.2'
+version '0.2.3'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.fs.MainKt"
@@ -9,6 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.5.12"
     ext.authApiVersion = "1.21.0"
+    ext.storageApiVersion = "2.1.2"
 }
 
 repositories {
@@ -18,6 +19,7 @@ repositories {
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
+    compile "dk.sdu.cloud:file-api:$storageApiVersion"
     compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
