@@ -11,7 +11,9 @@ export enum SortOrder {
     DESCENDING = "DESCENDING"
 }
 
-export type FileType = "FILE" | "DIRECTORY" | "FAVFOLDER" | "SHARESFOLDER" | "TRASHFOLDER" | "RESULTFOLDER";
+export type FileType = "FILE" | "DIRECTORY" | "FAVFOLDER" | "SHARESFOLDER" | "TRASHFOLDER" | "RESULTFOLDER" |
+    "SHARED_FS";
+
 export interface File {
     fileType: FileType
     path: string

@@ -78,6 +78,30 @@ object AppFileSystems : CallDescriptionContainer("app.fs") {
         data class Request(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
     }
 
+    val listAsFile = call<ListAsFile.Request, Page<SharedFileSystemFileWrapper>, CommonErrorMessage>("listAsFile") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"fs-compat"
+            }
+
+            params {
+                +boundTo(ListAsFile.Request::itemsPerPage)
+                +boundTo(ListAsFile.Request::page)
+            }
+        }
+    }
+
+    object ListAsFile {
+        data class Request(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+    }
+
     val view = call<View.Request, View.Response, CommonErrorMessage>("view") {
         auth {
             access = AccessRight.READ

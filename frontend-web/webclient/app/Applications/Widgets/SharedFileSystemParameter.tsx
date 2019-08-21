@@ -68,9 +68,9 @@ export const SharedFileSystemParameter: React.FunctionComponent<SharedFileSystem
                         color={"blue"}
                         disabled={isCommandLoading}
                         onClick={async () => {
-                            const resp = await invokeCommand<{ id: string }>(createFileSystem({title: application.metadata.name}));
+                            const resp = await invokeCommand<{ id: string }>(createFileSystem({title: application.metadata.title}));
                             if (resp !== null) {
-                                setSelectedMount(fakeMount(resp.id, application.metadata.name, mountLocation));
+                                setSelectedMount(fakeMount(resp.id, application.metadata.title, mountLocation));
                             }
                         }}
                     >

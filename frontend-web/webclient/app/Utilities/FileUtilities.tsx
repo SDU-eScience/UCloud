@@ -623,6 +623,10 @@ export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
 
+export function isAnySharedFs(files: File[]): boolean {
+    return files.some(it => it.fileType === "SHARED_FS");
+}
+
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 

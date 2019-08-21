@@ -57,6 +57,11 @@ class SharedFileSystemService<DBSession>(
         return AppFileSystems.View.Response(fs, size)
     }
 
+    suspend fun calculateSize(fileSystem: SharedFileSystem): Long {
+        val backend = backendService.getBackend(fileSystem.backend)
+        return backend.view.call(FileSystemCalls.View.Request(fileSystem.id), serviceClient).orThrow().size
+    }
+
     suspend fun list(token: SecurityPrincipalToken, pagination: NormalizedPaginationRequest): Page<SharedFileSystem> {
         return db.withTransaction { fileSystemDao.list(it, pagination, token) }
     }
