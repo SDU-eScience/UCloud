@@ -238,7 +238,7 @@ function Tags({tags}: {tags: string[]}) {
     return <div>
         <TagBase>
             {
-                tags.slice(0, 5).map(tag => (
+                tags.map(tag => (
                     <TagStyle to={Pages.browseByTag(tag)}>{tag}</TagStyle>
                 ))
             }

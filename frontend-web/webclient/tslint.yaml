@@ -15,6 +15,7 @@ rules:
     trailing-comma: false
     curly: false
     whitespace: false
+    max-classes-per-file: false
     jsx-space-before-trailing-slash: none
     jsx-self-close: true
     arrow-parens: false

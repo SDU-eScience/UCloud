@@ -492,7 +492,7 @@ const Parameters = (props: ParameterProps) => {
         parameter.optional && parameter.visible !== true && props.values.get(parameter.name)!.current == null);
 
     const mapParamToComponent = (parameter: ApplicationParameter) => {
-        let ref = props.values.get(parameter.name)!;
+        const ref = props.values.get(parameter.name)!;
 
         return (
             <Parameter
@@ -505,8 +505,8 @@ const Parameters = (props: ParameterProps) => {
         );
     };
 
-    let mandatoryParams = mandatory.map(mapParamToComponent);
-    let visibleParams = visible.map(mapParamToComponent);
+    const mandatoryParams = mandatory.map(mapParamToComponent);
+    const visibleParams = visible.map(mapParamToComponent);
 
     return (
         <form onSubmit={props.onSubmit}>
@@ -565,19 +565,18 @@ const Parameters = (props: ParameterProps) => {
             {optional.length > 0 ?
                 <OptionalParameters parameters={optional} onUse={p => props.onParameterChange(p, true)}/> : null}
         </form>
-    )
+    );
 };
 
 interface SchedulingFieldProps {
-    text: string
-    field: string
-    subField?: string
-    onChange: (field: string, value: number, subField?: string) => void
-
-    value?: number
-    defaultValue?: number
-    min?: number
-    max?: number
+    text: string;
+    field: string;
+    subField?: string;
+    onChange: (field: string, value: number, subField?: string) => void;
+    value?: number;
+    defaultValue?: number;
+    min?: number;
+    max?: number;
 }
 
 const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => (
@@ -592,7 +591,7 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
             value={props.value == null || isNaN(props.value) ? "0" : props.value}
             placeholder={`${props.defaultValue}`}
             onChange={({target: {value}}) => {
-                const parsed = parseInt(value);
+                const parsed = parseInt(value, 10);
                 props.onChange(props.field, parsed, props.subField);
             }}
         />
@@ -601,9 +600,9 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
 
 
 interface JobSchedulingOptionsProps {
-    onChange: (a, b, c) => void
-    options: JobSchedulingOptionsForInput
-    app: WithAppMetadata & WithAppInvocation
+    onChange: (a, b, c) => void;
+    options: JobSchedulingOptionsForInput;
+    app: WithAppMetadata & WithAppInvocation;
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
@@ -713,7 +712,7 @@ function exportParameters({application, schedulingOptions, parameterValues, moun
     }
 
     element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-        siteVersion: siteVersion,
+        siteVersion,
         application: {
             name: appInfo.name,
             version: appInfo.version
@@ -766,5 +765,5 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
         <Flex mt="20px">
             <Button onClick={() => dialogStore.popDialog()} color="red" mr="5px">Cancel</Button>
         </Flex>
-    </Box>)
+    </Box>);
 }
