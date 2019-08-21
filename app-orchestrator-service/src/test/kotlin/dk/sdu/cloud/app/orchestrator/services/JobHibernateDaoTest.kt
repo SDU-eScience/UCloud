@@ -137,7 +137,14 @@ class JobHibernateDaoTest {
         }
 
         db.withTransaction(autoFlush = true) {
-            val result = runBlocking { jobHibDao.list(it, user.createToken(), NormalizedPaginationRequest(10, 0)) }
+            val result =
+                runBlocking { jobHibDao.list(
+                    it,
+                    user.createToken(),
+                    NormalizedPaginationRequest(10, 0),
+                    application = null,
+                    version = null
+                ) }
             assertEquals(1, result.itemsInTotal)
         }
     }
@@ -335,7 +342,9 @@ class JobHibernateDaoTest {
                 SortOrder.DESCENDING,
                 JobSortBy.LAST_UPDATE,
                 null,
-                null
+                null,
+                application = null,
+                version = null
             )
         }
     }
@@ -352,7 +361,9 @@ class JobHibernateDaoTest {
             SortOrder.DESCENDING,
             JobSortBy.LAST_UPDATE,
             min,
-            max
+            max,
+            application = null,
+            version = null
         )
     }
 
@@ -376,7 +387,9 @@ class JobHibernateDaoTest {
                     JobSortBy.LAST_UPDATE,
                     null,
                     null,
-                    JobState.VALIDATED
+                    JobState.VALIDATED,
+                    null,
+                    null
                 )
             }
             assertEquals(1, jobByFilter.items.size)
@@ -390,7 +403,9 @@ class JobHibernateDaoTest {
                     JobSortBy.LAST_UPDATE,
                     null,
                     null,
-                    JobState.CANCELING
+                    JobState.CANCELING,
+                    null,
+                    null
                 )
             }
 

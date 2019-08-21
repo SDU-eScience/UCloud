@@ -85,6 +85,8 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
                             allowNonSimpleContentTypes = true
                             allowCredentials = true
                             header(HttpHeaders.Authorization)
+                            header("X-CSRFToken")
+                            header("refreshToken")
                         }
                     }
                 }

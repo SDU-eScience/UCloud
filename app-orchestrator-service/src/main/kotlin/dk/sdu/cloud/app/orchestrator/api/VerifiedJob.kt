@@ -99,6 +99,7 @@ data class VerifiedJob(
     /**
      * A complete list of mounts
      */
+    @Suppress("ConstructorParameterNaming")
     @get:JsonProperty("mounts")
     val _mounts: List<ValidatedFileForUpload>? = null,
 
@@ -137,12 +138,14 @@ data class VerifiedJob(
      * A backend is allowed to reject a shared file system mount if it does not support mounting it. This should
      * happen early, for example, by comparing the backend against a whitelist of supported backends.
      */
+    @Suppress("ConstructorParameterNaming")
     @get:JsonProperty("sharedFileSystemMounts")
     val _sharedFileSystemMounts: List<SharedFileSystemMount>? = null,
 
     /**
      * A list of peers that this application is requesting networking with.
      */
+    @Suppress("ConstructorParameterNaming")
     @get:JsonProperty("peers")
     val _peers: List<ApplicationPeer>? = null
 ) {

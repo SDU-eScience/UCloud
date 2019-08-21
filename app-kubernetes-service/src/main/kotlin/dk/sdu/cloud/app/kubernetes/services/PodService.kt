@@ -1,6 +1,11 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.orchestrator.api.JobCompletedRequest
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.StateChangeRequest
+import dk.sdu.cloud.app.orchestrator.api.SubmitComputationResult
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
@@ -12,7 +17,13 @@ import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import io.fabric8.kubernetes.api.model.*
+import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
+import io.fabric8.kubernetes.api.model.EnvVar
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
+import io.fabric8.kubernetes.api.model.Pod
+import io.fabric8.kubernetes.api.model.PodSecurityContext
+import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
+import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
@@ -260,6 +271,7 @@ class PodService(
         }
     }
 
+    @Suppress("LongMethod")
     fun create(verifiedJob: VerifiedJob) {
         log.info("Creating new job with name: ${verifiedJob.id}")
 
@@ -423,7 +435,10 @@ class PodService(
                                                 null,
                                                 DATA_STORAGE,
                                                 false,
-                                                verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/output" }
+                                                verifiedJob.workspace
+                                                    ?.removePrefix("/")
+                                                    ?.removeSuffix("/")
+                                                    ?.let { it + "/output" }
                                                     ?: throw RPCException(
                                                         "No workspace found",
                                                         HttpStatusCode.BadRequest
@@ -435,7 +450,10 @@ class PodService(
                                                 null,
                                                 DATA_STORAGE,
                                                 true,
-                                                verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/input" }
+                                                verifiedJob.workspace
+                                                    ?.removePrefix("/")
+                                                    ?.removeSuffix("/")
+                                                    ?.let { it + "/input" }
                                                     ?: throw RPCException(
                                                         "No workspace found",
                                                         HttpStatusCode.BadRequest
@@ -479,6 +497,7 @@ class PodService(
 
         GlobalScope.launch {
             log.info("Awaiting container start!")
+            @Suppress("TooGenericExceptionCaught")
             try {
                 if (verifiedJob.nodes > 1) {
                     awaitCatching(retries = 36_000, delay = 100) {
@@ -666,6 +685,7 @@ class PodService(
     }
 }
 
+@Suppress("ConstructorParameterNaming")
 class Tunnel(
     val jobId: String,
     val ipAddress: String,

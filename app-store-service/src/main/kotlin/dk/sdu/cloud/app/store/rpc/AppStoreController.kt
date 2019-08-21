@@ -97,12 +97,22 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.createTag) {
-            appStore.createTags(request.tags, request.applicationName, request.applicationVersion, ctx.securityPrincipal.username)
+            appStore.createTags(
+                request.tags,
+                request.applicationName,
+                request.applicationVersion,
+                ctx.securityPrincipal.username
+            )
             ok(Unit)
         }
 
         implement(AppStore.removeTag) {
-            appStore.deleteTags(request.tags, request.applicationName, request.applicationVersion, ctx.securityPrincipal.username)
+            appStore.deleteTags(
+                request.tags,
+                request.applicationName,
+                request.applicationVersion,
+                ctx.securityPrincipal.username
+            )
             ok(Unit)
         }
     }

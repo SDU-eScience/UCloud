@@ -29,7 +29,8 @@ fun printHelp(): Nothing {
              
              Args:
              
-               --exclude <serviceName>: Optional. A service to exclude
+               --include <serviceName>: Optiona. A service to include.
+               --exclude <serviceName>: Optional. A service to exclude.
                --target <serviceName>: Required. Sets the target of this program. 
                --help: This message.
         """.trimIndent()
@@ -43,10 +44,12 @@ fun main(args: Array<String>) {
 
     var targetService: String? = null
     val excludeList = ArrayList<String>()
+    val includeList = ArrayList<String>()
 
     val argStack = LinkedList(args.toMutableList())
     while (argStack.isNotEmpty()) {
         when (argStack.pop()) {
+            "--include" -> includeList.add(argStack.pop())
             "--exclude" -> excludeList.add(argStack.pop())
             "--target" -> targetService = argStack.pop()
             "--help" -> printHelp()
@@ -66,12 +69,16 @@ fun main(args: Array<String>) {
         }
 
     val targetServiceWithDir = services.find { it.service.name == targetService } ?: panic("No such target service")
+    val servicesToIncludeWithDir = services.filter { it.service.name in includeList }
 
     val servicesForConfig =
         (findDependencies("auth", services) +
-                findDependencies(targetServiceWithDir.service.namespaces.first(), services)) + targetServiceWithDir
+                findDependencies(targetServiceWithDir.service.namespaces.first(), services)) + targetServiceWithDir +
+                servicesToIncludeWithDir.flatMap { it.service.namespaces }.flatMap { findDependencies(it, services) }
 
-    val servicesToStart = servicesForConfig.filter { it != targetServiceWithDir && it.service.name !in excludeList }
+    val servicesToStart = servicesForConfig.filter {
+        (it != targetServiceWithDir && it.service.name !in excludeList) || it.service.name in includeList
+    }
 
     val configDir = Files.createTempDirectory("config").toFile()
     val overrides = HashMap<String, Any?>()
@@ -87,16 +94,18 @@ fun main(args: Array<String>) {
 
     targetServiceWithDir.let { (service, _) ->
         overrides[service.name] = ":8800"
-        service.namespaces.forEach { overrides[it] = ":8800"}
+        service.namespaces.forEach { overrides[it] = ":8800" }
     }
 
     val frontendDirectory = Files.createTempDirectory("frontend").toFile()
     File(configDir, "overrides.yml").writeText(
         yamlMapper.writeValueAsString(
-            mapOf("development" to mapOf(
-                "serviceDiscovery" to overrides,
-                "frontend" to mapOf("configDir" to frontendDirectory.absolutePath)
-            ))
+            mapOf(
+                "development" to mapOf(
+                    "serviceDiscovery" to overrides,
+                    "frontend" to mapOf("configDir" to frontendDirectory.absolutePath)
+                )
+            )
         )
     )
 
@@ -104,12 +113,14 @@ fun main(args: Array<String>) {
 
     val userHome = System.getProperty("user.home")
     val sducloudConfig = File(userHome, "sducloud").absolutePath
-    File(sducloudConfig, "start-dependencies.yml").writeText("""
+    File(sducloudConfig, "start-dependencies.yml").writeText(
+        """
         ---
         config:
           additionalDirectories:
           - ${configDir.absolutePath}
-    """.trimIndent())
+    """.trimIndent()
+    )
     val scriptBuilder = StringBuilder()
 
     // Use this to make output pretty https://unix.stackexchange.com/questions/440426/how-to-prefix-any-output-in-a-bash-script

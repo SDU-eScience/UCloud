@@ -1,13 +1,34 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
+import dk.sdu.cloud.app.orchestrator.api.JobSortBy
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
+import dk.sdu.cloud.app.orchestrator.api.SortOrder
+import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.JSONB_LIST_PARAM_TYPE
+import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.WithTimestamps
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.updateCriteria
 import kotlinx.coroutines.runBlocking
 import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
@@ -15,7 +36,16 @@ import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
 import org.slf4j.Logger
 import java.util.*
-import javax.persistence.*
+import javax.persistence.AttributeOverride
+import javax.persistence.AttributeOverrides
+import javax.persistence.Column
+import javax.persistence.Embedded
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.Id
+import javax.persistence.Table
+import javax.persistence.criteria.Predicate
 
 @Entity
 @Table(name = "job_information")
@@ -192,7 +222,13 @@ class JobHibernateDao(
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
-    override fun updateStateAndStatus(session: HibernateSession, systemId: String, state: JobState, status: String?, failedState: JobState?) {
+    override fun updateStateAndStatus(
+        session: HibernateSession,
+        systemId: String,
+        state: JobState,
+        status: String?,
+        failedState: JobState?
+    ) {
         session.updateCriteria<JobInformationEntity>(
             where = { entity[JobInformationEntity::systemId] equal systemId },
             setProperties = {
@@ -219,18 +255,23 @@ class JobHibernateDao(
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
-    override suspend fun findOrNull(
+    override suspend fun find(
         session: HibernateSession,
-        systemId: String,
+        systemIds: List<String>,
         owner: SecurityPrincipalToken?
-    ): VerifiedJobWithAccessToken? {
-        return JobInformationEntity[session, systemId]
-            ?.takeIf {
-                owner == null ||
-                        it.owner == owner.realUsername() ||
-                        (it.project == owner.projectOrNull() && it.state.isFinal())
+    ): List<VerifiedJobWithAccessToken> {
+        return session.criteria<JobInformationEntity> {
+            val ownerPredicate = if (owner == null) {
+                literal(true).toPredicate()
+            } else {
+                (entity[JobInformationEntity::owner] equal owner.realUsername()) or
+                        ((entity[JobInformationEntity::project] equal owner.projectOrNull()) and
+                                (entity[JobInformationEntity::state] isInCollection
+                                        (JobState.values().filter { it.isFinal() })))
             }
-            ?.toModel(resolveTool = true)
+
+            ownerPredicate and (entity[JobInformationEntity::systemId] isInCollection systemIds)
+        }.resultList.mapNotNull { it.toModel(resolveTool = true) }
     }
 
     override suspend fun findJobsCreatedBefore(
@@ -262,7 +303,9 @@ class JobHibernateDao(
         sortBy: JobSortBy,
         minTimestamp: Long?,
         maxTimestamp: Long?,
-        filter: JobState?
+        filter: JobState?,
+        application: String?,
+        version: String?
     ): Page<VerifiedJobWithAccessToken> {
         return session.paginatedCriteria<JobInformationEntity>(
             pagination,
@@ -308,10 +351,32 @@ class JobHibernateDao(
                 val appState = entity[JobInformationEntity::state] equal (filter ?: JobState.VALIDATED)
                 val appStateFilter = literal(filter == null).toPredicate() or appState
 
+                // By application name (and version)
+                val byNameAndVersionFilter = if (application != null) {
+                    allOf(
+                        *ArrayList<Predicate>().apply {
+                            val app = entity[JobInformationEntity::application]
+
+                            add(
+                                app[EmbeddedNameAndVersion::name] equal application
+                            )
+
+                            if (version != null) {
+                                add(
+                                    app[EmbeddedNameAndVersion::version] equal version
+                                )
+                            }
+                        }.toTypedArray()
+                    )
+                } else {
+                    literal(true).toPredicate()
+                }
+
                 allOf(
                     matchesLowerFilter,
                     matchesUpperFilter,
                     appStateFilter,
+                    byNameAndVersionFilter,
                     anyOf(
                         canViewAsOwner,
                         canViewAsPartOfProject

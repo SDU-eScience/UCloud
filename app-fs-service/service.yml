@@ -3,5 +3,6 @@ name: app-fs
 
 namespaces:
   - app-fs
+  - app.fs
 
 dependencies: []

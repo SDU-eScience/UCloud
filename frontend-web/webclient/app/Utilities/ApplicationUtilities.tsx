@@ -44,7 +44,7 @@ export function hpcJobsQuery(
     return query;
 }
 
-export const hpcFavoriteApp = (name: string, version: string) => 
+export const hpcFavoriteApp = (name: string, version: string) =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
 export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
@@ -53,7 +53,12 @@ export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
 export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
-interface HPCApplicationsSearchQuery {query: string, page: number, itemsPerPage: number}
+interface HPCApplicationsSearchQuery {
+    query: string,
+    page: number,
+    itemsPerPage: number
+}
+
 export const hpcApplicationsSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
     `/hpc/apps/search?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
@@ -62,7 +67,7 @@ export const hpcApplicationsTagSearchQuery = ({query, page, itemsPerPage}: HPCAp
 
 export const cancelJobQuery = `hpc/jobs`;
 
-export const cancelJobDialog = ({jobId, onConfirm, jobCount = 1}: {jobCount?: number, jobId: string, onConfirm: () => void}): void =>
+export const cancelJobDialog = ({jobId, onConfirm, jobCount = 1}: { jobCount?: number, jobId: string, onConfirm: () => void }): void =>
     addStandardDialog({
         title: `Cancel job${jobCount > 1 ? "s" : ""}?`,
         message: jobCount === 1 ? `Cancel job: ${jobId}?` : "Cancel jobs?",
@@ -71,15 +76,16 @@ export const cancelJobDialog = ({jobId, onConfirm, jobCount = 1}: {jobCount?: nu
         onConfirm
     });
 
-export const cancelJob = (cloud: Cloud, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
+export const cancelJob = (cloud: Cloud, jobId: string): Promise<{ request: XMLHttpRequest, response: void }> =>
     cloud.delete(cancelJobQuery, {jobId});
 
 interface FavoriteApplicationFromPage<T> {
     name: string
     version: string
-    page: Page<{metadata: ApplicationMetadata, favorite: boolean} & T>
+    page: Page<{ metadata: ApplicationMetadata, favorite: boolean } & T>
     cloud: Cloud
 }
+
 /**
  * Favorites an application.
  * @param {Application} Application the application to be favorited
@@ -94,25 +100,31 @@ export async function favoriteApplicationFromPage<T>({name, version, page, cloud
         snackbarStore.addFailure(errorMessageOrDefault(e, `An error ocurred favoriting ${name}`));
     }
     return page;
-};
+}
 
 
+interface StringMap {
+    [k: string]: string;
+}
 
-interface StringMap {[k: string]: string;}
-interface AllowedParameterKey {name: string; type: ParameterTypes;}
+interface AllowedParameterKey {
+    name: string;
+    type: ParameterTypes;
+}
+
 interface ExtractParameters {
-    parameters: StringMap;
+    nameToValue: StringMap;
     allowedParameterKeys: AllowedParameterKey[];
     siteVersion: number;
 }
 
-export const extractParameters = ({parameters, allowedParameterKeys, siteVersion}: ExtractParameters): StringMap => {
+export const findKnownParameterValues = ({nameToValue, allowedParameterKeys, siteVersion}: ExtractParameters): StringMap => {
     const extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({name, type}) => {
-            if (parameters[name] !== undefined) {
-                if (compareType(type, parameters[name])) {
-                    extractedParameters[name] = parameters[name];
+            if (nameToValue[name] !== undefined) {
+                if (typeMatchesValue(type, nameToValue[name])) {
+                    extractedParameters[name] = nameToValue[name];
                 }
             }
         });
@@ -120,10 +132,9 @@ export const extractParameters = ({parameters, allowedParameterKeys, siteVersion
     return extractedParameters;
 };
 
-export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
+export const isFileOrDirectoryParam = ({type}: { type: string }) => type === "input_file" || type === "input_directory";
 
-
-const compareType = (type: ParameterTypes, parameter: string): boolean => {
+const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
             return parameter === "Yes" || parameter === "No" || parameter === "";
@@ -134,13 +145,18 @@ const compareType = (type: ParameterTypes, parameter: string): boolean => {
         case ParameterTypes.Text:
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
+        case ParameterTypes.SharedFileSystem:
+        case ParameterTypes.Peer:
             return typeof parameter === "string";
 
     }
 };
 
 interface ExtractedParameters {
-    [key: string]: string | number | boolean | {source: string, destination: string;}
+    [key: string]: string | number | boolean |
+        { source: string, destination: string; } |
+        { fileSystemId: string } |
+        { jobId: string }
 }
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
@@ -151,10 +167,11 @@ interface ExtractParametersFromMap {
     cloud: Cloud;
 }
 
-export function extractParametersFromMap({map, appParameters, cloud}: ExtractParametersFromMap): ExtractedParameters {
+export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractParametersFromMap): ExtractedParameters {
     const extracted: ExtractedParameters = {};
     map.forEach(({current}, key) => {
         const parameter = appParameters.find(it => it.name === key);
+        console.log(parameter, current);
         if (!current) return;
         if (!current.value || !current.checkValidity()) return;
         if (!parameter) return;
@@ -186,6 +203,13 @@ export function extractParametersFromMap({map, appParameters, cloud}: ExtractPar
                 return;
             case ParameterTypes.Text:
                 extracted[key] = current.value;
+                return;
+            case ParameterTypes.SharedFileSystem:
+                console.log(current.value);
+                extracted[key] = {fileSystemId: current.value};
+                return;
+            case ParameterTypes.Peer:
+                extracted[key] = {jobId: current.value};
                 return;
         }
     });
@@ -233,10 +257,14 @@ export function checkForMissingParameters(
     requiredParams.forEach(rParam => {
         const parameterValue = parameters[rParam.name];
         // Number, string, boolean 
-        if (!parameterValue) missingParameters.push(rParam.title);
-        // { source, destination }, might need refactoring in the event that other types become objects
-        else if (typeof parameterValue === "object") {
-            if (!parameterValue.source) {
+        if (!parameterValue) {
+            missingParameters.push(rParam.title);
+        } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {
+            if (!parameterValue["source"]) {
+                missingParameters.push(rParam.title);
+            }
+        } else if (rParam.type === ParameterTypes.SharedFileSystem) {
+            if (!parameterValue["fileSystemId"]) {
                 missingParameters.push(rParam.title);
             }
         }

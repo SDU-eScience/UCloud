@@ -33,15 +33,17 @@ interface StandardDialog {
     validator?: () => boolean;
 }
 
-export function addStandardDialog({
-    title,
-    message,
-    onConfirm,
-    onCancel = () => undefined,
-    validator = () => true,
-    cancelText = "Cancel",
-    confirmText = "Confirm"
-}: StandardDialog) {
+export function addStandardDialog(
+    {
+        title,
+        message,
+        onConfirm,
+        onCancel = () => undefined,
+        validator = () => true,
+        cancelText = "Cancel",
+        confirmText = "Confirm"
+    }: StandardDialog
+) {
     dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>{title}</Heading.h3>

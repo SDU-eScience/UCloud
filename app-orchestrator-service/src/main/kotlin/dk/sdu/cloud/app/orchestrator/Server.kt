@@ -22,6 +22,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -30,8 +31,10 @@ import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
+import io.ktor.routing.routing
 
 class Server(override val micro: Micro, val config: Configuration) : CommonServer {
     override val log = logger()
@@ -43,14 +46,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val appStoreService = AppStoreService(serviceClient)
         val toolStoreService = ToolStoreService(serviceClient)
+        val jobHibernateDao = JobHibernateDao(appStoreService, toolStoreService)
         val sharedMountVerificationService = SharedMountVerificationService()
-        val jobVerificationService = JobVerificationService(
-            appStoreService,
-            toolStoreService,
-            config.defaultBackend,
-            sharedMountVerificationService
-        )
-
+        val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
         val userClientFactory: (String?, String?) -> AuthenticatedClient = { accessToken, refreshToken ->
             when {
                 accessToken != null -> {
@@ -71,9 +69,21 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             }
         }
 
-        val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
         val jobFileService = JobFileService(serviceClient, userClientFactory)
-        val jobHibernateDao = JobHibernateDao(appStoreService, toolStoreService)
+
+        val vncService = VncService(computationBackendService, db, jobHibernateDao, serviceClient)
+        val webService = WebService(computationBackendService, db, jobHibernateDao, serviceClient)
+
+        val jobVerificationService = JobVerificationService(
+            appStoreService,
+            toolStoreService,
+            config.defaultBackend,
+            sharedMountVerificationService,
+            db,
+            jobHibernateDao
+        )
+
+
         val jobOrchestrator =
             JobOrchestrator(
                 serviceClient,
@@ -85,6 +95,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 jobHibernateDao,
                 config.defaultBackend
             )
+
         val streamFollowService =
             StreamFollowService(
                 jobFileService,
@@ -93,9 +104,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 db,
                 jobHibernateDao
             )
-
-        val vncService = VncService(computationBackendService, db, jobHibernateDao, serviceClient)
-        val webService = WebService(computationBackendService, db, jobHibernateDao, serviceClient)
 
         with(micro.server) {
             configureControllers(
@@ -113,8 +121,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             )
         }
 
-
         log.info("Replaying lost jobs")
+        @Suppress("TooGenericExceptionCaught")
         try {
             jobOrchestrator.replayLostJobs()
         } catch (ex: Throwable) {

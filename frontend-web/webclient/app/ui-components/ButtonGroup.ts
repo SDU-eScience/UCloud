@@ -3,7 +3,7 @@ import Button from "./Button";
 import Flex from "./Flex";
 
 const ButtonGroup = styled(Flex)`
-    & > ${Button} {
+    & ${Button} {
         height: 35px;
         width: 100%;
         padding: 0 0 0 0;
@@ -12,12 +12,12 @@ const ButtonGroup = styled(Flex)`
         border-radius: 0px;
     }
 
-    & > ${Button}:last-child {
+    & > ${Button}:last-child, .last {
         border-top-right-radius: 3px;
         border-bottom-right-radius: 3px;
     }
 
-    & > ${Button}:first-child {
+    & > ${Button}:first-child, .first {
         border-top-left-radius: 3px;
         border-bottom-left-radius: 3px;
     }

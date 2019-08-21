@@ -44,9 +44,6 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.startServices
-import io.ktor.application.install
-import io.ktor.features.CORS
-import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import org.slf4j.Logger
@@ -143,19 +140,6 @@ class Server(
         val serverFeature = micro.feature(ServerFeature)
         with(serverFeature.ktorApplicationEngine!!.application) {
             log.info("Configuring HTTP server")
-
-            if (micro.developmentModeEnabled) {
-                install(CORS) {
-                    anyHost()
-                    allowCredentials = true
-                    allowSameOrigin = true
-                    header("authorization")
-                    header("content-type")
-                    HttpMethod.DefaultMethods.forEach {
-                        method(it)
-                    }
-                }
-            }
 
             log.info("Creating HTTP controllers")
 
@@ -259,6 +243,8 @@ class Server(
                     """
                         ---
                         refreshToken: "${token.refreshToken}"
+                        devCsrfToken: ${token.csrfToken}
+                        devPassword: $password
                     """.trimIndent()
                 )
             }

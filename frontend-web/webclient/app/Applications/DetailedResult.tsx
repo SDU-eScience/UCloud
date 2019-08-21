@@ -32,6 +32,7 @@ import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {Spacer} from "ui-components/Spacer";
 import {EmbeddedFileTable} from "Files/FileTable";
 import {pad} from "./View";
+import {Xterm} from "Applications/xterm";
 
 const Panel = styled(Box)`
     margin-bottom: 1em;
@@ -40,9 +41,6 @@ const Panel = styled(Box)`
 Panel.displayName = "Panel";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
-    private stdoutEl: StdElement;
-    private stderrEl: StdElement;
-
     constructor(props: Readonly<DetailedResultProps>) {
         super(props);
         this.state = {
@@ -55,8 +53,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             stderr: "",
             stdoutLine: 0,
             stderrLine: 0,
-            stdoutOldTop: -1,
-            stderrOldTop: -1,
             reloadIntervalId: -1,
             promises: new PromiseKeeper(),
             appType: undefined,
@@ -89,26 +85,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     public componentWillUnmount() {
         if (this.state.reloadIntervalId) window.clearTimeout(this.state.reloadIntervalId);
         this.state.promises.cancelPromises();
-    }
-
-    private scrollIfNeeded() {
-        if (!this.stdoutEl || !this.stderrEl) return;
-
-        if (this.stdoutEl.scrollTop === this.state.stdoutOldTop || this.state.stderrOldTop === -1) {
-            this.stdoutEl.scrollTop = this.stdoutEl.scrollHeight;
-        }
-
-        if (this.stderrEl.scrollTop === this.state.stderrOldTop || this.state.stderrOldTop === -1) {
-            this.stderrEl.scrollTop = this.stderrEl.scrollHeight;
-        }
-
-        const outTop = this.stdoutEl.scrollTop;
-        const errTop = this.stderrEl.scrollTop;
-
-        this.setState(() => ({
-            stdoutOldTop: outTop,
-            stderrOldTop: errTop
-        }));
     }
 
     private async retrieveStdStreams() {
@@ -148,7 +124,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 timeLeft: response.timeLeft
             }));
 
-            this.scrollIfNeeded();
             if (response.complete) this.retrieveStateWhenCompleted();
             else {
                 const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
@@ -272,7 +247,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         <Heading.h5>Output</Heading.h5>
                     </Box>
                     <Box width={1} backgroundColor="lightGray">
-                        <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
+                        <Xterm value={this.state.stdout} />
                     </Box>
                 </Flex>
             </Box>
@@ -398,13 +373,6 @@ const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, curren
         </Step>
     );
 };
-
-const Stream = styled.pre`
-    height: 500px;
-    overflow: auto;
-`;
-
-Stream.displayName = "Stream";
 
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),

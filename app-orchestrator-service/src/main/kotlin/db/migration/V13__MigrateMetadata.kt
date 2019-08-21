@@ -4,6 +4,7 @@ import dk.sdu.cloud.defaultMapper
 import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
 
+@Suppress("ClassNaming", "NestedBlockDepth")
 class V13__MigrateMetadata : BaseJavaMigration() {
     override fun migrate(context: Context) {
         val connection = context.connection

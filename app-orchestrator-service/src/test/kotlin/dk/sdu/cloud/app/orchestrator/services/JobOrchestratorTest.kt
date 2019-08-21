@@ -1,12 +1,18 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
+import dk.sdu.cloud.app.orchestrator.api.ApplicationBackend
+import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsRequest
+import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobStateChange
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normTool
 import dk.sdu.cloud.app.orchestrator.utils.normToolDesc
 import dk.sdu.cloud.app.orchestrator.utils.startJobRequest
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
@@ -51,15 +57,21 @@ class JobOrchestratorTest {
         val backendName = "backend"
         val compBackend = ComputationBackendService(listOf(ApplicationBackend(backendName)), true)
 
-        coEvery { appDao.findByNameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version) } returns normAppDesc
+        coEvery {
+            appDao.findByNameAndVersion(
+                normAppDesc.metadata.name,
+                normAppDesc.metadata.version
+            )
+        } returns normAppDesc
         coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
+
 
         val jobFileService = JobFileService(client) { _, _ -> client}
         val orchestrator = JobOrchestrator(
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(appDao, toolDao, backendName, SharedMountVerificationService()),
+            JobVerificationService(appDao, toolDao, backendName, SharedMountVerificationService(), db, jobDao),
             compBackend,
             jobFileService,
             jobDao,
@@ -79,6 +91,11 @@ class JobOrchestratorTest {
 
         ClientMock.mockCallSuccess(
             backend.cleanup,
+            Unit
+        )
+
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.logout,
             Unit
         )
 

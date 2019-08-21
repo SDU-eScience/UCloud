@@ -115,11 +115,17 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         if (existing.owner != user) throw ToolException.NotAllowed()
 
         val newTool = existing.tool.let {
-            if (newDescription != null) it.copy(description = newDescription)
-            else it
+            if (newDescription != null) {
+                it.copy(description = newDescription)
+            } else {
+                it
+            }
         }.let {
-            if (newAuthors != null) it.copy(authors = newAuthors)
-            else it
+            if (newAuthors != null) {
+                it.copy(authors = newAuthors)
+            } else {
+                it
+            }
         }
 
         existing.tool = newTool

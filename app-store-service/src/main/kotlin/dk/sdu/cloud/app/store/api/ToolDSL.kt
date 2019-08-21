@@ -40,12 +40,17 @@ sealed class ToolDescription(val tool: String) {
         val license: String = ""
     ) : ToolDescription("v1") {
         init {
-            if (name.length > FIELD_MAX_LENGTH)
+            if (name.length > FIELD_MAX_LENGTH) {
                 throw ToolVerificationException.BadValue(::name.name, "Name is too long")
-            if (version.length > FIELD_MAX_LENGTH)
+            }
+
+            if (version.length > FIELD_MAX_LENGTH) {
                 throw ToolVerificationException.BadValue(::version.name, "Version is too long")
-            if (title.length > FIELD_MAX_LENGTH)
+            }
+
+            if (title.length > FIELD_MAX_LENGTH) {
                 throw ToolVerificationException.BadValue(::title.name, "Title is too long")
+            }
 
             if (name.isBlank()) throw ToolVerificationException.BadValue(::name.name, "Name is blank")
             if (version.isBlank()) throw ToolVerificationException.BadValue(::version.name, "Version is blank")

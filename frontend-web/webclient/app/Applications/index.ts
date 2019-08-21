@@ -4,8 +4,7 @@ import {History} from "history";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
-import {match} from "react-router";
-import {ParameterValues} from "Utilities/ApplicationUtilities";
+import {SharedFileSystemMount} from "Applications/FileSystems";
 
 export interface Analysis {
     name: string;
@@ -125,8 +124,6 @@ export interface DetailedResultState {
     stderr: string;
     stdoutLine: number;
     stderrLine: number;
-    stdoutOldTop: number;
-    stderrOldTop: number;
     reloadIntervalId: number;
     promises: PromiseKeeper;
     outputFolder?: string;
@@ -135,7 +132,7 @@ export interface DetailedResultState {
     timeLeft: number | null;
 }
 
-export type StdElement = {scrollTop: number, scrollHeight: number} | null;
+export type StdElement = {scrollTop: number, scrollHeight: number} | null
 
 export interface MaxTime {
     hours: number;
@@ -173,6 +170,7 @@ export interface RunAppState {
     favoriteLoading: boolean;
     mountedFolders: RefReadPair[];
     fsShown: boolean;
+    sharedFileSystems: { mounts: SharedFileSystemMount[] };
 }
 
 export interface RunOperations extends SetStatusLoading {
@@ -215,6 +213,18 @@ export interface TextParameter extends BaseParameter {
     type: ParameterTypes.Text;
 }
 
+export interface PeerParameter extends BaseParameter {
+    suggestedApplication: string | null
+    type: ParameterTypes.Peer
+}
+
+export interface SharedFileSystemParameter extends BaseParameter {
+    fsType: "EPHEMERAL" | "PERSISTENT"
+    mountLocation: string | null
+    exportToPeers: boolean
+    type: ParameterTypes.SharedFileSystem
+}
+
 interface BaseParameter {
     name: string;
     optional: boolean;
@@ -225,12 +235,14 @@ interface BaseParameter {
     visible?: boolean;
 }
 
-export type ApplicationParameter =
-    InputFileParameter |
-    InputDirectoryParameter |
-    NumberParameter |
-    BooleanParameter |
-    TextParameter;
+export type ApplicationParameter = 
+	InputFileParameter | 
+	InputDirectoryParameter | 
+	NumberParameter | 
+	BooleanParameter |
+    TextParameter | 
+    PeerParameter | 
+    SharedFileSystemParameter;
 
 type Invocation = WordInvocation | VarInvocation;
 
@@ -268,7 +280,9 @@ export enum ParameterTypes {
     Integer = "integer",
     FloatingPoint = "floating_point",
     Text = "text",
-    Boolean = "boolean"
+    Boolean = "boolean",
+    Peer = "peer",
+    SharedFileSystem = "shared_file_system"
 }
 
 export interface SearchFieldProps {

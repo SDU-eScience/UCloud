@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
@@ -19,7 +18,6 @@ import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -41,7 +39,7 @@ class JobVerification {
         "token"
     )
 
-    lateinit var service: JobVerificationService
+    lateinit var service: JobVerificationService<*>
     val cloud = ClientMock.authenticatedClient
 
 
@@ -70,7 +68,14 @@ class JobVerification {
         } returns tool
 
         service =
-            JobVerificationService(appDao, toolDao, "abacus", SharedMountVerificationService())
+            JobVerificationService(
+                appDao,
+                toolDao,
+                "abacus",
+                SharedMountVerificationService(),
+                db,
+                JobHibernateDao(appDao, toolDao)
+            )
     }
 
     @Test

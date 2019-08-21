@@ -8,7 +8,7 @@ import {
     extractArchive, fileInfoPage, fileTablePage,
     getFilenameFromPath,
     getParentPath,
-    inTrashDir, isAnyMockFile, isArchiveExtension,
+    inTrashDir, isAnyMockFile, isAnySharedFs, isArchiveExtension,
     isFixedFolder,
     moveToTrash,
     replaceHomeFolder, resolvePath,
@@ -71,26 +71,28 @@ export const defaultFileOperations: FileOperation[] = [
             value: files[0].path,
             message: `${replaceHomeFolder(files[0].path, Cloud.homeFolder)} copied to clipboard`
         }),
-        disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files),
+        disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files) || isAnySharedFs(files),
         icon: "chat"
     },
     {
         text: "Rename",
         onClick: (files, cb) => cb.startRenaming(files[0]),
-        disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) || isAnyMockFile(files),
+        disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) ||
+            isAnyMockFile(files) || isAnySharedFs(files),
         icon: "rename"
     },
     {
         text: "Download",
         onClick: files => downloadFiles(files, () => 42, Cloud),
-        disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) || isAnyMockFile(files),
+        disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) ||
+            isAnyMockFile(files) || isAnySharedFs(files),
         icon: "download"
     },
     {
         text: "Share",
         onClick: (files) => shareFiles({files, cloud: Cloud}),
         disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files) || files.some(it => it.fileType !== "DIRECTORY"),
+            isAnyMockFile(files) || files.some(it => it.fileType !== "DIRECTORY") || isAnySharedFs(files),
         icon: "share"
     },
     {
@@ -98,7 +100,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) => {
             updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()})
         },
-        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files),
+        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) || isAnySharedFs(files),
         icon: "verified"
     },
     {
@@ -115,7 +117,7 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) || isAnySharedFs(files),
         icon: "copy",
     },
     {
@@ -132,7 +134,7 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) || isAnySharedFs(files),
         icon: "move",
     },
     {
@@ -140,7 +142,8 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) => cb.invokeAsyncWork(() =>
             extractArchive({files, cloud: Cloud, onFinished: () => cb.requestReload()})
         ),
-        disabled: (files) => !files.every(it => isArchiveExtension(it.path)) || isAnyMockFile(files),
+        disabled: (files) => !files.every(it => isArchiveExtension(it.path)) || isAnyMockFile(files) ||
+            isAnySharedFs(files),
         icon: "open"
     },
     {
@@ -157,7 +160,7 @@ export const defaultFileOperations: FileOperation[] = [
             moveToTrash({files, cloud: Cloud, setLoading: () => 42, callback: () => cb.requestReload()}),
         disabled: (files) => (!allFilesHasAccessRight("WRITE", files) ||
             files.some(f => isFixedFolder(f.path, Cloud.homeFolder)) ||
-            files.every(({path}) => inTrashDir(path, Cloud))) || isAnyMockFile(files),
+            files.every(({path}) => inTrashDir(path, Cloud))) || isAnyMockFile(files) || isAnySharedFs(files),
         icon: "trash",
         color: "red"
     },
@@ -189,14 +192,54 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !files.every(f => getParentPath(f.path) === Cloud.trashFolder) || isAnyMockFile(files),
+        disabled: (files) => !files.every(f => getParentPath(f.path) === Cloud.trashFolder) || isAnyMockFile(files) ||
+            isAnySharedFs(files),
         icon: "trash",
         color: "red"
     },
     {
         text: "Properties",
         onClick: (files, cb) => cb.history.push(fileInfoPage(files[0].path)),
-        disabled: (files) => files.length !== 1 || isAnyMockFile(files),
+        disabled: (files) => files.length !== 1 || isAnyMockFile(files) || isAnySharedFs(files),
         icon: "properties", color: "blue"
     },
+
+    // Shared File Systems
+    {
+        text: "Delete",
+        onClick: (files, cb) => {
+            addStandardDialog({
+                title: "Delete application file systems",
+                message: `Do you want to delete ${files.length} shared file systems? The files cannot be recovered.`,
+                confirmText: "Delete",
+
+                onConfirm: () => {
+                    cb.invokeAsyncWork(async () => {
+                        const promises: { status?: number, response?: string }[] =
+                            await Promise
+                                .all(
+                                    files.map(it => Cloud.delete(`/app/fs/${it.fileId}`, {}))
+                                )
+                                .then(it => it)
+                                .catch(it => it);
+
+                        const failures = promises.filter(it => it.status).length;
+                        if (failures > 0) {
+                            snackbarStore.addSnack({
+                                message: promises.filter(it => it.response).map(it => it).join(", "),
+                                type: SnackType.Failure
+                            });
+                        } else {
+                            snackbarStore.addSnack({message: "File systems deleted", type: SnackType.Success});
+                        }
+
+                        cb.requestReload();
+                    });
+                }
+            });
+        },
+        disabled: files => files.some(it => it.fileType !== "SHARED_FS"),
+        icon: "trash",
+        color: "red"
+    }
 ];

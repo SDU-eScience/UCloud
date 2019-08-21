@@ -22,7 +22,6 @@ import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
-import dk.sdu.cloud.calls.client.throwIfInternalOrBadRequest
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.service.Loggable
@@ -73,7 +72,7 @@ class JobOrchestrator<DBSession>(
     private val accountingEventProducer: EventProducer<JobCompletedEvent>,
 
     private val db: DBSessionFactory<DBSession>,
-    private val jobVerificationService: JobVerificationService,
+    private val jobVerificationService: JobVerificationService<*>,
     private val computationBackendService: ComputationBackendService,
     private val jobFileService: JobFileService,
     private val jobDao: JobDao<DBSession>,

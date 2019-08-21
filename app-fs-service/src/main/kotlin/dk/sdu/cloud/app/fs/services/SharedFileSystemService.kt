@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.fs.api.SharedFileSystem
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -20,16 +21,16 @@ class SharedFileSystemService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val fileSystemDao: FileSystemDao<DBSession>
 ) {
-    suspend fun create(token: SecurityPrincipalToken, backend: String?): String {
+    suspend fun create(token: SecurityPrincipalToken, backend: String?, title: String): String {
         val allocatedId = UUID.randomUUID().toString()
 
         val resolvedBackend = backendService.verifyBackend(backend)
 
-        db.withTransaction { fileSystemDao.create(it, allocatedId, resolvedBackend, token) }
+        db.withTransaction { fileSystemDao.create(it, allocatedId, resolvedBackend, token, title) }
 
         try {
             backendService.getBackend(backend).create.call(
-                FileSystemCalls.Create.Request(allocatedId, token.principal.uid.toInt()),
+                FileSystemCalls.Create.Request(allocatedId, LINUX_FS_USER_UID),
                 serviceClient
             ).orThrow()
         } catch (ex: Throwable) {
@@ -55,6 +56,11 @@ class SharedFileSystemService<DBSession>(
         }
 
         return AppFileSystems.View.Response(fs, size)
+    }
+
+    suspend fun calculateSize(fileSystem: SharedFileSystem): Long {
+        val backend = backendService.getBackend(fileSystem.backend)
+        return backend.view.call(FileSystemCalls.View.Request(fileSystem.id), serviceClient).orThrow().size
     }
 
     suspend fun list(token: SecurityPrincipalToken, pagination: NormalizedPaginationRequest): Page<SharedFileSystem> {
