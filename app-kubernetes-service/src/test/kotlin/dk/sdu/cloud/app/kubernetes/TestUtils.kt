@@ -9,26 +9,22 @@ import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
 import dk.sdu.cloud.app.store.api.ApplicationMetadata
-import dk.sdu.cloud.app.store.api.ApplicationParameter
 import dk.sdu.cloud.app.store.api.ApplicationType
-import dk.sdu.cloud.app.store.api.InvocationParameter
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.NormalizedToolDescription
-import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.ResourceRequirements
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.StringApplicationParameter
 import dk.sdu.cloud.app.store.api.Tool
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.service.test.TestUsers
 
 val normalizedToolDescription = NormalizedToolDescription(
     NameAndVersion("Tool name", "1.1"),
     "DOCKER",
     1,
     1,
-    SimpleDuration(1,0,0),
+    SimpleDuration(1, 0, 0),
     listOf(),
     listOf("Author1", "Author2"),
     "Tool title",
@@ -90,14 +86,14 @@ val verifiedJob = VerifiedJob(
     "backend",
     JobState.SCHEDULED,
     "scheduled",
-    null,
+    uid = 1000,
     archiveInCollection = application.metadata.title,
     createdAt = 12345678,
     modifiedAt = 123456789
 )
 
 val jobVerifiedRequest = verifiedJob.copy(
-    _sharedFileSystemMounts = listOf(SharedFileSystemMount(SharedFileSystem("1", "owner", "kubernetes"),"mountedAt"))
+    _sharedFileSystemMounts = listOf(SharedFileSystemMount(SharedFileSystem("1", "owner", "kubernetes"), "mountedAt"))
 )
 
 val wrongSharedFileSystem = SharedFileSystem("1", "owner", "blabla")
