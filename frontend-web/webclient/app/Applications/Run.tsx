@@ -606,15 +606,14 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 }
 
 interface SchedulingFieldProps {
-    text: string
-    field: string
-    subField?: string
-    onChange: (field: string, value: number, subField?: string) => void
-
-    value?: number
-    defaultValue?: number
-    min?: number
-    max?: number
+    text: string;
+    field: string;
+    subField?: string;
+    onChange: (field: string, value: number, subField?: string) => void;
+    value?: number;
+    defaultValue?: number;
+    min?: number;
+    max?: number;
 }
 
 const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => (
@@ -629,7 +628,7 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
             value={props.value == null || isNaN(props.value) ? "0" : props.value}
             placeholder={`${props.defaultValue}`}
             onChange={({target: {value}}) => {
-                const parsed = parseInt(value);
+                const parsed = parseInt(value, 10);
                 props.onChange(props.field, parsed, props.subField);
             }}
         />
@@ -637,9 +636,9 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
 );
 
 interface JobSchedulingOptionsProps {
-    onChange: (a, b, c) => void
-    options: JobSchedulingOptionsForInput
-    app: WithAppMetadata & WithAppInvocation
+    onChange: (a, b, c) => void;
+    options: JobSchedulingOptionsForInput;
+    app: WithAppMetadata & WithAppInvocation;
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
@@ -754,5 +753,5 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
         <Flex mt="20px">
             <Button onClick={() => dialogStore.popDialog()} color="red" mr="5px">Cancel</Button>
         </Flex>
-    </Box>)
+    </Box>);
 }
