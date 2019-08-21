@@ -5,9 +5,11 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundScope
+import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.file.services.linuxfs.NativeThread
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -59,6 +61,9 @@ class DiffTest {
         consumer: TestingContext<LinuxFSRunner>.() -> Unit = {},
         builder: File.() -> Unit
     ): TestingContext<LinuxFSRunner> {
+        Chown.isDevMode = true
+        NativeThread.disableNativeThreads = true
+
         EventServiceMock.reset()
         val root = File(createFS(builder))
         val commandRunnerFactory = LinuxFSRunnerFactory()
