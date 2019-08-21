@@ -69,7 +69,7 @@ function loading(state = false, action: {type: string}): boolean {
 }
 
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
-    store.dispatch({type})
+    store.dispatch({type});
 }
 
 export async function onLogin() {

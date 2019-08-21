@@ -52,7 +52,7 @@ export const getMembersString = (acls?: Acl[]): string => {
 export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     switch (sortBy) {
         case SortBy.FILE_TYPE:
-            return capitalized(file.fileType);
+            return prettierString(file.fileType);
         case SortBy.PATH:
             return getFilenameFromPath(file.path);
         case SortBy.CREATED_AT:
@@ -77,7 +77,7 @@ export const extensionFromPath = (path: string): string => {
     return splitString[splitString.length - 1];
 };
 
-type ExtensionType = null | "code" | "image" | "text" | "audio" | "video" | "archive" | "pdf" | "binary"
+type ExtensionType = null | "code" | "image" | "text" | "audio" | "video" | "archive" | "pdf" | "binary";
 export const extensionType = (ext: string): ExtensionType => {
     switch (ext) {
         case "md":
@@ -218,10 +218,10 @@ export const addTrailingSlash = (path: string) => {
 
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
 export const is5xxStatusCode = (status: number) => inRange({status, min: 500, max: 599});
-export const blankOrUndefined = (value?: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
+export const blankOrUndefined = (value?: string): boolean => value == null || value.length === 0 || /^\s*$/.test(value);
 
 export const ifPresent = (f: any, handler: (f: any) => void) => {
-    if (f) handler(f)
+    if (f) handler(f);
 };
 
 // FIXME The frontend can't handle downloading multiple files currently. When fixed, remove === 1 check.

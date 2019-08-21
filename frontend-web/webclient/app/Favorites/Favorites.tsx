@@ -1,24 +1,24 @@
+import Installed from "Applications/Installed";
+import {History} from "history";
+import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {connect} from "react-redux";
-import Installed from "Applications/Installed";
 import {Dispatch} from "redux";
-import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {SidebarPages} from "ui-components/Sidebar";
-import {History} from "history";
 
 const Favorites = (props: FavoritesOperations & { history: History }) => {
     React.useEffect(() => {
         props.setPageTitle();
         props.setActivePage(SidebarPages.Favorites);
-        return () => props.setActivePage(SidebarPages.None)
+        return () => props.setActivePage(SidebarPages.None);
     }, []);
 
-    return (<Installed header={null}/>)
+    return (<Installed header={null}/>);
 };
 
 interface FavoritesOperations {
-    setPageTitle: () => void
-    setActivePage: (page: SidebarPages) => void
+    setPageTitle: () => void;
+    setActivePage: (page: SidebarPages) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({

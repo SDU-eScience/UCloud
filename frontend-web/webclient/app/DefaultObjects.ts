@@ -1,19 +1,19 @@
-import {SidebarOption, Page} from "Types";
-import {Status} from "Navigation";
-import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
-import {File, DetailedFileSearchReduxState, SortOrder} from "Files";
-import {DashboardStateProps} from "Dashboard";
-import {Notification} from "Notifications";
-import {Upload} from "Uploader";
-import {Activity, ActivityGroup, ActivityFilter} from "Activity";
-import {Reducer} from "redux";
-import {SimpleSearchStateProps} from "Search";
-import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {SidebarPages} from "ui-components/Sidebar";
-import {ScrollResult} from "Scroll/Types";
+import {Activity, ActivityFilter, ActivityGroup} from "Activity";
+import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
+import * as ApplicationRedux from "Applications/Redux";
+import {DashboardStateProps} from "Dashboard";
+import {DetailedFileSearchReduxState, File, SortOrder} from "Files";
+import {Status} from "Navigation";
+import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
+import {Reducer} from "redux";
+import {ScrollResult} from "Scroll/Types";
+import {SimpleSearchStateProps} from "Search";
+import {Page, SidebarOption} from "Types";
+import {SidebarPages} from "ui-components/Sidebar";
+import {Upload} from "Uploader";
+import {defaultAvatar} from "UserSettings/Avataaar";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -130,14 +130,14 @@ export interface UploaderReduxObject {
 }
 
 interface LegacyReducers {
-    dashboard?: Reducer<DashboardStateProps>
-    uploader?: Reducer<UploaderReduxObject>
-    status?: Reducer<StatusReduxObject>
-    notifications?: Reducer<NotificationsReduxObject>
-    analyses?: Reducer<AnalysisReduxObject>
-    header?: Reducer<HeaderSearchReduxObject>
-    sidebar?: Reducer<SidebarReduxObject>
-    activity?: Reducer<ActivityReduxObject>
+    dashboard?: Reducer<DashboardStateProps>;
+    uploader?: Reducer<UploaderReduxObject>;
+    status?: Reducer<StatusReduxObject>;
+    notifications?: Reducer<NotificationsReduxObject>;
+    analyses?: Reducer<AnalysisReduxObject>;
+    header?: Reducer<HeaderSearchReduxObject>;
+    sidebar?: Reducer<SidebarReduxObject>;
+    activity?: Reducer<ActivityReduxObject>;
 }
 
 export type Reducers = LegacyReducers & ApplicationRedux.Reducers & AccountingRedux.Reducers;
