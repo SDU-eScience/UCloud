@@ -249,8 +249,8 @@ enum class ClothesGraphic(val string: String) {
     SKULL_OUTLINE("SkullOutline"),
     SKULL("Skull"),
     ESPIE("Espie"),
-    ESCIENCELOGO("eScienceLogo"),
-    TEETH("TEETH");
+    ESCIENCELOGO("EScienceLogo"),
+    TEETH("Teeth");
 
     companion object {
         private val map = ClothesGraphic.values().associateBy(ClothesGraphic::string)
