@@ -334,6 +334,7 @@ export interface ApplicationInvocationDescription {
     outputFileGlobs: string[];
     applicationType: ApplicationType;
     resources: Resources;
+    shouldAllowAdditionalMounts: boolean
 }
 
 interface Resources {

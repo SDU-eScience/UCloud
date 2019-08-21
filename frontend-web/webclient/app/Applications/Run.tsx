@@ -125,8 +125,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             cloud: Cloud
         });
 
-        console.log(parameters);
-
         if (!checkForMissingParameters(parameters, invocation)) return;
         if (!validateOptionalFields(invocation, this.state.parameterValues)) return;
 
@@ -518,68 +516,73 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 <Heading.h4>Additional Parameters Used</Heading.h4>
                                 {visibleParams}
                             </>}
-                            <Heading.h4 mb="4px">
-                                <Flex>
-                                    Mount additional folders
-                                    <Button
-                                        type="button"
-                                        ml="5px"
-                                        onClick={() => {
-                                            this.setState(s => ({
-                                                mountedFolders: s.mountedFolders.concat([
-                                                    {ref: React.createRef<HTMLInputElement>(), readOnly: true}
-                                                ])
-                                            }));
-                                        }}
-                                    >
-                                        +
-                                    </Button>
-                                </Flex>
-                            </Heading.h4>
+                            {
+                                !application.invocation.shouldAllowAdditionalMounts ? null :
+                                <>
+                                    <Heading.h4 mb="4px">
+                                        <Flex>
+                                            Mount additional folders
+                                            <Button
+                                                type="button"
+                                                ml="5px"
+                                                onClick={() => {
+                                                    this.setState(s => ({
+                                                        mountedFolders: s.mountedFolders.concat([
+                                                            {ref: React.createRef<HTMLInputElement>(), readOnly: true}
+                                                        ])
+                                                    }));
+                                                }}
+                                            >
+                                                +
+                                            </Button>
+                                        </Flex>
+                                    </Heading.h4>
 
-                            {this.state.mountedFolders.every(it => it.readOnly) ? "" :
-                                "Note: Giving folders read/write access will make the startup and shutdown of the application longer."}
+                                    {this.state.mountedFolders.every(it => it.readOnly) ? "" :
+                                        "Note: Giving folders read/write access will make the startup and shutdown of the application longer."}
 
-                            {this.state.mountedFolders.map((entry, i) => (
-                                <Box key={i} mb="7px">
-                                    <InputDirectoryParameter
-                                        application={application}
-                                        defaultValue={entry.defaultValue}
-                                        initialSubmit={false}
-                                        parameterRef={entry.ref}
-                                        onRemove={() => {
-                                            this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, i)}))
-                                        }}
-                                        parameter={{
-                                            type: ParameterTypes.InputDirectory,
-                                            name: "",
-                                            optional: true,
-                                            title: "",
-                                            description: "",
-                                            defaultValue: "",
-                                            visible: true,
-                                            unitName: (
-                                                <Box width="105px">
-                                                    <ClickableDropdown
-                                                        chevron
-                                                        minWidth="150px"
-                                                        onChange={key => {
-                                                            const {mountedFolders} = this.state;
-                                                            mountedFolders[i].readOnly = key === "READ";
-                                                            this.setState(() => ({mountedFolders}));
-                                                        }}
-                                                        trigger={entry.readOnly ? "Read only" : "Read/Write"}
-                                                        options={[
-                                                            {text: "Read only", value: "READ"},
-                                                            {text: "Read/Write", value: "READ/WRITE"}
-                                                        ]}
-                                                    />
-                                                </Box>
-                                            ),
-                                        }}
-                                    />
-                                </Box>
-                            ))}
+                                    {this.state.mountedFolders.map((entry, i) => (
+                                        <Box key={i} mb="7px">
+                                            <InputDirectoryParameter
+                                                application={application}
+                                                defaultValue={entry.defaultValue}
+                                                initialSubmit={false}
+                                                parameterRef={entry.ref}
+                                                onRemove={() => {
+                                                    this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, i)}))
+                                                }}
+                                                parameter={{
+                                                    type: ParameterTypes.InputDirectory,
+                                                    name: "",
+                                                    optional: true,
+                                                    title: "",
+                                                    description: "",
+                                                    defaultValue: "",
+                                                    visible: true,
+                                                    unitName: (
+                                                        <Box width="105px">
+                                                            <ClickableDropdown
+                                                                chevron
+                                                                minWidth="150px"
+                                                                onChange={key => {
+                                                                    const {mountedFolders} = this.state;
+                                                                    mountedFolders[i].readOnly = key === "READ";
+                                                                    this.setState(() => ({mountedFolders}));
+                                                                }}
+                                                                trigger={entry.readOnly ? "Read only" : "Read/Write"}
+                                                                options={[
+                                                                    {text: "Read only", value: "READ"},
+                                                                    {text: "Read/Write", value: "READ/WRITE"}
+                                                                ]}
+                                                            />
+                                                        </Box>
+                                                    ),
+                                                }}
+                                            />
+                                        </Box>
+                                    ))}
+                                </>
+                            }
 
                             <Heading.h4>Scheduling</Heading.h4>
                             <JobSchedulingOptions
