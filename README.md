@@ -24,10 +24,10 @@ system allows, e.g., users to read and write folders and files.
 
 Access to the file system is provided through a common API interface which
 enforces data management constraints and auditing.  The [storage
-service](./storage-service) is responsible for the storage on SDUCloud.
+service](./storage-service/README.md) is responsible for the storage on SDUCloud.
 
 SDUCloud keeps track and can create accounting reports for storage consumed by
-each user. The [accounting services](./accounting-storage-service) are
+each user. The [accounting services](./accounting-storage-service/README.md) are
 responsible for accounting in SDUCloud.
 
 ### Metadata
@@ -50,13 +50,13 @@ list, file size, etc) but also the following:
 
 - **Favorites**   
 
-  A user can [favorite](./file-favorite-service) a file, directory or app. For
-  files and folders, the [file gateway service](./file-gateway-service) combines
+  A user can [favorite](./file-favorite-service/README.md) a file, directory or app. For
+  files and folders, the [file gateway service](./file-gateway-service/README.md) combines
   this attribute with the results from a list(ls) of a directory.   
   It is possible to get all favorites of a user across the entire file
   system, which is used for quick access to favorites.
 
-Metadata is [indexed](./indexing-service) in the system and it is possible to
+Metadata is [indexed](./indexing-service/README.md) in the system and it is possible to
 perform simple searches or advanced queries on it. SDUCloud uses an
 [elasticsearch](https://www.elastic.co/products/elasticsearch) cluster to index
 and query metadata.
@@ -66,7 +66,7 @@ data management.
 
 ### Collaboration
 
-Users are able to [share](./share-service) the files they own with other users.
+Users are able to [share](./share-service/README.md) the files they own with other users.
 When sharing a file, the owner specifies whether the receiving user only can
 view the file or if he/she is able to edit the file as well. If the receiving
 user chooses to accept the share, the file will be available in her/his home
@@ -74,7 +74,7 @@ folder with the correct permissions. The owner of the file can also revoke a
 share. When revoking a shared file, the system automatically removes all
 permissions to the receiver and the file will not be accessible anymore.
 
-SDUCloud provides the possibility to create [projects](./project-service) for
+SDUCloud provides the possibility to create [projects](./project-service/README.md) for
 research collaborations between users. When a project is created, the system
 creates a shared file system among the specified collaborators. The shared file
 system is separate from the users normal file system. To use the project
@@ -84,7 +84,7 @@ belong to the project.
 
 ### Searching
 
-SDUCloud supports [searching of files](./filesearch-service). The search support
+SDUCloud supports [searching of files](./filesearch-service/README.md). The search support
 several different criteria such as date ranges, file extensions and, of course,
 filename. Searching is powered by the internal
 [elasticsearch](https://www.elastic.co/products/elasticsearch) cluster, which
@@ -98,7 +98,7 @@ are generated to keep the elasticsearch index information up to date.
 
 To make sure that the information is always up to date, even in the unlikely
 event that system events are lost, the entire file system is
-[indexed](./indexing-service) multiple times per day. 
+[indexed](./indexing-service/README.md) multiple times per day. 
 
 ## Applications
 
@@ -106,8 +106,8 @@ SDUCloud presents a collection of software packages to the users in the "Apps"
 tab of the web app. The apps can be executed in batch (headless) mode or
 interactive mode. The web GUI allows user to run apps on a supported backend
 (HPC slurm, K8s). Applications are handled via the [app store
-service](./app-store-service) and the [app orchestrator
-service](./app-orchestrator-service). More computational backend can be supported
+service](./app-store-service/README.md) and the [app orchestrator
+service](./app-orchestrator-service/README.md). More computational backend can be supported
 (e.g. OpenStack, commercial clouds).
 
 Each app in SDUCloud is associated to a "tool" (Docker image) and gives the user
@@ -123,7 +123,7 @@ the SDUCloud file system into job specific folders, according to the app
 definition (e.g. apps can be defined to not copy back temporary files).
 
 Just as with the storage, SDUCloud keeps an [account of the compute time
-used](./accounting-compute-service). A user can see, via the web app, how much
+used](./accounting-compute-service/README.md). A user can see, via the web app, how much
 compute time they have used on SDUCloud for any given time period. Again, it is
 possible to create reports if billing is needed.
 
