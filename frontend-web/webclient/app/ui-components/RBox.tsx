@@ -1,25 +1,20 @@
-import * as React from "react";
-import RatingBadge from "./RatingBadge";
-import Box from "./Box";
-import * as Heading from "./Heading"
 import {ReduxObject, ResponsiveReduxObject} from "DefaultObjects";
-import {connect} from 'react-redux'
+import * as React from "react";
+import {connect} from "react-redux";
+import Box from "./Box";
+import * as Heading from "./Heading";
+import RatingBadge from "./RatingBadge";
 
 
 interface RBoxStateProps {
-    responsiveState: ResponsiveReduxObject | undefined
+    responsiveState: ResponsiveReduxObject | undefined;
 }
 
 type RBoxProps = RBoxStateProps;
 
 // Responsive Box used for dev / testing
 const RBox = ({responsiveState}: RBoxProps) => {
-    let message = "";
-    if (!responsiveState) {
-        message += "undef";
-    } else {
-        message += `${responsiveState.mediaType}`;
-    }
+    const message = !responsiveState ? "undef" : `${responsiveState.mediaType}`;
 
     return (
         <RatingBadge mx={"3px"} bg={["headerBg", "gray", "red", "green", "purple", "orange"]}>
@@ -27,7 +22,7 @@ const RBox = ({responsiveState}: RBoxProps) => {
                 <Heading.h6>{message}</Heading.h6>
             </Box>
         </RatingBadge>
-    )
+    );
 };
 
 

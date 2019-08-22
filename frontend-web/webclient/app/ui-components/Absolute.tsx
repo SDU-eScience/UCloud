@@ -1,22 +1,22 @@
 import styled from "styled-components";
-import Box, {BoxProps} from "./Box";
 import {
-    top,
-    right,
-    bottom,
-    left,
-    zIndex,
-    TopProps,
-    BottomProps,
-    LeftProps,
-    RightProps,
-    ZIndexProps
+  bottom,
+  BottomProps,
+  left,
+  LeftProps,
+  right,
+  RightProps,
+  top,
+  TopProps,
+  zIndex,
+  ZIndexProps
 } from "styled-system";
+import Box, {BoxProps} from "./Box";
 
 interface AbsoluteProps extends BoxProps, TopProps, BottomProps, LeftProps, RightProps, ZIndexProps {
 }
 
-const Absolute = styled(Box)<AbsoluteProps>`
+const Absolute = styled(Box) <AbsoluteProps>`
   position: absolute;
   ${top} ${bottom} ${left} ${right}
   ${zIndex}
@@ -24,4 +24,4 @@ const Absolute = styled(Box)<AbsoluteProps>`
 
 Absolute.displayName = "Absolute";
 
-export default Absolute
+export default Absolute;

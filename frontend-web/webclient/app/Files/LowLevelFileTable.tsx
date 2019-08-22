@@ -110,7 +110,7 @@ const twoPhaseLoadFiles = async (
     callback: (page: Page<File>) => void,
     request: ListDirectoryRequest
 ) => {
-    let promise = callAPI<Page<File>>(listDirectory({
+    const promise = callAPI<Page<File>>(listDirectory({
         ...request,
         attrs: [FileResource.FILE_ID, FileResource.PATH, FileResource.FILE_TYPE]
     })).then(result => {
@@ -237,7 +237,7 @@ function apiForComponent(
         const order = pageParameters.order;
 
         const onPageChanged = (pageNumber: number, itemsPerPage: number) => {
-            loadManaged({...pageParameters, page: pageNumber, itemsPerPage: itemsPerPage});
+            loadManaged({...pageParameters, page: pageNumber, itemsPerPage});
         };
 
         api = {page, error, pageLoading: loading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged};
@@ -265,7 +265,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, workError, invokeWork] = useAsyncWork();
 
-    let {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
+    const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
 
     // Callbacks for operations
@@ -283,7 +283,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         },
         requestFolderCreation: () => {
             if (props.path === undefined) return;
-            let fileId = "newFolderId";
+            const fileId = "newFolderId";
             setInjectedViaState([
                     mockFile({
                         path: `${props.path}/newFolder`,
@@ -327,9 +327,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const fileFilter = props.fileFilter ? props.fileFilter : () => true;
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
         .filter(fileFilter);
-    const isMasterChecked = allFiles.length > 0 && allFiles.every(f => checkedFiles.has(f.fileId!) || f.mockTag !== undefined);
+    const isMasterChecked = allFiles.length > 0 &&
+                            allFiles.every(f => checkedFiles.has(f.fileId!) || f.mockTag !== undefined);
     const isAnyLoading = workLoading || pageLoading;
-    const checkedFilesWithInfo = allFiles.filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
+    const checkedFilesWithInfo = allFiles
+                                    .filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
     const onFileNavigation = (path: string) => {
         setCheckedFiles(new Set());
         setFileBeingRenamed(null);
@@ -366,9 +368,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             setInjectedViaState([]);
             setFileBeingRenamed(null);
         } else if (key === KeyCode.ENTER) {
-            const file = allFiles.find(f => f.fileId == fileBeingRenamed);
+            const file = allFiles.find(f => f.fileId === fileBeingRenamed);
             if (file === undefined) return;
-            const fileNames = allFiles.map(file => getFilenameFromPath(file.path));
+            const fileNames = allFiles.map(f => getFilenameFromPath(f.path));
             if (isInvalidPathName({path: name, filePaths: fileNames})) return;
 
             const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
@@ -377,7 +379,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                     path: fullPath,
                     cloud: Cloud,
                     onSuccess: () => callbacks.requestReload()
-                })
+                });
             } else {
                 moveFile({
                     oldPath: file.path,

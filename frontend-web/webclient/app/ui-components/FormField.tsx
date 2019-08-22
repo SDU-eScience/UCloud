@@ -1,12 +1,12 @@
-import * as React from "react"
-import styled, { keyframes, css } from "styled-components"
-import Box from "./Box"
-import Flex from "./Flex"
-import Select from "./Select"
-import Icon, { IconName } from "./Icon"
-import Label from "./Label"
-import Input from "./Input"
-import theme from "./theme"
+import * as React from "react";
+import styled, {css, keyframes} from "styled-components";
+import Box from "./Box";
+import Flex from "./Flex";
+import Icon, {IconName} from "./Icon";
+import Input from "./Input";
+import Label from "./Label";
+import Select from "./Select";
+import theme from "./theme";
 
 const Root = styled(Box)`
   & ${Box} {
@@ -34,12 +34,12 @@ const getFieldStyles = (showLabel: boolean) =>
     paddingBottom: "8px",
     transition: "padding-top 0.1s, padding-bottom 0.1s"
   } : {
-    paddingTop: "9.5px",
-    paddingBottom: "9.5px",
-    transition: "padding-top 0.1s, padding-bottom 0.1s"
-  };
+      paddingTop: "9.5px",
+      paddingBottom: "9.5px",
+      transition: "padding-top 0.1s, padding-bottom 0.1s"
+    };
 
-const noop = () => { };
+const noop = () => {};
 
 const formElements = [Input, Select];
 
@@ -72,7 +72,7 @@ class FormField extends React.Component<{
   };
 
   hasValue = () => {
-    const { children } = this.props;
+    const {children} = this.props;
     return React.Children.toArray(children).reduce(
       (a, child: any) =>
         a || (child && isFormElement(child.type) && child.props.value),
@@ -81,7 +81,7 @@ class FormField extends React.Component<{
   };
 
   render() {
-    const { label, icon, children, onChange, ...props } = this.props;
+    const {label, icon, children, onChange, ...props} = this.props;
 
     let FieldChild;
     let position = -1;

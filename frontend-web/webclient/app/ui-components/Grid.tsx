@@ -1,12 +1,11 @@
 import * as React from "react";
-import styled from "styled-components"
+import styled from "styled-components";
 import {
-    space, SpaceProps, width, WidthProps,
-    height, HeightProps, color, ColorProps,
-    alignItems, AlignItemsProps, justifyItems,
-    JustifyItemsProps, gridGap, GridGapProps,
-    gridTemplateColumns, GridTemplateColumnsProps,
-    gridTemplateRows, GridTemplateRowsProps
+    alignItems, AlignItemsProps, color, ColorProps, gridGap,
+    GridGapProps, gridTemplateColumns, GridTemplateColumnsProps,
+    gridTemplateRows, GridTemplateRowsProps, height, HeightProps,
+    justifyItems, JustifyItemsProps, space, SpaceProps,
+    width, WidthProps
 } from "styled-system";
 
 export type GridProps =
@@ -18,7 +17,7 @@ export type GridProps =
     JustifyItemsProps &
     GridGapProps &
     GridTemplateColumnsProps &
-    GridTemplateRowsProps
+    GridTemplateRowsProps;
 
 const Grid = styled.div<GridProps>`
     display: grid;
@@ -31,4 +30,4 @@ export const GridCardGroup = ({ minmax = 400, ...props }) => (<Grid mt="2px" wid
 
 Grid.displayName = "Grid";
 
-export default Grid
+export default Grid;

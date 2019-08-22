@@ -69,21 +69,6 @@ exports[`UserCreation Mount 1`] = `
   transform: scale(1.03);
 }
 
-.c5 {
-  font-size: 10px;
-  -webkit-letter-spacing: 0.2px;
-  -moz-letter-spacing: 0.2px;
-  -ms-letter-spacing: 0.2px;
-  letter-spacing: 0.2px;
-  display: block;
-  margin: 0;
-  margin-bottom: 1em;
-  font-size: 14px;
-  color: #000;
-  font-weight: 700;
-  width: 100%;
-}
-
 .c6 {
   display: block;
   font-family: inherit;
@@ -128,6 +113,21 @@ exports[`UserCreation Mount 1`] = `
   outline: 0;
   border-color: #8393A7;
   box-shadow: 0 0 0 1px #8393A7,inset 0 0 0 1px #8393A7;
+}
+
+.c5 {
+  font-size: 10px;
+  -webkit-letter-spacing: 0.2px;
+  -moz-letter-spacing: 0.2px;
+  -ms-letter-spacing: 0.2px;
+  letter-spacing: 0.2px;
+  display: block;
+  margin: 0;
+  margin-bottom: 1em;
+  font-size: 14px;
+  color: #000;
+  font-weight: 700;
+  width: 100%;
 }
 
 .c4 {
