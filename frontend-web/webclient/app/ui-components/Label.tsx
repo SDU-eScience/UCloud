@@ -1,29 +1,41 @@
-import styled from 'styled-components';
-import { space, fontSize, fontWeight, color, FontStyleProps, SpaceProps, ColorProps, FontWeightProps, FontSizeProps, WidthProps, width } from 'styled-system';
-import theme from './theme';
+import styled from "styled-components";
+import {
+  color,
+  ColorProps,
+  fontSize,
+  FontSizeProps,
+  FontStyleProps,
+  fontWeight,
+  FontWeightProps,
+  space,
+  SpaceProps,
+  width,
+  WidthProps
+} from "styled-system";
+import theme from "./theme";
 
-const nowrap = (props: { nowrap?: boolean }): { whiteSpace: "nowrap" } | null =>
+const nowrap = (props: {nowrap?: boolean}): {whiteSpace: "nowrap"} | null =>
   props.nowrap ? {
-    whiteSpace: 'nowrap'
+    whiteSpace: "nowrap"
   } : null;
 
 type accessiblyHide = {
-  position: 'absolute',
-  width: '1px',
-  height: '1px',
-  clip: 'rect(1px, 1px, 1px, 1px)'
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  clip: "rect(1px, 1px, 1px, 1px)"
 } | null;
-const accessiblyHide = (props: { hidden?: boolean }): accessiblyHide =>
+const accessiblyHide = (props: {hidden?: boolean}): accessiblyHide =>
   props.hidden ? {
-    position: 'absolute',
-    width: '1px',
-    height: '1px',
-    clip: 'rect(1px, 1px, 1px, 1px)'
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    clip: "rect(1px, 1px, 1px, 1px)"
   } : null;
 
 export type LabelProps =
   SpaceProps & FontSizeProps & FontStyleProps & ColorProps & FontWeightProps & WidthProps
-  & { nowrap?: boolean, hidden?: boolean };
+  & {nowrap?: boolean, hidden?: boolean};
 
 const Label = styled("label") <LabelProps>`
   font-size: 10px;
@@ -41,7 +53,7 @@ Label.defaultProps = {
   fontSize: 1,
   fontWeight: "bold",
   color: "black",
-  theme: theme
+  theme
 };
 
 Label.displayName = "Label";

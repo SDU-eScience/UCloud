@@ -61,7 +61,7 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
                 });
             } catch {
                 failures++;
-                failurePaths.push(getFilenameFromPath(f.path))
+                failurePaths.push(getFilenameFromPath(f.path));
             }
         }
     }
@@ -347,9 +347,9 @@ export const expandHomeFolder = (path: string, homeFolder: string): string => {
 const extractFilesQuery = "/files/extract";
 
 interface ExtractArchive {
-    files: File[]
-    cloud: SDUCloud
-    onFinished: () => void
+    files: File[];
+    cloud: SDUCloud;
+    onFinished: () => void;
 }
 
 export const extractArchive = async ({files, cloud, onFinished}: ExtractArchive) => {
@@ -420,9 +420,9 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
 }
 
 interface UpdateSensitivity {
-    files: File[]
-    cloud: SDUCloud
-    onSensitivityChange?: () => void
+    files: File[];
+    cloud: SDUCloud;
+    onSensitivityChange?: () => void;
 }
 
 export async function updateSensitivity({files, cloud, onSensitivityChange}: UpdateSensitivity) {
@@ -434,7 +434,7 @@ export async function updateSensitivity({files, cloud, onSensitivityChange}: Upd
         snackbarStore.addSnack({
             message: UF.errorMessageOrDefault(e, "Could not reclassify file"),
             type: SnackType.Failure
-        })
+        });
     } finally {
         if (!!onSensitivityChange) onSensitivityChange();
     }
@@ -442,7 +442,7 @@ export async function updateSensitivity({files, cloud, onSensitivityChange}: Upd
 
 export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
     const token = await cloud.createOneTimeTokenWithPermission("files.download:read");
-    return fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
+    return fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`);
 };
 
 export const sizeToString = (bytes: number | null): string => {

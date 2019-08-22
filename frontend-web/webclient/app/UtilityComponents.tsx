@@ -1,27 +1,27 @@
-import * as React from "react";
-import {
-    Icon,
-    FtIcon,
-    Absolute,
-    Flex,
-    Text,
-    Label,
-    Checkbox,
-    Box,
-    Divider,
-    Button,
-    Select,
-    Input,
-    Radio
-} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {DropdownContent, Dropdown} from "ui-components/Dropdown";
-import {FtIconProps} from "UtilityFunctions";
-import styled from "styled-components";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
-import {dialogStore} from "Dialog/DialogStore";
 import {SensitivityLevelMap} from "DefaultObjects";
+import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
+import * as React from "react";
+import styled from "styled-components";
+import {
+    Absolute,
+    Box,
+    Button,
+    Checkbox,
+    Divider,
+    Flex,
+    FtIcon,
+    Icon,
+    Input,
+    Label,
+    Radio,
+    Select,
+    Text
+} from "ui-components";
+import {Dropdown, DropdownContent} from "ui-components/Dropdown";
+import * as Heading from "ui-components/Heading";
+import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {FtIconProps} from "UtilityFunctions";
 
 interface StandardDialog {
     title?: string;
@@ -53,14 +53,14 @@ export function addStandardDialog(
         <Flex mt="20px">
             <Button onClick={() => {
                 onCancel();
-                dialogStore.popDialog()
+                dialogStore.popDialog();
             }} color="red" mr="5px">{cancelText}</Button>
             <Button onClick={() => {
                 if (validator()) onConfirm();
-                dialogStore.popDialog()
+                dialogStore.popDialog();
             }} color="green">{confirmText}</Button>
         </Flex>
-    </Box>)
+    </Box>);
 }
 
 export function sensitivityDialog(): Promise<{ cancelled: true } | { option: SensitivityLevelMap }> {
@@ -144,13 +144,13 @@ export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
 }
 
 interface RewritePolicy {
-    path: string
-    homeFolder: string
-    filesRemaining: number
-    allowOverwrite: boolean
+    path: string;
+    homeFolder: string;
+    filesRemaining: number;
+    allowOverwrite: boolean;
 }
 
-type RewritePolicyResult = { policy: string, applyToAll: boolean } | false
+type RewritePolicyResult = { policy: string, applyToAll: boolean } | false;
 
 export function rewritePolicyDialog({
     path,
@@ -187,7 +187,7 @@ export function rewritePolicyDialog({
             }} color="red" mr="5px">No</Button>
             <Button onClick={() => {
                 dialogStore.popDialog();
-                resolve({policy, applyToAll})
+                resolve({policy, applyToAll});
             }} color="green">Yes</Button>
         </Box>
     </Box>));
@@ -225,13 +225,13 @@ interface Arrow<T> {
 
 export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
     if (sortBy !== activeSortBy) return null;
-    if (order === SortOrder.ASCENDING) 
+    if (order === SortOrder.ASCENDING)
         return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em"/>);
     return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
 }
 
 export class PP extends React.Component<{ visible: boolean }, { duration: number }> {
-    constructor(props) {
+    constructor(props: Readonly<{visible: boolean;}>) {
         super(props);
         this.state = {
             duration: 500

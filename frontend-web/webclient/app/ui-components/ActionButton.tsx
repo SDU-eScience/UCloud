@@ -1,8 +1,8 @@
-import Box from "./Box";
+import {LoadableContent} from "LoadableContent";
 import * as React from "react";
 import Button from "ui-components/Button";
 import Text from "ui-components/Text";
-import {LoadableContent} from "LoadableContent";
+import Box from "./Box";
 import {ButtonProps} from "./Button";
 
 export const ActionButton: React.FunctionComponent<{

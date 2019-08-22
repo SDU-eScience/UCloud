@@ -3,13 +3,13 @@ import styled from "styled-components";
 import Box from "./Box";
 import Flex from "./Flex";
 import Text from "./Text";
-import { ThemeColor, default as theme } from "./theme";
+import {default as theme, ThemeColor} from "./theme";
 
 interface ProgressBaseProps {
-    height?: number | string
-    value?: number | string
-    active?: boolean
-    label?: string
+    height?: number | string;
+    value?: number | string;
+    active?: boolean;
+    label?: string;
 }
 
 const ProgressBase = styled(Box) <ProgressBaseProps>`
@@ -20,7 +20,6 @@ const ProgressBase = styled(Box) <ProgressBaseProps>`
     /* From semantic-ui-css */
     ${props => props.active ?
         `animation: progress-active 2s ease infinite;` : null}
-    
 
     @-webkit-keyframes progress-active {
         0% {
@@ -53,16 +52,16 @@ ProgressBase.defaultProps = {
 };
 
 interface Progress {
-    color: ThemeColor,
-    percent: number,
-    active: boolean,
-    label: string
+    color: ThemeColor;
+    percent: number;
+    active: boolean;
+    label: string;
 }
-const Progress = ({ color, percent, active, label }: Progress) => (
+const Progress = ({color, percent, active, label}: Progress) => (
     <>
-        <ProgressBase height="30px" style={{ width: "100%" }} color="lightGray">
-            <ProgressBase height="30px" color={color} style={{ width: `${percent}%` }}>
-                {active ? <ProgressBase height="30px" active style={{ width: "100%" }} color="black" /> : null}
+        <ProgressBase height="30px" style={{width: "100%"}} color="lightGray">
+            <ProgressBase height="30px" color={color} style={{width: `${percent}%`}}>
+                {active ? <ProgressBase height="30px" active style={{width: "100%"}} color="black" /> : null}
             </ProgressBase>
         </ProgressBase>
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}

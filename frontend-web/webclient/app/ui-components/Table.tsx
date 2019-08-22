@@ -1,13 +1,13 @@
 import styled from "styled-components";
 import {
+    color,
+    ColorProps,
+    minWidth,
+    MinWidthProps,
     textAlign,
     TextAlignProps,
-    WidthProps,
     width,
-    MinWidthProps,
-    minWidth,
-    ColorProps,
-    color
+    WidthProps
 } from "styled-system";
 import {Theme} from "./theme";
 import {Cursor} from "./Types";
