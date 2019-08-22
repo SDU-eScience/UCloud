@@ -1,16 +1,28 @@
 import * as CSS from "csstype";
 import * as React from 'react'
 import styled from 'styled-components'
-import { color, ColorProps, ResponsiveValue, space, SpaceProps, style } from "styled-system"
+import {color, ColorProps, ResponsiveValue, space, SpaceProps, style} from "styled-system"
 import * as icons from './icons';
-import theme from './theme'
-import { Cursor } from './Types';
+import theme, {Theme, ThemeColor} from './theme'
+import {Cursor} from './Types';
 
 
-const IconBase = ({ name, size, theme, color, color2, spin, ...props }): JSX.Element => {
+type IconOption = keyof typeof icons;
+
+interface IconBaseProps {
+  name: IconOption;
+  size?: number | string;
+  theme: Theme;
+  color?: ThemeColor;
+  color2?: ThemeColor;
+  spin?: boolean;
+  onClick?: (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => void;
+}
+
+const IconBase = ({name, size, theme, color2, ...props}: IconBaseProps): JSX.Element => {
   const Component = icons[name];
   if (!Component) return (<></>);
-  return <Component width={size} height={size} color2={theme.colors[color2]} {...props} />;
+  return <Component width={size} height={size} color2={color2 ? theme.colors[color2] : undefined} {...props} />;
 };
 
 const hoverColor = style({
@@ -27,7 +39,7 @@ export interface IconProps extends SpaceProps, ColorProps {
   hoverColor?: ResponsiveValue<CSS.ColorProperty>;
 }
 
-const spin = (props: { spin?: boolean }) => props.spin ? `
+const spin = (props: {spin?: boolean}) => props.spin ? `
   -webkit-animation: spin 1s linear infinite; /* Safari */
   animation: spin 1s linear infinite;
   @-webkit-keyframes spin {
