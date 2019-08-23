@@ -10,7 +10,7 @@ import theme from "./theme";
 
 export type RatingBadgeProps = BoxProps & FontWeightProps & BorderRadiusProps;
 
-const RatingBadge = styled(Box)<RatingBadgeProps>`
+const RatingBadge = styled(Box) <RatingBadgeProps>`
   display: inline-block;
   line-height: 1.5;
   ${fontWeight} ${borderRadius};

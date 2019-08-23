@@ -1,9 +1,9 @@
-import styled from "styled-components"
-import {space, fontSize, SpaceProps} from 'styled-system'
-import theme, {ThemeColor, Theme} from "./theme"
 import * as React from "react";
+import styled from "styled-components";
+import {fontSize, space, SpaceProps} from "styled-system";
 import {Icon, Text} from ".";
 import {IconName} from "./Icon";
+import theme, {Theme, ThemeColor} from "./theme";
 
 const fullWidth = ({fullWidth}: {fullWidth?: boolean}) => fullWidth ? {width: "100%"} : null;
 
@@ -82,10 +82,10 @@ const StampBase = styled.div<StampProps>`
 StampBase.displayName = "Stamp";
 
 interface StampProps extends SpaceProps {
-  color?: ThemeColor
-  theme?: any
-  fontSize?: number | string
-  fullWidth?: boolean
+  color?: ThemeColor;
+  theme?: any;
+  fontSize?: number | string;
+  fullWidth?: boolean;
 }
 
 StampBase.defaultProps = {

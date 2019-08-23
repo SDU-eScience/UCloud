@@ -58,7 +58,7 @@ const Button = styled.button<ButtonProps>`
   border-width: 0;
   border-style: solid;
 
-  transition: ${p => `${p.theme.timingFunctions.easeInOut} ${p => p.theme.transitionDelays.small}`};
+  transition: ${p => `${p.theme.timingFunctions.easeInOut} ${p.theme.transitionDelays.small}`};
 
   &:disabled {
     opacity: 0.25;

@@ -1,7 +1,18 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.StorageFileImpl
+import dk.sdu.cloud.file.api.components
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.ownSensitivityLevel
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.processors.ScanProcessor
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundScope
@@ -11,15 +22,19 @@ import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.linuxfs.NativeThread
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.test.*
 import dk.sdu.cloud.file.util.createFS
 import dk.sdu.cloud.file.util.inode
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.timestamps
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.EventServiceMock
+import dk.sdu.cloud.service.test.assertCollectionHasItem
+import dk.sdu.cloud.service.test.assertThatPropertyEquals
+import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -75,8 +90,10 @@ class DiffTest {
         val cephFs = LinuxFS(root, aclService)
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
-        val coreFs = CoreFileSystemService(cephFs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
-        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer, aclService)
+        val coreFs =
+            CoreFileSystemService(cephFs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
+        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer, aclService, EventServiceMock)
+        ScanProcessor(EventServiceMock, indexingService).init()
 
         BackgroundScope.reset()
 
@@ -445,7 +462,7 @@ class DiffTest {
 
             consumer = {
                 val result = runBlocking {
-                    indexingService.runDiffOnRoots(
+                    indexingService.submitScan(
                         mapOf(
                             "/home/a" to emptyList(),
                             "/home/b" to emptyList()
@@ -453,12 +470,11 @@ class DiffTest {
                     )
                 }
 
-                runBlocking { result.second.join() }
-                assertFalse(result.first["/home/a"]!!)
-                assertTrue(result.first["/home/b"]!!)
-                assertThatPropertyEquals(result.first, { it.size }, 2)
+                assertFalse(result["/home/a"]!!)
+                assertTrue(result["/home/b"]!!)
+                assertThatPropertyEquals(result, { it.size }, 2)
 
-                assertEquals(0, EventServiceMock.recordedEvents.size)
+                assertEquals(0, EventServiceMock.recordedEvents.filter { it.topic == StorageEvents.events }.size)
             }
         )
     }
@@ -500,10 +516,13 @@ class DiffTest {
                         assertCorrectEvents(diff.diff)
                         assertTrue(diff.shouldContinue)
 
-                        val (shouldContinue, job) = indexingService.runDiffOnRoots(mapOf("/home" to reference))
+                        val shouldContinue = indexingService.submitScan(mapOf("/home" to reference))
                         assertTrue(shouldContinue["/home"]!!)
-                        job.join()
-                        assertCorrectEvents(EventServiceMock.recordedEvents.map { it.value })
+                        assertCorrectEvents(
+                            EventServiceMock.recordedEvents
+                                .filter { it.topic == StorageEvents.events }
+                                .map { it.value }
+                        )
                     }
                 }
             }
@@ -520,10 +539,11 @@ class DiffTest {
         coEvery { commandRunnerFactory.invoke(any()) } returns ctx
         coEvery { coreFs.statOrNull(any(), any(), any()) } throws FSException.CriticalException("Mock")
 
-        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer, mockk(relaxed = true))
+        val indexingService =
+            IndexingService(commandRunnerFactory, coreFs, eventProducer, mockk(relaxed = true), EventServiceMock)
 
         assertFailsWith(FSException.CriticalException::class) {
-            runBlocking { indexingService.runDiffOnRoots(mapOf("/" to emptyList())) }
+            runBlocking { indexingService.submitScan(mapOf("/" to emptyList())) }
         }
 
         verify { ctx.close() }
@@ -545,11 +565,11 @@ class DiffTest {
 
         coEvery { coreFs.listDirectory(any(), any(), any()) } throws FSException.CriticalException("Mock")
 
-        val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer, mockk(relaxed = true))
+        val indexingService =
+            IndexingService(commandRunnerFactory, coreFs, eventProducer, mockk(relaxed = true), EventServiceMock)
 
-        val (shouldContinue, job) = runBlocking { indexingService.runDiffOnRoots(mapOf("/" to emptyList())) }
+        val shouldContinue = runBlocking { indexingService.submitScan(mapOf("/" to emptyList())) }
         assertTrue(shouldContinue["/"]!!)
-        runBlocking { job.join() }
 
         verify { ctx.close() }
         coVerify(exactly = 0) { eventProducer.produce(any() as StorageEvent) }

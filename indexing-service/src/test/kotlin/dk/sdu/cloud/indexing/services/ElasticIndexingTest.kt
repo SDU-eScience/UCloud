@@ -26,7 +26,6 @@ class ElasticIndexingTest {
         88888,
         emptyList(),
         SensitivityLevel.PRIVATE,
-        false,
         emptySet(),
         "id",
         "owner",

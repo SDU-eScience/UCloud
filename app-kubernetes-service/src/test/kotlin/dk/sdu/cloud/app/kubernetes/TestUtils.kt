@@ -86,7 +86,7 @@ val verifiedJob = VerifiedJob(
     "backend",
     JobState.SCHEDULED,
     "scheduled",
-    uid = 1000,
+    failedState = null,
     archiveInCollection = application.metadata.title,
     createdAt = 12345678,
     modifiedAt = 123456789

@@ -13,6 +13,7 @@ import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.http.WorkspaceController
+import dk.sdu.cloud.file.processors.ScanProcessor
 import dk.sdu.cloud.file.processors.StorageProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLWorker
@@ -109,7 +110,13 @@ class Server(
 
         // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
-        val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer, newAclService)
+        val indexingService = IndexingService(
+            processRunner,
+            coreFileSystem,
+            storageEventProducer,
+            newAclService,
+            micro.eventStreamService
+        )
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
         val workspaceService = WorkspaceService(fsRootFile, fileScanner, newAclService)
 
@@ -130,6 +137,8 @@ class Server(
         ).init()
 
         StorageProcessor(streams, newAclService).init()
+
+        ScanProcessor(streams, indexingService).init()
 
         val tokenValidation =
             micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")

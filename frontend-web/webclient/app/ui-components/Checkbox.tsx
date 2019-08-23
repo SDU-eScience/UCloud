@@ -31,10 +31,9 @@ const CheckBoxWrapper = styled(Box) <CheckBoxWrapper>`
   > input:checked {
     & ~ svg[data-name="checked"] {
       display: inline-block;
-      color: ${props =>
-    props.disabled
-      ? props.theme.colors.borderGray
-      : props.theme.colors.blue};
+      color: ${props => props.disabled
+        ? props.theme.colors.borderGray
+        : props.theme.colors.blue};
     }
     & ~ svg[data-name="empty"] {
       display: none;

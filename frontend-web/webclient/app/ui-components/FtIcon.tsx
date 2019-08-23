@@ -58,7 +58,7 @@ const SvgFtLabel = ({hasExt, ext, type}: {hasExt: boolean, ext: string, type: st
         {ext}
       </text>
     </>
-  )
+  );
 };
 
 // Decoration for file type icons
@@ -218,6 +218,7 @@ const FtIconBase = ({fileIcon, size, theme, ...props}): JSX.Element => {
     case "DIRECTORY":
       return (<Icon name={"ftFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
   }
+
   /* fileIcon.type should be "FILE" at this point */
   return (
     <SvgFt width={size} height={size}

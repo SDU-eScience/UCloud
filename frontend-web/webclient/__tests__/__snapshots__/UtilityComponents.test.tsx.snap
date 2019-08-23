@@ -73,6 +73,7 @@ exports[`FileIcon FileIcon, not shared 1`] = `
 <svg
   className="c0"
   clipRule="evenodd"
+  color="FtFolderColor"
   color2="#c9d3df"
   cursor="inherit"
   fill="currentcolor"
@@ -176,6 +177,7 @@ exports[`FileIcon FileIcon, shared 1`] = `
   <svg
     className="c1"
     clipRule="evenodd"
+    color="FtFolderColor"
     color2="#c9d3df"
     cursor="inherit"
     fill="currentcolor"

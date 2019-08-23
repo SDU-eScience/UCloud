@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import io.mockk.mockk
 import io.mockk.mockkObject
 import org.elasticsearch.client.RestHighLevelClient
+import org.junit.Ignore
 import org.junit.Test
 import java.io.File
 
@@ -50,6 +51,7 @@ class FileIndexScannerTest {
         }
     }
 
+    @Ignore("Slow test")
     @Test(expected = RuntimeException::class)
     fun `test scanner - not okay`() {
         val micro = initializeMicro()

@@ -76,7 +76,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         const minTimestamp = opts.minTimestamp != null ? opts.minTimestamp : undefined;
         const maxTimestamp = opts.maxTimestamp != null ? opts.maxTimestamp : undefined;
         const filterValue = opts.filter && opts.filter !== "Don't filter" ? opts.filter as AppState : undefined;
-    
+
         setLoading(true);
         props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filterValue);
         props.setRefresh(() =>
@@ -139,7 +139,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         onPageChanged={pageNumber => fetchJobs({pageNumber})}
     />;
 
-    const defaultFilter = {text: "Don't filter", value: "Don't filter"}
+    const defaultFilter = {text: "Don't filter", value: "Don't filter"};
     const [filter, setFilter] = React.useState(defaultFilter);
     const [firstDate, setFirstDate] = React.useState<Date | null>(null);
     const [secondDate, setSecondDate] = React.useState<Date | null>(null);
@@ -174,7 +174,6 @@ function JobResults(props: AnalysesProps & {history: History}) {
             filter: value === "Don't filter" ? undefined : value as AppState
         });
     }
-
     const sidebar = (<Box pt={48}>
         <Heading.h3>
             Quick Filters
@@ -182,7 +181,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         <Box cursor="pointer" onClick={fetchJobsInRange(getStartOfDay(new Date()), null)}>
             <TextSpan>Today</TextSpan>
         </Box>
-        <Box 
+        <Box
             cursor="pointer"
             onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday.getTime() + dayInMillis))}
         >
@@ -276,7 +275,7 @@ const AnalysisOperations = ({cancelableAnalyses, onFinished}: AnalysisOperations
                     await Promise.all(cancelableAnalyses.map(a => cancelJob(Cloud, a.jobId)));
                     snackbarStore.addSnack({type: SnackType.Success, message: "Jobs cancelled"});
                 } catch (e) {
-                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"))
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));
                 } finally {
                     onFinished();
                 }
@@ -337,13 +336,16 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             <TableCell textAlign="center">
                 {children}
             </TableCell>
-            <TableCell onClick={to}>{analysis.name ? analysis.name : shortUUID(analysis.jobId) }</TableCell>
+            <TableCell onClick={to}>{analysis.name ? analysis.name : shortUUID(analysis.jobId)}</TableCell>
             <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
             {hide ? null : <TableCell onClick={to}>{moment(analysis.createdAt).calendar()}</TableCell>}
-            <TableCell onClick={to}>{analysis.expiresAt ? moment(analysis.expiresAt).calendar() : "N/A"}</TableCell>
-        </TableRow>)
+            <TableCell onClick={to}>
+                {!!analysis.expiresAt &&
+                     analysis.state === AppState.RUNNING ? moment(analysis.expiresAt).calendar() : "N/A"}
+            </TableCell>
+        </TableRow>);
 };
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({

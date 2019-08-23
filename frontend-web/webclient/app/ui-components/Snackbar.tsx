@@ -10,10 +10,10 @@ const visibility = ({ visible }: { visible: boolean }) => visible ? css`
 
 const fadeIn = keyframes`
     from {
-        bottom: 0; opacity: 0; 
+        bottom: 0; opacity: 0;
     }
     to { 
-        bottom: 30px; opacity: 1; 
+        bottom: 30px; opacity: 1;
     }
 `;
 

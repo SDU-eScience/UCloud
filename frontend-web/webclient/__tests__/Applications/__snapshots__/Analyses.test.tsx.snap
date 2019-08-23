@@ -2283,6 +2283,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 <svg
                   className="c42"
                   clipRule="evenodd"
+                  color="#c00"
                   cursor="inherit"
                   fill="currentcolor"
                   fillRule="evenodd"
@@ -2396,6 +2397,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 <svg
                   className="c42"
                   clipRule="evenodd"
+                  color="#c00"
                   cursor="inherit"
                   fill="currentcolor"
                   fillRule="evenodd"
@@ -2509,6 +2511,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 <svg
                   className="c42"
                   clipRule="evenodd"
+                  color="#c00"
                   cursor="inherit"
                   fill="currentcolor"
                   fillRule="evenodd"
@@ -2622,6 +2625,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 <svg
                   className="c43"
                   clipRule="evenodd"
+                  color="#00C05A"
                   cursor="inherit"
                   fill="currentcolor"
                   fillRule="evenodd"

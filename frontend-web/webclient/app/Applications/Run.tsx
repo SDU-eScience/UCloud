@@ -254,7 +254,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                                         mountedFolders[i].readOnly = key === "READ";
                                                                         this.setState(() => ({mountedFolders}));
                                                                     }}
-                                                                    trigger={entry.readOnly ? "Read only" : "Read/Write"}
+                                                                    trigger={entry.readOnly ?
+                                                                                "Read only" : "Read/Write"}
                                                                     options={[
                                                                         {text: "Read only", value: "READ"},
                                                                         {text: "Read/Write", value: "READ/WRITE"}

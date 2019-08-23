@@ -1,6 +1,6 @@
-import {color, space, SpaceProps} from "styled-system";
 import styled, {keyframes} from "styled-components";
-import theme, {ThemeColor, Theme} from "./theme";
+import {color, space, SpaceProps} from "styled-system";
+import theme, {Theme, ThemeColor} from "./theme";
 
 export const colorScheme = (props: {theme: Theme, bg?: ThemeColor, color?: ThemeColor}) => {
   const badgeColors = {

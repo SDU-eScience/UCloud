@@ -1,23 +1,22 @@
-import * as React from "react";
-import styled, {css} from "styled-components";
-import Text, {EllipsedText} from "./Text";
-import Icon, {IconName} from "./Icon";
-import Flex from "./Flex";
-import Box from "./Box";
-import Link from "./Link";
-import Divider from "./Divider";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {fileTablePage} from "Utilities/FileUtilities";
-import ExternalLink from "./ExternalLink";
-import RatingBadge from "./RatingBadge"
-import Tooltip from "./Tooltip";
-import RBox from "./RBox";
-import {ReduxObject} from "DefaultObjects"
-import {connect} from 'react-redux'
-import {FlexCProps} from "./Flex";
-import {inDevEnvironment, copyToClipboard} from "UtilityFunctions";
+import {ReduxObject} from "DefaultObjects";
 import {ContextSwitcher} from "Project/ContextSwitcher";
+import * as React from "react";
+import {connect} from "react-redux";
+import styled, {css} from "styled-components";
+import {fileTablePage} from "Utilities/FileUtilities";
+import {copyToClipboard, inDevEnvironment} from "UtilityFunctions";
+import Box from "./Box";
+import Divider from "./Divider";
+import ExternalLink from "./ExternalLink";
+import Flex, {FlexCProps} from "./Flex";
+import Icon, {IconName} from "./Icon";
+import Link from "./Link";
+import RatingBadge from "./RatingBadge";
+import RBox from "./RBox";
+import Text, {EllipsedText} from "./Text";
 import {ThemeColor} from "./theme";
+import Tooltip from "./Tooltip";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
     justify-content: left;
@@ -29,10 +28,10 @@ const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean
     }
 `;
 
-//This is applied to SidebarContainer on small screens
+// This is applied to SidebarContainer on small screens
 const HideText = css`
 ${({theme}) => theme.mediaQueryLT["xl"]} {
-    
+
     will-change: transform;
     transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
     transform: translate(-122px,0); //122 = 190-68 (original - final width)
@@ -51,7 +50,7 @@ ${({theme}) => theme.mediaQueryLT["xl"]} {
     }
 
 
-    &:hover { 
+    &:hover {
             transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
             transform: translate(0,0);
 
@@ -64,10 +63,8 @@ ${({theme}) => theme.mediaQueryLT["xl"]} {
                 // transition: opacity ${({theme}) => theme.timingFunctions.easeInQuint} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
                 transition: opacity ${({theme}) => theme.timingFunctions.stepEnd} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
                 opacity: 1;
-            }
-        
+        }
     }
-    
 }
 `;
 
@@ -78,7 +75,7 @@ const SidebarContainer = styled(Flex) <FlexCProps>`
     left: 0;
     padding-top: 48px;
     height: 100%;
-    background-color: ${props => props.theme.colors.lightGray}; 
+    background-color: ${props => props.theme.colors.lightGray};
     // border-right: 1px solid ${props => props.theme.colors.borderGray};
     //background: linear-gradient(135deg, rgba(246,248,249,1) 0%,rgba(229,235,238,1) 69%,rgba(215,222,227,1) 71%,rgba(245,247,249,1) 100%);
     ${HideText}
@@ -112,15 +109,14 @@ export const SidebarTextLabel = (
 
 const SidebarLink = styled(Link) <{active?: boolean}>`
     ${props => props.active ?
-        `&:not(:hover) > * > ${Text} { 
+        `&:not(:hover) > * > ${Text} {
             color: ${props.theme.colors.blue};
         }
-        &:not(:hover) > * > ${Icon} { 
+        &:not(:hover) > * > ${Icon} {
             filter: saturate(500%);
-        }        
+        }
     ` : null}
 
-    
     text-decoration: none;
 
     &:hover > ${Text}, &:hover > * > ${Icon} {
@@ -129,11 +125,11 @@ const SidebarLink = styled(Link) <{active?: boolean}>`
 `;
 
 interface SidebarElement {
-    icon: IconName,
-    label: string,
-    to: string,
-    external?: boolean,
-    activePage: SidebarPages
+    icon: IconName;
+    label: string;
+    to: string;
+    external?: boolean;
+    activePage: SidebarPages;
 }
 
 const SidebarElement = ({icon, label, to, activePage}: SidebarElement) => (
@@ -171,13 +167,18 @@ const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
 
-type MenuElement = {icon: IconName, label: string, to: string | (() => string)};
-type SidebarMenuElements = {
-    items: MenuElement[]
-    predicate: () => boolean
+interface MenuElement {icon: IconName; label: string; to: string | (() => string);}
+interface SidebarMenuElements {
+    items: MenuElement[];
+    predicate: () => boolean;
 }
 
-export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements} = {
+export const sideBarMenuElements: {
+    guest: SidebarMenuElements,
+    general: SidebarMenuElements,
+    auditing: SidebarMenuElements,
+    admin: SidebarMenuElements
+} = {
     guest: {
         items: [
             {icon: "files", label: "Files", to: "/login"},
@@ -199,13 +200,13 @@ export const sideBarMenuElements: {guest: SidebarMenuElements, general: SidebarM
 };
 
 interface SidebarStateProps {
-    page: SidebarPages
-    loggedIn: boolean
-    activeProject?: string
+    page: SidebarPages;
+    loggedIn: boolean;
+    activeProject?: string;
 }
 
 interface SidebarProps extends SidebarStateProps {
-    sideBarEntries?: any
+    sideBarEntries?: any;
 }
 
 const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps) => {

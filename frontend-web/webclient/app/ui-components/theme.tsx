@@ -6,17 +6,17 @@ const addAliases = (arr: any, aliases: any[]) =>
     Object.defineProperty(arr, key, {
       enumerable: false,
       get() {
-        return this[i]
+        return this[i];
       }
     })
   );
 
 // export const breakpoints = [32, 40, 48, 64, 80].map(n => n + 'em')
 const bp = [512, 640, 768, 1024, 1280];
-const aliases = ['xs', 'sm', 'md', 'lg', 'xl'];
-export const breakpoints = bp.map(n => n + 'px');
+const aliases = ["xs", "sm", "md", "lg", "xl"];
+export const breakpoints = bp.map(n => n + "px");
 export const responsiveBP = bp.map((n, i) => ({[aliases[i]]: n - 1})).reduce((obj, item) => ({...obj, ...item}), {});
-//export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 } 
+// export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 }
 
 export const mediaQueryGT = bp.map(createMinMediaQuery);
 export const mediaQueryLT = bp.map(createMaxMediaQuery);
@@ -47,70 +47,70 @@ export const lineHeights = {
 };
 
 const letterSpacings = {
-  normal: 'normal',
-  caps: '0.025em'
+  normal: "normal",
+  caps: "0.025em"
 };
 
 export const textStyles = {
   display8: {
-    fontSize: fontSizes[8] + 'px',
+    fontSize: fontSizes[8] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display
   },
   display7: {
-    fontSize: fontSizes[7] + 'px',
+    fontSize: fontSizes[7] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display
   },
   display6: {
-    fontSize: fontSizes[6] + 'px',
+    fontSize: fontSizes[6] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display
   },
   display5: {
-    fontSize: fontSizes[5] + 'px',
+    fontSize: fontSizes[5] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display
   },
   display4: {
-    fontSize: fontSizes[4] + 'px',
+    fontSize: fontSizes[4] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display
   },
   display3: {
-    fontSize: fontSizes[3] + 'px',
+    fontSize: fontSizes[3] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display
   },
   display2: {
-    fontSize: fontSizes[2] + 'px',
+    fontSize: fontSizes[2] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display
   },
   display1: {
-    fontSize: fontSizes[1] + 'px',
+    fontSize: fontSizes[1] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display
   },
   display0: {
-    fontSize: fontSizes[0] + 'px',
+    fontSize: fontSizes[0] + "px",
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.display,
     letterSpacing: letterSpacings.caps,
-    textTransform: 'uppercase'
+    textTransform: "uppercase"
   },
   body2: {
-    fontSize: fontSizes[2] + 'px',
+    fontSize: fontSizes[2] + "px",
     fontWeight: fontWeights.medium,
     lineHeight: lineHeights.standard
   },
   body1: {
-    fontSize: fontSizes[1] + 'px',
+    fontSize: fontSizes[1] + "px",
     fontWeight: fontWeights.medium,
     lineHeight: lineHeights.standard
   },
   body0: {
-    fontSize: fontSizes[0] + 'px',
+    fontSize: fontSizes[0] + "px",
     fontWeight: fontWeights.medium,
     lineHeight: lineHeights.standard
   }
@@ -122,7 +122,7 @@ const black = "#000";
 const white = "#fff";
 const textBlack = "#1e252e";
 //// Gray
-//const lightGray = "#ebeff3";
+// const lightGray = "#ebeff3";
 const lightGray = "#f5f7f9";
 const midGray = "#c9d3df";
 const gray = "#8393A7";
@@ -132,7 +132,7 @@ const lightBlue = "#f0f6ff";
 const lightBlue2 = "#cdf";
 // const blue = "#0055d5";
 const blue = "#006aff";
-// const blue = "#007bff"; 
+// const blue = "#007bff";
 const darkBlue = "#049";
 //// Green
 const lightGreen = "#00ff77";
@@ -152,7 +152,7 @@ const purple = "#70b"; // secondary
 // Colors in the array come in 3 shades: light, medium , dark
 // last color is for logo centers only
 const appColors = [
-  //["#0096ff", "#043eff"], // blue
+  // ["#0096ff", "#043eff"], // blue
   ["#F7D06A", "#E98C33", "#C46927"], // gold
   ["#EC6F8E", "#C75480", "#AA2457"], // salmon
   ["#B8D1E3", "#7C8DB3", "#5B698C"], // silver
@@ -174,14 +174,14 @@ const appColors = [
 // const text = "#001833";
 const text = textBlack;
 const textHighlight = blue;
-//const headerText = lightGray;
+// const headerText = lightGray;
 const headerText = white;
-const headerBg = '#006aff';
+const headerBg = "#006aff";
 const headerIconColor = headerText;
 const headerIconColor2 = midGray;
 // const borderGray = "#d1d6db";
-const borderGray = midGray; //used for borders of cards, pagination, sidebar
-//const paginationHoverColor = "#f7f7f7"
+const borderGray = midGray; // used for borders of cards, pagination, sidebar
+// const paginationHoverColor = "#f7f7f7"
 const paginationHoverColor = lightBlue;
 const paginationDisabled = lightGray;
 // Icons colors
@@ -348,7 +348,7 @@ export const colorStyles = {
     color: colors.white,
     backgroundColor: colors.green
   },
-  //warning: textOnOrange
+  // warning: textOnOrange
   warning: {
     color: colors.text,
     backgroundColor: colors.orange
@@ -362,9 +362,9 @@ export const colorStyles = {
 
 // styled-system's `borderRadius` function can hook into the `radii` object/array
 export const radii = [0, 2, 6];
-export const radius = '5px';
+export const radius = "5px";
 
-export const maxContainerWidth = '1280px';
+export const maxContainerWidth = "1280px";
 
 // boxShadows: styled-systems hooks into shadows
 // export const shadows = [
@@ -415,7 +415,7 @@ export const shadows = [
   MDshadows[18],
   MDshadows[24]
 ];
-const BoxShadowsAliases = ['sm', 'md', 'lg', 'xl', 'xxl'];
+const BoxShadowsAliases = ["sm", "md", "lg", "xl", "xxl"];
 addAliases(shadows, BoxShadowsAliases);
 
 // animation duration
@@ -428,14 +428,15 @@ export const duration = {
 };
 
 // animation easing curves
-const easeInOut = 'cubic-bezier(0.5, 0, 0.25, 1)';
-const easeOut = 'cubic-bezier(0, 0, 0.25, 1)';
-const easeIn = 'cubic-bezier(0.5, 0, 1, 1)';
-const easeInQuint = 'cubic-bezier(0.755, 0.05, 0.855, 0.06)'; //This is a steep easeIn curve
-const easeInQuintR = `cubic-bezier(${1 - 0.855}, ${1 - 0.06}, ${1 - 0.755}, ${1 - 0.05})`; //This is a steep easeIn curve
-const easeOutQuint = 'cubic-bezier(0.23, 1, 0.32, 1)';
-const stepStart = 'step-start';
-const stepEnd = 'step-end';
+const easeInOut = "cubic-bezier(0.5, 0, 0.25, 1)";
+const easeOut = "cubic-bezier(0, 0, 0.25, 1)";
+const easeIn = "cubic-bezier(0.5, 0, 1, 1)";
+const easeInQuint = "cubic-bezier(0.755, 0.05, 0.855, 0.06)"; // This is a steep easeIn curve
+// This is a steep easeIn curve
+const easeInQuintR = `cubic-bezier(${1 - 0.855}, ${1 - 0.06}, ${1 - 0.755}, ${1 - 0.05})`;
+const easeOutQuint = "cubic-bezier(0.23, 1, 0.32, 1)";
+const stepStart = "step-start";
+const stepEnd = "step-end";
 
 const timingFunctions = {
   easeInOut,
@@ -482,6 +483,6 @@ const theme = {
   transitionDelays
 };
 
-export type Theme = typeof theme
+export type Theme = typeof theme;
 
-export default theme
+export default theme;
