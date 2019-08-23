@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Flex, Icon, Text, Box} from "ui-components";
+import {Box, Icon, Text} from "ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
@@ -20,8 +20,8 @@ const BreadCrumbsBase = styled.ul<{divider?: string}>`
 
     & li + li:before {
         padding: 8px;
-        color: ${({theme}) => theme.colors.black};
-        content: "${({divider}) => divider}";
+        color: ${p => p.theme.colors.black};
+        content: "${p => p.divider}";
     }
 
     & li span {

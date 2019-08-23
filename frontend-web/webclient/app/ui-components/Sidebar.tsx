@@ -17,6 +17,7 @@ import {connect} from 'react-redux'
 import {FlexCProps} from "./Flex";
 import {inDevEnvironment, copyToClipboard} from "UtilityFunctions";
 import {ContextSwitcher} from "Project/ContextSwitcher";
+import {ThemeColor} from "./theme";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
     justify-content: left;
@@ -84,17 +85,17 @@ const SidebarContainer = styled(Flex) <FlexCProps>`
 `;
 
 interface TextLabelProps {
-    icon: IconName
-    children: React.ReactText | JSX.Element
-    ml?: string
-    height?: string
-    color?: string
-    color2?: string
-    iconSize?: string
-    textSize?: number
-    space?: string
-    hover?: boolean
-    title?: string
+    icon: IconName;
+    children: React.ReactText | JSX.Element;
+    ml?: string;
+    height?: string;
+    color?: ThemeColor;
+    color2?: ThemeColor;
+    iconSize?: string;
+    textSize?: number;
+    space?: string;
+    hover?: boolean;
+    title?: string;
 }
 
 export const SidebarTextLabel = (

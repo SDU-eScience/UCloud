@@ -1,36 +1,36 @@
-import styled, {css} from 'styled-components'
+import styled, {css} from "styled-components";
 import {
-  space, BorderProps, SpaceProps,
-  BorderRadiusProps, borderRadius,
-  fontSize, FontSizeProps, width, WidthProps
-} from 'styled-system'
-import defaultTheme from './theme'
-import Text from './Text';
+  BorderProps, borderRadius, BorderRadiusProps,
+  fontSize, FontSizeProps, space, SpaceProps,
+  width, WidthProps
+} from "styled-system";
+import Text from "./Text";
+import defaultTheme from "./theme";
 
 export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, noBorder?: boolean}) => {
   if (noBorder) return "";
   const borderColor = color ? theme.colors[color] : theme.colors.borderGray;
   const focusColor = color ? borderColor : theme.colors.blue;
   return {
-    'border-color': borderColor,
-    'box-shadow': `0 0 0 1px ${borderColor}`,
-    ':focus': {
-      outline: 0,
-      'border-color': focusColor,
-      'box-shadow': `0 0 0 1px ${focusColor},inset 0 0 0 1px ${focusColor}`
+    "border-color": borderColor,
+    "box-shadow": `0 0 0 1px ${borderColor}`,
+    ":focus": {
+      "outline": 0,
+      "border-color": focusColor,
+      "box-shadow": `0 0 0 1px ${focusColor},inset 0 0 0 1px ${focusColor}`
     }
-  }
+  };
 };
 
 export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, FontSizeProps, WidthProps {
-  leftLabel?: boolean
-  rightLabel?: boolean
-  id?: string
-  color?: string
-  noBorder?: boolean
-  error?: boolean
-  showError?: boolean
-  autocomplete?: "on" | "off"
+  leftLabel?: boolean;
+  rightLabel?: boolean;
+  id?: string;
+  color?: string;
+  noBorder?: boolean;
+  error?: boolean;
+  showError?: boolean;
+  autocomplete?: "on" | "off";
 }
 
 const left = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
@@ -53,10 +53,10 @@ const Input = styled.input<InputProps>`
 
   margin: 0;
 
-  ${({showError, theme}) => showError ? `&:invalid { 
-    background-color: ${theme.colors.lightRed}; 
-  }` : null} 
-  
+  ${({showError, theme}) => showError ? `&:invalid {
+    background-color: ${theme.colors.lightRed};
+  }` : null};
+
   ::placeholder {
     color: ${({theme}) => theme.colors.gray};
   }
@@ -90,8 +90,8 @@ const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? css`bo
 const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
 
 export interface InputLabelProps extends WidthProps {
-  leftLabel?: boolean
-  rightLabel?: boolean
+  leftLabel?: boolean;
+  rightLabel?: boolean;
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`

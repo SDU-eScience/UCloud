@@ -1,42 +1,47 @@
 import styled from "styled-components";
-import { space, ButtonStyleProps, SpaceProps, SizeProps, height, HeightProps } from "styled-system";
-import theme, { Theme, ThemeColor } from "./theme";
+import {ButtonStyleProps, height, HeightProps, SizeProps, space, SpaceProps} from "styled-system";
+import theme, {Theme, ThemeColor} from "./theme";
 
-const size = ({ size, theme }: { size: string, theme: Theme }) => {
-  switch (size) {
+const size = (p: {size: string, theme: Theme}) => {
+  switch (p.size) {
     case "tiny":
       return {
-        fontSize: `${theme.fontSizes[0]}px`,
+        fontSize: `${p.theme.fontSizes[0]}px`,
         padding: "5px 10px"
       };
     case "small":
       return {
-        fontSize: `${theme.fontSizes[0]}px`,
+        fontSize: `${p.theme.fontSizes[0]}px`,
         padding: "7px 12px"
       };
     case "medium":
       return {
-        fontSize: `${theme.fontSizes[1]}px`,
+        fontSize: `${p.theme.fontSizes[1]}px`,
         padding: "9.5px 18px"
       };
     case "large":
       return {
-        fontSize: `${theme.fontSizes[2]}px`,
+        fontSize: `${p.theme.fontSizes[2]}px`,
         padding: "12px 22px"
       };
     default:
       return {
-        fontSize: `${theme.fontSizes[1]}px`,
+        fontSize: `${p.theme.fontSizes[1]}px`,
         padding: "9.5px 18px"
       };
   }
 };
 
-export const fullWidth = (props: { fullWidth?: boolean }) => props.fullWidth ? { width: "100%" } : null;
+export const fullWidth = (props: {fullWidth?: boolean}) => props.fullWidth ? {width: "100%"} : null;
 
-export type ButtonProps = ButtonStyleProps & HeightProps & { fullWidth?: boolean, textColor?: ThemeColor, lineHeight?: number | string } & SpaceProps & SizeProps & { title?: string }
+export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps {
+  fullWidth?: boolean;
+  textColor?: ThemeColor;
+  lineHeight?: number | string;
+  title?: string;
+}
 
-const Button = styled.button<ButtonProps>` 
+const Button = styled.button<ButtonProps>`
   -webkit-font-smoothing: antialiased;
   display: inline-flex;
   justify-content: center;
@@ -52,8 +57,8 @@ const Button = styled.button<ButtonProps>`
   color: ${props => props.theme.colors[props.textColor!]};
   border-width: 0;
   border-style: solid;
-  
-  transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+
+  transition: ${p => `${p.theme.timingFunctions.easeInOut} ${p => p.theme.transitionDelays.small}`};
 
   &:disabled {
     opacity: 0.25;
@@ -63,7 +68,7 @@ const Button = styled.button<ButtonProps>`
     outline: none;
   }
 
-  &:hover { 
+  &:hover {
     transform: scale(1.03);
   }
 

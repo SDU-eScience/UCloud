@@ -1,14 +1,14 @@
-import styled from 'styled-components';
-import { style, space, color, SpaceProps, ColorProps } from 'styled-system';
+import styled from "styled-components";
+import {color, ColorProps, space, SpaceProps, style} from "styled-system";
 
 export interface BaseLinkProps extends SpaceProps, ColorProps {
-  hoverColor?: string
+  hoverColor?: string;
 }
 
 const hoverColor = style({
-  prop: 'hoverColor',
-  cssProperty: 'color',
-  key: 'colors'
+  prop: "hoverColor",
+  cssProperty: "color",
+  key: "colors"
 });
 
 const BaseLink = styled.a<BaseLinkProps>`

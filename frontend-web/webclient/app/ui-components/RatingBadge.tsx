@@ -1,16 +1,14 @@
-import styled from 'styled-components';
+import styled from "styled-components";
 import {
+  borderRadius,
+  BorderRadiusProps,
   fontWeight,
-  borderRadius, 
-  FontWeightProps, 
-  BorderRadiusProps
-} from 'styled-system';
-import Box, { BoxProps } from './Box';
-import theme from './theme';
+  FontWeightProps
+} from "styled-system";
+import Box, {BoxProps} from "./Box";
+import theme from "./theme";
 
-export interface RatingBadgeProps extends BoxProps, FontWeightProps, 
-    BorderRadiusProps {
-}
+export type RatingBadgeProps = BoxProps & FontWeightProps & BorderRadiusProps;
 
 const RatingBadge = styled(Box)<RatingBadgeProps>`
   display: inline-block;
@@ -19,12 +17,12 @@ const RatingBadge = styled(Box)<RatingBadgeProps>`
 `;
 
 RatingBadge.defaultProps = {
-  fontWeight: 'bold',
+  fontWeight: "bold",
   px: 2,
-  color: 'white',
-  bg: 'blue',
+  color: "white",
+  bg: "blue",
   borderRadius: 1,
-  theme: theme
+  theme
 };
 
 RatingBadge.displayName = "RatingBadge";

@@ -1,38 +1,38 @@
 import styled from "styled-components";
+import {ButtonStyleProps} from "styled-system";
 import Button from "./Button";
-import { ButtonStyleProps } from "styled-system";
-import theme, { Theme }from "./theme";
+import theme, {Theme} from "./theme";
 
-export interface OutlineButtonProps extends ButtonStyleProps { hovercolor?: string }
+export interface OutlineButtonProps extends ButtonStyleProps {hovercolor?: string;}
 
-//Different from the one in button because of border size
-const size = ({ size, theme }: { size: string, theme: Theme }) => {
-  switch (size) {
+// Different from the one in button because of border size
+const size = (p: {size: string, theme: Theme}) => {
+  switch (p.size) {
     case "tiny":
       return {
-        fontSize: `${theme.fontSizes[0]}px`,
+        fontSize: `${p.theme.fontSizes[0]}px`,
         padding: "3px 10px"
       };
     case "small":
       return {
-        fontSize: `${theme.fontSizes[0]}px`,
+        fontSize: `${p.theme.fontSizes[0]}px`,
         padding: "5px 12px"
       };
     case "medium":
       return {
-        fontSize: `${theme.fontSizes[1]}px`,
+        fontSize: `${p.theme.fontSizes[1]}px`,
         padding: "7.5px 18px"
       };
     case "large":
       return {
-        fontSize: `${theme.fontSizes[2]}px`,
+        fontSize: `${p.theme.fontSizes[2]}px`,
         padding: "10px 22px"
       };
     default:
       return {
-        fontSize: `${theme.fontSizes[1]}px`,
+        fontSize: `${p.theme.fontSizes[1]}px`,
         padding: "7.5px 18px"
-      }
+      };
   }
 };
 
@@ -48,7 +48,7 @@ const OutlineButton = styled(Button) <OutlineButtonProps>`
     background-color: transparent;
     transition: ease 0.1s;
   }
-  
+
   ${size}
 `;
 

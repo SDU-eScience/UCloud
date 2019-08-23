@@ -259,7 +259,7 @@ export const invertedColors = {
 export type ThemeColor = keyof typeof colors;
 
 
-export {colors}
+export {colors};
 
 export const colorStyles = {
   whiteOnText: {
