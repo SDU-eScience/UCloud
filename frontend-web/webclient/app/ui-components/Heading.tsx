@@ -1,9 +1,5 @@
 import * as React from "react";
-import Text, { TextProps } from "./Text";
-
-interface HeaderProps extends TextProps {
-    children: React.ReactChildren | React.ReactText;
-}
+import Text from "./Text";
 
 export const h1 = ({ children, ...props }: any) =>
     (<Text as="h1" bold={true} fontSize={6} m={0} {...props}>{children}</Text>);

@@ -8,9 +8,7 @@ import {
 import Box, {BoxProps} from "./Box";
 import theme from "./theme";
 
-export interface RatingBadgeProps extends BoxProps, FontWeightProps,
-  BorderRadiusProps {
-}
+export type RatingBadgeProps = BoxProps & FontWeightProps & BorderRadiusProps;
 
 const RatingBadge = styled(Box) <RatingBadgeProps>`
   display: inline-block;

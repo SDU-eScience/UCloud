@@ -141,7 +141,7 @@ const SvgFtType = ({type}: {type: string}) => {
     case "code":
       return (
         <>
-          <text textAnchor="middle" x="21.5" y="27" style={{fontSize: "24px"}} fill="#3d4d65" >{'{ }'}</text>
+          <text textAnchor="middle" x="21.5" y="27" style={{fontSize: "24px"}} fill="#3d4d65" >{"{ }"}</text>
         </>
       );
     case "pdf":
@@ -158,8 +158,8 @@ const SvgFtType = ({type}: {type: string}) => {
     case "binary":
       return (
         <>
-          <text textAnchor="middle" x="21.5" y="17" style={{fontSize: "14px"}} fill="#3d4d65" >{'0101'}</text>
-          <text textAnchor="middle" x="21.5" y="31" style={{fontSize: "14px"}} fill="#3d4d65" >{'1110'}</text>
+          <text textAnchor="middle" x="21.5" y="17" style={{fontSize: "14px"}} fill="#3d4d65" >{"0101"}</text>
+          <text textAnchor="middle" x="21.5" y="31" style={{fontSize: "14px"}} fill="#3d4d65" >{"1110"}</text>
         </>
       );
   }
@@ -191,22 +191,6 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
 
   </svg>
 );
-
-// Folder type icon component
-// const SvgFtFolder = ({ color, color2, ...props }) => (
-//   <svg
-//     viewBox="0 0 24 22"
-//     fillRule="evenodd"
-//     clipRule="evenodd"
-//     {...props}
-//   >
-//     <path
-//       d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-//       fill={color ? color : "currentcolor"}
-//       fillRule="nonzero"
-//     />
-//   </svg>
-// );
 
 type FtLabelProps = WidthProps;
 const FtLabel = styled(Text) <FtLabelProps>`

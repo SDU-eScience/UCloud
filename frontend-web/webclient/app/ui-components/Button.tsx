@@ -41,7 +41,7 @@ export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, 
   title?: string;
 }
 
-const Button = styled.button<ButtonProps>` 
+const Button = styled.button<ButtonProps>`
   -webkit-font-smoothing: antialiased;
   display: inline-flex;
   justify-content: center;

@@ -1,10 +1,10 @@
-import {Terminal} from "xterm";
 import * as React from "react";
 import {useEffect, useState} from "react";
+import {Terminal} from "xterm";
 import "xterm/dist/xterm.css";
 
 interface XtermProps {
-    value: string
+    value: string;
 }
 
 export const Xterm: React.FunctionComponent<XtermProps> = props => {

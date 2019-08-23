@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { color, ColorProps, space, SpaceProps, style } from "styled-system";
+import {color, ColorProps, space, SpaceProps, style} from "styled-system";
 
 export interface BaseLinkProps extends SpaceProps, ColorProps {
   hoverColor?: string;

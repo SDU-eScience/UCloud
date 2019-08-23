@@ -15,6 +15,7 @@ import Link from "./Link";
 import RatingBadge from "./RatingBadge";
 import RBox from "./RBox";
 import Text, {EllipsedText} from "./Text";
+import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
@@ -85,8 +86,8 @@ interface TextLabelProps {
     children: React.ReactText | JSX.Element;
     ml?: string;
     height?: string;
-    color?: string;
-    color2?: string;
+    color?: ThemeColor;
+    color2?: ThemeColor;
     iconSize?: string;
     textSize?: number;
     space?: string;

@@ -1,18 +1,14 @@
-import styled from 'styled-components'
+import styled from "styled-components";
 import {
-  space,
-  width, minWidth,
-  height,
-  color,
-  alignItems,
-  justifyContent,
-  flexWrap, flexDirection, flex,
-  SpaceProps, WidthProps, MinWidthProps, HeightProps, 
-  ColorProps, AlignItemsProps, JustifyContentProps, 
-  FlexWrapProps, FlexDirectionProps, FlexProps, ZIndexProps, zIndex
-} from 'styled-system'
-import theme from "./theme"
-import { Cursor } from './Types';
+  alignItems, AlignItemsProps, color, ColorProps,
+  flex, flexDirection, FlexDirectionProps, FlexProps,
+  flexWrap, FlexWrapProps, height, HeightProps,
+  justifyContent, JustifyContentProps, minWidth,
+  MinWidthProps, space, SpaceProps, width, WidthProps,
+  zIndex, ZIndexProps
+} from "styled-system";
+import theme from "./theme";
+import {Cursor} from "./Types";
 
 
 export type FlexCProps =
@@ -27,7 +23,7 @@ export type FlexCProps =
   FlexDirectionProps &
   FlexProps &
   ZIndexProps &
-  { cursor?: Cursor }
+  {cursor?: Cursor;};
 
 
 const Flex = styled.div<FlexCProps>`

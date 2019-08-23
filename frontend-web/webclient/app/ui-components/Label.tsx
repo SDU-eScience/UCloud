@@ -1,16 +1,8 @@
 import styled from "styled-components";
 import {
-  color,
-  ColorProps,
-  fontSize,
-  FontSizeProps,
-  FontStyleProps,
-  fontWeight,
-  FontWeightProps,
-  space,
-  SpaceProps,
-  width,
-  WidthProps
+  color, ColorProps, fontSize, FontSizeProps,
+  FontStyleProps, fontWeight, FontWeightProps,
+  space, SpaceProps, width, WidthProps
 } from "styled-system";
 import theme from "./theme";
 

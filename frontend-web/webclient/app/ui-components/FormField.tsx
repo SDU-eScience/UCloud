@@ -39,7 +39,7 @@ const getFieldStyles = (showLabel: boolean) =>
       transition: "padding-top 0.1s, padding-bottom 0.1s"
     };
 
-const noop = () => {};
+const noop = (): void => undefined;
 
 const formElements = [Input, Select];
 
@@ -68,8 +68,8 @@ class FormField extends React.Component<{
   handleChange = onChange => e => {
     this.props.onChange(e);
     if (typeof onChange !== "function") return;
-    onChange(e)
-  };
+    onChange(e);
+  }
 
   hasValue = () => {
     const {children} = this.props;
@@ -77,10 +77,10 @@ class FormField extends React.Component<{
       (a, child: any) =>
         a || (child && isFormElement(child.type) && child.props.value),
       false
-    )
-  };
+    );
+  }
 
-  render() {
+  public render() {
     const {label, icon, children, onChange, ...props} = this.props;
 
     let FieldChild;
@@ -110,23 +110,23 @@ class FormField extends React.Component<{
         case Icon:
           if (position < 0) {
             BeforeIcon = child;
-            iconAdjustment = (props.size ? props.size : 0) - 24
+            iconAdjustment = (props.size ? props.size : 0) - 24;
           } else {
-            AfterIcon = child
+            AfterIcon = child;
           }
-          break
+          break;
       }
     });
 
     // Handle old version on component's api
     if (icon) {
-      AfterIcon = <Icon name={icon} />
+      AfterIcon = <Icon name={icon} />;
     }
     if (label) {
-      LabelChild = <Label>{label}</Label>
+      LabelChild = <Label>{label}</Label>;
     }
     if (!FieldChild) {
-      FieldChild = <Input id={this.props.id} />
+      FieldChild = <Input id={this.props.id} />;
     }
 
     const showLabel =
@@ -139,7 +139,7 @@ class FormField extends React.Component<{
         {showLabel &&
           React.cloneElement(LabelChild, {
             pl: BeforeIcon ? 40 : 2,
-            mt: '6px',
+            mt: "6px",
             style: labelStyles,
             htmlFor: fieldId
           })}
@@ -154,18 +154,18 @@ class FormField extends React.Component<{
             </Box>
           )}
           {React.cloneElement(FieldChild, {
-            'aria-label':
+            "aria-label":
               !showLabel && fieldPlaceholder ? fieldPlaceholder : null,
-            mt: showLabel && -20,
-            pl: BeforeIcon ? 40 : 2,
-            pr: AfterIcon && 40,
-            style: getFieldStyles(showLabel),
-            width: 1,
-            innerRef: (elem: Element) => {
-              this.fieldRef = elem
+            "mt": showLabel && -20,
+            "pl": BeforeIcon ? 40 : 2,
+            "pr": AfterIcon && 40,
+            "style": getFieldStyles(showLabel),
+            "width": 1,
+            "innerRef": (elem: Element) => {
+              this.fieldRef = elem;
             },
             // for backwards compatibility
-            onChange: this.handleChange(FieldChild.props.onChange),
+            "onChange": this.handleChange(FieldChild.props.onChange),
             ...props
           })}
           {AfterIcon && (
@@ -175,7 +175,7 @@ class FormField extends React.Component<{
           )}
         </Flex>
       </Root>
-    )
+    );
   }
 }
 

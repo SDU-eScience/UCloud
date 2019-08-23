@@ -1,14 +1,8 @@
 import styled, {css} from "styled-components";
 import {
-  BorderProps,
-  borderRadius,
-  BorderRadiusProps,
-  fontSize,
-  FontSizeProps,
-  space,
-  SpaceProps,
-  width,
-  WidthProps
+  BorderProps, borderRadius, BorderRadiusProps,
+  fontSize, FontSizeProps, space, SpaceProps,
+  width, WidthProps
 } from "styled-system";
 import Text from "./Text";
 import defaultTheme from "./theme";
@@ -61,7 +55,7 @@ const Input = styled.input<InputProps>`
 
   ${({showError, theme}) => showError ? `&:invalid {
     background-color: ${theme.colors.lightRed};
-  }` : null}
+  }` : null};
 
   ::placeholder {
     color: ${({theme}) => theme.colors.gray};
@@ -92,8 +86,10 @@ export const HiddenInputField = styled(Input)`
 
 export default Input;
 
-const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
-const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
+const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ?
+  css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
+const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ?
+  css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
 
 export interface InputLabelProps extends WidthProps {
   leftLabel?: boolean;
@@ -110,6 +106,3 @@ export const InputLabel = styled(Text) <InputLabelProps>`
   padding-right: 1em;
   padding-top: 6px;
 `;
-
-InputLabel.defaultProps = {
-};

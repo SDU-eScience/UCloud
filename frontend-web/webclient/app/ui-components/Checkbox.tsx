@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Icon} from "./";
+import {Box, Icon} from ".";
 import {BoxProps} from "./Box";
 import theme from "./theme";
 

@@ -36,7 +36,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
         super(props);
     }
 
-    componentDidMount() {
+    public componentDidMount() {
         if (!!this.props.defaultFilename) this.props.setFilename(this.props.defaultFilename);
     }
 
@@ -63,7 +63,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
         const {setTimes, createdBefore, modifiedBefore, createdAfter, modifiedAfter} = this.props;
         if (m == null) {
             setTimes({[property]: undefined});
-            return
+            return;
         }
         const before = property.includes("Before");
         if (property.includes("created")) {
@@ -108,7 +108,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 
     onSearch = () => {
         this.onAddExtension();
-        let fileTypes: [FileType?, FileType?] = [];
+        const fileTypes: [FileType?, FileType?] = [];
         if (this.props.allowFiles) fileTypes.push("FILE");
         if (this.props.allowFolders) fileTypes.push("DIRECTORY");
         const createdAt = {
