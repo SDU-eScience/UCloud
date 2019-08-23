@@ -6,7 +6,7 @@ This repository contains the frontend components used in SDUCloud, logic for con
 
 ## Code Structure
 
-Of notable npm-packages, the frontend uses the `React`-frameworks, along with the `Redux` library for handling data<sup>\*</sup>, and the `Styled-Components` library for styling of components. Addtionally, the application uses the React-Router for navigation, `jest` for testing. The project is written in `TypeScript`.
+Of notable npm-packages, the frontend uses the `React`-frameworks, along with the `Redux` library for handling data<sup>\*</sup>, and the `Styled-Components` library for styling of components. Addtionally, the application uses the `React-Router` for navigation, `jest` for testing. The project is written in `TypeScript`.
 
 Each category (category meaning e.g. Files, Applications, Dashboard, Activity), groups components by their association, i.e. every component referring to a category, will be found in the corresponding folder. Additionally, if a component has a reducer, it will be placed in a folder named `Redux`, along with the associated reducer actions, using the naming convention `<ComponentName>Reducer` and `<ComponentName>Actions`
 
