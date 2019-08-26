@@ -125,8 +125,8 @@ class PodService(
             val jobId = reverseLookupJobName(jobName) ?: return
 
             // Check for failure
-            val firstOrNull = job.status?.conditions?.firstOrNull()
-            if (firstOrNull != null && firstOrNull.type == "Failed" && firstOrNull.reason == "DeadlineExceeded") {
+            val condition = job.status?.conditions?.firstOrNull()
+            if (condition != null && condition.type == "Failed" && condition.reason == "DeadlineExceeded") {
                 GlobalScope.launch {
                     jobManager.get(jobId).markAsFinished {
                         ComputationCallbackDescriptions.requestStateChange.call(
@@ -152,14 +152,14 @@ class PodService(
                 return
             }
 
-            val resources = findPods(jobId)
-            if (resources.isEmpty()) return
+            val allPods = findPods(jobId)
+            if (allPods.isEmpty()) return
 
             var isDone = true
             var maxDurationInMillis = 0L
             var isSuccess = true
-            for (resource in resources) {
-                val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
+            for (pod in allPods) {
+                val userContainer = pod.status.containerStatuses.getOrNull(0) ?: return
                 val containerState = userContainer.state.terminated
 
                 if (containerState == null || containerState.startedAt == null) {
@@ -184,7 +184,7 @@ class PodService(
             }
 
             if (isDone) {
-                val resource = resources.first()
+                val resource = allPods.first()
                 GlobalScope.launch {
                     jobManager.get(jobId).markAsFinished {
                         val duration = SimpleDuration.fromMillis(maxDurationInMillis)
@@ -553,6 +553,8 @@ class PodService(
 
                 awaitCatching(retries = 36_000, delay = 100) {
                     val pods = findPods(verifiedJob.id)
+                    check(pods.isNotEmpty()) { "Found no pods for job!" }
+
                     pods.all { pod ->
                         // Note: We are awaiting the user container
                         val state = pod.status.containerStatuses.first().state
