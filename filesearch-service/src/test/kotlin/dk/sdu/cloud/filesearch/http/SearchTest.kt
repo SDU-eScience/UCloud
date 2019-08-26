@@ -47,7 +47,6 @@ class SearchTest {
         fileTypeOrNull = FileType.FILE,
         createdAtOrNull = 12342431, modifiedAtOrNull = 12345,
         sizeOrNull = 1234,
-        linkOrNull = false,
         ownSensitivityLevelOrNull = SensitivityLevel.PRIVATE,
         sensitivityLevelOrNull = SensitivityLevel.PRIVATE
     )
@@ -166,6 +165,7 @@ class SearchTest {
         TimestampQuery(123, 123456789),
         null,
         null,
+        false,
         10,
         0
     )

@@ -5,7 +5,7 @@ import {File, SensitivityLevel} from "Files";
 
 export type DetailedFileSearchActions = ToggleFilesSearchHiddenAction | ToggleFoldersAllowedAction | SetTime |
     ToggleFilesAllowedAction | SetFilename | TagAction | SensitivityAction | SetError | SetFilesSearchLoading |
-    ReceiveFilesSearchFiles | ExtensionAction
+    ReceiveFilesSearchFiles | ExtensionAction | ToggleIncludeSharesAction
 
 type ToggleFilesSearchHiddenAction = Action<typeof DFSReducer.DETAILED_FILES_TOGGLE_HIDDEN>;
 export const toggleFilesSearchHidden = (): ToggleFilesSearchHiddenAction => ({
@@ -20,6 +20,11 @@ export const toggleFoldersAllowed = (): ToggleFoldersAllowedAction => ({
 type ToggleFilesAllowedAction = Action<typeof DFSReducer.DETAILED_FILES_TOGGLE_FILES>;
 export const toggleFilesAllowed = (): ToggleFilesAllowedAction => ({
     type: DFSReducer.DETAILED_FILES_TOGGLE_FILES
+});
+
+type ToggleIncludeSharesAction = Action<typeof DFSReducer.DETAILED_FILES_TOGGLE_INCLUDE_SHARES>;
+export const toggleIncludeShares = (): ToggleIncludeSharesAction => ({
+    type: DFSReducer.DETAILED_FILES_TOGGLE_INCLUDE_SHARES
 });
 
 type SetFilename = PayloadAction<typeof DFSReducer.DETAILED_FILES_SET_FILENAME, { fileName: string }>;

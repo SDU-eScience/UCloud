@@ -137,7 +137,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     };
 
     render() {
-        const {hidden, cantHide, extensions, allowFiles, allowFolders} = this.props;
+        const {hidden, cantHide, extensions, allowFiles, allowFolders, includeShares} = this.props;
         if (hidden && !cantHide) {
             return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced
                 Search</OutlineButton>)
@@ -249,6 +249,16 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     Files
                                 </Label>
                             </Flex>
+                            <Heading.h5 pb="0.3em" pt="0.5em">Include Shares</Heading.h5>
+                            <Flex>
+                                <Label fontSize={1} color="black">
+                                    <Checkbox
+                                        checked={(includeShares)}
+                                        onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
+                                        onClick={this.props.toggleIncludeShares}
+                                    />
+                                </Label>
+                            </Flex>
                             <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
                             <SearchStamps
                                 stamps={extensions}
@@ -325,6 +335,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations =>
     removeExtensions: ext => dispatch(DFSActions.extensionAction(DETAILED_FILES_REMOVE_EXTENSIONS, ext)),
     toggleFolderAllowed: () => dispatch(DFSActions.toggleFoldersAllowed()),
     toggleFilesAllowed: () => dispatch(DFSActions.toggleFilesAllowed()),
+    toggleIncludeShares: () => dispatch(DFSActions.toggleIncludeShares()),
     addSensitivity: sens => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_ADD_SENSITIVITIES, [sens])),
     removeSensitivity: sens => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_REMOVE_SENSITIVITIES, sens)),
     addTags: tags => dispatch(DFSActions.tagAction(DETAILED_FILES_ADD_TAGS, tags)),

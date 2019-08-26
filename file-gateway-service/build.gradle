@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.3.3'
+version '1.3.4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.gateway.MainKt"
@@ -21,7 +21,7 @@ dependencies {
     compile "dk.sdu.cloud:auth-api:1.21.0"
     compile "dk.sdu.cloud:file-api:$fileApiVersion"
     compile "dk.sdu.cloud:file-favorite-api:1.1.3"
-    compile "dk.sdu.cloud:filesearch-api:1.1.1"
+    compile "dk.sdu.cloud:filesearch-api:1.1.4"
     compile "dk.sdu.cloud:share-api:1.4.0"
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }

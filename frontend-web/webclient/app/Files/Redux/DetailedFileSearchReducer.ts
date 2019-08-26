@@ -4,6 +4,7 @@ import {initFilesDetailedSearch} from "DefaultObjects";
 export const DETAILED_FILES_TOGGLE_HIDDEN = "DETAILED_FILES_TOGGLE_HIDDEN";
 export const DETAILED_FILES_TOGGLE_FOLDERS = "DETAILED_FILES_TOGGLE_FOLDERS";
 export const DETAILED_FILES_TOGGLE_FILES = "DETAILED_FILES_TOGGLE_FILES";
+export const DETAILED_FILES_TOGGLE_INCLUDE_SHARES = "DETAILED_FILES_TOGGLE_INCLUDE_SHARES";
 export const DETAILED_FILES_SET_FILENAME = "DETAILED_FILES_SET_FILENAME";
 export const DETAILED_FILES_SET_LOADING = "DETAILED_FILES_SET_LOADING";
 export const DETAILED_FILES_SET_TIME = "DETAILED_FILES_SET_TIME";
@@ -26,6 +27,9 @@ const detailedFileSearch = (state: DetailedFileSearchReduxState = initFilesDetai
         }
         case DETAILED_FILES_TOGGLE_FILES: {
             return {...state, allowFiles: !state.allowFiles};
+        }
+        case DETAILED_FILES_TOGGLE_INCLUDE_SHARES: {
+            return {...state, includeShares: !state.includeShares};
         }
         // FIXME Not DRY compliant
         case DETAILED_FILES_REMOVE_TAGS: {

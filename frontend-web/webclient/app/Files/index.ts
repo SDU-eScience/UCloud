@@ -208,6 +208,7 @@ export interface DetailedFileSearchOperations {
     removeExtensions: (ext: string[]) => void
     toggleFolderAllowed: () => void
     toggleFilesAllowed: () => void
+    toggleIncludeShares: () => void
     addSensitivity: (sensitivity: SensitivityLevel) => void
     removeSensitivity: (sensitivity: SensitivityLevel[]) => void
     addTags: (tags: string[]) => void
@@ -234,6 +235,7 @@ export interface DetailedFileSearchReduxState {
     createdAfter?: Date
     modifiedBefore?: Date
     modifiedAfter?: Date
+    includeShares: boolean
     error?: string
     loading: boolean
 }
@@ -255,6 +257,7 @@ export type AdvancedSearchRequest = {
     createdAt?: {after?: number, before?: number}
     modifiedAt?: {after?: number, before?: number}
     sensitivity?: SensitivityLevel[]
+    includeShares?: Boolean
     itemsPerPage?: number
     page?: number
 };
