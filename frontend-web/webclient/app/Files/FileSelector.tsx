@@ -45,7 +45,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const canSelectFolders = !!props.canSelectFolders;
 
     return (
-        <Flex backgroundColor="white">
+        <>
             {props.trigger}
 
             <ReactModal
@@ -77,7 +77,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                     injectedFiles={injectedFiles}
                     path={path}/>
             </ReactModal>
-        </Flex>
+        </>
     );
 };
 

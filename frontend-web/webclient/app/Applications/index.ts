@@ -155,10 +155,15 @@ export interface JobSchedulingOptionsForInput {
     name: React.RefObject<HTMLInputElement>;
 }
 
-export interface RefReadPair {
+export interface AdditionalMountedFolder {
     readOnly: boolean;
     ref: React.RefObject<HTMLInputElement>;
     defaultValue?: string;
+}
+
+export interface AdditionalPeer {
+    nameRef: React.RefObject<HTMLInputElement>;
+    jobIdRef: React.RefObject<HTMLInputElement>;
 }
 
 export interface RunAppState {
@@ -170,7 +175,8 @@ export interface RunAppState {
     schedulingOptions: JobSchedulingOptionsForInput;
     favorite: boolean;
     favoriteLoading: boolean;
-    mountedFolders: RefReadPair[];
+    mountedFolders: AdditionalMountedFolder[];
+    additionalPeers: AdditionalPeer[];
     fsShown: boolean;
     sharedFileSystems: { mounts: SharedFileSystemMount[] };
 }
@@ -222,7 +228,7 @@ export interface PeerParameter extends BaseParameter {
 
 export interface SharedFileSystemParameter extends BaseParameter {
     fsType: "EPHEMERAL" | "PERSISTENT"
-    mountLocation: string | null
+    mountLocation: string
     exportToPeers: boolean
     type: ParameterTypes.SharedFileSystem
 }
@@ -334,6 +340,7 @@ export interface ApplicationInvocationDescription {
     outputFileGlobs: string[];
     applicationType: ApplicationType;
     shouldAllowAdditionalMounts: boolean
+    shouldAllowAdditionalPeers: boolean
     allowMultiNode: boolean
 }
 

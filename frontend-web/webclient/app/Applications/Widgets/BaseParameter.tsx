@@ -3,6 +3,7 @@ import * as Types from "Applications";
 import {Box, Flex, Icon, Label, Markdown, Text} from "ui-components";
 import {WithAppMetadata} from "Applications";
 import {WithAppInvocation} from "Applications";
+import {TextSpan} from "ui-components/Text";
 
 export interface ParameterProps {
     initialSubmit: boolean
@@ -13,12 +14,12 @@ export interface ParameterProps {
 }
 
 export const BaseParameter: React.FunctionComponent<{ parameter: Types.ApplicationParameter, onRemove?: () => void }> = ({parameter, children, onRemove}) => (
-    <>
+    <Box mt={"1em"}>
         <Label fontSize={1} htmlFor={parameter.name}>
             <Flex>
                 <Flex>
                     {parameter.title}
-                    {parameter.optional ? null : <Text ml="4px" bold color="red">*</Text>}
+                    {parameter.optional ? null : <MandatoryField />}
                 </Flex>
                 {!parameter.optional || !onRemove ? null :
                     <>
@@ -33,5 +34,7 @@ export const BaseParameter: React.FunctionComponent<{ parameter: Types.Applicati
         </Label>
         {children}
         <Markdown source={parameter.description}/>
-    </>
+    </Box>
 );
+
+export const MandatoryField: React.FunctionComponent = props => <TextSpan ml="4px" bold color="red">*</TextSpan>;

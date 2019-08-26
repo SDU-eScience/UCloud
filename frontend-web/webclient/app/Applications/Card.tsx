@@ -5,7 +5,7 @@ import Box from "ui-components/Box";
 import Link from "ui-components/Link";
 import {EllipsedText} from "ui-components/Text";
 import * as Pages from "./Pages";
-import {FullAppInfo, WithAppMetadata} from ".";
+import {FullAppInfo} from ".";
 import styled, {css} from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"

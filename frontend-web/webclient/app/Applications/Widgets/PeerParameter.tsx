@@ -1,4 +1,4 @@
-import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
+import {BaseParameter, MandatoryField, ParameterProps} from "Applications/Widgets/BaseParameter";
 import * as Types from "Applications";
 import * as React from "react";
 import Input from "ui-components/Input";
@@ -24,19 +24,67 @@ import {shortUUID} from "UtilityFunctions";
 import {dateToString} from "Utilities/DateUtilities";
 import OutlineButton from "ui-components/OutlineButton";
 import {Refresh} from "Navigation/Header";
+import Label from "ui-components/Label";
 
 interface PeerParameterProps extends ParameterProps {
     parameter: Types.PeerParameter
 }
 
 export const PeerParameter: React.FunctionComponent<PeerParameterProps> = props => {
-    const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
+    return <BaseParameter parameter={props.parameter}>
+        <JobSelector
+            parameterRef={props.parameterRef as RefObject<HTMLInputElement>}
+            suggestedApplication={props.parameter.suggestedApplication}
+        />
+    </BaseParameter>;
+};
+
+interface AdditionalPeerParameterProps {
+    jobIdRef: RefObject<HTMLInputElement>
+    nameRef: RefObject<HTMLInputElement>
+    onRemove: () => void
+    hideLabels?: boolean
+}
+
+export const AdditionalPeerParameter: React.FunctionComponent<AdditionalPeerParameterProps> = props => {
+    return <Flex mb={8}>
+        <Box>
+            <Label>
+                {props.hideLabels ? null : <>Hostname <MandatoryField/></>}
+                <Input placeholder={"Example: spark-cluster"} ref={props.nameRef}/>
+            </Label>
+        </Box>
+
+        <Box flexGrow={1} ml={2}>
+            <Label>
+                {props.hideLabels ? null : <>Job <MandatoryField/></>}
+                <JobSelector parameterRef={props.jobIdRef} suggestedApplication={null}/>
+            </Label>
+        </Box>
+
+        <Box ml={2}>
+            <Label>
+                {props.hideLabels ? null : <br/>}
+                <Button type={"button"} height={"35px"} onClick={() => props.onRemove()}>✗</Button>
+            </Label>
+        </Box>
+    </Flex>;
+};
+
+interface JobSelectorProps {
+    parameterRef: RefObject<HTMLInputElement>
+    suggestedApplication: string | null
+}
+
+const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const [selectedPeer, setSelectedPeer] = useState<string | undefined>(undefined);
+    const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
+
     const [isSelectorOpen, setSelectorOpen] = useState<boolean>(false);
 
     const [suggestedApplicationApi] = useCloudAPI<Page<WithAppMetadata>>(
-        props.parameter.suggestedApplication ?
-            listByName({name: props.parameter.suggestedApplication, itemsPerPage: 50, page: 0}) :
+        props.suggestedApplication ?
+            listByName({name: props.suggestedApplication, itemsPerPage: 50, page: 0}) :
             {noop: true},
         {...emptyPage, itemsPerPage: -1}
     );
@@ -49,8 +97,11 @@ export const PeerParameter: React.FunctionComponent<PeerParameterProps> = props 
     const suggestedApplication = suggestedApplicationApi.data.items.length > 0 ?
         suggestedApplicationApi.data.items[0] : null;
 
-    if ((suggestedApplicationApi.data.itemsPerPage !== -1 || props.parameter.suggestedApplication === null) &&
-        peerParams.noop) {
+    if (props.suggestedApplication === null && allowAutoConfigure) {
+        setAllowAutoConfigure(false);
+    }
+
+    if ((suggestedApplicationApi.data.itemsPerPage !== -1 || isSelectorOpen) && peerParams.noop) {
         // Load available peers once we have loaded the suggested application (if one exists)
         const name = suggestedApplication ? suggestedApplication.metadata.name : undefined;
         const version = suggestedApplication ? suggestedApplication.metadata.version : undefined;
@@ -69,7 +120,7 @@ export const PeerParameter: React.FunctionComponent<PeerParameterProps> = props 
         setAllowAutoConfigure(false);
     }
 
-    return <BaseParameter parameter={props.parameter}>
+    return <>
         <Flex>
             <PointerInput
                 readOnly
@@ -82,6 +133,20 @@ export const PeerParameter: React.FunctionComponent<PeerParameterProps> = props 
                 }}
             />
         </Flex>
+
+        {suggestedApplication === null ? null :
+            <Text>
+                This application requires you to run {" "}
+                <Link to={viewApplication(suggestedApplication.metadata)} target={"_blank"}>
+                    {suggestedApplication.metadata.title}.
+                </Link>
+                {" "}
+                Would you like to start {" "}
+                <Link to={runApplication(suggestedApplication.metadata)} target={"_blank"}>
+                    a new one?
+                </Link>
+            </Text>
+        }
 
         <ReactModal
             isOpen={isSelectorOpen}
@@ -121,6 +186,10 @@ export const PeerParameter: React.FunctionComponent<PeerParameterProps> = props 
 
                 <Pagination.List
                     page={availablePeers.data}
+                    customEmptyPage={<Box width={500}>
+                        You don't currently have any running jobs. You can start a new job by selecting an application
+                        (in "Apps") and submitting it to be run.
+                    </Box>}
                     onPageChanged={newPage => {
                         const params = peerParams.parameters;
                         if (!params) return;
@@ -152,23 +221,9 @@ export const PeerParameter: React.FunctionComponent<PeerParameterProps> = props 
                 />
             </Box>
         </ReactModal>
-
-        {suggestedApplication === null ? null :
-            <Text>
-                This application requires you to run {" "}
-                <Link to={viewApplication(suggestedApplication.metadata)} target={"_blank"}>
-                    {suggestedApplication.metadata.title}.
-                </Link>
-                {" "}
-                Would you like to start {" "}
-                <Link to={runApplication(suggestedApplication.metadata)} target={"_blank"}>
-                    a new one?
-                </Link>
-            </Text>
-        }
-    </BaseParameter>;
+    </>;
 };
 
-const PointerInput = styled(Input)`
+export const PointerInput = styled(Input)`
     cursor: pointer;
 `;
