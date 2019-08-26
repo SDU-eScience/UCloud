@@ -996,15 +996,15 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 .c19 {
   cursor: pointer;
   margin-left: -17px;
-  margin-right: -17px;
   padding-left: 15px;
+  margin-right: -17px;
   width: auto;
 }
 
 .c20 {
   cursor: auto;
-  margin-top: 16px;
   margin-bottom: 16px;
+  margin-top: 16px;
 }
 
 .c23 {
@@ -1062,8 +1062,8 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 .c10 {
   cursor: pointer;
   margin-left: -17px;
-  margin-right: -17px;
   padding-left: 17px;
+  margin-right: -17px;
 }
 
 .c14 {
