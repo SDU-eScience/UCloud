@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.app.orchestrator.api.AddStatusJob
 import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.orchestrator.api.JobCompletedRequest
 import dk.sdu.cloud.app.orchestrator.api.JobState
@@ -133,7 +134,7 @@ class PodService(
                             StateChangeRequest(
                                 jobId,
                                 JobState.TRANSFER_SUCCESS,
-                                job.status.conditions.first().message
+                                "Job did not complete within deadline"
                             ),
                             serviceClient
                         ).orThrow()
@@ -233,24 +234,33 @@ class PodService(
     }
 
     private suspend fun transferLog(jobId: String, podName: String) {
-        log.debug("Downloading log")
-        val logFile = Files.createTempFile("log", ".txt").toFile()
-        k8sClient.pods().inNamespace(namespace).withName(podName)
-            .logReader.use { ins ->
-            logFile.writer().use { out ->
-                ins.copyTo(out)
+        try {
+            log.debug("Downloading log")
+            val logFile = Files.createTempFile("log", ".txt").toFile()
+            k8sClient.pods().inNamespace(namespace).withName(podName)
+                .logReader.use { ins ->
+                logFile.writer().use { out ->
+                    ins.copyTo(out)
+                }
             }
-        }
 
-        ComputationCallbackDescriptions.submitFile.call(
-            SubmitComputationResult(
-                jobId,
-                "stdout.txt",
-                false,
-                BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
-            ),
-            serviceClient
-        ).orThrow()
+            ComputationCallbackDescriptions.submitFile.call(
+                SubmitComputationResult(
+                    jobId,
+                    "stdout.txt",
+                    false,
+                    BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
+                ),
+                serviceClient
+            ).orThrow()
+        } catch (ex: KubernetesClientException) {
+            if (ex.code == 400 || ex.code == 404) {
+                // Assume that this is because there is log to retrieve
+                return
+            }
+
+            throw ex
+        }
     }
 
     suspend fun cancel(verifiedJob: VerifiedJob) {
@@ -497,9 +507,18 @@ class PodService(
 
         GlobalScope.launch {
             log.info("Awaiting container start!")
+
             @Suppress("TooGenericExceptionCaught")
             try {
                 if (verifiedJob.nodes > 1) {
+                    ComputationCallbackDescriptions.addStatus.call(
+                        AddStatusJob(
+                            verifiedJob.id,
+                            "Your job is currently waiting to be scheduled. This step might take a while."
+                        ),
+                        serviceClient
+                    )
+
                     awaitCatching(retries = 36_000, delay = 100) {
                         val pods = findPods(verifiedJob.id)
                         pods.all { pod ->
@@ -508,6 +527,14 @@ class PodService(
                             state.running != null || state.terminated != null
                         }
                     }
+
+                    ComputationCallbackDescriptions.addStatus.call(
+                        AddStatusJob(
+                            verifiedJob.id,
+                            "Configuring multi-node application"
+                        ),
+                        serviceClient
+                    )
 
                     // Now we initialize the files stored in MULTI_NODE_CONFIG
                     val findPods = findPods(verifiedJob.id)
@@ -551,7 +578,20 @@ class PodService(
                     log.debug("Multi node configuration written to all nodes for ${verifiedJob.id}")
                 }
 
-                awaitCatching(retries = 36_000, delay = 100) {
+                // We cannot really provide a better message. We truly do not know what is going on with the job.
+                // It might be pulling stuff, it might be in the queue. Really, we have no idea what is happening
+                // with it. It does not appear that Kubernetes is exposing any of this information to us.
+                //
+                // We don't really care about a failure in this one
+                ComputationCallbackDescriptions.addStatus.call(
+                    AddStatusJob(
+                        verifiedJob.id,
+                        "Your job is currently waiting to be scheduled. This step might take a while."
+                    ),
+                    serviceClient
+                )
+
+                awaitCatching(retries = 36_000 * 24, delay = 100) {
                     val pods = findPods(verifiedJob.id)
                     check(pods.isNotEmpty()) { "Found no pods for job!" }
 
