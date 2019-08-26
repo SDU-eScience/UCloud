@@ -47,7 +47,7 @@ function Search(props: SearchProps) {
     const queryFromProps = (props: SearchProps): string => {
         return getQueryParamOrElse(props, "query", "");
     };
-
+    
     const fileSearchBody = (): AdvancedSearchRequest => {
         // FIXME Duplicate code
         const {...fileSearch} = props.fileSearch;
@@ -69,6 +69,7 @@ function Search(props: SearchProps) {
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
             modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            includeShares: fileSearch.includeShares,
             itemsPerPage: props.files.itemsPerPage || 25,
             page: 0
         }

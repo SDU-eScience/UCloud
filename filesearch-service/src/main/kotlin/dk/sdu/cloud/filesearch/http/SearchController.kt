@@ -2,12 +2,17 @@ package dk.sdu.cloud.filesearch.http
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.file.api.path
@@ -25,6 +30,8 @@ import dk.sdu.cloud.indexing.api.QueryRequest
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.share.api.Shares
+import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import org.slf4j.Logger
 
@@ -65,12 +72,22 @@ class SearchController(
         }
 
         implement(FileSearchDescriptions.advancedSearch) {
-            val roots = rootsForUser(ctx.securityPrincipal.username)
+            val includeShares = request.includeShares ?: false
+            val roots = if (includeShares) {
+                val userCloud = createUserCloud(client, ctx as HttpCall)
+                val sharesRoots = Shares.list.call(Shares.List.Request(false), userCloud ).orThrow().items.map { it.path }
+                val roots = rootsForUser(ctx.securityPrincipal.username)
+                val allRoots = sharesRoots.union(roots).toList()
+                allRoots
+            } else {
+                rootsForUser(ctx.securityPrincipal.username)
+            }
+
             val queryResponse = QueryDescriptions.query.call(
                 QueryRequest(
                     query = FileQuery(
                         roots = roots,
-                        owner = AllOf.with(ctx.securityPrincipal.username),
+                        owner = if (!includeShares) AllOf.with(ctx.securityPrincipal.username) else null,
 
                         fileNameQuery = request.fileName?.let { listOf(it) },
 
@@ -110,7 +127,8 @@ class SearchController(
         val verifiedFiles = FileDescriptions.verifyFileKnowledge.call(
             VerifyFileKnowledgeRequest(
                 user,
-                queryResponse.items.map { it.path }
+                queryResponse.items.map { it.path },
+                KnowledgeMode.Permission(false)
             ),
             cloud
         ).orRethrowAs { throw SearchException.InternalServerError() }
@@ -136,6 +154,11 @@ class SearchController(
 
     // TODO Get these from the storage-service
     private fun rootsForUser(user: String): List<String> = listOf("/home/$user")
+
+    private fun createUserCloud(cloud: AuthenticatedClient, ctx: HttpCall): AuthenticatedClient {
+        val bearer = ctx.call.request.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        return cloud.withoutAuthentication().bearerAuth(bearer)
+    }
 
     companion object : Loggable {
         override val log: Logger = logger()
