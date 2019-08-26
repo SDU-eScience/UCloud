@@ -27,3 +27,7 @@ sduCloud.createTasksForApiJar(
         "file",
         []
 )
+
+test {
+    systemProperty("java.io.tmpdir", System.getProperty("java.io.tmpdir"))
+}
