@@ -280,6 +280,16 @@ class JobOrchestrator<DBSession>(
             when (event.newState) {
                 JobState.VALIDATED -> {
                     var workspace: String? = null
+
+                    db.withTransaction(autoFlush = true) {
+                        jobDao.updateStateAndStatus(
+                            it,
+                            event.systemId,
+                            JobState.VALIDATED,
+                            "Transferring files from SDUCloud to your application. This could take a while."
+                        )
+                    }
+
                     if (!backendConfig.useWorkspaces) {
                         jobFileService.transferFilesToBackend(jobWithToken, backend)
                     } else {
@@ -294,7 +304,8 @@ class JobOrchestrator<DBSession>(
 
                     handleStateChange(
                         jobWithTokenAndNewState,
-                        JobStateChange(jobWithNewState.id, JobState.PREPARED)
+                        JobStateChange(jobWithNewState.id, JobState.PREPARED),
+                        "Your job is currently in the process of being scheduled."
                     )
                 }
 
