@@ -72,11 +72,6 @@ export const Parameter = (props: ParameterProps) => {
             break;
     }
 
-    return (
-        <>
-            {component}
-            <Box pb="1em"/>
-        </>
-    );
+    return component;
 };
 

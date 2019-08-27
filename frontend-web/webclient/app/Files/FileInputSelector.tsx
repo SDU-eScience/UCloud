@@ -6,6 +6,8 @@ import Input, {InputLabel} from "ui-components/Input";
 import Button from "ui-components/Button";
 import styled from "styled-components";
 import {useState} from "react";
+import Flex from "ui-components/Flex";
+import Label from "ui-components/Label";
 
 interface FileInputSelectorProps {
     path: string // selected file
@@ -52,7 +54,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
         }}
 
         trigger={
-            <>
+            <Flex>
                 <FileSelectorInput
                     defaultValue={props.defaultValue}
                     showError={props.showError && props.isRequired}
@@ -65,12 +67,14 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
                     onClick={() => setVisible(true)}
                 />
                 {
-                    props.unitName ? <InputLabel width={props.unitWidth || "auto"}
-                                                      rightLabel>{props.unitName}</InputLabel> : null
+                    !props.unitName ? null :
+                        <InputLabel width={props.unitWidth || "auto"} rightLabel>
+                            {props.unitName}
+                        </InputLabel>
                 }
                 {uploadButton}
                 {removeButton}
-            </>
+            </Flex>
         }
     />
 };
@@ -84,6 +88,6 @@ interface FileSelectorButton {
 }
 
 const UploadButton = ({onClick}: FileSelectorButton) => (
-    <Button ml="5px" type="button" onClick={onClick}>Upload File</Button>);
+    <Button ml="5px" height={"35px"} type="button" onClick={onClick}>Upload File</Button>);
 const RemoveButton = ({onClick}: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>✗</Button>);
 

@@ -46,7 +46,7 @@ export const SharedFileSystemParameter: React.FunctionComponent<SharedFileSystem
     );
 
     const application = props.application;
-    const mountLocation = props.parameter.mountLocation ? props.parameter.mountLocation : "TODO";
+    const mountLocation = props.parameter.mountLocation;
 
     return <BaseParameter parameter={parameter}>
         <Box mb={16}>

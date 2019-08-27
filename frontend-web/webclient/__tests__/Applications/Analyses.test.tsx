@@ -22,18 +22,6 @@ const configureTestStore = () => configureStore({analyses: initAnalyses()}, {
 }, responsiveStoreEnhancer);
 
 describe("Analyses component", () => {
-    test("Mount component", () => {
-        const store = configureTestStore();
-        expect(create(
-            <Provider store={store}>
-                <ThemeProvider theme={theme}>
-                    <MemoryRouter>
-                        <JobResults history={createMemoryHistory()} />
-                    </MemoryRouter>
-                </ThemeProvider>
-            </Provider>).toJSON()).toMatchSnapshot();
-    });
-
     test("Mount component with non-empty page", () => {
         const store = configureTestStore();
         store.getState().analyses.page = analysesPage;

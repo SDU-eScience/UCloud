@@ -314,9 +314,15 @@ class ApplicationHibernateDAO(
         return preparePageForUser(
             session,
             user,
-            session.paginatedCriteria<ApplicationEntity>(paging) {
-                entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
-            }.mapItems { it.toModelWithInvocation() }
+            session
+                .paginatedCriteria<ApplicationEntity>(
+                    pagination = paging,
+                    orderBy = { listOf(descending(entity[ApplicationEntity::createdAt])) },
+                    predicate = {
+                        entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
+                    }
+                )
+                .mapItems { it.toModelWithInvocation() }
         ).mapItems { it.withoutInvocation() }
     }
 
@@ -573,8 +579,13 @@ class ApplicationHibernateDAO(
                     fav.applicationName == item.metadata.name &&
                             fav.applicationVersion == item.metadata.version
                 }
-                val allTagsForApplication =
-                    allTagsForApplicationsOnPage.filter { (item.metadata.name == it.applicationName) and (item.metadata.version == it.applicationVersion)}.map { it.tag }
+
+                val allTagsForApplication = allTagsForApplicationsOnPage
+                    .filter {
+                        item.metadata.name == it.applicationName &&
+                                item.metadata.version == it.applicationVersion
+                    }
+                    .map { it.tag }
 
                 ApplicationWithFavorite(item.metadata, item.invocation, isFavorite, allTagsForApplication)
             }

@@ -156,14 +156,26 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             if (entry.value) trueValue else falseValue
     }
 
-    data class Peer(
-        override var name: String = "",
+    class Peer(
+        name: String = "",
         override val title: String,
         override val description: String,
         val suggestedApplication: String? = null
     ) : ApplicationParameter<PeerApplicationParameter>(TYPE_PEER) {
         override val defaultValue: PeerApplicationParameter? = null
         override val optional = false
+
+        override var name: String = name
+            set(value) {
+                if (!name.matches(hostNameRegex)) {
+                    throw ApplicationVerificationException.BadValue(
+                        value,
+                        "Peer parameter '$value' must be a valid hostname!"
+                    )
+                }
+
+                field = value
+            }
 
         override fun internalMap(inputParameter: Any): PeerApplicationParameter {
             @Suppress("UNCHECKED_CAST")
@@ -172,7 +184,15 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             return PeerApplicationParameter(jobId)
         }
 
-        override fun toInvocationArgument(entry: PeerApplicationParameter): String = entry.peerJobId
+        override fun toInvocationArgument(entry: PeerApplicationParameter): String = name
+
+        companion object {
+            private val hostNameRegex =
+                Regex(
+                    "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
+                            "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
+                )
+        }
     }
 
     data class SharedFileSystem(
@@ -180,7 +200,7 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override val title: String,
         override val description: String,
         val fsType: SharedFileSystemType,
-        val mountLocation: String? = null,
+        val mountLocation: String,
         val exportToPeers: Boolean = true
     ) : ApplicationParameter<SharedFileSystemApplicationParameter>(TYPE_SHARED_FILE_SYSTEM) {
         override val defaultValue: SharedFileSystemApplicationParameter? = null
@@ -194,7 +214,7 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             return SharedFileSystemApplicationParameter(fileSystemId)
         }
 
-        override fun toInvocationArgument(entry: SharedFileSystemApplicationParameter): String = entry.fileSystemId
+        override fun toInvocationArgument(entry: SharedFileSystemApplicationParameter): String = mountLocation
     }
 }
 
@@ -250,8 +270,7 @@ data class PeerApplicationParameter(val peerJobId: String) : ParsedApplicationPa
 }
 
 data class SharedFileSystemApplicationParameter(
-    val fileSystemId: String,
-    val mountLocation: String? = null
+    val fileSystemId: String
 ) : ParsedApplicationParameter() {
     override val type = TYPE_SHARED_FILE_SYSTEM
 }

@@ -284,6 +284,7 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     createdAfter: undefined,
     modifiedBefore: undefined,
     modifiedAfter: undefined,
+    includeShares: false,
     error: undefined,
     loading: false
 });
