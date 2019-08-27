@@ -1,6 +1,6 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {Link} from "react-router-dom";
 import {connect} from "react-redux";
@@ -9,7 +9,7 @@ import {
     AppState,
     DetailedResultOperations,
     DetailedResultProps,
-    DetailedResultState,
+    DetailedResultState, RunAppState,
     StdElement,
     WithAppInvocation
 } from ".";
@@ -77,9 +77,42 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         }
     }
 
-    public componentDidMount() {
-        const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
-        this.setState(() => ({reloadIntervalId}));
+    public async componentDidMount() {
+        WSFactory.open(
+            "/hpc/jobs", {
+                init: conn => {
+                    conn.subscribe({
+                        call: "hpc.jobs.followWS",
+                        payload: {jobId: this.jobId, stdoutLineStart: 0, stderrLineStart: 0},
+                        handler: message => {
+                            console.log("Got a new message!", message);
+                            const response = message.payload as { failedState: RunAppState | null, state: RunAppState | null, status: string | null, stdout: string | null, stderr: string | null };
+
+                            const stdout = response.stdout;
+                            if (stdout !== null) {
+                                this.setState(s => ({stdout: this.state.stdout.concat(stdout)}));
+                            }
+                        }
+                    }).then(() => console.log("Connection closed!"));
+                }
+            }
+        );
+
+        const {response} = await (this.state.promises.makeCancelable(
+            Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
+        ).promise);
+
+        this.setState(() => ({
+            app: response.metadata,
+            name: response.name,
+            status: response.status,
+            appState: response.state,
+            failedState: response.failedState,
+            complete: response.complete,
+            outputFolder: response.outputFolder,
+            timeLeft: response.timeLeft
+        }));
+
     }
 
     public componentWillUnmount() {
@@ -151,23 +184,23 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 <StepTrackerItem
                     stateToDisplay={AppState.VALIDATED}
                     currentState={this.state.appState}
-                    failedState={this.state.failedState} />
+                    failedState={this.state.failedState}/>
                 <StepTrackerItem
                     stateToDisplay={AppState.PREPARED}
                     currentState={this.state.appState}
-                    failedState={this.state.failedState} />
+                    failedState={this.state.failedState}/>
                 <StepTrackerItem
                     stateToDisplay={AppState.SCHEDULED}
                     currentState={this.state.appState}
-                    failedState={this.state.failedState} />
+                    failedState={this.state.failedState}/>
                 <StepTrackerItem
                     stateToDisplay={AppState.RUNNING}
                     currentState={this.state.appState}
-                    failedState={this.state.failedState} />
+                    failedState={this.state.failedState}/>
                 <StepTrackerItem
                     stateToDisplay={AppState.TRANSFER_SUCCESS}
                     currentState={this.state.appState}
-                    failedState={this.state.failedState} />
+                    failedState={this.state.failedState}/>
             </StepGroup>
         </Panel>
     );
@@ -247,7 +280,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         <Heading.h5>Output</Heading.h5>
                     </Box>
                     <Box width={1} backgroundColor="lightGray">
-                        <Xterm value={this.state.stdout} />
+                        <Xterm value={this.state.stdout}/>
                     </Box>
                 </Flex>
             </Box>
@@ -354,9 +387,11 @@ const stateToTitle = (state: AppState): string => {
     }
 };
 
-const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, currentState: AppState, failedState?: AppState}> = ({
-    stateToDisplay, currentState, failedState
-}) => {
+const StepTrackerItem: React.FunctionComponent<{ stateToDisplay: AppState, currentState: AppState, failedState?: AppState }> = (
+    {
+        stateToDisplay, currentState, failedState
+    }
+) => {
     const active = stateToDisplay === currentState;
     const complete = isStateComplete(stateToDisplay, currentState);
     const failed = currentState === AppState.FAILURE;
@@ -366,8 +401,9 @@ const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, curren
     return (
         <Step active={active}>
             {complete ?
-                <Icon name={thisFailed ? "close" : "check"} color={thisFailed ? "red" : "green"} mr="0.7em" size="30px" /> :
-                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px" />
+                <Icon name={thisFailed ? "close" : "check"} color={thisFailed ? "red" : "green"} mr="0.7em"
+                      size="30px"/> :
+                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px"/>
             }
             <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
         </Step>

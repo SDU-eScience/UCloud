@@ -24,6 +24,7 @@ export class WebSocketFactory {
             const url = this.cloud.computeURL("/api", path)
                 .replace("http://", "ws://")
                 .replace("https://", "wss://");
+            console.log("Opening new socket at ", url);
             return new WebSocket(url);
         }, settingsOrDefault);
     }

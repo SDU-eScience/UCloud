@@ -9,6 +9,8 @@ interface XtermProps {
 
 export const Xterm: React.FunctionComponent<XtermProps> = props => {
     const [didMount, setDidMount] = useState(false);
+    const [renderCheckpoint, setRenderCheckpoint] = useState(0);
+
     const [term] = useState(() => new Terminal({
         theme: {
             background: "#f5f7f9",
@@ -44,10 +46,13 @@ export const Xterm: React.FunctionComponent<XtermProps> = props => {
     });
 
     useEffect(() => {
-        term.reset();
-        props.value.split("\n").forEach(line => {
-            term.writeln(line);
-        });
+        const endIndex = props.value.lastIndexOf("\n");
+        if (endIndex === -1) return;
+
+        const remainingString = props.value.substring(renderCheckpoint, endIndex);
+        console.log("Writing", remainingString);
+        remainingString.split("\n").forEach(ln => term.writeln(ln));
+        setRenderCheckpoint(endIndex + 1); // We want to skip the newline
     }, [props.value]);
 
     return <div ref={elem}/>;

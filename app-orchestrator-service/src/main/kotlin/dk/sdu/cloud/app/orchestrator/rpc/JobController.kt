@@ -2,8 +2,21 @@ package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.fs.api.AppFileSystems
-import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.orchestrator.services.*
+import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
+import dk.sdu.cloud.app.orchestrator.api.JobSortBy
+import dk.sdu.cloud.app.orchestrator.api.JobStartedResponse
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobStateChange
+import dk.sdu.cloud.app.orchestrator.api.JobWithStatus
+import dk.sdu.cloud.app.orchestrator.api.SortOrder
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.services.JobDao
+import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
+import dk.sdu.cloud.app.orchestrator.services.StreamFollowService
+import dk.sdu.cloud.app.orchestrator.services.VncService
+import dk.sdu.cloud.app.orchestrator.services.WebService
+import dk.sdu.cloud.app.orchestrator.services.exportForEndUser
+import dk.sdu.cloud.app.orchestrator.services.findOrNull
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
@@ -124,6 +137,10 @@ class JobController<DBSession>(
 
         implement(JobDescriptions.follow) {
             ok(streamFollowService.followStreams(request, ctx.securityPrincipal.username))
+        }
+
+        implement(JobDescriptions.followWS) {
+            streamFollowService.followWSStreams(request, ctx.securityPrincipal.username, this)
         }
 
         implement(JobDescriptions.queryVncParameters) {
