@@ -21,6 +21,7 @@ import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -75,7 +76,7 @@ class StreamFollowService<DBSession>(
         request: FollowWSRequest,
         requestedBy: String,
         callContext: CallHandler<*, FollowWSResponse, *>
-    ) {
+    ) = coroutineScope {
         val (initialJob) = db.withTransaction { jobDao.find(it, request.jobId) }
         if (initialJob.owner != requestedBy) throw RPCException("Not found", HttpStatusCode.NotFound)
         val backend = computationBackendService.getAndVerifyByName(initialJob.backend, null)
@@ -88,41 +89,37 @@ class StreamFollowService<DBSession>(
         while (true) {
             val (job) = db.withTransaction { jobDao.find(it, request.jobId) }
 
-            println(job)
-
             if (job.currentState == JobState.RUNNING) {
                 if (activeSubscription == null) {
                     // setup a subscription
-                    coroutineScope {
-                        // TODO There is no way for us to terminate this subscription
-                        activeSubscription = launch {
-                            var streamId: String? = null
-                            callContext.withContext<WSCall> {
-                                ctx.session.addOnCloseHandler {
-                                    val capturedStreamId = streamId
-                                    if (capturedStreamId != null) {
-                                        backend.cancelWSStream.call(
-                                            CancelWSStreamRequest(capturedStreamId),
-                                            serviceClientWS
-                                        )
-                                    }
+                    // TODO There is no way for us to terminate this subscription
+                    activeSubscription = launch(Dispatchers.IO) {
+                        var streamId: String? = null
+                        callContext.withContext<WSCall> {
+                            ctx.session.addOnCloseHandler {
+                                val capturedStreamId = streamId
+                                if (capturedStreamId != null) {
+                                    backend.cancelWSStream.call(
+                                        CancelWSStreamRequest(capturedStreamId),
+                                        serviceClientWS
+                                    )
                                 }
                             }
-
-                            backend.followWSStream.subscribe(
-                                InternalFollowWSStreamRequest(
-                                    job,
-                                    request.stdoutLineStart,
-                                    request.stderrLineStart
-                                ),
-                                serviceClientWS,
-                                handler = { message ->
-                                    println("Sending message! $message")
-                                    streamId = message.streamId
-                                    callContext.sendWSMessage(FollowWSResponse(message.stdout, message.stderr))
-                                }
-                            )
                         }
+
+                        backend.followWSStream.subscribe(
+                            InternalFollowWSStreamRequest(
+                                job,
+                                request.stdoutLineStart,
+                                request.stderrLineStart
+                            ),
+                            serviceClientWS,
+                            handler = { message ->
+                                println("Sending message! $message")
+                                streamId = message.streamId
+                                callContext.sendWSMessage(FollowWSResponse(message.stdout, message.stderr))
+                            }
+                        )
                     }
                 }
             }

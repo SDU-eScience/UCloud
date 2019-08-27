@@ -9,7 +9,7 @@ import {
     AppState,
     DetailedResultOperations,
     DetailedResultProps,
-    DetailedResultState, RunAppState,
+    DetailedResultState, FollowStdStreamResponse, RunAppState,
     StdElement,
     WithAppInvocation
 } from ".";
@@ -57,7 +57,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             promises: new PromiseKeeper(),
             appType: undefined,
             webLink: undefined,
-            timeLeft: null
+            timeLeft: null,
+            expiresAt: null
         };
         this.props.setPageTitle(shortUUID(this.jobId));
         this.props.setLoading(true);
@@ -75,9 +76,23 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             ).promise;
             this.setState(() => ({appType: response.invocation.applicationType}));
         }
+
+        if (this.state.appState === "RUNNING") {
+            if (this.state.appType === "VNC" && !this.state.webLink) {
+                this.props.setLoading(false);
+                this.setState({webLink: `/novnc?jobId=${this.jobId}`})
+            } else if (this.state.appType === "WEB" && !this.state.webLink) {
+                this.props.setLoading(false);
+                const {response} = await (this.state.promises.makeCancelable(
+                    Cloud.get(`/hpc/jobs/query-web/${this.jobId}`)
+                ).promise);
+                this.setState(() => ({webLink: response.path}));
+            }
+        }
     }
 
     public async componentDidMount() {
+        // TODO We need to close this one when we unmount the component.
         WSFactory.open(
             "/hpc/jobs", {
                 init: conn => {
@@ -85,22 +100,32 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         call: "hpc.jobs.followWS",
                         payload: {jobId: this.jobId, stdoutLineStart: 0, stderrLineStart: 0},
                         handler: message => {
-                            console.log("Got a new message!", message);
-                            const response = message.payload as { failedState: RunAppState | null, state: RunAppState | null, status: string | null, stdout: string | null, stderr: string | null };
+                            const {stdout, stderr, state, status, failedState} =
+                                message.payload as FollowStdStreamResponse;
 
-                            const stdout = response.stdout;
-                            if (stdout !== null) {
-                                this.setState(s => ({stdout: this.state.stdout.concat(stdout)}));
-                            }
+                            this.setState(s => {
+                                let newState: any = {};
+                                if (stdout !== null) newState.stdout = this.state.stdout.concat(stdout);
+                                if (stderr !== null) newState.stderr = this.state.stderr.concat(stderr);
+                                if (status !== null) newState.status = status;
+                                if (failedState !== null) newState.failedState = failedState;
+                                if (state !== null) newState.appState = state;
+
+                                return newState;
+                            });
                         }
-                    }).then(() => console.log("Connection closed!"));
+                    })
                 }
             }
         );
 
+        // TODO This should use a different end point!
+        // TODO The expiresAt is not given because the application is not yet running!
+        this.props.setLoading(true);
         const {response} = await (this.state.promises.makeCancelable(
             Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
         ).promise);
+        this.props.setLoading(false);
 
         this.setState(() => ({
             app: response.metadata,
@@ -110,67 +135,17 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             failedState: response.failedState,
             complete: response.complete,
             outputFolder: response.outputFolder,
-            timeLeft: response.timeLeft
+            expiresAt: Date.now() + response.timeLeft,
+            timeLeft: response.timeLeft,
+            reloadIntervalId: window.setInterval(() => {
+                this.setState(s => ({timeLeft: s.expiresAt ? s.expiresAt - Date.now() : null}));
+            }, 1000)
         }));
-
     }
 
     public componentWillUnmount() {
         if (this.state.reloadIntervalId) window.clearTimeout(this.state.reloadIntervalId);
         this.state.promises.cancelPromises();
-    }
-
-    private async retrieveStdStreams() {
-        if (this.state.complete) {
-            this.retrieveStateWhenCompleted();
-            return;
-        } else if (this.state.appState === AppState.RUNNING) {
-            if (this.state.appType === "VNC") {
-                this.props.setLoading(false);
-                this.setState({webLink: `/novnc?jobId=${this.jobId}`})
-            } else if (this.state.appType === "WEB" && !this.state.webLink) {
-                this.props.setLoading(false);
-                const {response} = await this.state.promises.makeCancelable(
-                    Cloud.get(`/hpc/jobs/query-web/${this.jobId}`)
-                ).promise;
-                this.setState(() => ({webLink: response.path}));
-            }
-        }
-        try {
-            const {response} = await this.state.promises.makeCancelable(
-                Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
-            ).promise;
-
-            this.setState(() => ({
-                stdout: this.state.stdout.concat(response.stdout),
-                stderr: this.state.stderr.concat(response.stderr),
-                stdoutLine: response.stdoutNextLine,
-                stderrLine: response.stderrNextLine,
-
-                app: response.metadata,
-                name: response.name,
-                status: response.status,
-                appState: response.state,
-                failedState: response.failedState,
-                complete: response.complete,
-                outputFolder: response.outputFolder,
-                timeLeft: response.timeLeft
-            }));
-
-            if (response.complete) this.retrieveStateWhenCompleted();
-            else {
-                const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
-                this.setState(() => ({reloadIntervalId}));
-            }
-        } catch (e) {
-            if (!e.isCanceled)
-                snackbarStore.addSnack({
-                    message: "An error occurred retrieving Information and Output from the job.",
-                    type: SnackType.Failure
-                });
-        } finally {
-            this.props.setLoading(false);
-        }
     }
 
     private retrieveStateWhenCompleted() {

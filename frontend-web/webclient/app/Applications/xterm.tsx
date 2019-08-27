@@ -46,13 +46,11 @@ export const Xterm: React.FunctionComponent<XtermProps> = props => {
     });
 
     useEffect(() => {
-        const endIndex = props.value.lastIndexOf("\n");
-        if (endIndex === -1) return;
-
-        const remainingString = props.value.substring(renderCheckpoint, endIndex);
-        console.log("Writing", remainingString);
-        remainingString.split("\n").forEach(ln => term.writeln(ln));
-        setRenderCheckpoint(endIndex + 1); // We want to skip the newline
+        // It seems like we need to use \r\n for xterm to understand it.
+        let currentText = props.value;
+        const remainingString = currentText.substring(renderCheckpoint).replace(/\n/g, "\r\n");
+        term.write(remainingString);
+        setRenderCheckpoint(currentText.length);
     }, [props.value]);
 
     return <div ref={elem}/>;

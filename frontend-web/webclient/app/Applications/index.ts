@@ -132,6 +132,7 @@ export interface DetailedResultState {
     appType?: ApplicationType;
     webLink?: string;
     timeLeft: number | null;
+    expiresAt: number | null;
 }
 
 export type StdElement = {scrollTop: number, scrollHeight: number} | null
@@ -407,6 +408,14 @@ export enum RunsSortBy {
 }
 export interface WithAllAppTags {
     tags: string[];
+}
+
+export interface FollowStdStreamResponse {
+    failedState: AppState | null
+    state: AppState | null
+    status: string | null
+    stdout: string | null
+    stderr: string | null
 }
 
 export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata & WithAllAppTags;
