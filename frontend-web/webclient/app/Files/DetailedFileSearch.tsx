@@ -1,37 +1,47 @@
+import {KeyCode, ReduxObject} from "DefaultObjects";
+import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
+import {History} from "history";
 import * as React from "react";
 import {connect} from "react-redux";
-import {
-    DetailedFileSearchStateProps, DetailedFileSearchReduxState, PossibleTime, FileType,
-    AdvancedSearchRequest, DetailedFileSearchOperations
-} from ".";
-import {DatePicker} from "ui-components/DatePicker";
+import {withRouter} from "react-router";
+import {Dispatch} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Button, Checkbox, Flex, Input, InputGroup, Label, OutlineButton, Stamp} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Flex, Input, Label, Stamp, InputGroup, Checkbox, OutlineButton, Button} from "ui-components";
+import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
-import {History} from "history";
-import {ReduxObject, KeyCode} from "DefaultObjects";
-import {Dispatch} from "redux";
 import {searchPage} from "Utilities/SearchUtilities";
-import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
+import {
+    AdvancedSearchRequest,
+    DetailedFileSearchOperations,
+    DetailedFileSearchReduxState,
+    DetailedFileSearchStateProps,
+    FileType,
+    PossibleTime
+} from ".";
 import {
     DETAILED_FILES_ADD_EXTENSIONS,
-    DETAILED_FILES_REMOVE_EXTENSIONS,
     DETAILED_FILES_ADD_SENSITIVITIES,
-    DETAILED_FILES_REMOVE_SENSITIVITIES,
     DETAILED_FILES_ADD_TAGS,
+    DETAILED_FILES_REMOVE_EXTENSIONS,
+    DETAILED_FILES_REMOVE_SENSITIVITIES,
     DETAILED_FILES_REMOVE_TAGS
 } from "./Redux/DetailedFileSearchReducer";
-import {searchFiles} from "Search/Redux/SearchActions";
-import {withRouter} from "react-router";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 
 
-type DetailedFileSearchGivenProps = {history: History, defaultFilename?: string, cantHide?: boolean, omitFileName?: boolean};
+interface DetailedFileSearchGivenProps {
+    history: History;
+    defaultFilename?: string;
+    cantHide?: boolean;
+    omitFileName?: boolean;
+}
 
 type DetailedFileSearchProps = DetailedFileSearchStateProps & DetailedFileSearchGivenProps;
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
+    private extensionsInput = React.createRef<HTMLInputElement>();
+
     constructor(props) {
         super(props);
     }
@@ -40,107 +50,16 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
         if (!!this.props.defaultFilename) this.props.setFilename(this.props.defaultFilename);
     }
 
-    private extensionsInput = React.createRef<HTMLInputElement>();
 
-    componentWillUnmount() {
+    public componentWillUnmount() {
         if (!this.props.hidden) this.props.toggleHidden();
     }
 
-    onAddExtension() {
-        const extensions = this.extensionsInput.current;
-        if (!extensions || !extensions.value) return;
-        const newExtensions = extensions.value.trim().split(" ").filter(it => it);
-        this.props.addExtensions(newExtensions);
-        extensions.value = "";
-    }
-
-    onAddPresets(presetExtensions: string) {
-        const ext = presetExtensions.trim().split(" ").filter(it => it);
-        this.props.addExtensions(ext);
-    }
-
-    validateAndSetDate(m: Date | null, property: PossibleTime) {
-        const {setTimes, createdBefore, modifiedBefore, createdAfter, modifiedAfter} = this.props;
-        if (m == null) {
-            setTimes({[property]: undefined});
-            return;
-        }
-        const before = property.includes("Before");
-        if (property.includes("created")) {
-            if (before && createdAfter) {
-                if (m.getTime() > createdAfter.getTime()) {
-                    setTimes({createdBefore: m});
-                    return;
-                } else {
-                    snackbarStore.addFailure("Invalid date range");
-                    return;
-                }
-            } else if (!before && createdBefore) {
-                if (m.getTime() < createdBefore.getTime()) {
-                    setTimes({createdAfter: m});
-                    return;
-                } else {
-                    snackbarStore.addFailure("Invalid date range");
-                    return;
-                }
-            }
-        } else { // includes Modified
-            if (before && modifiedAfter) {
-                if (m.getTime() > modifiedAfter.getTime()) {
-                    setTimes({modifiedBefore: m});
-                    return;
-                } else {
-                    snackbarStore.addFailure("Invalid date range");
-                    return;
-                }
-            } else if (!before && modifiedBefore) {
-                if (m.getTime() < modifiedBefore.getTime()) {
-                    setTimes({modifiedAfter: m});
-                    return;
-                } else {
-                    snackbarStore.addFailure("Invalid date range");
-                    return;
-                }
-            }
-        }
-        setTimes({[property]: m});
-    }
-
-    onSearch = () => {
-        this.onAddExtension();
-        const fileTypes: [FileType?, FileType?] = [];
-        if (this.props.allowFiles) fileTypes.push("FILE");
-        if (this.props.allowFolders) fileTypes.push("DIRECTORY");
-        const createdAt = {
-            after: !!this.props.createdAfter ? this.props.createdAfter.valueOf() : undefined,
-            before: !!this.props.createdBefore ? this.props.createdBefore.valueOf() : undefined,
-        };
-        const modifiedAt = {
-            after: !!this.props.modifiedAfter ? this.props.modifiedAfter.valueOf() : undefined,
-            before: !!this.props.modifiedBefore ? this.props.modifiedBefore.valueOf() : undefined,
-        };
-        const fileName = this.props.fileName;
-        const request: AdvancedSearchRequest = {
-            fileName,
-            extensions: [...this.props.extensions],
-            sensitivity: [...this.props.sensitivities],
-            fileTypes,
-            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ?
-                createdAt : undefined,
-            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ?
-                modifiedAt : undefined,
-            itemsPerPage: 25,
-            page: 0
-        };
-        this.props.fetchPage(request, () => this.props.history.push(searchPage("files", this.props.fileName)));
-        this.props.setLoading(true);
-    };
-
-    render() {
+    public render() {
         const {hidden, cantHide, extensions, allowFiles, allowFolders, includeShares} = this.props;
         if (hidden && !cantHide) {
             return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced
-                Search</OutlineButton>)
+                Search</OutlineButton>);
         }
 
         return (
@@ -273,7 +192,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 onKeyDown={e => {
                                     if (e.keyCode === KeyCode.ENTER) {
                                         e.preventDefault();
-                                        this.onAddExtension()
+                                        this.onAddExtension();
                                     }
                                 }}
                                 ref={this.extensionsInput}
@@ -300,12 +219,101 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
             </>
         );
     }
+
+    private onAddExtension() {
+        const extensions = this.extensionsInput.current;
+        if (!extensions || !extensions.value) return;
+        const newExtensions = extensions.value.trim().split(" ").filter(it => it);
+        this.props.addExtensions(newExtensions);
+        extensions.value = "";
+    }
+
+    private onAddPresets(presetExtensions: string) {
+        const ext = presetExtensions.trim().split(" ").filter(it => it);
+        this.props.addExtensions(ext);
+    }
+
+    private validateAndSetDate(m: Date | null, property: PossibleTime) {
+        const {setTimes, createdBefore, modifiedBefore, createdAfter, modifiedAfter} = this.props;
+        if (m == null) {
+            setTimes({[property]: undefined});
+            return;
+        }
+        const before = property.includes("Before");
+        if (property.includes("created")) {
+            if (before && createdAfter) {
+                if (m.getTime() > createdAfter.getTime()) {
+                    setTimes({createdBefore: m});
+                    return;
+                } else {
+                    snackbarStore.addFailure("Invalid date range");
+                    return;
+                }
+            } else if (!before && createdBefore) {
+                if (m.getTime() < createdBefore.getTime()) {
+                    setTimes({createdAfter: m});
+                    return;
+                } else {
+                    snackbarStore.addFailure("Invalid date range");
+                    return;
+                }
+            }
+        } else { // includes Modified
+            if (before && modifiedAfter) {
+                if (m.getTime() > modifiedAfter.getTime()) {
+                    setTimes({modifiedBefore: m});
+                    return;
+                } else {
+                    snackbarStore.addFailure("Invalid date range");
+                    return;
+                }
+            } else if (!before && modifiedBefore) {
+                if (m.getTime() < modifiedBefore.getTime()) {
+                    setTimes({modifiedAfter: m});
+                    return;
+                } else {
+                    snackbarStore.addFailure("Invalid date range");
+                    return;
+                }
+            }
+        }
+        setTimes({[property]: m});
+    }
+
+    private onSearch = () => {
+        this.onAddExtension();
+        const fileTypes: [FileType?, FileType?] = [];
+        if (this.props.allowFiles) fileTypes.push("FILE");
+        if (this.props.allowFolders) fileTypes.push("DIRECTORY");
+        const createdAt = {
+            after: !!this.props.createdAfter ? this.props.createdAfter.valueOf() : undefined,
+            before: !!this.props.createdBefore ? this.props.createdBefore.valueOf() : undefined,
+        };
+        const modifiedAt = {
+            after: !!this.props.modifiedAfter ? this.props.modifiedAfter.valueOf() : undefined,
+            before: !!this.props.modifiedBefore ? this.props.modifiedBefore.valueOf() : undefined,
+        };
+        const fileName = this.props.fileName;
+        const request: AdvancedSearchRequest = {
+            fileName,
+            extensions: [...this.props.extensions],
+            sensitivity: [...this.props.sensitivities],
+            fileTypes,
+            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ?
+                createdAt : undefined,
+            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ?
+                modifiedAt : undefined,
+            itemsPerPage: 25,
+            page: 0
+        };
+        this.props.history.push(searchPage("files", this.props.fileName));
+    }
 }
 
 interface SearchStampsProps {
-    stamps: Set<string>
-    onStampRemove: (stamp: string) => void
-    clearAll: () => void
+    stamps: Set<string>;
+    onStampRemove: (stamp: string) => void;
+    clearAll: () => void;
 }
 
 const SearchStamps = ({stamps, onStampRemove, clearAll}: SearchStampsProps) => (
@@ -341,11 +349,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations =>
     addTags: tags => dispatch(DFSActions.tagAction(DETAILED_FILES_ADD_TAGS, tags)),
     removeTags: tags => dispatch(DFSActions.tagAction(DETAILED_FILES_REMOVE_TAGS, tags)),
     setFilename: filename => dispatch(DFSActions.setFilename(filename)),
-    fetchPage: async (req, callback) => {
-        dispatch(await searchFiles(req));
-        dispatch(DFSActions.setFilesSearchLoading(false));
-        if (typeof callback === "function") callback();
-    },
     setLoading: loading => dispatch(DFSActions.setFilesSearchLoading(loading)),
     setTimes: times => dispatch(DFSActions.setTime(times)),
 });

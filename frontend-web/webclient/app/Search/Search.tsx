@@ -47,11 +47,11 @@ function Search(props: SearchProps) {
     const queryFromProps = (props: SearchProps): string => {
         return getQueryParamOrElse(props, "query", "");
     };
-    
+
     const fileSearchBody = (): AdvancedSearchRequest => {
         // FIXME Duplicate code
         const {...fileSearch} = props.fileSearch;
-        let fileTypes: [FileType?, FileType?] = [];
+        const fileTypes: [FileType?, FileType?] = [];
         if (fileSearch.allowFiles) fileTypes.push("FILE");
         if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
         const createdAt = {
@@ -67,12 +67,14 @@ function Search(props: SearchProps) {
             fileName: !!fileSearch.fileName ? fileSearch.fileName : query(),
             extensions: [...fileSearch.extensions],
             fileTypes,
-            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
-            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            createdAt: typeof createdAt.after === "number" ||
+                       typeof createdAt.before === "number" ? createdAt : undefined,
+            modifiedAt: typeof modifiedAt.after === "number" ||
+                        typeof modifiedAt.before === "number" ? modifiedAt : undefined,
             includeShares: fileSearch.includeShares,
             itemsPerPage: props.files.itemsPerPage || 25,
             page: 0
-        }
+        };
     };
 
     React.useEffect(() => {
@@ -86,13 +88,13 @@ function Search(props: SearchProps) {
         props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
     };
 
-    function fetchAll(search: string, itemsPerPage?: number) {
+    function fetchAll(searchQuery: string, itemsPerPage?: number) {
         props.searchFiles({
             ...fileSearchBody(),
-            fileName: search,
+            fileName: searchQuery,
             itemsPerPage: itemsPerPage || props.files.itemsPerPage
         });
-        props.searchApplications(search, 0, itemsPerPage || props.applications.itemsPerPage);
+        props.searchApplications(searchQuery, 0, itemsPerPage || props.applications.itemsPerPage);
     }
 
     const refreshFiles = () => props.searchFiles({...fileSearchBody()});
