@@ -1,17 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.FileSortBy
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.StorageFileAttribute
-import dk.sdu.cloud.file.api.StorageFileImpl
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -41,9 +31,10 @@ class FileLookupService<Ctx : FSUserContext>(
         pagination: NormalizedPaginationRequest,
         sortBy: FileSortBy = FileSortBy.TYPE,
         order: SortOrder = SortOrder.ASCENDING,
-        attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList()
+        attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList(),
+        type: FileType? = null
     ): Page<StorageFile> {
-        return listDirectorySorted(ctx, path, sortBy, order, attributes, pagination)
+        return listDirectorySorted(ctx, path, sortBy, order, attributes, pagination, type)
     }
 
     private suspend fun listDirectorySorted(
@@ -52,13 +43,16 @@ class FileLookupService<Ctx : FSUserContext>(
         sortBy: FileSortBy,
         order: SortOrder,
         attributes: List<StorageFileAttribute>,
-        pagination: NormalizedPaginationRequest? = null
+        pagination: NormalizedPaginationRequest? = null,
+        type: FileType? = null
     ): Page<StorageFile> {
         val nativeAttributes = translateToNativeAttributes(attributes, sortBy)
 
         val cache = HashMap<String, SensitivityLevel>()
 
-        return coreFs.listDirectorySorted(ctx, path, nativeAttributes, sortBy, order, pagination).mapItemsNotNull {
+        return coreFs.listDirectorySorted(
+            ctx, path, nativeAttributes, sortBy, order, pagination, type
+        ).mapItemsNotNull {
             readStorageFile(ctx, it, cache, nativeAttributes.toList())
         }
     }

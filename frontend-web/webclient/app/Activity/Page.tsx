@@ -19,7 +19,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const scrollSize = 250;
 
-const dropdownOptions: {text: string, value: string}[] = [
+const dropdownOptions: Array<{text: string; value: string}> = [
     {value: "NO_FILTER", text: "Don't filter"},
     {value: Module.ActivityType.DELETED, text: "Deletions"},
     {value: Module.ActivityType.DOWNLOAD, text: "Downloads"},

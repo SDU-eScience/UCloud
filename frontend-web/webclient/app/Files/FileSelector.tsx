@@ -3,7 +3,6 @@ import {defaultVirtualFolders, VirtualFileTable} from "Files/VirtualFileTable";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
-import {Flex} from "ui-components";
 import {
     MOCK_RELATIVE,
     mockFile,
@@ -72,6 +71,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             ));
                         }
                     }]}
+                    foldersOnly={props.onlyAllowFolders}
                     fileFilter={file => !props.onlyAllowFolders || file.fileType === "DIRECTORY"}
                     onFileNavigation={p => setPath(p)}
                     injectedFiles={injectedFiles}
