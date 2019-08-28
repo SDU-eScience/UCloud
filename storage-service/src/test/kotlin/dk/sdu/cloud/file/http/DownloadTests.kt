@@ -2,7 +2,7 @@ package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.file.api.BulkDownloadRequest
-import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.micro.tokenValidation
@@ -66,7 +66,8 @@ class DownloadTests {
                     it.runner,
                     it.coreFs,
                     bulk,
-                    tokenValidation
+                    tokenValidation,
+                    it.lookupService
                 )
             )
         }
@@ -147,5 +148,61 @@ class DownloadTests {
             }
         )
     }
+
+    @Test
+    fun `test download sensitive file`() {
+        withKtorTest(
+            setup = {
+                configureWithDownloadController(additional = {
+                    it.runner.withBlockingContext("user") { ctx ->
+                        it.sensitivityService.setSensitivityLevel(
+                            ctx,
+                            "/home/user/folder/a",
+                            SensitivityLevel.SENSITIVE
+                        )
+                    }
+                })
+            },
+            test = {
+                val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
+                val response = sendRequest(
+                    HttpMethod.Get,
+                    "/api/files/download?path=/home/user/folder/a&token=$token",
+                    TestUsers.user
+                ).response
+
+                assertEquals(HttpStatusCode.Forbidden, response.status())
+            }
+        )
+    }
+
+    @Test
+    fun `test download private folder with sensitive content`() {
+        withKtorTest(
+            setup = {
+                configureWithDownloadController(additional = {
+                    it.runner.withBlockingContext("user") { ctx ->
+                        it.sensitivityService.setSensitivityLevel(ctx, "/home/user/folder", SensitivityLevel.PRIVATE)
+                        it.sensitivityService.setSensitivityLevel(
+                            ctx,
+                            "/home/user/folder/a",
+                            SensitivityLevel.SENSITIVE
+                        )
+                    }
+                })
+            },
+            test = {
+                val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
+                val response = sendRequest(
+                    HttpMethod.Get,
+                    "/api/files/download?path=/home/user/folder&token=$token",
+                    TestUsers.user
+                ).response
+
+                assertEquals(HttpStatusCode.Forbidden, response.status())
+            }
+        )
+    }
+
 }
 

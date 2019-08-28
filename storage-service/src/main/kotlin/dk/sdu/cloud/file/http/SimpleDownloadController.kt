@@ -11,19 +11,8 @@ import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.BulkFileAudit
-import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.services.BulkDownloadService
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
-import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileAttribute
-import dk.sdu.cloud.file.services.FileRow
-import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -45,7 +34,8 @@ class SimpleDownloadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val bulkDownloadService: BulkDownloadService<Ctx>,
-    private val tokenValidation: TokenValidation<DecodedJWT>
+    private val tokenValidation: TokenValidation<DecodedJWT>,
+    private val fileLookupService: FileLookupService<Ctx>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileDescriptions.download) {
@@ -54,11 +44,10 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                 audit(BulkFileAudit(filesDownloaded, FindByPath(request.path)))
 
                 val hasTokenFromUrl = request.token != null
-                val bearer = request.token ?: call.request.bearer ?: return@implement error(
+                val bearer = request.token ?: ctx.bearer ?: return@implement error(
                     CommonErrorMessage("Unauthorized"),
                     HttpStatusCode.Unauthorized
                 )
-
                 val principal = (if (hasTokenFromUrl) {
                     tokenValidation.validateAndClaim(bearer, listOf(DOWNLOAD_FILE_SCOPE), cloud)
                 } else {
@@ -73,6 +62,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                 }
 
                 lateinit var stat: FileRow
+                val sensitivityCache = HashMap<String, SensitivityLevel>()
                 commandRunnerFactory.withContext(principal.subject) { ctx ->
                     val mode = setOf(
                         FileAttribute.PATH,
@@ -83,6 +73,15 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
                     stat = fs.stat(ctx, request.path, mode)
                     filesDownloaded.add(stat.inode)
+
+                    // Check file sensitivity
+                    val sensitivity = fileLookupService.lookupInheritedSensitivity(ctx, request.path, sensitivityCache)
+                    if (sensitivity == SensitivityLevel.SENSITIVE) {
+                        return@implement error(
+                            CommonErrorMessage("Forbidden"),
+                            HttpStatusCode.Forbidden
+                        )
+                    }
                 }
 
                 when {
@@ -91,6 +90,23 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                             HttpHeaders.ContentDisposition,
                             "attachment; filename=\"${stat.path.safeFileName()}.zip\""
                         )
+
+                        // Check sensitivity of all files in directory
+                        commandRunnerFactory.withContext(principal.subject) { ctx ->
+                            fs.tree(
+                                ctx, stat.path,
+                                setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.INODE)
+                            ).forEach { item ->
+                                val sensitivity =
+                                    fileLookupService.lookupInheritedSensitivity(ctx, item.path, sensitivityCache)
+                                if (sensitivity == SensitivityLevel.SENSITIVE) {
+                                    return@implement error(
+                                        CommonErrorMessage("Forbidden"),
+                                        HttpStatusCode.Forbidden
+                                    )
+                                }
+                            }
+                        }
 
                         ok(
                             BinaryStream.Outgoing(
