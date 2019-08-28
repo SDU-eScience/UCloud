@@ -179,7 +179,9 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
         websocket(baseContext)
     }
 
-    val followWSStream = call<InternalFollowWSStreamRequest, InternalFollowWSStreamResponse, CommonErrorMessage>("followWSStream") {
+    val followWSStream = call<InternalFollowWSStreamRequest, InternalFollowWSStreamResponse, CommonErrorMessage>(
+        "followWSStream"
+    ) {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ
