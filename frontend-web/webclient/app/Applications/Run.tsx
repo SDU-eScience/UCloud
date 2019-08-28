@@ -890,16 +890,16 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                             } else {
                                 importParameters(file);
                             }
-                            dialogStore.popDialog();
+                            dialogStore.success();
                         }
                     }}/>
             </Button>
-            <Button mt="6px" fullWidth onClick={() => (dialogStore.popDialog(), showFileSelector())}>
+            <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                 Select file from SDUCloud
             </Button>
         </Box>
         <Flex mt="20px">
-            <Button onClick={() => dialogStore.popDialog()} color="red" mr="5px">Cancel</Button>
+            <Button onClick={() => dialogStore.success()} color="red" mr="5px">Cancel</Button>
         </Flex>
-    </Box>);
+    </Box>, () => undefined);
 }

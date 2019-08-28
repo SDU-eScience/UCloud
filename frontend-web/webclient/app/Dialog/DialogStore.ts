@@ -1,7 +1,7 @@
 type DialogStoreSubscriber = (dialogs: JSX.Element[]) => void;
 
 class DialogStore {
-    private dialogs: JSX.Element[];
+    private dialogs: Array<{dialog: JSX.Element, onCancel: () => void}>;
     private subscribers: DialogStoreSubscriber[] = [];
 
     constructor() {
@@ -16,16 +16,26 @@ class DialogStore {
         this.subscribers = this.subscribers.filter(it => it !== subscriber);
     }
 
-    public popDialog(): void {
-        let dialogs = this.dialogs.slice(1);
+    public addDialog(dialog: JSX.Element, onCancel: () => void): void {
+        const dialogs = [...this.dialogs, {dialog, onCancel}];
         this.dialogs = dialogs;
-        this.subscribers.forEach(it => it(dialogs));
+        this.subscribers.forEach(it => it(dialogs.map(el => el.dialog)));
     }
 
-    public addDialog(dialog: JSX.Element): void {
-        let dialogs = [...this.dialogs, dialog];
+    public success() {
+        this.popDialog();
+    }
+
+    public failure() {
+        const [first] = this.dialogs;
+        if (!!first) first.onCancel();
+        this.popDialog();
+    }
+
+    private popDialog(): void {
+        const dialogs = this.dialogs.slice(1);
         this.dialogs = dialogs;
-        this.subscribers.forEach(it => it(dialogs));
+        this.subscribers.forEach(it => it(dialogs.map(el => el.dialog)));
     }
 }
 

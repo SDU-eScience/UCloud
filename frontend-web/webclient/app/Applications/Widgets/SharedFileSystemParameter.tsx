@@ -160,17 +160,16 @@ async function createNewDialog(): Promise<{ command?: APICallParameters }> {
                 <form onSubmit={e => {
                     e.preventDefault();
                     onConfirm();
-                    dialogStore.popDialog();
+                    dialogStore.success();
                 }}>
                     <Label htmlFor={"sharedFsTitle"}>Title</Label>
                     <Input autoFocus id={"sharedFsTitle"} ref={ref} placeholder={"Spark FS"}/>
                 </form>
             ),
             onConfirm,
-            onCancel: () => {
-            },
+            onCancel: () => undefined,
             validator
-        })
+        });
     });
 }
 

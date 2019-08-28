@@ -87,7 +87,7 @@ async function moveCopySetup({targetPath, path, cloud}: MoveCopySetup) {
     return {exists: stat !== null, newPathForFile, allowOverwrite: stat ? stat.fileType !== "DIRECTORY" : true};
 }
 
-function onOnlySuccess({operation, fileCount}: { operation: string, fileCount: number }): void {
+function onOnlySuccess({operation, fileCount}: {operation: string, fileCount: number}): void {
     snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
 }
 
@@ -235,7 +235,7 @@ export const MOCK_RENAME_TAG = "rename";
 export const MOCK_VIRTUAL = "virtual";
 export const MOCK_RELATIVE = "relative";
 
-export function mockFile(props: { path: string, type: FileType, fileId?: string, tag?: string }): File {
+export function mockFile(props: {path: string, type: FileType, fileId?: string, tag?: string}): File {
     const username = Cloud.activeUsername ? Cloud.activeUsername : "";
     return {
         fileType: props.type,
@@ -336,7 +336,7 @@ export const reclassifyFile = async ({file, sensitivity, cloud}: ReclassifyFile)
 export const toFileText = (selectedFiles: File[]): string =>
     `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`;
 
-export const isDirectory = (file: { fileType: FileType }): boolean => file.fileType === "DIRECTORY";
+export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
 export const expandHomeFolder = (path: string, homeFolder: string): string => {
     if (path.startsWith("/Home/"))
@@ -367,20 +367,19 @@ export const extractArchive = async ({files, cloud, onFinished}: ExtractArchive)
     onFinished();
 };
 
-export const clearTrash = ({cloud, callback}: { cloud: SDUCloud, callback: () => void }) =>
+export const clearTrash = ({cloud, callback}: {cloud: SDUCloud, callback: () => void}) =>
     clearTrashDialog({
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
             callback();
-            dialogStore.popDialog();
-        },
-        onCancel: () => dialogStore.popDialog()
+            dialogStore.success();
+        }
     });
 
 export const getParentPath = (path: string): string => {
     if (path.length === 0) return path;
     let splitPath = path.split("/");
-    splitPath = splitPath.filter(path => path);
+    splitPath = splitPath.filter(p => p);
     let parentPath = "/";
     for (let i = 0; i < splitPath.length - 1; i++) {
         parentPath += splitPath[i] + "/";
@@ -388,7 +387,10 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-const goUpDirectory = (count: number, path: string): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
+const goUpDirectory = (
+    count: number,
+    path: string
+): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
 const toFileName = (path: string): string => {
     const lastSlash = path.lastIndexOf("/");
@@ -497,7 +499,7 @@ export const shareFiles = async ({files, cloud}: ShareFiles) => {
     });
 };
 
-const moveToTrashDialog = ({filePaths, onCancel, onConfirm}: { onConfirm: () => void, onCancel: () => void, filePaths: string[] }): void => {
+const moveToTrashDialog = ({filePaths, onConfirm}: {onConfirm: () => void, filePaths: string[]}): void => {
     const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
 
@@ -509,7 +511,7 @@ const moveToTrashDialog = ({filePaths, onCancel, onConfirm}: { onConfirm: () => 
     });
 };
 
-export function clearTrashDialog({onConfirm, onCancel}: { onConfirm: () => void, onCancel: () => void }): void {
+export function clearTrashDialog({onConfirm}: {onConfirm: () => void}): void {
     addStandardDialog({
         title: "Empty trash?",
         message: "",
@@ -547,7 +549,7 @@ const successResponse = (paths: string[], homeFolder: string) =>
         `${paths.length} files moved to trash.` :
         `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
 
-interface Failures { failures: string[]; }
+interface Failures {failures: string[];}
 
 interface MoveToTrash {
     files: File[];
@@ -569,8 +571,7 @@ export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) =
                 snackbarStore.addSnack({message: e.why, type: SnackType.Failure});
                 callback();
             }
-        },
-        onCancel: () => undefined
+        }
     });
 };
 
