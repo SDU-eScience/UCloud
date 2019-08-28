@@ -20,7 +20,11 @@ import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
 import io.mockk.mockkStatic
 import org.junit.Test
+import java.io.InputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class DownloadTests {
     @Test
@@ -199,7 +203,14 @@ class DownloadTests {
                     TestUsers.user
                 ).response
 
-                assertEquals(HttpStatusCode.Forbidden, response.status())
+                val zis = ZipInputStream(response.byteContent?.inputStream())
+
+                var curEntry = zis.nextEntry
+                while (curEntry != null) {
+                    // Folder 'a' is sensitive
+                    assertNotEquals("a", curEntry.name)
+                    curEntry = zis.nextEntry
+                }
             }
         )
     }

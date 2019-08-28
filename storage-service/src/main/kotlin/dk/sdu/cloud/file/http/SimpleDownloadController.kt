@@ -91,23 +91,6 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                             "attachment; filename=\"${stat.path.safeFileName()}.zip\""
                         )
 
-                        // Check sensitivity of all files in directory
-                        commandRunnerFactory.withContext(principal.subject) { ctx ->
-                            fs.tree(
-                                ctx, stat.path,
-                                setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.INODE)
-                            ).forEach { item ->
-                                val sensitivity =
-                                    fileLookupService.lookupInheritedSensitivity(ctx, item.path, sensitivityCache)
-                                if (sensitivity == SensitivityLevel.SENSITIVE) {
-                                    return@implement error(
-                                        CommonErrorMessage("Forbidden"),
-                                        HttpStatusCode.Forbidden
-                                    )
-                                }
-                            }
-                        }
-
                         ok(
                             BinaryStream.Outgoing(
                                 DirectWriteContent(
@@ -116,22 +99,37 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                 ) {
                                     commandRunnerFactory.withContext(principal.subject) { ctx ->
                                         ZipOutputStream(toOutputStream()).use { os ->
-                                            fs.tree(
+                                            val tree = fs.tree(
                                                 ctx,
                                                 stat.path,
                                                 setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.INODE)
-                                            ).forEach { item ->
-                                                filesDownloaded.add(item.inode)
+                                            )
+
+                                            for (item in tree) {
                                                 val filePath = item.path.substringAfter(stat.path).removePrefix("/")
 
+                                                val sensitivity = fileLookupService.lookupInheritedSensitivity(
+                                                    ctx,
+                                                    item.path,
+                                                    sensitivityCache
+                                                )
+
+                                                if (sensitivity == SensitivityLevel.SENSITIVE) {
+                                                    continue
+                                                }
+
                                                 if (item.fileType == FileType.FILE) {
-                                                    os.putNextEntry(
-                                                        ZipEntry(
-                                                            filePath
-                                                        )
-                                                    )
-                                                    fs.read(ctx, item.path) { copyTo(os) }
-                                                    os.closeEntry()
+                                                    os.putNextEntry(ZipEntry(filePath))
+
+                                                    try {
+                                                        fs.read(ctx, item.path) { copyTo(os) }
+                                                        filesDownloaded.add(item.inode)
+                                                        os.closeEntry()
+                                                    } catch (ex: FSException.PermissionException) {
+                                                        // Skip files we don't have permissions for
+                                                    } finally {
+                                                        os.closeEntry()
+                                                    }
                                                 } else if (item.fileType == FileType.DIRECTORY) {
                                                     os.putNextEntry(ZipEntry(filePath.removeSuffix("/") + "/"))
                                                     os.closeEntry()
