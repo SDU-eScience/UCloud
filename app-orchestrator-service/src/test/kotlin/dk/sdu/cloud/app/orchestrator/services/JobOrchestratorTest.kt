@@ -22,7 +22,11 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.test.*
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.EventServiceMock
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.service.test.retrySection
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -66,7 +70,7 @@ class JobOrchestratorTest {
         coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
 
 
-        val jobFileService = JobFileService(client) { _, _ -> client}
+        val jobFileService = JobFileService(client) { _, _ -> client }
         val orchestrator = JobOrchestrator(
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
@@ -305,34 +309,31 @@ class JobOrchestratorTest {
     }
 
     @Test
-    fun `Handle cancel of successful job test`() {
+    fun `Handle cancel of successful job test`() = runBlocking {
         val orchestrator = setup()
-        val returnedID = runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+        val returnedID = orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+
+        retrySection {
+            assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
         }
 
-        runBlocking {
-            assertEquals(JobState.VALIDATED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+        orchestrator.handleProposedStateChange(
+            JobStateChange(returnedID, JobState.SUCCESS),
+            null,
+            TestUsers.user
+        )
 
-            orchestrator.handleProposedStateChange(
-                JobStateChange(returnedID, JobState.SUCCESS),
-                null,
-                TestUsers.user
-            )
-        }
-        runBlocking {
-            assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
-
-            orchestrator.handleProposedStateChange(
-                JobStateChange(returnedID, JobState.CANCELING),
-                null,
-                TestUsers.user
-            )
-        }
-
-        runBlocking {
+        retrySection {
             assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
         }
+
+        orchestrator.handleProposedStateChange(
+            JobStateChange(returnedID, JobState.CANCELING),
+            null,
+            TestUsers.user
+        )
+
+        assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
     }
 
     @Test
@@ -356,7 +357,7 @@ class JobOrchestratorTest {
             )
         }
 
-       runBlocking {
+        runBlocking {
             assertEquals(JobState.FAILURE, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
             assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).failedState)
         }
