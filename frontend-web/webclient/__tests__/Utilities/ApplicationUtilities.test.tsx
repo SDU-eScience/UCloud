@@ -1,27 +1,14 @@
-import { findKnownParameterValues, hpcJobQuery, hpcJobsQuery, hpcApplicationsQuery } from "Utilities/ApplicationUtilities";
-import { ParameterTypes } from "Applications";
+import {ParameterTypes} from "Applications";
 import "jest-styled-components";
-
+import {
+    findKnownParameterValues,
+    hpcApplicationsQuery,
+    hpcJobQuery,
+} from "Utilities/ApplicationUtilities";
 
 describe("Application Utilities", () => {
     test("Create hpcJobQuery string", () => {
-        expect(
-            hpcJobQuery("job", 10, 10, 100, 100)
-        ).toBe(
-            "/hpc/jobs/follow/job?stdoutLineStart=10&stdoutMaxLines=100&stderrLineStart=10&stderrMaxLines=100"
-        )
-    });
-
-    test("Create hpcJobQuery string, with default values", () => {
-        expect(
-            hpcJobQuery("job", 10, 10)
-        ).toBe(
-            "/hpc/jobs/follow/job?stdoutLineStart=10&stdoutMaxLines=1000&stderrLineStart=10&stderrMaxLines=1000"
-        )
-    });
-
-    test("Create hpcJobsQuery string", () => {
-        expect(hpcJobsQuery(10, 0)).toBe("/hpc/jobs/?itemsPerPage=10&page=0");
+        expect(hpcJobQuery("job")).toBe("/hpc/jobs/job");
     });
 
     test("Create hpcApplicationsQuery string", () => {
@@ -30,75 +17,99 @@ describe("Application Utilities", () => {
 
     test("Extract Parameters for version 1", () => {
         const validParameterTypes = [
-            { name: "A", type: ParameterTypes.Boolean },
-            { name: "B", type: ParameterTypes.Integer },
-            { name: "C", type: ParameterTypes.FloatingPoint },
-            { name: "D", type: ParameterTypes.Text }
+            {name: "A", type: ParameterTypes.Boolean},
+            {name: "B", type: ParameterTypes.Integer},
+            {name: "C", type: ParameterTypes.FloatingPoint},
+            {name: "D", type: ParameterTypes.Text}
         ];
-        const parameters = { A: "Yes", B: "5", C: "5.0", D: "Pilgrimage" };
-        const extractedParameters = findKnownParameterValues({ nameToValue: parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
+        const parameters = {A: "Yes", B: "5", C: "5.0", D: "Pilgrimage"};
+        const extractedParameters = findKnownParameterValues({
+            nameToValue: parameters,
+            allowedParameterKeys: validParameterTypes,
+            siteVersion: 1
+        });
         expect(parameters).toEqual(extractedParameters);
     });
 
     test("Extract Parameters for invalid version", () => {
         const validParameterTypes = [
-            { name: "A", type: ParameterTypes.Boolean },
-            { name: "B", type: ParameterTypes.Integer },
-            { name: "C", type: ParameterTypes.FloatingPoint },
-            { name: "D", type: ParameterTypes.Text }
+            {name: "A", type: ParameterTypes.Boolean},
+            {name: "B", type: ParameterTypes.Integer},
+            {name: "C", type: ParameterTypes.FloatingPoint},
+            {name: "D", type: ParameterTypes.Text}
         ];
-        const parameters = { A: "Yes", B: "5", C: "5.0", D: "Pilgrimage" };
-        const extractedParameters = findKnownParameterValues({ nameToValue: parameters, allowedParameterKeys: validParameterTypes, siteVersion: -1 });
+        const parameters = {A: "Yes", B: "5", C: "5.0", D: "Pilgrimage"};
+        const extractedParameters = findKnownParameterValues({
+            nameToValue: parameters,
+            allowedParameterKeys: validParameterTypes,
+            siteVersion: -1
+        });
         expect(extractedParameters).toEqual({});
     });
 
     test("Extract Parameters with invalid parameter that is ignored", () => {
         const validParameterTypes = [
-            { name: "A", type: ParameterTypes.Boolean },
-            { name: "B", type: ParameterTypes.Integer },
-            { name: "C", type: ParameterTypes.FloatingPoint }
+            {name: "A", type: ParameterTypes.Boolean},
+            {name: "B", type: ParameterTypes.Integer},
+            {name: "C", type: ParameterTypes.FloatingPoint}
         ];
-        const parameters = { A: "Yes", B: "5", C: "5.0", D: "Pilgrimage" };
-        const extractedParameters = findKnownParameterValues({ nameToValue: parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
-        expect(extractedParameters).toEqual({ A: "Yes", B: "5", C: "5.0" });
+        const parameters = {A: "Yes", B: "5", C: "5.0", D: "Pilgrimage"};
+        const extractedParameters = findKnownParameterValues({
+            nameToValue: parameters,
+            allowedParameterKeys: validParameterTypes,
+            siteVersion: 1
+        });
+        expect(extractedParameters).toEqual({A: "Yes", B: "5", C: "5.0"});
     });
 
     test("Extract Parameters with parameter that is not imported", () => {
         const validParameterTypes = [
-            { name: "A", type: ParameterTypes.Boolean },
-            { name: "B", type: ParameterTypes.Integer },
-            { name: "C", type: ParameterTypes.FloatingPoint },
-            { name: "D", type: ParameterTypes.Text }
+            {name: "A", type: ParameterTypes.Boolean},
+            {name: "B", type: ParameterTypes.Integer},
+            {name: "C", type: ParameterTypes.FloatingPoint},
+            {name: "D", type: ParameterTypes.Text}
         ];
-        const parameters = { A: "Yes", B: "5", C: "5.0" };
-        const extractedParameters = findKnownParameterValues({ nameToValue: parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
+        const parameters = {A: "Yes", B: "5", C: "5.0"};
+        const extractedParameters = findKnownParameterValues({
+            nameToValue: parameters,
+            allowedParameterKeys: validParameterTypes,
+            siteVersion: 1
+        });
         expect(extractedParameters).toEqual(parameters);
     });
 
     test("Extract input file and input directory parameters", () => {
         const validParameterTypes = [
-            { name: "A", type: ParameterTypes.InputFile },
-            { name: "B", type: ParameterTypes.InputDirectory },
+            {name: "A", type: ParameterTypes.InputFile},
+            {name: "B", type: ParameterTypes.InputDirectory},
         ];
         const parameters = {
             A: "A",
             B: "B"
         };
-        const extractedParameters = findKnownParameterValues({ nameToValue: parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
+        const extractedParameters = findKnownParameterValues({
+            nameToValue: parameters,
+            allowedParameterKeys: validParameterTypes,
+            siteVersion: 1
+        });
         expect(extractedParameters).toEqual(parameters);
     });
 
     test("Extract invalid input file and input directory parameters", () => {
         const validParameterTypes = [
-            { name: "A", type: ParameterTypes.InputFile },
-            { name: "B", type: ParameterTypes.InputDirectory },
+            {name: "A", type: ParameterTypes.InputFile},
+            {name: "B", type: ParameterTypes.InputDirectory},
         ];
         const parameters = {
             A: "A",
             B: "B"
         };
-        const extractedParameters = findKnownParameterValues({ nameToValue: parameters, allowedParameterKeys: validParameterTypes, siteVersion: 1 });
-        expect(extractedParameters).toEqual({ A: "A", B: "B" });
+        const extractedParameters = findKnownParameterValues({
+            nameToValue: parameters,
+            allowedParameterKeys: validParameterTypes,
+            siteVersion: 1
+        });
+        expect(extractedParameters).toEqual({A: "A", B: "B"});
     });
 });
 
