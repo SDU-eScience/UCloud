@@ -92,7 +92,6 @@ class StreamFollowService<DBSession>(
             if (job.currentState == JobState.RUNNING) {
                 if (activeSubscription == null) {
                     // setup a subscription
-                    // TODO There is no way for us to terminate this subscription
                     activeSubscription = launch(Dispatchers.IO) {
                         var streamId: String? = null
                         callContext.withContext<WSCall> {

@@ -3,13 +3,8 @@ import {useEffect, useState} from "react";
 import {Terminal} from "xterm";
 import "xterm/dist/xterm.css";
 
-interface XtermProps {
-    value: string;
-}
-
-export const Xterm: React.FunctionComponent<XtermProps> = props => {
+export function useXTerm(): [React.RefObject<HTMLDivElement>, (textToAppend: string) => void, () => void] {
     const [didMount, setDidMount] = useState(false);
-    const [renderCheckpoint, setRenderCheckpoint] = useState(0);
 
     const [term] = useState(() => new Terminal({
         theme: {
@@ -42,16 +37,19 @@ export const Xterm: React.FunctionComponent<XtermProps> = props => {
             term.resize(100, 40);
             term.open(elem.current);
             setDidMount(true);
+        } else if (elem.current === null) {
+            setDidMount(false);
         }
     });
 
-    useEffect(() => {
-        // It seems like we need to use \r\n for xterm to understand it.
-        let currentText = props.value;
-        const remainingString = currentText.substring(renderCheckpoint).replace(/\n/g, "\r\n");
-        term.write(remainingString);
-        setRenderCheckpoint(currentText.length);
-    }, [props.value]);
-
-    return <div ref={elem}/>;
-};
+    return [
+        elem,
+        textToAppend => {
+            const remainingString = textToAppend.replace(/\n/g, "\r\n");
+            term.write(remainingString);
+        },
+        () => {
+            term.reset();
+        }
+    ];
+}

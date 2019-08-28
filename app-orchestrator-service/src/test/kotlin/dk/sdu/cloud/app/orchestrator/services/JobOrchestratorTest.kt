@@ -100,7 +100,7 @@ class JobOrchestratorTest {
         )
 
         this.orchestrator = orchestrator
-        this.streamFollowService = StreamFollowService(jobFileService, client, compBackend, db, jobDao)
+        this.streamFollowService = StreamFollowService(jobFileService, client, client, compBackend, db, jobDao)
     }
 
     fun setup(): JobOrchestrator<HibernateSession> = orchestrator

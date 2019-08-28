@@ -137,6 +137,7 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
     /**
      * Follows the std streams of a job.
      */
+    @Deprecated("Replaced with web sockets")
     val follow = call<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage>("follow") {
         auth {
             access = AccessRight.READ

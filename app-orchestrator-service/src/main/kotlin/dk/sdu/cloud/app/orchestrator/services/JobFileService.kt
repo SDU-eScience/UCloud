@@ -5,7 +5,6 @@ import dk.sdu.cloud.app.orchestrator.api.SubmitFileToComputation
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
@@ -141,15 +140,10 @@ class JobFileService(
 
     suspend fun jobFolder(job: VerifiedJob): String {
         jobFolderLock.withLock {
-            val cachedHomeFolder = jobFolderCache[job.owner]
-            val homeFolder = if (cachedHomeFolder != null) {
-                cachedHomeFolder
-            } else {
-                FileDescriptions.findHomeFolder.call(
-                    FindHomeFolderRequest(job.owner),
-                    serviceClient
-                ).orThrow().path
-            }
+            val homeFolder = jobFolderCache[job.owner] ?: FileDescriptions.findHomeFolder.call(
+                FindHomeFolderRequest(job.owner),
+                serviceClient
+            ).orThrow().path
 
             jobFolderCache[job.owner] = homeFolder
 

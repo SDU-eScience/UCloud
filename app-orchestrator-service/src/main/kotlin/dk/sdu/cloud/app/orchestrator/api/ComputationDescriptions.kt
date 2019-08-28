@@ -151,6 +151,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
     }
 
 
+    @Deprecated("Replaced with web sockets")
     val follow = call<InternalFollowStdStreamsRequest, InternalStdStreamsResponse, CommonErrorMessage>("follow") {
         auth {
             roles = Roles.PRIVILEDGED
@@ -175,7 +176,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
             access = AccessRight.READ
         }
 
-        websocket("$baseContext/cancel-stream")
+        websocket(baseContext)
     }
 
     val followWSStream = call<InternalFollowWSStreamRequest, InternalFollowWSStreamResponse, CommonErrorMessage>("followWSStream") {
@@ -184,7 +185,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
             access = AccessRight.READ
         }
 
-        websocket("$baseContext/follow-stream")
+        websocket(baseContext)
     }
 
     val queryInternalVncParameters =

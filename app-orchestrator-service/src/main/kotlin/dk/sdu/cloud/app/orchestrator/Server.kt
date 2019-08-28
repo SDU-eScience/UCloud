@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.orchestrator.services.ComputationBackendService
 import dk.sdu.cloud.app.orchestrator.services.JobFileService
 import dk.sdu.cloud.app.orchestrator.services.JobHibernateDao
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
+import dk.sdu.cloud.app.orchestrator.services.JobQueryService
 import dk.sdu.cloud.app.orchestrator.services.JobVerificationService
 import dk.sdu.cloud.app.orchestrator.services.OrchestrationScope
 import dk.sdu.cloud.app.orchestrator.services.SharedMountVerificationService
@@ -109,12 +110,13 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 jobHibernateDao
             )
 
+        val jobQueryService = JobQueryService(db, jobHibernateDao, jobFileService)
+
         with(micro.server) {
             configureControllers(
                 JobController(
-                    db,
+                    jobQueryService,
                     jobOrchestrator,
-                    jobHibernateDao,
                     streamFollowService,
                     userClientFactory,
                     serviceClient,
