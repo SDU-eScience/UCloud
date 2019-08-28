@@ -53,26 +53,14 @@ class AppKubernetesController(
             val streamId = UUID.randomUUID().toString()
             sendWSMessage(InternalFollowWSStreamResponse(streamId))
 
-            // We send all the lines that the client has missed
-//            val (log, _) = podService.retrieveLogs(
-//                request.job.id,
-//                request.stdoutLineStart,
-//                Int.MAX_VALUE
-//            )
-
-            sendWSMessage(InternalFollowWSStreamResponse(streamId, null, null))
-
             // Then we set up the subscription
             coroutineScope {
                 launch(Dispatchers.IO) {
-                    log.info("We are now watching the log of ${request.job.id}")
                     val (resource, logStream) = podService.watchLog(request.job.id) ?: return@launch
                     streams[streamId] = resource
-                    log.info("Watch stream obtained!")
 
                     withContext<WSCall> {
                         ctx.session.addOnCloseHandler {
-                            log.info("Closing connection!")
                             resource.close()
                         }
                     }
@@ -82,12 +70,9 @@ class AppKubernetesController(
                     while (streams[streamId] != null) {
                         val read = reader.read(buffer)
                         if (read == -1) break
-                        log.info("Read $read bytes from stream...")
 
                         sendWSMessage(InternalFollowWSStreamResponse(streamId, String(buffer, 0, read), null))
                     }
-
-                    log.info("End of log")
                 }.join()
             }
 

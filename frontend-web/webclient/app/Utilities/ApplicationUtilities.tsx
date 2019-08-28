@@ -183,7 +183,6 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
     const extracted: ExtractedParameters = {};
     map.forEach(({current}, key) => {
         const parameter = appParameters.find(it => it.name === key);
-        console.log(parameter, current);
         if (!current) return;
         if (!current.value || !current.checkValidity()) return;
         if (!parameter) return;
@@ -217,7 +216,6 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
                 extracted[key] = current.value;
                 return;
             case ParameterTypes.SharedFileSystem:
-                console.log(current.value);
                 extracted[key] = {fileSystemId: current.value};
                 return;
             case ParameterTypes.Peer:

@@ -24,7 +24,6 @@ export class WebSocketFactory {
             const url = this.cloud.computeURL("/api", path)
                 .replace("http://", "ws://")
                 .replace("https://", "wss://");
-            console.log("Opening new socket at ", url);
             return new WebSocket(url);
         }, settingsOrDefault);
     }
@@ -96,7 +95,6 @@ export class WebSocketConnection {
         socket.addEventListener("close", () => {
             if (this.settings.reconnect !== false && !this.closed) {
                 // We will reconnect by default.
-                console.log("Lost connection to WS. Reconnecting...");
                 this.handlers.forEach(e => {
                     e({type: "response", status: 503, streamId: "unknown"})
                 });
