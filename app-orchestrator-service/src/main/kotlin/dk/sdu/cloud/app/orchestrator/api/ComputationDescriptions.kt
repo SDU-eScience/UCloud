@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.bindToSubProperty
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.calls.websocket
 import io.ktor.http.HttpMethod
 
 data class ComputationErrorMessage(
@@ -150,6 +151,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
     }
 
 
+    @Deprecated("Replaced with web sockets")
     val follow = call<InternalFollowStdStreamsRequest, InternalStdStreamsResponse, CommonErrorMessage>("follow") {
         auth {
             roles = Roles.PRIVILEDGED
@@ -166,6 +168,26 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
 
             body { bindEntireRequestFromBody() }
         }
+    }
+
+    val cancelWSStream = call<CancelWSStreamRequest, CancelWSStreamResponse, CommonErrorMessage>("cancelWSStream") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
+    }
+
+    val followWSStream = call<InternalFollowWSStreamRequest, InternalFollowWSStreamResponse, CommonErrorMessage>(
+        "followWSStream"
+    ) {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
     }
 
     val queryInternalVncParameters =

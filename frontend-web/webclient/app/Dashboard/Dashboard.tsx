@@ -1,7 +1,7 @@
 import * as Accounting from "Accounting";
 import {fetchUsage} from "Accounting/Redux/AccountingActions";
-import {Analysis, AppState} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject"
+import {JobState, JobWithStatus} from "Applications";
+import {Cloud} from "Authentication/SDUCloudObject";
 import {ReduxObject} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
@@ -191,11 +191,11 @@ const DashboardRecentFiles = ({files, isLoading}: {files: File[], isLoading: boo
     </DashboardCard>
 );
 
-const DashboardAnalyses = ({analyses, isLoading}: {analyses: Analysis[], isLoading: boolean}) => (
+const DashboardAnalyses = ({analyses, isLoading}: {analyses: JobWithStatus[], isLoading: boolean}) => (
     <DashboardCard title="Recent Jobs" isLoading={isLoading}>
         {isLoading || analyses.length ? null : (<Heading.h6>No results found</Heading.h6>)}
         <List>
-            {analyses.map((analysis: Analysis, index: number) =>
+            {analyses.map((analysis: JobWithStatus, index: number) =>
                 <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
                     <Icon name={statusToIconName(analysis.state)}
                         color={statusToColor(analysis.state)}
@@ -246,24 +246,24 @@ const DashboardNotifications = ({notifications, readAll, onNotificationAction}: 
     </Card>
 );
 
-const statusToIconName = (status: AppState) => {
+const statusToIconName = (status: JobState) => {
     switch (status) {
-        case AppState.SUCCESS:
+        case JobState.SUCCESS:
             return "check";
-        case AppState.FAILURE:
+        case JobState.FAILURE:
             return "close";
-        case AppState.SCHEDULED:
+        case JobState.SCHEDULED:
             return "calendar";
-        case AppState.RUNNING:
+        case JobState.RUNNING:
             return "chrono";
-        case AppState.VALIDATED:
+        case JobState.VALIDATED:
             return "checkDouble";
         default:
             return "ellipsis";
     }
 };
 
-const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" : "green";
+const statusToColor = (status: JobState) => status === JobState.FAILURE ? "red" : "green";
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     onInit: () => {

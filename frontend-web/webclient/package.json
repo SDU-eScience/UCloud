@@ -1,6 +1,6 @@
 {
   "name": "sducloud",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "description": "SDUCloud",
   "author": "IMADA - eScience Center, SDU",
   "jest": {
@@ -63,7 +63,7 @@
     "react": "16.9.0",
     "react-datepicker": "2.8.0",
     "react-dom": "16.9.0",
-    "react-dropzone": "^10.1.7",
+    "react-dropzone": "^10.1.8",
     "react-markdown": "^4.1.0",
     "react-modal": "^3.10.1",
     "react-redux": "^7.1.1",
@@ -119,9 +119,9 @@
     "tslint": "^5.19.0",
     "typescript": "^3.5.3",
     "url-loader": "2.1.0",
-    "webpack": "4.39.2",
+    "webpack": "4.39.3",
     "webpack-cli": "^3.3.7",
     "webpack-dev-server": "3.8.0",
-    "webpack-merge": "4.2.1"
+    "webpack-merge": "4.2.2"
   }
 }

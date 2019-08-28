@@ -71,7 +71,12 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
             {addHomeFolderLink ?
                 <>
                     <Box ml="15px">
-                        <Icon size="30px" cursor="pointer" name="home" onClick={() => navigate(homeFolder)} />
+                        <Icon
+                            size="30px"
+                            cursor="pointer"
+                            name="home"
+                            onClick={() => navigate(homeFolder)}
+                        />
                         <Text
                             cursor="pointer"
                             ml="-15px"

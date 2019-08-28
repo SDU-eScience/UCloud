@@ -33,7 +33,7 @@ import {cancelJob, cancelJobDialog, inCancelableState} from "Utilities/Applicati
 import {Arrow, MasterCheckbox} from "UtilityComponents";
 import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {prettierString} from "UtilityFunctions";
-import {AnalysesOperations, AnalysesProps, AnalysesStateProps, Analysis, AppState, RunsSortBy} from ".";
+import {AnalysesOperations, AnalysesProps, AnalysesStateProps, JobState, JobWithStatus, RunsSortBy} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
 
@@ -75,7 +75,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
         const sortBy = opts.sortBy != null ? opts.sortBy : props.sortBy;
         const minTimestamp = opts.minTimestamp != null ? opts.minTimestamp : undefined;
         const maxTimestamp = opts.maxTimestamp != null ? opts.maxTimestamp : undefined;
-        const filterValue = opts.filter && opts.filter !== "Don't filter" ? opts.filter as AppState : undefined;
+        const filterValue = opts.filter && opts.filter !== "Don't filter" ? opts.filter as JobState : undefined;
 
         setLoading(true);
         props.fetchJobs(itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filterValue);
@@ -144,7 +144,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
     const [firstDate, setFirstDate] = React.useState<Date | null>(null);
     const [secondDate, setSecondDate] = React.useState<Date | null>(null);
 
-    const appStates = Object.keys(AppState).map(it => ({text: prettierString(it), value: it}));
+    const appStates = Object.keys(JobState).map(it => ({text: prettierString(it), value: it}));
     appStates.push(defaultFilter);
 
     function fetchJobsInRange(minDate: Date | null, maxDate: Date | null) {
@@ -171,7 +171,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
             pageNumber,
             sortBy,
             sortOrder,
-            filter: value === "Don't filter" ? undefined : value as AppState
+            filter: value === "Don't filter" ? undefined : value as JobState
         });
     }
     const sidebar = (<Box pt={48}>
@@ -261,7 +261,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
 }
 
 interface AnalysisOperationsProps {
-    cancelableAnalyses: Analysis[];
+    cancelableAnalyses: JobWithStatus[];
     onFinished: () => void;
 }
 
@@ -325,7 +325,7 @@ const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProp
 
 interface RowProps {
     hide: boolean;
-    analysis: Analysis;
+    analysis: JobWithStatus;
     to: () => void;
 }
 const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) => {
@@ -343,7 +343,7 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             {hide ? null : <TableCell onClick={to}>{moment(analysis.createdAt).calendar()}</TableCell>}
             <TableCell onClick={to}>
                 {!!analysis.expiresAt &&
-                     analysis.state === AppState.RUNNING ? moment(analysis.expiresAt).calendar() : "N/A"}
+                     analysis.state === JobState.RUNNING ? moment(analysis.expiresAt).calendar() : "N/A"}
             </TableCell>
         </TableRow>);
 };

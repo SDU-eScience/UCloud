@@ -1,21 +1,21 @@
+import {useAsyncWork} from "Authentication/DataHook";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {emptyPage} from "DefaultObjects";
+import {File} from "Files/index";
+import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable";
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {Page} from "Types";
 import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
-import {File} from "Files/index";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {emptyPage} from "DefaultObjects";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {useAsyncWork} from "Authentication/DataHook";
-import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable";
 
 export interface VirtualFileTableProps extends LowLevelFileTableProps, VirtualFolderDefinition {
     // Empty
 }
 
 export interface VirtualFolderDefinition {
-    fakeFolders?: string[]
-    loadFolder?: (folder: string, page: number, itemsPerPage: number) => Promise<Page<File>>
+    fakeFolders?: string[];
+    loadFolder?: (folder: string, page: number, itemsPerPage: number) => Promise<Page<File>>;
 }
 
 export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = props => {
@@ -28,7 +28,7 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
     let fakeFolderToUse: string | undefined;
     if (props.fakeFolders !== undefined && props.loadFolder !== undefined) {
         if (props.path !== undefined) {
-            let resolvedPath = resolvePath(props.path);
+            const resolvedPath = resolvePath(props.path);
             fakeFolderToUse = props.fakeFolders.find(it => resolvePath(it) === resolvedPath);
         }
 

@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.orchestrator.services.ComputationBackendService
 import dk.sdu.cloud.app.orchestrator.services.JobFileService
 import dk.sdu.cloud.app.orchestrator.services.JobHibernateDao
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
+import dk.sdu.cloud.app.orchestrator.services.JobQueryService
 import dk.sdu.cloud.app.orchestrator.services.JobVerificationService
 import dk.sdu.cloud.app.orchestrator.services.OrchestrationScope
 import dk.sdu.cloud.app.orchestrator.services.SharedMountVerificationService
@@ -19,8 +20,10 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.developmentModeEnabled
@@ -44,6 +47,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         val db = micro.hibernateDatabase
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val serviceClientWS = micro.authenticator.authenticateClient(OutgoingWSCall)
         val appStoreService = AppStoreService(serviceClient)
         val toolStoreService = ToolStoreService(serviceClient)
         val jobHibernateDao = JobHibernateDao(appStoreService, toolStoreService)
@@ -100,17 +104,19 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             StreamFollowService(
                 jobFileService,
                 serviceClient,
+                serviceClientWS,
                 computationBackendService,
                 db,
                 jobHibernateDao
             )
 
+        val jobQueryService = JobQueryService(db, jobHibernateDao, jobFileService)
+
         with(micro.server) {
             configureControllers(
                 JobController(
-                    db,
+                    jobQueryService,
                     jobOrchestrator,
-                    jobHibernateDao,
                     streamFollowService,
                     userClientFactory,
                     serviceClient,

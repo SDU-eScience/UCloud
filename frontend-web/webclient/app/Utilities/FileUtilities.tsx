@@ -255,8 +255,8 @@ export function mockFile(props: { path: string, type: FileType, fileId?: string,
 }
 
 interface IsInvalidPathname {
-    path: string
-    filePaths: string[]
+    path: string;
+    filePaths: string[];
 }
 
 /**
@@ -269,7 +269,7 @@ interface IsInvalidPathname {
 export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean => {
     if (["..", "/"].some((it) => path.includes(it))) {
         snackbarStore.addSnack({message: "Folder name cannot contain '..' or '/'", type: SnackType.Failure});
-        return true
+        return true;
     }
     if (path === "" || path === ".") {
         snackbarStore.addSnack({message: "Folder name cannot be empty or be \".\"", type: SnackType.Failure});
@@ -293,7 +293,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
         `${homeFolder}Favorites`,
         `${homeFolder}Jobs`,
         `${homeFolder}Trash`
-    ].some(it => UF.removeTrailingSlash(it) === filePath)
+    ].some(it => UF.removeTrailingSlash(it) === filePath);
 };
 
 /**

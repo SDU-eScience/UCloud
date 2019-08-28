@@ -38,6 +38,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import java.io.File
+import java.io.InputStream
 import java.nio.file.Files
 import java.time.ZonedDateTime
 
@@ -660,6 +661,12 @@ class PodService(
                 else -> throw ex
             }
         }
+    }
+
+    fun watchLog(requestId: String): Pair<Closeable, InputStream>? {
+        val pod = findPods(requestId).firstOrNull() ?: return null
+        val res = k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).watchLog()
+        return Pair(res, res.output)
     }
 
     fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int): Tunnel {

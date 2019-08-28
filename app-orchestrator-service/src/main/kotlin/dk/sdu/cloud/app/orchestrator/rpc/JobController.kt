@@ -2,8 +2,16 @@ package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.fs.api.AppFileSystems
-import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.orchestrator.services.*
+import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
+import dk.sdu.cloud.app.orchestrator.api.JobStartedResponse
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobStateChange
+import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
+import dk.sdu.cloud.app.orchestrator.services.JobQueryService
+import dk.sdu.cloud.app.orchestrator.services.StreamFollowService
+import dk.sdu.cloud.app.orchestrator.services.VncService
+import dk.sdu.cloud.app.orchestrator.services.WebService
+import dk.sdu.cloud.app.orchestrator.services.exportForEndUser
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
@@ -19,49 +27,38 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 
 internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 200L
 
-class JobController<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val jobOrchestrator: JobOrchestrator<DBSession>,
-    private val jobDao: JobDao<DBSession>,
-    private val streamFollowService: StreamFollowService<DBSession>,
+class JobController(
+    private val jobQueryService: JobQueryService<*>,
+    private val jobOrchestrator: JobOrchestrator<*>,
+    private val streamFollowService: StreamFollowService<*>,
     private val userClientFactory: (String?, String?) -> AuthenticatedClient,
     private val serviceClient: AuthenticatedClient,
-    private val vncService: VncService<DBSession>,
-    private val webService: WebService<DBSession>
+    private val vncService: VncService<*>,
+    private val webService: WebService<*>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
-            val (job) = db.withTransaction { session ->
-                jobDao.findOrNull(session, request.id, ctx.securityToken)
-            } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            ok(job.toJobWithStatus())
+            ok(jobQueryService.findById(ctx.securityToken, request.id))
         }
 
         implement(JobDescriptions.listRecent) {
-            val result = db.withTransaction {
-                jobDao.list(
-                    it,
+            ok(
+                jobQueryService.listRecent(
                     ctx.securityToken,
                     request.normalize(),
-                    request.order ?: SortOrder.DESCENDING,
-                    request.sortBy ?: JobSortBy.CREATED_AT,
+                    request.order,
+                    request.sortBy,
                     request.minTimestamp,
                     request.maxTimestamp,
                     request.filter,
                     request.application,
                     request.version
                 )
-            }.mapItems { it.job.toJobWithStatus() }
-
-            ok(result)
+            )
         }
 
         implement(JobDescriptions.start) {
@@ -126,6 +123,10 @@ class JobController<DBSession>(
             ok(streamFollowService.followStreams(request, ctx.securityPrincipal.username))
         }
 
+        implement(JobDescriptions.followWS) {
+            streamFollowService.followWSStreams(request, ctx.securityPrincipal.username, this)
+        }
+
         implement(JobDescriptions.queryVncParameters) {
             ok(vncService.queryVncParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
@@ -133,27 +134,6 @@ class JobController<DBSession>(
         implement(JobDescriptions.queryWebParameters) {
             ok(webService.queryWebParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
-    }
-
-    private fun VerifiedJob.toJobWithStatus(): JobWithStatus {
-        val job = this
-        val expiresAt = job.startedAt?.let {
-            job.startedAt + job.maxTime.toMillis()
-        }
-
-        return JobWithStatus(
-            job.id,
-            job.name,
-            job.owner,
-            job.currentState,
-            job.status,
-            job.application.metadata.name,
-            job.application.metadata.version,
-            job.createdAt,
-            job.modifiedAt,
-            expiresAt,
-            job.application.metadata
-        )
     }
 
     companion object : Loggable {

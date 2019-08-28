@@ -3,12 +3,9 @@ import {useEffect, useState} from "react";
 import {Terminal} from "xterm";
 import "xterm/dist/xterm.css";
 
-interface XtermProps {
-    value: string;
-}
-
-export const Xterm: React.FunctionComponent<XtermProps> = props => {
+export function useXTerm(): [React.RefObject<HTMLDivElement>, (textToAppend: string) => void, () => void] {
     const [didMount, setDidMount] = useState(false);
+
     const [term] = useState(() => new Terminal({
         theme: {
             background: "#f5f7f9",
@@ -40,15 +37,19 @@ export const Xterm: React.FunctionComponent<XtermProps> = props => {
             term.resize(100, 40);
             term.open(elem.current);
             setDidMount(true);
+        } else if (elem.current === null) {
+            setDidMount(false);
         }
     });
 
-    useEffect(() => {
-        term.reset();
-        props.value.split("\n").forEach(line => {
-            term.writeln(line);
-        });
-    }, [props.value]);
-
-    return <div ref={elem}/>;
-};
+    return [
+        elem,
+        textToAppend => {
+            const remainingString = textToAppend.replace(/\n/g, "\r\n");
+            term.write(remainingString);
+        },
+        () => {
+            term.reset();
+        }
+    ];
+}

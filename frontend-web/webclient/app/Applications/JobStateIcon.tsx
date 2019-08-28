@@ -1,11 +1,11 @@
-import {AppState} from "Applications";
+import {JobState} from "Applications";
 import * as React from "react";
 import {SpaceProps} from "styled-system";
 import Icon, {IconName} from "ui-components/Icon";
 import {colors, ThemeColor} from "ui-components/theme";
 
 export const JobStateIcon: React.FunctionComponent<{
-    state: AppState,
+    state: JobState,
     size?: number | string,
     color?: ThemeColor
 } & SpaceProps> = (props) => {
@@ -13,26 +13,26 @@ export const JobStateIcon: React.FunctionComponent<{
     let defaultColor: ThemeColor = "iconColor";
 
     switch (props.state) {
-        case AppState.VALIDATED:
+        case JobState.VALIDATED:
             iconName = "checkDouble";
             break;
-        case AppState.PREPARED:
+        case JobState.PREPARED:
             iconName = "hourglass";
             break;
-        case AppState.SCHEDULED:
+        case JobState.SCHEDULED:
             iconName = "calendar";
             break;
-        case AppState.RUNNING:
+        case JobState.RUNNING:
             iconName = "chrono";
             break;
-        case AppState.TRANSFER_SUCCESS:
+        case JobState.TRANSFER_SUCCESS:
             iconName = "move";
             break;
-        case AppState.SUCCESS:
+        case JobState.SUCCESS:
             iconName = "check";
             defaultColor = "green";
             break;
-        case AppState.FAILURE:
+        case JobState.FAILURE:
             iconName = "close";
             defaultColor = "red";
             break;

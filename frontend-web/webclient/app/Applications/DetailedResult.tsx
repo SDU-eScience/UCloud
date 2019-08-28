@@ -1,288 +1,85 @@
-import * as React from "react";
-import PromiseKeeper from "PromiseKeeper";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
-import {Link} from "react-router-dom";
-import {connect} from "react-redux";
-import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
-import {
-    AppState,
-    DetailedResultOperations,
-    DetailedResultProps,
-    DetailedResultState,
-    StdElement,
-    WithAppInvocation
-} from ".";
-import {fileTablePage} from "Utilities/FileUtilities";
-import {cancelJob, cancelJobDialog, hpcJobQuery, inCancelableState} from "Utilities/ApplicationUtilities";
-import {Dispatch} from "redux";
-import {Dropdown, DropdownContent} from "ui-components/Dropdown";
-import {Box, Button, Card, ContainerForText, ExternalLink, Flex, List} from "ui-components";
-import {Step, StepGroup} from "ui-components/Step";
-import styled from "styled-components";
-import {TextSpan} from "ui-components/Text";
-import Icon from "ui-components/Icon";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import * as Heading from "ui-components/Heading";
-import {JobStateIcon} from "./JobStateIcon";
-import {MainContainer} from "MainContainer/MainContainer";
-import {SnackType} from "Snackbar/Snackbars";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {Spacer} from "ui-components/Spacer";
+import {useXTerm} from "Applications/xterm";
+import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {EmbeddedFileTable} from "Files/FileTable";
+import {History} from "history";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
+import {MainContainer} from "MainContainer/MainContainer";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
+import * as React from "react";
+import {useEffect, useState} from "react";
+import {connect} from "react-redux";
+import {match} from "react-router";
+import {Link} from "react-router-dom";
+import {Dispatch} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Flex, List} from "ui-components";
+import {Dropdown, DropdownContent} from "ui-components/Dropdown";
+import * as Heading from "ui-components/Heading";
+import Icon from "ui-components/Icon";
+import {Spacer} from "ui-components/Spacer";
+import {Step, StepGroup} from "ui-components/Step";
+import {TextSpan} from "ui-components/Text";
+import {cancelJob, cancelJobDialog, hpcJobQuery, inCancelableState} from "Utilities/ApplicationUtilities";
+import {fileTablePage} from "Utilities/FileUtilities";
+import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
+import {ApplicationType, FollowStdStreamResponse, isJobStateFinal, JobState, JobWithStatus, WithAppInvocation} from ".";
+import {JobStateIcon} from "./JobStateIcon";
 import {pad} from "./View";
-import {Xterm} from "Applications/xterm";
 
-const Panel = styled(Box)`
-    margin-bottom: 1em;
-`;
+interface DetailedResultOperations {
+    setPageTitle: (jobId: string) => void;
+    setLoading: (loading: boolean) => void;
+    setRefresh: (refresh?: () => void) => void;
+}
 
-Panel.displayName = "Panel";
+interface DetailedResultProps extends DetailedResultOperations {
+    match: match<{ jobId: string }>;
+    history: History;
+}
 
-class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
-    constructor(props: Readonly<DetailedResultProps>) {
-        super(props);
-        this.state = {
-            name: "",
-            complete: false,
-            appState: AppState.VALIDATED,
-            failedState: undefined,
-            status: "",
-            stdout: "",
-            stderr: "",
-            stdoutLine: 0,
-            stderrLine: 0,
-            reloadIntervalId: -1,
-            promises: new PromiseKeeper(),
-            appType: undefined,
-            webLink: undefined,
-            timeLeft: null
-        };
-        this.props.setPageTitle(shortUUID(this.jobId));
-        this.props.setLoading(true);
+const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
+    const [status, setStatus] = useState<string>("");
+    const [appState, setAppState] = useState<JobState>(JobState.VALIDATED);
+    const [failedState, setFailedState] = useState<JobState | null>(null);
+    const [jobWithStatus, setJobWithStatus] = useState<JobWithStatus | null>(null);
+    const [application, setApplication] = useState<WithAppInvocation | null>(null);
+    const [interactiveLink, setInteractiveLink] = useState<string | null>(null);
+    const [timeLeft, setTimeLeft] = useState<number>(-1);
+    const [xtermRef, appendToXterm, resetXterm] = useXTerm();
+
+    const jobId = props.match.params.jobId;
+    const outputFolder = jobWithStatus && jobWithStatus.outputFolder ? jobWithStatus.outputFolder : "";
+
+    async function fetchJob() {
+        const {response} = await Cloud.get<JobWithStatus>(hpcJobQuery(jobId));
+        setJobWithStatus(response);
+        setAppState(response.state);
+        setStatus(response.status);
+        setFailedState(response.failedState);
     }
 
-    get jobId(): string {
-        return this.props.match.params.jobId;
+    async function fetchWebLink() {
+        const {response} = await Cloud.get(`/hpc/jobs/query-web/${jobId}`);
+        setInteractiveLink(response.path);
     }
 
-    public async componentDidUpdate() {
-        if (!this.state.appType && this.state.app) {
-            const {name, version} = this.state.app;
-            const {response} = await this.state.promises.makeCancelable(
-                Cloud.get<WithAppInvocation>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
-            ).promise;
-            this.setState(() => ({appType: response.invocation.applicationType}));
-        }
-    }
-
-    public componentDidMount() {
-        const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
-        this.setState(() => ({reloadIntervalId}));
-    }
-
-    public componentWillUnmount() {
-        if (this.state.reloadIntervalId) window.clearTimeout(this.state.reloadIntervalId);
-        this.state.promises.cancelPromises();
-    }
-
-    private async retrieveStdStreams() {
-        if (this.state.complete) {
-            this.retrieveStateWhenCompleted();
-            return;
-        } else if (this.state.appState === AppState.RUNNING) {
-            if (this.state.appType === "VNC") {
-                this.props.setLoading(false);
-                this.setState({webLink: `/novnc?jobId=${this.jobId}`})
-            } else if (this.state.appType === "WEB" && !this.state.webLink) {
-                this.props.setLoading(false);
-                const {response} = await this.state.promises.makeCancelable(
-                    Cloud.get(`/hpc/jobs/query-web/${this.jobId}`)
-                ).promise;
-                this.setState(() => ({webLink: response.path}));
-            }
-        }
-        try {
-            const {response} = await this.state.promises.makeCancelable(
-                Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
-            ).promise;
-
-            this.setState(() => ({
-                stdout: this.state.stdout.concat(response.stdout),
-                stderr: this.state.stderr.concat(response.stderr),
-                stdoutLine: response.stdoutNextLine,
-                stderrLine: response.stderrNextLine,
-
-                app: response.metadata,
-                name: response.name,
-                status: response.status,
-                appState: response.state,
-                failedState: response.failedState,
-                complete: response.complete,
-                outputFolder: response.outputFolder,
-                timeLeft: response.timeLeft
-            }));
-
-            if (response.complete) this.retrieveStateWhenCompleted();
-            else {
-                const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
-                this.setState(() => ({reloadIntervalId}));
-            }
-        } catch (e) {
-            if (!e.isCanceled)
-                snackbarStore.addSnack({
-                    message: "An error occurred retrieving Information and Output from the job.",
-                    type: SnackType.Failure
-                });
-        } finally {
-            this.props.setLoading(false);
-        }
-    }
-
-    private retrieveStateWhenCompleted() {
-        if (!this.state.complete) return;
-        window.clearTimeout(this.state.reloadIntervalId);
-    }
-
-    private renderProgressPanel = () => (
-        <Panel>
-            <StepGroup>
-                <StepTrackerItem
-                    stateToDisplay={AppState.VALIDATED}
-                    currentState={this.state.appState}
-                    failedState={this.state.failedState} />
-                <StepTrackerItem
-                    stateToDisplay={AppState.PREPARED}
-                    currentState={this.state.appState}
-                    failedState={this.state.failedState} />
-                <StepTrackerItem
-                    stateToDisplay={AppState.SCHEDULED}
-                    currentState={this.state.appState}
-                    failedState={this.state.failedState} />
-                <StepTrackerItem
-                    stateToDisplay={AppState.RUNNING}
-                    currentState={this.state.appState}
-                    failedState={this.state.failedState} />
-                <StepTrackerItem
-                    stateToDisplay={AppState.TRANSFER_SUCCESS}
-                    currentState={this.state.appState}
-                    failedState={this.state.failedState} />
-            </StepGroup>
-        </Panel>
-    );
-
-    private renderInfoPanel() {
-        const {app} = this.state;
-        if (app === undefined) return null;
-
-        let entries = [
-            {key: "Application", value: `${app.title} v${app.version}`},
-            {key: "Status", value: this.state.status},
-        ];
-
-        if (this.state.name) entries.unshift({key: "Name", value: this.state.name});
-
-        let domEntries = entries.map(it => <Box pt="0.8em" pb="0.8em" key={it.key}><b>{it.key}</b>: {it.value}</Box>);
-
-        switch (this.state.appState) {
-            case AppState.SUCCESS:
-                domEntries.push(
-                    <Box key={AppState.SUCCESS} pt="0.8em" pb="0.8em">
-                        Application has completed successfully.
-                        Click <Link to={fileTablePage(this.state.outputFolder!)}>here</Link> to go to the output.
-                    </Box>
-                );
-                break;
-            case AppState.RUNNING:
-                const {timeLeft} = this.state;
-                const seconds = (timeLeft! / 1000) % 60;
-                const minutes = ((timeLeft! / (1000 * 60)) % 60);
-                const hours = (timeLeft! / (1000 * 60 * 60));
-                domEntries.push(
-                    <Box key={AppState.RUNNING} pt="0.8em" pb="0.8em">
-                        <b>Time remaining</b>: {pad(hours | 0, 2)}:{pad(minutes | 0, 2)}:{pad(seconds | 0, 2)}
-                    </Box>
-                );
-                break;
-        }
-
-        return (
-            <Panel>
-                <Heading.h4>Job Information</Heading.h4>
-                <Card height="auto" p="14px 14px 14px 14px">
-                    <List>
-                        {domEntries}
-                    </List>
-                </Card>
-            </Panel>
+    async function fetchApplication() {
+        if (jobWithStatus === null) return;
+        const {response} = await Cloud.get<WithAppInvocation>(
+            `/hpc/apps/${encodeURI(jobWithStatus.metadata.name)}/${encodeURI(jobWithStatus.metadata.version)}`
         );
+
+        setApplication(response);
     }
 
-    private renderStreamPanel() {
-        if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
-        return (
-            <Box width="100%" mt={24}>
-                <Heading.h4>
-                    Standard Streams
-                    &nbsp;
-                    <Dropdown>
-                        <Icon name="info" color="white" color2="black" size="1em"/>
-                        <DropdownContent
-                            width="400px"
-                            visible
-                            colorOnHover={false}
-                            color="white"
-                            backgroundColor="black"
-                        >
-                            <TextSpan fontSize={1}>
-                                Streams are collected
-                                from <code>stdout</code> and <code>stderr</code> of your application.
-                            </TextSpan>
-                        </DropdownContent>
-                    </Dropdown>
-                </Heading.h4>
-                <Flex flexDirection="column">
-                    <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
-                        <Heading.h5>Output</Heading.h5>
-                    </Box>
-                    <Box width={1} backgroundColor="lightGray">
-                        <Xterm value={this.state.stdout} />
-                    </Box>
-                </Flex>
-            </Box>
-        );
-    }
-
-    private renderFilePanel() {
-        if (this.state.outputFolder === "" || this.state.appState !== AppState.SUCCESS) return null;
-
-        return (
-            <Panel>
-                <Heading.h4>Output Files</Heading.h4>
-                <EmbeddedFileTable path={this.state.outputFolder}/>
-            </Panel>
-        );
-    }
-
-    private renderWebLink() {
-        const {appType} = this.state;
-        if (this.state.appState === AppState.RUNNING && this.state.webLink)
-            if (appType === "WEB")
-                return (<ExternalLink href={this.state.webLink}>
-                    <Button color="green">Go to web interface</Button>
-                </ExternalLink>);
-            else if (appType === "VNC")
-                return <Link to={this.state.webLink}><Button color="green">Go to web interface</Button></Link>;
-        return null;
-    }
-
-    private cancelJob() {
+    async function onCancelJob() {
         cancelJobDialog({
-            jobId: this.jobId,
+            jobId,
             onConfirm: async () => {
                 try {
-                    await cancelJob(Cloud, this.jobId)
+                    await cancelJob(Cloud, jobId);
                 } catch (e) {
                     snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"));
                 }
@@ -290,84 +87,289 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         });
     }
 
-    private renderCancelButton() {
-        if (!inCancelableState(this.state.appState) || !this.state.app) return null;
-        return <Button ml="8px" color="red" onClick={() => this.cancelJob()}>Cancel job</Button>
-    }
+    useEffect(() => {
+        // Re-initialize most stuff when the job id changes
+        props.setPageTitle(shortUUID(jobId));
+        fetchJob();
+        resetXterm();
 
-    public render() {
-        return <MainContainer
-            main={this.state.app ?
-                <ContainerForText>
-                    {this.renderProgressPanel()}
-                    {this.renderInfoPanel()}
-                    {this.renderFilePanel()}
-                    <Spacer left={this.renderWebLink()} right={this.renderCancelButton()}/>
-                    {this.renderStreamPanel()}
-                </ContainerForText> : <LoadingIcon size={24}/>}
-        />
-    }
-}
+        const connection = WSFactory.open(
+            "/hpc/jobs", {
+                init: conn => {
+                    conn.subscribe({
+                        call: "hpc.jobs.followWS",
+                        payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
+                        handler: message => {
+                            const streamEntry = message.payload as FollowStdStreamResponse;
+                            if (streamEntry.state !== null) setAppState(streamEntry.state);
+                            if (streamEntry.status !== null) setStatus(streamEntry.status);
+                            if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
+                            if (streamEntry.stdout !== null) appendToXterm(streamEntry.stdout);
+                        }
+                    });
+                }
+            }
+        );
 
-const stateToOrder = (state: AppState): 0 | 1 | 2 | 3 | 4 | 5 => {
+        return () => {
+            connection.close();
+        };
+    }, [jobId]);
+
+    useEffect(() => {
+        // Fetch the application when we know about the job
+        fetchApplication();
+    }, [jobWithStatus]);
+
+    useEffect(() => {
+        // Fetch information about the interactive button on appState change
+        if (jobWithStatus === null || application === null) return;
+        if (appState === JobState.RUNNING && interactiveLink === null) {
+            switch (application.invocation.applicationType) {
+                case ApplicationType.VNC:
+                    setInteractiveLink(`/novnc?jobId=${jobId}`);
+                    break;
+                case ApplicationType.WEB:
+                    fetchWebLink();
+                    break;
+            }
+        }
+    }, [appState, interactiveLink, jobWithStatus, application]);
+
+    useEffect(() => {
+        // Re-fetch job if we don't know about the output folder at the end of the job
+        if (appState === JobState.SUCCESS && outputFolder === "") {
+            fetchJob();
+        }
+
+        let intervalId: number = -1;
+        if (appState === JobState.RUNNING && timeLeft === -1 && jobWithStatus !== null &&
+            (jobWithStatus.maxTime !== null || jobWithStatus.expiresAt !== null)) {
+            const expiresAt = jobWithStatus.expiresAt ? jobWithStatus.expiresAt : Date.now() + jobWithStatus.maxTime!;
+            intervalId = window.setInterval(() => {
+                setTimeLeft(expiresAt - Date.now());
+            }, 500);
+        }
+
+        return () => {
+            if (intervalId !== -1) window.clearInterval(intervalId);
+        };
+    }, [appState]);
+
+    return <MainContainer
+        main={application === null || jobWithStatus == null ? <LoadingIcon size={24}/> :
+            <ContainerForText>
+                <Panel>
+                    <StepGroup>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.VALIDATED}
+                            currentState={appState}
+                            failedState={failedState}/>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.PREPARED}
+                            currentState={appState}
+                            failedState={failedState}/>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.SCHEDULED}
+                            currentState={appState}
+                            failedState={failedState}/>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.RUNNING}
+                            currentState={appState}
+                            failedState={failedState}/>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.TRANSFER_SUCCESS}
+                            currentState={appState}
+                            failedState={failedState}/>
+                    </StepGroup>
+                </Panel>
+
+
+                <Panel>
+                    <Heading.h4>Job Information</Heading.h4>
+                    <Card height="auto" p="14px 14px 14px 14px">
+                        <List>
+                            {jobWithStatus === null || jobWithStatus.name === null ? null :
+                                <InfoBox><b>Name:</b> {jobWithStatus.name}</InfoBox>
+                            }
+
+                            <InfoBox>
+                                <b>Application:</b>{" "}
+                                {jobWithStatus.metadata.title} v{jobWithStatus.metadata.version}
+                            </InfoBox>
+
+                            <InfoBox><b>Status:</b> {status}</InfoBox>
+
+                            {appState !== JobState.SUCCESS ? null :
+                                <InfoBox>
+                                    Application has completed successfully.
+                                    Click <Link to={fileTablePage(outputFolder)}>here</Link> to go to the
+                                    output.
+                                </InfoBox>
+                            }
+
+                            {appState !== JobState.RUNNING || timeLeft <= 0 ? null :
+                                <InfoBox>
+                                    <b>Time remaining:</b>{" "}
+                                    <TimeRemaining timeInMs={timeLeft}/>
+                                </InfoBox>
+                            }
+                        </List>
+                    </Card>
+                </Panel>
+
+                <Spacer
+                    left={
+                        appState !== JobState.RUNNING || interactiveLink === null ? null :
+                            <InteractiveApplicationLink
+                                type={application.invocation.applicationType}
+                                interactiveLink={interactiveLink}/>
+                    }
+                    right={
+                        !inCancelableState(appState) ? null :
+                            <Button ml="8px" color="red" onClick={() => onCancelJob()}>Cancel job</Button>
+                    }
+                />
+
+                {outputFolder === "" || appState !== JobState.SUCCESS ? null :
+                    <Panel>
+                        <Heading.h4>Output Files</Heading.h4>
+                        <EmbeddedFileTable path={outputFolder}/>
+                    </Panel>
+                }
+
+                {isJobStateFinal(appState) ? null :
+                    <Box width="100%" mt={24}>
+                        <Heading.h4>
+                            Standard Streams
+                            &nbsp;
+                            <Dropdown>
+                                <Icon name="info" color="white" color2="black" size="1em"/>
+                                <DropdownContent
+                                    width="400px"
+                                    visible
+                                    colorOnHover={false}
+                                    color="white"
+                                    backgroundColor="black"
+                                >
+                                    <TextSpan fontSize={1}>
+                                        Streams are collected
+                                        from <code>stdout</code> and <code>stderr</code> of your application.
+                                    </TextSpan>
+                                </DropdownContent>
+                            </Dropdown>
+                        </Heading.h4>
+                        <Flex flexDirection="column">
+                            <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
+                                <Heading.h5>Output</Heading.h5>
+                            </Box>
+                            <Box width={1} backgroundColor="lightGray">
+                                <div ref={xtermRef}/>
+                            </Box>
+                        </Flex>
+                    </Box>
+                }
+            </ContainerForText>
+        }
+    />;
+};
+
+const Panel = styled(Box)`
+    margin-bottom: 1em;
+`;
+
+Panel.displayName = "Panel";
+
+const InfoBox = styled(Box)`
+    padding-top: 0.8em;
+    padding-bottom: 0.8em;
+`;
+
+const TimeRemaining: React.FunctionComponent<{ timeInMs: number }> = props => {
+    const timeLeft = props.timeInMs;
+    const seconds = (timeLeft / 1000) % 60;
+    const minutes = ((timeLeft / (1000 * 60)) % 60);
+    const hours = (timeLeft / (1000 * 60 * 60));
+    return <>{pad(hours | 0, 2)}:{pad(minutes | 0, 2)}:{pad(seconds | 0, 2)}</>;
+};
+
+const InteractiveApplicationLink: React.FunctionComponent<{
+    type: ApplicationType,
+    interactiveLink: string
+}> = props => {
+    switch (props.type) {
+        case ApplicationType.WEB:
+            return <ExternalLink href={props.interactiveLink}>
+                <Button color={"green"}>Go to web interface</Button>
+            </ExternalLink>;
+        case ApplicationType.VNC:
+            return <Link to={props.interactiveLink}><Button color={"green"}>Go to interface</Button></Link>;
+        case ApplicationType.BATCH:
+            return null;
+    }
+};
+
+const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
     switch (state) {
-        case AppState.VALIDATED:
+        case JobState.VALIDATED:
             return 0;
-        case AppState.PREPARED:
+        case JobState.PREPARED:
             return 1;
-        case AppState.SCHEDULED:
+        case JobState.SCHEDULED:
             return 2;
-        case AppState.RUNNING:
+        case JobState.RUNNING:
             return 3;
-        case AppState.TRANSFER_SUCCESS:
+        case JobState.TRANSFER_SUCCESS:
             return 4;
-        case AppState.SUCCESS:
+        case JobState.SUCCESS:
             return 5;
-        case AppState.FAILURE:
+        case JobState.FAILURE:
             return 5;
         default:
             return 0;
     }
 };
 
-const isStateComplete = (state: AppState, currentState: AppState) =>
+const isStateComplete = (state: JobState, currentState: JobState) =>
     stateToOrder(state) < stateToOrder(currentState);
 
-const stateToTitle = (state: AppState): string => {
+const stateToTitle = (state: JobState): string => {
     switch (state) {
-        case AppState.FAILURE:
+        case JobState.FAILURE:
             return "Failure";
-        case AppState.PREPARED:
+        case JobState.PREPARED:
             return "Pending";
-        case AppState.RUNNING:
+        case JobState.RUNNING:
             return "Running";
-        case AppState.SCHEDULED:
+        case JobState.SCHEDULED:
             return "Scheduled";
-        case AppState.SUCCESS:
+        case JobState.SUCCESS:
             return "Success";
-        case AppState.TRANSFER_SUCCESS:
+        case JobState.TRANSFER_SUCCESS:
             return "Transferring";
-        case AppState.VALIDATED:
+        case JobState.VALIDATED:
             return "Validated";
         default:
             return "Unknown";
     }
 };
 
-const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, currentState: AppState, failedState?: AppState}> = ({
-    stateToDisplay, currentState, failedState
-}) => {
+const StepTrackerItem: React.FunctionComponent<{
+    stateToDisplay: JobState,
+    currentState: JobState,
+    failedState: JobState | null
+}> = ({stateToDisplay, currentState, failedState}) => {
     const active = stateToDisplay === currentState;
     const complete = isStateComplete(stateToDisplay, currentState);
-    const failed = currentState === AppState.FAILURE;
     const failedNum = failedState ? stateToOrder(failedState) : 10;
     const thisFailed = stateToOrder(stateToDisplay) >= failedNum;
 
     return (
         <Step active={active}>
             {complete ?
-                <Icon name={thisFailed ? "close" : "check"} color={thisFailed ? "red" : "green"} mr="0.7em" size="30px" /> :
-                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px" />
+                <Icon name={thisFailed ? "close" : "check"} color={thisFailed ? "red" : "green"} mr="0.7em"
+                      size="30px"/> :
+                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px"/>
             }
             <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
         </Step>

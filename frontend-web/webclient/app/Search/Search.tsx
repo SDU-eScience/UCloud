@@ -1,31 +1,30 @@
-import * as React from "react";
-import * as Pagination from "Pagination";
-import {connect} from "react-redux";
 import {ApplicationCard} from "Applications/Card";
-import {fileTablePage} from "Utilities/FileUtilities";
-import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
-import {HeaderSearchType, ReduxObject, emptyPage} from "DefaultObjects";
-import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Dispatch} from "redux";
-import {AdvancedSearchRequest, FileType} from "Files";
-import * as SSActions from "./Redux/SearchActions";
-import Hide from "ui-components/Hide";
-import {MainContainer} from "MainContainer/MainContainer";
-import {toggleFilesSearchHidden, setFilename} from "Files/Redux/DetailedFileSearchActions";
+import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppName} from "Applications/Redux/DetailedApplicationSearchActions";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {emptyPage, HeaderSearchType, ReduxObject} from "DefaultObjects";
+import {AdvancedSearchRequest, FileType} from "Files";
+import DetailedFileSearch from "Files/DetailedFileSearch";
+import {EmbeddedFileTable} from "Files/FileTable"
+import {setFilename, toggleFilesSearchHidden} from "Files/Redux/DetailedFileSearchActions";
+import {MainContainer} from "MainContainer/MainContainer";
+import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage} from "Navigation/Redux/StatusActions";
+import * as Pagination from "Pagination";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {SelectableText, SelectableTextWrapper} from "ui-components";
+import {GridCardGroup} from "ui-components/Grid";
+import Hide from "ui-components/Hide";
+import {SidebarPages} from "ui-components/Sidebar";
+import {Spacer} from "ui-components/Spacer";
+import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
-import {GridCardGroup} from "ui-components/Grid";
-import {SidebarPages} from "ui-components/Sidebar";
-import {setActivePage} from "Navigation/Redux/StatusActions";
-import {Spacer} from "ui-components/Spacer";
 import {prettierString} from "UtilityFunctions";
-import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import DetailedFileSearch from "Files/DetailedFileSearch";
-import {SelectableTextWrapper, SelectableText} from "ui-components";
-import {EmbeddedFileTable} from "Files/FileTable"
-import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
+import * as SSActions from "./Redux/SearchActions";
 
 function Search(props: SearchProps) {
     React.useEffect(() => {
@@ -39,7 +38,7 @@ function Search(props: SearchProps) {
             props.toggleAdvancedSearch();
             props.clear();
             props.setRefresh();
-        }
+        };
     }, []);
 
     const query = (): string => queryFromProps(props);

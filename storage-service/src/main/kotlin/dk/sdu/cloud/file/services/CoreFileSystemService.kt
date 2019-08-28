@@ -169,9 +169,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     suspend fun listDirectory(
         ctx: Ctx,
         path: String,
-        mode: Set<FileAttribute>
+        mode: Set<FileAttribute>,
+        type: FileType? = null
     ): List<FileRow> {
-        return fs.listDirectory(ctx, path, mode).unwrap()
+        return fs.listDirectory(ctx, path, mode, type = type).unwrap()
     }
 
     suspend fun listDirectorySorted(
@@ -180,7 +181,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         mode: Set<FileAttribute>,
         sortBy: FileSortBy,
         order: SortOrder,
-        paginationRequest: NormalizedPaginationRequest? = null
+        paginationRequest: NormalizedPaginationRequest? = null,
+        type: FileType? = null
     ): Page<FileRow> {
         return fs.listDirectoryPaginated(
             ctx,
@@ -188,7 +190,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             mode,
             sortBy,
             paginationRequest,
-            order
+            order,
+            type = type
         ).unwrap()
     }
 

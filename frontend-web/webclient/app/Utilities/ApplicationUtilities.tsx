@@ -2,7 +2,7 @@ import {
     ApplicationInvocationDescription,
     ApplicationMetadata,
     ApplicationParameter,
-    AppState,
+    JobState,
     ParameterTypes,
     RunsSortBy
 } from "Applications";
@@ -17,14 +17,7 @@ import {expandHomeFolder} from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
-export const hpcJobQuery = (
-    id: string,
-    stdoutLine: number,
-    stderrLine: number,
-    stdoutMaxLines: number = 1000,
-    stderrMaxLines: number = 1000
-) =>
-    `/hpc/jobs/follow/${encodeURIComponent(id)}?stdoutLineStart=${stdoutLine}&stdoutMaxLines=${stdoutMaxLines}&stderrLineStart=${stderrLine}&stderrMaxLines=${stderrMaxLines}`;
+export const hpcJobQuery = (id: string) => `/hpc/jobs/${encodeURIComponent(id)}`;
 
 export function hpcJobsQuery(
     itemsPerPage: number,
@@ -33,7 +26,7 @@ export function hpcJobsQuery(
     sortBy?: RunsSortBy,
     minTimestamp?: number,
     maxTimestamp?: number,
-    filter?: AppState
+    filter?: JobState
 ): string {
     let query = `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (sortOrder) query = query.concat(`&order=${sortOrder}`);
@@ -54,9 +47,9 @@ export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 interface HPCApplicationsSearchQuery {
-    query: string,
-    page: number,
-    itemsPerPage: number
+    query: string;
+    page: number;
+    itemsPerPage: number;
 }
 
 export const hpcApplicationsSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
@@ -67,7 +60,13 @@ export const hpcApplicationsTagSearchQuery = ({query, page, itemsPerPage}: HPCAp
 
 export const cancelJobQuery = `hpc/jobs`;
 
-export const cancelJobDialog = ({jobId, onConfirm, jobCount = 1}: { jobCount?: number, jobId: string, onConfirm: () => void }): void =>
+export const cancelJobDialog = (
+    {jobId, onConfirm, jobCount = 1}: {
+        jobCount?: number,
+        jobId: string,
+        onConfirm: () => void
+    }
+): void =>
     addStandardDialog({
         title: `Cancel job${jobCount > 1 ? "s" : ""}?`,
         message: jobCount === 1 ? `Cancel job: ${jobId}?` : "Cancel jobs?",
@@ -80,10 +79,10 @@ export const cancelJob = (cloud: Cloud, jobId: string): Promise<{ request: XMLHt
     cloud.delete(cancelJobQuery, {jobId});
 
 interface FavoriteApplicationFromPage<T> {
-    name: string
-    version: string
-    page: Page<{ metadata: ApplicationMetadata, favorite: boolean } & T>
-    cloud: Cloud
+    name: string;
+    version: string;
+    page: Page<{ metadata: ApplicationMetadata, favorite: boolean } & T>;
+    cloud: Cloud;
 }
 
 /**
@@ -91,7 +90,14 @@ interface FavoriteApplicationFromPage<T> {
  * @param {Application} Application the application to be favorited
  * @param {Cloud} cloud The cloud instance for requests
  */
-export async function favoriteApplicationFromPage<T>({name, version, page, cloud}: FavoriteApplicationFromPage<T>): Promise<Page<T>> {
+export async function favoriteApplicationFromPage<T>(
+    {
+        name,
+        version,
+        page,
+        cloud
+    }: FavoriteApplicationFromPage<T>
+): Promise<Page<T>> {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     try {
         await cloud.post(hpcFavoriteApp(name, version));
@@ -118,7 +124,13 @@ interface ExtractParameters {
     siteVersion: number;
 }
 
-export const findKnownParameterValues = ({nameToValue, allowedParameterKeys, siteVersion}: ExtractParameters): StringMap => {
+export const findKnownParameterValues = (
+    {
+        nameToValue,
+        allowedParameterKeys,
+        siteVersion
+    }: ExtractParameters
+): StringMap => {
     const extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({name, type}) => {
@@ -156,7 +168,7 @@ interface ExtractedParameters {
     [key: string]: string | number | boolean |
         { source: string, destination: string; } |
         { fileSystemId: string } |
-        { jobId: string }
+        { jobId: string };
 }
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
@@ -171,7 +183,6 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
     const extracted: ExtractedParameters = {};
     map.forEach(({current}, key) => {
         const parameter = appParameters.find(it => it.name === key);
-        console.log(parameter, current);
         if (!current) return;
         if (!current.value || !current.checkValidity()) return;
         if (!parameter) return;
@@ -205,7 +216,6 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
                 extracted[key] = current.value;
                 return;
             case ParameterTypes.SharedFileSystem:
-                console.log(current.value);
                 extracted[key] = {fileSystemId: current.value};
                 return;
             case ParameterTypes.Peer:
@@ -216,11 +226,11 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
     return extracted;
 }
 
-export const inCancelableState = (state: AppState) =>
-    state === AppState.VALIDATED ||
-    state === AppState.PREPARED ||
-    state === AppState.SCHEDULED ||
-    state === AppState.RUNNING;
+export const inCancelableState = (state: JobState) =>
+    state === JobState.VALIDATED ||
+    state === JobState.PREPARED ||
+    state === JobState.SCHEDULED ||
+    state === JobState.RUNNING;
 
 
 export function validateOptionalFields(
@@ -256,7 +266,7 @@ export function checkForMissingParameters(
     const missingParameters: string[] = [];
     requiredParams.forEach(rParam => {
         const parameterValue = parameters[rParam.name];
-        // Number, string, boolean 
+        // Number, string, boolean
         if (!parameterValue) {
             missingParameters.push(rParam.title);
         } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {
@@ -273,7 +283,7 @@ export function checkForMissingParameters(
     // Check missing values for required input fields.
     if (missingParameters.length > 0) {
         snackbarStore.addFailure(
-            `Missing values for ${missingParameters.slice(0, 3).join(", ")} 
+            `Missing values for ${missingParameters.slice(0, 3).join(", ")}
                 ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,
             5000
         );

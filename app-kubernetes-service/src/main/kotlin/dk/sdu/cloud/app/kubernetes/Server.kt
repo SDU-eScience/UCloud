@@ -66,13 +66,13 @@ class Server(override val micro: Micro, private val configuration: Configuration
         }
 
         val ktorEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
-        ktorEngine.application.install(io.ktor.websocket.WebSockets)
+
+        startServices(wait = false)
+
         ktorEngine.application.routing {
             vncService.install(this)
             webService.install(this)
         }
-
-        startServices()
     }
 
     override fun stop() {
