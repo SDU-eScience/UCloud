@@ -663,9 +663,10 @@ class PodService(
         }
     }
 
-    fun watchLog(requestId: String): InputStream? {
+    fun watchLog(requestId: String): Pair<Closeable, InputStream>? {
         val pod = findPods(requestId).firstOrNull() ?: return null
-        return k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).watchLog().output
+        val res = k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).watchLog()
+        return Pair(res, res.output)
     }
 
     fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int): Tunnel {

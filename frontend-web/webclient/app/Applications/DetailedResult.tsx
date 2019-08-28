@@ -47,9 +47,10 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const [application, setApplication] = useState<WithAppInvocation | null>(null);
     const [interactiveLink, setInteractiveLink] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<number>(-1);
+    const [xtermRef, appendToXterm, resetXterm] = useXTerm();
+
     const jobId = props.match.params.jobId;
     const outputFolder = jobWithStatus && jobWithStatus.outputFolder ? jobWithStatus.outputFolder : "";
-    const [xtermRef, appendToXterm, resetXterm] = useXTerm();
 
     async function fetchJob() {
         const {response} = await Cloud.get<JobWithStatus>(hpcJobQuery(jobId));

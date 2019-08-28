@@ -17,6 +17,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import java.io.Closeable
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -25,7 +26,7 @@ class AppKubernetesController(
     private val vncService: VncService,
     private val webService: WebService
 ) : Controller {
-    private val streams = HashMap<String, Boolean>()
+    private val streams = HashMap<String, Closeable>()
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppKubernetesDescriptions.cleanup) {
@@ -44,13 +45,12 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.cancelWSStream) {
-            streams.remove(request.streamId)
+            streams.remove(request.streamId)?.close()
             ok(Unit)
         }
 
         implement(AppKubernetesDescriptions.followWSStream) {
             val streamId = UUID.randomUUID().toString()
-            streams[streamId] = true
             sendWSMessage(InternalFollowWSStreamResponse(streamId))
 
             // We send all the lines that the client has missed
@@ -65,22 +65,29 @@ class AppKubernetesController(
             // Then we set up the subscription
             coroutineScope {
                 launch(Dispatchers.IO) {
-                    val logStream = podService.watchLog(request.job.id) ?: return@launch
+                    log.info("We are now watching the log of ${request.job.id}")
+                    val (resource, logStream) = podService.watchLog(request.job.id) ?: return@launch
+                    streams[streamId] = resource
+                    log.info("Watch stream obtained!")
 
                     withContext<WSCall> {
                         ctx.session.addOnCloseHandler {
-                            logStream.close()
+                            log.info("Closing connection!")
+                            resource.close()
                         }
                     }
 
                     val buffer = CharArray(4096)
                     val reader = logStream.reader()
-                    while (streams[streamId] == true) {
+                    while (streams[streamId] != null) {
                         val read = reader.read(buffer)
                         if (read == -1) break
+                        log.info("Read $read bytes from stream...")
 
                         sendWSMessage(InternalFollowWSStreamResponse(streamId, String(buffer, 0, read), null))
                     }
+
+                    log.info("End of log")
                 }.join()
             }
 

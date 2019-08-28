@@ -84,6 +84,17 @@ class StreamFollowService<DBSession>(
         var lastStatus: String? = null
         var lastFailedState: JobState? = null
         var lastState: JobState? = null
+        var streamId: String? = null
+
+        suspend fun cancelStream() {
+            val capturedStreamId = streamId
+            if (capturedStreamId != null) {
+                backend.cancelWSStream.call(
+                    CancelWSStreamRequest(capturedStreamId),
+                    serviceClientWS
+                )
+            }
+        }
 
         var activeSubscription: Job? = null
         while (true) {
@@ -93,17 +104,8 @@ class StreamFollowService<DBSession>(
                 if (activeSubscription == null) {
                     // setup a subscription
                     activeSubscription = launch(Dispatchers.IO) {
-                        var streamId: String? = null
                         callContext.withContext<WSCall> {
-                            ctx.session.addOnCloseHandler {
-                                val capturedStreamId = streamId
-                                if (capturedStreamId != null) {
-                                    backend.cancelWSStream.call(
-                                        CancelWSStreamRequest(capturedStreamId),
-                                        serviceClientWS
-                                    )
-                                }
-                            }
+                            ctx.session.addOnCloseHandler { cancelStream() }
                         }
 
                         backend.followWSStream.subscribe(
@@ -121,6 +123,10 @@ class StreamFollowService<DBSession>(
                         )
                     }
                 }
+            }
+
+            if (job.currentState.isFinal()) {
+                cancelStream()
             }
 
             if (lastState != job.currentState || lastStatus != job.status || lastFailedState != job.failedState) {
