@@ -39,7 +39,8 @@ class LookupController<Ctx : FSUserContext>(
                     request.normalize(),
                     request.sortBy ?: FileSortBy.TYPE,
                     request.order ?: SortOrder.ASCENDING,
-                    attributes
+                    attributes,
+                    request.type
                 )
 
                 audit(SingleFileAudit(stat.fileId, request))

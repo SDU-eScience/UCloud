@@ -1,31 +1,30 @@
-import * as React from "react";
-import * as Pagination from "Pagination";
-import {connect} from "react-redux";
 import {ApplicationCard} from "Applications/Card";
-import {fileTablePage} from "Utilities/FileUtilities";
-import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
-import {HeaderSearchType, ReduxObject, emptyPage} from "DefaultObjects";
-import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Dispatch} from "redux";
-import {AdvancedSearchRequest, FileType} from "Files";
-import * as SSActions from "./Redux/SearchActions";
-import Hide from "ui-components/Hide";
-import {MainContainer} from "MainContainer/MainContainer";
-import {toggleFilesSearchHidden, setFilename} from "Files/Redux/DetailedFileSearchActions";
+import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppName} from "Applications/Redux/DetailedApplicationSearchActions";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {emptyPage, HeaderSearchType, ReduxObject} from "DefaultObjects";
+import {AdvancedSearchRequest, FileType} from "Files";
+import DetailedFileSearch from "Files/DetailedFileSearch";
+import {EmbeddedFileTable} from "Files/FileTable"
+import {setFilename, toggleFilesSearchHidden} from "Files/Redux/DetailedFileSearchActions";
+import {MainContainer} from "MainContainer/MainContainer";
+import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage} from "Navigation/Redux/StatusActions";
+import * as Pagination from "Pagination";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {SelectableText, SelectableTextWrapper} from "ui-components";
+import {GridCardGroup} from "ui-components/Grid";
+import Hide from "ui-components/Hide";
+import {SidebarPages} from "ui-components/Sidebar";
+import {Spacer} from "ui-components/Spacer";
+import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
-import {GridCardGroup} from "ui-components/Grid";
-import {SidebarPages} from "ui-components/Sidebar";
-import {setActivePage} from "Navigation/Redux/StatusActions";
-import {Spacer} from "ui-components/Spacer";
 import {prettierString} from "UtilityFunctions";
-import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import DetailedFileSearch from "Files/DetailedFileSearch";
-import {SelectableTextWrapper, SelectableText} from "ui-components";
-import {EmbeddedFileTable} from "Files/FileTable"
-import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
+import * as SSActions from "./Redux/SearchActions";
 
 function Search(props: SearchProps) {
     React.useEffect(() => {
@@ -39,7 +38,7 @@ function Search(props: SearchProps) {
             props.toggleAdvancedSearch();
             props.clear();
             props.setRefresh();
-        }
+        };
     }, []);
 
     const query = (): string => queryFromProps(props);
@@ -47,11 +46,11 @@ function Search(props: SearchProps) {
     const queryFromProps = (props: SearchProps): string => {
         return getQueryParamOrElse(props, "query", "");
     };
-    
+
     const fileSearchBody = (): AdvancedSearchRequest => {
         // FIXME Duplicate code
         const {...fileSearch} = props.fileSearch;
-        let fileTypes: [FileType?, FileType?] = [];
+        const fileTypes: [FileType?, FileType?] = [];
         if (fileSearch.allowFiles) fileTypes.push("FILE");
         if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
         const createdAt = {
@@ -67,12 +66,14 @@ function Search(props: SearchProps) {
             fileName: !!fileSearch.fileName ? fileSearch.fileName : query(),
             extensions: [...fileSearch.extensions],
             fileTypes,
-            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
-            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            createdAt: typeof createdAt.after === "number" ||
+                       typeof createdAt.before === "number" ? createdAt : undefined,
+            modifiedAt: typeof modifiedAt.after === "number" ||
+                        typeof modifiedAt.before === "number" ? modifiedAt : undefined,
             includeShares: fileSearch.includeShares,
             itemsPerPage: props.files.itemsPerPage || 25,
             page: 0
-        }
+        };
     };
 
     React.useEffect(() => {
@@ -86,13 +87,13 @@ function Search(props: SearchProps) {
         props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
     };
 
-    function fetchAll(search: string, itemsPerPage?: number) {
+    function fetchAll(searchQuery: string, itemsPerPage?: number) {
         props.searchFiles({
             ...fileSearchBody(),
-            fileName: search,
+            fileName: searchQuery,
             itemsPerPage: itemsPerPage || props.files.itemsPerPage
         });
-        props.searchApplications(search, 0, itemsPerPage || props.applications.itemsPerPage);
+        props.searchApplications(searchQuery, 0, itemsPerPage || props.applications.itemsPerPage);
     }
 
     const refreshFiles = () => props.searchFiles({...fileSearchBody()});

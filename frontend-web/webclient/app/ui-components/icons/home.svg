@@ -32,14 +32,14 @@
     <path
        id="path843"
        d="m 23.8125,120.78751 10.583333,10.58333 63.5,-52.916673 63.499997,52.916673 10.58334,-10.58333 -74.083337,-63.500009 z"
-       style="fill:#333333;fill-opacity:1;stroke:none;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+       style="fill-opacity:1;stroke:none;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
     <path
        id="path872"
        d="m 97.895829,85.4363 -50.27083,41.61771 v 57.49014 h 34.316119 v -34.94472 c 0,-4.16209 2.06132,-11.64059 15.954713,-11.62828 13.893389,0.0123 15.957809,7.40591 15.957809,11.71018 v 34.86286 h 34.31302 v -57.49014 z"
-       style="fill:#333333;fill-opacity:1;stroke:none;stroke-width:0.25438306px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+       style="fill-opacity:1;stroke:none;stroke-width:0.25438306px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
     <path
        id="path880"
        d="M 148.16666,96.207033 128.61316,78.983337 V 62.539438 l 19.5535,0.03973 z"
-       style="fill:#333333;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+       style="fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
   </g>
 </svg>

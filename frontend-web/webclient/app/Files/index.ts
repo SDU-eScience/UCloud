@@ -1,10 +1,8 @@
-import {Page, ClearRefresh, Operation, PredicatedOperation} from "Types";
-import Cloud from "Authentication/lib";
-import * as React from "react";
-import PromiseKeeper from "PromiseKeeper";
 import {ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
-import {Times} from "./Redux/DetailedFileSearchActions";
+import * as React from "react";
+import {ClearRefresh, Operation, Page, PredicatedOperation} from "Types";
 import {RouterLocationProps} from "Utilities/URIUtilities";
+import {Times} from "./Redux/DetailedFileSearchActions";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -15,25 +13,25 @@ export type FileType = "FILE" | "DIRECTORY" | "FAVFOLDER" | "SHARESFOLDER" | "TR
     "SHARED_FS";
 
 export interface File {
-    fileType: FileType
-    path: string
-    creator: string | null
-    fileId: string | null
-    createdAt: number | null
-    modifiedAt: number | null
-    ownerName: string | null
-    size: number | null
-    acl: Acl[] | null
-    favorited: boolean | null
-    sensitivityLevel: SensitivityLevelMap | null
-    ownSensitivityLevel: SensitivityLevelMap | null
-    mockTag?: string
+    fileType: FileType;
+    path: string;
+    creator: string | null;
+    fileId: string | null;
+    createdAt: number | null;
+    modifiedAt: number | null;
+    ownerName: string | null;
+    size: number | null;
+    acl: Acl[] | null;
+    favorited: boolean | null;
+    sensitivityLevel: SensitivityLevelMap | null;
+    ownSensitivityLevel: SensitivityLevelMap | null;
+    mockTag?: string;
 }
 
 export interface Acl {
-    entity: string
-    rights: string[]
-    group: boolean
+    entity: string;
+    rights: string[];
+    group: boolean;
 }
 
 // FIXME: SortBy is subset of {FileResource}
@@ -195,28 +193,27 @@ export interface SortByDropdownProps {
 export type FileOperation = Operation<File> | PredicatedOperation<File>
 
 export interface ContextButtonsProps {
-    createFolder: () => void
-    showUploader: () => void
-    inTrashFolder: boolean
-    toHome: () => void
+    createFolder: () => void;
+    showUploader: () => void;
+    inTrashFolder: boolean;
+    toHome: () => void;
 }
 
 
 export interface DetailedFileSearchOperations {
-    toggleHidden: () => void
-    addExtensions: (ext: string[]) => void
-    removeExtensions: (ext: string[]) => void
-    toggleFolderAllowed: () => void
-    toggleFilesAllowed: () => void
-    toggleIncludeShares: () => void
-    addSensitivity: (sensitivity: SensitivityLevel) => void
-    removeSensitivity: (sensitivity: SensitivityLevel[]) => void
-    addTags: (tags: string[]) => void
-    removeTags: (tags: string[]) => void
-    setFilename: (filename: string) => void
-    fetchPage: (request: AdvancedSearchRequest, callback?: () => void) => void
-    setLoading: (loading: boolean) => void
-    setTimes: (times: Times) => void
+    toggleHidden: () => void;
+    addExtensions: (ext: string[]) => void;
+    removeExtensions: (ext: string[]) => void;
+    toggleFolderAllowed: () => void;
+    toggleFilesAllowed: () => void;
+    toggleIncludeShares: () => void;
+    addSensitivity: (sensitivity: SensitivityLevel) => void;
+    removeSensitivity: (sensitivity: SensitivityLevel[]) => void;
+    addTags: (tags: string[]) => void;
+    removeTags: (tags: string[]) => void;
+    setFilename: (filename: string) => void;
+    setLoading: (loading: boolean) => void;
+    setTimes: (times: Times) => void;
 }
 
 export type DetailedFileSearchStateProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
@@ -224,20 +221,20 @@ export type DetailedFileSearchStateProps = DetailedFileSearchReduxState & Detail
 export type SensitivityLevel = "Private" | "Confidential" | "Sensitive";
 
 export interface DetailedFileSearchReduxState {
-    hidden: boolean
-    allowFolders: boolean
-    allowFiles: boolean
-    fileName: string
-    extensions: Set<string>
-    tags: Set<string>
-    sensitivities: Set<SensitivityLevel>
-    createdBefore?: Date
-    createdAfter?: Date
-    modifiedBefore?: Date
-    modifiedAfter?: Date
-    includeShares: boolean
-    error?: string
-    loading: boolean
+    hidden: boolean;
+    allowFolders: boolean;
+    allowFiles: boolean;
+    fileName: string;
+    extensions: Set<string>;
+    tags: Set<string>;
+    sensitivities: Set<SensitivityLevel>;
+    createdBefore?: Date;
+    createdAfter?: Date;
+    modifiedBefore?: Date;
+    modifiedAfter?: Date;
+    includeShares: boolean;
+    error?: string;
+    loading: boolean;
 }
 
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps & {invalidPath: boolean}

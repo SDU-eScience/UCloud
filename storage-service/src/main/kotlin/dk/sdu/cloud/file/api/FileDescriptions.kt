@@ -178,7 +178,8 @@ data class ListDirectoryRequest(
     override val page: Int?,
     val order: SortOrder?,
     val sortBy: FileSortBy?,
-    val attributes: String? = null
+    val attributes: String? = null,
+    val type: FileType? = null
 ) : WithPaginationRequest
 
 data class LookupFileInDirectoryRequest(
@@ -281,6 +282,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 +boundTo(ListDirectoryRequest::order)
                 +boundTo(ListDirectoryRequest::sortBy)
                 +boundTo(ListDirectoryRequest::attributes)
+                +boundTo(ListDirectoryRequest::type)
             }
 
             headers {

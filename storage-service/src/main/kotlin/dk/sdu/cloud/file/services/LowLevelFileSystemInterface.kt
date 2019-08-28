@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.util.FSException
@@ -71,7 +72,8 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         mode: Set<FileAttribute>,
         sortBy: FileSortBy? = null,
         paginationRequest: NormalizedPaginationRequest? = null,
-        order: SortOrder? = null
+        order: SortOrder? = null,
+        type: FileType? = null
     ): FSResult<Page<FileRow>>
 
     suspend fun listDirectory(
@@ -79,9 +81,10 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         directory: String,
         mode: Set<FileAttribute>,
         sortBy: FileSortBy? = null,
-        paginationRequest: NormalizedPaginationRequest? = null
+        paginationRequest: NormalizedPaginationRequest? = null,
+        type: FileType? = null
     ): FSResult<List<FileRow>> {
-        val res = listDirectoryPaginated(ctx, directory, mode, sortBy, paginationRequest)
+        val res = listDirectoryPaginated(ctx, directory, mode, sortBy, paginationRequest, type = type)
         if (res.statusCode != 0) {
             return FSResult(res.statusCode, null)
         }
