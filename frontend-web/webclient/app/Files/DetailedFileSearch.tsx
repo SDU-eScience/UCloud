@@ -33,6 +33,7 @@ import {
 interface DetailedFileSearchGivenProps {
     history: History;
     defaultFilename?: string;
+    controlledSearch?: [string, (path: string) => void];
     cantHide?: boolean;
     omitFileName?: boolean;
 }
@@ -62,6 +63,9 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                 Search</OutlineButton>);
         }
 
+        const value = this.props.controlledSearch ? this.props.controlledSearch[0] : this.props.fileName;
+        const setFilename = this.props.controlledSearch ? this.props.controlledSearch[1] : this.props.setFilename;
+
         return (
             <>
                 {!cantHide ? <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced
@@ -76,8 +80,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 mt="-2px"
                                 width="100%"
                                 placeholder="Filename must include..."
-                                value={this.props.fileName}
-                                onChange={({target}) => this.props.setFilename(target.value)}
+                                value={value}
+                                onChange={({target}) => setFilename(target.value)}
                             />
                             <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
                             <InputGroup>

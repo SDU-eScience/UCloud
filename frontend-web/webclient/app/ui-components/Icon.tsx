@@ -9,7 +9,7 @@ import {Cursor} from "./Types";
 
 type IconOption = keyof typeof icons;
 
-const IconBase = ({name, size, theme, color2, ...props}): JSX.Element => {
+const IconBase = ({name, size, theme, color2, spin, ...props}): JSX.Element => {
   const Component = icons[name];
   if (!Component) return (<></>);
   return <Component width={size} height={size} color2={color2 ? theme.colors[color2] : undefined} {...props} />;
@@ -32,13 +32,7 @@ export interface IconProps extends SpaceProps, ColorProps {
 }
 
 const spin = (props: {spin?: boolean}) => props.spin ? `
-  -webkit-animation: spin 1s linear infinite; /* Safari */
   animation: spin 1s linear infinite;
-  @-webkit-keyframes spin {
-    0% { -webkit-transform: rotate(0deg); }
-    100% { -webkit-transform: rotate(360deg); }
-  }
-
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }

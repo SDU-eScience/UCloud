@@ -221,20 +221,20 @@ export type DetailedFileSearchStateProps = DetailedFileSearchReduxState & Detail
 export type SensitivityLevel = "Private" | "Confidential" | "Sensitive";
 
 export interface DetailedFileSearchReduxState {
-    hidden: boolean
-    allowFolders: boolean
-    allowFiles: boolean
-    fileName: string
-    extensions: Set<string>
-    tags: Set<string>
-    sensitivities: Set<SensitivityLevel>
-    createdBefore?: Date
-    createdAfter?: Date
-    modifiedBefore?: Date
-    modifiedAfter?: Date
-    includeShares: boolean
-    error?: string
-    loading: boolean
+    hidden: boolean;
+    allowFolders: boolean;
+    allowFiles: boolean;
+    fileName: string;
+    extensions: Set<string>;
+    tags: Set<string>;
+    sensitivities: Set<SensitivityLevel>;
+    createdBefore?: Date;
+    createdAfter?: Date;
+    modifiedBefore?: Date;
+    modifiedAfter?: Date;
+    includeShares: boolean;
+    error?: string;
+    loading: boolean;
 }
 
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps & {invalidPath: boolean}

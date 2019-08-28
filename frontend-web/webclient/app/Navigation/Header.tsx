@@ -1,49 +1,49 @@
-import * as React from "react";
+import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {Cloud} from "Authentication/SDUCloudObject"
-import {connect} from "react-redux";
-import Link from "ui-components/Link";
-import {Dispatch} from "redux";
 import Avatar from "AvataaarLib";
+import BackgroundTask from "BackgroundTasks/BackgroundTask";
+import {HeaderSearchType, KeyCode, ReduxObject} from "DefaultObjects";
+import DetailedFileSearch from "Files/DetailedFileSearch";
 import {History} from "history";
 import {HeaderStateToProps} from "Navigation";
-import {ReduxObject, KeyCode, HeaderSearchType} from "DefaultObjects";
+import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
+import Notification from "Notifications";
+import * as React from "react";
+import {connect} from "react-redux";
+import {RouteComponentProps, withRouter} from "react-router";
+import {Dispatch} from "redux";
+import styled from "styled-components";
+import {SpaceProps} from "styled-system";
 import {
-    Flex,
-    Box,
-    Text,
-    Icon,
-    Relative,
     Absolute,
+    Box,
+    Divider,
+    ExternalLink,
+    Flex,
+    Hide,
+    Icon,
     Input,
     Label,
-    Support,
-    Hide,
-    Divider,
+    Relative,
     SelectableText,
     SelectableTextWrapper,
-    ExternalLink
+    Support,
+    Text
 } from "ui-components";
-import Notification from "Notifications";
-import styled from "styled-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {searchPage} from "Utilities/SearchUtilities";
-import BackgroundTask from "BackgroundTasks/BackgroundTask";
-import {withRouter, RouteComponentProps} from "react-router";
-import DetailedFileSearch from "Files/DetailedFileSearch";
-import {Dropdown} from "ui-components/Dropdown";
-import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import {inDevEnvironment, prettierString, isLightThemeStored} from "UtilityFunctions";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {Dropdown} from "ui-components/Dropdown";
+import Link from "ui-components/Link";
 import {TextSpan} from "ui-components/Text";
+import {ThemeToggler} from "ui-components/ThemeToggle";
 import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
-import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
-import {SpaceProps} from "styled-system";
-import {ThemeToggler} from "ui-components/ThemeToggle";
+import {searchPage} from "Utilities/SearchUtilities";
+import {inDevEnvironment, isLightThemeStored, prettierString} from "UtilityFunctions";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteComponentProps {
-    history: History
-    toggleTheme: () => void
+    history: History;
+    toggleTheme: () => void;
 }
 
 const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
@@ -52,7 +52,6 @@ const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || in
 function Header(props: HeaderProps) {
     if (!Cloud.isLoggedIn) return null;
 
-    const searchRef = React.useRef<HTMLInputElement>(null);
     React.useEffect(() => {
         props.fetchAvatar();
     }, []);
@@ -66,8 +65,7 @@ function Header(props: HeaderProps) {
             <Hide xs sm md>
                 <Search
                     searchType={props.prioritizedSearch}
-                    navigate={() => history.push(searchPage(prioritizedSearch, searchRef.current && searchRef.current.value || ""))}
-                    searchRef={searchRef}
+                    navigate={path => history.push(searchPage(prioritizedSearch, path))}
                     setSearchType={st => props.setSearchType(st)}
                 />
             </Hide>
@@ -176,7 +174,7 @@ const SearchInput = styled(Flex)`
     input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
         color: white;
     }
-    
+
     input:focus::-webkit-input-placeholder, input:focus::-moz-placeholder, input:focus::-ms-input-placeholder, input:focus::-moz-placeholder {
         color: black;
     }
@@ -191,7 +189,7 @@ const SearchInput = styled(Flex)`
 
     & > input:focus {
         color: black;
-        background-color: white; 
+        background-color: white;
     }
 
     & > ${Dropdown} > ${Text} > input {
@@ -204,13 +202,13 @@ const SearchInput = styled(Flex)`
 
 
 interface SearchProps {
-    searchRef: React.RefObject<HTMLInputElement>;
     searchType: HeaderSearchType;
-    navigate: () => void;
+    navigate: (path: string) => void;
     setSearchType: (st: HeaderSearchType) => void;
 }
 
-const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) => {
+const Search = ({navigate, searchType, setSearchType}: SearchProps) => {
+    const [search, setSearch] = React.useState("");
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     return (<Relative>
         <SearchInput>
@@ -218,11 +216,13 @@ const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) =
                 pl="30px"
                 id="search_input"
                 type="text"
-                ref={searchRef}
+                value={search}
                 noBorder
                 onKeyDown={e => {
-                    if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate();
+                    if (e.keyCode === KeyCode.ENTER && (search))
+                        navigate(search);
                 }}
+                onChange={({target}) => setSearch(target.value)}
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">
@@ -253,18 +253,16 @@ const Search = ({searchRef, navigate, searchType, setSearchType}: SearchProps) =
                     <Box mr="auto" />
                 </SelectableTextWrapper>
                 {searchType === "files" ?
-                    <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide /> :
+                    <DetailedFileSearch controlledSearch={[search, setSearch]} cantHide /> :
 
                     searchType === "applications" ?
                         <DetailedApplicationSearch
-                            defaultAppName={searchRef.current && searchRef.current.value || undefined} /> :
-
-                        null}
+                        controlledSearch={[search, setSearch]} defaultAppName={search} /> : null}
             </ClickableDropdown>
             {!Cloud.isLoggedIn ? <Login /> : null}
         </SearchInput>
     </Relative>
-    )
+    );
 };
 
 const ClippedBox = styled(Flex)`
@@ -274,7 +272,7 @@ const ClippedBox = styled(Flex)`
 `;
 
 interface UserAvatar extends SpaceProps {
-    avatar: AvatarType
+    avatar: AvatarType;
 }
 
 export const UserAvatar = ({avatar}: UserAvatar) => (
@@ -297,8 +295,8 @@ export const UserAvatar = ({avatar}: UserAvatar) => (
     </ClippedBox>);
 
 interface HeaderOperations {
-    fetchAvatar: () => void
-    setSearchType: (st: HeaderSearchType) => void
+    fetchAvatar: () => void;
+    setSearchType: (st: HeaderSearchType) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
