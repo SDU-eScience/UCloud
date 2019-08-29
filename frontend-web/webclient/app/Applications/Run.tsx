@@ -431,43 +431,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (response.ok) this.importParameters(new File([await response.blob()], "params"))
     };
 
-    private exportParameters() {
-        const {application, schedulingOptions, parameterValues, mountedFolders} = this.state;
-        const siteVersion = this.siteVersion;
-
-        if (!application) return;
-        const appInfo = application.metadata;
-
-        const jobInfo = extractJobInfo(schedulingOptions);
-        const element = document.createElement("a");
-
-        const values: { [key: string]: string } = {};
-
-        for (const [key, ref] of parameterValues[Symbol.iterator]()) {
-            if (ref && ref.current) values[key] = ref.current.value;
-        }
-
-        element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-            siteVersion: siteVersion,
-            application: {
-                name: appInfo.name,
-                version: appInfo.version
-            },
-            parameters: values,
-            mountedFolders: mountedFolders.map(it =>
-                ({ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
-            numberOfNodes: jobInfo.numberOfNodes,
-            tasksPerNode: jobInfo.tasksPerNode,
-            maxTime: jobInfo.maxTime,
-        })));
-
-        element.setAttribute("download", `${application.metadata.name}-${application.metadata.version}-params.json`);
-        element.style.display = "none";
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-    }
-
     private addFolder() {
         this.setState(s => ({
             mountedFolders: s.mountedFolders.concat([
@@ -537,12 +500,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 sidebar={
                     <VerticalButtonGroup>
-                        <OutlineButton
-                            fullWidth
-                            color="darkGreen"
-                            onClick={() => this.exportParameters()}>
-                            Export parameters
-                        </OutlineButton>
                         <OutlineButton
                             onClick={() => importParameterDialog(
                                 file => this.importParameters(file),

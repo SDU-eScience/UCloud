@@ -146,6 +146,8 @@ class JobOrchestrator<DBSession>(
         log.debug("Switching state and preparing job...")
         db.withTransaction { session -> jobDao.create(session, jobWithToken) }
         handleStateChange(jobWithToken, initialState)
+
+        jobFileService.exportParameterFile(jobWithToken, req.parameters)
         return initialState.systemId
     }
 
@@ -318,8 +320,6 @@ class JobOrchestrator<DBSession>(
                 }
 
                 JobState.CANCELING, JobState.TRANSFER_SUCCESS -> {
-                    jobFileService.initializeResultFolder(jobWithToken, isReplay)
-
                     if (backendConfig.useWorkspaces) {
                         OrchestrationScope.launch {
                             jobFileService.transferWorkspace(jobWithToken, isReplay)
