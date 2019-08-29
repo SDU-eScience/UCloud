@@ -399,7 +399,7 @@ export default class SDUCloud {
     createOneTimeTokenWithPermission(permission, disallowProjects: boolean = false): Promise<any> {
         return this.receiveAccessTokenOrRefreshIt(disallowProjects)
             .then(token => {
-                let oneTimeToken = `${this.context}${this.authContext}/request/?audience=${permission}`;
+                let oneTimeToken = this.computeURL(this.authContext, `/request/?audience=${permission}`);
                 return new Promise((resolve, reject) => {
                     let req = new XMLHttpRequest();
                     req.open("POST", oneTimeToken);

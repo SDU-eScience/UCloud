@@ -3,19 +3,7 @@ package dk.sdu.cloud.app.orchestrator
 import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
 import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
 import dk.sdu.cloud.app.orchestrator.rpc.JobController
-import dk.sdu.cloud.app.orchestrator.services.AppStoreService
-import dk.sdu.cloud.app.orchestrator.services.ComputationBackendService
-import dk.sdu.cloud.app.orchestrator.services.JobFileService
-import dk.sdu.cloud.app.orchestrator.services.JobHibernateDao
-import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
-import dk.sdu.cloud.app.orchestrator.services.JobQueryService
-import dk.sdu.cloud.app.orchestrator.services.JobVerificationService
-import dk.sdu.cloud.app.orchestrator.services.OrchestrationScope
-import dk.sdu.cloud.app.orchestrator.services.SharedMountVerificationService
-import dk.sdu.cloud.app.orchestrator.services.StreamFollowService
-import dk.sdu.cloud.app.orchestrator.services.ToolStoreService
-import dk.sdu.cloud.app.orchestrator.services.VncService
-import dk.sdu.cloud.app.orchestrator.services.WebService
+import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -73,7 +61,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             }
         }
 
-        val jobFileService = JobFileService(serviceClient, userClientFactory)
+        val parameterExportService = ParameterExportService()
+        val jobFileService = JobFileService(serviceClient, userClientFactory, parameterExportService)
 
         val vncService = VncService(computationBackendService, db, jobHibernateDao, serviceClient)
         val webService = WebService(computationBackendService, db, jobHibernateDao, serviceClient)

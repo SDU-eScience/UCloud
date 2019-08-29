@@ -10,20 +10,8 @@ import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.ExtractRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SimpleUploadRequest
-import dk.sdu.cloud.file.api.WorkspaceDescriptions
-import dk.sdu.cloud.file.api.WorkspaceMount
-import dk.sdu.cloud.file.api.Workspaces
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
@@ -34,8 +22,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.io.core.ExperimentalIoApi
 import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -44,7 +34,8 @@ import java.util.*
 
 class JobFileService(
     private val serviceClient: AuthenticatedClient,
-    private val userClientFactory: (accessToken: String?, refreshToken: String?) -> AuthenticatedClient
+    private val userClientFactory: (accessToken: String?, refreshToken: String?) -> AuthenticatedClient,
+    private val parameterExportService: ParameterExportService
 ) {
     suspend fun initializeResultFolder(
         jobWithToken: VerifiedJobWithAccessToken,
@@ -70,12 +61,41 @@ class JobFileService(
         ).throwIfInternal()
 
         if (!dirResp.statusCode.isSuccess()) {
-            // We allow conflicts during replay
-            if (isReplay && dirResp.statusCode == HttpStatusCode.Conflict) return
+            // We always allow conflicts
+            if (isReplay || dirResp.statusCode == HttpStatusCode.Conflict) return
 
             // Throw if we didn't allow this case
             throw RPCException.fromStatusCode(dirResp.statusCode)
         }
+    }
+
+    /**
+     * Export the parameter file to the job directory at the beginning of the job.
+     *
+     * @param jobWithToken The job, including the token
+     * @param rawParameters The raw input parameters before parsing
+     */
+    @UseExperimental(ExperimentalIoApi::class)
+    suspend fun exportParameterFile(jobWithToken: VerifiedJobWithAccessToken, rawParameters: Map<String, Any?>) {
+        initializeResultFolder(jobWithToken)
+        val userClient = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
+
+        val fileData =
+            defaultMapper.writeValueAsBytes(parameterExportService.exportParameters(jobWithToken.job, rawParameters))
+
+        MultiPartUploadDescriptions.simpleUpload.call(
+            SimpleUploadRequest(
+                File(jobFolder(jobWithToken.job), "JobParameters.json").path,
+                sensitivity = null,
+                file = BinaryStream.outgoingFromChannel(
+                    fileData.inputStream().toByteReadChannel(),
+                    fileData.size.toLong(),
+                    ContentType.Application.Json
+                ),
+                policy = WriteConflictPolicy.RENAME
+            ),
+            userClient
+        )
     }
 
     suspend fun acceptFile(
