@@ -18,6 +18,6 @@ export const shares: Page<SharesByPath> = {
             }]
         }],
     pagesInTotal: 0
-}
+};
 
 test("", () => undefined);

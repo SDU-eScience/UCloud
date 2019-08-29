@@ -378,3 +378,364 @@ exports[`PP Visible PP-Component 1`] = `
   />
 </div>
 `;
+
+exports[`Share prompt 1`] = `
+.c2 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.c9 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: 20px;
+}
+
+.c0 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c10 {
+  -webkit-font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #c00;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+  margin-right: 5px;
+}
+
+.c10:disabled {
+  opacity: 0.25;
+}
+
+.c10:focus {
+  outline: none;
+}
+
+.c10:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c11 {
+  -webkit-font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #00C05A;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c11:disabled {
+  opacity: 0.25;
+}
+
+.c11:focus {
+  outline: none;
+}
+
+.c11:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c1 {
+  border: 0;
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  margin-left: 0;
+  margin-right: 0;
+  border-color: #c9d3df;
+}
+
+.c8 {
+  display: block;
+  font-family: inherit;
+  color: inherit;
+  background-color: transparent;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+  border-color: #c9d3df;
+  box-shadow: 0 0 0 1px #c9d3df;
+  border-radius: 5px;
+  width: 100%;
+}
+
+.c8::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c8::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c8:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c8::placeholder {
+  color: #8393A7;
+}
+
+.c8:focus {
+  outline: none;
+  background-color: transparent;
+}
+
+.c8:focus {
+  outline: 0;
+  border-color: #006aff;
+  box-shadow: 0 0 0 1px #006aff,inset 0 0 0 1px #006aff;
+}
+
+.c3 {
+  font-size: 10px;
+  -webkit-letter-spacing: 0.2px;
+  -moz-letter-spacing: 0.2px;
+  -ms-letter-spacing: 0.2px;
+  letter-spacing: 0.2px;
+  display: block;
+  margin: 0;
+  font-size: 14px;
+  color: #000;
+  font-weight: 700;
+  width: 100%;
+}
+
+.c4 {
+  display: inline-block;
+  color: #c9d3df;
+}
+
+.c7 {
+  display: inline-block;
+  color: #c9d3df;
+}
+
+.c7:hover {
+  color: #006aff;
+}
+
+.c5 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  opacity: 0;
+  position: absolute;
+  z-index: 0;
+}
+
+.c5:focus {
+  box-shadow: none;
+}
+
+.c5:checked ~ svg {
+  color: #006aff;
+}
+
+.c5:disabled ~ svg {
+  color: #c9d3df;
+}
+
+.c6 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  vertical-align: middle;
+}
+
+<form
+  onSubmit={[Function]}
+>
+  <h3
+    className="c0"
+    cursor="inherit"
+    fontSize={4}
+  >
+    Share
+  </h3>
+  <hr
+    className="c1"
+  />
+  <div
+    className="c2"
+    cursor="inherit"
+  >
+    <label
+      className="c3"
+      color="black"
+      fontSize={1}
+      fontWeight="bold"
+      width="100%"
+    >
+      <div
+        checked={true}
+        className="c4"
+      >
+        <input
+          checked={true}
+          className="c5"
+          name="right"
+          onChange={[Function]}
+          onClick={[Function]}
+          type="radio"
+        />
+        <svg
+          className="c6"
+          cursor="inherit"
+          fill="currentcolor"
+          height={24}
+          viewBox="0 0 24 24"
+          width={24}
+        >
+          <path
+            d="M12 7c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0-5C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"
+          />
+        </svg>
+      </div>
+       
+       
+       Can view
+    </label>
+    <label
+      className="c3"
+      color="black"
+      fontSize={1}
+      fontWeight="bold"
+      width="100%"
+    >
+      <div
+        checked={false}
+        className="c7"
+      >
+        <input
+          checked={false}
+          className="c5"
+          name="right"
+          onChange={[Function]}
+          onClick={[Function]}
+          type="radio"
+        />
+        <svg
+          className="c6"
+          cursor="inherit"
+          fill="currentcolor"
+          height={24}
+          viewBox="0 0 24 24"
+          width={24}
+        >
+          <path
+            d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"
+          />
+        </svg>
+      </div>
+       
+       
+       Can edit
+    </label>
+  </div>
+  <label
+    className="c3"
+    color="black"
+    fontSize={1}
+    fontWeight="bold"
+    width="100%"
+  >
+    <input
+      className="c8"
+      id="default"
+      placeholder="Enter username..."
+      required={true}
+      type="text"
+      width="100%"
+    />
+  </label>
+  <div
+    className="c9"
+    cursor="inherit"
+  >
+    <button
+      className="c10"
+      color="red"
+      onClick={[Function]}
+      type="button"
+    >
+      Cancel
+    </button>
+    <button
+      className="c11"
+      color="green"
+      onClick={[Function]}
+    >
+      Share
+    </button>
+  </div>
+</form>
+`;

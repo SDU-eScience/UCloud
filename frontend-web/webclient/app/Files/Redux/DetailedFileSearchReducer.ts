@@ -1,6 +1,6 @@
+import {initFilesDetailedSearch} from "DefaultObjects";
 import {DetailedFileSearchReduxState} from "Files";
 import {DetailedFileSearchActions} from "./DetailedFileSearchActions";
-import {initFilesDetailedSearch} from "DefaultObjects";
 export const DETAILED_FILES_TOGGLE_HIDDEN = "DETAILED_FILES_TOGGLE_HIDDEN";
 export const DETAILED_FILES_TOGGLE_FOLDERS = "DETAILED_FILES_TOGGLE_FOLDERS";
 export const DETAILED_FILES_TOGGLE_FILES = "DETAILED_FILES_TOGGLE_FILES";
@@ -17,7 +17,10 @@ export const DETAILED_FILES_ADD_EXTENSIONS = "DETAILED_FILES_ADD_EXTENSIONS";
 export const DETAILED_FILES_REMOVE_SENSITIVITIES = "DETAILED_FILES_REMOVE_SENSITIVITIES";
 export const DETAILED_FILES_ADD_SENSITIVITIES = "DETAILED_FILES_ADD_SENSITIVITIES";
 
-const detailedFileSearch = (state: DetailedFileSearchReduxState = initFilesDetailedSearch(), action: DetailedFileSearchActions): DetailedFileSearchReduxState => {
+const detailedFileSearch = (
+    state: DetailedFileSearchReduxState = initFilesDetailedSearch(),
+    action: DetailedFileSearchActions
+): DetailedFileSearchReduxState => {
     switch (action.type) {
         case DETAILED_FILES_TOGGLE_HIDDEN: {
             return {...state, hidden: !state.hidden};

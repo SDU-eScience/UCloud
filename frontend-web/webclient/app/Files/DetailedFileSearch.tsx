@@ -206,7 +206,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 width="100%"
                                 chevron
                                 trigger={"Extension presets"}
-                                onChange={value => this.onAddPresets(value)}
+                                onChange={val => this.onAddPresets(val)}
                                 options={extensionPresets}
                             />
                             <Button

@@ -27,7 +27,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             modifiedAt: 1534858191000,
             ownerName: "user@user.telecity",
             size: 1,
-            acl: [{entity: "user3@test.dk", rights: ["WRITE", "EXECUTE"], "group": false}],
+            acl: [{entity: "user3@test.dk", rights: ["WRITE", "EXECUTE"], group: false}],
             favorited: true,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: "GOD",

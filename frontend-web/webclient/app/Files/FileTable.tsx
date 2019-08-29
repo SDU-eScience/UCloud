@@ -1,12 +1,12 @@
-import * as React from "react";
 import FileSelector from "Files/FileSelector";
-import {useCallback, useMemo, useState} from "react";
 import {defaultVirtualFolders, VirtualFileTable, VirtualFileTableProps} from "Files/VirtualFileTable";
+import * as React from "react";
+import {useCallback, useMemo, useState} from "react";
 import {RouteComponentProps, withRouter} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 
 interface ResolveHolder<T> {
-    resolve: (arg: T) => void
+    resolve: (arg: T) => void;
 }
 
 // The files table that most other clients should use as a base. This includes an embedded file selector for copy and
@@ -32,7 +32,7 @@ export const FileTable: React.FunctionComponent<VirtualFileTableProps> = props =
     }
 
     const table = useMemo(() => {
-        return <VirtualFileTable {...modifiedProps}/>
+        return <VirtualFileTable {...modifiedProps}/>;
     }, [props]);
 
     return <>

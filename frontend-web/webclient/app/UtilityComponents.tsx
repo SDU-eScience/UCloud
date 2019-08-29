@@ -85,7 +85,7 @@ export function shareDialog(): Promise<{ cancelled: true } | { username: string,
     , () => resolve({cancelled: true})));
 }
 
-function SharePrompt({resolve}) {
+export function SharePrompt({resolve}) {
     const username = React.useRef<HTMLInputElement>(null);
     const [access, setAccess] =  React.useState<"read" | "read_edit">("read");
     return (<form onSubmit={e => e.preventDefault()}>

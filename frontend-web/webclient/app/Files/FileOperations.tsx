@@ -1,5 +1,9 @@
+import {Cloud} from "Authentication/SDUCloudObject";
 import {File} from "Files/index";
-import * as UF from "UtilityFunctions";
+import * as H from "history";
+import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {AccessRight} from "Types";
 import {
     allFilesHasAccessRight, clearTrash,
     CopyOrMove,
@@ -15,31 +19,27 @@ import {
     shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {AccessRight} from "Types";
 import {addStandardDialog} from "UtilityComponents";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {SnackType} from "Snackbar/Snackbars";
-import * as H from 'history';
+import * as UF from "UtilityFunctions";
 
 export interface FileOperationCallback {
-    invokeAsyncWork: (fn: () => Promise<void>) => void
-    requestFolderCreation: () => void
-    requestReload: () => void
-    requestFileUpload: () => void
-    startRenaming: (file: File) => void
-    requestFileSelector: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>
-    history: H.History
+    invokeAsyncWork: (fn: () => Promise<void>) => void;
+    requestFolderCreation: () => void;
+    requestReload: () => void;
+    requestFileUpload: () => void;
+    startRenaming: (file: File) => void;
+    requestFileSelector: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>;
+    history: H.History;
 }
 
 export interface FileOperation {
-    text: string
-    onClick: (selectedFiles: File[], cb: FileOperationCallback) => void
-    disabled: (selectedFiles: File[]) => boolean
-    icon?: string
-    color?: string
-    outline?: boolean
-    currentDirectoryMode?: boolean
+    text: string;
+    onClick: (selectedFiles: File[], cb: FileOperationCallback) => void;
+    disabled: (selectedFiles: File[]) => boolean;
+    icon?: string;
+    color?: string;
+    outline?: boolean;
+    currentDirectoryMode?: boolean;
 }
 
 export const defaultFileOperations: FileOperation[] = [
@@ -97,9 +97,8 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Sensitivity",
-        onClick: (files, cb) => {
-            updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()})
-        },
+        onClick: (files, cb) =>
+            updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()}),
         disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) || isAnySharedFs(files),
         icon: "verified"
     },
@@ -177,8 +176,9 @@ export const defaultFileOperations: FileOperation[] = [
                 confirmText: "Delete files",
                 onConfirm: () => {
                     cb.invokeAsyncWork(async () => {
-                        const promises: { status?: number, response?: string }[] =
-                            await Promise.all(paths.map(path => Cloud.delete("/files", {path}))).then(it => it).catch(it => it);
+                        const promises: Array<{status?: number, response?: string}> =
+                            await Promise.all(paths.map(path => Cloud.delete("/files", {path})))
+                                .then(it => it).catch(it => it);
                         const failures = promises.filter(it => it.status).length;
                         if (failures > 0) {
                             snackbarStore.addSnack({
@@ -215,11 +215,9 @@ export const defaultFileOperations: FileOperation[] = [
 
                 onConfirm: () => {
                     cb.invokeAsyncWork(async () => {
-                        const promises: { status?: number, response?: string }[] =
+                        const promises: Array<{status?: number, response?: string}> =
                             await Promise
-                                .all(
-                                    files.map(it => Cloud.delete(`/app/fs/${it.fileId}`, {}))
-                                )
+                                .all(files.map(it => Cloud.delete(`/app/fs/${it.fileId}`, {})))
                                 .then(it => it)
                                 .catch(it => it);
 
