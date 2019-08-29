@@ -202,6 +202,16 @@ test("Extract no type from path", () =>
 describe("Icon from file path", () => {
     test("Dir", () => expect(UF.iconFromFilePath("home", "DIRECTORY", "homey").type).toBe("DIRECTORY"));
     test("File", () => expect(UF.iconFromFilePath("home", "FILE", "homey")).toStrictEqual({type: "FILE"}));
+    test("File with ext", () =>
+        expect(UF.iconFromFilePath("home.txt", "FILE", "homey")).toStrictEqual({type: "FILE", ext: "txt"}));
+    test("Jobs", () =>
+        expect(UF.iconFromFilePath("Home/Jobs", "DIRECTORY", "homey").type).toStrictEqual("RESULTFOLDER"));
+    test("Favorites", () =>
+        expect(UF.iconFromFilePath("Home/Favorites", "DIRECTORY", "homey").type).toStrictEqual("FAVFOLDER"));
+    test("Shares", () =>
+        expect(UF.iconFromFilePath("Home/Shares", "DIRECTORY", "homey").type).toStrictEqual("SHARESFOLDER"));
+    test("Trash", () =>
+        expect(UF.iconFromFilePath("Home/Trash", "DIRECTORY", "homey").type).toStrictEqual("TRASHFOLDER"));
 });
 
 const HOME_FOLDER = "/home/user@test.dk/";
@@ -220,8 +230,12 @@ test("To same UUDI", () =>
 // Download allowed
 
 
-test("Download allowed", () =>
+test("Download not allowed", () =>
     expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items)).toBe(false)
+);
+
+test("Download allowed", () =>
+    expect(UF.downloadAllowed([mockFilesSensitivityConfidential.items[0]])).toBe(true)
 );
 
 const highSensitivityFile = newMockFile({
@@ -289,4 +303,15 @@ describe("Themes", () => {
         UF.setSiteTheme(true);
         expect(UF.isLightThemeStored()).toBeTruthy();
     });
+});
+
+describe("Sort by prettier string", () => {
+    test("ACL", () => expect(UF.sortByToPrettierString(SortBy.ACL)).toBe("Members"));
+    test("File Type", () => expect(UF.sortByToPrettierString(SortBy.FILE_TYPE)).toBe("File Type"));
+    test("Created at", () => expect(UF.sortByToPrettierString(SortBy.CREATED_AT)).toBe("Created at"));
+    test("Modified at", () => expect(UF.sortByToPrettierString(SortBy.MODIFIED_AT)).toBe("Modified at"));
+    test("Path", () => expect(UF.sortByToPrettierString(SortBy.PATH)).toBe("Path"));
+    test("Size", () => expect(UF.sortByToPrettierString(SortBy.SIZE)).toBe("Size"));
+    test("Sensitivity", () => expect(UF.sortByToPrettierString(SortBy.SENSITIVITY_LEVEL)).toBe("File sensitivity"));
+    test("default_example", () => expect(UF.sortByToPrettierString("default_example" as SortBy)).toBe("Default example"));
 });
