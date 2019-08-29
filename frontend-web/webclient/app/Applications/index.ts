@@ -1,11 +1,12 @@
 import {SharedFileSystemMount} from "Applications/FileSystems";
 import {AnalysisReduxObject, ResponsiveReduxObject} from "DefaultObjects";
-import {SortOrder} from "Files";
+import {File, SortOrder} from "Files";
 import {History} from "history";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {match} from "react-router";
+import {Page} from "Types";
 import {ParameterValues} from "Utilities/ApplicationUtilities";
 
 /** @deprecated */
@@ -26,7 +27,7 @@ export enum JobState {
 }
 
 export function isJobStateFinal(state: JobState): boolean {
-    return state === JobState.SUCCESS || state == JobState.FAILURE;
+    return state === JobState.SUCCESS || state === JobState.FAILURE;
 }
 
 export interface JobWithStatus {
@@ -164,6 +165,7 @@ export interface RunAppState {
     additionalPeers: AdditionalPeer[];
     fsShown: boolean;
     sharedFileSystems: { mounts: SharedFileSystemMount[] };
+    previousRuns: Page<File>;
 }
 
 export interface RunOperations extends SetStatusLoading {
