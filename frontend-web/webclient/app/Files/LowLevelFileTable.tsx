@@ -340,8 +340,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const fileFilter = props.fileFilter ? props.fileFilter : () => true;
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
         .filter(fileFilter);
-    const isMasterChecked = allFiles.length > 0 &&
+    const isMasterChecked = allFiles.filter(f => !f.mockTag).length > 0 &&
         allFiles.every(f => checkedFiles.has(f.fileId!) || f.mockTag !== undefined);
+    const isMasterDisabled = allFiles.every(f => f.mockTag !== undefined);
     const isAnyLoading = workLoading || pageLoading;
     const checkedFilesWithInfo = allFiles
         .filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
@@ -483,6 +484,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                         data-tag="masterCheckbox"
                                                         onClick={e => setChecked(allFiles, !isMasterChecked)}
                                                         checked={isMasterChecked}
+                                                        disabled={isMasterDisabled}
                                                         onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
                                                     />
                                                 </Label>
