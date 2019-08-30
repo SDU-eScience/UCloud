@@ -69,7 +69,8 @@ data class FileControllerContext(
     val fs: LinuxFS,
     val coreFs: CoreFileSystemService<LinuxFSRunner>,
     val eventProducer: StorageEventProducer,
-    val lookupService: FileLookupService<LinuxFSRunner>
+    val lookupService: FileLookupService<LinuxFSRunner>,
+    val sensitivityService: FileSensitivityService<LinuxFSRunner>
 )
 
 fun KtorApplicationTestSetupContext.configureServerWithFileController(
@@ -108,7 +109,8 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
         fs = fs,
         eventProducer = eventProducer,
         coreFs = coreFs,
-        lookupService = FileLookupService(runner, coreFs)
+        lookupService = FileLookupService(runner, coreFs),
+        sensitivityService = FileSensitivityService(fs, eventProducer)
     )
 
     with(ctx) {

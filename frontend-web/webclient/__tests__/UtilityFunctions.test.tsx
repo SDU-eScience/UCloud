@@ -1,6 +1,9 @@
-import * as UF from "../app/UtilityFunctions";
+import {SensitivityLevel, SensitivityLevelMap} from "../app/DefaultObjects";
+import {Acl, SortBy} from "../app/Files";
+import {dateToString} from "../app/Utilities/DateUtilities";
 import {getFilenameFromPath, sizeToString} from "../app/Utilities/FileUtilities";
-import {SortBy, Acl} from "../app/Files";
+import * as UF from "../app/UtilityFunctions";
+import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files";
 
 // TO LOWER CASE AND CAPITALIZE
 
@@ -144,7 +147,7 @@ test("Get .ico extension from path", () =>
     expect(UF.extensionFromPath("/Home/user@user.dk/internetexplorer.ico")).toBe("ico")
 );
 
-// Extension type 
+// Extension type
 
 test("Code extension", () =>
     expect(UF.extensionType("ol")).toBe("code")
@@ -166,6 +169,18 @@ test("Archive extension", () =>
     expect(UF.extensionType("gz")).toBe("archive")
 );
 
+test("PDF extension", () =>
+    expect(UF.extensionType("pdf")).toBe("pdf")
+);
+
+test("Video extension", () =>
+    expect(UF.extensionType("mpg")).toBe("video")
+);
+
+test("Binary extension", () =>
+    expect(UF.extensionType("dat")).toBe("binary")
+);
+
 test("No extension", () =>
     expect(UF.extensionType(".exe")).toBeNull()
 );
@@ -184,9 +199,23 @@ test("Extract no type from path", () =>
     expect(UF.extensionTypeFromPath("/Home/user@user.dk/theme_hospital")).toBeNull()
 );
 
-// Icon from file path
+describe("Icon from file path", () => {
+    test("Dir", () => expect(UF.iconFromFilePath("home", "DIRECTORY", "homey").type).toBe("DIRECTORY"));
+    test("File", () => expect(UF.iconFromFilePath("home", "FILE", "homey")).toStrictEqual({type: "FILE"}));
+    test("File with ext", () =>
+        expect(UF.iconFromFilePath("home.txt", "FILE", "homey")).toStrictEqual({type: "FILE", ext: "txt"}));
+    test("Jobs", () =>
+        expect(UF.iconFromFilePath("Home/Jobs", "DIRECTORY", "homey").type).toStrictEqual("RESULTFOLDER"));
+    test("Favorites", () =>
+        expect(UF.iconFromFilePath("Home/Favorites", "DIRECTORY", "homey").type).toStrictEqual("FAVFOLDER"));
+    test("Shares", () =>
+        expect(UF.iconFromFilePath("Home/Shares", "DIRECTORY", "homey").type).toStrictEqual("SHARESFOLDER"));
+    test("Trash", () =>
+        expect(UF.iconFromFilePath("Home/Trash", "DIRECTORY", "homey").type).toStrictEqual("TRASHFOLDER"));
+});
 
 const HOME_FOLDER = "/home/user@test.dk/";
+
 
 // Short UUID
 
@@ -200,12 +229,13 @@ test("To same UUDI", () =>
 
 // Download allowed
 
-import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files"
-import {dateToString} from "../app/Utilities/DateUtilities";
-import {SensitivityLevel, SensitivityLevelMap} from "../app/DefaultObjects";
+
+test("Download not allowed", () =>
+    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items)).toBe(false)
+);
 
 test("Download allowed", () =>
-    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items)).toBe(false)
+    expect(UF.downloadAllowed([mockFilesSensitivityConfidential.items[0]])).toBe(true)
 );
 
 const highSensitivityFile = newMockFile({
@@ -228,28 +258,20 @@ describe("sortingColumnToValue", () => {
     const file = mockFilesSensitivityConfidential.items[0];
     const favoritedFile = mockFilesSensitivityConfidential.items[1];
 
-    test("TYPE", () => {
-        expect(UF.sortingColumnToValue(SortBy.FILE_TYPE, file)).toBe(UF.capitalized(file.fileType))
-    })
-    test("PATH", () => {
-        expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path))
-    })
-    test("CREATED_AT", () => {
-        expect(UF.sortingColumnToValue(SortBy.CREATED_AT, file)).toBe(dateToString(file.createdAt as number))
-    })
-    test("MODIFIED_AT", () => {
-        expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt as number))
-    })
-    test("SIZE", () => {
-        expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size as number))
-    })
-    test("ACL", () => {
-        expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getMembersString(file.acl as Acl[]))
-    })
-    test("SENSITIVITY", () => {
+    test("TYPE", () => expect(UF.sortingColumnToValue(SortBy.FILE_TYPE, file)).toBe(UF.capitalized(file.fileType)));
+    test("PATH", () => expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path)));
+    test("CREATED_AT", () =>
+        expect(UF.sortingColumnToValue(SortBy.CREATED_AT, file)).toBe(dateToString(file.createdAt as number)));
+    test("MODIFIED_AT", () =>
+        expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt as number)));
+    test("SIZE", () => expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size as number)));
+    test("ACL", () => expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getMembersString(file.acl as Acl[])));
+    test("ACL as null", () =>
+        expect(UF.sortingColumnToValue(SortBy.ACL, {...file, acl: null})).toBe(""));
+    test("SENSITIVITY", () =>
         expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file))
-         .toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
-    })
+            .toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
+    );
 });
 
 describe("If Present", () => {
@@ -267,9 +289,29 @@ describe("If Present", () => {
 });
 
 describe("defaultErrorHandler", () => {
-    test.skip("Todo", () =>
+    test("Todo", () =>
         expect(UF.defaultErrorHandler({request: new XMLHttpRequest(), response: undefined})).toBe(0)
     );
 });
 
+describe("Themes", () => {
+    test("Stored", () => expect(UF.isLightThemeStored()).toBeTruthy());
+    test("Setting theme", () => {
+        expect(UF.isLightThemeStored()).toBeTruthy();
+        UF.setSiteTheme(false);
+        expect(UF.isLightThemeStored()).toBeFalsy();
+        UF.setSiteTheme(true);
+        expect(UF.isLightThemeStored()).toBeTruthy();
+    });
+});
 
+describe("Sort by prettier string", () => {
+    test("ACL", () => expect(UF.sortByToPrettierString(SortBy.ACL)).toBe("Members"));
+    test("File Type", () => expect(UF.sortByToPrettierString(SortBy.FILE_TYPE)).toBe("File Type"));
+    test("Created at", () => expect(UF.sortByToPrettierString(SortBy.CREATED_AT)).toBe("Created at"));
+    test("Modified at", () => expect(UF.sortByToPrettierString(SortBy.MODIFIED_AT)).toBe("Modified at"));
+    test("Path", () => expect(UF.sortByToPrettierString(SortBy.PATH)).toBe("Path"));
+    test("Size", () => expect(UF.sortByToPrettierString(SortBy.SIZE)).toBe("Size"));
+    test("Sensitivity", () => expect(UF.sortByToPrettierString(SortBy.SENSITIVITY_LEVEL)).toBe("File sensitivity"));
+    test("default_example", () => expect(UF.sortByToPrettierString("default_example" as SortBy)).toBe("Default example"));
+});

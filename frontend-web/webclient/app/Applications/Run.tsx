@@ -1,62 +1,65 @@
-import * as React from "react";
+import {OptionalParameters} from "Applications/OptionalParameters";
+import {InputDirectoryParameter} from "Applications/Widgets/FileParameter";
+import {AdditionalPeerParameter} from "Applications/Widgets/PeerParameter";
+import {callAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
-import LoadingIcon from "LoadingIcon/LoadingIcon"
-import PromiseKeeper from "PromiseKeeper";
-import {connect} from "react-redux";
-import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
+import {emptyPage} from "DefaultObjects";
+import {dialogStore} from "Dialog/DialogStore";
+import {File as CloudFile, FileResource, SortBy, SortOrder} from "Files";
+import FileSelector from "Files/FileSelector";
+import {listDirectory} from "Files/LowLevelFileTable";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
+import {MainContainer} from "MainContainer/MainContainer";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
+import PromiseKeeper from "PromiseKeeper";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
+import {AccessRight, Page} from "Types";
+import {Box, Button, ContainerForText, Flex, Label, OutlineButton, VerticalButtonGroup} from "ui-components";
+import BaseLink from "ui-components/BaseLink";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import * as Heading from "ui-components/Heading";
+import Input, {HiddenInputField} from "ui-components/Input";
+import Link from "ui-components/Link";
 import {
+    checkForMissingParameters,
+    extractValuesFromWidgets,
+    findKnownParameterValues,
+    hpcFavoriteApp,
+    hpcJobQueryPost,
+    isFileOrDirectoryParam,
+    validateOptionalFields
+} from "Utilities/ApplicationUtilities";
+import {removeEntry} from "Utilities/CollectionUtilities";
+import {
+    allFilesHasAccessRight,
+    checkIfFileExists,
+    expandHomeFolder,
+    fetchFileContent,
+    fileTablePage, getFilenameFromPath,
+    statFileOrNull,
+    statFileQuery
+} from "Utilities/FileUtilities";
+import {addStandardDialog} from "UtilityComponents";
+import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
+import {
+    AdditionalMountedFolder,
     ApplicationParameter,
     FullAppInfo,
     JobSchedulingOptionsForInput,
     ParameterTypes,
-    AdditionalMountedFolder,
     RunAppProps,
     RunAppState,
     RunOperations,
     WithAppInvocation,
     WithAppMetadata,
 } from ".";
-import {Dispatch} from "redux";
-import {Box, Button, ContainerForText, Flex, Label, OutlineButton, VerticalButtonGroup} from "ui-components";
-import Input, {HiddenInputField} from "ui-components/Input";
-import {MainContainer} from "MainContainer/MainContainer";
-import {Parameter} from "./Widgets/Parameter";
-import {
-    findKnownParameterValues,
-    extractValuesFromWidgets,
-    hpcFavoriteApp,
-    hpcJobQueryPost,
-    isFileOrDirectoryParam,
-    validateOptionalFields,
-    checkForMissingParameters
-} from "Utilities/ApplicationUtilities";
 import {AppHeader} from "./View";
-import * as Heading from "ui-components/Heading";
-import {
-    allFilesHasAccessRight,
-    checkIfFileExists,
-    expandHomeFolder,
-    fetchFileContent, fileTablePage,
-    statFileOrNull,
-    statFileQuery
-} from "Utilities/FileUtilities";
-import {SnackType} from "Snackbar/Snackbars";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {removeEntry} from "Utilities/CollectionUtilities";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {addStandardDialog} from "UtilityComponents";
-import {File as CloudFile} from "Files";
-import {dialogStore} from "Dialog/DialogStore";
-import FileSelector from "Files/FileSelector";
-import {AccessRight} from "Types";
-import {OptionalParameters} from "Applications/OptionalParameters";
-import {InputDirectoryParameter} from "Applications/Widgets/FileParameter";
-import {AdditionalPeerParameter} from "Applications/Widgets/PeerParameter";
-import Link from "ui-components/Link";
-import BaseLink from "ui-components/BaseLink";
-import styled from "styled-components";
-
+import {Parameter} from "./Widgets/Parameter";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -89,10 +92,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             favorite: false,
             favoriteLoading: false,
             fsShown: false,
+            previousRuns: emptyPage,
 
             sharedFileSystems: {mounts: []}
         };
-    };
+    }
 
     public componentDidMount() {
         this.props.updatePageTitle();
@@ -112,6 +116,27 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 this.retrieveApplication(this.props.match.params.appName, this.props.match.params.appVersion)
             );
         }
+
+        if (prevState.application !== this.state.application && this.state.application !== undefined) {
+            this.fetchPreviousRuns();
+        }
+    }
+
+    private async fetchPreviousRuns() {
+        if (this.state.application === undefined) return;
+        try {
+            const previousRuns = await callAPI<Page<CloudFile>>(listDirectory({
+                path: Cloud.homeFolder + `Jobs/${this.state.application.metadata.title}`,
+                page: 0,
+                itemsPerPage: 25,
+                attrs: [FileResource.PATH],
+                order: SortOrder.DESCENDING,
+                sortBy: SortBy.CREATED_AT
+            }));
+            this.setState(s => ({previousRuns}));
+        } catch (ignored) {
+            // Do nothing
+        }
     }
 
     private onJobSchedulingParamsChange = (field: string | number, value: number, timeField: string) => {
@@ -122,7 +147,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             schedulingOptions[field] = value;
         }
         this.setState(() => ({schedulingOptions}));
-    };
+    }
 
     private onSubmit = async (event: React.FormEvent) => {
         if (!this.state.application) return;
@@ -174,7 +199,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             }
         }
 
-        let peers = [] as { name: string, jobId: string }[];
+        const peers = [] as Array<{ name: string, jobId: string }>;
         {
             // Validate additional mounts
             for (const peer of this.state.additionalPeers) {
@@ -183,10 +208,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 if (jobIdField === null || hostnameField === null) continue; // This should not happen
 
                 const jobId = jobIdField.value;
-                const name = hostnameField.value;
+                const hostname = hostnameField.value;
 
-                if (name === "" && jobId === "") continue;
-                if (name === "" || jobId === "") {
+                if (hostname === "" && jobId === "") continue;
+                if (hostname === "" || jobId === "") {
                     snackbarStore.addFailure(
                         "A connection is missing a job or hostname",
                         5000
@@ -195,19 +220,18 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     return;
                 }
 
-                if (!hostnameRegex.test(name)) {
+                if (!hostnameRegex.test(hostname)) {
                     snackbarStore.addFailure(
-                        `The connection '${name}' has an invalid hostname.` +
+                        `The connection '${hostname}' has an invalid hostname.` +
                         `Hostnames cannot contain spaces or special characters.`,
                         5000
                     );
                     return;
                 }
 
-                peers.push({name, jobId});
+                peers.push({name: hostname, jobId});
             }
         }
-
 
         const {name} = this.state.schedulingOptions;
         const jobName = name.current && name.current.value;
@@ -220,7 +244,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             parameters,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
-            maxTime: maxTime,
+            maxTime,
             mounts,
             peers,
             type: "start",
@@ -238,7 +262,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         } finally {
             this.props.setLoading(false);
         }
-    };
+    }
 
     private async toggleFavorite() {
         if (!this.state.application) return;
@@ -248,7 +272,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             await this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise;
             this.setState(() => ({favorite: !this.state.favorite}));
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"))
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
         } finally {
             this.setState(() => ({favoriteLoading: false}));
         }
@@ -358,6 +382,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 {
                     // Verify and load additional mounts
                     const validMountFolders = [] as AdditionalMountedFolder[];
+                    // tslint:disable-next-line:prefer-for-of
                     for (let i = 0; i < mountedFolders.length; i++) {
                         if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Cloud.homeFolder), Cloud)) {
                             const ref = React.createRef<HTMLInputElement>();
@@ -428,44 +453,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             return;
         }
         const response = await fetchFileContent(file.path, Cloud);
-        if (response.ok) this.importParameters(new File([await response.blob()], "params"))
-    };
-
-    private exportParameters() {
-        const {application, schedulingOptions, parameterValues, mountedFolders} = this.state;
-        const siteVersion = this.siteVersion;
-
-        if (!application) return;
-        const appInfo = application.metadata;
-
-        const jobInfo = extractJobInfo(schedulingOptions);
-        const element = document.createElement("a");
-
-        const values: { [key: string]: string } = {};
-
-        for (const [key, ref] of parameterValues[Symbol.iterator]()) {
-            if (ref && ref.current) values[key] = ref.current.value;
-        }
-
-        element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-            siteVersion: siteVersion,
-            application: {
-                name: appInfo.name,
-                version: appInfo.version
-            },
-            parameters: values,
-            mountedFolders: mountedFolders.map(it =>
-                ({ref: it.ref.current && it.ref.current.value, readOnly: it.readOnly})).filter(it => it.ref),
-            numberOfNodes: jobInfo.numberOfNodes,
-            tasksPerNode: jobInfo.tasksPerNode,
-            maxTime: jobInfo.maxTime,
-        })));
-
-        element.setAttribute("download", `${application.metadata.name}-${application.metadata.version}-params.json`);
-        element.style.display = "none";
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
+        if (response.ok) this.importParameters(new File([await response.blob()], "params"));
     }
 
     private addFolder() {
@@ -485,7 +473,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 jobIdRef: React.createRef(),
                 nameRef: React.createRef()
             }])
-        }))
+        }));
     }
 
     render() {
@@ -509,7 +497,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         };
 
         const mapParamToComponent = (parameter: ApplicationParameter) => {
-            let ref = parameterValues.get(parameter.name)!;
+            const ref = parameterValues.get(parameter.name)!;
 
             return (
                 <Parameter
@@ -523,8 +511,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             );
         };
 
-        let mandatoryParams = mandatory.map(mapParamToComponent);
-        let visibleParams = visible.map(mapParamToComponent);
+        const mandatoryParams = mandatory.map(mapParamToComponent);
+        const visibleParams = visible.map(mapParamToComponent);
 
         return (
             <MainContainer
@@ -537,12 +525,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 sidebar={
                     <VerticalButtonGroup>
-                        <OutlineButton
-                            fullWidth
-                            color="darkGreen"
-                            onClick={() => this.exportParameters()}>
-                            Export parameters
-                        </OutlineButton>
                         <OutlineButton
                             onClick={() => importParameterDialog(
                                 file => this.importParameters(file),
@@ -576,6 +558,42 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 main={
                     <ContainerForText>
                         <form onSubmit={this.onSubmit}>
+                            {
+                                this.state.previousRuns.items.length <= 0 ? null :
+                                    <RunSection>
+                                        <Label>Load parameters from a previous run:</Label>
+                                        <Flex flexDirection={"row"}>
+                                            {
+                                                this.state.previousRuns.items.slice(0, 5).map((file, idx) => (
+                                                    <Box flexGrow={1} mr={"0.8em"} key={idx}>
+                                                        <BaseLink
+                                                            href={"#"}
+                                                            onClick={async (e) => {
+                                                                e.preventDefault();
+
+                                                                try {
+                                                                    this.props.setLoading(true);
+                                                                    await this.fetchAndImportParameters(
+                                                                        {path: `${file.path}/JobParameters.json`}
+                                                                    );
+                                                                } catch (ex) {
+                                                                    snackbarStore.addFailure(
+                                                                        "Could not find a parameters file for this " +
+                                                                        "run. Try a different run."
+                                                                    );
+                                                                } finally {
+                                                                    this.props.setLoading(false);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {getFilenameFromPath(file.path)}
+                                                        </BaseLink>
+                                                    </Box>
+                                                ))
+                                            }
+                                        </Flex>
+                                    </RunSection>
+                            }
                             <RunSection>
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
@@ -631,8 +649,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     {" "}
                                                     in this job then click {" "}
                                                     <BaseLink
-                                                        href={"javascript:void(0)"}
-                                                        onClick={() => this.addFolder()}>
+                                                        href={"#"}
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            this.addFolder();
+                                                        }}>
                                                         "Add folder"
                                                     </BaseLink>
                                                     {" "}
@@ -653,7 +674,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     initialSubmit={false}
                                                     parameterRef={entry.ref}
                                                     onRemove={() => {
-                                                        this.setState(s => ({mountedFolders: removeEntry(s.mountedFolders, i)}))
+                                                        this.setState(s => ({
+                                                            mountedFolders: removeEntry(s.mountedFolders, i)
+                                                        }));
                                                     }}
                                                     parameter={{
                                                         type: ParameterTypes.InputDirectory,
@@ -673,7 +696,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                                         mountedFolders[i].readOnly = key === "READ";
                                                                         this.setState(() => ({mountedFolders}));
                                                                     }}
-                                                                    trigger={entry.readOnly ? "Read only" : "Read/Write"}
+                                                                    trigger={entry.readOnly ?
+                                                                        "Read only" : "Read/Write"
+                                                                    }
                                                                     options={[
                                                                         {text: "Read only", value: "READ"},
                                                                         {text: "Read/Write", value: "READ/WRITE"}
@@ -711,8 +736,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                             :
                                             <>
                                                 If you need to use the services of another job click{" "}
-                                                <BaseLink href={"javascript:void(0)"}
-                                                          onClick={() => this.connectToJob()}>
+                                                <BaseLink href={"#"}
+                                                          onClick={e => {
+                                                              e.preventDefault();
+                                                              this.connectToJob();
+                                                          }}>
                                                     "Connect to job".
                                                 </BaseLink>
                                                 {" "}
@@ -749,7 +777,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     </ContainerForText>
                 }
             />
-        )
+        );
     }
 }
 
@@ -849,11 +877,11 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                     />
                 </Flex>
             }
-        </>)
+        </>);
 };
 
 function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOptionsForInput {
-    let extractedJobInfo = {
+    const extractedJobInfo = {
         maxTime: {hours: 0, minutes: 0, seconds: 0},
         numberOfNodes: 1,
         tasksPerNode: 1,
@@ -890,16 +918,16 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                             } else {
                                 importParameters(file);
                             }
-                            dialogStore.popDialog();
+                            dialogStore.success();
                         }
                     }}/>
             </Button>
-            <Button mt="6px" fullWidth onClick={() => (dialogStore.popDialog(), showFileSelector())}>
+            <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                 Select file from SDUCloud
             </Button>
         </Box>
         <Flex mt="20px">
-            <Button onClick={() => dialogStore.popDialog()} color="red" mr="5px">Cancel</Button>
+            <Button onClick={() => dialogStore.success()} color="red" mr="5px">Cancel</Button>
         </Flex>
-    </Box>);
+    </Box>, () => undefined);
 }

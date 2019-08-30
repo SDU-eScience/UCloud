@@ -7,7 +7,7 @@ import dk.sdu.cloud.micro.*
 
 data class Configuration(
     val backends: List<ApplicationBackend> = emptyList(),
-    val defaultBackend: String = "abacus"
+    val defaultBackend: String = "kubernetes"
 )
 
 fun main(args: Array<String>) {

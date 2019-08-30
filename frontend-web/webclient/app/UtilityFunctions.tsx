@@ -39,8 +39,7 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  * @param {Acl[]} acls - the list of access controls
  * @return {string}
  */
-export const getMembersString = (acls?: Acl[]): string => {
-    if (acls === undefined) return "N/A";
+export const getMembersString = (acls: Acl[]): string => {
     const filteredAcl = acls.filter(it => it.entity !== currentCloud.activeUsername);
     if (filteredAcl.length > 0) {
         return `${acls.length + 1} members`;

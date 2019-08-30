@@ -372,15 +372,14 @@ export const clearTrash = ({cloud, callback}: { cloud: SDUCloud, callback: () =>
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
             callback();
-            dialogStore.popDialog();
-        },
-        onCancel: () => dialogStore.popDialog()
+            dialogStore.success();
+        }
     });
 
 export const getParentPath = (path: string): string => {
     if (path.length === 0) return path;
     let splitPath = path.split("/");
-    splitPath = splitPath.filter(path => path);
+    splitPath = splitPath.filter(p => p);
     let parentPath = "/";
     for (let i = 0; i < splitPath.length - 1; i++) {
         parentPath += splitPath[i] + "/";
@@ -388,7 +387,10 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-const goUpDirectory = (count: number, path: string): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
+const goUpDirectory = (
+    count: number,
+    path: string
+): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
 const toFileName = (path: string): string => {
     const lastSlash = path.lastIndexOf("/");
@@ -411,7 +413,13 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
     files.map(f => f.path).forEach(p =>
         cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
-            element.setAttribute("href", `/api/files/download?path=${encodeURIComponent(p)}&token=${encodeURIComponent(token)}`);
+            element.setAttribute(
+                "href",
+                Cloud.computeURL(
+                    "/api",
+                    `/files/download?path=${encodeURIComponent(p)}&token=${encodeURIComponent(token)}`
+                )
+            );
             element.style.display = "none";
             document.body.appendChild(element);
             element.click();
@@ -442,7 +450,10 @@ export async function updateSensitivity({files, cloud, onSensitivityChange}: Upd
 
 export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
     const token = await cloud.createOneTimeTokenWithPermission("files.download:read");
-    return fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`);
+    return fetch(Cloud.computeURL(
+        "/api",
+        `/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
+    );
 };
 
 export const sizeToString = (bytes: number | null): string => {
@@ -497,7 +508,7 @@ export const shareFiles = async ({files, cloud}: ShareFiles) => {
     });
 };
 
-const moveToTrashDialog = ({filePaths, onCancel, onConfirm}: { onConfirm: () => void, onCancel: () => void, filePaths: string[] }): void => {
+const moveToTrashDialog = ({filePaths, onConfirm}: { onConfirm: () => void, filePaths: string[] }): void => {
     const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
 
@@ -509,7 +520,7 @@ const moveToTrashDialog = ({filePaths, onCancel, onConfirm}: { onConfirm: () => 
     });
 };
 
-export function clearTrashDialog({onConfirm, onCancel}: { onConfirm: () => void, onCancel: () => void }): void {
+export function clearTrashDialog({onConfirm}: { onConfirm: () => void }): void {
     addStandardDialog({
         title: "Empty trash?",
         message: "",
@@ -547,7 +558,9 @@ const successResponse = (paths: string[], homeFolder: string) =>
         `${paths.length} files moved to trash.` :
         `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
 
-interface Failures { failures: string[]; }
+interface Failures {
+    failures: string[];
+}
 
 interface MoveToTrash {
     files: File[];
@@ -569,8 +582,7 @@ export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) =
                 snackbarStore.addSnack({message: e.why, type: SnackType.Failure});
                 callback();
             }
-        },
-        onCancel: () => undefined
+        }
     });
 };
 

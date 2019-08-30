@@ -1,8 +1,8 @@
+import {AnalysesStateProps, RunsSortBy} from "../app/Applications";
+import {DashboardStateProps} from "../app/Dashboard";
 import * as Defaults from "../app/DefaultObjects";
-import { SortOrder, SortBy } from "../app/Files";
-import { SidebarPages } from "../app/ui-components/Sidebar";
-import { AnalysesStateProps, RunsSortBy } from "../app/Applications";
-import { DashboardStateProps } from "../app/Dashboard";
+import {SortOrder} from "../app/Files";
+import {SidebarPages} from "../app/ui-components/Sidebar";
 
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
@@ -14,7 +14,7 @@ describe("Initialize Redux Objects", () => {
             favoriteLoading: false,
             recentLoading: false,
             analysesLoading: false,
-        } as DashboardStateProps)
+        } as DashboardStateProps);
     });
 
     test("Status", () =>
@@ -50,7 +50,7 @@ describe("Initialize Redux Objects", () => {
             sortOrder: SortOrder.DESCENDING
         } as AnalysesStateProps)
     );
-    
+
     test("Sidebar", () =>
         expect(Defaults.initSidebar()).toEqual({
             kcCount: 0,
@@ -68,5 +68,9 @@ describe("Initialize Redux Objects", () => {
             allowMultiple: false,
             onFilesUploaded: () => null
         })) as Defaults.UploaderReduxObject)
+    );
+
+    test("Init object", () =>
+        expect(Defaults.initObject()).toBeDefined()
     );
 });

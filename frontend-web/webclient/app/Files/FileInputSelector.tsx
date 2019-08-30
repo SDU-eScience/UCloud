@@ -1,29 +1,28 @@
-import * as React from "react";
-import FileSelector from "Files/FileSelector";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
-import Input, {InputLabel} from "ui-components/Input";
-import Button from "ui-components/Button";
-import styled from "styled-components";
+import FileSelector from "Files/FileSelector";
+import * as React from "react";
 import {useState} from "react";
+import styled from "styled-components";
+import Button from "ui-components/Button";
 import Flex from "ui-components/Flex";
-import Label from "ui-components/Label";
+import Input, {InputLabel} from "ui-components/Input";
+import {replaceHomeFolder} from "Utilities/FileUtilities";
 
 interface FileInputSelectorProps {
-    path: string // selected file
-    allowUpload?: boolean
-    showError?: boolean
-    inputRef?: React.RefObject<HTMLInputElement>
-    defaultValue?: string
-    isRequired?: boolean
-    unitName?: string | React.ReactNode
-    unitWidth?: string | number | undefined
-    remove?: () => void
-    onFileSelect: (file: { path: string }) => void
-    disallowedPaths?: string[]
+    path: string; // selected file
+    allowUpload?: boolean;
+    showError?: boolean;
+    inputRef?: React.RefObject<HTMLInputElement>;
+    defaultValue?: string;
+    isRequired?: boolean;
+    unitName?: string | React.ReactNode;
+    unitWidth?: string | number | undefined;
+    remove?: () => void;
+    onFileSelect: (file: { path: string }) => void;
+    disallowedPaths?: string[];
 
-    canSelectFolders?: boolean
-    onlyAllowFolders?: boolean
+    canSelectFolders?: boolean;
+    onlyAllowFolders?: boolean;
 }
 
 export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> = props => {
@@ -76,7 +75,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
                 {removeButton}
             </Flex>
         }
-    />
+    />;
 };
 
 const FileSelectorInput = styled(Input)`
@@ -84,7 +83,7 @@ const FileSelectorInput = styled(Input)`
 `;
 
 interface FileSelectorButton {
-    onClick: () => void
+    onClick: () => void;
 }
 
 const UploadButton = ({onClick}: FileSelectorButton) => (

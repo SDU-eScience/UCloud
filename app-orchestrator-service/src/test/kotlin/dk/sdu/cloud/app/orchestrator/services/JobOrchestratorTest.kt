@@ -70,7 +70,7 @@ class JobOrchestratorTest {
         coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
 
 
-        val jobFileService = JobFileService(client) { _, _ -> client }
+        val jobFileService = JobFileService(client, { _, _ -> client }, ParameterExportService())
         val orchestrator = JobOrchestrator(
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),

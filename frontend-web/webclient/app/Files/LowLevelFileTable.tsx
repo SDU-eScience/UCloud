@@ -340,8 +340,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const fileFilter = props.fileFilter ? props.fileFilter : () => true;
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
         .filter(fileFilter);
-    const isMasterChecked = allFiles.length > 0 &&
+    const isMasterChecked = allFiles.filter(f => !f.mockTag).length > 0 &&
         allFiles.every(f => checkedFiles.has(f.fileId!) || f.mockTag !== undefined);
+    const isMasterDisabled = allFiles.every(f => f.mockTag !== undefined);
     const isAnyLoading = workLoading || pageLoading;
     const checkedFilesWithInfo = allFiles
         .filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
@@ -483,6 +484,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                         data-tag="masterCheckbox"
                                                         onClick={e => setChecked(allFiles, !isMasterChecked)}
                                                         checked={isMasterChecked}
+                                                        disabled={isMasterDisabled}
                                                         onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
                                                     />
                                                 </Label>
@@ -516,14 +518,16 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                     trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
                                                     chevron>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
-                                                        hidden={(order === SortOrder.ASCENDING && isSortedBy) || column === SortBy.ACL}
+                                                        hidden={(order === SortOrder.ASCENDING && isSortedBy) ||
+                                                            column === SortBy.ACL}
                                                         onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
                                                     >
                                                         {UF.prettierString(SortOrder.ASCENDING)}
                                                     </Box>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
                                                         onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                        hidden={(order === SortOrder.DESCENDING && isSortedBy) || column === SortBy.ACL}
+                                                        hidden={(order === SortOrder.DESCENDING && isSortedBy) ||
+                                                            column === SortBy.ACL}
                                                     >
                                                         {UF.prettierString(SortOrder.DESCENDING)}
                                                     </Box>
@@ -673,11 +677,11 @@ const SidebarContent = styled.div`
 `;
 
 interface NameBoxProps {
-    file: File
-    onRenameFile: (keycode: number, value: string) => void
-    onNavigate: (path: string) => void
-    fileBeingRenamed: string | null
-    callbacks: FileOperationCallback
+    file: File;
+    onRenameFile: (keycode: number, value: string) => void;
+    onNavigate: (path: string) => void;
+    fileBeingRenamed: string | null;
+    callbacks: FileOperationCallback;
 }
 
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
@@ -725,7 +729,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             />
         </>;
     } else {
-        let nameComponent = <Flex alignItems="center">
+        const nameComponent = <Flex alignItems="center">
             {icon}
 
             <Truncate
@@ -774,18 +778,18 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     }
 };
 
-const notSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} | null =>
+const setNotSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} | null =>
     notSticky ? null : {position: "sticky"};
 
 const FileTableHeaderCell = styled(TableHeaderCell) <{notSticky?: boolean}>`
     background-color: ${({theme}) => theme.colors.white};
     top: 144px; //topmenu + header size
     z-index: 10;
-    ${notSticky}
+    ${setNotSticky}
 `;
 
 const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
-    type IconDef = {color: string, text: string, shortText: string};
+    interface IconDef {color: string; text: string; shortText: string;}
     let def: IconDef;
 
     switch (props.sensitivity) {
@@ -819,11 +823,11 @@ const SensitivityBadge = styled.div<{bg: string}>`
 `;
 
 interface FileOperations extends SpaceProps {
-    files: File[],
-    fileOperations: FileOperation[],
-    callback: FileOperationCallback
-    directory?: File
-    inDropdown?: boolean
+    files: File[];
+    fileOperations: FileOperation[];
+    callback: FileOperationCallback;
+    directory?: File;
+    inDropdown?: boolean;
 }
 
 const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
@@ -872,12 +876,12 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
             <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
         }
         {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`} />)}
-    </>
+    </>;
 };
 
 function getSortingColumnAt(columnIndex: 0 | 1): SortBy {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
-    if (sortingColumn && Object.values(SortBy).includes(sortingColumn)) return sortingColumn as SortBy;
+    if (sortingColumn && Object.values(SortBy).includes(sortingColumn as SortBy)) return sortingColumn as SortBy;
     switch (columnIndex) {
         case 0:
             window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);

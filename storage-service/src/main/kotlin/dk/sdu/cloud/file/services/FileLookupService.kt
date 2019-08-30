@@ -114,37 +114,40 @@ class FileLookupService<Ctx : FSUserContext>(
     // performed an access check. This will also ensure that we can read the correct sensitivity of files.
     private suspend fun lookupInheritedSensitivity(realPath: String): SensitivityLevel {
         val cache = HashMap<String, SensitivityLevel>()
-
-        suspend fun lookupInheritedSensitivity(ctx: Ctx): SensitivityLevel {
-            val cached = cache[realPath]
-            if (cached != null) return cached
-            if (realPath.components().size < 2) return SensitivityLevel.PRIVATE
-
-            val components = realPath.normalize().components()
-            val sensitivity = if (components.size == 2 && components[0] == "home") {
-                SensitivityLevel.PRIVATE
-            } else {
-                run {
-                    val stat = coreFs.stat(
-                        ctx,
-                        realPath,
-                        setOf(
-                            FileAttribute.PATH,
-                            FileAttribute.SENSITIVITY
-                        )
-                    )
-
-                    stat.sensitivityLevel ?: lookupInheritedSensitivity(stat.path.parent())
-                }
-            }
-
-            cache[realPath] = sensitivity
-            return sensitivity
-        }
-
         return commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
-            lookupInheritedSensitivity(ctx)
+            lookupInheritedSensitivity(ctx, realPath, cache)
         }
+    }
+
+    suspend fun lookupInheritedSensitivity(
+        ctx: Ctx,
+        cloudPath: String,
+        cache: MutableMap<String, SensitivityLevel>
+    ): SensitivityLevel {
+        val cached = cache[cloudPath]
+        if (cached != null) return cached
+        if (cloudPath.components().size < 2) return SensitivityLevel.PRIVATE
+
+        val components = cloudPath.normalize().components()
+        val sensitivity = if (components.size == 2 && components[0] == "home") {
+            SensitivityLevel.PRIVATE
+        } else {
+            run {
+                val stat = coreFs.stat(
+                    ctx,
+                    cloudPath,
+                    setOf(
+                        FileAttribute.PATH,
+                        FileAttribute.SENSITIVITY
+                    )
+                )
+
+                stat.sensitivityLevel ?: lookupInheritedSensitivity(stat.path.parent())
+            }
+        }
+
+        cache[cloudPath] = sensitivity
+        return sensitivity
     }
 
 

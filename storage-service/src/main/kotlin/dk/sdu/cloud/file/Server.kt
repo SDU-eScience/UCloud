@@ -177,7 +177,8 @@ class Server(
                     processRunner,
                     coreFileSystem,
                     bulkDownloadService,
-                    tokenValidation
+                    tokenValidation,
+                    fileLookupService
                 ),
 
                 MultiPartUploadController(

@@ -51,16 +51,13 @@ export function addStandardDialog(
             <Box>{message}</Box>
         </Box>
         <Flex mt="20px">
-            <Button onClick={() => {
-                onCancel();
-                dialogStore.popDialog();
-            }} color="red" mr="5px">{cancelText}</Button>
+            <Button onClick={() => dialogStore.failure()} color="red" mr="5px">{cancelText}</Button>
             <Button onClick={() => {
                 if (validator()) onConfirm();
-                dialogStore.popDialog();
+                dialogStore.success();
             }} color="green">{confirmText}</Button>
         </Flex>
-    </Box>);
+    </Box>, onCancel);
 }
 
 export function sensitivityDialog(): Promise<{ cancelled: true } | { option: SensitivityLevelMap }> {
@@ -85,10 +82,10 @@ export function shareDialog(): Promise<{ cancelled: true } | { username: string,
     // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
     return new Promise(resolve => dialogStore.addDialog(
         <SharePrompt resolve={resolve} />
-    ));
+    , () => resolve({cancelled: true})));
 }
 
-function SharePrompt({resolve}) {
+export function SharePrompt({resolve}) {
     const username = React.useRef<HTMLInputElement>(null);
     const [access, setAccess] =  React.useState<"read" | "read_edit">("read");
     return (<form onSubmit={e => e.preventDefault()}>
@@ -117,13 +114,10 @@ function SharePrompt({resolve}) {
                placeholder="Enter username..."/>
     </Label>
     <Flex mt="20px">
-        <Button type="button" onClick={() => {
-            dialogStore.popDialog();
-            resolve({cancelled: true});
-        }} color="red" mr="5px">Cancel</Button>
+        <Button type="button" onClick={() => dialogStore.failure()} color="red" mr="5px">Cancel</Button>
         <Button onClick={() => {
             if (username.current && username.current.value) {
-                dialogStore.popDialog();
+                dialogStore.success();
                 resolve({username: username.current.value, access});
             }
         }} color="green">Share</Button>
@@ -181,16 +175,13 @@ export function rewritePolicyDialog({
             </Box>
         </Box>
         <Box textAlign="right" mt="20px">
+            <Button onClick={() =>  dialogStore.failure()} color="red" mr="5px">No</Button>
             <Button onClick={() => {
-                dialogStore.popDialog();
-                resolve(false);
-            }} color="red" mr="5px">No</Button>
-            <Button onClick={() => {
-                dialogStore.popDialog();
+                dialogStore.success();
                 resolve({policy, applyToAll});
             }} color="green">Yes</Button>
         </Box>
-    </Box>));
+    </Box>, () => resolve(false)));
 }
 
 interface FileIconProps {

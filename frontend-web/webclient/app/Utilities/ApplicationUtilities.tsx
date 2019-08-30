@@ -267,7 +267,7 @@ export function checkForMissingParameters(
     requiredParams.forEach(rParam => {
         const parameterValue = parameters[rParam.name];
         // Number, string, boolean
-        if (!parameterValue) {
+        if (!["number", "string", "boolean"].includes(typeof parameterValue) ) {
             missingParameters.push(rParam.title);
         } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {
             if (!parameterValue["source"]) {
