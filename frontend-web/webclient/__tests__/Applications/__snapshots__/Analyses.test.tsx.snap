@@ -50,13 +50,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   padding-right: 340px;
 }
 
-.c27 {
-  cursor: auto;
-  width: 70%;
-  max-width: 1024px;
-}
-
-.c40 {
+.c38 {
   cursor: auto;
 }
 
@@ -66,21 +60,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-}
-
-.c26 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  -webkit-flex-direction: column;
-  -ms-flex-direction: column;
-  flex-direction: column;
 }
 
 .c6 {
@@ -122,7 +101,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   margin-left: .7em;
 }
 
-.c34 {
+.c32 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -130,7 +109,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   cursor: inherit;
 }
 
-.c36 {
+.c34 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -139,7 +118,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   margin-right: .4em;
 }
 
-.c42 {
+.c40 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -149,7 +128,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   color: #c00;
 }
 
-.c43 {
+.c41 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -203,12 +182,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   flex: 1 1 auto;
 }
 
-.c21 .c45 {
+.c21 .c43 {
   border: 0;
   box-shadow: none;
 }
 
-.c32 {
+.c30 {
   cursor: auto;
   display: inline-block;
   position: relative;
@@ -217,20 +196,20 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   color: #8393A7;
 }
 
-.c32 svg[data-name="checked"] {
+.c30 svg[data-name="checked"] {
   display: none;
 }
 
-.c32 > input:checked ~ svg[data-name="checked"] {
+.c30 > input:checked ~ svg[data-name="checked"] {
   display: inline-block;
   color: #006aff;
 }
 
-.c32 > input:checked ~ svg[data-name="empty"] {
+.c30 > input:checked ~ svg[data-name="empty"] {
   display: none;
 }
 
-.c33 {
+.c31 {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -268,7 +247,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   left: 85px;
 }
 
-.c9 > *:hover:not(.c44) {
+.c9 > *:hover:not(.c42) {
   background-color: rgba(0,0,0,0.05);
 }
 
@@ -300,7 +279,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   pointer-events: none;
 }
 
-.c18 > *:hover:not(.c44) {
+.c18 > *:hover:not(.c42) {
   background-color: rgba(0,0,0,0.05);
 }
 
@@ -384,7 +363,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   display: none;
 }
 
-.c28 {
+.c26 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
@@ -394,46 +373,46 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   background-color: #fff;
 }
 
-.c39 {
+.c37 {
   border: 0px;
   border-spacing: 0;
   text-align: center;
 }
 
-.c41 {
+.c39 {
   border: 0px;
   border-spacing: 0;
 }
 
-.c30 {
+.c28 {
   cursor: auto;
 }
 
-.c30 > .c38 {
+.c28 > .c36 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
-.c37 {
+.c35 {
   cursor: pointer;
 }
 
-.c37 > .c38 {
+.c35 > .c36 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
-.c29 {
+.c27 {
   background-color: #fff;
   padding-top: 11px;
   padding-bottom: 11px;
 }
 
-.c31 {
+.c29 {
   border-spacing: 0;
   border: 0px;
   text-align: center;
@@ -445,7 +424,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   position: sticky;
 }
 
-.c35 {
+.c33 {
   border-spacing: 0;
   border: 0px;
   text-align: left;
@@ -1115,591 +1094,580 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         </div>
       </div>
     </div>
-    <div
+    <table
       className="c26"
-      cursor="inherit"
+      width="100%"
     >
-      <div
-        className="c0 c27"
-        cursor="auto"
-        width={0.7}
+      <thead
+        className="c27"
       >
-        <table
+        <tr
           className="c28"
-          width="100%"
+          cursor="auto"
         >
-          <thead
+          <th
             className="c29"
+            width="4%"
           >
-            <tr
-              className="c30"
+            <label
+              className="c17"
+              color="black"
+              fontSize={1}
+              fontWeight="bold"
+              width="100%"
+            >
+              <div
+                className="c0 c30"
+                cursor="auto"
+                disabled={false}
+              >
+                <input
+                  checked={false}
+                  className="c31"
+                  data-tag="masterCheckbox"
+                  disabled={false}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  size={20}
+                  type="checkbox"
+                />
+                <svg
+                  className="c32"
+                  cursor="inherit"
+                  data-name="checked"
+                  fill="currentcolor"
+                  height={20}
+                  viewBox="0 0 24 24"
+                  width={20}
+                >
+                  <path
+                    d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                  />
+                </svg>
+                <svg
+                  className="c32"
+                  cursor="inherit"
+                  data-name="empty"
+                  fill="currentcolor"
+                  height={20}
+                  viewBox="0 0 24 24"
+                  width={20}
+                >
+                  <path
+                    d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                  />
+                </svg>
+              </div>
+            </label>
+          </th>
+          <th
+            className="c33"
+            onClick={[Function]}
+          >
+            Name
+          </th>
+          <th
+            className="c33"
+            onClick={[Function]}
+          >
+            State
+          </th>
+          <th
+            className="c33"
+            onClick={[Function]}
+          >
+            Application
+          </th>
+          <th
+            className="c33"
+            onClick={[Function]}
+          >
+            <svg
+              className="c34"
+              clipRule="evenodd"
+              cursor="pointer"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              mr=".4em"
+              viewBox="0 0 18 24"
+              width=".7em"
+            >
+              <path
+                d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+              />
+            </svg>
+            Created at
+          </th>
+          <th
+            className="c33"
+            onClick={[Function]}
+          >
+            Expiration
+          </th>
+        </tr>
+      </thead>
+      <tbody
+        className=""
+      >
+        <tr
+          className="c35"
+          cursor="pointer"
+        >
+          <td
+            className="c36 c37"
+          >
+            <div
+              className="c0 c38"
               cursor="auto"
             >
-              <th
-                className="c31"
-                width="4%"
+              <label
+                className="c17"
+                color="black"
+                fontSize={1}
+                fontWeight="bold"
+                width="100%"
               >
-                <label
-                  className="c17"
-                  color="black"
-                  fontSize={1}
-                  fontWeight="bold"
-                  width="100%"
+                <div
+                  className="c0 c30"
+                  cursor="auto"
+                  disabled={false}
                 >
-                  <div
-                    className="c0 c32"
-                    cursor="auto"
+                  <input
+                    checked={false}
+                    className="c31"
                     disabled={false}
+                    onChange={[Function]}
+                    onClick={[Function]}
+                    size={20}
+                    type="checkbox"
+                  />
+                  <svg
+                    className="c32"
+                    cursor="inherit"
+                    data-name="checked"
+                    fill="currentcolor"
+                    height={20}
+                    viewBox="0 0 24 24"
+                    width={20}
                   >
-                    <input
-                      checked={false}
-                      className="c33"
-                      data-tag="masterCheckbox"
-                      disabled={false}
-                      onChange={[Function]}
-                      onClick={[Function]}
-                      size={20}
-                      type="checkbox"
+                    <path
+                      d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
                     />
-                    <svg
-                      className="c34"
-                      cursor="inherit"
-                      data-name="checked"
-                      fill="currentcolor"
-                      height={20}
-                      viewBox="0 0 24 24"
-                      width={20}
-                    >
-                      <path
-                        d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
-                      />
-                    </svg>
-                    <svg
-                      className="c34"
-                      cursor="inherit"
-                      data-name="empty"
-                      fill="currentcolor"
-                      height={20}
-                      viewBox="0 0 24 24"
-                      width={20}
-                    >
-                      <path
-                        d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
-                      />
-                    </svg>
-                  </div>
-                </label>
-              </th>
-              <th
-                className="c35"
-                onClick={[Function]}
-              >
-                Name
-              </th>
-              <th
-                className="c35"
-                onClick={[Function]}
-              >
-                State
-              </th>
-              <th
-                className="c35"
-                onClick={[Function]}
-              >
-                Application
-              </th>
-              <th
-                className="c35"
-                onClick={[Function]}
-              >
-                <svg
-                  className="c36"
-                  clipRule="evenodd"
-                  cursor="pointer"
-                  fill="currentcolor"
-                  fillRule="evenodd"
-                  height=".7em"
-                  mr=".4em"
-                  viewBox="0 0 18 24"
-                  width=".7em"
-                >
-                  <path
-                    d="M9 24l9-10h-6V0H6v14h-6l9 10z"
-                  />
-                </svg>
-                Created at
-              </th>
-              <th
-                className="c35"
-                onClick={[Function]}
-              >
-                Expiration
-              </th>
-            </tr>
-          </thead>
-          <tbody
-            className=""
+                  </svg>
+                  <svg
+                    className="c32"
+                    cursor="inherit"
+                    data-name="empty"
+                    fill="currentcolor"
+                    height={20}
+                    viewBox="0 0 24 24"
+                    width={20}
+                  >
+                    <path
+                      d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                    />
+                  </svg>
+                </div>
+              </label>
+            </div>
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
           >
-            <tr
-              className="c37"
-              cursor="pointer"
+            Thomas
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            <svg
+              className="c40"
+              clipRule="evenodd"
+              color="#c00"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height={24}
+              mr="8px"
+              state="FAILURE"
+              viewBox="0 0 25 24"
+              width={24}
             >
-              <td
-                className="c38 c39"
+              <path
+                d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                fillRule="nonzero"
+              />
+            </svg>
+             
+            Failure
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            
+             v
+            
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            28/08/2018
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            N/A
+          </td>
+        </tr>
+        <tr
+          className="c35"
+          cursor="pointer"
+        >
+          <td
+            className="c36 c37"
+          >
+            <div
+              className="c0 c38"
+              cursor="auto"
+            >
+              <label
+                className="c17"
+                color="black"
+                fontSize={1}
+                fontWeight="bold"
+                width="100%"
               >
                 <div
-                  className="c0 c40"
+                  className="c0 c30"
                   cursor="auto"
+                  disabled={false}
                 >
-                  <label
-                    className="c17"
-                    color="black"
-                    fontSize={1}
-                    fontWeight="bold"
-                    width="100%"
-                  >
-                    <div
-                      className="c0 c32"
-                      cursor="auto"
-                      disabled={false}
-                    >
-                      <input
-                        checked={false}
-                        className="c33"
-                        disabled={false}
-                        onChange={[Function]}
-                        onClick={[Function]}
-                        size={20}
-                        type="checkbox"
-                      />
-                      <svg
-                        className="c34"
-                        cursor="inherit"
-                        data-name="checked"
-                        fill="currentcolor"
-                        height={20}
-                        viewBox="0 0 24 24"
-                        width={20}
-                      >
-                        <path
-                          d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
-                        />
-                      </svg>
-                      <svg
-                        className="c34"
-                        cursor="inherit"
-                        data-name="empty"
-                        fill="currentcolor"
-                        height={20}
-                        viewBox="0 0 24 24"
-                        width={20}
-                      >
-                        <path
-                          d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
-                        />
-                      </svg>
-                    </div>
-                  </label>
-                </div>
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                Thomas
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                <svg
-                  className="c42"
-                  clipRule="evenodd"
-                  color="#c00"
-                  cursor="inherit"
-                  fill="currentcolor"
-                  fillRule="evenodd"
-                  height={24}
-                  mr="8px"
-                  state="FAILURE"
-                  viewBox="0 0 25 24"
-                  width={24}
-                >
-                  <path
-                    d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
-                    fillRule="nonzero"
+                  <input
+                    checked={false}
+                    className="c31"
+                    disabled={false}
+                    onChange={[Function]}
+                    onClick={[Function]}
+                    size={20}
+                    type="checkbox"
                   />
-                </svg>
-                 
-                Failure
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                
-                 v
-                
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                28/08/2018
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                N/A
-              </td>
-            </tr>
-            <tr
-              className="c37"
-              cursor="pointer"
+                  <svg
+                    className="c32"
+                    cursor="inherit"
+                    data-name="checked"
+                    fill="currentcolor"
+                    height={20}
+                    viewBox="0 0 24 24"
+                    width={20}
+                  >
+                    <path
+                      d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                    />
+                  </svg>
+                  <svg
+                    className="c32"
+                    cursor="inherit"
+                    data-name="empty"
+                    fill="currentcolor"
+                    height={20}
+                    viewBox="0 0 24 24"
+                    width={20}
+                  >
+                    <path
+                      d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                    />
+                  </svg>
+                </div>
+              </label>
+            </div>
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            Johnny
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            <svg
+              className="c40"
+              clipRule="evenodd"
+              color="#c00"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height={24}
+              mr="8px"
+              state="FAILURE"
+              viewBox="0 0 25 24"
+              width={24}
             >
-              <td
-                className="c38 c39"
+              <path
+                d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                fillRule="nonzero"
+              />
+            </svg>
+             
+            Failure
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            
+             v
+            
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            29/08/2018
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            N/A
+          </td>
+        </tr>
+        <tr
+          className="c35"
+          cursor="pointer"
+        >
+          <td
+            className="c36 c37"
+          >
+            <div
+              className="c0 c38"
+              cursor="auto"
+            >
+              <label
+                className="c17"
+                color="black"
+                fontSize={1}
+                fontWeight="bold"
+                width="100%"
               >
                 <div
-                  className="c0 c40"
+                  className="c0 c30"
                   cursor="auto"
+                  disabled={false}
                 >
-                  <label
-                    className="c17"
-                    color="black"
-                    fontSize={1}
-                    fontWeight="bold"
-                    width="100%"
-                  >
-                    <div
-                      className="c0 c32"
-                      cursor="auto"
-                      disabled={false}
-                    >
-                      <input
-                        checked={false}
-                        className="c33"
-                        disabled={false}
-                        onChange={[Function]}
-                        onClick={[Function]}
-                        size={20}
-                        type="checkbox"
-                      />
-                      <svg
-                        className="c34"
-                        cursor="inherit"
-                        data-name="checked"
-                        fill="currentcolor"
-                        height={20}
-                        viewBox="0 0 24 24"
-                        width={20}
-                      >
-                        <path
-                          d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
-                        />
-                      </svg>
-                      <svg
-                        className="c34"
-                        cursor="inherit"
-                        data-name="empty"
-                        fill="currentcolor"
-                        height={20}
-                        viewBox="0 0 24 24"
-                        width={20}
-                      >
-                        <path
-                          d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
-                        />
-                      </svg>
-                    </div>
-                  </label>
-                </div>
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                Johnny
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                <svg
-                  className="c42"
-                  clipRule="evenodd"
-                  color="#c00"
-                  cursor="inherit"
-                  fill="currentcolor"
-                  fillRule="evenodd"
-                  height={24}
-                  mr="8px"
-                  state="FAILURE"
-                  viewBox="0 0 25 24"
-                  width={24}
-                >
-                  <path
-                    d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
-                    fillRule="nonzero"
+                  <input
+                    checked={false}
+                    className="c31"
+                    disabled={false}
+                    onChange={[Function]}
+                    onClick={[Function]}
+                    size={20}
+                    type="checkbox"
                   />
-                </svg>
-                 
-                Failure
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                
-                 v
-                
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                29/08/2018
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                N/A
-              </td>
-            </tr>
-            <tr
-              className="c37"
-              cursor="pointer"
+                  <svg
+                    className="c32"
+                    cursor="inherit"
+                    data-name="checked"
+                    fill="currentcolor"
+                    height={20}
+                    viewBox="0 0 24 24"
+                    width={20}
+                  >
+                    <path
+                      d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                    />
+                  </svg>
+                  <svg
+                    className="c32"
+                    cursor="inherit"
+                    data-name="empty"
+                    fill="currentcolor"
+                    height={20}
+                    viewBox="0 0 24 24"
+                    width={20}
+                  >
+                    <path
+                      d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                    />
+                  </svg>
+                </div>
+              </label>
+            </div>
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            Fred
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            <svg
+              className="c40"
+              clipRule="evenodd"
+              color="#c00"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height={24}
+              mr="8px"
+              state="FAILURE"
+              viewBox="0 0 25 24"
+              width={24}
             >
-              <td
-                className="c38 c39"
+              <path
+                d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                fillRule="nonzero"
+              />
+            </svg>
+             
+            Failure
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            
+             v
+            
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            30/08/2018
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            N/A
+          </td>
+        </tr>
+        <tr
+          className="c35"
+          cursor="pointer"
+        >
+          <td
+            className="c36 c37"
+          >
+            <div
+              className="c0 c38"
+              cursor="auto"
+            >
+              <label
+                className="c17"
+                color="black"
+                fontSize={1}
+                fontWeight="bold"
+                width="100%"
               >
                 <div
-                  className="c0 c40"
+                  className="c0 c30"
                   cursor="auto"
+                  disabled={false}
                 >
-                  <label
-                    className="c17"
-                    color="black"
-                    fontSize={1}
-                    fontWeight="bold"
-                    width="100%"
-                  >
-                    <div
-                      className="c0 c32"
-                      cursor="auto"
-                      disabled={false}
-                    >
-                      <input
-                        checked={false}
-                        className="c33"
-                        disabled={false}
-                        onChange={[Function]}
-                        onClick={[Function]}
-                        size={20}
-                        type="checkbox"
-                      />
-                      <svg
-                        className="c34"
-                        cursor="inherit"
-                        data-name="checked"
-                        fill="currentcolor"
-                        height={20}
-                        viewBox="0 0 24 24"
-                        width={20}
-                      >
-                        <path
-                          d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
-                        />
-                      </svg>
-                      <svg
-                        className="c34"
-                        cursor="inherit"
-                        data-name="empty"
-                        fill="currentcolor"
-                        height={20}
-                        viewBox="0 0 24 24"
-                        width={20}
-                      >
-                        <path
-                          d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
-                        />
-                      </svg>
-                    </div>
-                  </label>
-                </div>
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                Fred
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                <svg
-                  className="c42"
-                  clipRule="evenodd"
-                  color="#c00"
-                  cursor="inherit"
-                  fill="currentcolor"
-                  fillRule="evenodd"
-                  height={24}
-                  mr="8px"
-                  state="FAILURE"
-                  viewBox="0 0 25 24"
-                  width={24}
-                >
-                  <path
-                    d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
-                    fillRule="nonzero"
+                  <input
+                    checked={false}
+                    className="c31"
+                    disabled={false}
+                    onChange={[Function]}
+                    onClick={[Function]}
+                    size={20}
+                    type="checkbox"
                   />
-                </svg>
-                 
-                Failure
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                
-                 v
-                
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                30/08/2018
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                N/A
-              </td>
-            </tr>
-            <tr
-              className="c37"
-              cursor="pointer"
+                  <svg
+                    className="c32"
+                    cursor="inherit"
+                    data-name="checked"
+                    fill="currentcolor"
+                    height={20}
+                    viewBox="0 0 24 24"
+                    width={20}
+                  >
+                    <path
+                      d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+                    />
+                  </svg>
+                  <svg
+                    className="c32"
+                    cursor="inherit"
+                    data-name="empty"
+                    fill="currentcolor"
+                    height={20}
+                    viewBox="0 0 24 24"
+                    width={20}
+                  >
+                    <path
+                      d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+                    />
+                  </svg>
+                </div>
+              </label>
+            </div>
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            Nathan
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            <svg
+              className="c41"
+              clipRule="evenodd"
+              color="#00C05A"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height={24}
+              mr="8px"
+              state="SUCCESS"
+              viewBox="0 0 25 19"
+              width={24}
             >
-              <td
-                className="c38 c39"
-              >
-                <div
-                  className="c0 c40"
-                  cursor="auto"
-                >
-                  <label
-                    className="c17"
-                    color="black"
-                    fontSize={1}
-                    fontWeight="bold"
-                    width="100%"
-                  >
-                    <div
-                      className="c0 c32"
-                      cursor="auto"
-                      disabled={false}
-                    >
-                      <input
-                        checked={false}
-                        className="c33"
-                        disabled={false}
-                        onChange={[Function]}
-                        onClick={[Function]}
-                        size={20}
-                        type="checkbox"
-                      />
-                      <svg
-                        className="c34"
-                        cursor="inherit"
-                        data-name="checked"
-                        fill="currentcolor"
-                        height={20}
-                        viewBox="0 0 24 24"
-                        width={20}
-                      >
-                        <path
-                          d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
-                        />
-                      </svg>
-                      <svg
-                        className="c34"
-                        cursor="inherit"
-                        data-name="empty"
-                        fill="currentcolor"
-                        height={20}
-                        viewBox="0 0 24 24"
-                        width={20}
-                      >
-                        <path
-                          d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
-                        />
-                      </svg>
-                    </div>
-                  </label>
-                </div>
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                Nathan
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                <svg
-                  className="c43"
-                  clipRule="evenodd"
-                  color="#00C05A"
-                  cursor="inherit"
-                  fill="currentcolor"
-                  fillRule="evenodd"
-                  height={24}
-                  mr="8px"
-                  state="SUCCESS"
-                  viewBox="0 0 25 19"
-                  width={24}
-                >
-                  <path
-                    d="M8 15L2 8.981l-2 2.02L8 19 24.001 2l-2.002-2L8 15z"
-                    fillRule="nonzero"
-                  />
-                </svg>
-                 
-                Success
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                
-                 v
-                
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                03/09/2018
-              </td>
-              <td
-                className="c38 c41"
-                onClick={[Function]}
-              >
-                N/A
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+              <path
+                d="M8 15L2 8.981l-2 2.02L8 19 24.001 2l-2.002-2L8 15z"
+                fillRule="nonzero"
+              />
+            </svg>
+             
+            Success
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            
+             v
+            
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            03/09/2018
+          </td>
+          <td
+            className="c36 c39"
+            onClick={[Function]}
+          >
+            N/A
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 `;

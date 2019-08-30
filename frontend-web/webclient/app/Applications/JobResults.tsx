@@ -16,7 +16,6 @@ import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {ContainerForText} from "ui-components";
 import Box from "ui-components/Box";
 import Button from "ui-components/Button";
 import Checkbox from "ui-components/Checkbox";
@@ -101,39 +100,37 @@ function JobResults(props: AnalysesProps & {history: History}) {
         customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
         loading={loading}
         pageRenderer={page =>
-            <ContainerForText>
-                <Table>
-                    <Header
-                        hide={hide}
-                        masterCheckbox={masterCheckbox}
-                        sortBy={sortBy}
-                        sortOrder={sortOrder}
-                        fetchJobs={sortBy => fetchJobs({
-                            itemsPerPage,
-                            pageNumber,
-                            sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
-                            sortBy
-                        })}
-                    />
-                    <TableBody>
-                        {page.items.map((a, i) =>
-                            <Row
-                                hide={hide}
-                                to={() => history.push(`/applications/results/${a.jobId}`)}
-                                analysis={a}
-                                key={i}
-                            >
-                                <Box><Label>
-                                    <Checkbox
-                                        checked={a.checked}
-                                        onClick={(e: {target: {checked: boolean}}) =>
-                                            props.checkAnalysis(a.jobId, e.target.checked)}
-                                    />
-                                </Label></Box>
-                            </Row>)}
-                    </TableBody>
-                </Table>
-            </ContainerForText>
+            <Table>
+                <Header
+                    hide={hide}
+                    masterCheckbox={masterCheckbox}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    fetchJobs={sortBy => fetchJobs({
+                        itemsPerPage,
+                        pageNumber,
+                        sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
+                        sortBy
+                    })}
+                />
+                <TableBody>
+                    {page.items.map((a, i) =>
+                        <Row
+                            hide={hide}
+                            to={() => history.push(`/applications/results/${a.jobId}`)}
+                            analysis={a}
+                            key={i}
+                        >
+                            <Box><Label>
+                                <Checkbox
+                                    checked={a.checked}
+                                    onClick={(e: {target: {checked: boolean}}) =>
+                                        props.checkAnalysis(a.jobId, e.target.checked)}
+                                />
+                            </Label></Box>
+                        </Row>)}
+                </TableBody>
+            </Table>
         }
         page={page}
         onPageChanged={pageNumber => fetchJobs({pageNumber})}
@@ -343,7 +340,7 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             {hide ? null : <TableCell onClick={to}>{moment(analysis.createdAt).calendar()}</TableCell>}
             <TableCell onClick={to}>
                 {!!analysis.expiresAt &&
-                     analysis.state === JobState.RUNNING ? moment(analysis.expiresAt).calendar() : "N/A"}
+                    analysis.state === JobState.RUNNING ? moment(analysis.expiresAt).calendar() : "N/A"}
             </TableCell>
         </TableRow>);
 };
