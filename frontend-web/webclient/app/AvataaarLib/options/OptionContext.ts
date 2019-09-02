@@ -9,14 +9,15 @@ export interface OptionState {
   available: number;
 }
 
-export type OptionContextState = {[index: string]: OptionState}
+export interface OptionContextState {[index: string]: OptionState;}
 
 export default class OptionContext {
   private stateChangeListeners = new Set<Function>();
   private valueChangeListeners = new Set<Function>();
+  private parentComponent?: React.Component;
   private _state: OptionContextState = {};
   private _data: {[index: string]: string} = {};
-  private readonly _options: Array<Option>;
+  private readonly _options: Option[];
 
   get options() {
     return this._options;
@@ -26,14 +27,15 @@ export default class OptionContext {
     return this._state;
   }
 
-  constructor(options: Option[]) {
+  constructor(options: Option[], comp?: React.Component) {
     this._options = options;
+    this.parentComponent = comp;
     for (const option of options) {
       this._state[option.key] = {
         key: option.key,
         available: 0,
         options: []
-      }
+      };
     }
   }
 
@@ -42,15 +44,15 @@ export default class OptionContext {
   }
 
   public removeStateChangeListener(listener: () => void) {
-    this.stateChangeListeners.delete(listener)
+    this.stateChangeListeners.delete(listener);
   }
 
   public addValueChangeListener(listener: (key: string, value: string) => void) {
-    this.valueChangeListeners.add(listener)
+    this.valueChangeListeners.add(listener);
   }
 
   public removeValueChangeListener(listener: (key: string, value: string) => void) {
-    this.valueChangeListeners.delete(listener)
+    this.valueChangeListeners.delete(listener);
   }
 
   public optionEnter(key: string) {
@@ -119,7 +121,7 @@ export default class OptionContext {
         key,
         options
       }
-    })
+    });
   }
 
   private setState(state: OptionContextState) {
@@ -134,6 +136,7 @@ export default class OptionContext {
     for (const listener of Array.from(this.stateChangeListeners)) {
       listener();
     }
+    if (this.parentComponent) this.parentComponent.forceUpdate();
   }
 }
 
