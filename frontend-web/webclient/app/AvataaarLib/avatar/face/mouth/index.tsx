@@ -12,10 +12,11 @@ import Smile from './Smile'
 import Tongue from './Tongue'
 import Twinkle from './Twinkle'
 import Vomit from './Vomit'
-import { MouthOption, Selector } from '../../../options'
+import {MouthOption} from '../../../options'
+import Selector from 'AvataaarLib/options/Selector'
 
 export default class Mouth extends React.Component {
-  render () {
+  render() {
     return (
       <Selector defaultOption={Default} option={MouthOption}>
         <Concerned />

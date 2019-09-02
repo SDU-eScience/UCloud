@@ -35,11 +35,12 @@ import WinterHat1 from './WinterHat1'
 import WinterHat2 from './WinterHat2'
 import WinterHat3 from './WinterHat3'
 import WinterHat4 from './WinterHat4'
-import { Selector, TopOption } from '../../options'
+import {TopOption} from '../../options'
+import Selector from 'AvataaarLib/options/Selector'
 
 export default class Top extends React.Component {
-  render () {
-    const { children } = this.props;
+  render() {
+    const {children} = this.props;
     return (
       <Selector defaultOption={LongHairStraight} option={TopOption}>
         <NoHair>{children}</NoHair>

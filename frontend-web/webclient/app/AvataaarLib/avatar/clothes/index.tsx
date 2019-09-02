@@ -9,10 +9,11 @@ import Overall from './Overall'
 import ShirtCrewNeck from './ShirtCrewNeck'
 import ShirtScoopNeck from './ShirtScoopNeck'
 import ShirtVNeck from './ShirtVNeck'
-import { ClotheOption, Selector } from '../../options'
+import {ClotheOption} from '../../options'
+import Selector from 'AvataaarLib/options/Selector'
 
 export default class Clothes extends React.Component {
-  render () {
+  render() {
     return (
       <Selector option={ClotheOption} defaultOption={BlazerShirt}>
         <BlazerShirt />

@@ -1,6 +1,7 @@
 import * as React from "react";
 
-import { ClotheColorOption, Selector } from "../../options";
+import { ClotheColorOption } from "../../options";
+import Selector from "AvataaarLib/options/Selector";
 
 export interface Props {
   maskID: string;

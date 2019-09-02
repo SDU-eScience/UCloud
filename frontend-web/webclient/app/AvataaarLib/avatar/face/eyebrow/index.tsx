@@ -12,25 +12,24 @@ import SadConcernedNatural from './SadConcernedNatural'
 import UnibrowNatural from './UnibrowNatural'
 import UpDown from './UpDown'
 import UpDownNatural from './UpDownNatural'
-import { EyebrowOption, Selector } from '../../../options'
+import {EyebrowOption} from '../../../options'
+import Selector from 'AvataaarLib/options/Selector'
 
-export default class Eyebrow extends React.Component {
-  render () {
-    return (
-      <Selector defaultOption={Default} option={EyebrowOption}>
-        <Angry />
-        <AngryNatural />
-        <Default />
-        <DefaultNatural />
-        <FlatNatural />
-        <RaisedExcited />
-        <RaisedExcitedNatural />
-        <SadConcerned />
-        <SadConcernedNatural />
-        <UnibrowNatural />
-        <UpDown />
-        <UpDownNatural />
-      </Selector>
-    )
-  }
+export default function Eyebrow() {
+  return (
+    <Selector defaultOption={Default} option={EyebrowOption} >
+      <Angry />
+      <AngryNatural />
+      <Default />
+      <DefaultNatural />
+      <FlatNatural />
+      <RaisedExcited />
+      <RaisedExcitedNatural />
+      <SadConcerned />
+      <SadConcernedNatural />
+      <UnibrowNatural />
+      <UpDown />
+      <UpDownNatural />
+    </Selector>
+  )
 }

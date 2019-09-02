@@ -1,6 +1,7 @@
 import * as React from "react";
 import {generateId as uniqueId} from "UtilityFunctions";
-import {GraphicOption, Selector} from "../../options";
+import {GraphicOption} from "../../options";
+import Selector from "AvataaarLib/options/Selector";
 
 export interface Props {
   maskID: string;

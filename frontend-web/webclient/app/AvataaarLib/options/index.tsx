@@ -1,7 +1,4 @@
 import Option from "./Option";
-export {default as Option} from "./Option";
-export {default as OptionContext, OptionContextState} from "./OptionContext";
-export {default as Selector} from "./Selector";
 
 export const TopOption = new Option({
   key: "topType",

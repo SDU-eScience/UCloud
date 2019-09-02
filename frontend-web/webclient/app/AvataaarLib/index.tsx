@@ -27,7 +27,8 @@
 import * as PropTypes from "prop-types";
 import * as React from "react";
 import Avatar, {AvatarStyle} from "./avatar";
-import {allOptions, OptionContext} from "./options";
+import {allOptions} from "./options";
+import OptionContext from "./options/OptionContext";
 export {default as Avatar, AvatarStyle} from "./avatar";
 
 export interface Props {

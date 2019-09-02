@@ -6,7 +6,8 @@ import BeardMedium from './BeardMedium'
 import Blank from './Blank'
 import MoustacheFancy from './MoustacheFancy'
 import MoustacheMagnum from './MoustacheMagnum'
-import { FacialHairOption, Selector } from '../../../options'
+import { FacialHairOption } from '../../../options'
+import Selector from 'AvataaarLib/options/Selector'
 
 export default class FacialHair extends React.Component {
   render () {

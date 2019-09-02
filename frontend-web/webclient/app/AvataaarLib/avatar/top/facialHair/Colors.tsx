@@ -1,14 +1,15 @@
 import * as React from 'react'
 
-import { FacialHairColor, Selector } from '../../../options'
+import {FacialHairColor} from '../../../options'
+import Selector from 'AvataaarLib/options/Selector';
 
 export interface Props {
   maskID: string
 }
 
-function makeColor (name: string, color: string) {
+function makeColor(name: string, color: string) {
   class ColorComponent extends React.Component<Props> {
-    render () {
+    render() {
       return (
         <g
           id='Color/Hair/Brown'
@@ -37,7 +38,7 @@ const Platinum = makeColor('Platinum', '#ECDCBF');
 const Red = makeColor('Red', '#C93305');
 
 export default class Colors extends React.Component<Props> {
-  render () {
+  render() {
     return (
       <Selector option={FacialHairColor} defaultOption={BrownDark}>
         <Auburn maskID={this.props.maskID} />

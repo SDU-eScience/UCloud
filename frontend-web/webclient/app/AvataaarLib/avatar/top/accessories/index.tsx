@@ -7,7 +7,8 @@ import Prescription02 from './Prescription02'
 import Round from './Round'
 import Sunglasses from './Sunglasses'
 import Wayfarers from './Wayfarers'
-import { AccessoriesOption, Selector } from '../../../options'
+import { AccessoriesOption } from '../../../options'
+import Selector from 'AvataaarLib/options/Selector'
 
 export default class Accessories extends React.Component {
   render () {

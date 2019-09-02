@@ -1,4 +1,6 @@
-import Option from "./Option"
+import {createContext} from "react";
+import {allOptions} from ".";
+import Option from "./Option";
 
 export interface OptionState {
   key: string;
@@ -134,3 +136,5 @@ export default class OptionContext {
     }
   }
 }
+
+export const OptionCtx = createContext(new OptionContext(allOptions));

@@ -12,10 +12,11 @@ import Squint from './Squint'
 import Surprised from './Surprised'
 import Wink from './Wink'
 import WinkWacky from './WinkWacky'
-import { EyesOption, Selector } from '../../../options'
+import {EyesOption} from '../../../options'
+import Selector from 'AvataaarLib/options/Selector'
 
 export default class Eyes extends React.Component {
-  render () {
+  render() {
     return (
       <Selector defaultOption={Default} option={EyesOption}>
         <Close />
