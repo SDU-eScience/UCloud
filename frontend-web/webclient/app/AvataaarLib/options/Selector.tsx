@@ -17,9 +17,7 @@ export interface Props {
 }
 
 export default function Selector(props: Props & {children: React.ReactNode}) {
-
   const context = React.useContext(OptionCtx);
-  const [, forceUpdate] = React.useState();
 
   React.useEffect(() => {
     const {option, defaultOption} = props;
@@ -27,7 +25,6 @@ export default function Selector(props: Props & {children: React.ReactNode}) {
       typeof defaultOption === "string" ?
         defaultOption : getComponentOptionValue(defaultOption)
     );
-    context.addStateChangeListener(force);
     context.optionEnter(option.key);
     const optionState = context.getOptionState(option.key);
     updateOptionValues();
@@ -35,7 +32,6 @@ export default function Selector(props: Props & {children: React.ReactNode}) {
       context.setDefaultValue(option.key, defaultValue);
     }
     return () => {
-      context.removeStateChangeListener((force));
       context.optionExit(props.option.key);
     };
   }, []);
@@ -72,7 +68,4 @@ export default function Selector(props: Props & {children: React.ReactNode}) {
     context.setOptions(option.key, values);
   }
 
-  function force() {
-    forceUpdate(undefined);
-  }
 }
