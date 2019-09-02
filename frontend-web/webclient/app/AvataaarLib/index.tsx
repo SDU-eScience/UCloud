@@ -28,7 +28,7 @@ import * as PropTypes from "prop-types";
 import * as React from "react";
 import Avatar, {AvatarStyle} from "./avatar";
 import {allOptions} from "./options";
-import OptionContext from "./options/OptionContext";
+import OptionContext, {OptionCtx} from "./options/OptionContext";
 export {default as Avatar, AvatarStyle} from "./avatar";
 
 export interface Props {
@@ -52,19 +52,12 @@ export interface Props {
 }
 
 export default class AvatarComponent extends React.Component<Props> {
-    public static childContextTypes = {
-        optionContext: PropTypes.instanceOf(OptionContext)
-    };
 
     private optionContext: OptionContext = new OptionContext(allOptions);
-    public getChildContext() {
-        return {optionContext: this.optionContext};
-    }
 
     public componentDidMount() {
         this.updateOptionContext(this.props);
     }
-
 
     public UNSAFE_componentWillReceiveProps(nextProps: Props) {
         this.updateOptionContext(nextProps);
@@ -72,7 +65,9 @@ export default class AvatarComponent extends React.Component<Props> {
 
     public render() {
         const {avatarStyle, style} = this.props;
-        return <Avatar avatarStyle={avatarStyle as AvatarStyle} style={style} />;
+        return <OptionCtx.Provider value={this.optionContext}>
+            <Avatar avatarStyle={avatarStyle as AvatarStyle} style={style} />
+        </OptionCtx.Provider>;
     }
 
     private updateOptionContext(props: Props) {

@@ -1,7 +1,7 @@
 import * as PropTypes from "prop-types";
 import * as React from "react";
 import Option from "./Option";
-import OptionContext from "./OptionContext";
+import OptionContext, {OptionCtx} from "./OptionContext";
 
 function getComponentOptionValue(component: React.ComponentClass) {
   const optionValue = (component as any).optionValue;
@@ -16,63 +16,51 @@ export interface Props {
   defaultOption: React.ComponentClass | string;
 }
 
-export default class Selector extends React.Component<Props> {
-  public static contextTypes = {
-    optionContext: PropTypes.instanceOf(OptionContext)
-  };
+export default function Selector(props: Props & {children: React.ReactNode}) {
 
-  private get optionContext(): OptionContext {
-    return this.context.optionContext;
-  }
+  const context = React.useContext(OptionCtx);
+  const [, forceUpdate] = React.useState();
 
-  public componentDidMount() {
-    const {option, defaultOption} = this.props;
-    const {optionContext} = this;
+  React.useEffect(() => {
+    const {option, defaultOption} = props;
     const defaultValue = (
       typeof defaultOption === "string" ?
         defaultOption : getComponentOptionValue(defaultOption)
     );
-    optionContext.addStateChangeListener(this.optionContextUpdate);
-    optionContext.optionEnter(option.key);
-    const optionState = optionContext.getOptionState(option.key);
-    this.updateOptionValues();
+    context.addStateChangeListener(force);
+    context.optionEnter(option.key);
+    const optionState = context.getOptionState(option.key);
+    updateOptionValues();
     if (optionState) {
-      optionContext.setDefaultValue(option.key, defaultValue);
+      context.setDefaultValue(option.key, defaultValue);
     }
-  }
+    return () => {
+      context.removeStateChangeListener((force));
+      context.optionExit(props.option.key);
+    };
+  }, []);
 
-  public componentDidUpdate(nextProps: Props & {children?: React.ReactNode}) {
-    this.updateOptionValues(nextProps);
-  }
+  React.useEffect(() => {
+    updateOptionValues(props);
+  }, [props]);
 
-  public componentWillUnmount() {
-    this.optionContext.removeStateChangeListener(this.optionContextUpdate);
-    this.optionContext.optionExit(this.props.option.key);
-  }
+  let result: React.ReactNode | null = null;
+  const {option, children} = props;
+  const value = context.getValue(option.key)!;
+  React.Children.forEach(children, child => {
+    if (getComponentOptionValue((child as any).type) === value) {
+      result = child;
+    }
+  });
+  return result;
 
-  public render() {
-    let result: React.ReactNode | null = null;
-    const {option, children} = this.props;
-    const value = this.optionContext.getValue(option.key)!;
-    React.Children.forEach(children, child => {
-      if (getComponentOptionValue((child as any).type) === value) {
-        result = child;
-      }
-    });
-    return result;
-  }
-
-  private optionContextUpdate = () => {
-    this.forceUpdate();
-  }
-
-  private updateOptionValues(
+  function updateOptionValues(
     nextProps?: Props & {children?: React.ReactNode}
   ) {
-    if (nextProps && this.props.children === nextProps.children) {
+    if (nextProps && props.children === nextProps.children) {
       return;
     }
-    const {option, children} = this.props;
+    const {option, children} = props;
     const values = React.Children.map(
       children,
       // TODO: also validate and throw error if we don"t see optionValue
@@ -81,6 +69,10 @@ export default class Selector extends React.Component<Props> {
     if (new Set(values).size !== values.length) {
       throw new Error("Duplicate values");
     }
-    this.optionContext.setOptions(option.key, values);
+    context.setOptions(option.key, values);
+  }
+
+  function force() {
+    forceUpdate(undefined);
   }
 }
