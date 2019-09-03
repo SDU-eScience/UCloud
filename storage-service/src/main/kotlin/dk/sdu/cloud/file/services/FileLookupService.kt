@@ -1,17 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.FileSortBy
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.StorageFileAttribute
-import dk.sdu.cloud.file.api.StorageFileImpl
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -41,9 +31,10 @@ class FileLookupService<Ctx : FSUserContext>(
         pagination: NormalizedPaginationRequest,
         sortBy: FileSortBy = FileSortBy.TYPE,
         order: SortOrder = SortOrder.ASCENDING,
-        attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList()
+        attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList(),
+        type: FileType? = null
     ): Page<StorageFile> {
-        return listDirectorySorted(ctx, path, sortBy, order, attributes, pagination)
+        return listDirectorySorted(ctx, path, sortBy, order, attributes, pagination, type)
     }
 
     private suspend fun listDirectorySorted(
@@ -52,13 +43,16 @@ class FileLookupService<Ctx : FSUserContext>(
         sortBy: FileSortBy,
         order: SortOrder,
         attributes: List<StorageFileAttribute>,
-        pagination: NormalizedPaginationRequest? = null
+        pagination: NormalizedPaginationRequest? = null,
+        type: FileType? = null
     ): Page<StorageFile> {
         val nativeAttributes = translateToNativeAttributes(attributes, sortBy)
 
         val cache = HashMap<String, SensitivityLevel>()
 
-        return coreFs.listDirectorySorted(ctx, path, nativeAttributes, sortBy, order, pagination).mapItemsNotNull {
+        return coreFs.listDirectorySorted(
+            ctx, path, nativeAttributes, sortBy, order, pagination, type
+        ).mapItemsNotNull {
             readStorageFile(ctx, it, cache, nativeAttributes.toList())
         }
     }
@@ -107,7 +101,7 @@ class FileLookupService<Ctx : FSUserContext>(
                 FileSortBy.CREATED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.MODIFIED_AT -> listOf(FileAttribute.TIMESTAMPS)
                 FileSortBy.SIZE -> listOf(FileAttribute.SIZE)
-                FileSortBy.ACL -> listOf(FileAttribute.SHARES)
+//                FileSortBy.ACL -> listOf(FileAttribute.SHARES)
                 FileSortBy.SENSITIVITY -> listOf(FileAttribute.SENSITIVITY, FileAttribute.PATH)
                 null -> emptyList()
             }
@@ -120,37 +114,40 @@ class FileLookupService<Ctx : FSUserContext>(
     // performed an access check. This will also ensure that we can read the correct sensitivity of files.
     private suspend fun lookupInheritedSensitivity(realPath: String): SensitivityLevel {
         val cache = HashMap<String, SensitivityLevel>()
-
-        suspend fun lookupInheritedSensitivity(ctx: Ctx): SensitivityLevel {
-            val cached = cache[realPath]
-            if (cached != null) return cached
-            if (realPath.components().size < 2) return SensitivityLevel.PRIVATE
-
-            val components = realPath.normalize().components()
-            val sensitivity = if (components.size == 2 && components[0] == "home") {
-                SensitivityLevel.PRIVATE
-            } else {
-                run {
-                    val stat = coreFs.stat(
-                        ctx,
-                        realPath,
-                        setOf(
-                            FileAttribute.PATH,
-                            FileAttribute.SENSITIVITY
-                        )
-                    )
-
-                    stat.sensitivityLevel ?: lookupInheritedSensitivity(stat.path.parent())
-                }
-            }
-
-            cache[realPath] = sensitivity
-            return sensitivity
-        }
-
         return commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
-            lookupInheritedSensitivity(ctx)
+            lookupInheritedSensitivity(ctx, realPath, cache)
         }
+    }
+
+    suspend fun lookupInheritedSensitivity(
+        ctx: Ctx,
+        cloudPath: String,
+        cache: MutableMap<String, SensitivityLevel>
+    ): SensitivityLevel {
+        val cached = cache[cloudPath]
+        if (cached != null) return cached
+        if (cloudPath.components().size < 2) return SensitivityLevel.PRIVATE
+
+        val components = cloudPath.normalize().components()
+        val sensitivity = if (components.size == 2 && components[0] == "home") {
+            SensitivityLevel.PRIVATE
+        } else {
+            run {
+                val stat = coreFs.stat(
+                    ctx,
+                    cloudPath,
+                    setOf(
+                        FileAttribute.PATH,
+                        FileAttribute.SENSITIVITY
+                    )
+                )
+
+                stat.sensitivityLevel ?: lookupInheritedSensitivity(stat.path.parent())
+            }
+        }
+
+        cache[cloudPath] = sensitivity
+        return sensitivity
     }
 
 

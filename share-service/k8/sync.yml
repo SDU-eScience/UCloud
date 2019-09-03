@@ -1,0 +1,50 @@
+---
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: share-sync
+
+spec:
+  template:
+    metadata:
+      name: share-sync
+
+    spec:
+      containers:
+        - name: share-service
+          image: registry.cloud.sdu.dk/sdu-cloud/share-service:1.5.4-SYNC.0
+          args:
+          - /opt/service/bin/service
+          - --config-dir
+          - /etc/refresh-token
+          - --config-dir
+          - /etc/token-validation
+          - --config-dir
+          - /etc/psql
+          - --sync
+          volumeMounts:
+          - mountPath: /etc/refresh-token
+            name: refresh-token
+          - mountPath: /etc/token-validation
+            name: token-validation
+          - mountPath: /etc/psql
+            name: share-psql
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: share-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+          defaultMode: 420
+      - name: share-psql
+        secret:
+          optional: false
+          secretName: share-psql
+
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: esci-docker

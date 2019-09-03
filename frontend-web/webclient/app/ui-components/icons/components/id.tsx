@@ -9,7 +9,7 @@ const SvgId = (props: any) => (
     {...props}
   >
     <path
-      d="M21 24.001H3a3 3 0 0 1-3-3v-18a3 3 0 0 1 3-3h18a3 3 0 0 1 3 3v18a3.004 3.004 0 0 1-3 3zm0-3v-18H3v18h18z"
+      d="M21 24.001H3a3 3 0 01-3-3v-18a3 3 0 013-3h18a3 3 0 013 3v18a3.004 3.004 0 01-3 3zm0-3v-18H3v18h18z"
       fill={props.color2 ? props.color2 : null}
     />
     <g fill="#3d4d65" fillRule="nonzero">

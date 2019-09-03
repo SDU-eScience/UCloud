@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.Loggable
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.call.receive
+import io.ktor.client.engine.cio.FailToConnectException
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
@@ -58,7 +59,7 @@ class SlackNotifier(
                         log.debug("Java.net.Connect Exception caught : ${ex.message}")
 
                     }
-                    is io.ktor.client.engine.cio.ConnectException -> {
+                    is FailToConnectException -> {
                         log.debug("Cio ConnectException caught : ${ex.message}")
                     }
                 }

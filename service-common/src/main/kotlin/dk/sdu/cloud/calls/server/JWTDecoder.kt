@@ -40,6 +40,7 @@ private fun <T> DecodedJWT.requiredClaim(
 ): T {
     val claim = getClaim(name) ?: throw JWTException.InternalError("Could not find claim '$name'")
 
+    @Suppress("TooGenericExceptionCaught")
     return try {
         mapper(claim)!!
     } catch (ex: Exception) {
@@ -74,6 +75,7 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
     val issuedAt = validatedToken.issuedAt.time
     val expiresAt = validatedToken.expiresAt.time
 
+    @Suppress("TooGenericExceptionCaught")
     val scopes =
         validatedToken.audience.mapNotNull {
             try {

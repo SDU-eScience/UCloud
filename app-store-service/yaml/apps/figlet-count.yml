@@ -1,0 +1,26 @@
+---
+application: v1
+
+title: Figlet Count
+name: figlet
+version: 1.1.1
+
+tool:
+  name: figlet-docker
+  version: 1.1.1
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: >
+  Render some text!
+
+invocation:
+- figlet-count
+- type: var
+  vars: count
+ 
+parameters:
+  count:
+    title: "What should we count to?"
+    type: integer

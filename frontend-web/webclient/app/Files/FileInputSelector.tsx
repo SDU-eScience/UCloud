@@ -1,27 +1,28 @@
-import * as React from "react";
-import FileSelector from "Files/FileSelector";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
-import Input, {InputLabel} from "ui-components/Input";
-import Button from "ui-components/Button";
-import styled from "styled-components";
+import FileSelector from "Files/FileSelector";
+import * as React from "react";
 import {useState} from "react";
+import styled from "styled-components";
+import Button from "ui-components/Button";
+import Flex from "ui-components/Flex";
+import Input, {InputLabel} from "ui-components/Input";
+import {replaceHomeFolder} from "Utilities/FileUtilities";
 
 interface FileInputSelectorProps {
-    path: string // selected file
-    allowUpload?: boolean
-    showError?: boolean
-    inputRef?: React.RefObject<HTMLInputElement>
-    defaultValue?: string
-    isRequired?: boolean
-    unitName?: string | React.ReactNode
-    unitWidth?: string | number | undefined
-    remove?: () => void
-    onFileSelect: (file: { path: string }) => void
-    disallowedPaths?: string[]
+    path: string; // selected file
+    allowUpload?: boolean;
+    showError?: boolean;
+    inputRef?: React.RefObject<HTMLInputElement>;
+    defaultValue?: string;
+    isRequired?: boolean;
+    unitName?: string | React.ReactNode;
+    unitWidth?: string | number | undefined;
+    remove?: () => void;
+    onFileSelect: (file: { path: string }) => void;
+    disallowedPaths?: string[];
 
-    canSelectFolders?: boolean
-    onlyAllowFolders?: boolean
+    canSelectFolders?: boolean;
+    onlyAllowFolders?: boolean;
 }
 
 export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> = props => {
@@ -52,7 +53,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
         }}
 
         trigger={
-            <>
+            <Flex>
                 <FileSelectorInput
                     defaultValue={props.defaultValue}
                     showError={props.showError && props.isRequired}
@@ -65,14 +66,16 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
                     onClick={() => setVisible(true)}
                 />
                 {
-                    props.unitName ? <InputLabel width={props.unitWidth || "auto"}
-                                                      rightLabel>{props.unitName}</InputLabel> : null
+                    !props.unitName ? null :
+                        <InputLabel width={props.unitWidth || "auto"} rightLabel>
+                            {props.unitName}
+                        </InputLabel>
                 }
                 {uploadButton}
                 {removeButton}
-            </>
+            </Flex>
         }
-    />
+    />;
 };
 
 const FileSelectorInput = styled(Input)`
@@ -80,10 +83,10 @@ const FileSelectorInput = styled(Input)`
 `;
 
 interface FileSelectorButton {
-    onClick: () => void
+    onClick: () => void;
 }
 
 const UploadButton = ({onClick}: FileSelectorButton) => (
-    <Button ml="5px" type="button" onClick={onClick}>Upload File</Button>);
+    <Button ml="5px" height={"35px"} type="button" onClick={onClick}>Upload File</Button>);
 const RemoveButton = ({onClick}: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>✗</Button>);
 

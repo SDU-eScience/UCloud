@@ -5,16 +5,16 @@ import FacialHair from './facialHair'
 import HatColor from './HatColor'
 
 export default class WinterHat3 extends React.Component {
-  static optionValue = 'WinterHat3'
-  private filter1 = uniqueId('react-filter-')
-  private mask1 = uniqueId('react-mask-')
-  private mask2 = uniqueId('react-mask-')
-  private path1 = uniqueId('react-path-')
-  private path2 = uniqueId('react-path-')
-  private path3 = uniqueId('react-path-')
+  static optionValue = 'WinterHat3';
+  private filter1 = uniqueId('react-filter-');
+  private mask1 = uniqueId('react-mask-');
+  private mask2 = uniqueId('react-mask-');
+  private path1 = uniqueId('react-path-');
+  private path2 = uniqueId('react-path-');
+  private path3 = uniqueId('react-path-');
 
   render() {
-    const { filter1, mask1, mask2, path1, path2, path3 } = this
+    const { filter1, mask1, mask2, path1, path2, path3 } = this;
     return (
       <g id='Top'>
         <defs>

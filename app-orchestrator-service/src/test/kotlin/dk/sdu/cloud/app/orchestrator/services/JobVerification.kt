@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
@@ -16,9 +15,9 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -29,18 +28,18 @@ class JobVerification {
     val unverifiedJob = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
+            "Test job",
             mapOf("int" to 5, "great" to "mojn", "missing" to 23),
             1,
             1,
             SimpleDuration(1, 0, 0),
             "backend"
         ),
-        mockk<DecodedJWT>(relaxed = true).also {
-            every { it.subject } returns "user"
-        }
+        TestUsers.user.createToken(),
+        "token"
     )
 
-    lateinit var service: JobVerificationService
+    lateinit var service: JobVerificationService<*>
     val cloud = ClientMock.authenticatedClient
 
 
@@ -69,7 +68,14 @@ class JobVerification {
         } returns tool
 
         service =
-            JobVerificationService(appDao, toolDao, tokenValidation, "abacus", SharedMountVerificationService())
+            JobVerificationService(
+                appDao,
+                toolDao,
+                "abacus",
+                SharedMountVerificationService(),
+                db,
+                JobHibernateDao(appDao, toolDao)
+            )
     }
 
     @Test
@@ -93,15 +99,15 @@ class JobVerification {
     val unverifiedJobWithWrongParamType = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
+            "Test job",
             mapOf("int" to 2, "missing" to "NotAnInt"),
             1,
             1,
             SimpleDuration(1, 0, 0),
             "backend"
         ),
-        mockk<DecodedJWT>(relaxed = true).also {
-            every { it.subject } returns "user"
-        }
+        TestUsers.user.createToken(),
+        "token"
     )
 
     @Test(expected = JobException.VerificationError::class)
@@ -115,15 +121,15 @@ class JobVerification {
     val unverifiedJobWithMissingNonOptional = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
+            "Test job",
             mapOf("great" to "mojn"),
             1,
             1,
             SimpleDuration(1, 0, 0),
             "backend"
         ),
-        mockk<DecodedJWT>(relaxed = true).also {
-            every { it.subject } returns "user"
-        }
+        TestUsers.user.createToken(),
+        "token"
     )
 
     @Test(expected = JobException.VerificationError::class)

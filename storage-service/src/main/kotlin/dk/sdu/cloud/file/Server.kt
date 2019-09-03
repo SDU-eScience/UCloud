@@ -13,6 +13,7 @@ import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.http.WorkspaceController
+import dk.sdu.cloud.file.processors.ScanProcessor
 import dk.sdu.cloud.file.processors.StorageProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLWorker
@@ -54,6 +55,7 @@ import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
+import kotlin.system.exitProcess
 
 class Server(
     private val config: StorageConfiguration,
@@ -108,7 +110,13 @@ class Server(
 
         // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
-        val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer, newAclService)
+        val indexingService = IndexingService(
+            processRunner,
+            coreFileSystem,
+            storageEventProducer,
+            newAclService,
+            micro.eventStreamService
+        )
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
         val workspaceService = WorkspaceService(fsRootFile, fileScanner, newAclService)
 
@@ -129,6 +137,8 @@ class Server(
         ).init()
 
         StorageProcessor(streams, newAclService).init()
+
+        ScanProcessor(streams, indexingService).init()
 
         val tokenValidation =
             micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")
@@ -167,7 +177,8 @@ class Server(
                     processRunner,
                     coreFileSystem,
                     bulkDownloadService,
-                    tokenValidation
+                    tokenValidation,
+                    fileLookupService
                 ),
 
                 MultiPartUploadController(
@@ -199,12 +210,26 @@ class Server(
             micro.configuration.requestChunkAtOrNull<HibernateFeature.Feature.Config>(*HibernateFeature.CONFIG_PATH)
                 ?: return
 
-        if (config.dialect == H2_DIALECT) {
+        if (config.dialect == H2_DIALECT || config.profile == HibernateFeature.Feature.Profile.TEST_H2 ||
+            config.profile == HibernateFeature.Feature.Profile.PERSISTENT_H2
+        ) {
             // Add database 'polyfill' for postgres reverse function.
+            log.info("Adding the H2 polyfill")
             micro.hibernateDatabase.withTransaction { session ->
-                session.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ " +
-                        "String reverse(String s) { return new StringBuilder(s).reverse().toString(); } " +
-                        "\$\$;").executeUpdate()
+                session.createNativeQuery(
+                    "CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ " +
+                            "String reverse(String s) { return new StringBuilder(s).reverse().toString(); } " +
+                            "\$\$;"
+                ).executeUpdate()
+            }
+        }
+
+        micro.hibernateDatabase.withTransaction { session ->
+            try {
+                session.createNativeQuery("select REVERSE('foo')").list().first().toString()
+            } catch (ex: Throwable) {
+                log.error("Could not reverse string in database!")
+                exitProcess(1)
             }
         }
     }

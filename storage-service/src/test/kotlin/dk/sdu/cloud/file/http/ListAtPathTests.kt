@@ -4,13 +4,17 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.assertThatInstance
+import dk.sdu.cloud.service.test.parseSuccessful
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
-import org.junit.Ignore
 import org.junit.Test
 import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
@@ -19,7 +23,6 @@ import kotlin.test.assertTrue
 class ListAtPathTests {
     private val mapper = jacksonObjectMapper()
 
-    @Ignore
     @Test
     fun `list files at path`() {
         withKtorTest(
@@ -39,6 +42,28 @@ class ListAtPathTests {
             }
         )
     }
+
+    @Test
+    fun `list files at path beyond page limit`() {
+        withKtorTest(
+            setup = { configureServerWithFileController() },
+
+            test = {
+                val resp = listDirectory(
+                    ListDirectoryRequest(
+                        "/home/user1/folder",
+                        itemsPerPage = 10,
+                        page = 10,
+                        order = null,
+                        sortBy = null
+                    ),
+                    TestUsers.user.copy(username = "user1")
+                ).parseSuccessful<Page<StorageFile>>()
+                assertThatInstance(resp) { it.items.isEmpty() }
+            }
+        )
+    }
+
 
     @Test
     fun `list files at path which does not exist`() {

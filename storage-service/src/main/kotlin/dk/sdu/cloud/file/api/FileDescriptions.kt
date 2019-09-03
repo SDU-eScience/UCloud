@@ -87,7 +87,6 @@ enum class FileSortBy {
     CREATED_AT,
     MODIFIED_AT,
     SIZE,
-    ACL,
     SENSITIVITY
 }
 
@@ -99,7 +98,7 @@ class FileSortByDeserializer : StdDeserializer<FileSortBy>(FileSortBy::class.jav
             "CREATED_AT", "createdAt" -> FileSortBy.CREATED_AT
             "MODIFIED_AT", "modifiedAt" -> FileSortBy.MODIFIED_AT
             "SIZE", "size" -> FileSortBy.SIZE
-            "ACL", "acl" -> FileSortBy.ACL
+            "ACL", "acl" -> FileSortBy.PATH // ACL sorting has been disabled
             "SENSITIVITY", "sensitivityLevel" -> FileSortBy.SENSITIVITY
             else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
@@ -114,7 +113,7 @@ class FileSortBySerializer : StdSerializer<FileSortBy>(FileSortBy::class.java) {
             FileSortBy.CREATED_AT -> "createdAt"
             FileSortBy.MODIFIED_AT -> "modifiedAt"
             FileSortBy.SIZE -> "size"
-            FileSortBy.ACL -> "acl"
+//            FileSortBy.ACL -> "acl"
             FileSortBy.SENSITIVITY -> "sensitivityLevel"
         }
 
@@ -179,7 +178,8 @@ data class ListDirectoryRequest(
     override val page: Int?,
     val order: SortOrder?,
     val sortBy: FileSortBy?,
-    val attributes: String? = null
+    val attributes: String? = null,
+    val type: FileType? = null
 ) : WithPaginationRequest
 
 data class LookupFileInDirectoryRequest(
@@ -282,6 +282,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 +boundTo(ListDirectoryRequest::order)
                 +boundTo(ListDirectoryRequest::sortBy)
                 +boundTo(ListDirectoryRequest::attributes)
+                +boundTo(ListDirectoryRequest::type)
             }
 
             headers {

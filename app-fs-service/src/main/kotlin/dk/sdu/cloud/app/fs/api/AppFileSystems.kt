@@ -10,7 +10,6 @@ import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
-import io.ktor.http.cio.expectHttpBody
 
 object AppFileSystems : CallDescriptionContainer("app.fs") {
     val baseContext = "/api/app/fs"
@@ -32,7 +31,7 @@ object AppFileSystems : CallDescriptionContainer("app.fs") {
     }
 
     object Create {
-        data class Request(val backend: String?)
+        data class Request(val backend: String?, val title: String)
         data class Response(val id: String)
     }
 
@@ -76,6 +75,30 @@ object AppFileSystems : CallDescriptionContainer("app.fs") {
     }
 
     object List {
+        data class Request(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+    }
+
+    val listAsFile = call<ListAsFile.Request, Page<SharedFileSystemFileWrapper>, CommonErrorMessage>("listAsFile") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"fs-compat"
+            }
+
+            params {
+                +boundTo(ListAsFile.Request::itemsPerPage)
+                +boundTo(ListAsFile.Request::page)
+            }
+        }
+    }
+
+    object ListAsFile {
         data class Request(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
     }
 

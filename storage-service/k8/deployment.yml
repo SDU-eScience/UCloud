@@ -37,7 +37,7 @@ spec:
         env:
         - name: JAVA_OPTS
           value: -server
-        image: registry.cloud.sdu.dk/sdu-cloud/storage-service:2.1.0
+        image: registry.cloud.sdu.dk/sdu-cloud/storage-service:2.2.0
         imagePullPolicy: IfNotPresent
         name: storage-service-deployment
         volumeMounts:

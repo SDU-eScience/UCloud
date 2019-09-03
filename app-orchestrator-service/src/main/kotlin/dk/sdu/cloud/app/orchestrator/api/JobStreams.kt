@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.api
 
-import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.file.api.StorageFile
 
 data class JobStateChange(val systemId: String, val newState: JobState)

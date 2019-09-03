@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -22,7 +23,9 @@ data class ListRecentRequest(
     val sortBy: JobSortBy?,
     val minTimestamp: Long?,
     val maxTimestamp: Long?,
-    val filter: JobState?
+    val filter: JobState?,
+    val application: String?,
+    val version: String?
 ) : WithPaginationRequest
 
 enum class SortOrder {
@@ -31,6 +34,7 @@ enum class SortOrder {
 }
 
 enum class JobSortBy {
+    NAME,
     STATE,
     APPLICATION,
     STARTED_AT,
@@ -84,6 +88,8 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
                 +boundTo(ListRecentRequest::minTimestamp)
                 +boundTo(ListRecentRequest::maxTimestamp)
                 +boundTo(ListRecentRequest::filter)
+                +boundTo(ListRecentRequest::application)
+                +boundTo(ListRecentRequest::version)
             }
         }
     }
@@ -109,6 +115,9 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
         }
     }
 
+    /**
+     * Sends a request to cancel the job
+     */
     val cancel = call<CancelRequest, CancelResponse, CommonErrorMessage>("cancel") {
         auth {
             access = AccessRight.READ_WRITE
@@ -128,6 +137,7 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
     /**
      * Follows the std streams of a job.
      */
+    @Deprecated("Replaced with web sockets")
     val follow = call<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage>("follow") {
         auth {
             access = AccessRight.READ
@@ -151,6 +161,20 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
         }
     }
 
+    /**
+     * Follows the std streams of a job via websockets
+     */
+    val followWS = call<FollowWSRequest, FollowWSResponse, CommonErrorMessage>("followWS") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
+    }
+
+    /**
+     * Queries the job service about VNC connection parameters
+     */
     val queryVncParameters =
         call<QueryVncParametersRequest, QueryVncParametersResponse, CommonErrorMessage>("queryVncParameters") {
             auth {
@@ -166,6 +190,9 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
             }
         }
 
+    /**
+     * Queries the job service about web app connection parameters
+     */
     val queryWebParameters =
         call<QueryWebParametersRequest, QueryWebParametersResponse, CommonErrorMessage>("queryWebParameters") {
             auth {
@@ -270,9 +297,25 @@ data class FollowStdStreamsResponse(
     val complete: Boolean,
 
     /**
+     * The state that was reached when the job failed, null if the job did not fail
+     */
+    val failedState: JobState?,
+
+    /**
+     * Time (in milliseconds) left of the job
+     */
+    val timeLeft: Long?,
+
+    /**
      * The job ID
      */
     val id: String,
+
+    /**
+     * The job name
+     */
+    val name: String?,
+
 
     val outputFolder: String? = null,
 
@@ -321,6 +364,41 @@ data class InternalStdStreamsResponse(
     val stdoutNextLine: Int,
     val stderr: String,
     val stderrNextLine: Int
+)
+
+data class FollowWSRequest(
+    val jobId: String,
+    val stdoutLineStart: Int,
+    val stderrLineStart: Int
+)
+
+/**
+ * A response for following the std streams of a job.
+ *
+ * Any of these fields may be not-null if there is new job available. If there is no new information in this
+ * packet null will be returned.
+ */
+data class FollowWSResponse(
+    val stdout: String? = null,
+    val stderr: String? = null,
+    val status: String? = null,
+    val state: JobState? = null,
+    val failedState: JobState? = null
+)
+
+data class CancelWSStreamRequest(val streamId: String)
+typealias CancelWSStreamResponse = Unit
+
+data class InternalFollowWSStreamRequest(
+    val job: VerifiedJob,
+    val stdoutLineStart: Int,
+    val stderrLineStart: Int
+)
+
+data class InternalFollowWSStreamResponse(
+    val streamId: String,
+    val stdout: String? = null,
+    val stderr: String? = null
 )
 
 data class QueryVncParametersRequest(

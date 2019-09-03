@@ -1,0 +1,8 @@
+---
+name: indexing
+
+namespaces:
+  - indexing
+
+dependencies:
+  - files

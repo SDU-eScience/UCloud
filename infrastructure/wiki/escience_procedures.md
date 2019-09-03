@@ -1,26 +1,33 @@
 ##General
 This document is created to link relevant documentation so it can be referred to from within the ISMS.
 
-Activities are divided into 2 repositories on GitHub.
+The eScience Center Steering commity authorises new Projects. The Project are then split into activities.
 
-1.  Software
+Activities is allokated to a team an acitivity has one or more repositories on GitHub.
+
+
+
+
+
+1.  SDU Cloud
 [SDUCloud](../../README.md)
 
 This activity has a development system (sect. 12.1.4).
 
-2. Hardware, Storage setup and configuration.
+2. Infrastructure - Hardware, Storage setup and configuration.
 [Infrastructure](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/README.md)
 [Server](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/procedures.md)
 [CEPH](https://github.com/SDU-eScience/Infrastructure/ceph-ansible/CONTRIBUTING.md)
 
 
 Each project have its own Project Leader and Team but shares ISMS admin and Support Team.
-  
+
 The tasks and responsibilities are shared between roles
 
-1.  Project Leader  
+1.  Project Leader
 2.  ISMS admin
-3.  Team member
+3.  Team
+
 
 The Project Leader and the ISMS admin makes decisions if critical system events occurs.
 The ISMS admin oversees the creation of this document. Each Project Leader have the responsibility for validity of the content.
@@ -281,10 +288,6 @@ The report with feedback scan/pen test report is returned is added to the branch
 
 [infrastructure](../../indexing-service/README.md)
 
-[integration-testing](../../integration-testing/README.md)
-
-[metadata-service](../../metadata-service/README.md)
-
 [notification-service](../../notification-service/README.md)
 
 [project-auth-service](../../project-auth-service/README.md)
@@ -303,7 +306,7 @@ The report with feedback scan/pen test report is returned is added to the branch
 
 [support-service](../../support-service/README.md)
 
-[zenodo-service](../../zenodo-service/README.md)
+
 
 
 

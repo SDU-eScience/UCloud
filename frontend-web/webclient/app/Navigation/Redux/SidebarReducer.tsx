@@ -16,6 +16,6 @@ const sidebar = (state: SidebarReduxObject = initSidebar(), action: SidebarActio
             return state;
         }
     }
-}
+};
 
 export default sidebar;

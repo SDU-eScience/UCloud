@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+script=`dirname "$0"`/development-utils/src/main/kotlin/FrontendHelper.kt
+kscript "$script" "$@"

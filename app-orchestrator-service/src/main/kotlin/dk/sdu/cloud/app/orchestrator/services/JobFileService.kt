@@ -5,14 +5,12 @@ import dk.sdu.cloud.app.orchestrator.api.SubmitFileToComputation
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.ClientAndBackend
-import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
-import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -24,8 +22,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.io.core.ExperimentalIoApi
 import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -33,19 +33,17 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 class JobFileService(
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val userClientFactory: (accessToken: String?, refreshToken: String?) -> AuthenticatedClient,
+    private val parameterExportService: ParameterExportService
 ) {
-    private fun AuthenticatedClient.bearerAuth(token: String): AuthenticatedClient {
-        return ClientAndBackend(client, companion).bearerAuth(token)
-    }
-
     suspend fun initializeResultFolder(
         jobWithToken: VerifiedJobWithAccessToken,
         isReplay: Boolean = false
     ) {
-        val (job, accessToken) = jobWithToken
+        val (job, accessToken, refreshToken) = jobWithToken
 
-        val userCloud = serviceClient.bearerAuth(accessToken)
+        val userCloud = userClientFactory(accessToken, refreshToken)
 
         val sensitivityLevel =
             jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
@@ -63,12 +61,41 @@ class JobFileService(
         ).throwIfInternal()
 
         if (!dirResp.statusCode.isSuccess()) {
-            // We allow conflicts during replay
-            if (isReplay && dirResp.statusCode == HttpStatusCode.Conflict) return
+            // We always allow conflicts
+            if (isReplay || dirResp.statusCode == HttpStatusCode.Conflict) return
 
             // Throw if we didn't allow this case
             throw RPCException.fromStatusCode(dirResp.statusCode)
         }
+    }
+
+    /**
+     * Export the parameter file to the job directory at the beginning of the job.
+     *
+     * @param jobWithToken The job, including the token
+     * @param rawParameters The raw input parameters before parsing
+     */
+    @UseExperimental(ExperimentalIoApi::class)
+    suspend fun exportParameterFile(jobWithToken: VerifiedJobWithAccessToken, rawParameters: Map<String, Any?>) {
+        initializeResultFolder(jobWithToken)
+        val userClient = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
+
+        val fileData =
+            defaultMapper.writeValueAsBytes(parameterExportService.exportParameters(jobWithToken.job, rawParameters))
+
+        MultiPartUploadDescriptions.simpleUpload.call(
+            SimpleUploadRequest(
+                File(jobFolder(jobWithToken.job), "JobParameters.json").path,
+                sensitivity = null,
+                file = BinaryStream.outgoingFromChannel(
+                    fileData.inputStream().toByteReadChannel(),
+                    fileData.size.toLong(),
+                    ContentType.Application.Json
+                ),
+                policy = WriteConflictPolicy.RENAME
+            ),
+            userClient
+        )
     }
 
     suspend fun acceptFile(
@@ -79,6 +106,11 @@ class JobFileService(
         fileData: ByteReadChannel,
         needsExtraction: Boolean
     ) {
+        val userClient = run {
+            val (_, accessToken, refreshToken) = jobWithToken
+            userClientFactory(accessToken, refreshToken)
+        }
+
         log.debug("Accepting file at $filePath for ${jobWithToken.job.id}")
 
         val parsedFilePath = File(filePath)
@@ -99,7 +131,6 @@ class JobFileService(
             jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
                 ?: SensitivityLevel.PRIVATE
 
-        val (_, accessToken) = jobWithToken
         MultiPartUploadDescriptions.simpleUpload.call(
             SimpleUploadRequest(
                 location = destPath.path,
@@ -110,7 +141,7 @@ class JobFileService(
                     contentType = ContentType.defaultForFilePath(filePath)
                 )
             ),
-            serviceClient.bearerAuth(accessToken)
+            userClient
         ).orThrow()
 
         if (needsExtraction) {
@@ -119,7 +150,7 @@ class JobFileService(
                     destPath.path,
                     removeOriginalArchive = true
                 ),
-                serviceClient.bearerAuth(accessToken)
+                userClient
             ).orThrow()
         }
     }
@@ -129,34 +160,37 @@ class JobFileService(
 
     suspend fun jobFolder(job: VerifiedJob): String {
         jobFolderLock.withLock {
-            val cachedHomeFolder = jobFolderCache[job.owner]
-            val homeFolder = if (cachedHomeFolder != null) {
-                cachedHomeFolder
-            } else {
-                FileDescriptions.findHomeFolder.call(
-                    FindHomeFolderRequest(job.owner),
-                    serviceClient
-                ).orThrow().path
-            }
+            val homeFolder = jobFolderCache[job.owner] ?: FileDescriptions.findHomeFolder.call(
+                FindHomeFolderRequest(job.owner),
+                serviceClient
+            ).orThrow().path
 
             jobFolderCache[job.owner] = homeFolder
+
+            val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+
+            val folderName: String = if (job.name == null) {
+                timestamp
+            } else {
+                job.name + "-" + timestamp
+            }
 
             return joinPath(
                 homeFolder,
                 "Jobs",
                 job.archiveInCollection,
-                timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+                folderName
             )
         }
     }
 
     suspend fun transferFilesToBackend(jobWithToken: VerifiedJobWithAccessToken, backend: ComputationDescriptions) {
-        val (job, accessToken) = jobWithToken
+        val (job) = jobWithToken
         coroutineScope {
             (job.files + job.mounts).map { file ->
                 async {
                     runCatching {
-                        val userCloud = serviceClient.withoutAuthentication().bearerAuth(accessToken)
+                        val userCloud = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
                         val fileStream = FileDescriptions.download.call(
                             DownloadByURI(file.sourcePath, null),
                             userCloud
@@ -186,7 +220,7 @@ class JobFileService(
     }
 
     suspend fun createWorkspace(jobWithToken: VerifiedJobWithAccessToken): String {
-        val (job, _) = jobWithToken
+        val (job) = jobWithToken
         val mounts = (job.files + job.mounts).map { file ->
             WorkspaceMount(file.sourcePath, file.destinationPath, readOnly = file.readOnly)
         }
@@ -206,7 +240,8 @@ class JobFileService(
         jobWithToken: VerifiedJobWithAccessToken,
         replay: Boolean
     ) {
-        val (job, _) = jobWithToken
+        val (job) = jobWithToken
+        @Suppress("TooGenericExceptionCaught")
         try {
             WorkspaceDescriptions.transfer.call(
                 Workspaces.Transfer.Request(

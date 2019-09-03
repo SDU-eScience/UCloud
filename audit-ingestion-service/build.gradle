@@ -1,13 +1,13 @@
 group 'dk.sdu.cloud'
-version '0.1.6'
+version '0.1.7'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.audit.ingestion.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.5"
+    ext.serviceCommonVersion = "1.5.12"
     ext.authApiVersion = "1.21.0"
 }
 

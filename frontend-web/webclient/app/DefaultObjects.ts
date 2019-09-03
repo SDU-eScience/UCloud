@@ -1,19 +1,19 @@
-import {SidebarOption, Page} from "Types";
-import {Status} from "Navigation";
-import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
-import {File, DetailedFileSearchReduxState, SortOrder} from "Files";
-import {DashboardStateProps} from "Dashboard";
-import {Notification} from "Notifications";
-import {Upload} from "Uploader";
-import {Activity, ActivityGroup, ActivityFilter} from "Activity";
-import {Reducer} from "redux";
-import {SimpleSearchStateProps} from "Search";
-import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {SidebarPages} from "ui-components/Sidebar";
-import {ScrollResult} from "Scroll/Types";
+import {Activity, ActivityFilter, ActivityGroup} from "Activity";
+import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
+import * as ApplicationRedux from "Applications/Redux";
+import {DashboardStateProps} from "Dashboard";
+import {DetailedFileSearchReduxState, File, SortOrder} from "Files";
+import {Status} from "Navigation";
+import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
+import {Reducer} from "redux";
+import {ScrollResult} from "Scroll/Types";
+import {SimpleSearchStateProps} from "Search";
+import {Page, SidebarOption} from "Types";
+import {SidebarPages} from "ui-components/Sidebar";
+import {Upload} from "Uploader";
+import {defaultAvatar} from "UserSettings/Avataaar";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -45,24 +45,24 @@ export enum SensitivityLevelMap {
 }
 
 export interface ComponentWithLoadingState {
-    loading: boolean
-    error?: string
+    loading: boolean;
+    error?: string;
 }
 
 export interface ComponentWithPage<T> extends ComponentWithLoadingState {
-    page: Page<T>
+    page: Page<T>;
 }
 
 export interface ComponentWithScroll<Item, OffsetType> extends ComponentWithLoadingState {
-    scroll?: ScrollResult<Item, OffsetType>
+    scroll?: ScrollResult<Item, OffsetType>;
 }
 
 export interface ResponsiveReduxObject {
-    mediaType: string
-    orientation: string
-    lessThan: Record<string, boolean>
-    greaterThan: Record<string, boolean>
-    is: Record<string, boolean>
+    mediaType: string;
+    orientation: string;
+    lessThan: Record<string, boolean>;
+    greaterThan: Record<string, boolean>;
+    is: Record<string, boolean>;
 }
 
 export const initResponsive = (): ResponsiveReduxObject => ({
@@ -74,49 +74,45 @@ export const initResponsive = (): ResponsiveReduxObject => ({
 });
 
 export interface FilePreviewReduxState {
-    file?: File
-    error?: string
+    file?: File;
+    error?: string;
 }
 
 export interface FileInfoReduxObject {
-    file?: File
-    error?: string
-    activity: Page<Activity>
-    loading: boolean
+    file?: File;
+    error?: string;
+    activity: Page<Activity>;
+    loading: boolean;
 }
 
 export interface AnalysisReduxObject extends ComponentWithPage<Analysis> {
-    sortBy: RunsSortBy
-    sortOrder: SortOrder
+    sortBy: RunsSortBy;
+    sortOrder: SortOrder;
 }
 
 export interface NotificationsReduxObject {
-    redirectTo: string
-    items: Notification[]
-    loading: boolean
-    error?: string
+    redirectTo: string;
+    items: Notification[];
+    loading: boolean;
+    error?: string;
 }
 
 export interface StatusReduxObject {
-    status: Status
-    title: string
-    page: SidebarPages
-    loading: boolean
+    status: Status;
+    title: string;
+    page: SidebarPages;
+    loading: boolean;
 }
 
 export interface SidebarReduxObject {
-    pp: boolean
-    options: SidebarOption[]
-    kcCount: number
+    pp: boolean;
+    options: SidebarOption[];
+    kcCount: number;
 }
 
 export interface HeaderSearchReduxObject {
-    prioritizedSearch: HeaderSearchType
-    refresh?: () => void
-}
-
-export interface RunApplicationReduxObject {
-
+    prioritizedSearch: HeaderSearchType;
+    refresh?: () => void;
 }
 
 export type ActivityReduxObject = ComponentWithScroll<ActivityGroup, number> & ActivityFilter;
@@ -124,47 +120,47 @@ export type ActivityReduxObject = ComponentWithScroll<ActivityGroup, number> & A
 export type HeaderSearchType = "files" | "applications" | "projects";
 
 export interface UploaderReduxObject {
-    uploads: Upload[]
-    visible: boolean
-    path: string
-    allowMultiple: boolean
-    onFilesUploaded: (p: string) => void
-    error?: string
-    loading: boolean
+    uploads: Upload[];
+    visible: boolean;
+    path: string;
+    allowMultiple: boolean;
+    onFilesUploaded: (p: string) => void;
+    error?: string;
+    loading: boolean;
 }
 
 interface LegacyReducers {
-    dashboard?: Reducer<DashboardStateProps>
-    uploader?: Reducer<UploaderReduxObject>
-    status?: Reducer<StatusReduxObject>
-    notifications?: Reducer<NotificationsReduxObject>
-    analyses?: Reducer<AnalysisReduxObject>
-    header?: Reducer<HeaderSearchReduxObject>
-    sidebar?: Reducer<SidebarReduxObject>
-    activity?: Reducer<ActivityReduxObject>
+    dashboard?: Reducer<DashboardStateProps>;
+    uploader?: Reducer<UploaderReduxObject>;
+    status?: Reducer<StatusReduxObject>;
+    notifications?: Reducer<NotificationsReduxObject>;
+    analyses?: Reducer<AnalysisReduxObject>;
+    header?: Reducer<HeaderSearchReduxObject>;
+    sidebar?: Reducer<SidebarReduxObject>;
+    activity?: Reducer<ActivityReduxObject>;
 }
 
 export type Reducers = LegacyReducers & ApplicationRedux.Reducers & AccountingRedux.Reducers;
 
 /* FIXME */
 interface LegacyReduxObject {
-    dashboard: DashboardStateProps
-    uploader: UploaderReduxObject
-    status: StatusReduxObject,
-    notifications: NotificationsReduxObject
-    analyses: AnalysisReduxObject
-    header: HeaderSearchReduxObject
-    sidebar: SidebarReduxObject
-    activity: ActivityReduxObject
-    simpleSearch: SimpleSearchStateProps
-    detailedFileSearch: DetailedFileSearchReduxState
-    detailedApplicationSearch: DetailedApplicationSearchReduxState
-    fileInfo: FileInfoReduxObject
-    avatar: AvatarReduxObject
-    filePreview: FilePreviewReduxState
-    responsive?: ResponsiveReduxObject
-    project: ProjectRedux.State
-    loading?: boolean
+    dashboard: DashboardStateProps;
+    uploader: UploaderReduxObject;
+    status: StatusReduxObject;
+    notifications: NotificationsReduxObject;
+    analyses: AnalysisReduxObject;
+    header: HeaderSearchReduxObject;
+    sidebar: SidebarReduxObject;
+    activity: ActivityReduxObject;
+    simpleSearch: SimpleSearchStateProps;
+    detailedFileSearch: DetailedFileSearchReduxState;
+    detailedApplicationSearch: DetailedApplicationSearchReduxState;
+    fileInfo: FileInfoReduxObject;
+    avatar: AvatarReduxObject;
+    filePreview: FilePreviewReduxState;
+    responsive?: ResponsiveReduxObject;
+    project: ProjectRedux.State;
+    loading?: boolean;
 }
 
 export type ReduxObject =
@@ -204,7 +200,7 @@ export const initDashboard = (): DashboardStateProps => ({
     analysesLoading: false
 });
 
-export function initObject(homeFolder: string): ReduxObject {
+export function initObject(): ReduxObject {
     return {
         dashboard: initDashboard(),
         status: initStatus(),
@@ -224,7 +220,7 @@ export function initObject(homeFolder: string): ReduxObject {
         ...ApplicationRedux.init(),
         ...AccountingRedux.init(),
         responsive: undefined,
-    }
+    };
 }
 
 
@@ -288,6 +284,7 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     createdAfter: undefined,
     modifiedBefore: undefined,
     modifiedAfter: undefined,
+    includeShares: false,
     error: undefined,
     loading: false
 });

@@ -1,23 +1,25 @@
-import {RouteComponentProps} from "react-router";
-import {useEffect} from "react";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {Dispatch} from "redux";
+import {defaultFileOperations} from "Files/FileOperations";
+import {FileTable} from "Files/FileTable";
+import {defaultVirtualFolders} from "Files/VirtualFileTable"
 import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages} from "ui-components/Sidebar";
-import {connect} from "react-redux";
-import {FileTable} from "Files/FileTable";
 import * as React from "react";
+import {useEffect} from "react";
+import {connect} from "react-redux";
+import {RouteComponentProps} from "react-router";
+import {Dispatch} from "redux";
+import {SidebarPages} from "ui-components/Sidebar";
 import {fileTablePage} from "Utilities/FileUtilities";
-import {defaultVirtualFolders} from "Files/VirtualFileTable"
-import {defaultFileOperations} from "Files/FileOperations";
+import {getQueryParamOrElse} from "Utilities/URIUtilities";
 
-interface FilesProps extends RouteComponentProps {
-    onInit: () => void
-    refreshHook: (register: boolean, fn: () => void) => void,
-    setLoading: (loading: boolean) => void
+interface FilesOperations {
+    onInit: () => void;
+    refreshHook: (register: boolean, fn: () => void) => void;
+    setLoading: (loading: boolean) => void;
 }
+
+type FilesProps = RouteComponentProps & FilesOperations;
 
 const Files: React.FunctionComponent<FilesProps> = props => {
     const urlPath = getQueryParamOrElse(props, "path", Cloud.homeFolder);
@@ -34,7 +36,7 @@ const Files: React.FunctionComponent<FilesProps> = props => {
     />;
 };
 
-const mapDispatchToProps = (dispatch: Dispatch) => ({
+const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     onInit: () => {
         dispatch(setPrioritizedSearch("files"));
         dispatch(updatePageTitle("Files"));

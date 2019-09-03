@@ -24,20 +24,8 @@ interface AvataaarModificationOperations {
 }
 
 function Modification(props: AvataaarModificationOperations) {
-    const [avatar, setAvatar] = React.useState(defaultAvatar)
-    const [loading, setLoading] = React.useState(true)
-
-    async function fetchAvatar(promises: PromiseKeeper) {
-        try {
-            const {response} = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
-            setAvatar(response);
-        } catch (e) {
-            if (!e.isCanceled)
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));
-        } finally {
-            setLoading(false);
-        }
-    }
+    const [avatar, setAvatar] = React.useState(defaultAvatar);
+    const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
         const promises = new PromiseKeeper();
@@ -168,7 +156,19 @@ function Modification(props: AvataaarModificationOperations) {
                     />
                 </>
             }
-        />)
+        />);
+
+    async function fetchAvatar(promises: PromiseKeeper) {
+        try {
+            const r = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
+            setAvatar(r.response);
+        } catch (e) {
+            if (!e.isCanceled)
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));
+        } finally {
+            setLoading(false);
+        }
+    }
 }
 
 interface AvatarSelect<T1, T2> {

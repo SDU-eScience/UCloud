@@ -73,8 +73,12 @@ class HibernateSessionFactory(
                     }
                     if (dialect != null) applySetting("hibernate.dialect", dialect)
                     if (showSQLInStdout) applySetting("hibernate.show_sql", true.toString())
-                    if (recreateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "create")
-                    else if (validateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "validate")
+                    if (recreateSchemaOnStartup) {
+                        applySetting("hibernate.hbm2ddl.auto", "create")
+                    } else {
+                        if (validateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "validate")
+                    }
+
                     applySetting("hibernate.default_schema", config.defaultSchema)
                     applySetting("hibernate.temp.use_jdbc_metadata_defaults", "false")
                     if (usePool) applySetting(
@@ -99,6 +103,7 @@ class HibernateSessionFactory(
                 emptyList()
             }
 
+            @Suppress("TooGenericExceptionCaught")
             return (try {
                 MetadataSources(registry).apply {
                     metadataBuilder.applyBasicType(JsonbType(), "jsonb")

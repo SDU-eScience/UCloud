@@ -1,5 +1,5 @@
 export default class PromiseKeeper {
-    private promises: Array<CancelablePromise<any>>
+    private promises: Array<CancelablePromise<any>>;
 
     constructor() {
         this.promises = [];
@@ -42,10 +42,10 @@ export default class PromiseKeeper {
 }
 
 class CancelablePromise<T> {
-    isComplete: boolean
-    promise: Promise<T>
-    cancel: VoidFunction
-    hasCanceled_: boolean
+    isComplete: boolean;
+    promise: Promise<T>;
+    cancel: VoidFunction;
+    hasCanceled_: boolean;
 
     constructor() {
     }

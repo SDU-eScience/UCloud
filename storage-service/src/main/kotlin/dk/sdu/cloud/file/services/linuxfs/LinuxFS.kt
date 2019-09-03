@@ -16,15 +16,10 @@ import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.services.FSResult
-import dk.sdu.cloud.file.services.FileAttribute
-import dk.sdu.cloud.file.services.FileRow
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.XATTR_BIRTH
+import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
-import dk.sdu.cloud.file.services.mergeWith
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
@@ -40,15 +35,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
-import java.nio.file.InvalidPathException
-import java.nio.file.LinkOption
-import java.nio.file.NoSuchFileException
-import java.nio.file.OpenOption
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
@@ -169,7 +156,8 @@ class LinuxFS(
         mode: Set<FileAttribute>,
         sortBy: FileSortBy?,
         paginationRequest: NormalizedPaginationRequest?,
-        order: SortOrder?
+        order: SortOrder?,
+        type: FileType?
     ): FSResult<Page<FileRow>> = ctx.submit {
         aclService.requirePermission(directory, ctx.user, AccessRight.READ)
 
@@ -177,10 +165,20 @@ class LinuxFS(
             val file = File(translateAndCheckFile(directory))
             val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
-            (requestedDirectory.listFiles() ?: throw FSException.PermissionException()).toList()
+            (requestedDirectory.listFiles() ?: throw FSException.PermissionException())
+                .toList()
+                .filter { fileInDirectory ->
+                    when (type) {
+                        FileType.DIRECTORY -> fileInDirectory.isDirectory
+                        FileType.FILE -> fileInDirectory.isFile
+                        null, FileType.LINK -> true
+                    }
+                }
         }.filter { !Files.isSymbolicLink(it.toPath()) }
 
-        val min = if (paginationRequest == null) 0 else paginationRequest.itemsPerPage * paginationRequest.page
+        val min =
+            if (paginationRequest == null) 0
+            else min(systemFiles.size, paginationRequest.itemsPerPage * paginationRequest.page)
         val max =
             if (paginationRequest == null) systemFiles.size
             else min(systemFiles.size, min + paginationRequest.itemsPerPage)
@@ -199,7 +197,7 @@ class LinuxFS(
                 FileSortBy.PATH -> FileAttribute.PATH
                 FileSortBy.CREATED_AT, FileSortBy.MODIFIED_AT -> FileAttribute.TIMESTAMPS
                 FileSortBy.SIZE -> FileAttribute.SIZE
-                FileSortBy.ACL -> FileAttribute.SHARES
+//                FileSortBy.ACL -> FileAttribute.SHARES
                 FileSortBy.SENSITIVITY -> FileAttribute.SENSITIVITY
                 null -> FileAttribute.PATH
             }
@@ -263,7 +261,7 @@ class LinuxFS(
         order: SortOrder
     ): Comparator<FileRow> {
         val naturalComparator: Comparator<FileRow> = when (sortBy) {
-            FileSortBy.ACL -> Comparator.comparingInt { it.shares.size }
+//            FileSortBy.ACL -> Comparator.comparingInt { it.shares.size }
 
             FileSortBy.CREATED_AT -> Comparator.comparingLong { it.timestamps.created }
 
@@ -548,6 +546,12 @@ class LinuxFS(
                 ctx.outputSystemFile = systemFile
             } catch (ex: FileAlreadyExistsException) {
                 throw FSException.AlreadyExists()
+            } catch (ex: java.nio.file.FileSystemException) {
+                if (ex.message?.contains("Is a directory") == true) {
+                    throw FSException.BadRequest("Upload target is a not a directory")
+                } else {
+                    throw ex
+                }
             }
 
             FSResult(

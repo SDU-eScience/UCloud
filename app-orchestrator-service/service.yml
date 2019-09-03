@@ -1,0 +1,13 @@
+---
+name: app-orchestrator
+
+namespaces:
+  - app.compute
+  - hpc.jobs
+
+dependencies:
+  - hpc.apps
+  - hpc.tools
+  - files
+  - files.upload
+  - app.fs

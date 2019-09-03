@@ -1,25 +1,25 @@
-import * as React from 'react'
-import styled from 'styled-components'
-import theme from './theme'
-import { Icon, Box } from './'
-import { BoxProps } from './Box';
+import * as React from "react";
+import styled from "styled-components";
+import {Box, Icon} from ".";
+import {BoxProps} from "./Box";
+import theme from "./theme";
 
-function Checkbox(props) {
-  const { disabled, size } = props;
+function Checkbox(props) {
+  const {disabled, size} = props;
   return (
     <CheckBoxWrapper disabled={disabled}>
       <StyledInput type="checkbox" onChange={e => e} {...props} />
       <Icon name="boxChecked" size={size} data-name="checked" />
       <Icon name="boxEmpty" size={size} data-name="empty" />
     </CheckBoxWrapper>
-  )
+  );
 }
 
 interface CheckBoxWrapper extends BoxProps {
-  disabled: boolean
+  disabled: boolean;
 }
 
-const CheckBoxWrapper = styled(Box)<CheckBoxWrapper>`
+const CheckBoxWrapper = styled(Box) <CheckBoxWrapper>`
   display: inline-block;
   position: relative;
   vertical-align: middle;
@@ -31,10 +31,9 @@ const CheckBoxWrapper = styled(Box)<CheckBoxWrapper>`
   > input:checked {
     & ~ svg[data-name="checked"] {
       display: inline-block;
-      color: ${props =>
-        props.disabled
-          ? props.theme.colors.borderGray
-          : props.theme.colors.blue};
+      color: ${props => props.disabled
+        ? props.theme.colors.borderGray
+        : props.theme.colors.blue};
     }
     & ~ svg[data-name="empty"] {
       display: none;
@@ -54,7 +53,7 @@ Checkbox.defaultProps = {
   size: 20,
   checked: false,
   disabled: false,
-  theme: theme
+  theme
 };
 
 export default Checkbox;

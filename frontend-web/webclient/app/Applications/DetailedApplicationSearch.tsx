@@ -1,22 +1,23 @@
-import * as React from "react";
-import {Flex, Input, Box, Button} from "ui-components";
-import * as Heading from "ui-components/Heading";
+import {DetailedApplicationOperations, DetailedApplicationSearchReduxState} from "Applications";
 import {ReduxObject} from "DefaultObjects";
-import {DetailedApplicationSearchReduxState, DetailedApplicationOperations} from "Applications";
+import * as React from "react";
 import {connect} from "react-redux";
+import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
-import {
-    setAppName,
-    setVersion,
-    fetchApplicationPageFromName,
-    fetchApplicationPageFromTag
-} from "./Redux/DetailedApplicationSearchActions";
+import {Box, Button, Flex, Input} from "ui-components";
+import * as Heading from "ui-components/Heading";
 import {searchPage} from "Utilities/SearchUtilities";
-import {withRouter, RouteComponentProps} from "react-router";
+import {
+    fetchApplicationPageFromName,
+    fetchApplicationPageFromTag,
+    setAppName,
+    setVersion
+} from "./Redux/DetailedApplicationSearchActions";
 
 interface DetailedApplicationSearchProps extends
     DetailedApplicationOperations, DetailedApplicationSearchReduxState, RouteComponentProps {
-    defaultAppName?: string
+    defaultAppName?: string;
+    controlledSearch?: [string, (path: string) => void];
 }
 
 function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProps>) {
@@ -24,15 +25,15 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
         if (!!props.defaultAppName) props.setAppName(props.defaultAppName);
     }, []);
 
-    const inputField = React.useRef<HTMLInputElement>(null);
+    const localSearch = React.useState(props.appName);
+    const [search, setSearch] = props.controlledSearch ? props.controlledSearch : localSearch;
 
     function onSearch(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        if (!inputField.current) return;
-        const inputFieldValue = inputField.current.value;
-        props.setAppName(inputFieldValue);
+
+        props.setAppName(search);
         props.fetchApplicationsFromName(
-            inputField.current.value, 25, 0, () => props.history.push(searchPage("applications", inputFieldValue))
+            search, 25, 0, () => props.history.push(searchPage("applications", search))
         );
     }
 
@@ -46,14 +47,14 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
                         pt="8px"
                         mt="-2px"
                         width="100%"
-                        defaultValue={props.appName}
+                        value={search}
+                        onChange={({target}) => setSearch(target.value)}
                         placeholder="Search by name..."
-                        ref={inputField}
                     />
                     <Button mt="0.5em" type="submit" fullWidth disabled={props.loading} color="blue">Search</Button>
                 </form>
             </Box>
-        </Flex>)
+        </Flex>);
 }
 
 const mapStateToProps = ({detailedApplicationSearch}: ReduxObject) => detailedApplicationSearch;

@@ -1,12 +1,9 @@
-import * as React from "react"
-import Box from "./Box"
-import Flex from "./Flex"
-import Text, { TextSpan } from "./Text"
-import Icon, { IconName } from "./Icon"
-import * as Heading from "./Heading"
-import { TextAlign } from "./Types";
-import { BoxProps } from "./Box";
-import {ColorProps} from "styled-system";
+import * as React from "react";
+import Box from "./Box";
+import Flex from "./Flex";
+import * as Heading from "./Heading";
+import Icon, {IconName} from "./Icon";
+import Text, {TextSpan} from "./Text";
 
 const bannerColors = {
   green: {
@@ -52,7 +49,7 @@ const bannerColors = {
 };
 
 const Banner = props => {
-  const bannerColor = bannerColors[props.bg] || { color: "red" }
+  const bannerColor = bannerColors[props.bg] || {color: "red"};
   const icon: IconName = props.iconName || "starRibbon";
 
   return (
@@ -82,7 +79,7 @@ const Banner = props => {
         )}
       </Flex>
     </Box>
-  )
+  );
 };
 
 Banner.displayName = "Banner";

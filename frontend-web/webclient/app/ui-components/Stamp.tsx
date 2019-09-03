@@ -1,9 +1,9 @@
-import styled from "styled-components"
-import {space, fontSize, SpaceProps} from 'styled-system'
-import theme, {ThemeColor, Theme} from "./theme"
 import * as React from "react";
+import styled from "styled-components";
+import {fontSize, space, SpaceProps} from "styled-system";
 import {Icon, Text} from ".";
 import {IconName} from "./Icon";
+import theme, {Theme, ThemeColor} from "./theme";
 
 const fullWidth = ({fullWidth}: {fullWidth?: boolean}) => fullWidth ? {width: "100%"} : null;
 
@@ -59,10 +59,10 @@ export const colorScheme = (props: {theme: Theme, color: ThemeColor}) => {
       borderColor: props.theme.colors.lightGray,
       color: props.theme.colors.text
     }
-  }
+  };
   const color = badgeColors[props.color];
   return color || badgeColors["white"];
-}
+};
 
 const StampBase = styled.div<StampProps>`
   display: inline-flex;
@@ -77,15 +77,15 @@ const StampBase = styled.div<StampProps>`
   border-style: solid;
   ${colorScheme}
   ${space} ${fontSize};
-`
+`;
 
 StampBase.displayName = "Stamp";
 
 interface StampProps extends SpaceProps {
-  color?: ThemeColor
-  theme?: any
-  fontSize?: number | string
-  fullWidth?: boolean
+  color?: ThemeColor;
+  theme?: any;
+  fontSize?: number | string;
+  fullWidth?: boolean;
 }
 
 StampBase.defaultProps = {
@@ -96,7 +96,7 @@ StampBase.defaultProps = {
   color: "gray",
   fontSize: 0,
   fullWidth: false
-}
+};
 
 const Stamp = (props: StampProps & {icon?: IconName, onClick?: () => void, text: string}) => (
   <StampBase {...props}>

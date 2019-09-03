@@ -14,6 +14,7 @@ import io.mockk.mockk
 typealias CloudMock = ClientMock
 
 object ClientMock {
+    @Suppress("EmptyFunctionBlock")
     @Deprecated("No longer needed")
     fun initialize() {
     }
@@ -59,6 +60,7 @@ object ClientMock {
         mockCall(call) { TestCallResult.Error(error, statusCode) }
     }
 
+    @Suppress("EmptyFunctionBlock")
     @Deprecated("No longer needed")
     fun reset() {
     }

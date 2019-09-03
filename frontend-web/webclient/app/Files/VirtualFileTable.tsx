@@ -1,21 +1,21 @@
+import {useAsyncWork} from "Authentication/DataHook";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {emptyPage} from "DefaultObjects";
+import {File} from "Files/index";
+import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable";
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {Page} from "Types";
 import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
-import {File} from "Files/index";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {emptyPage} from "DefaultObjects";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {useAsyncWork} from "Authentication/DataHook";
-import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable";
 
 export interface VirtualFileTableProps extends LowLevelFileTableProps, VirtualFolderDefinition {
     // Empty
 }
 
 export interface VirtualFolderDefinition {
-    fakeFolders?: string[]
-    loadFolder?: (folder: string, page: number, itemsPerPage: number) => Promise<Page<File>>
+    fakeFolders?: string[];
+    loadFolder?: (folder: string, page: number, itemsPerPage: number) => Promise<Page<File>>;
 }
 
 export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = props => {
@@ -28,7 +28,7 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
     let fakeFolderToUse: string | undefined;
     if (props.fakeFolders !== undefined && props.loadFolder !== undefined) {
         if (props.path !== undefined) {
-            let resolvedPath = resolvePath(props.path);
+            const resolvedPath = resolvePath(props.path);
             fakeFolderToUse = props.fakeFolders.find(it => resolvePath(it) === resolvedPath);
         }
 
@@ -91,17 +91,23 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
     return <LowLevelFileTable {...mergedProperties}/>;
 };
 
+const SHARES_FOLDER = "Shares";
+const FAVORITES_FOLDER = "Favorites";
+const APP_FS_FOLDER = "App File Systems";
 export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
     fakeFolders: [
-        Cloud.homeFolder + "Shares",
-        Cloud.homeFolder + "Favorites"
+        Cloud.homeFolder + SHARES_FOLDER,
+        Cloud.homeFolder + FAVORITES_FOLDER,
+        Cloud.homeFolder + APP_FS_FOLDER
     ],
 
     loadFolder: async (folder, page, itemsPerPage) => {
-        if (folder === Cloud.homeFolder + "Favorites") {
+        if (folder === Cloud.homeFolder + FAVORITES_FOLDER) {
             return (await Cloud.get<Page<File>>(favoritesQuery(page, itemsPerPage))).response;
-        } else if (folder === Cloud.homeFolder + "Shares") {
+        } else if (folder === Cloud.homeFolder + SHARES_FOLDER) {
             return (await Cloud.get<Page<File>>(buildQueryString("/shares/list-files", {page, itemsPerPage}))).response;
+        }  else if (folder === Cloud.homeFolder + APP_FS_FOLDER) {
+            return (await Cloud.get<Page<File>>(buildQueryString("/app/fs/fs-compat", {page, itemsPerPage}))).response;
         } else {
             return emptyPage;
         }

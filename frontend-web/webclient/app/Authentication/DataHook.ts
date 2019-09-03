@@ -59,10 +59,10 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2
 }
 
 export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
-    let method = parameters.method !== undefined ? parameters.method : "GET";
-    if (parameters.path === undefined) throw "Missing path";
+    const method = parameters.method !== undefined ? parameters.method : "GET";
+    if (parameters.path === undefined) throw Error("Missing path");
     return (await Cloud.call({
-        method: method,
+        method,
         path: parameters.path,
         body: parameters.payload,
         context: parameters.context,
@@ -109,7 +109,7 @@ export function useCloudAPI<T, Parameters = any>(
                         }
                     } catch (e) {
                         if (!didCancel) {
-                            let statusCode = e.request.status;
+                            const statusCode = e.request.status;
                             let why = "Internal Server Error";
                             if (!!e.response && e.response.why) {
                                 why = e.response.why;
@@ -137,18 +137,20 @@ export function useCloudAPI<T, Parameters = any>(
     return [returnedState, doFetch, params];
 }
 
-export function useAsyncCommand(): [boolean, (call: APICallParameters) => void] {
+export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
     const [isLoading, setIsLoading] = useState(false);
-    const sendCommand = async (call: APICallParameters) => {
+    const sendCommand = async <T>(call: APICallParameters) => {
         setIsLoading(true);
-        await callAPIWithErrorHandler(call);
+        const result = await callAPIWithErrorHandler<T>(call);
         setIsLoading(false);
+        return result;
     };
 
     return [isLoading, sendCommand];
 }
 
 export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
+
 export function useAsyncWork(): AsyncWorker {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
@@ -166,7 +168,7 @@ export function useAsyncWork(): AsyncWorker {
                 setError(why);
             } else if (typeof e === "string") {
                 setError(e);
-            }  else if ("message" in e && typeof e.message === "string") {
+            } else if ("message" in e && typeof e.message === "string") {
                 setError(e.message);
             } else {
                 setError("Internal error");

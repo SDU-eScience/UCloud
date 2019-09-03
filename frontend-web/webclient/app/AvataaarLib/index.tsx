@@ -58,8 +58,8 @@ export interface Props {
 export default class AvatarComponent extends React.Component<Props> {
   static childContextTypes = {
     optionContext: PropTypes.instanceOf(OptionContext)
-  }
-  private optionContext: OptionContext = new OptionContext(allOptions)
+  };
+  private optionContext: OptionContext = new OptionContext(allOptions);
 
   getChildContext() {
     return {optionContext: this.optionContext}
@@ -74,14 +74,14 @@ export default class AvatarComponent extends React.Component<Props> {
   }
 
   render() {
-    const {avatarStyle, style} = this.props
+    const {avatarStyle, style} = this.props;
     return <Avatar avatarStyle={avatarStyle as AvatarStyle} style={style} />
   }
 
   private updateOptionContext(props: Props) {
-    const data: {[index: string]: string} = {}
+    const data: {[index: string]: string} = {};
     for (const option of allOptions) {
-      const value = props[option.key]
+      const value = props[option.key];
       if (!value) {
         continue
       }
@@ -94,8 +94,8 @@ export default class AvatarComponent extends React.Component<Props> {
 export class Piece extends React.Component<Props> {
   static childContextTypes = {
     optionContext: PropTypes.instanceOf(OptionContext)
-  }
-  private optionContext: OptionContext = new OptionContext(allOptions)
+  };
+  private optionContext: OptionContext = new OptionContext(allOptions);
 
   getChildContext() {
     return {optionContext: this.optionContext}
@@ -110,14 +110,14 @@ export class Piece extends React.Component<Props> {
   }
 
   render() {
-    const {avatarStyle, style, pieceType, pieceSize, viewBox} = this.props
+    const {avatarStyle, style, pieceType, pieceSize, viewBox} = this.props;
     return <PieceComponent avatarStyle={avatarStyle as AvatarStyle} style={style} pieceType={pieceType} pieceSize={pieceSize} viewBox={viewBox} />
   }
 
   private updateOptionContext(props: Props) {
-    const data: {[index: string]: string} = {}
+    const data: {[index: string]: string} = {};
     for (const option of allOptions) {
-      const value = props[option.key]
+      const value = props[option.key];
       if (!value) {
         continue
       }

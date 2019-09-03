@@ -5,12 +5,18 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import kotlin.math.max
 
 data class VerifiedJob(
     /**
      * A copy of the [Application] that this job is/will be running.
      */
     val application: Application,
+
+    /**
+     * A (optional) name for this job
+     */
+    val name: String? = null,
 
     /**
      * A complete list of files gathered from input_directory and input_file parameters.
@@ -26,8 +32,7 @@ data class VerifiedJob(
      * The real username of the user who created this job.
      *
      * If this is started by a project proxy user this will point to the real user (as indicated by the
-     * extendedByChain). This attribute should not be used ACL checks against the file system. Instead you should use
-     * the [uid] attribute.
+     * extendedByChain).
      */
     val owner: String,
 
@@ -67,17 +72,14 @@ data class VerifiedJob(
     val status: String,
 
     /**
+     * The state of the job when the job entered the failed state
+     */
+    var failedState: JobState?,
+
+    /**
      * The collection to put the results in. This defaults to [Application.metadata.title].
      */
     val archiveInCollection: String,
-
-    /**
-     * The UID of the user who initiated the job. This is the UID of [user].
-     *
-     * If this is started by a project proxy user then this will point to the uid of that proxy user.
-     */
-    @get:JsonAlias("ownerUid")
-    val uid: Long,
 
     /**
      * The workspace to use for files.
@@ -97,6 +99,7 @@ data class VerifiedJob(
     /**
      * A complete list of mounts
      */
+    @Suppress("ConstructorParameterNaming")
     @get:JsonProperty("mounts")
     val _mounts: List<ValidatedFileForUpload>? = null,
 
@@ -104,6 +107,15 @@ data class VerifiedJob(
      * Timestamp for when this job started execution.
      */
     val startedAt: Long? = null,
+
+    /**
+     * Milliseconds left of job from the job is started, null if the job is not started
+     */
+    val timeLeft: Long? = if (startedAt != null) {
+        max((startedAt + maxTime.toMillis()) - System.currentTimeMillis(), 0)
+    } else {
+        null
+    },
 
     /**
      * The username of the user who initiated the job.
@@ -126,12 +138,14 @@ data class VerifiedJob(
      * A backend is allowed to reject a shared file system mount if it does not support mounting it. This should
      * happen early, for example, by comparing the backend against a whitelist of supported backends.
      */
+    @Suppress("ConstructorParameterNaming")
     @get:JsonProperty("sharedFileSystemMounts")
     val _sharedFileSystemMounts: List<SharedFileSystemMount>? = null,
 
     /**
      * A list of peers that this application is requesting networking with.
      */
+    @Suppress("ConstructorParameterNaming")
     @get:JsonProperty("peers")
     val _peers: List<ApplicationPeer>? = null
 ) {
@@ -146,9 +160,6 @@ data class VerifiedJob(
     @get:JsonIgnore
     val sharedFileSystemMounts: List<SharedFileSystemMount>
         get() = _sharedFileSystemMounts ?: emptyList()
-
-    @Deprecated("Renamed to uid to avoid confusion between user and owner attributes", ReplaceWith("uid"))
-    val ownerUid: Long = uid
 
     override fun toString() = "VerifiedJob(${application.metadata.name}@${application.metadata.version})"
 }

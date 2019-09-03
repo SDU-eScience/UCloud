@@ -49,7 +49,7 @@ class JobHibernateDaoTest {
         db = micro.hibernateDatabase
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
-        jobHibDao = JobHibernateDao(appDao, toolDao, tokenValidation)
+        jobHibDao = JobHibernateDao(appDao, toolDao)
 
         coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
         coEvery {
@@ -88,6 +88,7 @@ class JobHibernateDaoTest {
             val jobWithToken = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc,
+                    null,
                     emptyList(),
                     systemId,
                     user.username,
@@ -98,9 +99,10 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
-                    archiveInCollection = normAppDesc.metadata.title,
-                    uid = 1337L
+                    null,
+                    archiveInCollection = normAppDesc.metadata.title
                 ),
+                "token",
                 "token"
             )
             jobHibDao.create(it, jobWithToken)
@@ -135,7 +137,14 @@ class JobHibernateDaoTest {
         }
 
         db.withTransaction(autoFlush = true) {
-            val result = runBlocking { jobHibDao.list(it, user.createToken(), NormalizedPaginationRequest(10, 0)) }
+            val result =
+                runBlocking { jobHibDao.list(
+                    it,
+                    user.createToken(),
+                    NormalizedPaginationRequest(10, 0),
+                    application = null,
+                    version = null
+                ) }
             assertEquals(1, result.itemsInTotal)
         }
     }
@@ -147,6 +156,7 @@ class JobHibernateDaoTest {
             val firstJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc,
+                    null,
                     emptyList(),
                     systemId,
                     user.username,
@@ -157,9 +167,10 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
-                    archiveInCollection = normAppDesc.metadata.title,
-                    uid = 1337L
+                    null,
+                    archiveInCollection = normAppDesc.metadata.title
                 ),
+                "token",
                 "token"
             )
             jobHibDao.create(it, firstJob)
@@ -169,6 +180,7 @@ class JobHibernateDaoTest {
             val secondJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc2,
+                    null,
                     emptyList(),
                     UUID.randomUUID().toString(),
                     user.username,
@@ -179,9 +191,10 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
-                    archiveInCollection = normAppDesc2.metadata.title,
-                    uid = 1337L
+                    null,
+                    archiveInCollection = normAppDesc2.metadata.title
                 ),
+                "token",
                 "token"
             )
             jobHibDao.create(it, secondJob)
@@ -231,6 +244,7 @@ class JobHibernateDaoTest {
             val firstJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc,
+                    null,
                     emptyList(),
                     systemId,
                     user.username,
@@ -241,9 +255,10 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
-                    archiveInCollection = normAppDesc.metadata.title,
-                    uid = 1337L
+                    null,
+                    archiveInCollection = normAppDesc.metadata.title
                 ),
+                "token",
                 "token"
             )
             jobHibDao.create(it, firstJob)
@@ -253,6 +268,7 @@ class JobHibernateDaoTest {
             val secondJob = VerifiedJobWithAccessToken(
                 VerifiedJob(
                     normAppDesc2,
+                    null,
                     emptyList(),
                     UUID.randomUUID().toString(),
                     user.username,
@@ -263,9 +279,10 @@ class JobHibernateDaoTest {
                     "abacus",
                     JobState.VALIDATED,
                     "Unknown",
-                    archiveInCollection = normAppDesc2.metadata.title,
-                    uid = 1337L
+                    null,
+                    archiveInCollection = normAppDesc2.metadata.title
                 ),
+                "token",
                 "token"
             )
             jobHibDao.create(it, secondJob)
@@ -325,7 +342,9 @@ class JobHibernateDaoTest {
                 SortOrder.DESCENDING,
                 JobSortBy.LAST_UPDATE,
                 null,
-                null
+                null,
+                application = null,
+                version = null
             )
         }
     }
@@ -342,7 +361,9 @@ class JobHibernateDaoTest {
             SortOrder.DESCENDING,
             JobSortBy.LAST_UPDATE,
             min,
-            max
+            max,
+            application = null,
+            version = null
         )
     }
 
@@ -366,7 +387,9 @@ class JobHibernateDaoTest {
                     JobSortBy.LAST_UPDATE,
                     null,
                     null,
-                    JobState.VALIDATED
+                    JobState.VALIDATED,
+                    null,
+                    null
                 )
             }
             assertEquals(1, jobByFilter.items.size)
@@ -380,7 +403,9 @@ class JobHibernateDaoTest {
                     JobSortBy.LAST_UPDATE,
                     null,
                     null,
-                    JobState.CANCELING
+                    JobState.CANCELING,
+                    null,
+                    null
                 )
             }
 
@@ -392,6 +417,7 @@ class JobHibernateDaoTest {
         val firstJob = VerifiedJobWithAccessToken(
             VerifiedJob(
                 normAppDesc,
+                null,
                 emptyList(),
                 systemId,
                 user.username,
@@ -402,9 +428,10 @@ class JobHibernateDaoTest {
                 "abacus",
                 JobState.VALIDATED,
                 "Unknown",
-                archiveInCollection = normAppDesc.metadata.title,
-                uid = 1337L
+                null,
+                archiveInCollection = normAppDesc.metadata.title
             ),
+            "token",
             "token"
         )
         jobHibDao.create(session, firstJob)

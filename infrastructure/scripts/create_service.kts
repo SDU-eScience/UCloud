@@ -6,9 +6,9 @@ import java.nio.file.StandardCopyOption
 import kotlin.system.exitProcess
 
 object Versions {
-    val GradleBootstrap = "v0.2.11"
+    val GradleBootstrap = "v0.2.16"
     val AuthAPI = "1.21.0"
-    val ServiceCommon = "1.5.1"
+    val ServiceCommon = "1.5.6"
 }
 
 if (args.size != 1) {
@@ -336,6 +336,22 @@ run {
            }
 
            return this
+
+        """.trimIndent()
+    )
+}
+
+run {
+    println("Generating service.yml")
+    File(serviceDirectory, "service.yml").writeText(
+        """
+            ---
+            name: $serviceName
+
+            namespaces:
+            - ${serviceName.replace('-', '.')}
+
+            dependencies: []
 
         """.trimIndent()
     )

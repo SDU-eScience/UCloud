@@ -95,7 +95,6 @@ export class WebSocketConnection {
         socket.addEventListener("close", () => {
             if (this.settings.reconnect !== false && !this.closed) {
                 // We will reconnect by default.
-                console.log("Lost connection to WS. Reconnecting...");
                 this.handlers.forEach(e => {
                     e({type: "response", status: 503, streamId: "unknown"})
                 });

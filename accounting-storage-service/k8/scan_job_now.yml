@@ -10,7 +10,13 @@ spec:
 
       containers:
       - name: accounting-storage-service
-        image: registry.cloud.sdu.dk/sdu-cloud/accounting-storage-service:0.3.8
+        image: registry.cloud.sdu.dk/sdu-cloud/accounting-storage-service:1.2.5
+        #ports:
+        #  - containerPort: 5005
+        #    name: jvm-debug
+        #env:
+        #  - name: "JAVA_OPTS"
+        #    value: "-Xdebug -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
         command:
         - /opt/service/bin/service
         - --config-dir

@@ -1,15 +1,14 @@
-import * as React from 'react'
-import {generateId as uniqueId} from 'UtilityFunctions';
-
-import {GraphicOption, Selector} from '../../options'
+import * as React from "react";
+import {generateId as uniqueId} from "UtilityFunctions";
+import {GraphicOption, Selector} from "../../options";
 
 export interface Props {
-  maskID: string
+  maskID: string;
 }
 
 export class Skull extends React.Component<Props> {
   static optionValue = 'Skull'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Skull'
@@ -26,7 +25,7 @@ export class Skull extends React.Component<Props> {
 
 export class SkullOutline extends React.Component<Props> {
   static optionValue = 'SkullOutline'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Skull-Outline'
@@ -64,7 +63,7 @@ export class SkullOutline extends React.Component<Props> {
 
 export class Bat extends React.Component<Props> {
   static optionValue = 'Bat'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Bat'
@@ -81,7 +80,7 @@ export class Bat extends React.Component<Props> {
 
 export class Cumbia extends React.Component<Props> {
   static optionValue = 'Cumbia'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Cumbia'
@@ -144,7 +143,7 @@ export class Cumbia extends React.Component<Props> {
 
 export class Deer extends React.Component<Props> {
   static optionValue = 'Deer'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Deer'
@@ -161,7 +160,7 @@ export class Deer extends React.Component<Props> {
 
 export class Diamond extends React.Component<Props> {
   static optionValue = 'Diamond'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Diamond'
@@ -199,7 +198,7 @@ export class Diamond extends React.Component<Props> {
 
 export class Hola extends React.Component<Props> {
   static optionValue = 'Hola'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Hola'
@@ -216,7 +215,7 @@ export class Hola extends React.Component<Props> {
 
 export class Selena extends React.Component<Props> {
   static optionValue = 'Selena'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Selena'
@@ -249,7 +248,7 @@ export class Selena extends React.Component<Props> {
 
 export class Pizza extends React.Component<Props> {
   static optionValue = 'Pizza'
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Pizza'
@@ -283,7 +282,7 @@ export class Pizza extends React.Component<Props> {
 export class Resist extends React.Component<Props> {
   static optionValue = 'Resist'
 
-  render() {
+  public render() {
     return (
       <g
         id='Clothing/Graphic/Resist'
@@ -344,7 +343,7 @@ export class Bear extends React.Component<Props> {
   private mask1 = uniqueId('react-mask-')
   private path1 = uniqueId('react-path-')
 
-  render() {
+  public render() {
     const {mask1, path1} = this
     return (
       <g
@@ -379,7 +378,7 @@ export class Bear extends React.Component<Props> {
 export class EScienceLogo extends React.Component<Props> {
   static optionValue = "EScienceLogo";
 
-  render() {
+  public render() {
     return (
       <g
       id='Clothing/Graphic/EScienceLogo'
@@ -388,7 +387,7 @@ export class EScienceLogo extends React.Component<Props> {
       fill='#FFFFFF'>
       <g transform='translate(106.000000, 58.000000), scale(0.8)' id='EScienceLogo!'>
         <path id="Selection"
-            fill="gray" stroke="black" stroke-width="0"
+            fill="gray" stroke="black" strokeWidth="0"
             d="M 30.00,1.66
               C 25.32,3.47 17.71,8.28 13.00,11.00
                 10.74,12.30 7.36,13.94 6.02,16.21
@@ -456,8 +455,456 @@ export class EScienceLogo extends React.Component<Props> {
   }
 }
 
+export class Teeth extends React.Component<Props> {
+  static optionValue = "Teeth";
+  render () {
+    return <g
+    id='Clothing/Graphic/Teeth'
+    mask={`url(#${this.props.maskID})`}
+    fillRule='evenodd'
+    fill='#FFFFFF'>
+    <g transform='translate(112, 62), scale(1.2)' id='Teeth!'>
+    <g
+     transform="translate(-85.739821,-134.97873)"
+     style={{ display: "inline"}}
+     id="layer9">
+    <g
+       style={{ display: "inline"}}
+       id="layer7">
+      <path
+         id="path891"
+         d="m 85.759498,134.97873 h 33.866662 v 18.53909 H 85.739821 Z"
+         style={{fill:"#edb98a",fillOpacity:1,stroke:"none",strokeWidth: "0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer10">
+      <path
+         id="path917"
+         d="m 105.91276,154.62452 c 3.2413,-0.0808 4.44619,-5.14517 4.44619,-5.14517 0.10889,1.95177 -1.94862,6.47383 -3.88314,6.5431 z"
+         style={{fill:"#000000",fillOpacity:0.14354069,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+      <path
+         id="path917-6"
+         d="m 99.264938,154.32358 c -3.2413,-0.0808 -4.44619,-5.14517 -4.44619,-5.14517 -0.10889,1.95177 1.94862,6.47383 3.88314,6.5431 z"
+         style={{display:"inline",fill:"#000000",fillOpacity:0.14354069,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer8">
+      <path
+         id="path896"
+         d="m 85.739821,153.51782 0.01968,15.32757 h 33.866669 v -15.32757 z"
+         style={{opacity:1,fill:"#5199e4",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer11">
+      <path
+         id="path845"
+         d="m 101.56705,162.33235 c 0,0 1.51019,-0.53542 2.21037,-0.0687 0,0 0.21969,-0.49425 0.7139,-0.49425 0.65899,0 1.3729,0.54916 0.63154,1.48273 0,0 0.87865,0.31576 0.87865,1.81222 0,1.38663 -1.30425,2.48495 -3.34987,2.48495 -2.04562,0 -3.294956,-1.24934 -3.294956,-2.56732 0,-1.31798 0.823746,-1.74358 0.823746,-1.74358 -0.328948,-0.71704 -0.223505,-1.23219 0.46678,-1.45527 0.77902,0.03 0.91984,0.5492 0.91984,0.5492 z"
+         style={{fill:"#ffffff",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       id="layer12">
+      <circle
+         r="0.30203775"
+         cy="164.06221"
+         cx="101.58078"
+         id="path854"
+         style={{opacity:1,fill:"#5199e4",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+      <circle
+         r="0.30203775"
+         cy="163.93864"
+         cx="103.65385"
+         id="path854-3"
+         style={{display:"inline",opacity:1,fill:"#5199e4",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+      <path
+         id="path871"
+         d="m 101.38857,166.06664 c 0,0 -0.0137,0.86493 0.71391,0.89239 0.35617,0.0134 0.31502,-0.17912 0.3295,-0.49425 0.0215,-0.46811 -0.39814,-0.0549 -0.28831,-0.60407 0.0412,-0.28831 0.23339,-0.20594 0.56289,-0.20594 0.32949,0 0.5217,0.0686 0.53543,0.27458 -0.0138,0.38442 -0.41188,0.0961 -0.26085,0.50797 -0.0961,0.41187 0.26085,0.46679 0.45305,0.48052 0.45306,-0.0824 0.71391,-0.50797 0.72764,-0.89239 -0.0412,-0.38441 -0.0686,-0.93357 -1.31798,-0.93357 -1.24934,0 -1.45528,0.4256 -1.45528,0.97476 z"
+         style={{fill:"#5199e4",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer2">
+      <path
+         id="path827"
+         d="m 96.652071,143.56483 c 0,0 1.537647,-1.48273 3.789199,-1.09832"
+         style={{fill:"none",stroke:"#5f4a37",strokeWidth:0.465,strokeLinecap:"round",strokeLinejoin:"miter",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1}} />
+      <path
+         id="path829"
+         d="m 108.65121,143.48246 c 0,0 -1.23561,-1.40036 -3.67937,-1.01595"
+         style={{fill:"none",fillOpacity:1,stroke:"#5f4a37",strokeWidth:0.465,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+      <circle
+         r="0.8786552"
+         cy="145.51436"
+         cx="99.068367"
+         id="path831"
+         style={{opacity:1,fill:"#5f4a37",fillOpacity:1,stroke:"none",strokeWidth:0.26499999,strokeLinejoin:"miter",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1}} />
+      <circle
+         r="0.8786552"
+         cy="145.43198"
+         cx="106.26237"
+         id="path831-3"
+         style={{opacity:1,fill:"#5f4a37",fillOpacity:1,stroke:"none",strokeWidth:0.26499999,strokeLinejoin:"miter",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer4">
+      <path
+         id="path858"
+         d="m 100.09805,150.63526 c 0,0 0.12356,-0.28831 0.32949,-0.28831 h 4.48938 c 0,0 0.38441,0.0137 0.38441,0.3295 0,0.31576 -0.89238,2.11427 -2.48494,2.56732 -2.56732,-0.56289 -2.71834,-2.60851 -2.71834,-2.60851 z"
+         style={{fill:"#473729",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer3">
+      <path
+         id="path855"
+         d="m 102.6791,152.15918 c 0,0 -0.24712,-0.16475 -0.78255,-0.16475 -0.53543,0 -1.38663,0.67272 -1.38663,1.38663 0,0.71391 0.43933,1.42781 2.18291,1.42781 1.74358,0 2.10339,-0.87877 2.11426,-1.40036 0.0137,-0.65899 -0.78256,-1.88086 -2.12799,-1.24933 z"
+         style={{fill:"#ff4f6d",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer5">
+      <path
+         id="path865"
+         d="m 101.00416,148.79559 c -0.21967,0.43932 -0.48051,1.34543 -0.10986,2.22407 1.53764,0.12354 2.16918,0.10983 3.80293,-0.0549 0.0684,-0.007 0.59035,-1.38663 -0.10989,-2.16917 -1.69788,-0.1057 -2.02757,-0.0813 -3.58318,0 z"
+         style={{opacity:1,fill:"#ffffff",fillOpacity:1,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+    <g
+       style={{ display: "inline"}}
+       id="layer6">
+      <path
+         id="path893"
+         d="m 100.91321,147.95522 3.54337,0.01 c 0,0 -0.90284,1.6018 -1.67947,1.57267 -0.77662,-0.0291 -1.8639,-1.58238 -1.8639,-1.58238 z"
+         style={{fill:"#000000",fillOpacity:0.17224881,stroke:"none",strokeWidth:"0.26458332px",strokeLinecap:"butt",strokeLinejoin:"miter",strokeOpacity:1}} />
+    </g>
+  </g>
+      </g>
+    </g>
+  }
+}
+
+export class Espie extends React.Component<Props> {
+  static optionValue = "Espie";
+
+  public render() {
+    return (
+      <g
+    id='Clothing/Graphic/Espie'
+    mask={`url(#${this.props.maskID})`}
+    fillRule='evenodd'
+    fill='#FFFFFF'>
+    <g transform='translate(112, 62), scale(1.2)' id='Espie'>
+    <defs
+     id="defs2">
+    <linearGradient
+       id="linearGradient990">
+      <stop
+         id="stop986"
+         offset="0"
+         stopColor="#55121e"
+         stopOpacity={1} />
+      <stop
+         id="stop988"
+         offset="1"
+         stopColor="#aa0000"
+         stopOpacity={1} />
+    </linearGradient>
+    <linearGradient
+       y2="134.55978"
+       x2="86.096764"
+       y1="127.73354"
+       x1="86.18029"
+       gradientUnits="userSpaceOnUse"
+       id="linearGradient994"
+       href="#linearGradient990" />
+    <filter
+       id="filter1026"
+       colorInterpolationFilters="sRGB">
+      <feFlood
+         id="feFlood1016"
+         result="flood"
+         flood-color="rgb(0,0,0)"
+         flood-opacity="0.498039" />
+      <feComposite
+         id="feComposite1018"
+         result="composite1"
+         operator="in"
+         in2="SourceGraphic"
+         in="flood" />
+      <feGaussianBlur
+         id="feGaussianBlur1020"
+         result="blur"
+         stdDeviation="0.4"
+         in="composite1" />
+      <feOffset
+         id="feOffset1022"
+         result="offset"
+         dy="0.4"
+         dx="2.77556e-17" />
+      <feComposite
+         id="feComposite1024"
+         result="composite2"
+         operator="over"
+         in2="offset"
+         in="SourceGraphic" />
+    </filter>
+    <filter
+       id="filter1086"
+       colorInterpolationFilters="sRGB">
+      <feFlood
+         id="feFlood1076"
+         result="flood"
+         flood-color="rgb(0,0,0)"
+         flood-opacity="0.498039" />
+      <feComposite
+         id="feComposite1078"
+         result="composite1"
+         operator="in"
+         in2="SourceGraphic"
+         in="flood" />
+      <feGaussianBlur
+         id="feGaussianBlur1080"
+         result="blur"
+         stdDeviation="0.4"
+         in="composite1" />
+      <feOffset
+         id="feOffset1082"
+         result="offset"
+         dy="0.4"
+         dx="2.77556e-17" />
+      <feComposite
+         id="feComposite1084"
+         result="composite2"
+         operator="over"
+         in2="offset"
+         in="SourceGraphic" />
+    </filter>
+    <filter
+       id="filter1098"
+       colorInterpolationFilters="sRGB">
+      <feFlood
+         id="feFlood1088"
+         result="flood"
+         flood-color="rgb(0,0,0)"
+         flood-opacity="0.498039" />
+      <feComposite
+         id="feComposite1090"
+         result="composite1"
+         operator="in"
+         in2="SourceGraphic"
+         in="flood" />
+      <feGaussianBlur
+         id="feGaussianBlur1092"
+         result="blur"
+         stdDeviation="0.4"
+         in="composite1" />
+      <feOffset
+         id="feOffset1094"
+         result="offset"
+         dy="0.4"
+         dx="2.77556e-17" />
+      <feComposite
+         id="feComposite1096"
+         result="composite2"
+         operator="over"
+         in2="offset"
+         in="SourceGraphic" />
+    </filter>
+    <filter
+       id="filter1110"
+       colorInterpolation="sRGB">
+      <feFlood
+         id="feFlood1100"
+         result="flood"
+         flood-color="rgb(0,0,0)"
+         flood-opacity="0.498039" />
+      <feComposite
+         id="feComposite1102"
+         result="composite1"
+         operator="in"
+         in2="SourceGraphic"
+         in="flood" />
+      <feGaussianBlur
+         id="feGaussianBlur1104"
+         result="blur"
+         stdDeviation="0.4"
+         in="composite1" />
+      <feOffset
+         id="feOffset1106"
+         result="offset"
+         dy="0.4"
+         dx="2.77556e-17" />
+      <feComposite
+         id="feComposite1108"
+         result="composite2"
+         operator="over"
+         in2="offset"
+         in="SourceGraphic" />
+    </filter>
+  </defs>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer3">
+    <path
+       id="rect846"
+       d="m 72.239801,129.0199 c 4.567176,-0.97018 21.242761,-1.06097 31.253449,0.16475 -0.59458,3.08437 -1.45527,11.43253 -1.45527,11.43253 l -28.88426,0.007 c 0,0 0.06978,-3.20261 -0.913919,-11.60394 z"
+       opacity={1}
+       fill="url(#linearGradient994)"
+       fillOpacity={1}
+       stroke="none"
+       strokeWidth={0.46499997}
+       strokeLinecap="round"
+       strokeLinejoin="round"
+       strokeMiterlimit={4}
+       strokeDasharray="none"
+       strokeOpacity={1}
+       paintOrder="stroke markers fill" />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer2">
+    <path
+       id="path827"
+       d="m 104.14592,128.31626 c 0.29419,0.23026 0.27182,1.08728 0.27182,1.08728 0,0 -26.055892,-1.00962 -32.967888,-0.19416 l 0.03883,-1.00965 c 15.32689,-0.95441 29.130348,-0.20581 32.657238,0.11653 z"
+       fill="#f2e8d3"
+       fillOpacity={1}
+       stroke="none"
+       strokeWidth="0.26458332px"
+       strokeLinecap="butt"
+       strokeLinejoin="miter"
+       strokeOpacity={1}/>
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     id="layer4">
+    <path
+       id="path850"
+       d="m 71.473109,130.385 c 1.844467,0.094 1.853656,1.59168 1.838977,3.70702 -0.01314,1.89366 -0.08435,3.88131 7.08e-4,5.73853 -0.587546,0.1628 -1.070861,-0.0275 -1.070861,-0.0275 0,0 0.174636,-8.24681 -0.768824,-9.41805 z"
+       fill="#f2e8d3"
+       fillOpacity={1}
+       stroke="none"
+       strokeWidth="0.26458332px"
+       strokeLinecap="butt"
+       strokeLinejoin="miter"
+       strokeOpacity={1}/>
+    <path
+       id="path850-3"
+       d="m 104.1176,130.51412 c -1.84625,0.0474 -1.89325,1.54437 -1.93199,3.6594 -0.0347,1.8934 -0.0134,3.88221 -0.14563,5.73668 0.58325,0.17759 1.07122,3e-5 1.07122,3e-5 0,0 0.0337,-8.24859 1.0064,-9.39563 z"
+       fill="#f2e8d3"
+       fillOpacity={1}
+       stroke="none"
+       strokeWidth="0.26458332px"
+       strokeLinecap="butt"
+       strokeLinejoin="miter"
+       strokeOpacity={1} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer7">
+    <circle
+       r="0.58247161"
+       cy="137.93317"
+       cx="97.86895"
+       id="path904"
+       opacity={1}
+       fill="#1c1b1d"
+        fillOpacity={1}
+        stroke="none"
+        strokeWidth={0.42272726}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeMiterlimit={4}
+        strokeDasharray="none"
+        strokeOpacity={0.22727272}
+        paintOrder="stroke markers fill" />
+    <circle
+       r="0.58247161"
+       cy="137.93671"
+       cx="96.07869"
+       id="path904-5"
+       opacity={1}
+       fill="#1c1b1d"
+        fillOpacity={1}
+        stroke="none"
+        strokeWidth={0.42272726}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeMiterlimit={4}
+        strokeDasharray="none"
+        strokeOpacity={0.22727272}
+        paintOrder="stroke markers fill" />
+    <rect
+       ry="0.48334357"
+       y="138.69104"
+       x="83.499702"
+       height="2.1554511"
+       width="8.5394306"
+       id="rect923"
+       style={{opacity:1,fill:"#1c1b1d",fillOpacity:0.76595746,stroke:"none",strokeWidth:0.4535872,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer5">
+    <circle
+       r="3.1453466"
+       cy="134.25743"
+       cx="80.109261"
+       id="path868"
+       style={{opacity:1,fill:"#f7f3f4",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+    <circle
+       r="3.1453466"
+       cy="134.3351"
+       cx="95.603004"
+       id="path868-6"
+       style={{opacity:1,fill:"#f7f3f4",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     style={{display:"inline"}}
+     id="layer6">
+    <circle
+       r="1.8833249"
+       cy="134.9758"
+       cx="80.167503"
+       id="path886"
+       style={{opacity:1,fill:"#1c1b1d",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+    <circle
+       r="1.8833249"
+       cy="134.91757"
+       cx="95.758331"
+       id="path886-7"
+       style={{opacity:1,fill:"#1c1b1d",fillOpacity:1,stroke:"none",strokeWidth:0.46499997,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:0.22727272,paintOrder:"stroke markers fill"}} />
+  </g>
+  <g
+     transform="translate(-68.153024,-127.04402)"
+     id="layer9">
+    <circle
+       r="0.56305593"
+       cy="134.04385"
+       cx="80.905304"
+       id="path999"
+       style={{opacity:1,fill:"#ffffff",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+    <circle
+       r="0.56305593"
+       cy="133.94678"
+       cx="96.496132"
+       id="path999-3"
+       style={{opacity:1,fill:"#ffffff",fillOpacity:1,stroke:"none",strokeWidth:0.16500001,strokeLinecap:"round",strokeLinejoin:"round",strokeMiterlimit:4,strokeDasharray:"none",strokeOpacity:1,paintOrder:"stroke markers fill"}} />
+  </g>
+</g>
+</g>
+    )
+  }
+}
+
 export default class Graphics extends React.Component<Props> {
-  render() {
+  public render() {
     return (
       <Selector option={GraphicOption} defaultOption={Skull}>
         <Bat maskID={this.props.maskID} />
@@ -472,6 +919,8 @@ export default class Graphics extends React.Component<Props> {
         <SkullOutline maskID={this.props.maskID} />
         <Skull maskID={this.props.maskID} />
         <EScienceLogo maskID={this.props.maskID} />
+        <Teeth maskID={this.props.maskID} />
+        <Espie maskID={this.props.maskID} />
       </Selector>
     )
   }

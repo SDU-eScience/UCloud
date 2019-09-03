@@ -86,6 +86,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         return OutgoingHttpCall(KtorHttpRequestBuilder())
     }
 
+    @Suppress("NestedBlockDepth")
     override suspend fun <R : Any, S : Any, E : Any> finalizeCall(
         call: CallDescription<R, S, E>,
         request: R,

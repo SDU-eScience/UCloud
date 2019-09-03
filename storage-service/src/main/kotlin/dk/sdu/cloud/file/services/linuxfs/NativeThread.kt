@@ -12,7 +12,13 @@ class NativeThread(private val name: String, private val block: () -> Unit) {
     }
 
     fun start() {
-        start0()
+        if (!disableNativeThreads) {
+            start0()
+        } else {
+            Thread {
+                this@NativeThread.run()
+            }.start()
+        }
     }
 
     private external fun start0()
@@ -33,6 +39,7 @@ class NativeThread(private val name: String, private val block: () -> Unit) {
             tempFile.deleteOnExit()
             System.load(tempFile.absolutePath)
         }
-    }
 
+        var disableNativeThreads = false
+    }
 }

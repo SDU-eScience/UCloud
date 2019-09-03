@@ -1,12 +1,12 @@
-import * as React from "react"
-import styled, { keyframes, css } from "styled-components"
-import Box from "./Box"
-import Flex from "./Flex"
-import Select from "./Select"
-import Icon, { IconName } from "./Icon"
-import Label from "./Label"
-import Input from "./Input"
-import theme from "./theme"
+import * as React from "react";
+import styled, {css, keyframes} from "styled-components";
+import Box from "./Box";
+import Flex from "./Flex";
+import Icon, {IconName} from "./Icon";
+import Input from "./Input";
+import Label from "./Label";
+import Select from "./Select";
+import theme from "./theme";
 
 const Root = styled(Box)`
   & ${Box} {
@@ -34,12 +34,12 @@ const getFieldStyles = (showLabel: boolean) =>
     paddingBottom: "8px",
     transition: "padding-top 0.1s, padding-bottom 0.1s"
   } : {
-    paddingTop: "9.5px",
-    paddingBottom: "9.5px",
-    transition: "padding-top 0.1s, padding-bottom 0.1s"
-  }
+      paddingTop: "9.5px",
+      paddingBottom: "9.5px",
+      transition: "padding-top 0.1s, padding-bottom 0.1s"
+    };
 
-const noop = () => { };
+const noop = (): void => undefined;
 
 const formElements = [Input, Select];
 
@@ -62,26 +62,26 @@ class FormField extends React.Component<{
     id: "d",
     onChange: noop,
     theme: theme
-  }
+  };
 
   // for backwards-compatibility
   handleChange = onChange => e => {
-    this.props.onChange(e)
-    if (typeof onChange !== "function") return
-    onChange(e)
+    this.props.onChange(e);
+    if (typeof onChange !== "function") return;
+    onChange(e);
   }
 
   hasValue = () => {
-    const { children } = this.props
+    const {children} = this.props;
     return React.Children.toArray(children).reduce(
       (a, child: any) =>
         a || (child && isFormElement(child.type) && child.props.value),
       false
-    )
+    );
   }
 
-  render() {
-    const { label, icon, children, onChange, ...props } = this.props;
+  public render() {
+    const {label, icon, children, onChange, ...props} = this.props;
 
     let FieldChild;
     let position = -1;
@@ -93,53 +93,53 @@ class FormField extends React.Component<{
     let iconAdjustment;
 
     React.Children.forEach(children, (child, index) => {
-      if (!child) return
+      if (!child) return;
 
       switch ((child as any).type) {
         case Label:
-          LabelChild = child
-          break
+          LabelChild = child;
+          break;
         case Input:
         case Select:
-          position = index
-          FieldChild = child
-          fieldId = props.id
+          position = index;
+          FieldChild = child;
+          fieldId = props.id;
           // For aria-label when Label child is not rendered
-          fieldPlaceholder = props.placeholder
-          break
+          fieldPlaceholder = props.placeholder;
+          break;
         case Icon:
           if (position < 0) {
-            BeforeIcon = child
-            iconAdjustment = (props.size ? props.size : 0) - 24
+            BeforeIcon = child;
+            iconAdjustment = (props.size ? props.size : 0) - 24;
           } else {
-            AfterIcon = child
+            AfterIcon = child;
           }
-          break
+          break;
       }
-    })
+    });
 
     // Handle old version on component's api
     if (icon) {
-      AfterIcon = <Icon name={icon} />
+      AfterIcon = <Icon name={icon} />;
     }
     if (label) {
-      LabelChild = <Label>{label}</Label>
+      LabelChild = <Label>{label}</Label>;
     }
     if (!FieldChild) {
-      FieldChild = <Input id={this.props.id} />
+      FieldChild = <Input id={this.props.id} />;
     }
 
     const showLabel =
       LabelChild && LabelChild.props.hidden
         ? false
-        : this.props.alwaysShowLabel || (LabelChild && this.hasValue())
+        : this.props.alwaysShowLabel || (LabelChild && this.hasValue());
 
     return (
       <Root>
         {showLabel &&
           React.cloneElement(LabelChild, {
             pl: BeforeIcon ? 40 : 2,
-            mt: '6px',
+            mt: "6px",
             style: labelStyles,
             htmlFor: fieldId
           })}
@@ -154,18 +154,18 @@ class FormField extends React.Component<{
             </Box>
           )}
           {React.cloneElement(FieldChild, {
-            'aria-label':
+            "aria-label":
               !showLabel && fieldPlaceholder ? fieldPlaceholder : null,
-            mt: showLabel && -20,
-            pl: BeforeIcon ? 40 : 2,
-            pr: AfterIcon && 40,
-            style: getFieldStyles(showLabel),
-            width: 1,
-            innerRef: (elem: Element) => {
-              this.fieldRef = elem
+            "mt": showLabel && -20,
+            "pl": BeforeIcon ? 40 : 2,
+            "pr": AfterIcon && 40,
+            "style": getFieldStyles(showLabel),
+            "width": 1,
+            "innerRef": (elem: Element) => {
+              this.fieldRef = elem;
             },
             // for backwards compatibility
-            onChange: this.handleChange(FieldChild.props.onChange),
+            "onChange": this.handleChange(FieldChild.props.onChange),
             ...props
           })}
           {AfterIcon && (
@@ -175,7 +175,7 @@ class FormField extends React.Component<{
           )}
         </Flex>
       </Root>
-    )
+    );
   }
 }
 

@@ -4,7 +4,7 @@ kind: CronJob
 metadata:
   name: indexing-scan
 spec:
-  schedule: "0 */3 * * *"
+  schedule: "0 */12 * * *"
   jobTemplate:
     spec:
       template:
@@ -13,7 +13,7 @@ spec:
 
           containers:
           - name: indexing-service
-            image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.14.4
+            image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.14.7
             command:
             - /opt/service/bin/service
             - --config-dir

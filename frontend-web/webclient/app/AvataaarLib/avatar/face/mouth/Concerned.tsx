@@ -2,13 +2,13 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 export default class Concerned extends React.Component {
-  static optionValue = 'Concerned'
+  static optionValue = 'Concerned';
 
-  private path1 = uniqueId('react-path-')
-  private mask1 = uniqueId('react-mask-')
+  private path1 = uniqueId('react-path-');
+  private mask1 = uniqueId('react-mask-');
 
   render () {
-    const { path1, mask1 } = this
+    const { path1, mask1 } = this;
     return (
       <g id='Mouth/Concerned' transform='translate(2.000000, 52.000000)'>
         <defs>

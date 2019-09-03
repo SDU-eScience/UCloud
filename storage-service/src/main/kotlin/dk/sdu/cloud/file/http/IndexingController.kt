@@ -32,8 +32,8 @@ class IndexingController<Ctx : FSUserContext>(
         implement(FileDescriptions.deliverMaterializedFileSystem) {
             audit(DeliverMaterializedFileSystemAudit(request.rootsToMaterialized.keys.toList()))
 
-            val result = indexingService.runDiffOnRoots(request.rootsToMaterialized)
-            ok(DeliverMaterializedFileSystemResponse(result.first))
+            val result = indexingService.submitScan(request.rootsToMaterialized)
+            ok(DeliverMaterializedFileSystemResponse(result))
         }
     }
 

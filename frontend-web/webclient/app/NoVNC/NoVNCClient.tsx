@@ -9,6 +9,7 @@ import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {cancelJobQuery, cancelJobDialog} from "Utilities/ApplicationUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import PromiseKeeper from "PromiseKeeper";
 
 interface RFB {
     constructor(): RFB
@@ -74,15 +75,17 @@ function NoVNCClient(props: RouterLocationProps) {
     const [password, setPassword] = React.useState("");
     const [path, setPath] = React.useState("");
     const jobId = getQueryParam(props, "jobId");
+    const [promiseKeeper] = React.useState(new PromiseKeeper());
 
     React.useEffect(() => {
-        /* FIXME: Wrap in promise keeper */
-        Cloud.get(`/hpc/jobs/query-vnc/${jobId}`).then(it => {
+        promiseKeeper.makeCancelable(Cloud.get(`/hpc/jobs/query-vnc/${jobId}`)).promise.then(it => {
             setPassword(it.response.password);
             setPath(it.response.path);
-        });
+            connect();
+        }).catch(() => undefined);
         return () => {
             if (isConnected) rfb!.disconnect();
+            promiseKeeper.cancelPromises();
         }
     }, []);
 
@@ -140,7 +143,7 @@ function NoVNCClient(props: RouterLocationProps) {
         })
     }
 
-    const mountNode = <div className="noVNC"/>
+    const mountNode = <div className="noVNC"/>;
     const main = <>
         <Heading mb="5px">
             {isConnected ? <OutlineButton ml="15px" mr="10px" onClick={() => disconnect()}>

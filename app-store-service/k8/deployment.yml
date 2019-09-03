@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: app-store
-        image: registry.cloud.sdu.dk/sdu-cloud/app-store-service:0.3.7
+        image: registry.cloud.sdu.dk/sdu-cloud/app-store-service:0.4.2
         command:
         - /opt/service/bin/service
         - --config-dir

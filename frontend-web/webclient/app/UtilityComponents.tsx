@@ -1,46 +1,49 @@
-import * as React from "react";
-import {
-    Icon,
-    FtIcon,
-    Absolute,
-    Flex,
-    Text,
-    Label,
-    Checkbox,
-    Box,
-    Divider,
-    Button,
-    Select,
-    Input,
-    Radio
-} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {DropdownContent, Dropdown} from "ui-components/Dropdown";
-import {FtIconProps} from "UtilityFunctions";
-import styled from "styled-components";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
-import {dialogStore} from "Dialog/DialogStore";
 import {SensitivityLevelMap} from "DefaultObjects";
+import {dialogStore} from "Dialog/DialogStore";
+import {SortOrder} from "Files";
+import * as React from "react";
+import styled from "styled-components";
+import {
+    Absolute,
+    Box,
+    Button,
+    Checkbox,
+    Divider,
+    Flex,
+    FtIcon,
+    Icon,
+    Input,
+    Label,
+    Radio,
+    Select,
+    Text
+} from "ui-components";
+import {Dropdown, DropdownContent} from "ui-components/Dropdown";
+import * as Heading from "ui-components/Heading";
+import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {FtIconProps} from "UtilityFunctions";
 
 interface StandardDialog {
-    title?: string
-    message: string | JSX.Element
-    onConfirm: () => void
-    onCancel?: () => void
-    cancelText?: string
-    confirmText?: string
-    validator?: () => boolean
+    title?: string;
+    message: string | JSX.Element;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    cancelText?: string;
+    confirmText?: string;
+    validator?: () => boolean;
 }
 
-export function addStandardDialog({
-   title,
-   message,
-   onConfirm,
-   onCancel = () => undefined,
-   validator = () => true,
-   cancelText = "Cancel",
-   confirmText = "Confirm"
-}: StandardDialog) {
+export function addStandardDialog(
+    {
+        title,
+        message,
+        onConfirm,
+        onCancel = () => undefined,
+        validator = () => true,
+        cancelText = "Cancel",
+        confirmText = "Confirm"
+    }: StandardDialog
+) {
     dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>{title}</Heading.h3>
@@ -48,10 +51,13 @@ export function addStandardDialog({
             <Box>{message}</Box>
         </Box>
         <Flex mt="20px">
-            <Button onClick={() => { onCancel(); dialogStore.popDialog() }} color="red" mr="5px">{cancelText}</Button>
-            <Button onClick={() => { if (validator()) onConfirm(); dialogStore.popDialog() }} color="green">{confirmText}</Button>
+            <Button onClick={() => dialogStore.failure()} color="red" mr="5px">{cancelText}</Button>
+            <Button onClick={() => {
+                if (validator()) onConfirm();
+                dialogStore.success();
+            }} color="green">{confirmText}</Button>
         </Flex>
-    </Box>)
+    </Box>, onCancel);
 }
 
 export function sensitivityDialog(): Promise<{ cancelled: true } | { option: SensitivityLevelMap }> {
@@ -59,57 +65,66 @@ export function sensitivityDialog(): Promise<{ cancelled: true } | { option: Sen
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
         message: (<Box>
-                <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
-                    <option value="INHERIT">Inherit</option>
-                    <option value="PRIVATE">Private</option>
-                    <option value="CONFIDENTIAL">Confidential</option>
-                    <option value="SENSITIVE">Sensitive</option>
-                </Select>
+            <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
+                <option value="INHERIT">Inherit</option>
+                <option value="PRIVATE">Private</option>
+                <option value="CONFIDENTIAL">Confidential</option>
+                <option value="SENSITIVE">Sensitive</option>
+            </Select>
         </Box>),
-        onConfirm: () => resolve({ option }),
-        onCancel: () => resolve({ cancelled: true }),
+        onConfirm: () => resolve({option}),
+        onCancel: () => resolve({cancelled: true}),
         confirmText: "Change"
     }));
 }
 
-export function shareDialog(): Promise<{ cancelled: true } | { username: string, readOrEdit: "read" | "read_edit" }> {
-    let username = "";
-    let readOrEdit: "read" | "read_edit" = "read";
-    let error = false;
-    // FIXME: Less than dry, however, this needed to be wrapped in a from. Can be make standard dialog do similar?
+export function shareDialog(): Promise<{ cancelled: true } | { username: string, access: "read" | "read_edit" }> {
+    // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
     return new Promise(resolve => dialogStore.addDialog(
-        <form onSubmit={e => e.preventDefault()}>
-            <Heading.h3>Share</Heading.h3>
-            <Divider/>
-            <Flex mb="10px">
-                <Label>
-                    <Radio name="right" defaultChecked onClick={() => readOrEdit = "read"}/> {" "} Can view
-                </Label>
-                <Label>
-                    <Radio name="right" onClick={() => readOrEdit = "read_edit"}/> {" "} Can edit
-                </Label>
-            </Flex>
-            <Label>
-                <Input required type="text" onChange={e => username = e.target.value}
-                       placeholder="Enter username..."/>
-            </Label>
-            <Flex mt="20px">
-                <Button type="button" onClick={() => {
-                    dialogStore.popDialog();
-                    resolve({cancelled: true})
-                }} color="red" mr="5px">Cancel</Button>
-                <Button onClick={() => {
-                    if (username) {
-                        dialogStore.popDialog();
-                        resolve({username, readOrEdit})
-                    } else {
-                        error = true;
-                    }
-                }} color="green">Share</Button>
-            </Flex>
-        </form>
-    ))
+        <SharePrompt resolve={resolve} />
+    , () => resolve({cancelled: true})));
 }
+
+export function SharePrompt({resolve}) {
+    const username = React.useRef<HTMLInputElement>(null);
+    const [access, setAccess] =  React.useState<"read" | "read_edit">("read");
+    return (<form onSubmit={e => e.preventDefault()}>
+    <Heading.h3>Share</Heading.h3>
+    <Divider/>
+    <Flex mb="10px">
+        <Label>
+            <Radio
+                name="right"
+                checked={access === "read"}
+                onClick={() => setAccess("read")}
+                onChange={() => setAccess("read")}
+            /> {" "} Can view
+        </Label>
+        <Label>
+            <Radio
+                name="right"
+                checked={access === "read_edit"}
+                onClick={() => setAccess("read_edit")}
+                onChange={() => setAccess("read_edit")}
+            /> {" "} Can edit
+        </Label>
+    </Flex>
+    <Label>
+        <Input required type="text" ref={username}
+               placeholder="Enter username..."/>
+    </Label>
+    <Flex mt="20px">
+        <Button type="button" onClick={() => dialogStore.failure()} color="red" mr="5px">Cancel</Button>
+        <Button onClick={() => {
+            if (username.current && username.current.value) {
+                dialogStore.success();
+                resolve({username: username.current.value, access});
+            }
+        }} color="green">Share</Button>
+        </Flex>
+    </form>);
+}
+
 
 export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
     return new Promise(resolve => addStandardDialog({
@@ -117,31 +132,39 @@ export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
         message: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
         cancelText: "Continue Upload",
         confirmText: "Cancel Upload",
-        onConfirm: () =>  resolve({}),
+        onConfirm: () => resolve({}),
         onCancel: () => resolve({cancelled: true})
     }));
 }
 
 interface RewritePolicy {
-    path: string
-    homeFolder: string
-    filesRemaining: number
+    path: string;
+    homeFolder: string;
+    filesRemaining: number;
+    allowOverwrite: boolean;
 }
 
-type RewritePolicyResult = { policy: string, applyToAll: boolean } | false
+type RewritePolicyResult = { policy: string, applyToAll: boolean } | false;
 
-export function rewritePolicyDialog({path, homeFolder, filesRemaining}: RewritePolicy): Promise<RewritePolicyResult> {
+export function rewritePolicyDialog({
+    path,
+    homeFolder,
+    filesRemaining,
+    allowOverwrite
+}: RewritePolicy): Promise<RewritePolicyResult> {
     let policy = "RENAME";
     let applyToAll = false;
     return new Promise(resolve => dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>File exists</Heading.h3>
             <Divider/>
-            {replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it?
+            {replaceHomeFolder(path, homeFolder)} already
+            exists. {allowOverwrite ? "Do you want to overwrite it?" :
+                                      "Do you wish to continue? Folders cannot be overwritten."}
             <Box mt="10px">
                 <Select onChange={e => policy = e.target.value} defaultValue="RENAME">
                     <option value="RENAME">Rename</option>
-                    <option value="OVERWRITE">Overwrite</option>
+                    {!allowOverwrite ? null : <option value="OVERWRITE">Overwrite</option>}
                 </Select>
                 {filesRemaining > 1 ?
                     <Flex mt="20px">
@@ -152,61 +175,59 @@ export function rewritePolicyDialog({path, homeFolder, filesRemaining}: RewriteP
             </Box>
         </Box>
         <Box textAlign="right" mt="20px">
+            <Button onClick={() =>  dialogStore.failure()} color="red" mr="5px">No</Button>
             <Button onClick={() => {
-                dialogStore.popDialog();
-                resolve(false);
-            }} color="red" mr="5px">No</Button>
-            <Button onClick={() => {
-                dialogStore.popDialog();
-                resolve({policy, applyToAll})
+                dialogStore.success();
+                resolve({policy, applyToAll});
             }} color="green">Yes</Button>
         </Box>
-    </Box>));
+    </Box>, () => resolve(false)));
 }
 
 interface FileIconProps {
-    link?: boolean,
-    shared?: boolean,
-    fileIcon: FtIconProps,
-    size?: string | number
+    shared?: boolean;
+    fileIcon: FtIconProps;
+    size?: string | number;
 }
 
-export const FileIcon = ({shared = false, link = false, fileIcon, size = 30}: FileIconProps) =>
-    link || shared ?
-    <RelativeFlex>
-        <FtIcon size={size} fileIcon={fileIcon}/>
-        <Absolute bottom={"-6px"} right={"-2px"}>
-            <Dropdown>
-                <Icon size="15px" name="link" color2="white"/>
-                <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
-                    <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
-                </DropdownContent>
-            </Dropdown>
-        </Absolute>
-    </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>
+export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps) =>
+    shared ?
+        <RelativeFlex>
+            <FtIcon size={size} fileIcon={fileIcon}/>
+            <Absolute bottom={"-6px"} right={"-2px"}>
+                <Dropdown>
+                    <Icon size="15px" name="link" color2="white"/>
+                    <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
+                        <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
+                    </DropdownContent>
+                </Dropdown>
+            </Absolute>
+        </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>;
 
 const RelativeFlex = styled(Flex)`
     position: relative;
 `;
 
-/* FIXME: Add logic for arrows inside Arrow from SortBys and SortOrder */
-interface Arrow {
-    name: "arrowUp" | "arrowDown" | undefined
+interface Arrow<T> {
+    sortBy: T;
+    activeSortBy: T;
+    order: SortOrder;
 }
 
-export function Arrow({name}: Arrow) {
-    if (name === "arrowUp") return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em"/>);
-    else if (name === "arrowDown") return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
-    return null;
+export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
+    if (sortBy !== activeSortBy) return null;
+    if (order === SortOrder.ASCENDING)
+        return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em"/>);
+    return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
 }
 
 export class PP extends React.Component<{ visible: boolean }, { duration: number }> {
-
-    state = {
-        duration: 500
-    };
-
-    private updateDuration = (duration: number) => this.setState(() => ({duration}));
+    constructor(props: Readonly<{visible: boolean;}>) {
+        super(props);
+        this.state = {
+            duration: 500
+        };
+    }
 
     public render() {
         if (!this.props.visible) return null;
@@ -279,10 +300,12 @@ export class PP extends React.Component<{ visible: boolean }, { duration: number
                     </ellipse>
                 </svg>
                 <RTLInput type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration"
-                          onChange={({target}) => this.updateDuration(parseInt(target.value))}/>
+                          onChange={({target}) => this.updateDuration(parseInt(target.value, 10))}/>
             </div>
-        )
+        );
     }
+
+    private updateDuration = (duration: number) => this.setState(() => ({duration}));
 }
 
 export const RTLInput = styled.input`
@@ -290,8 +313,8 @@ export const RTLInput = styled.input`
 `;
 
 interface MasterCheckbox {
-    onClick: (e: boolean) => void
-    checked: boolean
+    onClick: (e: boolean) => void;
+    checked: boolean;
 }
 
 export const MasterCheckbox = ({onClick, checked}: MasterCheckbox) => (

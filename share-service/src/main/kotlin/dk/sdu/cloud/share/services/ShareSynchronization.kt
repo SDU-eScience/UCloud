@@ -20,11 +20,12 @@ import kotlin.system.exitProcess
 class ShareSynchronization<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val shareDao: ShareDAO<DBSession>,
-    private val serviceClient: AuthenticatedClient
+    private val userClientFactory: (String) -> AuthenticatedClient
 ) {
     suspend fun synchronize() {
         db.withTransaction { session ->
             shareDao.listAll(session).forEach { share ->
+                log.info("Synchronizing share: $share")
                 var retries = 0
                 while (retries < maxRetries) {
                     val result = FileDescriptions.updateAcl.call(
@@ -33,7 +34,7 @@ class ShareSynchronization<DBSession>(
                             listOf(ACLEntryRequest(share.sharedWith, share.rights)),
                             automaticRollback = false
                         ),
-                        serviceClient
+                        userClientFactory(share.ownerToken)
                     )
 
                     if (result is IngoingCallResponse.Ok) {
@@ -46,11 +47,12 @@ class ShareSynchronization<DBSession>(
                 }
 
                 if (retries >= maxRetries) {
-                    log.error("Was unable to synchronize share: $share")
-                    exitProcess(1)
+                    log.warn("Was unable to synchronize share: $share")
                 }
             }
         }
+        log.info("Synchronization complete!")
+        exitProcess(0)
     }
 
     companion object : Loggable {

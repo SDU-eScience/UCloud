@@ -50,7 +50,7 @@ function Installed(props: InstalledProps & {header: any}) {
 
     async function onFavorite(name: string, version: string): Promise<void> {
         try {
-            await Cloud.post(hpcFavoriteApp(name, version))
+            await Cloud.post(hpcFavoriteApp(name, version));
             const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
             const pageNumber = page.pageNumber < (page.itemsInTotal - 1) / page.itemsPerPage ?
                 page.pageNumber : Math.max(page.pageNumber - 1, 0);
@@ -107,7 +107,7 @@ const InstalledPage: React.FunctionComponent<InstalledPageProps> = props => (
 
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>): InstalledOperations => ({
     onInit: () => {
-        dispatch(updatePageTitle("Applications"))
+        dispatch(updatePageTitle("Applications"));
         dispatch(setPrioritizedSearch("applications"))
     },
 

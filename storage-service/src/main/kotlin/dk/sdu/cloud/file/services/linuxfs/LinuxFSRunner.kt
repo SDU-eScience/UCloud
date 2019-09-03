@@ -118,7 +118,13 @@ inline fun <T> runAndRethrowNIOExceptions(block: () -> T): T {
 
             ex is AccessDeniedException -> throw FSException.PermissionException(cause = ex)
 
-            ex.reason.contains("File name too long") -> throw FSException.BadRequest("File name too long")
+            ex.reason.contains("File name too long") || ex.reason.contains("Filename too long") -> {
+                throw FSException.BadRequest("File name too long")
+            }
+
+            ex.message?.contains("Not a directory") == true -> {
+                throw FSException.BadRequest("Not a directory")
+            }
 
             else -> throw FSException.CriticalException(ex.message ?: "Internal error", cause = ex)
         }

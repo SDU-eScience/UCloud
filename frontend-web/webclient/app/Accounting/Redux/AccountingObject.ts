@@ -20,7 +20,7 @@ export const emptyResourceState: () => ResourceState = () => ({
     chart: emptyLoadableContent(),
     usage: emptyLoadableContent(),
     events: emptyLoadableContent()
-})
+});
 
 export const resourceName = (resource: string, subResource: string): string => `${resource}/${subResource}`;
 
@@ -31,4 +31,4 @@ export const init = (): Wrapper => ({
             "compute/timeUsed": emptyResourceState()
         }
     }
-})
+});

@@ -5,16 +5,16 @@ import FacialHair from './facialHair'
 import HairColor from './HairColor'
 
 export default class LongHairBigHair extends React.Component {
-  static optionValue = 'LongHairBigHair'
-  private mask1 = uniqueId('react-mask-')
-  private mask2 = uniqueId('react-mask-')
-  private mask3 = uniqueId('react-mask-')
-  private path1 = uniqueId('react-path-')
-  private path2 = uniqueId('react-path-')
-  private path3 = uniqueId('react-path-')
+  static optionValue = 'LongHairBigHair';
+  private mask1 = uniqueId('react-mask-');
+  private mask2 = uniqueId('react-mask-');
+  private mask3 = uniqueId('react-mask-');
+  private path1 = uniqueId('react-path-');
+  private path2 = uniqueId('react-path-');
+  private path3 = uniqueId('react-path-');
 
   render () {
-    const { mask1, mask2, mask3, path1, path2, path3 } = this
+    const { mask1, mask2, mask3, path1, path2, path3 } = this;
     return (
       <g id='Top' strokeWidth='1' fillRule='evenodd'>
         <defs>

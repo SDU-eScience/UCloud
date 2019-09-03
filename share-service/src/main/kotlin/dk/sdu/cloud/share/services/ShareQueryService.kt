@@ -86,6 +86,7 @@ class ShareQueryService<Session>(
     ): Page<StorageFile> {
         val page = db.withTransaction { dao.listSharedToMe(it, user, paging) }
         val fileIds = page.items.map { it.fileId }
+        if (fileIds.isEmpty()) return Page(0, paging.itemsPerPage, 0, emptyList())
 
         val lookupResponse = LookupDescriptions.reverseLookupFiles.call(
             ReverseLookupFilesRequest(fileIds),

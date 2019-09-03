@@ -18,7 +18,7 @@ const Dialog: React.FunctionComponent = props => {
         isOpen={!!current}
         shouldCloseOnEsc
         ariaHideApp={false}
-        onRequestClose={() => dialogStore.popDialog()}
+        onRequestClose={() => dialogStore.failure()}
         onAfterOpen={() => undefined}
         style={{
             content: {

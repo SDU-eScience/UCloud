@@ -1,18 +1,23 @@
 group 'dk.sdu.cloud'
-version '1.14.5'
+version '1.14.7'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
 
 repositories {
     maven { url  "http://dl.bintray.com/mbuhot/maven" }
 }
 
 buildscript {
+<<<<<<< HEAD
     ext.serviceCommonVersion = "1.5.5"
     ext.fileApiVersion = "1.8.0-REDIS.0"
+=======
+    ext.serviceCommonVersion = "1.5.12"
+    ext.fileApiVersion = "2.1.2"
+>>>>>>> master
 }
 
 dependencies {

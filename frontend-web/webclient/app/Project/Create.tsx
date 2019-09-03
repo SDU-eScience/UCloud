@@ -1,16 +1,16 @@
-import * as React from "react";
-import {MainContainer} from "MainContainer/MainContainer";
-import ContainerForText from "ui-components/ContainerForText";
-import Input from "ui-components/Input";
-import Box from "ui-components/Box";
-import Label from "ui-components/Label";
-import Button from "ui-components/Button";
 import {useAsyncCommand} from "Authentication/DataHook";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {MainContainer} from "MainContainer/MainContainer";
 import {createProject} from "Project/index";
 import {useRef} from "react";
-import {Cloud} from "Authentication/SDUCloudObject";
+import * as React from "react";
+import Box from "ui-components/Box";
+import Button from "ui-components/Button";
+import ContainerForText from "ui-components/ContainerForText";
+import Input from "ui-components/Input";
+import Label from "ui-components/Label";
 
-const Create: React.FunctionComponent = props => {
+const Create: React.FunctionComponent = () => {
     const [loading, invokeCommand] = useAsyncCommand();
     const title = useRef<HTMLInputElement>(null);
 

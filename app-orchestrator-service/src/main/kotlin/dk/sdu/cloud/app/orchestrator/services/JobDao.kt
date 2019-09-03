@@ -18,7 +18,8 @@ interface JobDao<Session> {
         session: Session,
         systemId: String,
         state: JobState,
-        status: String? = null
+        status: String? = null,
+        failedState: JobState? = null
     )
 
     fun updateStatus(
@@ -33,11 +34,11 @@ interface JobDao<Session> {
         workspace: String
     )
 
-    suspend fun findOrNull(
+    suspend fun find(
         session: Session,
-        systemId: String,
+        systemIds: List<String>,
         owner: SecurityPrincipalToken? = null
-    ): VerifiedJobWithAccessToken?
+    ): List<VerifiedJobWithAccessToken>
 
     suspend fun list(
         session: Session,
@@ -47,7 +48,9 @@ interface JobDao<Session> {
         sortBy: JobSortBy = JobSortBy.STARTED_AT,
         minTimestamp: Long? = null,
         maxTimestamp: Long? = null,
-        filter: JobState? = null
+        filter: JobState? = null,
+        application: String? = null,
+        version: String? = null
     ): Page<VerifiedJobWithAccessToken>
 
     suspend fun findJobsCreatedBefore(
@@ -56,3 +59,10 @@ interface JobDao<Session> {
     ): Sequence<VerifiedJobWithAccessToken>
 }
 
+suspend fun <Session> JobDao<Session>.findOrNull(
+    session: Session,
+    systemId: String,
+    owner: SecurityPrincipalToken? = null
+): VerifiedJobWithAccessToken? {
+    return find(session, listOf(systemId), owner).filter { it.job.id == systemId }.singleOrNull()
+}

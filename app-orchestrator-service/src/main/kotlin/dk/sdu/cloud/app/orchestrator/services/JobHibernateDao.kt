@@ -1,15 +1,34 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
+import dk.sdu.cloud.app.orchestrator.api.JobSortBy
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
+import dk.sdu.cloud.app.orchestrator.api.SortOrder
+import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.*
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.JSONB_LIST_PARAM_TYPE
+import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.WithTimestamps
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.updateCriteria
 import kotlinx.coroutines.runBlocking
 import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
@@ -17,9 +36,16 @@ import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
 import org.slf4j.Logger
 import java.util.*
-import javax.persistence.*
+import javax.persistence.AttributeOverride
+import javax.persistence.AttributeOverrides
+import javax.persistence.Column
+import javax.persistence.Embedded
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.Id
+import javax.persistence.Table
 import javax.persistence.criteria.Predicate
-import kotlin.collections.ArrayList
 
 @Entity
 @Table(name = "job_information")
@@ -29,6 +55,8 @@ data class JobInformationEntity(
     val systemId: String,
 
     var owner: String,
+
+    var name: String?,
 
     @Embedded
     @AttributeOverrides(
@@ -41,6 +69,9 @@ data class JobInformationEntity(
 
     @Enumerated(EnumType.STRING)
     var state: JobState,
+
+    @Enumerated(EnumType.STRING)
+    var failedState: JobState?,
 
     var nodes: Int,
 
@@ -83,14 +114,14 @@ data class JobInformationEntity(
     )
     var mounts: List<ValidatedFileForUpload>,
 
+    var maxTimeHours: Int,
+
     var maxTimeMinutes: Int,
 
     var maxTimeSeconds: Int,
 
-    var backendName: String,
-
     @Column(length = 4096)
-    var accessToken: String,
+    var accessToken: String?,
 
     @Column(length = 1024)
     var archiveInCollection: String,
@@ -98,7 +129,7 @@ data class JobInformationEntity(
     @Column(length = 1024)
     var workspace: String?,
 
-    var maxTimeHours: Int,
+    var backendName: String,
 
     var startedAt: Date?,
 
@@ -132,7 +163,10 @@ data class JobInformationEntity(
             )
         ]
     )
-    var peers: List<ApplicationPeer>?
+    var peers: List<ApplicationPeer>?,
+
+    @Column(length = 1024)
+    var refreshToken: String?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -140,37 +174,39 @@ data class JobInformationEntity(
 
 class JobHibernateDao(
     private val appStoreService: AppStoreService,
-    private val toolStoreService: ToolStoreService,
-    private val tokenValidation: TokenValidation<*>
+    private val toolStoreService: ToolStoreService
 ) : JobDao<HibernateSession> {
     override fun create(session: HibernateSession, jobWithToken: VerifiedJobWithAccessToken) {
-        val (job, token) = jobWithToken
+        val (job, token, refreshToken) = jobWithToken
 
         val entity = JobInformationEntity(
             job.id,
             job.owner,
+            job.name,
             job.application.metadata.toEmbedded(),
             "Verified",
             job.currentState,
+            job.failedState,
             job.nodes,
             job.tasksPerNode,
             job.jobInput.asMap(),
             job.files,
             job.mounts,
+            job.maxTime.hours,
             job.maxTime.minutes,
             job.maxTime.seconds,
-            job.backend,
             token,
             job.archiveInCollection,
             job.workspace,
-            job.maxTime.hours,
+            job.backend,
             null,
-            Date(System.currentTimeMillis()),
-            Date(System.currentTimeMillis()),
+            Date(job.modifiedAt),
+            Date(job.createdAt),
             job.user,
             job.project,
             job.sharedFileSystemMounts,
-            job.peers
+            job.peers,
+            refreshToken
         )
 
         session.save(entity)
@@ -186,12 +222,19 @@ class JobHibernateDao(
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
-    override fun updateStateAndStatus(session: HibernateSession, systemId: String, state: JobState, status: String?) {
+    override fun updateStateAndStatus(
+        session: HibernateSession,
+        systemId: String,
+        state: JobState,
+        status: String?,
+        failedState: JobState?
+    ) {
         session.updateCriteria<JobInformationEntity>(
             where = { entity[JobInformationEntity::systemId] equal systemId },
             setProperties = {
                 criteria.set(entity[JobInformationEntity::modifiedAt], Date(System.currentTimeMillis()))
                 criteria.set(entity[JobInformationEntity::state], state)
+                criteria.set(entity[JobInformationEntity::failedState], failedState)
                 if (status != null) {
                     criteria.set(entity[JobInformationEntity::status], status)
                 }
@@ -212,18 +255,23 @@ class JobHibernateDao(
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
-    override suspend fun findOrNull(
+    override suspend fun find(
         session: HibernateSession,
-        systemId: String,
+        systemIds: List<String>,
         owner: SecurityPrincipalToken?
-    ): VerifiedJobWithAccessToken? {
-        return JobInformationEntity[session, systemId]
-            ?.takeIf {
-                owner == null ||
-                        it.owner == owner.realUsername() ||
-                        (it.project == owner.projectOrNull() && it.state.isFinal())
+    ): List<VerifiedJobWithAccessToken> {
+        return session.criteria<JobInformationEntity> {
+            val ownerPredicate = if (owner == null) {
+                literal(true).toPredicate()
+            } else {
+                (entity[JobInformationEntity::owner] equal owner.realUsername()) or
+                        ((entity[JobInformationEntity::project] equal owner.projectOrNull()) and
+                                (entity[JobInformationEntity::state] isInCollection
+                                        (JobState.values().filter { it.isFinal() })))
             }
-            ?.toModel(resolveTool = true)
+
+            ownerPredicate and (entity[JobInformationEntity::systemId] isInCollection systemIds)
+        }.resultList.mapNotNull { it.toModel(resolveTool = true) }
     }
 
     override suspend fun findJobsCreatedBefore(
@@ -241,7 +289,8 @@ class JobHibernateDao(
 
             while (scroller.next()) {
                 val next = scroller.get(0) as JobInformationEntity
-                yield(runBlocking { next.toModel(resolveTool = true) })
+                val value = runBlocking { next.toModel(resolveTool = true) }
+                if (value != null) yield(value!!)
             }
         }
     }
@@ -254,12 +303,15 @@ class JobHibernateDao(
         sortBy: JobSortBy,
         minTimestamp: Long?,
         maxTimestamp: Long?,
-        filter: JobState?
+        filter: JobState?,
+        application: String?,
+        version: String?
     ): Page<VerifiedJobWithAccessToken> {
         return session.paginatedCriteria<JobInformationEntity>(
             pagination,
             orderBy = {
                 val field = when (sortBy) {
+                    JobSortBy.NAME -> JobInformationEntity::name
                     JobSortBy.STATE -> JobInformationEntity::state
                     JobSortBy.APPLICATION -> JobInformationEntity::application
                     JobSortBy.STARTED_AT -> JobInformationEntity::startedAt
@@ -299,26 +351,59 @@ class JobHibernateDao(
                 val appState = entity[JobInformationEntity::state] equal (filter ?: JobState.VALIDATED)
                 val appStateFilter = literal(filter == null).toPredicate() or appState
 
+                // By application name (and version)
+                val byNameAndVersionFilter = if (application != null) {
+                    allOf(
+                        *ArrayList<Predicate>().apply {
+                            val app = entity[JobInformationEntity::application]
+
+                            add(
+                                app[EmbeddedNameAndVersion::name] equal application
+                            )
+
+                            if (version != null) {
+                                add(
+                                    app[EmbeddedNameAndVersion::version] equal version
+                                )
+                            }
+                        }.toTypedArray()
+                    )
+                } else {
+                    literal(true).toPredicate()
+                }
+
                 allOf(
                     matchesLowerFilter,
                     matchesUpperFilter,
                     appStateFilter,
+                    byNameAndVersionFilter,
                     anyOf(
                         canViewAsOwner,
                         canViewAsPartOfProject
                     )
                 )
             }
-        ).mapItems { it.toModel() }
+        ).mapItemsNotNull { it.toModel() }
+    }
+
+    private inline fun <T, R : Any> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
+        val newItems = items.mapNotNull(mapper)
+        return Page(
+            itemsInTotal,
+            itemsPerPage,
+            pageNumber,
+            newItems
+        )
     }
 
     private suspend fun JobInformationEntity.toModel(
         resolveTool: Boolean = false
-    ): VerifiedJobWithAccessToken {
+    ): VerifiedJobWithAccessToken? {
         val withoutTool = VerifiedJobWithAccessToken(
             VerifiedJob(
                 appStoreService.findByNameAndVersion(application.name, application.version)
-                    ?: throw RPCException("Application was not found", HttpStatusCode.BadRequest),
+                    ?: return null, // return null in case application no longer exists (issue #915)
+                name,
                 files,
                 systemId,
                 owner,
@@ -329,9 +414,8 @@ class JobHibernateDao(
                 backendName,
                 state,
                 status,
+                failedState,
                 archiveInCollection,
-                tokenValidation.validateAndDecodeOrNull(accessToken)?.principal?.uid
-                    ?: Long.MAX_VALUE, // TODO This is a safe value to map to, but we shouldn't just map it to long max
                 workspace,
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
@@ -342,7 +426,8 @@ class JobHibernateDao(
                 _sharedFileSystemMounts = sharedFileSystemMounts,
                 _peers = peers
             ),
-            accessToken
+            accessToken,
+            refreshToken
         )
 
         if (!resolveTool) return withoutTool

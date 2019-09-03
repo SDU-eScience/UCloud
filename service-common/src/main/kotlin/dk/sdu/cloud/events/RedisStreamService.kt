@@ -91,7 +91,7 @@ class RedisStreamService(
                     messages: List<StreamMessage<String, String>>
                 ) {
                     val events = messages.mapNotNull { message ->
-                        val textValue = message.body.values.first()
+                        val textValue = message.body?.values?.first() ?: return@mapNotNull null
                         if (textValue == STREAM_INIT_MSG) return@mapNotNull null
 
                         runCatching { stream.deserialize(textValue) }.getOrNull()
@@ -100,6 +100,7 @@ class RedisStreamService(
                     if (consumer is EventConsumer.Immediate) {
                         val ids = messages.map { it.id }
                         launch {
+                            @Suppress("TooGenericExceptionCaught")
                             try {
                                 if (consumer.accept(events)) {
                                     xackA(stream.name, group, ids.toSet())
@@ -111,6 +112,7 @@ class RedisStreamService(
                         }
                     } else {
                         messagesNotYetAcknowledged.addAll(messages.map { it.id })
+                        @Suppress("TooGenericExceptionCaught")
                         try {
                             if (consumer.accept(events)) {
                                 xackA(stream.name, group, messagesNotYetAcknowledged)

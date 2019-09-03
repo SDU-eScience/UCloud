@@ -5,18 +5,18 @@ import FacialHair from './facialHair'
 import HatColor from './HatColor'
 
 export default class Turban extends React.Component {
-  static optionValue = 'Turban'
+  static optionValue = 'Turban';
 
-  private filter1 = uniqueId('react-filter-')
-  private mask1 = uniqueId('react-mask-')
-  private mask2 = uniqueId('react-mask-')
-  private mask3 = uniqueId('react-mask-')
-  private path1 = uniqueId('react-path-')
-  private path2 = uniqueId('react-path-')
-  private path3 = uniqueId('react-path-')
+  private filter1 = uniqueId('react-filter-');
+  private mask1 = uniqueId('react-mask-');
+  private mask2 = uniqueId('react-mask-');
+  private mask3 = uniqueId('react-mask-');
+  private path1 = uniqueId('react-path-');
+  private path2 = uniqueId('react-path-');
+  private path3 = uniqueId('react-path-');
 
   render () {
-    const { filter1, mask1, mask2, mask3, path1, path2, path3 } = this
+    const { filter1, mask1, mask2, mask3, path1, path2, path3 } = this;
     return (
       <g id='Top' strokeWidth='1' fillRule='evenodd'>
         <defs>
