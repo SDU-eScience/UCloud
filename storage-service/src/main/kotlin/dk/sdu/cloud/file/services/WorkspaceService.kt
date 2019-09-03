@@ -129,19 +129,23 @@ class WorkspaceService(
         }
 
 
-        /* Recurse through the destination directory, looking for files which are not present in the
-        * workspace directory (meaning that they were deleted from the workspace), and delete from the
-        * destination directory accordingly.
-        */
-        fun cleanDestinationDirectory(destPath: Path, workspacePath: Path) {
-            if (destPath.toFile().list() != null) {
-                destPath.toFile().list().forEach { destFileName ->
-                    val destFile = File(destPath.toFile(), destFileName)
-                    if (!File(workspacePath.toString(), destFileName).exists()) {
+        /**
+         * Recurse through the destination directory, looking for files which are not present in the
+         * workspace directory (meaning that they were deleted from the workspace), and delete from the
+         * destination directory accordingly.
+         */
+        fun cleanDestinationDirectory(destDirectoryFile: File, workspaceDirectoryFile: File) {
+            if (destDirectoryFile.list() != null) {
+                destDirectoryFile.list().forEach { destFileName ->
+                    val destFile = File(destDirectoryFile, destFileName)
+                    if (!File(workspaceDirectoryFile.toString(), destFileName).exists()) {
                         log.debug("File $destFileName not found in workspace. Deleting file.")
                         destFile.delete()
                     } else if (destFile.isDirectory) {
-                        cleanDestinationDirectory(destFile.toPath(), Paths.get(workspacePath.toString(), destFileName))
+                        cleanDestinationDirectory(
+                            destFile,
+                            Paths.get(workspaceDirectoryFile.toString(), destFileName).toFile()
+                        )
                     }
                 }
             }
@@ -251,7 +255,10 @@ class WorkspaceService(
         }
 
         run {
-            cleanDestinationDirectory(defaultDestinationDir, Paths.get(outputWorkspace.toString(), "mount"))
+            cleanDestinationDirectory(
+                defaultDestinationDir.toFile(),
+                Paths.get(outputWorkspace.toString(), "mount").toFile()
+            )
         }
 
         filesWithMounts.forEach { (currentFile, mount) ->
