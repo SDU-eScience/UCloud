@@ -19,13 +19,7 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import java.io.File
 import java.nio.channels.Channels
-import java.nio.file.CopyOption
-import java.nio.file.FileSystems
-import java.nio.file.Files
-import java.nio.file.OpenOption
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
 import java.util.*
@@ -134,6 +128,25 @@ class WorkspaceService(
             opts.toTypedArray()
         }
 
+
+        /* Recurse through the destination directory, looking for files which are not present in the
+        * workspace directory (meaning that they were deleted from the workspace), and delete from the
+        * destination directory accordingly.
+        */
+        fun cleanDestinationDirectory(destPath: Path, workspacePath: Path) {
+            if (destPath.toFile().list() != null) {
+                destPath.toFile().list().forEach { destFileName ->
+                    val destFile = File(destPath.toFile(), destFileName)
+                    if (!File(workspacePath.toString(), destFileName).exists()) {
+                        log.debug("File $destFileName not found in workspace. Deleting file.")
+                        destFile.delete()
+                    } else if (destFile.isDirectory) {
+                        cleanDestinationDirectory(destFile.toPath(), Paths.get(workspacePath.toString(), destFileName))
+                    }
+                }
+            }
+        }
+
         fun transferFile(sourceFile: Path, destinationDir: Path, relativeTo: Path = outputWorkspace): Path {
             val resolvedDestination = destinationDir.resolve(relativeTo.relativize(sourceFile))
             if (!resolvedDestination.startsWith(destinationDir)) {
@@ -237,6 +250,9 @@ class WorkspaceService(
                 aclService.hasPermission(destination, manifest.username, AccessRight.WRITE)
         }
 
+        run {
+            cleanDestinationDirectory(defaultDestinationDir, Paths.get(outputWorkspace.toString(), "mount"))
+        }
 
         filesWithMounts.forEach { (currentFile, mount) ->
             log.debug("Transferring file: $currentFile")
