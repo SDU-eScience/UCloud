@@ -13,6 +13,9 @@ const reducer = (state: ReduxType = init().applicationsBrowse, action: ActionTyp
             applications.set(action.payload.key, action.payload.page);
             return {...state, applications};
         }
+        case Tag.RECEIVE_APP: {
+            return {...state, applicationsPage: {...action.payload, loading: false}};
+        }
         default: {
             return state;
         }

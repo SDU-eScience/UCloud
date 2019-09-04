@@ -2,10 +2,11 @@ import * as Accounting from "Accounting";
 import Activity from "Activity/Page";
 import UserCreation from "Admin/UserCreation";
 import {dispatchUserAction, onLogin} from "App";
-import Applications from "Applications/Browse";
+import ApplicationsBrowse from "Applications/Browse";
 import DetailedResult from "Applications/DetailedResult";
 import * as ApplicationsInstalled from "Applications/Installed";
 import JobResults from "Applications/JobResults";
+import ApplicationsOverview from "Applications/Overview";
 import Run from "Applications/Run";
 import ApplicationView from "Applications/View";
 import {Cloud} from "Authentication/SDUCloudObject";
@@ -64,7 +65,8 @@ const Core = () => {
 
                 <Route exact path="/novnc" component={requireAuth(NoVNCClient)}/>
 
-                <Route exact path="/applications" component={requireAuth(Applications)}/>
+                <Route exact path="/applications" component={requireAuth(ApplicationsBrowse)}/>
+                <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)}/>
                 <Route exact path="/applications/installed" component={requireAuth(ApplicationsInstalled.default)}/>
                 <Route exact path="/applications/details/:appName/:appVersion"
                        component={requireAuth(ApplicationView)}/>
