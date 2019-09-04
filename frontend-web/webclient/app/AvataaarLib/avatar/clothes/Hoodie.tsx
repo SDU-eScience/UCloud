@@ -2,8 +2,9 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 import Colors from './Colors'
+import {ColorFabric} from 'UserSettings/AvatarOptions';
 
-export default class Hoodie extends React.Component {
+export default class Hoodie extends React.Component<{color: ColorFabric}> {
   static optionValue = 'Hoodie';
 
   private path1 = uniqueId('react-path-');
@@ -28,7 +29,7 @@ export default class Hoodie extends React.Component {
           fillRule='evenodd'
           xlinkHref={'#' + path1}
         />
-        <Colors maskID={mask1} />
+        <Colors maskID={mask1} color={this.props.color} />
         <path
           d='M102,61.7390531 L102,110 L95,110 L95,58.1502625 C97.2037542,59.4600576 99.5467694,60.6607878 102,61.7390531 Z M169,58.1502625 L169,98.5 C169,100.432997 167.432997,102 165.5,102 C163.567003,102 162,100.432997 162,98.5 L162,61.7390531 C164.453231,60.6607878 166.796246,59.4600576 169,58.1502625 Z'
           id='Straps'
