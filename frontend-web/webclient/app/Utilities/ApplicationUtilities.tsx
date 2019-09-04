@@ -75,13 +75,13 @@ export const cancelJobDialog = (
         onConfirm
     });
 
-export const cancelJob = (cloud: Cloud, jobId: string): Promise<{ request: XMLHttpRequest, response: void }> =>
+export const cancelJob = (cloud: Cloud, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
     cloud.delete(cancelJobQuery, {jobId});
 
 interface FavoriteApplicationFromPage<T> {
     name: string;
     version: string;
-    page: Page<{ metadata: ApplicationMetadata, favorite: boolean } & T>;
+    page: Page<{metadata: ApplicationMetadata, favorite: boolean} & T>;
     cloud: Cloud;
 }
 
@@ -144,7 +144,7 @@ export const findKnownParameterValues = (
     return extractedParameters;
 };
 
-export const isFileOrDirectoryParam = ({type}: { type: string }) => type === "input_file" || type === "input_directory";
+export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
 
 const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
     switch (type) {
@@ -166,9 +166,9 @@ const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
 
 interface ExtractedParameters {
     [key: string]: string | number | boolean |
-        { source: string, destination: string; } |
-        { fileSystemId: string } |
-        { jobId: string };
+    {source: string, destination: string;} |
+    {fileSystemId: string} |
+    {jobId: string};
 }
 
 export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
@@ -262,12 +262,14 @@ export function checkForMissingParameters(
     parameters: ExtractedParameters,
     invocation: ApplicationInvocationDescription
 ): boolean {
+    const PT = ParameterTypes;
     const requiredParams = invocation.parameters.filter(it => !it.optional);
     const missingParameters: string[] = [];
     requiredParams.forEach(rParam => {
         const parameterValue = parameters[rParam.name];
-        // Number, string, boolean
-        if (!["number", "string", "boolean"].includes(typeof parameterValue) ) {
+        if (parameterValue == null) missingParameters.push(rParam.title);
+        else if ([PT.Boolean, PT.FloatingPoint, PT.Integer, PT.Text].includes[rParam.type] &&
+            !["number", "string", "boolean"].includes(typeof parameterValue)) {
             missingParameters.push(rParam.title);
         } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {
             if (!parameterValue["source"]) {
