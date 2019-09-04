@@ -1,21 +1,21 @@
 import * as React from "react";
 import styled from "styled-components";
 import {
-  textStyle,
-  fontSize,
-  fontWeight,
-  textAlign,
-  lineHeight,
-  space,
   color,
-  SpaceProps,
-  TextAlignProps,
-  FontSizeProps,
   ColorProps,
-  WidthProps,
-  width,
+  fontSize,
+  FontSizeProps,
+  fontWeight,
+  lineHeight,
+  maxWidth,
   MaxWidthProps,
-  maxWidth
+  space,
+  SpaceProps,
+  textAlign,
+  TextAlignProps,
+  textStyle,
+  width,
+  WidthProps
 } from "styled-system";
 import { Theme } from "./theme";
 import { Cursor } from "./Types";
@@ -29,15 +29,15 @@ export const regular = (props: { regular?: boolean, theme: Theme }) =>
 export const bold = (props: { bold?: boolean, theme: Theme }) =>
   props.bold ? { fontWeight: props.theme.bold } : null;
 
-export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null)
+export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null);
 
 export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps {
-  align?: "left" | "right"
-  caps?: boolean
-  regular?: boolean
-  italic?: boolean
-  bold?: boolean
-  cursor?: Cursor
+  align?: "left" | "right";
+  caps?: boolean;
+  regular?: boolean;
+  italic?: boolean;
+  bold?: boolean;
+  cursor?: Cursor;
 }
 
 const Text = styled.div<TextProps>`

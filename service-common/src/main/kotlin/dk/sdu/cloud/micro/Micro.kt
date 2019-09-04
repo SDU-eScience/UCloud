@@ -1,6 +1,7 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.calls.server.FrontendOverrides
 import dk.sdu.cloud.service.Loggable
 import kotlin.system.measureTimeMillis
 
@@ -112,6 +113,7 @@ fun Micro.installDefaultFeatures() {
     install(ClientFeature)
     install(TokenValidationFeature)
     install(ServerFeature)
+    install(FrontendOverrides)
 }
 
 fun Micro.initWithDefaultFeatures(

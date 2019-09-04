@@ -1,8 +1,8 @@
+import {AnalysesStateProps, RunsSortBy} from "../app/Applications";
+import {DashboardStateProps} from "../app/Dashboard";
 import * as Defaults from "../app/DefaultObjects";
-import { SortOrder, SortBy } from "../app/Files";
-import { SidebarPages } from "../app/ui-components/Sidebar";
-import { Analysis } from "../app/Applications";
-import { DashboardStateProps } from "../app/Dashboard";
+import {SortOrder} from "../app/Files";
+import {SidebarPages} from "../app/ui-components/Sidebar";
 
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
@@ -14,30 +14,7 @@ describe("Initialize Redux Objects", () => {
             favoriteLoading: false,
             recentLoading: false,
             analysesLoading: false,
-        } as DashboardStateProps)
-    });
-
-    test("Files", () => {
-        const homeFolder = "/home/user@test.dk/"
-        expect(JSON.parse(JSON.stringify(Defaults.initFiles(homeFolder)))).toEqual(JSON.parse(JSON.stringify({
-            page: Defaults.emptyPage,
-            sortOrder: SortOrder.ASCENDING,
-            sortBy: SortBy.PATH,
-            loading: false,
-            error: undefined,
-            path: "",
-            invalidPath: false,
-            filesInfoPath: "",
-            sortingColumns: [SortBy.MODIFIED_AT, SortBy.SIZE],
-            fileSelectorLoading: false,
-            fileSelectorShown: false,
-            fileSelectorPage: Defaults.emptyPage,
-            fileSelectorPath: homeFolder,
-            fileSelectorCallback: () => null,
-            fileSelectorError: undefined,
-            fileSelectorIsFavorites: false,
-            disallowedPaths: []
-        })) as Defaults.FilesReduxObject)
+        } as DashboardStateProps);
     });
 
     test("Status", () =>
@@ -68,17 +45,10 @@ describe("Initialize Redux Objects", () => {
         expect(Defaults.initAnalyses()).toEqual({
             page: Defaults.emptyPage,
             loading: false,
-            error: undefined
-        } as Defaults.ComponentWithPage<Analysis>)
-    );
-
-    test("Zenodo", () =>
-        expect(Defaults.initZenodo()).toEqual({
-            connected: false,
-            loading: false,
-            page: Defaults.emptyPage,
-            error: undefined
-        } as Defaults.ZenodoReduxObject)
+            error: undefined,
+            sortBy: RunsSortBy.createdAt,
+            sortOrder: SortOrder.DESCENDING
+        } as AnalysesStateProps)
     );
 
     test("Sidebar", () =>
@@ -98,5 +68,9 @@ describe("Initialize Redux Objects", () => {
             allowMultiple: false,
             onFilesUploaded: () => null
         })) as Defaults.UploaderReduxObject)
+    );
+
+    test("Init object", () =>
+        expect(Defaults.initObject()).toBeDefined()
     );
 });

@@ -1,7 +1,6 @@
 package dk.sdu.cloud.alerting.services
 
 import dk.sdu.cloud.alerting.Configuration
-import dk.sdu.cloud.alerting.Limits
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.delay
 import org.apache.http.util.EntityUtils
@@ -114,7 +113,7 @@ class ElasticAlerting(
                 )
             )
             val numberOf5XXStatusCodes = try {
-                elastic.search(requestFor5xxCodes, RequestOptions.DEFAULT).hits.totalHits.toDouble()
+                elastic.search(requestFor5xxCodes, RequestOptions.DEFAULT).hits.totalHits.value.toDouble()
             } catch (ex: ConnectException) {
                 numberOfRetries++
                 delay(FIFTEEN_SEC)
@@ -139,7 +138,7 @@ class ElasticAlerting(
             )
 
             val totalNumberOfEntries = try {
-                    elastic.search(totalNumberOfEntriesRequest, RequestOptions.DEFAULT).hits.totalHits.toDouble()
+                    elastic.search(totalNumberOfEntriesRequest, RequestOptions.DEFAULT).hits.totalHits.value.toDouble()
                 } catch (ex: ConnectException) {
                     numberOfRetries++
                     delay(FIFTEEN_SEC)
@@ -151,13 +150,15 @@ class ElasticAlerting(
                 continue
             }
             val percentage = numberOf5XXStatusCodes / totalNumberOfEntries * 100
-            log.debug("Current percentage is: $percentage, with limit: $limit5xxPercentage." +
-                    " Number of entries: $totalNumberOfEntries")
+            log.debug(
+                "Current percentage is: $percentage, with limit: $limit5xxPercentage." +
+                        " Number of entries: $totalNumberOfEntries"
+            )
             if (percentage > limit5xxPercentage && !alertOnStatus) {
                 val message = "ALERT: Too many 5XX status codes\n" +
                         "Entries last 15 min: $totalNumberOfEntries \n" +
                         "Number of 5XX status codes: $numberOf5XXStatusCodes \n" +
-                        "Percentage: ${percentage}% (Limit is $limit5xxPercentage %)"
+                        "Percentage: $percentage % (Limit is $limit5xxPercentage %)"
                 alertService.createAlert(Alert(message))
                 alertOnStatus = true
             }
@@ -192,12 +193,15 @@ class ElasticAlerting(
             dataNodes.forEach { line ->
                 //Catches case of unassigend node which has no values
                 val fields = line.split(" ").filter { it != "" }
-                if (!fields.last().startsWith("elasticsearch-data")) return@forEach
+                if (
+                    !(fields.last().startsWith("elasticsearch-data") ||
+                    fields.last().startsWith("elasticsearch-newdata"))) return@forEach
                 val usedStoragePercentage = fields.first().toDouble()
                 log.info("${fields.last()} is using $usedStoragePercentage% of storage.")
                 when {
                     usedStoragePercentage > highLimitPercentage && alertCounter == 2 -> {
-                        val message = "ALERT: Available storage of ${fields.last()} is below ${highLimitPercentage * 100}"
+                        val message =
+                            "ALERT: Available storage of ${fields.last()} is below ${highLimitPercentage * 100}"
                         alertService.createAlert(Alert(message))
                         alertCounter++
                     }
@@ -207,7 +211,8 @@ class ElasticAlerting(
                         alertCounter++
                     }
                     usedStoragePercentage > lowLimitPercentage && !alertSent -> {
-                        val message = "INFO: Available storage of ${fields.last()} is below ${lowLimitPercentage * 100}%"
+                        val message =
+                            "INFO: Available storage of ${fields.last()} is below ${lowLimitPercentage * 100}%"
                         alertService.createAlert(Alert(message))
                         alertCounter++
                         alertSent = true

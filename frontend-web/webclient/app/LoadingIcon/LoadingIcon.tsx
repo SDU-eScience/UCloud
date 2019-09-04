@@ -72,7 +72,7 @@ const CubeGrid = ({ size }: CubeGridProps) => {
             <Cube9 />
         </Spinner>
     )
-}
+};
 
 export default CubeGrid
 

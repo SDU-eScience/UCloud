@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Card } from "ui-components/Card";
-import { Flex, ToggleBadge } from "ui-components";
-import { Link } from "react-router-dom";
+import {Link} from "react-router-dom";
+import {Flex, ToggleBadge} from "ui-components";
+import {Card} from "ui-components/Card";
 
 export const Tabs: React.FunctionComponent<{}> = (props) => (
     <Card>
@@ -12,8 +12,8 @@ export const Tabs: React.FunctionComponent<{}> = (props) => (
 );
 
 interface TabProps {
-    selected?: boolean
-    linkTo: string
+    selected?: boolean;
+    linkTo: string;
 }
 
 export const Tab: React.FunctionComponent<TabProps> = (props): JSX.Element => (

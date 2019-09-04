@@ -1,16 +1,18 @@
 import * as jwt from "jsonwebtoken";
 import {
+    inDevEnvironment,
     inRange,
-    is5xxStatusCode,
-    inSuccessRange
+    inSuccessRange,
+    is5xxStatusCode
 } from "UtilityFunctions";
+import {ReduxObject} from "DefaultObjects";
+import {Store} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Store} from "redux";
-import {ReduxObject} from "DefaultObjects";
 
 export interface Override {
     path: string,
+    method: { value: string }
     destination: {
         scheme?: string
         host?: string
@@ -41,9 +43,8 @@ export default class SDUCloud {
     private csrfToken: string;
     private decodedToken: any;
     private forceRefresh: boolean = false;
+    private overridesPromise: Promise<void> | null = null;
 
-
-    // private projectId: string | undefined = "9aa73f48-7cec-4a25-9a52-f2a784ff9ad2";
     private projectId: string | undefined = undefined;
     private projectAccessToken: string | undefined = undefined;
     private projectDecodedToken: any | undefined = undefined;
@@ -80,13 +81,19 @@ export default class SDUCloud {
         if (accessToken && csrfToken) {
             this.setTokens(accessToken, csrfToken);
         }
+
+        if (process.env.NODE_ENV === "development") {
+            this.overridesPromise = (async () => {
+                const jsonResponse: Override[] = await (await fetch("http://localhost:9900/")).json();
+                this.overrides = jsonResponse;
+            })();
+        }
     }
 
     initializeStore(store: Store<ReduxObject>) {
         store.subscribe(() => {
             const project = store.getState().project.project;
             if (project !== this.projectId) {
-                console.log("Something");
                 this.projectId = project;
                 this.projectDecodedToken = undefined;
                 this.projectAccessToken = undefined;
@@ -122,6 +129,14 @@ export default class SDUCloud {
             disallowProjects = false
         }: CallParameters
     ): Promise<any> {
+        if (this.overridesPromise != null) {
+            try {
+                await this.overridesPromise;
+            } catch (ignored) {
+            }
+            this.overridesPromise = null;
+        }
+
         if (path.indexOf("/") !== 0) path = "/" + path;
         return this.receiveAccessTokenOrRefreshIt(disallowProjects).then(token => {
             return new Promise((resolve, reject) => {
@@ -185,7 +200,7 @@ export default class SDUCloud {
         });
     }
 
-    computeURL(context: string, path: string): string {
+    public computeURL(context: string, path: string): string {
         let absolutePath = context + path;
         for (let i = 0; i < this.overrides.length; i++) {
             let override = this.overrides[i];
@@ -206,56 +221,56 @@ export default class SDUCloud {
     /**
      * Calls with the GET HTTP method. See call(method, path, body)
      */
-    async get<T = any>(path: string, context = this.apiContext,
-                       disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async get<T = any>(path: string, context = this.apiContext,
+                              disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "GET", path, body: undefined, context, disallowProjects});
     }
 
     /**
      * Calls with the POST HTTP method. See call(method, path, body)
      */
-    async post<T = any>(path: string, body?: object, context = this.apiContext,
-                        disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async post<T = any>(path: string, body?: object, context = this.apiContext,
+                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "POST", path, body, context, disallowProjects});
     }
 
     /**
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
-    async put<T = any>(path: string, body: object, context = this.apiContext,
-                       disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async put<T = any>(path: string, body: object, context = this.apiContext,
+                              disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "PUT", path, body, context, disallowProjects});
     }
 
     /**
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
-    async delete<T = void>(path: string, body: object, context = this.apiContext,
-                          disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async delete<T = void>(path: string, body: object, context = this.apiContext,
+                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "DELETE", path, body, context, disallowProjects});
     }
 
     /**
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
-    async patch<T = any>(path: string, body: object, context = this.apiContext,
-                         disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async patch<T = any>(path: string, body: object, context = this.apiContext,
+                                disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "PATCH", path, body, context, disallowProjects});
     }
 
     /**
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
-    async options<T = any>(path: string, body: object, context = this.apiContext,
-                           disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async options<T = any>(path: string, body: object, context = this.apiContext,
+                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "OPTIONS", path, body, context, disallowProjects});
     }
 
     /**
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
-    async head<T = any>(path: string, context = this.apiContext,
-                        disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async head<T = any>(path: string, context = this.apiContext,
+                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "HEAD", path, body: undefined, context, disallowProjects});
     }
 
@@ -263,12 +278,12 @@ export default class SDUCloud {
      * Opens up a new page which contains the login page at the auth service. This login page will automatically
      * redirect back to the correct service (using serviceName).
      */
-    openBrowserLoginPage() {
+    public openBrowserLoginPage() {
         if (window.location.href !== this.context + "/app/login")
             window.location.href = this.context + "/app/login";
     }
 
-    openLandingPage() {
+    public openLandingPage() {
         if (window.location.href !== this.context + "/app/")
             window.location.href = this.context + "/app/";
     }
@@ -276,13 +291,13 @@ export default class SDUCloud {
     /**
      * @returns the username of the authenticated user or null
      */
-    get username(): string | undefined {
+    public get username(): string | undefined {
         let info = this.userInfo;
         if (info) return info.sub;
         else return undefined;
     }
 
-    get activeUsername(): string | undefined {
+    public get activeUsername(): string | undefined {
         if (this.useProjectToken(false) && !!this.projectDecodedToken) {
             return this.projectDecodedToken.payload.sub;
         } else {
@@ -293,7 +308,7 @@ export default class SDUCloud {
     /**
      * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
      */
-    get homeFolder(): string {
+    public get homeFolder(): string {
         let username = this.username;
         if (this.projectId !== undefined) {
             username = this.projectId;
@@ -301,18 +316,11 @@ export default class SDUCloud {
         return `/home/${username}/`
     }
 
-    /**
-     * @returns {string} the location of the jobs folder for the currently logged in user (with trailing slash)
-     */
-    get jobFolder(): string {
-        return `${this.homeFolder}Jobs/`
-    }
-
-    get trashFolder(): string {
+    public get trashFolder(): string {
         return `${this.homeFolder}Trash/`
     }
 
-    get isLoggedIn(): boolean {
+    public get isLoggedIn(): boolean {
         return this.userInfo != null;
     }
 
@@ -337,7 +345,7 @@ export default class SDUCloud {
      * will be able to put whatever they want in this. This is normally not a problem since all backend services _will_
      * verify the token.
      */
-    get userInfo(): undefined | JWT {
+    private get userInfo(): undefined | JWT {
         let token = this.decodedToken;
         if (!token) return undefined;
         else return this.decodedToken.payload;
@@ -369,7 +377,15 @@ export default class SDUCloud {
      *
      * @return {Promise} a promise of an access token
      */
-    receiveAccessTokenOrRefreshIt(disallowProjects: boolean = false): Promise<any> {
+    async receiveAccessTokenOrRefreshIt(disallowProjects: boolean = false): Promise<any> {
+        if (this.overridesPromise != null) {
+            try {
+                await this.overridesPromise;
+            } catch (ignored) {
+            }
+            this.overridesPromise = null;
+        }
+
         let tokenPromise: Promise<any> | null = null;
         if (this.isTokenExpired(disallowProjects) || this.forceRefresh) {
             tokenPromise = this.refresh(disallowProjects);
@@ -383,7 +399,7 @@ export default class SDUCloud {
     createOneTimeTokenWithPermission(permission, disallowProjects: boolean = false): Promise<any> {
         return this.receiveAccessTokenOrRefreshIt(disallowProjects)
             .then(token => {
-                let oneTimeToken = `${this.context}${this.authContext}/request/?audience=${permission}`;
+                let oneTimeToken = this.computeURL(this.authContext, `/request/?audience=${permission}`);
                 return new Promise((resolve, reject) => {
                     let req = new XMLHttpRequest();
                     req.open("POST", oneTimeToken);
@@ -431,11 +447,15 @@ export default class SDUCloud {
                 });
             }
 
-            let refreshPath = this.context + this.authContext + "/refresh/web";
+            let refreshPath = this.computeURL(this.authContext, "/refresh/web");
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
                 req.open("POST", refreshPath);
                 req.setRequestHeader("X-CSRFToken", csrfToken);
+                if (process.env.NODE_ENV === "development") {
+                    req.withCredentials = true;
+                }
+
                 req.onload = () => {
                     try {
                         if (inSuccessRange(req.status)) {
@@ -475,7 +495,6 @@ export default class SDUCloud {
 
         this.csrfToken = csrfToken;
         SDUCloud.storedCsrfToken = csrfToken;
-
 
         this.decodedToken = this.decodeToken(accessToken);
     }

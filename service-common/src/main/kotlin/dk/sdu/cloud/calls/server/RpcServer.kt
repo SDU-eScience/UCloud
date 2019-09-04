@@ -63,8 +63,8 @@ sealed class IngoingCallFilter : IngoingContextFilter {
      * This filter runs after the response has been sent.
      *
      * This filter will _always_ run. This is regardless of any previous exception that may have been
-     * thrown (filter or implement handler). In case of an exception the [OutgoingCallResponse] will be set to [OutgoingCallResponse.Error]
-     * with a null [OutgoingCallResponse.Error.error].
+     * thrown (filter or implement handler). In case of an exception the [OutgoingCallResponse] will be set to
+     * [OutgoingCallResponse.Error] with a null [OutgoingCallResponse.Error.error].
      *
      * It is _not_ possible to stop the pipeline from progressing at this point.
      */
@@ -114,7 +114,11 @@ sealed class IngoingCallFilter : IngoingContextFilter {
 
         fun <Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> beforeResponse(
             companion: Companion,
-            handler: suspend Ctx.(call: CallDescription<*, *, *>, request: Any, result: OutgoingCallResponse<*, *>) -> Unit
+            handler: suspend Ctx.(
+                call: CallDescription<*, *, *>,
+                request: Any,
+                result: OutgoingCallResponse<*, *>
+            ) -> Unit
         ): BeforeResponse {
             return object : BeforeResponse() {
                 override fun canUseContext(ctx: IngoingCall): Boolean {
@@ -136,7 +140,11 @@ sealed class IngoingCallFilter : IngoingContextFilter {
 
         fun <Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> afterResponse(
             companion: Companion,
-            handler: suspend Ctx.(call: CallDescription<*, *, *>, request: Any?, result: OutgoingCallResponse<*, *>) -> Unit
+            handler: suspend Ctx.(
+                call: CallDescription<*, *, *>,
+                request: Any?,
+                result: OutgoingCallResponse<*, *>
+            ) -> Unit
         ): AfterResponse {
             return object : AfterResponse() {
                 override fun canUseContext(ctx: IngoingCall): Boolean {
@@ -217,9 +225,13 @@ class CallHandler<R : Any, S : Any, E : Any> internal constructor(
 interface IngoingRequestInterceptor<Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> {
     val companion: Companion
 
-    fun onStart() {}
+    @Suppress("EmptyFunctionBlock")
+    fun onStart() {
+    }
 
-    fun onStop() {}
+    @Suppress("EmptyFunctionBlock")
+    fun onStop() {
+    }
 
     /**
      * Notifies the interceptor that it should start listening for calls that match the description in [call].
@@ -250,15 +262,9 @@ class RpcServer {
     private val requestInterceptors = HashMap<IngoingCallCompanion<*>, IngoingRequestInterceptor<*, *>>()
     private val filters = ArrayList<IngoingCallFilter>()
     private val handlers = HashMap<CallDescription<*, *, *>, suspend CallHandler<*, *, *>.() -> Unit>()
-    private val delayedHandlers = ArrayList<DelayedHandler<*, *, *>>()
+    internal val delayedHandlers = ArrayList<DelayedHandler<*, *, *>>()
     var isRunning: Boolean = false
         private set
-
-    private data class DelayedHandler<R : Any, S : Any, E : Any>(
-        val call: CallDescription<R, S, E>,
-        val requiredContext: Set<IngoingCallCompanion<*>>?,
-        val handler: suspend CallHandler<R, S, E>.() -> Unit
-    )
 
     fun attachFilter(serverFilter: IngoingCallFilter) {
         log.debug("Attaching filter: $serverFilter")
@@ -282,8 +288,11 @@ class RpcServer {
             }
 
             val interceptors: List<IngoingRequestInterceptor<*, *>> =
-                if (requiredContext == null) requestInterceptors.values.toList()
-                else requiredContext.mapNotNull { requestInterceptors[it] }
+                if (requiredContext == null) {
+                    requestInterceptors.values.toList()
+                } else {
+                    requiredContext.mapNotNull { requestInterceptors[it] }
+                }
 
             if (interceptors.isEmpty()) {
                 log.info("Unable to find any request interceptor for $call")
@@ -327,6 +336,7 @@ class RpcServer {
         var request: R? = null
         var response: OutgoingCallResponse<S, E>? = null
 
+        @Suppress("TooGenericExceptionCaught")
         try {
             val handler = handlers[call] ?: run {
                 log.error("Was asked to handle incoming call: $call but no such handler was found!")
@@ -338,6 +348,7 @@ class RpcServer {
             beforeParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call) }
 
             log.debug("Parsing call: $call")
+            @Suppress("TooGenericExceptionCaught")
             val capturedRequest = try {
                 val capturedRequest = source.parseRequest(ctx, call)
                 request = capturedRequest
@@ -384,8 +395,11 @@ class RpcServer {
 
             val statusCode = (ex as? RPCException)?.httpStatusCode ?: HttpStatusCode.InternalServerError
             val callResult = if (call.errorType.type == CommonErrorMessage::class.java && ex is RPCException) {
-                val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) CommonErrorMessage(ex.why)
-                else CommonErrorMessage("Internal Server Error")
+                val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) {
+                    CommonErrorMessage(ex.why)
+                } else {
+                    CommonErrorMessage("Internal Server Error")
+                }
 
                 @Suppress("UNCHECKED_CAST")
                 OutgoingCallResponse.Error(errorMessage as E, statusCode)
@@ -405,6 +419,7 @@ class RpcServer {
         afterResponse
             .filter { it.canUseContext(ctx) }
             .forEach {
+                @Suppress("TooGenericExceptionCaught")
                 try {
                     it.run(ctx, call, request, responseOrDefault)
                 } catch (ex: Throwable) {
@@ -416,5 +431,12 @@ class RpcServer {
 
     companion object : Loggable {
         override val log = logger()
+
+        data class DelayedHandler<R : Any, S : Any, E : Any>(
+            val call: CallDescription<R, S, E>,
+            val requiredContext: Set<IngoingCallCompanion<*>>?,
+            val handler: suspend CallHandler<R, S, E>.() -> Unit
+        )
+
     }
 }

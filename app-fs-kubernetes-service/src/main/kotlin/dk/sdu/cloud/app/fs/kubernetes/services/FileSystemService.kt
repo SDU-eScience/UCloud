@@ -35,7 +35,7 @@ class FileSystemService(
             )
         )
 
-        Chown.setOwner(file, ownerUid + 1000, ownerUid + 1000)
+        Chown.setOwner(file, ownerUid, ownerUid)
     }
 
     fun delete(id: String) {

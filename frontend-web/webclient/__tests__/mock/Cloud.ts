@@ -33,31 +33,31 @@ class MockCloud {
             "-0vrHrriWWDxnQljB8", { complete: true });
     }
 
-    call = (method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> =>
+    public call = (method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> =>
         new Promise((resolve, reject) => resolve(1));
 
-    get = (path: string, context = this.apiContext) => this.call("GET", path, undefined, context);
+    public get = (path: string, context = this.apiContext) => this.call("GET", path, undefined, context);
 
-    post = (path: string, body?: object, context = this.apiContext) => this.call("POST", path, body, context);
+    public post = (path: string, body?: object, context = this.apiContext) => this.call("POST", path, body, context);
 
-    put = (path: string, body: object, context = this.apiContext) => this.call("PUT", path, body, context);
+    public put = (path: string, body: object, context = this.apiContext) => this.call("PUT", path, body, context);
 
-    delete = (path: string, body: object, context = this.apiContext) => this.call("DELETE", path, body, context);
+    public delete = (path: string, body: object, context = this.apiContext) => this.call("DELETE", path, body, context);
 
-    patch = (path: string, body: object, context = this.apiContext) => this.call("PATCH", path, body, context);
+    public patch = (path: string, body: object, context = this.apiContext) => this.call("PATCH", path, body, context);
 
-    options = (path: string, body: object, context = this.apiContext) => this.call("OPTIONS", path, body, context);
+    public options = (path: string, body: object, context = this.apiContext) => this.call("OPTIONS", path, body, context);
 
-    head = (path: string, context = this.apiContext) => this.call("HEAD", path, undefined, context);
+    public head = (path: string, context = this.apiContext) => this.call("HEAD", path, undefined, context);
 
-    openBrowserLoginPage() {
+    public openBrowserLoginPage() {
         window.location.href = this.context + this.authContext + "/login?service=" + encodeURIComponent(this.serviceName);
     }
 
     get username() {
         let info = this.userInfo;
         if (info) return info.sub;
-        else return null
+        else return null;
     }
 
     get homeFolder(): string {
@@ -85,17 +85,17 @@ class MockCloud {
         else return this.decodedToken.payload;
     }
 
-    receiveAccessTokenOrRefreshIt = (): Promise<any> => new Promise(resolve => resolve("1"));
+    public receiveAccessTokenOrRefreshIt = (): Promise<any> => new Promise(resolve => resolve("1"));
 
-    createOneTimeTokenWithPermission(permission: string) { }
+    public createOneTimeTokenWithPermission(permission: string) { }
 
     private refresh() { }
 
-    setTokens(accessToken: string, csrfToken: string) { }
+    public setTokens(accessToken: string, csrfToken: string) { }
 
-    logout() { }
+    public logout() { }
 
-    clearTokens() { }
+    public clearTokens() { }
 
     static get storedAccessToken(): string {
         return window.localStorage.getItem("accessToken") || "";

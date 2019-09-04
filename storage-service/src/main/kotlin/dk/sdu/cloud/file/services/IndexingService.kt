@@ -1,6 +1,9 @@
 package dk.sdu.cloud.file.services
 
+import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.StorageEvent
@@ -12,15 +15,15 @@ import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.services.background.BackgroundScope
+import dk.sdu.cloud.file.processors.ScanRequest
+import dk.sdu.cloud.file.processors.ScanStreams
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent
 import dk.sdu.cloud.file.util.toMovedEvent
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import kotlin.collections.component1
 import kotlin.collections.component2
 
@@ -30,8 +33,12 @@ import kotlin.collections.component2
 class IndexingService<Ctx : FSUserContext>(
     private val runnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val storageEventProducer: StorageEventProducer
+    private val storageEventProducer: StorageEventProducer,
+    private val aclService: AclService<*>,
+    private val eventStreamService: EventStreamService
 ) {
+    private val scanRequestProducer by lazy { eventStreamService.createProducer(ScanStreams.stream) }
+
     suspend fun verifyKnowledge(
         ctx: Ctx,
         files: List<String>,
@@ -40,12 +47,21 @@ class IndexingService<Ctx : FSUserContext>(
         return when (mode) {
             is KnowledgeMode.List -> {
                 val parents = files.asSequence().map { it.parent() }.toSet()
-                val knowledgeByParent = parents.map { it to fs.checkPermissions(ctx, it, requireWrite = false) }.toMap()
+                //val knowledgeByParent = parents.map { it to fs.checkPermissions(ctx, it, requireWrite = false) }.toMap()
+                val knowledgeByParent =
+                    parents.map { it to aclService.hasPermission(it, ctx.user, AccessRight.READ) }.toMap()
+
                 files.map { knowledgeByParent[it.parent()]!! }
             }
 
             is KnowledgeMode.Permission -> {
-                files.map { fs.checkPermissions(ctx, it, mode.requireWrite) }
+                files.map {
+                    aclService.hasPermission(
+                        it,
+                        ctx.user,
+                        if (mode.requireWrite) AccessRight.WRITE else AccessRight.READ
+                    )
+                }
             }
         }
     }
@@ -62,31 +78,25 @@ class IndexingService<Ctx : FSUserContext>(
      * interpreter closed prematurely. This would happen in the normal tryWithFS { ... } workflow.
      * It will run as the [SERVICE_USER] it is expected that this user can read all files.
      *
-     * This method will quickly verify if the roots exist and return the result of that in [Pair.first].
-     *
-     * Afterwards the algorithm will continue to perform the diffing and launch events based on
-     * this, progress can be tracked via [Pair.second].
+     * This method will quickly verify if the roots exist and return the result.
      */
-    suspend fun runDiffOnRoots(
-        rootToReference: Map<String, List<StorageFile>>
-    ): Pair<Map<String, Boolean>, Job> {
-        val ctx = runnerFactory(SERVICE_USER)
-        val roots = rootToReference.keys
-
-        val shouldContinue = try {
-            roots.map { root ->
+    suspend fun submitScan(rootToReference: Map<String, List<StorageFile>>): Map<String, Boolean> {
+        val areRootsValid = runnerFactory.withContext(SERVICE_USER) { ctx ->
+            rootToReference.keys.map { root ->
                 val isValid = fs
-                    .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE, FileAttribute.IS_LINK))
-                    ?.takeIf { it.fileType == FileType.DIRECTORY && !it.isLink } != null
+                    .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE))
+                    ?.takeIf { it.fileType == FileType.DIRECTORY } != null
 
                 root to isValid
             }.toMap()
-        } catch (ex: Exception) {
-            ctx.close()
-            throw ex
         }
 
-        val job = BackgroundScope.launch {
+        scanRequestProducer.produce(ScanRequest(rootToReference))
+        return areRootsValid
+    }
+
+    suspend fun runScan(rootToReference: Map<String, List<StorageFile>>) {
+        runnerFactory.withContext(SERVICE_USER) { ctx ->
             try {
                 rootToReference.map { (root, reference) ->
                     log.debug("Calculating diff for $root")
@@ -103,12 +113,8 @@ class IndexingService<Ctx : FSUserContext>(
                 log.warn("Caught exception while diffing directories:")
                 log.warn(rootToReference.toString())
                 log.warn(ex.stackTraceToString())
-            } finally {
-                ctx.close()
             }
         }
-
-        return Pair(shouldContinue, job)
     }
 
     /**

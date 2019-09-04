@@ -5,16 +5,17 @@ import Box from "ui-components/Box";
 import Link from "ui-components/Link";
 import {EllipsedText} from "ui-components/Text";
 import * as Pages from "./Pages";
-import {WithAppMetadata} from ".";
+import {FullAppInfo} from ".";
 import styled, {css} from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void
-    app: WithAppMetadata
+    app: FullAppInfo
     isFavorite?: boolean
     linkToRun?: boolean
+    tags: string[]
 }
 
 const AppCardActionsBase = styled.div``;
@@ -135,7 +136,7 @@ export const AppCard = styled(Link)`
     will-change: transform;
 
     &:hover {
-        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+        transition: transform ${({theme}) => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
         transform: scale(1.02);
         box-shadow: ${({theme}) => theme.shadows["md"]};
     }
@@ -221,14 +222,14 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color
     return (
         <svg
             width={size} height={size}
-            viewBox={`-1 -${s32} 2 ${(2 * s32)}`}
+            viewBox={`-1 -${s32} 2 ${2 * s32}`}
             fillRule="evenodd"
             clipRule="evenodd"
         >
             <defs>
-                <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${(s32 * r1)}H-${(0.5 * r1)}Z`} />
-                <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fill-opacity=".55" />
-                <path id="hex_th___" d={`M-${r3} 0L-${(0.5 * r3)} ${(s32 * r3)}H${(0.5 * r3)}L${r3} 0L${(0.5 * r3)} -${(s32 * r3)}H-${(0.5 * r3)}Z`} />
+                <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${s32 * r1}H-${0.5 * r1}Z`} />
+                <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fillOpacity=".55" />
+                <path id="hex_th___" d={`M-${r3} 0L-${0.5 * r3} ${s32 * r3}H${0.5 * r3}L${r3} 0L${0.5 * r3} -${s32 * r3}H-${0.5 * r3}Z`} />
             </defs>
             <g transform={`rotate(${rot} 0 0)`} >
                 <use xlinkHref="#hex_th___" fill="#fff" />
@@ -241,7 +242,8 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color
             </g>
         </svg>
     );
-}
+};
+
 export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
     const i1 = (hash >>> 30) & 3;
     const i2 = (hash >>> 20) & 3;
@@ -250,7 +252,7 @@ export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
     const appC = appColor(hash);
 
     return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />
-}
+};
 
 
 const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
@@ -261,12 +263,12 @@ const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
     &: hover {
         transform: translate(0, 0);
     }
-`
+`;
 
 
 export function hashF(str: string): number {
-    var hash = 5381,
-        i = str.length;
+    let hash = 5381;
+    let i = str.length;
 
     while (i) {
         hash = (hash * 33) ^ str.charCodeAt(--i);
@@ -281,14 +283,19 @@ export function hashF(str: string): number {
 }
 
 export function appColor(hash: number): number {
-    return (hash >>> 22) % (nColors - 1); //last color not used
+    return (hash >>> 22) % (nColors - 1); // last color not used
 }
 
 const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
-`
+`;
 
-export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({app, onFavorite, isFavorite, linkToRun}: ApplicationCardProps) => {
+export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
+    app,
+    onFavorite,
+    isFavorite,
+    linkToRun
+}: ApplicationCardProps) => {
     const hash = hashF(app.metadata.title);
     const {metadata} = app;
     const appC = appColor(hash);
@@ -303,7 +310,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                     right={0}
                     top={0}
                     favorite={isFavorite}
-                    onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(metadata.name, metadata.version)) : undefined}
+                    onClick={onFavoriteClick}
                 >
                     <Icon name={"starRibbon"} color="red" size={48} />
                 </AppRibbonContainer>
@@ -322,13 +329,20 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
             </Flex>
             <Box mt="auto" />
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
-                {app.metadata.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
+                {buildTags(app.tags).map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </AppCard>
     );
+
+    function onFavoriteClick(e: React.MouseEvent<HTMLDivElement, MouseEvent>): void {
+        if (!!onFavorite) {
+            e.preventDefault();
+            onFavorite(metadata.name, metadata.version);
+        }
+    }
 };
-  
-export const CardToolContainer = styled(Box)<{appImage: string}>`
+
+export const CardToolContainer = styled(Box) <{appImage: string}>`
     padding-top: 10px; 
     padding-left: 260px; 
     padding-bottom: 70px;
@@ -392,7 +406,7 @@ export const CardToolContainer = styled(Box)<{appImage: string}>`
     }
 `;
 
-export const SmallCard = styled(Link)<{color1: string, color2: string, color3: string}>`
+export const SmallCard = styled(Link) <{color1: string, color2: string, color3: string}>`
     //display: grid;
     display:inline-block
     padding: 10px;
@@ -424,3 +438,19 @@ export const SmallCard = styled(Link)<{color1: string, color2: string, color3: s
         color: ${p => p.theme.colors.white};
     }
 `;
+
+function buildTags(tags: string[]): string[] {
+    let limit = 40;
+    if (tags.join().length < limit && tags.length < 4) return tags;
+    const result: string[] = [];
+    tags.forEach(t => {
+        if (t.length > limit) return;
+        result.push(t);
+        limit -= t.length + 2.4;
+    });
+    if (result.length < tags.length) {
+        result.pop();
+        result.push(`+${tags.length - result.length} more`);
+    }
+    return result;
+}

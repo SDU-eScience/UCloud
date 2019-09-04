@@ -19,7 +19,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const scrollSize = 250;
 
-const dropdownOptions: {text: string, value: string}[] = [
+const dropdownOptions: Array<{ text: string; value: string }> = [
     {value: "NO_FILTER", text: "Don't filter"},
     {value: Module.ActivityType.DELETED, text: "Deletions"},
     {value: Module.ActivityType.DOWNLOAD, text: "Downloads"},
@@ -27,7 +27,7 @@ const dropdownOptions: {text: string, value: string}[] = [
     {value: Module.ActivityType.INSPECTED, text: "Inspections"},
     {value: Module.ActivityType.MOVED, text: "Moves"},
     {value: Module.ActivityType.UPDATED, text: "Updates"},
-]
+];
 
 function Activity(props: ActivityProps) {
 
@@ -54,8 +54,8 @@ function Activity(props: ActivityProps) {
             onNextScrollRequested={req => fetchActivity(req, props)}
             loading={loading}
             frame={(ref, children) => <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>}
-            renderer={(props) => <ActivityFeedItem activity={props.item} />}
-            spacer={height => <ActivityFeedSpacer height={height} />}
+            renderer={(props) => <ActivityFeedItem activity={props.item}/>}
+            spacer={height => <ActivityFeedSpacer height={height}/>}
         />;
     }
 
@@ -79,12 +79,12 @@ function Activity(props: ActivityProps) {
                 <TimeFilter
                     text={"Event created after"}
                     selected={minTimestamp}
-                    onChange={minTimestamp => applyFilter({minTimestamp})} />
+                    onChange={minTimestamp => applyFilter({minTimestamp})}/>
 
                 <TimeFilter
                     text={"Event created before"}
                     selected={maxTimestamp}
-                    onChange={maxTimestamp => applyFilter({maxTimestamp})} />
+                    onChange={maxTimestamp => applyFilter({maxTimestamp})}/>
             </>
         );
     }
@@ -109,8 +109,11 @@ function Activity(props: ActivityProps) {
     function filter(title: string, filter: Partial<ActivityFilter>) {
         return <BaseLink
             style={{display: "block"}}
-            href={"javascript:void(0)"}
-            onClick={() => applyFilter(filter)}>{title}</BaseLink>
+            href={"#"}
+            onClick={e => {
+                e.preventDefault();
+                applyFilter(filter);
+            }}>{title}</BaseLink>;
     }
 
     function applyFilter(filter: Partial<ActivityFilter>) {
@@ -136,11 +139,11 @@ export const getStartOfDay = (d: Date): Date => {
     copy.setSeconds(0);
     copy.setMilliseconds(0);
     return copy;
-}
+};
 
 export const getStartOfWeek = (d: Date): Date => {
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
 
     const copy = new Date(d);
     copy.setDate(diff);
@@ -149,9 +152,9 @@ export const getStartOfWeek = (d: Date): Date => {
     copy.setSeconds(0);
     copy.setMilliseconds(0);
     return copy;
-}
+};
 
-export const TimeFilter = (props: {text: string, onChange: (ts?: Date) => void, selected?: Date}) => (
+export const TimeFilter = (props: { text: string, onChange: (ts?: Date) => void, selected?: Date }) => (
     <Box mb={16}>
         <Label>{props.text}</Label>
         <InputGroup>
@@ -170,9 +173,7 @@ export const TimeFilter = (props: {text: string, onChange: (ts?: Date) => void, 
     </Box>
 );
 
-const mapStateToProps = ({activity}: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => ({
-    ...activity
-});
+const mapStateToProps = ({activity}: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => activity;
 
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
     fetchActivity: async (req, filter) => {
@@ -181,8 +182,8 @@ const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
     },
 
     onMount: () => {
-        dispatch(updatePageTitle("Activity"))
-        dispatch(setActivePage(SidebarPages.Activity))
+        dispatch(updatePageTitle("Activity"));
+        dispatch(setActivePage(SidebarPages.Activity));
     },
 
     resetActivity: () => {

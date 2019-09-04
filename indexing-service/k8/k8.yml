@@ -17,20 +17,29 @@ spec:
     spec:
       containers:
       - name: indexing-service
-        image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.4.1
+        image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.14.8
         command:
         - /opt/service/bin/service
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
 
       volumes:
       - name: refresh-token
         secret:
+          defaultMode: 420
           optional: false
           secretName: indexing-refresh-token
+      - name: token-validation
+        configMap:
+          defaultMode: 420
+          name: token-validation
 
       imagePullSecrets:
         - name: esci-docker

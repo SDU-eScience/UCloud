@@ -1,30 +1,27 @@
 import * as React from "react";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {loadingEvent} from "LoadableContent";
+import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
-import { connect } from "react-redux";
-import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
-import { Page } from "Types";
-import { WithAppFavorite, WithAppMetadata } from ".";
-import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
-import { Dispatch } from "redux";
-import { ReduxObject, emptyPage } from "DefaultObjects";
-import { LoadableMainContainer, MainContainer } from "MainContainer/MainContainer";
-import { ApplicationCard, AppCard, CardToolContainer, SmallCard, hashF, appColor, Tag } from "./Card";
-import styled from "styled-components";
+import {Page} from "Types";
+import {WithAppFavorite, WithAppMetadata} from ".";
+import {Dispatch} from "redux";
+import {ReduxObject, emptyPage} from "DefaultObjects";
+import {MainContainer} from "MainContainer/MainContainer";
+import {ApplicationCard, CardToolContainer, SmallCard, hashF, Tag} from "./Card";
 import * as Heading from "ui-components/Heading";
-import { Link, Box, Flex } from "ui-components";
-import Grid, { GridCardGroup } from "ui-components/Grid";
-import { getQueryParam, RouterLocationProps, getQueryParamOrElse, buildQueryString } from "Utilities/URIUtilities";
+import {Link, Box, Flex} from "ui-components";
+import Grid from "ui-components/Grid";
+import {getQueryParam, RouterLocationProps, getQueryParamOrElse} from "Utilities/URIUtilities";
 import * as Pages from "./Pages";
-import { Type as ReduxType } from "./Redux/BrowseObject";
+import {Type as ReduxType} from "./Redux/BrowseObject";
 import * as Actions from "./Redux/BrowseActions";
-import { loadingEvent } from "LoadableContent";
-import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { SidebarPages } from "ui-components/Sidebar";
-import { Spacer } from "ui-components/Spacer";
+import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
+import {SidebarPages} from "ui-components/Sidebar";
+import {Spacer} from "ui-components/Spacer";
 import theme from "ui-components/theme";
-import Header from "Navigation/Header";
-import { EllipsedText } from "ui-components/Text";
+import {connect} from "react-redux";
 const bedtoolsImg = require("Assets/Images/APPTools/bedtools.png");
 const cellrangerImg = require("Assets/Images/APPTools/10xGenomics.png");
 const homerImg = require("Assets/Images/APPTools/pic2.gif");
@@ -33,15 +30,7 @@ const macs2Img = require("Assets/Images/APPTools/macslogo.png");
 const salmonImg = require("Assets/Images/APPTools/salmonlogo2.png");
 const samtoolsImg = require("Assets/Images/APPTools/gene-samtools.png");
 
-const CategoryList = styled.ul`
-    padding: 0;
-
-    & > li {
-        list-style: none;
-    }
-`;
-
-const ShowAllTagItem: React.FunctionComponent<{ tag?: string }> = props => (
+const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
@@ -61,7 +50,6 @@ interface ApplicationState {
     defaultTags: string[]
 }
 
-
 class Applications extends React.Component<ApplicationsProps, ApplicationState> {
     constructor(props: ApplicationsProps) {
         super(props);
@@ -79,9 +67,9 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
     }
 
     //public componentDidMount() {   
-   
+
     public async componentDidMount() {
-        const { props } = this;
+        const {props} = this;
         props.onInit();
 
         this.props.receiveAppsByKey(25, 0, "Featured");
@@ -89,7 +77,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
 
         this.fetch();
         props.setRefresh(() => this.fetch());
-       
+
     }
 
     public componentDidUpdate(prevProps: ApplicationsProps) {
@@ -102,26 +90,64 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         this.props.setRefresh();
     }
 
+    public render() {
+        const {applications} = this.props;
+        const featured = applications.has("Featured") ? applications.get("Featured") : emptyPage;
+        const main = (
+            <>
+                <Pagination.List
+                    loading={this.props.loading}
+                    pageRenderer={(page: Page<FullAppInfo>) =>
+                        <>
+                            {<Box>
+                                {<Spacer pt="15px" left={<Heading.h2>Featured</Heading.h2>} right={<ShowAllTagItem tag="Featured"><Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />}
+                            </Box>}
+                            <Box pl="10px" pb="5px" style={{overflowX: "scroll"}}>
+                                <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{gridAutoFlow: "column"}}>
+                                    {page.items.map((app, index) =>
+                                        <ApplicationCard
+                                            key={index}
+                                            onFavorite={async () =>
+                                                this.props.receiveApplications(await favoriteApplicationFromPage({
+                                                    name: app.metadata.name,
+                                                    version: app.metadata.version, page, cloud: Cloud,
+                                                }))
+                                            }
+                                            app={app}
+                                            isFavorite={app.favorite}
+                                            tags={app.tags}
+                                        />
+                                    )}
+                                </Grid>
+                            </Box>
+
+                        </>
+                    }
+                    page={featured!}
+                    onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
+                />
+                {this.state.defaultTags.map(tag => <ToolGroup tag={tag} />)}
+            </>
+        );
+        return (
+            <MainContainer
+                main={main}
+            />
+        );
+    }
+
     private pageNumber(props: ApplicationsProps = this.props): number {
-        return parseInt(getQueryParamOrElse(props, "page", "0"));
+        return parseInt(getQueryParamOrElse(props, "page", "0"), 10);
     }
 
     private itemsPerPage(props: ApplicationsProps = this.props): number {
-        return parseInt(getQueryParamOrElse(props, "itemsPerPage", "25"));
+        return parseInt(getQueryParamOrElse(props, "itemsPerPage", "25"), 10);
     }
 
     private tag(props: ApplicationsProps = this.props): string | null {
         return getQueryParam(props, "tag");
     }
 
-    private updateItemsPerPage(newItemsPerPage: number): string {
-        const tag = this.tag();
-        if (tag === null) {
-            return Pages.browse(newItemsPerPage, this.pageNumber());
-        } else {
-            return Pages.browseByTag(tag, newItemsPerPage, this.pageNumber());
-        }
-    }
 
     private updatePage(newPage: number): string {
         const tag = this.tag();
@@ -143,62 +169,17 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
             this.props.fetchByTag(tag, itemsPerPage, pageNumber);
         }
     }
-
-    public render() {
-        const { applications } = this.props;
-        const featured = applications.has("Featured") ? applications.get("Featured") : emptyPage;
-        const main = (
-            <>
-                <Pagination.List
-                    loading={this.props.loading}
-                    pageRenderer={(page: Page<WithAppMetadata & WithAppFavorite>) =>
-                        <>
-                            {<Box>
-                             {<Spacer pt="15px" left={<Heading.h2>Featured</Heading.h2>} right={<ShowAllTagItem tag="Featured"><Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />}
-                            </Box>}
-                              <Box pl="10px"  pb="5px" style={{ overflowX: "scroll" }}>
-                                <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{ gridAutoFlow: "column" }}>
-                                    {page.items.map((app, index) =>
-                                        <ApplicationCard
-                                            key={index}
-                                            onFavorite={async () =>
-                                                this.props.receiveApplications(await favoriteApplicationFromPage({
-                                                    name: app.metadata.name,
-                                                    version: app.metadata.version, page, cloud: Cloud,
-                                                }))
-                                            }
-                                            app={app}
-                                            isFavorite={app.favorite}
-                                        />
-                                    )}
-                                </Grid>
-                             </Box>
-
-                        </>
-                    }
-                    page={featured!}
-                    onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
-                />
-                {this.state.defaultTags.map(tag => <ToolGroup tag={tag} />)}
-            </>
-        );
-        return (
-            <MainContainer
-                main={main}
-            />
-        );
-    }
 }
 
-const ToolGroup_ = (props: { tag: string; page: Page<WithAppMetadata & WithAppFavorite> }) => {
+const ToolGroup_ = (props: {tag: string; page: Page<WithAppMetadata & WithAppFavorite>}) => {
     const allTags = props.page.items.map(it => it.metadata.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)))
     return (
-        <CardToolContainer  appImage={tagToImage(props.tag)} mt="30px">
+        <CardToolContainer appImage={tagToImage(props.tag)} mt="30px">
             {<Spacer mt="10px" ml="-250px" mr="8px" left={<Heading.h2> {props.tag} </Heading.h2>} right={<ShowAllTagItem tag={props.tag} ><Heading.h4 ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />}
-            <Box pb="250px" style={{ overflowX: "scroll", width: "100%" }} >
-                <Grid pt="20px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="3px" style={{ gridAutoFlow: "column" }}>
+            <Box pb="250px" style={{overflowX: "scroll", width: "100%"}} >
+                <Grid pt="20px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="3px" style={{gridAutoFlow: "column"}}>
                     {props.page.items.map(application => {
                         const withoutTag = removeTagFromTitle(props.tag, application.metadata.title)
                         const [first, second, third] = getColorFromName(withoutTag)
@@ -263,18 +244,18 @@ function tagToImage(tag: string): string {
 }
 
 
-const mapToolGroupStateToProps = ({ applicationsBrowse }: ReduxObject, ownProps: { tag: string }): { page: Page<WithAppMetadata> } => {
-    const { applications } = applicationsBrowse;
+const mapToolGroupStateToProps = ({applicationsBrowse}: ReduxObject, ownProps: {tag: string}): {page: Page<WithAppMetadata>} => {
+    const {applications} = applicationsBrowse;
     const page = applications.get(ownProps.tag);
-    if (page != null) return { page };
-    return { page: emptyPage };
+    if (page != null) return {page};
+    return {page: emptyPage};
 }
 
 const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_)
 
-
-
-const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>): ApplicationsOperations => ({
+const mapDispatchToProps = (
+    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
+): ApplicationsOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Applications"));
         dispatch(setPrioritizedSearch("applications"));
@@ -282,12 +263,12 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     },
 
     fetchByTag: async (tag: string, itemsPerPage: number, page: number) => {
-        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetchByTag(tag, itemsPerPage, page));
     },
 
     fetchDefault: async (itemsPerPage: number, page: number) => {
-        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetch(itemsPerPage, page));
     },
 
@@ -303,6 +284,6 @@ function getColorFromName(name: string): [string, string, string] {
     return theme.appColors[number] as [string, string, string];
 }
 
-const mapStateToProps = ({ applicationsBrowse }: ReduxObject): ReduxType & { mapSize } => ({ ...applicationsBrowse, mapSize: applicationsBrowse.applications.size });
+const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {mapSize} => ({...applicationsBrowse, mapSize: applicationsBrowse.applications.size});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

@@ -1,15 +1,27 @@
 import styled from "styled-components";
-import { right, left, top, RightProps, LeftProps, TopProps, boxShadow, BoxShadowProps, bottom, BottomProps, height } from "styled-system";
-import { Button } from "ui-components";
-import { Cursor } from "./Types";
+import {
+    bottom,
+    BottomProps,
+    boxShadow,
+    BoxShadowProps,
+    height,
+    left,
+    LeftProps,
+    right,
+    RightProps,
+    top,
+    TopProps
+} from "styled-system";
+import {Button} from "ui-components";
+import {Cursor} from "./Types";
 
-interface FullWidthProps { fullWidth?: boolean }
-const fullWidth = ({ fullWidth }: FullWidthProps) => fullWidth ? { width: "100%" } : null;
+interface FullWidthProps {fullWidth?: boolean;}
+const useFullWidth = ({fullWidth}: FullWidthProps) => fullWidth ? {width: "100%"} : null;
 
-export const Dropdown = styled.div<{ hover?: boolean, fullWidth?: boolean }>`
+export const Dropdown = styled.div<{hover?: boolean, fullWidth?: boolean}>`
     position: relative;
     display: inline-block;
-    ${fullWidth};
+    ${useFullWidth};
     ${props => props.hover ?
         `&:hover > div {
             display: block;
@@ -19,11 +31,11 @@ export const Dropdown = styled.div<{ hover?: boolean, fullWidth?: boolean }>`
 
 Dropdown.defaultProps = {
     hover: true
-}
+};
 
 export const DropdownContent = styled.div<DropdownContentProps>`
-    ${props => props.overflow ? 
-        `overflow: ${props.overflow};` : 
+    ${props => props.overflow ?
+        `overflow: ${props.overflow};` :
         `overflow-y: auto;
         overflow-x: hidden;`
     }
@@ -75,21 +87,21 @@ DropdownContent.defaultProps = {
     minWidth: "138px",
     boxShadow: "md",
     visible: false
-}
+};
 
 Dropdown.displayName = "Dropdown";
 
 interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps {
-    hover?: boolean
-    width?: string | number
-    disabled?: boolean
-    overflow?: string
-    height?: string | number
-    minWidth?: string
-    maxHeight?: number | string
-    cursor?: Cursor
-    backgroundColor?: string
-    colorOnHover?: boolean
-    squareTop?: boolean
-    visible?: boolean
+    hover?: boolean;
+    width?: string | number;
+    disabled?: boolean;
+    overflow?: string;
+    height?: string | number;
+    minWidth?: string;
+    maxHeight?: number | string;
+    cursor?: Cursor;
+    backgroundColor?: string;
+    colorOnHover?: boolean;
+    squareTop?: boolean;
+    visible?: boolean;
 }

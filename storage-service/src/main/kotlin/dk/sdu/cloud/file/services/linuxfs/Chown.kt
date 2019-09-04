@@ -12,13 +12,15 @@ object Chown {
     private val fromUid = loadClass.declaredMethods.find { it.name == "fromUid" }!!
     private val fromGid = loadClass.declaredMethods.find { it.name == "fromGid" }!!
 
+    var isDevMode = false
+
     init {
         fromUid.isAccessible = true
         fromGid.isAccessible = true
     }
 
     fun setOwner(path: Path, uid: Int, gid: Int) {
-        if (!Platform.isLinux()) return
+        if (!Platform.isLinux() || isDevMode) return
 
         val user = fromUid.invoke(null, uid) as UserPrincipal
         val group = fromGid.invoke(null, gid) as GroupPrincipal

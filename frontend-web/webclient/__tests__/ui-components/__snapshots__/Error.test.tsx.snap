@@ -78,6 +78,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
       <svg
         className="c5"
         clipRule="evenodd"
+        color="black"
         cursor="inherit"
         fill="currentcolor"
         fillRule="evenodd"

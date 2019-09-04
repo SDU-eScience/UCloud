@@ -1,387 +1,85 @@
-import * as React from "react";
-import PromiseKeeper from "PromiseKeeper";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {shortUUID, errorMessageOrDefault} from "UtilityFunctions";
-import {Link} from "react-router-dom";
-import FilesTable from "Files/FilesTable";
-import {List as PaginationList} from "Pagination";
-import {connect} from "react-redux";
-import {updatePageTitle} from "Navigation/Redux/StatusActions";
-import {ReduxObject, DetailedResultReduxObject, emptyPage} from "DefaultObjects";
-import {
-    DetailedResultProps,
-    DetailedResultState,
-    StdElement,
-    DetailedResultOperations,
-    AppState,
-    WithAppInvocation
-} from ".";
-import {File, SortBy, SortOrder} from "Files";
-import {allFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath} from "Utilities/FileUtilities";
-import {favoriteFileFromPage} from "Utilities/FileUtilities";
-import {hpcJobQuery, cancelJobDialog, inCancelableState, cancelJob} from "Utilities/ApplicationUtilities";
-import {Dispatch} from "redux";
-import {fetchPage, setLoading, receivePage} from "Applications/Redux/DetailedResultActions";
-import {Dropdown, DropdownContent} from "ui-components/Dropdown";
-import {Flex, Box, List, Card, ContainerForText, ExternalLink, Button} from "ui-components";
-import {Step, StepGroup} from "ui-components/Step";
-import styled from "styled-components";
-import {TextSpan} from "ui-components/Text";
-import Icon from "ui-components/Icon";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {FileSelectorModal} from "Files/FileSelector";
-import {Page} from "Types";
-import * as Heading from "ui-components/Heading";
-import {JobStateIcon} from "./JobStateIcon";
-import {MainContainer} from "MainContainer/MainContainer";
-import {SnackType} from "Snackbar/Snackbars";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {useXTerm} from "Applications/xterm";
+import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
+import {EmbeddedFileTable} from "Files/FileTable";
+import {History} from "history";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
+import {MainContainer} from "MainContainer/MainContainer";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
+import * as React from "react";
+import {useEffect, useState} from "react";
+import {connect} from "react-redux";
+import {match} from "react-router";
+import {Link} from "react-router-dom";
+import {Dispatch} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Flex, List} from "ui-components";
+import {Dropdown, DropdownContent} from "ui-components/Dropdown";
+import * as Heading from "ui-components/Heading";
+import Icon from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
+import {Step, StepGroup} from "ui-components/Step";
+import {TextSpan} from "ui-components/Text";
+import {cancelJob, cancelJobDialog, hpcJobQuery, inCancelableState} from "Utilities/ApplicationUtilities";
+import {fileTablePage} from "Utilities/FileUtilities";
+import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
+import {ApplicationType, FollowStdStreamResponse, isJobStateFinal, JobState, JobWithStatus, WithAppInvocation} from ".";
+import {JobStateIcon} from "./JobStateIcon";
+import {pad} from "./View";
 
-const Panel = styled(Box)`
-    margin-bottom: 1em;
-`;
+interface DetailedResultOperations {
+    setPageTitle: (jobId: string) => void;
+    setLoading: (loading: boolean) => void;
+    setRefresh: (refresh?: () => void) => void;
+}
 
-Panel.displayName = "Panel";
+interface DetailedResultProps extends DetailedResultOperations {
+    match: match<{ jobId: string }>;
+    history: History;
+}
 
-class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
-    private stdoutEl: StdElement;
-    private stderrEl: StdElement;
+const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
+    const [status, setStatus] = useState<string>("");
+    const [appState, setAppState] = useState<JobState>(JobState.VALIDATED);
+    const [failedState, setFailedState] = useState<JobState | null>(null);
+    const [jobWithStatus, setJobWithStatus] = useState<JobWithStatus | null>(null);
+    const [application, setApplication] = useState<WithAppInvocation | null>(null);
+    const [interactiveLink, setInteractiveLink] = useState<string | null>(null);
+    const [timeLeft, setTimeLeft] = useState<number>(-1);
+    const [xtermRef, appendToXterm, resetXterm] = useXTerm();
 
-    constructor(props: Readonly<DetailedResultProps>) {
-        super(props);
-        this.state = {
-            complete: false,
-            appState: AppState.VALIDATED,
-            status: "",
-            stdout: "",
-            stderr: "",
-            stdoutLine: 0,
-            stderrLine: 0,
-            stdoutOldTop: -1,
-            stderrOldTop: -1,
-            reloadIntervalId: -1,
-            promises: new PromiseKeeper(),
-            fsShown: false,
-            fsLoading: false,
-            fsPage: emptyPage,
-            fsIsFavorite: false,
-            fsPath: Cloud.homeFolder,
-            fsError: undefined,
-            fsDisallowedPaths: [],
-            fsCallback: () => undefined,
-            appType: undefined,
-            webLink: undefined
-        };
-        this.props.setPageTitle(shortUUID(this.jobId));
+    const jobId = props.match.params.jobId;
+    const outputFolder = jobWithStatus && jobWithStatus.outputFolder ? jobWithStatus.outputFolder : "";
+
+    async function fetchJob() {
+        const {response} = await Cloud.get<JobWithStatus>(hpcJobQuery(jobId));
+        setJobWithStatus(response);
+        setAppState(response.state);
+        setStatus(response.status);
+        setFailedState(response.failedState);
     }
 
-    get jobId(): string {
-        return this.props.match.params.jobId;
+    async function fetchWebLink() {
+        const {response} = await Cloud.get(`/hpc/jobs/query-web/${jobId}`);
+        setInteractiveLink(response.path);
     }
 
-    public async componentDidUpdate() {
-        if (!this.state.appType && this.state.app) {
-            const {name, version} = this.state.app;
-            const {response} = await this.state.promises.makeCancelable(
-                Cloud.get<WithAppInvocation>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
-            ).promise;
-            this.setState(() => ({appType: response.invocation.applicationType}));
-        }
-    }
-
-    public componentDidMount() {
-        const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
-        const {state} = this;
-        this.fetchSelectorFiles(state.fsPath, state.fsPage.pageNumber, state.fsPage.itemsInTotal);
-        this.setState(() => ({reloadIntervalId}));
-    }
-
-    public componentWillUnmount() {
-        if (this.state.reloadIntervalId) window.clearTimeout(this.state.reloadIntervalId);
-        this.state.promises.cancelPromises();
-        this.props.receivePage(emptyPage);
-    }
-
-    readonly fileOperations = () => allFileOperations({
-        stateless: true,
-        history: this.props.history,
-        fileSelectorOperations: {
-            fetchFilesPage: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
-            fetchPageFromPath: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
-            setDisallowedPaths: paths => this.setState(() => ({fsDisallowedPaths: paths})),
-            showFileSelector: fsShown => this.setState(() => ({fsShown})),
-            setFileSelectorCallback: callback => this.setState(() => ({fsCallback: callback}))
-        },
-        onDeleted: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
-        onSensitivityChange: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
-        setLoading: () => this.props.setLoading(true),
-    });
-
-    private scrollIfNeeded() {
-        if (!this.stdoutEl || !this.stderrEl) return;
-
-        if (this.stdoutEl.scrollTop === this.state.stdoutOldTop || this.state.stderrOldTop === -1) {
-            this.stdoutEl.scrollTop = this.stdoutEl.scrollHeight;
-        }
-
-        if (this.stderrEl.scrollTop === this.state.stderrOldTop || this.state.stderrOldTop === -1) {
-            this.stderrEl.scrollTop = this.stderrEl.scrollHeight;
-        }
-
-        const outTop = this.stdoutEl.scrollTop;
-        const errTop = this.stderrEl.scrollTop;
-
-        this.setState(() => ({
-            stdoutOldTop: outTop,
-            stderrOldTop: errTop
-        }));
-    }
-
-    private async retrieveStdStreams() {
-        if (this.state.complete) {
-            this.retrieveStateWhenCompleted();
-            return;
-        } else if (this.state.appState === AppState.RUNNING) {
-            if (this.state.appType === "VNC") {
-                this.props.setLoading(false);
-                this.props.history.push(`/novnc?jobId=${this.jobId}`);
-                return;
-
-            } else if (this.state.appType === "WEB" && !this.state.webLink) {
-                this.props.setLoading(false);
-                const {response} = await this.state.promises.makeCancelable(
-                    Cloud.get(`/hpc/jobs/query-web/${this.jobId}`)
-                ).promise;
-                this.setState(() => ({webLink: response.path}));
-            }
-        }
-        try {
-            this.props.setLoading(true);
-            const {response} = await this.state.promises.makeCancelable(
-                Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
-            ).promise;
-
-            this.setState(() => ({
-                stdout: this.state.stdout.concat(response.stdout),
-                stderr: this.state.stderr.concat(response.stderr),
-                stdoutLine: response.stdoutNextLine,
-                stderrLine: response.stderrNextLine,
-
-                app: response.metadata,
-                status: response.status,
-                appState: response.state,
-                complete: response.complete,
-                outputFolder: response.outputFolder
-            }));
-
-            this.scrollIfNeeded();
-            if (response.complete) this.retrieveStateWhenCompleted();
-            else {
-                const reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
-                this.setState(() => ({reloadIntervalId}));
-            }
-        } catch (e) {
-            if (!e.isCanceled)
-                snackbarStore.addSnack({
-                    message: "An error occurred retrieving Information and Output from the job.",
-                    type: SnackType.Failure
-                });
-        } finally {
-            this.props.setLoading(false);
-        }
-    }
-
-    private retrieveStateWhenCompleted() {
-        if (!this.state.complete) return;
-        if (this.props.page.items.length) return;
-        this.props.setLoading(true);
-        this.retrieveFilesPage(this.props.page.pageNumber, this.props.page.itemsPerPage)
-    }
-
-    private retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
-        this.props.fetchPage(this.state.outputFolder!, pageNumber, itemsPerPage);
-        window.clearTimeout(this.state.reloadIntervalId);
-    }
-
-    private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
-        this.setState(() => ({fsLoading: true}))
-        try {
-            const {response} = await this.state.promises.makeCancelable(
-                Cloud.get(favoritesQuery(pageNumber, itemsPerPage))
-            ).promise;
-            this.setState(() => ({
-                fsIsFavorite: true,
-                fsPath: "Favorites",
-                fsPage: response
-            }));
-        } catch (e) {
-            this.setState(() => ({fsError: errorMessageOrDefault(e, "An error occurred fetching favorites")}));
-        } finally {
-            this.setState(() => ({fsLoading: false}))
-        }
-    }
-
-    private readonly favoriteFile = async (file: File) => this.props.receivePage(
-        await favoriteFileFromPage(this.props.page, [file], Cloud)
-    );
-
-    private renderProgressPanel = () => (
-        <Panel>
-            <StepGroup>
-                <StepTrackerItem
-                    stateToDisplay={AppState.VALIDATED}
-                    currentState={this.state.appState} />
-                <StepTrackerItem
-                    stateToDisplay={AppState.PREPARED}
-                    currentState={this.state.appState} />
-                <StepTrackerItem
-                    stateToDisplay={AppState.SCHEDULED}
-                    currentState={this.state.appState} />
-                <StepTrackerItem
-                    stateToDisplay={AppState.RUNNING}
-                    currentState={this.state.appState} />
-                <StepTrackerItem
-                    stateToDisplay={AppState.TRANSFER_SUCCESS}
-                    currentState={this.state.appState} />
-            </StepGroup>
-        </Panel>
-    );
-
-    private renderInfoPanel() {
-        const {app} = this.state;
-        if (app === undefined) return null;
-
-        let entries = [
-            {key: "Application", value: `${app.title} v${app.version}`},
-            {key: "Status", value: this.state.status},
-        ];
-
-        let domEntries = entries.map(it => <Box pt="0.8em" pb="0.8em" key={it.key}><b>{it.key}</b>: {it.value}</Box>);
-
-        switch (this.state.appState) {
-            case AppState.SUCCESS:
-                domEntries.push(
-                    <Box key={AppState.SUCCESS} pt="0.8em" pb="0.8em">
-                        Application has completed successfully.
-                        Click <Link to={fileTablePage(this.state.outputFolder!)}>here</Link> to go to the output.
-                    </Box>
-                );
-                break;
-        }
-
-        return (
-            <Panel>
-                <Heading.h4>Job Information</Heading.h4>
-                <Card height="auto" p="14px 14px 14px 14px">
-                    <List>
-                        {domEntries}
-                    </List>
-                </Card>
-            </Panel>
+    async function fetchApplication() {
+        if (jobWithStatus === null) return;
+        const {response} = await Cloud.get<WithAppInvocation>(
+            `/hpc/apps/${encodeURI(jobWithStatus.metadata.name)}/${encodeURI(jobWithStatus.metadata.version)}`
         );
+
+        setApplication(response);
     }
 
-    private renderStreamPanel() {
-        if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
-        return (
-            <Box width="100%" mt={24}>
-                <Heading.h4>
-                    Standard Streams
-                    &nbsp;
-                    <Dropdown>
-                        <Icon name="info" color="white" color2="black" size="1em" />
-                        <DropdownContent
-                            width="400px"
-                            visible
-                            colorOnHover={false}
-                            color="white"
-                            backgroundColor="black"
-                        >
-                            <TextSpan fontSize={1}>
-                                Streams are collected
-                                 from <code>stdout</code> and <code>stderr</code> of your application.
-                            </TextSpan>
-                        </DropdownContent>
-                    </Dropdown>
-                </Heading.h4>
-                <Flex flexDirection="column">
-                    <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
-                        <Heading.h5>Output</Heading.h5>
-                    </Box>
-                    <Box width={1} backgroundColor="lightGray">
-                        <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
-                    </Box>
-                    <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
-                        <Heading.h5>Information</Heading.h5>
-                    </Box>
-                    <Box width={1} backgroundColor="lightGray">
-                        <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
-                    </Box>
-                </Flex>
-            </Box>
-        );
-    }
-
-    private renderFilePanel() {
-        const {page} = this.props;
-        if (!page.items.length) return null;
-        const {state} = this;
-        return (
-            <Panel>
-                <Heading.h4>Output Files</Heading.h4>
-                <PaginationList
-                    loading={this.props.loading}
-                    page={page}
-                    pageRenderer={page =>
-                        <FilesTable
-                            notStickyHeader
-                            sortOrder={SortOrder.ASCENDING}
-                            sortBy={SortBy.PATH}
-                            fileOperations={this.fileOperations()}
-                            files={page.items}
-                            refetchFiles={() => null}
-                            sortFiles={() => null}
-                            onCheckFile={() => null}
-                            sortingColumns={[SortBy.FILE_TYPE, SortBy.SIZE]}
-                            onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
-                        />}
-                    onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
-                />
-                <FileSelectorModal
-                    isFavorites={this.state.fsIsFavorite}
-                    fetchFavorites={(pageNumber, itemsPerPage) => this.fetchFavorites(pageNumber, itemsPerPage)}
-                    show={state.fsShown}
-                    onHide={() => this.setState(() => ({fsShown: false}))}
-                    path={state.fsPath}
-                    fetchFiles={(path, pageNumber, itemsPerPage) =>
-                        this.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
-                    loading={state.fsLoading}
-                    errorMessage={state.fsError}
-                    onErrorDismiss={() => this.setState(() => ({fsError: undefined}))}
-                    onlyAllowFolders
-                    canSelectFolders
-                    page={state.fsPage}
-                    setSelectedFile={state.fsCallback}
-                    disallowedPaths={state.fsDisallowedPaths}
-                />
-            </Panel>
-        );
-    }
-
-    private renderWebLink() {
-        if (this.state.appState !== AppState.RUNNING || this.state.appType !== "WEB" || !this.state.webLink)
-            return null;
-        return <ExternalLink href={this.state.webLink}><Button color="green">Go to web interface</Button></ExternalLink>
-    }
-
-    private cancelJob() {
+    async function onCancelJob() {
         cancelJobDialog({
-            jobId: this.jobId,
+            jobId,
             onConfirm: async () => {
                 try {
-                    await cancelJob(Cloud, this.jobId)
+                    await cancelJob(Cloud, jobId);
                 } catch (e) {
                     snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"));
                 }
@@ -389,111 +87,299 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         });
     }
 
-    private renderCancelButton() {
-        if (!inCancelableState(this.state.appState) || !this.state.app) return null;
-        return <Button ml="8px" color="red" onClick={() => this.cancelJob()}>Cancel job</Button>
-    }
+    useEffect(() => {
+        // Re-initialize most stuff when the job id changes
+        props.setPageTitle(shortUUID(jobId));
+        fetchJob();
+        resetXterm();
 
-    private async fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): Promise<void> {
-        try {
-            const r = await this.state.promises.makeCancelable(
-                Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))
-            ).promise;
-            this.setState(() => ({fsPage: r.response, fsPath: resolvePath(path), fsIsFavorite: false}))
-        } catch (e) {
-            this.setState(() => ({fsError: errorMessageOrDefault(e, "An error occurred fetching files")}));
+        const connection = WSFactory.open(
+            "/hpc/jobs", {
+                init: conn => {
+                    conn.subscribe({
+                        call: "hpc.jobs.followWS",
+                        payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
+                        handler: message => {
+                            const streamEntry = message.payload as FollowStdStreamResponse;
+                            if (streamEntry.state !== null) setAppState(streamEntry.state);
+                            if (streamEntry.status !== null) setStatus(streamEntry.status);
+                            if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
+                            if (streamEntry.stdout !== null) appendToXterm(streamEntry.stdout);
+                        }
+                    });
+                }
+            }
+        );
+
+        return () => {
+            connection.close();
+        };
+    }, [jobId]);
+
+    useEffect(() => {
+        // Fetch the application when we know about the job
+        fetchApplication();
+    }, [jobWithStatus]);
+
+    useEffect(() => {
+        // Fetch information about the interactive button on appState change
+        if (jobWithStatus === null || application === null) return;
+        if (appState === JobState.RUNNING && interactiveLink === null) {
+            switch (application.invocation.applicationType) {
+                case ApplicationType.VNC:
+                    setInteractiveLink(`/novnc?jobId=${jobId}`);
+                    break;
+                case ApplicationType.WEB:
+                    fetchWebLink();
+                    break;
+            }
         }
-    }
+    }, [appState, interactiveLink, jobWithStatus, application]);
 
-    public render() {
-        return <MainContainer
-            main={this.state.app ?
-                <ContainerForText>
-                    {this.renderProgressPanel()}
-                    {this.renderInfoPanel()}
-                    {this.renderFilePanel()}
-                    <Spacer left={this.renderWebLink()} right={this.renderCancelButton()}/>
-                    {this.renderStreamPanel()}
-                </ContainerForText> : <LoadingIcon size={24} />}
-        />
-    }
-}
+    useEffect(() => {
+        // Re-fetch job if we don't know about the output folder at the end of the job
+        if (appState === JobState.SUCCESS && outputFolder === "") {
+            fetchJob();
+        }
 
-const stateToOrder = (state: AppState): 0 | 1 | 2 | 3 | 4 | 5 => {
+        let intervalId: number = -1;
+        if (appState === JobState.RUNNING && timeLeft === -1 && jobWithStatus !== null &&
+            (jobWithStatus.maxTime !== null || jobWithStatus.expiresAt !== null)) {
+            const expiresAt = jobWithStatus.expiresAt ? jobWithStatus.expiresAt : Date.now() + jobWithStatus.maxTime!;
+            intervalId = window.setInterval(() => {
+                setTimeLeft(expiresAt - Date.now());
+            }, 500);
+        }
+
+        return () => {
+            if (intervalId !== -1) window.clearInterval(intervalId);
+        };
+    }, [appState]);
+
+    return <MainContainer
+        main={application === null || jobWithStatus == null ? <LoadingIcon size={24}/> :
+            <ContainerForText>
+                <Panel>
+                    <StepGroup>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.VALIDATED}
+                            currentState={appState}
+                            failedState={failedState}/>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.PREPARED}
+                            currentState={appState}
+                            failedState={failedState}/>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.SCHEDULED}
+                            currentState={appState}
+                            failedState={failedState}/>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.RUNNING}
+                            currentState={appState}
+                            failedState={failedState}/>
+                        <StepTrackerItem
+                            stateToDisplay={JobState.TRANSFER_SUCCESS}
+                            currentState={appState}
+                            failedState={failedState}/>
+                    </StepGroup>
+                </Panel>
+
+
+                <Panel>
+                    <Heading.h4>Job Information</Heading.h4>
+                    <Card height="auto" p="14px 14px 14px 14px">
+                        <List>
+                            {jobWithStatus === null || jobWithStatus.name === null ? null :
+                                <InfoBox><b>Name:</b> {jobWithStatus.name}</InfoBox>
+                            }
+
+                            <InfoBox>
+                                <b>Application:</b>{" "}
+                                {jobWithStatus.metadata.title} v{jobWithStatus.metadata.version}
+                            </InfoBox>
+
+                            <InfoBox><b>Status:</b> {status}</InfoBox>
+
+                            {appState !== JobState.SUCCESS ? null :
+                                <InfoBox>
+                                    Application has completed successfully.
+                                    Click <Link to={fileTablePage(outputFolder)}>here</Link> to go to the
+                                    output.
+                                </InfoBox>
+                            }
+
+                            {appState !== JobState.RUNNING || timeLeft <= 0 ? null :
+                                <InfoBox>
+                                    <b>Time remaining:</b>{" "}
+                                    <TimeRemaining timeInMs={timeLeft}/>
+                                </InfoBox>
+                            }
+                        </List>
+                    </Card>
+                </Panel>
+
+                <Spacer
+                    left={
+                        appState !== JobState.RUNNING || interactiveLink === null ? null :
+                            <InteractiveApplicationLink
+                                type={application.invocation.applicationType}
+                                interactiveLink={interactiveLink}/>
+                    }
+                    right={
+                        !inCancelableState(appState) ? null :
+                            <Button ml="8px" color="red" onClick={() => onCancelJob()}>Cancel job</Button>
+                    }
+                />
+
+                {outputFolder === "" || appState !== JobState.SUCCESS ? null :
+                    <Panel>
+                        <Heading.h4>Output Files</Heading.h4>
+                        <EmbeddedFileTable path={outputFolder}/>
+                    </Panel>
+                }
+
+                {isJobStateFinal(appState) ? null :
+                    <Box width="100%" mt={24}>
+                        <Heading.h4>
+                            Standard Streams
+                            &nbsp;
+                            <Dropdown>
+                                <Icon name="info" color="white" color2="black" size="1em"/>
+                                <DropdownContent
+                                    width="400px"
+                                    visible
+                                    colorOnHover={false}
+                                    color="white"
+                                    backgroundColor="black"
+                                >
+                                    <TextSpan fontSize={1}>
+                                        Streams are collected
+                                        from <code>stdout</code> and <code>stderr</code> of your application.
+                                    </TextSpan>
+                                </DropdownContent>
+                            </Dropdown>
+                        </Heading.h4>
+                        <Flex flexDirection="column">
+                            <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
+                                <Heading.h5>Output</Heading.h5>
+                            </Box>
+                            <Box width={1} backgroundColor="lightGray">
+                                <div ref={xtermRef}/>
+                            </Box>
+                        </Flex>
+                    </Box>
+                }
+            </ContainerForText>
+        }
+    />;
+};
+
+const Panel = styled(Box)`
+    margin-bottom: 1em;
+`;
+
+Panel.displayName = "Panel";
+
+const InfoBox = styled(Box)`
+    padding-top: 0.8em;
+    padding-bottom: 0.8em;
+`;
+
+const TimeRemaining: React.FunctionComponent<{ timeInMs: number }> = props => {
+    const timeLeft = props.timeInMs;
+    const seconds = (timeLeft / 1000) % 60;
+    const minutes = ((timeLeft / (1000 * 60)) % 60);
+    const hours = (timeLeft / (1000 * 60 * 60));
+    return <>{pad(hours | 0, 2)}:{pad(minutes | 0, 2)}:{pad(seconds | 0, 2)}</>;
+};
+
+const InteractiveApplicationLink: React.FunctionComponent<{
+    type: ApplicationType,
+    interactiveLink: string
+}> = props => {
+    switch (props.type) {
+        case ApplicationType.WEB:
+            return <ExternalLink href={props.interactiveLink}>
+                <Button color={"green"}>Go to web interface</Button>
+            </ExternalLink>;
+        case ApplicationType.VNC:
+            return <Link to={props.interactiveLink}><Button color={"green"}>Go to interface</Button></Link>;
+        case ApplicationType.BATCH:
+            return null;
+    }
+};
+
+const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
     switch (state) {
-        case AppState.VALIDATED:
+        case JobState.VALIDATED:
             return 0;
-        case AppState.PREPARED:
+        case JobState.PREPARED:
             return 1;
-        case AppState.SCHEDULED:
+        case JobState.SCHEDULED:
             return 2;
-        case AppState.RUNNING:
+        case JobState.RUNNING:
             return 3;
-        case AppState.TRANSFER_SUCCESS:
+        case JobState.TRANSFER_SUCCESS:
             return 4;
-        case AppState.SUCCESS:
+        case JobState.SUCCESS:
             return 5;
-        case AppState.FAILURE:
+        case JobState.FAILURE:
             return 5;
         default:
             return 0;
     }
-}
+};
 
-const isStateComplete = (state: AppState, currentState: AppState) =>
+const isStateComplete = (state: JobState, currentState: JobState) =>
     stateToOrder(state) < stateToOrder(currentState);
 
-const stateToTitle = (state: AppState): string => {
+const stateToTitle = (state: JobState): string => {
     switch (state) {
-        case AppState.FAILURE: return "Failure";
-        case AppState.PREPARED: return "Pending";
-        case AppState.RUNNING: return "Running";
-        case AppState.SCHEDULED: return "Scheduled";
-        case AppState.SUCCESS: return "Success";
-        case AppState.TRANSFER_SUCCESS: return "Transferring";
-        case AppState.VALIDATED: return "Validated";
-        default: return "Unknown";
+        case JobState.FAILURE:
+            return "Failure";
+        case JobState.PREPARED:
+            return "Pending";
+        case JobState.RUNNING:
+            return "Running";
+        case JobState.SCHEDULED:
+            return "Scheduled";
+        case JobState.SUCCESS:
+            return "Success";
+        case JobState.TRANSFER_SUCCESS:
+            return "Transferring";
+        case JobState.VALIDATED:
+            return "Validated";
+        default:
+            return "Unknown";
     }
-}
+};
 
-const StepTrackerItem: React.FunctionComponent<{stateToDisplay: AppState, currentState: AppState}> = ({
-    stateToDisplay, currentState
-}) => {
+const StepTrackerItem: React.FunctionComponent<{
+    stateToDisplay: JobState,
+    currentState: JobState,
+    failedState: JobState | null
+}> = ({stateToDisplay, currentState, failedState}) => {
     const active = stateToDisplay === currentState;
     const complete = isStateComplete(stateToDisplay, currentState);
-    const failed = currentState === AppState.FAILURE;
+    const failedNum = failedState ? stateToOrder(failedState) : 10;
+    const thisFailed = stateToOrder(stateToDisplay) >= failedNum;
+
     return (
         <Step active={active}>
             {complete ?
-                <Icon name={failed ? "close" : "check"} color={failed ? "red" : "green"} mr="0.7em" size="30px" /> :
-                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px" />
+                <Icon name={thisFailed ? "close" : "check"} color={thisFailed ? "red" : "green"} mr="0.7em"
+                      size="30px"/> :
+                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px"/>
             }
             <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
         </Step>
     );
 };
 
-const Stream = styled.pre`
-    height: 500px;
-    overflow: auto;
-`;
-
-Stream.displayName = "Stream";
-
-const mapStateToProps = ({detailedResult}: ReduxObject): DetailedResultReduxObject & {favoriteCount: number} => ({
-    ...detailedResult,
-    favoriteCount: detailedResult.page.items.filter(it => it.favorited).length
-});
-
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),
     setPageTitle: jobId => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
-    receivePage: page => dispatch(receivePage(page)),
-    fetchPage: async (folder, pageNumber, itemsPerPage) => {
-        dispatch(setLoading(true));
-        dispatch(await fetchPage(folder, pageNumber, itemsPerPage));
-    },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(DetailedResult);
+export default connect(null, mapDispatchToProps)(DetailedResult);

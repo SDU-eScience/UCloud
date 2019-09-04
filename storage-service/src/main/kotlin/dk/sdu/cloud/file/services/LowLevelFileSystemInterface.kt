@@ -1,8 +1,12 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -14,21 +18,7 @@ class FSResult<T>(
     val value: T get() = _value!!
 }
 
-sealed class FSACLEntity {
-    abstract val serializedEntity: String
-
-    data class User(val user: String) : FSACLEntity() {
-        override val serializedEntity: String = "u:$user"
-    }
-
-    data class Group(val group: String) : FSACLEntity() {
-        override val serializedEntity: String = "g:$group"
-    }
-
-    object Other : FSACLEntity() {
-        override val serializedEntity: String = "o"
-    }
-}
+data class FSACLEntity(val user: String)
 
 interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     /**
@@ -76,11 +66,32 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
      * @throws FSException.PermissionException
      * @throws FSException.NotFound If the file at [directory] does not exist.
      */
+    suspend fun listDirectoryPaginated(
+        ctx: Ctx,
+        directory: String,
+        mode: Set<FileAttribute>,
+        sortBy: FileSortBy? = null,
+        paginationRequest: NormalizedPaginationRequest? = null,
+        order: SortOrder? = null,
+        type: FileType? = null
+    ): FSResult<Page<FileRow>>
+
     suspend fun listDirectory(
         ctx: Ctx,
         directory: String,
-        mode: Set<FileAttribute>
-    ): FSResult<List<FileRow>>
+        mode: Set<FileAttribute>,
+        sortBy: FileSortBy? = null,
+        paginationRequest: NormalizedPaginationRequest? = null,
+        type: FileType? = null
+    ): FSResult<List<FileRow>> {
+        val res = listDirectoryPaginated(ctx, directory, mode, sortBy, paginationRequest, type = type)
+        if (res.statusCode != 0) {
+            return FSResult(res.statusCode, null)
+        }
+
+        return FSResult(0, res.value.items)
+    }
+
 
     /**
      * Deletes the file at [path] and all of its children recursively.
@@ -255,68 +266,4 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         path: String,
         mode: Set<FileAttribute>
     ): FSResult<FileRow>
-
-    /**
-     * Creates a symbolic link at [linkPath] pointing to [targetPath].
-     *
-     * @throws FSException.PermissionException
-     */
-    suspend fun createSymbolicLink(
-        ctx: Ctx,
-        targetPath: String,
-        linkPath: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-
-    /**
-     * Creates an entry in the ACL for [path].
-     *
-     * @throws FSException.PermissionException
-     * @throws FSException.NotFound
-     */
-    suspend fun createACLEntry(
-        ctx: Ctx,
-        path: String,
-        entity: FSACLEntity,
-        rights: Set<AccessRight>,
-        defaultList: Boolean = false,
-        recursive: Boolean = false,
-        transferOwnershipTo: String? = null
-    ): FSResult<Unit>
-
-    /**
-     * Deletes an entry in the ACL for [path].
-     *
-     * @throws FSException.PermissionException
-     * @throws FSException.NotFound
-     */
-    suspend fun removeACLEntry(
-        ctx: Ctx,
-        path: String,
-        entity: FSACLEntity,
-        defaultList: Boolean = false,
-        recursive: Boolean = false,
-        transferOwnershipTo: String? = null
-    ): FSResult<Unit>
-
-    /**
-     * Changes the permissions of the file at [path].
-     *
-     * @throws FSException.PermissionException
-     * @throws FSException.NotFound
-     */
-    suspend fun chmod(
-        ctx: Ctx,
-        path: String,
-        owner: Set<AccessRight>,
-        group: Set<AccessRight>,
-        other: Set<AccessRight>
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-
-    suspend fun chown(
-        ctx: Ctx,
-        path: String,
-        owner: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-
-    suspend fun checkPermissions(ctx: Ctx, path: String, requireWrite: Boolean): FSResult<Boolean>
 }

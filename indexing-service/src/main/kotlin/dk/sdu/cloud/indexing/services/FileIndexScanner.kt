@@ -1,6 +1,5 @@
 package dk.sdu.cloud.indexing.services
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
@@ -12,7 +11,6 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.indexing.util.depth
 import dk.sdu.cloud.indexing.util.lazyAssert
@@ -21,9 +19,11 @@ import dk.sdu.cloud.indexing.util.scrollThroughSearch
 import dk.sdu.cloud.indexing.util.source
 import dk.sdu.cloud.indexing.util.term
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.term.terms
@@ -64,52 +64,55 @@ class FileIndexScanner(
                 // Send up to 100 roots per request
                 val queueInChunks = queue.chunked(CHUNK_SIZE).also { queue.clear() }
 
-                val localJobs = queueInChunks.map { roots ->
-                    async<Unit> {
-                        val rootToMaterialized =
-                            HashMap<String, List<StorageFile>>()
-                        roots.groupBy { it.depth() }.forEach { (depth, directories) ->
-                            val directoryResults = scanDirectoriesOfDepth(depth, directories)
-                            rootToMaterialized.putAll(directoryResults)
+                // Don't allow more than 10 concurrent chunks
+                queueInChunks.chunked(10).forEach { chunks ->
+                    val localJobs = chunks.map { roots ->
+                        async<Unit> {
+                            retrySection {
+                                val rootToMaterialized = HashMap<String, List<StorageFile>>()
+                                roots.groupBy { it.depth() }.forEach { (depth, directories) ->
+                                    val directoryResults = scanDirectoriesOfDepth(depth, directories)
+                                    rootToMaterialized.putAll(directoryResults)
 
-                            if (directories.contains(HARDCODED_ROOT) && HARDCODED_ROOT !in rootToMaterialized) {
-                                // We were scanning the root directory but no results came up. This means that the
-                                // elastic index is more or less empty. In that case we should still add the root.
-                                // This way the storage-service will actually reply with the correct index instead of
-                                // assuming that everything is okay.
-                                rootToMaterialized[HARDCODED_ROOT] = emptyList()
+                                    if (directories.contains(HARDCODED_ROOT) && HARDCODED_ROOT !in rootToMaterialized) {
+                                        // We were scanning the root directory but no results came up. This means that the
+                                        // elastic index is more or less empty. In that case we should still add the root.
+                                        // This way the storage-service will actually reply with the correct index instead of
+                                        // assuming that everything is okay.
+                                        rootToMaterialized[HARDCODED_ROOT] = emptyList()
+                                    }
+                                }
+
+                                val deliveryResponse =
+                                    FileDescriptions.deliverMaterializedFileSystem.call(
+                                        DeliverMaterializedFileSystemRequest(rootToMaterialized),
+                                        cloud
+                                    )
+
+                                if (deliveryResponse !is IngoingCallResponse.Ok) {
+                                    throw FileIndexScanException.CouldNotDeliver("${deliveryResponse.statusCode}")
+                                }
+
+                                // Continue on all roots that the FS agrees on
+                                val rootsToContinueOn = deliveryResponse.result.shouldContinue.filterValues { it }.keys
+                                val newRoots = rootsToContinueOn.flatMap { root ->
+                                    rootToMaterialized[root]!!
+                                        .asSequence()
+                                        .filter { it.fileType == FileType.DIRECTORY }
+                                        .map { it.path }
+                                        .toList()
+                                }
+
+                                synchronized(queueLock) {
+                                    queue.addAll(newRoots)
+                                }
                             }
-                        }
 
-                        // TODO JSON payload can become gigantic with 100 roots.
-                        // Will increase memory usage by _a lot_
-                        val deliveryResponse =
-                            FileDescriptions.deliverMaterializedFileSystem.call(
-                                DeliverMaterializedFileSystemRequest(rootToMaterialized),
-                                cloud
-                            )
-
-                        if (deliveryResponse !is IngoingCallResponse.Ok) {
-                            throw FileIndexScanException.CouldNotDeliver("${deliveryResponse.statusCode}")
-                        }
-
-                        // Continue on all roots that the FS agrees on
-                        val rootsToContinueOn = deliveryResponse.result.shouldContinue.filterValues { it }.keys
-                        val newRoots = rootsToContinueOn.flatMap { root ->
-                            rootToMaterialized[root]!!
-                                .asSequence()
-                                .filter { it.fileType == FileType.DIRECTORY && !it.link }
-                                .map { it.path }
-                                .toList()
-                        }
-
-                        synchronized(queueLock) {
-                            queue.addAll(newRoots)
                         }
                     }
-                }
 
-                localJobs.awaitAll()
+                    localJobs.awaitAll()
+                }
             }
         }
     }
@@ -147,6 +150,27 @@ class FileIndexScanner(
         )
 
         return items.groupBy { it.path.parent() }
+    }
+
+    private suspend inline fun <R> retrySection(maxAttempts: Int = 5, block: () -> R): R {
+        var attempt = 0
+        val exceptions = ArrayList<Throwable>()
+        while (attempt < maxAttempts) {
+            attempt++
+
+            @Suppress("TooGenericException")
+            try {
+                return block()
+            } catch (ex: Throwable) {
+                delay(5000 * (attempt.toLong() + 1))
+                exceptions.add(ex)
+                log.debug(ex.stackTraceToString())
+            }
+        }
+
+        throw IllegalStateException("Too many retries!", exceptions.first()).also { throwable ->
+            exceptions.forEach { throwable.addSuppressed(it) }
+        }
     }
 
     companion object : Loggable {

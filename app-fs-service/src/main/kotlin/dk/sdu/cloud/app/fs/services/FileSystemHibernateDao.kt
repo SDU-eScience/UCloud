@@ -5,22 +5,12 @@ import dk.sdu.cloud.app.fs.api.SharedFileSystem
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
-import dk.sdu.cloud.service.db.WithTimestamps
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import org.hibernate.annotations.NaturalId
 import java.util.*
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.Id
-import javax.persistence.Table
+import javax.persistence.*
 
 @Entity
 @Table(name = "file_systems")
@@ -36,6 +26,8 @@ data class FileSystemEntity(
     @Enumerated(EnumType.STRING)
     var state: FileSystemState,
 
+    var title: String? = null,
+
     override var createdAt: Date = Date(System.currentTimeMillis()),
 
     override var modifiedAt: Date = Date(System.currentTimeMillis())
@@ -44,8 +36,14 @@ data class FileSystemEntity(
 }
 
 class FileSystemHibernateDao : FileSystemDao<HibernateSession> {
-    override fun create(session: HibernateSession, systemId: String, backend: String, owner: SecurityPrincipalToken) {
-        val entity = FileSystemEntity(systemId, backend, owner.principal.username, FileSystemState.CREATING)
+    override fun create(
+        session: HibernateSession,
+        systemId: String,
+        backend: String,
+        owner: SecurityPrincipalToken,
+        title: String?
+    ) {
+        val entity = FileSystemEntity(systemId, backend, owner.principal.username, FileSystemState.CREATING, title)
         session.save(entity)
     }
 
@@ -106,7 +104,13 @@ class FileSystemHibernateDao : FileSystemDao<HibernateSession> {
             (entity[FileSystemEntity::id] equal systemId) and (isOwner)
         }.uniqueResult() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-        return SharedFileSystem(systemId, existingEntity.owner, existingEntity.backend)
+        return SharedFileSystem(
+            systemId,
+            existingEntity.owner,
+            existingEntity.backend,
+            existingEntity.title ?: existingEntity.id,
+            existingEntity.createdAt.time
+        )
     }
 
     override fun list(
@@ -121,7 +125,7 @@ class FileSystemHibernateDao : FileSystemDao<HibernateSession> {
 
             isOwner
         }.mapItems {
-            SharedFileSystem(it.id, it.owner, it.backend)
+            SharedFileSystem(it.id, it.owner, it.backend, it.title ?: it.id, it.createdAt.time)
         }
     }
 

@@ -1,17 +1,1 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="100%" height="100%" viewBox="0 0 25 23" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
-    <g transform="matrix(1,0,0,1,-744,-517)">
-        <g id="ResFolder" transform="matrix(1,0,0,1,51.9994,24)">
-            <g transform="matrix(1,0,0,1,12.0006,-23)">
-                <path d="M680,517.5C680,517.102 680.158,516.721 680.439,516.439C680.721,516.158 681.102,516 681.5,516C684.06,516 689,516 689,516L692,520L702.5,520C702.898,520 703.28,520.158 703.561,520.439C703.842,520.721 704,521.102 704,521.5C704,522.635 704,524 704,524L680,524L680,517.5Z" style="fill:rgb(131,147,167);"/>
-            </g>
-            <g transform="matrix(1,0,0,1,12.0006,-23)">
-                <path d="M680,523.5C680,522.672 680.672,522 681.5,522C685.809,522 698.191,522 702.5,522C703.328,522 704,522.672 704,523.5C704,526.732 704,534.279 704.001,537C704.001,537.265 703.895,537.52 703.708,537.707C703.52,537.895 703.266,538 703.001,538C699.096,538 684.904,538 681,538C680.448,538 680,537.552 680,537C680,534.279 680,526.732 680,523.5Z" style="fill:rgb(83,101,125);"/>
-            </g>
-            <g transform="matrix(0.923077,0,0,0.923074,3.84711,13.6168)">
-                <path d="M758.5,528L764.129,531.25L764.129,537.75L758.5,541L752.871,537.75L752.871,531.25L758.5,528Z" style="fill:rgb(131,147,167);"/>
-            </g>
-        </g>
-    </g>
-</svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="100%" height="100%" viewBox="0 0 25 23" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g id="ResFolder"><path d="M0,1.5c0,-0.398 0.158,-0.779 0.439,-1.061c0.282,-0.281 0.663,-0.439 1.061,-0.439c2.56,0 7.5,0 7.5,0l3,4l10.5,0c0.398,0 0.78,0.158 1.061,0.439c0.281,0.282 0.439,0.663 0.439,1.061c0,1.135 0,2.5 0,2.5l-24,0l0,-6.5Z" style="fill:#8393a7;"/><path d="M0,7.5c0,-0.828 0.672,-1.5 1.5,-1.5c4.309,0 16.691,0 21,0c0.828,0 1.5,0.672 1.5,1.5c0,3.232 0,10.779 0.001,13.5c0,0.265 -0.106,0.52 -0.293,0.707c-0.188,0.188 -0.442,0.293 -0.707,0.293c-3.905,0 -18.097,0 -22.001,0c-0.552,0 -1,-0.448 -1,-1c0,-2.721 0,-10.268 0,-13.5Z" style="fill:#53657d;"/><path d="M12,8l5.196,3l0,6l-5.196,3l-5.196,-3l0,-6l5.196,-3Z" style="fill:#8393a7;"/><path d="M17.446,11.433l-5.197,3l-0.5,-0.866l5.197,-3c0.167,0.289 0.334,0.577 0.5,0.866Z" style="fill:#53657d;"/><path d="M12.249,13.567l-0.5,0.866l-5.195,-3l0.5,-0.866c1.732,1 3.464,2 5.195,3Z" style="fill:#53657d;"/><path d="M12.5,20l-1,0l-0.001,-6l1,0c0.001,2 0.001,4 0.001,6Z" style="fill:#53657d;"/></g></svg>

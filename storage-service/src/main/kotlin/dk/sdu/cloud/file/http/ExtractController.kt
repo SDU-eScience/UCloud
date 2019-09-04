@@ -19,7 +19,6 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
-import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.service.Controller
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
@@ -35,9 +34,9 @@ class ExtractController<Ctx : FSUserContext>(
         implement(FileDescriptions.extract) {
             audit(SingleFileAudit(null, request))
             val user = ctx.securityPrincipal.username
-            tryWithFS(commandRunnerFactory, user) { ctx ->
-                val fileID = fileLookupService.stat(ctx, request.path).fileId
-                audit(SingleFileAudit(fileID, request))
+            commandRunnerFactory.withContext(user) { ctx ->
+                val fileId = fileLookupService.stat(ctx, request.path).fileId
+                audit(SingleFileAudit(fileId, request))
             }
 
             val extractor = when {

@@ -1,5 +1,5 @@
-import { Page } from "Types";
-import { Notification } from "Notifications";
+import {Notification} from "../../app/Notifications";
+import {Page} from "../../app/Types";
 
 export const notifications: Page<Notification> = {
     itemsInTotal: 2,
@@ -30,6 +30,6 @@ export const notifications: Page<Notification> = {
             read: true
         }],
     pagesInTotal: 0
-}
+};
 
 test("Silencer", () => expect(1).toBe(1));

@@ -23,6 +23,6 @@ export const metadata = {
         relatedIdentifiers: []
     },
     canEdit: true
-}
+};
 
-test("", () => undefined)
+test("", () => undefined);

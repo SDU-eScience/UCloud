@@ -104,6 +104,16 @@ class ConfigurationFeature : MicroFeature {
             injectFile(serverConfiguration, configFile)
         }
 
+        // This is not meant to be recursive.
+        val additionalDirs =
+            serverConfiguration.requestChunkAtOrNull<List<String>>("config", "additionalDirectories") ?: emptyList()
+        for (additionalDir in additionalDirs) {
+            for (file in (File(additionalDir).listFiles() ?: emptyArray())) {
+                if (file.extension !in knownExtensions) continue
+                injectFile(serverConfiguration, file)
+            }
+        }
+
         ctx.configuration = serverConfiguration
     }
 

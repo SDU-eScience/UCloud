@@ -1,12 +1,10 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import com.sun.jna.LastErrorException
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.CommandRunner
-import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -28,7 +26,7 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class LinuxFSRunner(
-    private val userDao: StorageUserDao<Long>,
+    private val uid: Int,
     override val user: String
 ) : CommandRunner {
     private val queue = ArrayBlockingQueue<Pair<Continuation<*>, () -> Any?>>(64)
@@ -41,8 +39,6 @@ class LinuxFSRunner(
     internal var outputStream: OutputStream? = null
     internal var outputSystemFile: File? = null
 
-    internal var uid: Long = Long.MAX_VALUE
-
     var lastJobNotSafe: Any? = null
 
     private fun init() {
@@ -50,12 +46,10 @@ class LinuxFSRunner(
             if (thread == null) {
                 isRunning = true
                 thread = NativeThread(THREAD_PREFIX + user + "-" + UUID.randomUUID().toString()) {
-                    val cloudUser = runBlocking { userDao.findStorageUser(user) }
-                        ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-                    uid = cloudUser
-
-                    StandardCLib.setfsgid(cloudUser)
-                    StandardCLib.setfsuid(cloudUser)
+                    if (user != SERVICE_USER) {
+                        StandardCLib.setfsgid(uid)
+                        StandardCLib.setfsuid(uid)
+                    }
 
                     while (isRunning) {
                         val (_, nextJob) = queue.poll(1, TimeUnit.SECONDS) ?: continue
@@ -72,7 +66,7 @@ class LinuxFSRunner(
         }
     }
 
-    suspend fun <T> submit(job: () -> T): T = suspendCoroutine { cont ->
+    suspend fun <T> submit(job: suspend () -> T): T = suspendCoroutine { cont ->
         init()
         if (!isRunning) throw IllegalStateException("Runner has already been closed")
 
@@ -124,7 +118,13 @@ inline fun <T> runAndRethrowNIOExceptions(block: () -> T): T {
 
             ex is AccessDeniedException -> throw FSException.PermissionException(cause = ex)
 
-            ex.reason.contains("File name too long") -> throw FSException.BadRequest("File name too long")
+            ex.reason.contains("File name too long") || ex.reason.contains("Filename too long") -> {
+                throw FSException.BadRequest("File name too long")
+            }
+
+            ex.message?.contains("Not a directory") == true -> {
+                throw FSException.BadRequest("Not a directory")
+            }
 
             else -> throw FSException.CriticalException(ex.message ?: "Internal error", cause = ex)
         }

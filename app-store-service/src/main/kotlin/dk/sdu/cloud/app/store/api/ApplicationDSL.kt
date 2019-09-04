@@ -37,7 +37,10 @@ sealed class ApplicationDescription(val application: String) {
         val vnc: VncDescription? = null,
         val web: WebDescription? = null,
         val container: ContainerDescription? = null,
-        environment: Map<String, Any>? = null
+        environment: Map<String, Any>? = null,
+        val allowAdditionalMounts: Boolean? = null,
+        val allowAdditionalPeers: Boolean? = null,
+        val allowMultiNode: Boolean? = false
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
         val environment: Map<String, InvocationParameter>?
@@ -76,18 +79,14 @@ sealed class ApplicationDescription(val application: String) {
             }
 
             this.outputFileGlobs = outputFileGlobs.let {
-                val result = it.toMutableList()
-
-                // Remove defaults if exists
-                result.remove("stdout.txt")
-                result.remove("stderr.txt")
+                val result = it.toMutableSet()
 
                 // Add default list
                 result.add("stdout.txt")
                 result.add("stderr.txt")
 
                 result
-            }
+            }.toList()
 
             this.applicationType = applicationType?.let { ApplicationType.valueOf(it) } ?: ApplicationType.BATCH
 
@@ -95,7 +94,7 @@ sealed class ApplicationDescription(val application: String) {
 
             this.invocation = invocation.mapIndexed { index, it ->
                 val parameterName = "invocation[$index]"
-                parseApplicationParameter(it, parameterName)
+                parseInvocationParameter(it, parameterName)
             }
 
             this.invocation.forEachIndexed { index, it ->
@@ -118,11 +117,11 @@ sealed class ApplicationDescription(val application: String) {
             }
 
             this.environment = environment?.map { (name, param) ->
-                name to parseApplicationParameter(param, name)
+                name to parseInvocationParameter(param, name)
             }?.toMap()
         }
 
-        private fun parseApplicationParameter(
+        private fun parseInvocationParameter(
             param: Any,
             parameterName: String
         ): InvocationParameter {
@@ -247,7 +246,10 @@ sealed class ApplicationDescription(val application: String) {
                 vnc = vnc,
                 web = web,
                 container = container,
-                environment = environment
+                environment = environment,
+                allowAdditionalMounts = allowAdditionalMounts,
+                allowAdditionalPeers = allowAdditionalPeers,
+                allowMultiNode = allowMultiNode ?: false
             )
 
             return Application(metadata, invocation)
@@ -280,11 +282,3 @@ enum class ApplicationType {
     WEB
 }
 
-data class ResourceRequirements(
-    val multiNodeSupport: Boolean = false,
-    val coreRequirements: Int = -1,
-    val memoryRequirementsMb: Int = -1,
-    val gpuRequirements: Int = -1,
-    val tempStorageRequirementsGb: Int = -1,
-    val persistentStorageRequirementsGb: Int = -1
-)

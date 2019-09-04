@@ -9,6 +9,8 @@ interface DBSessionFactory<Session> : Closeable {
     fun openTransaction(session: Session)
 
     fun commit(session: Session)
+
+    @Suppress("EmptyFunctionBlock")
     fun flush(session: Session) {}
 }
 
@@ -28,13 +30,10 @@ inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
     closure: (Session) -> R
 ): R {
     openTransaction(session)
-    try {
-        val result = closure(session)
-        if (autoFlush) flush(session)
-        if (autoCommit) commit(session)
-        return result
-    } finally {
-    }
+    val result = closure(session)
+    if (autoFlush) flush(session)
+    if (autoCommit) commit(session)
+    return result
 }
 
 inline fun <R, Session> DBSessionFactory<Session>.withTransaction(

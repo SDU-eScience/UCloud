@@ -1,11 +1,11 @@
-import {EllipsedText} from "ui-components/Text";
-import Box from "ui-components/Box";
-import {inDevEnvironment} from "UtilityFunctions";
-import * as React from "react";
-import {SidebarTextLabel} from "ui-components/Sidebar";
-import {connect} from "react-redux";
 import {ReduxObject} from "DefaultObjects";
+import * as React from "react";
+import {connect} from "react-redux";
+import Box from "ui-components/Box";
 import Link from "ui-components/Link";
+import {SidebarTextLabel} from "ui-components/Sidebar";
+import {EllipsedText} from "ui-components/Text";
+import {inDevEnvironment} from "UtilityFunctions";
 
 const _ContextSwitcher: React.FunctionComponent<{ maxSize: number } & ContextSwitcherReduxProps> = props => {
     if (!inDevEnvironment()) return null;

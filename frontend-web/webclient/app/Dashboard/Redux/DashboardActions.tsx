@@ -8,7 +8,7 @@ import {
     DASHBOARD_RECENT_JOBS_ERROR,
     DASHBOARD_RECENT_FILES_ERROR
 } from "./DashboardReducer";
-import {SetLoadingAction, Error} from "Types";
+import {SetLoadingAction} from "Types";
 import {Analysis} from "Applications";
 import {File} from "Files";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
@@ -22,7 +22,10 @@ import {SnackType} from "Snackbar/Snackbars";
 export type DashboardActions = Action<DashboardError> | ReceiveFavoritesProps | ReceiveRecentFilesProps |
     SetLoadingAction<typeof SET_ALL_LOADING> | ReceiveRecentAnalyses;
 
-type DashboardError = typeof DASHBOARD_FAVORITE_ERROR | typeof DASHBOARD_RECENT_JOBS_ERROR | typeof DASHBOARD_RECENT_FILES_ERROR;
+type DashboardError = 
+    typeof DASHBOARD_FAVORITE_ERROR |
+    typeof DASHBOARD_RECENT_JOBS_ERROR |
+    typeof DASHBOARD_RECENT_FILES_ERROR;
 
 /**
  * Sets all dashboard lists as either loading or not loading
@@ -42,7 +45,7 @@ export const setErrorMessage = (type: DashboardError): Action<typeof type> => ({
  */
 export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<DashboardError>> => {
     try {
-        const {response} = await Cloud.get(favoritesQuery())
+        const {response} = await Cloud.get(favoritesQuery());
         return receiveFavorites(response.items.slice(0, 10))
     } catch {
         snackbarStore.addSnack({
@@ -51,7 +54,7 @@ export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<D
         });
         return setErrorMessage(DASHBOARD_FAVORITE_ERROR);
     }
-}
+};
 
 type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_DASHBOARD_FAVORITES, {content: File[]}>
 /**
@@ -79,7 +82,7 @@ export const fetchRecentFiles = async (): Promise<ReceiveRecentFilesProps | Acti
         });
         return setErrorMessage(DASHBOARD_RECENT_FILES_ERROR);
     }
-}
+};
 
 /**
 * Returns an action containing recently used files
@@ -95,7 +98,7 @@ export const receiveRecentFiles = (content: File[]): ReceiveRecentFilesProps => 
  */
 export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Action<DashboardError>> => {
     try {
-        const {response} = await Cloud.get(hpcJobsQuery(10, 0))
+        const {response} = await Cloud.get(hpcJobsQuery(10, 0));
         return receiveRecentAnalyses(response.items)
     } catch {
         snackbarStore.addSnack({
@@ -104,7 +107,7 @@ export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Act
         });
         return setErrorMessage(DASHBOARD_RECENT_JOBS_ERROR);
     }
-}
+};
 type ReceiveRecentAnalyses = PayloadAction<typeof RECEIVE_RECENT_JOBS, {content: Analysis[]}>
 /**
 * Returns an action containing most recently updated analyses

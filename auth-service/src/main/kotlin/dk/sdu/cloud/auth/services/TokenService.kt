@@ -247,7 +247,7 @@ class TokenService<DBSession>(
 
     fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
         return db.withTransaction { session ->
-            log.debug("Refreshing token: rawToken=$rawToken")
+            log.debug("Refreshing token: rawToken='$rawToken'")
             val token = refreshTokenDao.findById(session, rawToken) ?: run {
                 log.debug("Could not find token!")
                 throw RefreshTokenException.InvalidToken()

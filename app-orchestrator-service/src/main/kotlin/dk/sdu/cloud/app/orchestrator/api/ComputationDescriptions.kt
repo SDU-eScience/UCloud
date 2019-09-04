@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.bindToSubProperty
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.calls.websocket
 import io.ktor.http.HttpMethod
 
 data class ComputationErrorMessage(
@@ -150,6 +151,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
     }
 
 
+    @Deprecated("Replaced with web sockets")
     val follow = call<InternalFollowStdStreamsRequest, InternalStdStreamsResponse, CommonErrorMessage>("follow") {
         auth {
             roles = Roles.PRIVILEDGED
@@ -168,8 +170,30 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
         }
     }
 
+    val cancelWSStream = call<CancelWSStreamRequest, CancelWSStreamResponse, CommonErrorMessage>("cancelWSStream") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
+    }
+
+    val followWSStream = call<InternalFollowWSStreamRequest, InternalFollowWSStreamResponse, CommonErrorMessage>(
+        "followWSStream"
+    ) {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
+    }
+
     val queryInternalVncParameters =
-        call<QueryInternalVncParametersRequest, QueryInternalVncParametersResponse, CommonErrorMessage>("queryInternalVncParameters") {
+        call<QueryInternalVncParametersRequest, QueryInternalVncParametersResponse, CommonErrorMessage>(
+            "queryInternalVncParameters"
+        ) {
             auth {
                 roles = Roles.PRIVILEDGED
                 access = AccessRight.READ
@@ -188,7 +212,9 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
         }
 
     val queryInternalWebParameters =
-        call<QueryInternalWebParametersRequest, QueryInternalWebParametersResponse, CommonErrorMessage>("queryInternalWebParameters") {
+        call<QueryInternalWebParametersRequest, QueryInternalWebParametersResponse, CommonErrorMessage>(
+            "queryInternalWebParameters"
+        ) {
             auth {
                 access = AccessRight.READ
                 roles = Roles.PRIVILEDGED

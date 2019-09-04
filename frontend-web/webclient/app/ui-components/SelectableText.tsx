@@ -1,10 +1,10 @@
 import styled from "styled-components";
-import Flex from "./Flex";
 import theme from "ui-components/theme";
+import Flex from "./Flex";
 import Text from "./Text";
 
 const SelectableTextWrapper = styled(Flex)`
-    border-bottom: 1px solid ${({theme}) => theme.colors.lightGray};
+    border-bottom: 1px solid ${p => p.theme.colors.lightGray};
     cursor: pointer;
 `;
 
@@ -22,4 +22,4 @@ SelectableText.defaultProps = {
 
 SelectableText.displayName = "SelectableText";
 
-export { SelectableTextWrapper, SelectableText };
+export {SelectableTextWrapper, SelectableText};

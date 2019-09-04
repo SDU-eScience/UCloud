@@ -35,6 +35,8 @@ data class AdvancedSearchRequest(
     val sensitivity: List<SensitivityLevel>?,
     val annotations: List<String>?,
 
+    val includeShares: Boolean?,
+
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest

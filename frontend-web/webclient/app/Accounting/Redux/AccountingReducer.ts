@@ -1,8 +1,7 @@
-import { Reducer as ReduxReducer } from "redux";
-import { Type as ActionType, Tag } from "./AccountingActions";
-import { Type as ReduxType, init, ResourceState } from "./AccountingObject";
-import { loadableEventToContent, emptyLoadableContent } from "LoadableContent";
-import { emptyResourceState } from "./AccountingObject";
+import {Reducer as ReduxReducer} from "redux";
+import {Tag, Type as ActionType} from "./AccountingActions";
+import {emptyResourceState, init, ResourceState, Type as ReduxType} from "./AccountingObject";
+import {emptyLoadableContent, loadableEventToContent} from "LoadableContent";
 
 export interface Reducer {
     accounting: ReduxReducer<ReduxType>
@@ -11,8 +10,7 @@ export interface Reducer {
 function genericReduce(state: ReduxType, resource: string, newPartialState: Partial<ResourceState>): ReduxType {
     const result = JSON.parse(JSON.stringify(state));
     const currentState: ResourceState = result.resources[resource] || emptyResourceState();
-    const newState: ResourceState = { ...currentState, ...newPartialState };
-    result.resources[resource] = newState;
+    result.resources[resource] = {...currentState, ...newPartialState};
     return result;
 }
 

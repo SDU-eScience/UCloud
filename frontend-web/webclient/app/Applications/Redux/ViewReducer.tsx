@@ -34,6 +34,6 @@ const reducer: ReduxReducer<Type> = (state: Type = init().applicationView, actio
             return state;
         }
     }
-}
+};
 
 export default reducer;

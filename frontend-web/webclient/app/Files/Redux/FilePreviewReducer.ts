@@ -11,6 +11,6 @@ const filePreview = (state: FilePreviewReduxState = initFilePreview(), action: a
         default:
             return state;
     }
-}
+};
 
 export default filePreview;

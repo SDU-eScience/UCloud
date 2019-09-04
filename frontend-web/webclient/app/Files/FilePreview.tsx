@@ -1,29 +1,29 @@
+import {FilePreviewReduxState, ReduxObject} from "DefaultObjects";
+import {File} from "Files";
+import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
-import { connect } from "react-redux";
-import { File } from "Files";
-import { match } from "react-router";
-import { ReduxObject, FilePreviewReduxState } from "DefaultObjects";
-import { removeTrailingSlash } from "UtilityFunctions";
-import { Dispatch } from "redux";
-import { MainContainer } from "MainContainer/MainContainer";
-import { setFilePreviewError, fetchPreviewFile } from "./Redux/FilePreviewAction";
+import {connect} from "react-redux";
+import {match} from "react-router";
+import {Dispatch} from "redux";
+import {removeTrailingSlash} from "UtilityFunctions";
+import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
 interface FilePreviewStateProps {
-    file: File
-    match: match
+    file: File;
+    match: match;
 }
 
 interface FilePreviewOperations {
-    fetchFile: (p: string) => void
-    setError: (error?: string) => void
+    fetchFile: (p: string) => void;
+    setError: (error?: string) => void;
 }
 
 interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps {
-    location: { pathname: string, search: string }
+    location: {pathname: string; search: string;};
 }
 
 class FilePreview extends React.Component<FilePreviewProps> {
-    componentDidMount() {
+    public componentDidMount() {
         this.props.fetchFile(this.filepath);
         this.fetchContent();
     }
@@ -33,7 +33,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
         return new URLSearchParams(this.props.location.search);
     }
 
-    async fetchContent() {
+    public async fetchContent() {
         /* if (this.file && this.file.content === null) return;
         const type = extensionTypeFromPath(this.filepath);
         if (!this.file || !this.file.content) return (<LoadingIcon size={18} />)
@@ -57,14 +57,14 @@ class FilePreview extends React.Component<FilePreviewProps> {
         return param ? removeTrailingSlash(param) : "";
     }
 
-    render() {
+    public render() {
         return (
-            <MainContainer main={<div/>} />
+            <MainContainer main={<div />} />
         );
     }
 }
 
-const mapStateToProps = ({ filePreview }: ReduxObject): FilePreviewReduxState => ({
+const mapStateToProps = ({filePreview}: ReduxObject): FilePreviewReduxState => ({
     file: filePreview.file
 });
 

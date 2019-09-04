@@ -1,11 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import io.fabric8.kubernetes.api.model.LabelSelector
-import io.fabric8.kubernetes.api.model.ObjectMeta
-import io.fabric8.kubernetes.api.model.networking.NetworkPolicy
-import io.fabric8.kubernetes.api.model.networking.NetworkPolicyIngressRule
 import io.fabric8.kubernetes.api.model.networking.NetworkPolicyPeer
-import io.fabric8.kubernetes.api.model.networking.NetworkPolicySpec
 import io.fabric8.kubernetes.client.KubernetesClient
 
 class NetworkPolicyService(
@@ -14,7 +10,7 @@ class NetworkPolicyService(
     private val appRole: String = "sducloud-app"
 ) {
     fun createPolicy(jobId: String, peers: List<String>) {
-        val labelSelector = LabelSelector().also {
+        val clientSelector = LabelSelector().also {
             it.matchLabels = hashMapOf(
                 JOB_ID_LABEL to jobId,
                 ROLE_LABEL to appRole
@@ -33,13 +29,15 @@ class NetworkPolicyService(
             .withNewSpec()
             .addNewIngress()
             .addToFrom(NetworkPolicyPeer().also {
-                it.podSelector = labelSelector
+                // Allow connections from other nodes in same job
+                it.podSelector = clientSelector
             })
             .endIngress()
 
             .addNewEgress()
             .addToTo(NetworkPolicyPeer().also {
-                it.podSelector = labelSelector
+                // Allow connections to other nodes in same job
+                it.podSelector = clientSelector
             })
             .endEgress()
 
@@ -55,9 +53,16 @@ class NetworkPolicyService(
             spec
                 .addNewEgress()
                 .addToTo(NetworkPolicyPeer().also {
+                    // (Client egress) Allow connections from client to peer
                     it.podSelector = peerSelector
                 })
                 .endEgress()
+                .addNewIngress()
+                .addToFrom(NetworkPolicyPeer().also {
+                    // (Client ingress) Allow connections from peer to client
+                    it.podSelector = peerSelector
+                })
+                .endIngress()
 
             // We also need to ensure that ingress is allowed in our peer (we need to modify their policy for this)
             // We don't need to remove this later since the job id is always unique.
@@ -69,16 +74,23 @@ class NetworkPolicyService(
                 .addNewIngress()
                 .addToFrom(
                     NetworkPolicyPeer().also {
-                        it.podSelector = labelSelector
+                        // (Peer ingress) Allow connections from client to peer
+                        it.podSelector = clientSelector
                     }
                 )
                 .endIngress()
+                .addNewEgress()
+                .addToTo(NetworkPolicyPeer().also {
+                    // (Peer egress) Allow connections from peer to client
+                    it.podSelector = clientSelector
+                })
+                .endEgress()
                 .endSpec()
                 .done()
         }
 
         spec
-            .withPodSelector(labelSelector)
+            .withPodSelector(clientSelector)
             .endSpec()
             .done()
     }

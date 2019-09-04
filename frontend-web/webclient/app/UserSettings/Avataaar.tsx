@@ -1,43 +1,31 @@
-import {default as Avataaar} from "avataaars";
-import * as React from "react";
-import * as Options from "./AvatarOptions";
-import {MainContainer} from "MainContainer/MainContainer";
-import {Select, Label, Box, Flex, OutlineButton} from "ui-components";
-import Spinner from "LoadingIcon/LoadingIcon";
-import {connect} from "react-redux";
-import {ReduxObject} from "DefaultObjects";
-import {Dispatch} from "redux";
-import {saveAvatar} from "./Redux/AvataaarActions";
-import PromiseKeeper from "PromiseKeeper";
-import {findAvatarQuery} from "Utilities/AvatarUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {default as Avataaar} from "AvataaarLib";
+import {ReduxObject} from "DefaultObjects";
+import Spinner from "LoadingIcon/LoadingIcon";
+import {MainContainer} from "MainContainer/MainContainer";
 import {setActivePage} from "Navigation/Redux/StatusActions";
-import {SidebarPages} from "ui-components/Sidebar";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import PromiseKeeper from "PromiseKeeper";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Box, Flex, Label, OutlineButton, Select} from "ui-components";
+import {SidebarPages} from "ui-components/Sidebar";
+import {findAvatarQuery} from "Utilities/AvatarUtilities";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import * as Options from "./AvatarOptions";
+import {saveAvatar} from "./Redux/AvataaarActions";
 
 type AvataaarModificationStateProps = AvatarType;
 
 interface AvataaarModificationOperations {
-    save: (avatar: AvatarType) => void
-    setActivePage: () => void
+    save: (avatar: AvatarType) => void;
+    setActivePage: () => void;
 }
 
 function Modification(props: AvataaarModificationOperations) {
-    const [avatar, setAvatar] = React.useState(defaultAvatar)
-    const [loading, setLoading] = React.useState(true)
-
-    async function fetchAvatar(promises: PromiseKeeper) {
-        try {
-            const {response} = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
-            setAvatar(response);
-        } catch (e) {
-            if (!e.isCanceled)
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));
-        } finally {
-            setLoading(false);
-        }
-    }
+    const [avatar, setAvatar] = React.useState(defaultAvatar);
+    const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
         const promises = new PromiseKeeper();
@@ -168,7 +156,19 @@ function Modification(props: AvataaarModificationOperations) {
                     />
                 </>
             }
-        />)
+        />);
+
+    async function fetchAvatar(promises: PromiseKeeper) {
+        try {
+            const r = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
+            setAvatar(r.response);
+        } catch (e) {
+            if (!e.isCanceled)
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));
+        } finally {
+            setLoading(false);
+        }
+    }
 }
 
 interface AvatarSelect<T1, T2> {

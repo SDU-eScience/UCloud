@@ -1,15 +1,24 @@
 package dk.sdu.cloud.app.store.services
 
-import com.vladmihalcea.hibernate.type.array.StringArrayType
-import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.Application
+import dk.sdu.cloud.app.store.api.ApplicationMetadata
+import dk.sdu.cloud.app.store.api.ApplicationSummary
+import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.createCriteriaBuilder
+import dk.sdu.cloud.service.db.createQuery
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.paginatedList
+import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
-import org.hibernate.jpa.TypedParameterValue
-import java.math.BigInteger
 import java.util.*
 
 @Suppress("TooManyFunctions") // Does not make sense to split
@@ -73,7 +82,7 @@ class ApplicationHibernateDAO(
             criteria.select(count(entity))
         }.createQuery(session).uniqueResult()
 
-        val items = session.typedQuery<ApplicationEntity>(
+        val itemsWithoutTags = session.typedQuery<ApplicationEntity>(
             """
                 select application
                 from FavoriteApplicationEntity as fav, ApplicationEntity as application
@@ -87,8 +96,17 @@ class ApplicationHibernateDAO(
             .paginatedList(paging)
             .asSequence()
             .map { it.toModel() }
-            .map { ApplicationSummaryWithFavorite(it.metadata, true) }
             .toList()
+
+        val apps = itemsWithoutTags.map { it.metadata.name }
+        val allTags = session
+            .criteria<TagEntity> { entity[TagEntity::applicationName] isInCollection (apps) }
+            .resultList
+        val items = itemsWithoutTags.map { appSummary ->
+            val allTagsForApplication = allTags.filter { it.applicationName == appSummary.metadata.name }.map { it.tag }
+            ApplicationSummaryWithFavorite(appSummary.metadata, true, allTagsForApplication)
+        }
+
 
         return Page(
             itemsInTotal.toInt(),
@@ -104,60 +122,56 @@ class ApplicationHibernateDAO(
         tags: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val itemsInTotal = session
-            .createNativeQuery(
-                // language=sql
-                """
-                select count(*)
-                from {h-schema}applications a
-                where
-                  jsonb_exists_any(tags, :tags) and
-                  a.created_at in (
-                    select max(created_at)
-                    from {h-schema}applications b
-                    where a.name = b.name
-                    group by a.name
-                  )
-                """.trimIndent()
-            )
-            .apply {
-                setParameter("tags", TypedParameterValue(StringArrayType.INSTANCE, tags.toTypedArray()))
-            }
-            .resultList
-            .single() as BigInteger
+        val applications = session
+            .criteria<TagEntity> {
+                (entity[TagEntity::tag] isInCollection (tags))
+            }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
 
-        val items = session
-            .createNativeQuery<ApplicationEntity>(
-                // language=sql
-                """
-                select *
-                from {h-schema}applications a
-                where
-                  jsonb_exists_any(tags, :tags) and
-                  a.created_at in (
-                    select max(created_at)
-                    from {h-schema}applications b
-                    where a.name = b.name
-                    group by a.name
-                  )
-                order by a.name
-                """.trimIndent(),
-                ApplicationEntity::class.java
-            )
-            .apply {
-                setParameter("tags", TypedParameterValue(StringArrayType.INSTANCE, tags.toTypedArray()))
+        if (applications.isEmpty()) {
+            return preparePageForUser(
+                session,
+                user,
+                Page(
+                    0,
+                    paging.itemsPerPage,
+                    paging.page,
+                    emptyList()
+                )
+            ).mapItems { it.withoutInvocation() }
+        }
 
-                maxResults = paging.itemsPerPage
-                firstResult = paging.page * paging.itemsPerPage
-            }
-            .resultList
+        val itemsInTotal = session.typedQuery<Long>(
+            """
+            select count (A.title)
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where (A.title= B.title)
+                group by title
+            ) and (A.id.name) in (:applications)
+            """.trimIndent()
+        ).setParameter("applications", applications)
+            .uniqueResult()
+            .toInt()
+
+        val items = session.typedQuery<ApplicationEntity>(
+            """
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where (A.title= B.title)
+                group by title
+            ) and (A.id.name) in (:applications)
+            order by A.title
+        """.trimIndent()
+        ).setParameter("applications", applications).paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
         return preparePageForUser(
             session,
             user,
             Page(
-                itemsInTotal.toInt(),
+                itemsInTotal,
                 paging.itemsPerPage,
                 paging.page,
                 items
@@ -300,9 +314,15 @@ class ApplicationHibernateDAO(
         return preparePageForUser(
             session,
             user,
-            session.paginatedCriteria<ApplicationEntity>(paging) {
-                entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
-            }.mapItems { it.toModelWithInvocation() }
+            session
+                .paginatedCriteria<ApplicationEntity>(
+                    pagination = paging,
+                    orderBy = { listOf(descending(entity[ApplicationEntity::createdAt])) },
+                    predicate = {
+                        entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
+                    }
+                )
+                .mapItems { it.toModelWithInvocation() }
         ).mapItems { it.withoutInvocation() }
     }
 
@@ -412,7 +432,89 @@ class ApplicationHibernateDAO(
             existingTool.tool.info.version,
             EmbeddedNameAndVersion(description.metadata.name, description.metadata.version)
         )
+
         session.save(entity)
+
+        createTags(
+            session,
+            description.metadata.tags,
+            description.metadata.name,
+            description.metadata.version,
+            user
+        )
+    }
+
+    override fun createTags(
+        session: HibernateSession,
+        tags: List<String>,
+        applicationName: String,
+        applicationVersion: String,
+        user: String
+    ) {
+        val application =
+            internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
+                HttpStatusCode.NotFound,
+                "App not found"
+            )
+        if (application.owner != user) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not owner of application")
+        }
+        tags.forEach { tag ->
+            val existing = findTag(session, applicationName, applicationVersion, tag)
+
+            if (existing != null) {
+                return@forEach
+            }
+            val entity = TagEntity(
+                applicationName,
+                applicationVersion,
+                tag
+            )
+            session.save(entity)
+        }
+    }
+
+    override fun deleteTags(
+        session: HibernateSession,
+        tags: List<String>,
+        applicationName: String,
+        applicationVersion: String,
+        user: String
+    ) {
+        val application =
+            internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
+                HttpStatusCode.NotFound,
+                "App not found"
+            )
+        if (application.owner != user) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not owner of application")
+        }
+        tags.forEach { tag ->
+            val existing = findTag(
+                session,
+                applicationName,
+                applicationVersion,
+                tag
+            ) ?: return@forEach
+
+            session.delete(existing)
+        }
+    }
+
+    fun findTag(
+        session: HibernateSession,
+        name: String,
+        version: String,
+        tag: String
+    ): TagEntity? {
+        return session
+            .criteria<TagEntity> {
+                allOf(
+                    (entity[TagEntity::tag] equal tag) and
+                            (entity[TagEntity::applicationName] equal name) and
+                            (entity[TagEntity::applicationVersion] equal version)
+                )
+            }.uniqueResult()
     }
 
     override fun updateDescription(
@@ -466,18 +568,37 @@ class ApplicationHibernateDAO(
                 .criteria<FavoriteApplicationEntity> { entity[FavoriteApplicationEntity::user] equal user }
                 .list()
 
+            val allApplicationsOnPage = page.items.map { it.metadata.name }
+            val allTagsForApplicationsOnPage = session
+                .criteria<TagEntity> { entity[TagEntity::applicationName] isInCollection (allApplicationsOnPage) }
+                .resultList
+
+
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
                     fav.applicationName == item.metadata.name &&
                             fav.applicationVersion == item.metadata.version
                 }
 
-                ApplicationWithFavorite(item.metadata, item.invocation, isFavorite)
+                val allTagsForApplication = allTagsForApplicationsOnPage
+                    .filter {
+                        item.metadata.name == it.applicationName &&
+                                item.metadata.version == it.applicationVersion
+                    }
+                    .map { it.tag }
+
+                ApplicationWithFavorite(item.metadata, item.invocation, isFavorite, allTagsForApplication)
             }
 
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         } else {
-            val preparedPageItems = page.items.map { ApplicationWithFavorite(it.metadata, it.invocation, false) }
+            val preparedPageItems = page.items.map { item ->
+                val allTagsForApplication = session
+                    .criteria<TagEntity> { entity[TagEntity::applicationName] equal item.metadata.name }
+                    .resultList.map { it.tag }
+
+                ApplicationWithFavorite(item.metadata, item.invocation, false, allTagsForApplication)
+            }
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         }
     }

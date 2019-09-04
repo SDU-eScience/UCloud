@@ -185,7 +185,7 @@ sealed class StreamingRequest<Request : Any> {
                     }
                 }.toMap()
 
-                @Suppress("UNCHECKED_CAST")
+                @Suppress("UNCHECKED_CAST", "TooGenericExceptionCaught")
                 val block = try {
                     constructor.callBy(params) as Request
                 } catch (ex: Exception) {
@@ -250,6 +250,7 @@ sealed class StreamingRequest<Request : Any> {
             }
 
             return if (isJson) {
+                @Suppress("TooGenericExceptionCaught")
                 try {
                     defaultMapper.readValue(part.value(), propType.java)
                 } catch (ex: Exception) {
@@ -268,24 +269,30 @@ sealed class StreamingRequest<Request : Any> {
             } else {
                 when {
                     propType == String::class -> part.value()
+
                     propType == Byte::class -> part.value().toByteOrNull()
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
                     propType == Short::class -> part.value().toShortOrNull()
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
                     propType == Int::class -> part.value().toIntOrNull()
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
                     propType == Long::class -> part.value().toLongOrNull()
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                    propType == Short::class -> part.value().toShortOrNull()
-                        ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
                     propType == Double::class -> part.value().toDoubleOrNull()
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
                     propType == Boolean::class -> part.value().toBoolean()
+
                     propType.java.isEnum -> {
                         val value = part.value()
                         propType.java.enumConstants.find { (it as Enum<*>).name == value }
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
+
                     propType == StreamingFile::class -> {
                         StreamingFile(
                             contentType,
@@ -294,6 +301,7 @@ sealed class StreamingRequest<Request : Any> {
                             part.channel
                         )
                     }
+
                     else -> {
                         log.info("Could not convert item $prop from value ${part.value()}")
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
@@ -368,6 +376,7 @@ sealed class StreamingRequest<Request : Any> {
             val buffer = IoBuffer.Pool.borrow()
             val dstNeedsFlush = !dst.autoFlush
 
+            @Suppress("TooGenericExceptionCaught")
             try {
                 var copied = 0L
 
@@ -406,6 +415,7 @@ sealed class StreamingRequest<Request : Any> {
             description: CallDescription<*, *, *>,
             call: HttpCall
         ): StreamingRequest<*> {
+            @Suppress("TooGenericExceptionCaught")
             val multipart = try {
                 StreamingMultipart.construct(call)
             } catch (ex: Exception) {

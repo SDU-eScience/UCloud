@@ -1,0 +1,21 @@
+---
+tool: v1
+
+title: HttpBin
+
+name: httpbin
+version: 1.0.0
+
+container: kennethreitz/httpbin
+
+authors:
+- Kenneth Reitz
+
+description: A tool for testing httprequests.
+
+defaultTimeAllocation:
+  hours: 1
+  minutes: 0
+  seconds: 0
+
+backend: DOCKER

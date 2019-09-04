@@ -11,6 +11,8 @@ private const val TYPE_TEXT = "text"
 private const val TYPE_INTEGER = "integer"
 private const val TYPE_BOOLEAN = "boolean"
 private const val TYPE_FLOATING_POINT = "floating_point"
+private const val TYPE_PEER = "peer"
+private const val TYPE_SHARED_FILE_SYSTEM = "shared_file_system"
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -23,7 +25,9 @@ private const val TYPE_FLOATING_POINT = "floating_point"
     JsonSubTypes.Type(value = ApplicationParameter.Text::class, name = TYPE_TEXT),
     JsonSubTypes.Type(value = ApplicationParameter.Integer::class, name = TYPE_INTEGER),
     JsonSubTypes.Type(value = ApplicationParameter.Bool::class, name = TYPE_BOOLEAN),
-    JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT)
+    JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT),
+    JsonSubTypes.Type(value = ApplicationParameter.Peer::class, name = TYPE_PEER),
+    JsonSubTypes.Type(value = ApplicationParameter.SharedFileSystem::class, name = TYPE_SHARED_FILE_SYSTEM)
 )
 sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: String) {
     abstract var name: String
@@ -151,6 +155,72 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override fun toInvocationArgument(entry: BooleanApplicationParameter): String =
             if (entry.value) trueValue else falseValue
     }
+
+    class Peer(
+        name: String = "",
+        override val title: String,
+        override val description: String,
+        val suggestedApplication: String? = null
+    ) : ApplicationParameter<PeerApplicationParameter>(TYPE_PEER) {
+        override val defaultValue: PeerApplicationParameter? = null
+        override val optional = false
+
+        override var name: String = name
+            set(value) {
+                if (!name.matches(hostNameRegex)) {
+                    throw ApplicationVerificationException.BadValue(
+                        value,
+                        "Peer parameter '$value' must be a valid hostname!"
+                    )
+                }
+
+                field = value
+            }
+
+        override fun internalMap(inputParameter: Any): PeerApplicationParameter {
+            @Suppress("UNCHECKED_CAST")
+            val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad peer value")
+            val jobId = asMap["jobId"] as? String? ?: throw IllegalArgumentException("Missing 'jobId'")
+            return PeerApplicationParameter(jobId)
+        }
+
+        override fun toInvocationArgument(entry: PeerApplicationParameter): String = name
+
+        companion object {
+            private val hostNameRegex =
+                Regex(
+                    "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
+                            "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
+                )
+        }
+    }
+
+    data class SharedFileSystem(
+        override var name: String = "",
+        override val title: String,
+        override val description: String,
+        val fsType: SharedFileSystemType,
+        val mountLocation: String,
+        val exportToPeers: Boolean = true
+    ) : ApplicationParameter<SharedFileSystemApplicationParameter>(TYPE_SHARED_FILE_SYSTEM) {
+        override val defaultValue: SharedFileSystemApplicationParameter? = null
+        override val optional: Boolean = false
+
+        override fun internalMap(inputParameter: Any): SharedFileSystemApplicationParameter {
+            @Suppress("UNCHECKED_CAST")
+            val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad peer value")
+            val fileSystemId =
+                asMap["fileSystemId"] as? String? ?: throw IllegalArgumentException("Missing 'fileSystemId'")
+            return SharedFileSystemApplicationParameter(fileSystemId)
+        }
+
+        override fun toInvocationArgument(entry: SharedFileSystemApplicationParameter): String = mountLocation
+    }
+}
+
+enum class SharedFileSystemType {
+    EPHEMERAL,
+    PERSISTENT
 }
 
 @JsonTypeInfo(
@@ -163,7 +233,9 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
     JsonSubTypes.Type(value = BooleanApplicationParameter::class, name = TYPE_BOOLEAN),
     JsonSubTypes.Type(value = IntApplicationParameter::class, name = TYPE_INTEGER),
     JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = TYPE_FLOATING_POINT),
-    JsonSubTypes.Type(value = StringApplicationParameter::class, name = TYPE_TEXT)
+    JsonSubTypes.Type(value = StringApplicationParameter::class, name = TYPE_TEXT),
+    JsonSubTypes.Type(value = PeerApplicationParameter::class, name = TYPE_PEER),
+    JsonSubTypes.Type(value = SharedFileSystemApplicationParameter::class, name = TYPE_SHARED_FILE_SYSTEM)
 )
 sealed class ParsedApplicationParameter {
     abstract val type: String // This is not ideal, but it fixes the serialization issue
@@ -191,4 +263,14 @@ data class DoubleApplicationParameter(val value: BigDecimal) : ParsedApplication
 
 data class StringApplicationParameter(val value: String) : ParsedApplicationParameter() {
     override val type = TYPE_TEXT
+}
+
+data class PeerApplicationParameter(val peerJobId: String) : ParsedApplicationParameter() {
+    override val type = TYPE_PEER
+}
+
+data class SharedFileSystemApplicationParameter(
+    val fileSystemId: String
+) : ParsedApplicationParameter() {
+    override val type = TYPE_SHARED_FILE_SYSTEM
 }

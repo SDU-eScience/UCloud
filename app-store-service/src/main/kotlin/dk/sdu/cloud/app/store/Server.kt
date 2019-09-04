@@ -13,8 +13,12 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.startServices
 import java.io.File
 
 class Server(override val micro: Micro) : CommonServer {
@@ -40,6 +44,7 @@ class Server(override val micro: Micro) : CommonServer {
             }
 
             if (listOfApps.itemsInTotal == 0) {
+                @Suppress("TooGenericExceptionCaught")
                 db.withTransaction { session ->
                     val tools = File("yaml", "tools")
                     tools.listFiles().forEach {

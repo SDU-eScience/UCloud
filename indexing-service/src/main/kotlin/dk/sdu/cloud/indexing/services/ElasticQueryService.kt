@@ -36,15 +36,16 @@ import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.action.get.GetRequest
+import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.Aggregations
-import org.elasticsearch.search.aggregations.metrics.avg.Avg
-import org.elasticsearch.search.aggregations.metrics.max.Max
-import org.elasticsearch.search.aggregations.metrics.min.Min
-import org.elasticsearch.search.aggregations.metrics.percentiles.Percentiles
-import org.elasticsearch.search.aggregations.metrics.sum.Sum
+import org.elasticsearch.search.aggregations.metrics.Avg
+import org.elasticsearch.search.aggregations.metrics.Max
+import org.elasticsearch.search.aggregations.metrics.Min
+import org.elasticsearch.search.aggregations.metrics.Percentiles
+import org.elasticsearch.search.aggregations.metrics.Sum
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 
@@ -57,7 +58,7 @@ class ElasticQueryService(
     private val mapper = defaultMapper
 
     override fun findFileByIdOrNull(id: String): StorageFile? {
-        return elasticClient[GetRequest(FILES_INDEX, DOC_TYPE, id)]
+        return elasticClient[GetRequest(FILES_INDEX, DOC_TYPE, id), RequestOptions.DEFAULT]
             ?.takeIf { it.isExists }
             ?.let { mapper.readValue<ElasticIndexedFile>(it.sourceAsString) }
             ?.toMaterializedFile()
@@ -98,7 +99,6 @@ class ElasticQueryService(
                 val field = when (sorting.field) {
                     SortableField.FILE_NAME -> ElasticIndexedFile.FILE_NAME_KEYWORD
                     SortableField.FILE_TYPE -> ElasticIndexedFile.FILE_TYPE_FIELD
-                    SortableField.IS_LINK -> ElasticIndexedFile.FILE_IS_LINK_FIELD
                     SortableField.SIZE -> ElasticIndexedFile.SIZE_FIELD
                     SortableField.CREATED_AT -> ElasticIndexedFile.TIMESTAMP_CREATED_FIELD
                     SortableField.MODIFIED_AT -> ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD
@@ -185,10 +185,6 @@ class ElasticQueryService(
                     modifiedAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
                     sensitivity.addClausesIfExists(list, ElasticIndexedFile.SENSITIVITY_FIELD)
                     size.addClausesIfExists(list, ElasticIndexedFile.SIZE_FIELD)
-
-                    if (fileIsLink != null) {
-                        list.add(terms { ElasticIndexedFile.FILE_IS_LINK_FIELD to listOf(fileIsLink) })
-                    }
                 }
             }.also {
                 if (it.should().isNotEmpty()) {
@@ -290,7 +286,7 @@ class ElasticQueryService(
         }
 
         return StatisticsResponse(
-            result.hits.totalHits,
+            result.hits.totalHits.value,
             size,
             fileDepth
         )

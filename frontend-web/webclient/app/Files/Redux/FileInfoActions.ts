@@ -1,14 +1,14 @@
-import {Cloud} from "Authentication/SDUCloudObject";
-import {statFileQuery} from "Utilities/FileUtilities";
-import {PayloadAction, SetLoadingAction, Page} from "Types";
-import {FILE_INFO_ERROR, RECEIVE_FILE_STAT, SET_FILE_INFO_LOADING, RECEIVE_FILE_ACTIVITY} from "./FileInfoReducer";
 import {Activity} from "Activity";
+import {Cloud} from "Authentication/SDUCloudObject";
 import {File} from "Files";
-import {activityStreamByPath} from "Utilities/ActivityUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Page, PayloadAction, SetLoadingAction} from "Types";
+import {activityStreamByPath} from "Utilities/ActivityUtilities";
+import {statFileQuery} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
+import {FILE_INFO_ERROR, RECEIVE_FILE_ACTIVITY, RECEIVE_FILE_STAT, SET_FILE_INFO_LOADING, } from "./FileInfoReducer";
 
-export type FileInfoActions = ReceiveFileStat | FileInfoError | SetFileInfoLoading | ReceiveFileActivity
+export type FileInfoActions = ReceiveFileStat | FileInfoError | SetFileInfoLoading | ReceiveFileActivity;
 
 export async function fetchFileActivity(path: string): Promise<ReceiveFileActivity | FileInfoError> {
     try {
@@ -20,7 +20,7 @@ export async function fetchFileActivity(path: string): Promise<ReceiveFileActivi
     }
 }
 
-type ReceiveFileActivity = PayloadAction<typeof RECEIVE_FILE_ACTIVITY, {activity: Page<Activity>, loading: false}>
+type ReceiveFileActivity = PayloadAction<typeof RECEIVE_FILE_ACTIVITY, {activity: Page<Activity>, loading: false}>;
 const receiveFileActivity = (activity: Page<Activity>): ReceiveFileActivity => ({
     type: RECEIVE_FILE_ACTIVITY,
     payload: {activity, loading: false}
@@ -36,7 +36,7 @@ export async function fetchFileStat(path: string): Promise<ReceiveFileStat | Fil
     }
 }
 
-type ReceiveFileStat = PayloadAction<typeof RECEIVE_FILE_STAT, {file: File, loading: false}>
+type ReceiveFileStat = PayloadAction<typeof RECEIVE_FILE_STAT, {file: File, loading: false}>;
 export const receiveFileStat = (file: File): ReceiveFileStat => ({
     type: RECEIVE_FILE_STAT,
     payload: {file, loading: false}
@@ -48,8 +48,8 @@ export const fileInfoError = (): FileInfoError => ({
     payload: {loading: false, file: undefined}
 });
 
-type SetFileInfoLoading = SetLoadingAction<typeof SET_FILE_INFO_LOADING>
+type SetFileInfoLoading = SetLoadingAction<typeof SET_FILE_INFO_LOADING>;
 export const setLoading = (loading: boolean): SetFileInfoLoading => ({
     type: SET_FILE_INFO_LOADING,
     payload: {loading}
-})
+});

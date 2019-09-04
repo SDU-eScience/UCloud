@@ -26,7 +26,7 @@ const BreakdownItem: React.FunctionComponent<{ item: API.AccountingEvent }> = pr
             {props.item.description}
         </TableCell>
     </VARow>;
-}
+};
 
 const VARow = styled(TableRow)`
     vertical-align: top;

@@ -1,6 +1,9 @@
 package dk.sdu.cloud.elastic.management.services
 
-import dk.sdu.cloud.elastic.management.ElasticHostAndPort
+import dk.sdu.cloud.micro.ElasticFeature
+import dk.sdu.cloud.micro.elasticLowLevelClient
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.test.initializeMicro
 import org.apache.http.HttpHost
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.bulk.BulkRequest
@@ -121,6 +124,8 @@ class ManagementTest {
     @Ignore
     @Test
     fun `test reindex`() {
+        val micro = initializeMicro()
+        micro.install(ElasticFeature)
         createDocuments("http_logs_mojn", 8, 500)
         createDocuments("http_logs_mojn", 9, 500)
         createDocuments("http_logs_mojn", 11, 500)
@@ -136,7 +141,7 @@ class ManagementTest {
         elastic.indices().flush(FlushRequest("*"), RequestOptions.DEFAULT)
 
         val service = ReindexService(elastic)
-        service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", ElasticHostAndPort("localhost"))
+        service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", micro.elasticLowLevelClient)
     }
 
     @Ignore
@@ -145,9 +150,12 @@ class ManagementTest {
         println(getAllLogNamesWithPrefix(elastic, "http_logs"))
     }
 
+    @Ignore
     @Test
     fun `Delete all empty test`() {
+        val micro = initializeMicro()
+        micro.install(ElasticFeature)
         val service = ExpiredEntriesDeleteService(elastic)
-        service.deleteAllEmptyIndices()
+        service.deleteAllEmptyIndices(micro.elasticLowLevelClient)
     }
 }

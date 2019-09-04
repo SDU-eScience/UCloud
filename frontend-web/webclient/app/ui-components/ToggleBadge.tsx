@@ -1,6 +1,6 @@
-import styled from 'styled-components'
-import theme, { ThemeColor } from './theme'
-import { SpaceProps, FontSizeProps, ColorProps, space, fontSize, BackgroundColorProps } from 'styled-system';
+import styled from "styled-components";
+import {BackgroundColorProps, ColorProps, fontSize, FontSizeProps, space, SpaceProps} from "styled-system";
+import theme, {ThemeColor} from "./theme";
 
 const ToggleBadge = styled.button<ToggleBadge>`
   border-radius: ${props => props.theme.radius};
@@ -17,23 +17,23 @@ const ToggleBadge = styled.button<ToggleBadge>`
   &:hover {
     background-color: ${(props) => props.theme.colors[props.bg]};
   }
-`
+`;
 
 ToggleBadge.displayName = "ToggleBadge";
 
 interface ToggleBadge extends SpaceProps, FontSizeProps, ColorProps, BackgroundColorProps {
-  selected?: boolean
-  unSelectedBg?: string
-  bg: ThemeColor
+  selected?: boolean;
+  unSelectedBg?: string;
+  bg: ThemeColor;
 }
 
 ToggleBadge.defaultProps = {
   selected: false,
   fontSize: 0,
-  theme: theme,
-  color: 'blue',
-  bg: 'lightBlue',
-  unSelectedBg: 'transparent'
-}
+  theme,
+  color: "blue",
+  bg: "lightBlue",
+  unSelectedBg: "transparent"
+};
 
-export default ToggleBadge
+export default ToggleBadge;

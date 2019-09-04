@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -161,5 +162,33 @@ object Shares : CallDescriptionContainer("shares") {
             val id: Long,
             val createLink: Boolean?
         )
+    }
+
+    val listFiles = call<ListFiles.Request, Page<StorageFile>, CommonErrorMessage>("listFiles") {
+        auth {
+            access = AuthAccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"list-files"
+            }
+
+            params {
+                +boundTo(ListFiles.Request::itemsPerPage)
+                +boundTo(ListFiles.Request::page)
+            }
+
+            headers {
+                +"X-No-Load"
+            }
+        }
+    }
+
+    object ListFiles {
+        data class Request(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
     }
 }

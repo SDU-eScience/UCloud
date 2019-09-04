@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -18,7 +17,7 @@ class JobFileTest{
     @Test
     fun `initialize Result folder test`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService(authClient)
+        val service = JobFileService(authClient,  { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -37,7 +36,7 @@ class JobFileTest{
     @Test
     fun `test accept File - no extract also absolute path`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService(authClient)
+        val service = JobFileService(authClient, { _, _ -> authClient }, ParameterExportService())
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -64,7 +63,7 @@ class JobFileTest{
     @Test
     fun `test accept File - with extract`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService(authClient)
+        val service = JobFileService(authClient, { _, _ -> authClient }, ParameterExportService())
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -96,7 +95,7 @@ class JobFileTest{
     @Test
     fun `jobFolder test`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService(authClient)
+        val service = JobFileService(authClient, { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,

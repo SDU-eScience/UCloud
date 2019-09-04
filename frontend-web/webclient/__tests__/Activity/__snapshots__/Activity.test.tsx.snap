@@ -1,0 +1,589 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Mount Activity Page 1`] = `
+<div
+  className="sc-bdVaJa kWHfbQ"
+  cursor="auto"
+>
+  <div
+    className="sc-bdVaJa sc-bwzfXH sc-TOsTZ eomwRn"
+    cursor="auto"
+    height={96}
+    width={1}
+  >
+    <h2
+      className="sc-EHOje dhprTV"
+      cursor="inherit"
+      fontSize={5}
+    >
+      File Activity
+    </h2>
+  </div>
+  <div
+    className="sc-bdVaJa sc-jKJlTe dfFKDu"
+    cursor="auto"
+  >
+    <div
+      className="sc-bdVaJa sc-bwzfXH sc-kgAjT itnsYm"
+      cursor="auto"
+      height="100%"
+      width={340}
+    >
+      <div
+        className="sc-bdVaJa hGjbmD"
+        cursor="auto"
+      >
+        <h3
+          className="sc-EHOje eEFUYx"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Quick Filters
+        </h3>
+        <div
+          className="sc-bdVaJa hGjbmD"
+          cursor="auto"
+        >
+          <a
+            className="sc-kkGfuU kooRoB"
+            color="text"
+            href="#"
+            onClick={[Function]}
+            style={
+              Object {
+                "display": "block",
+              }
+            }
+          >
+            Today
+          </a>
+          <a
+            className="sc-kkGfuU kooRoB"
+            color="text"
+            href="#"
+            onClick={[Function]}
+            style={
+              Object {
+                "display": "block",
+              }
+            }
+          >
+            Yesterday
+          </a>
+          <a
+            className="sc-kkGfuU kooRoB"
+            color="text"
+            href="#"
+            onClick={[Function]}
+            style={
+              Object {
+                "display": "block",
+              }
+            }
+          >
+            This week
+          </a>
+          <a
+            className="sc-kkGfuU kooRoB"
+            color="text"
+            href="#"
+            onClick={[Function]}
+            style={
+              Object {
+                "display": "block",
+              }
+            }
+          >
+            No filter
+          </a>
+        </div>
+      </div>
+      <h3
+        className="sc-EHOje eEFUYx"
+        cursor="inherit"
+        fontSize={4}
+      >
+        Active Filters
+      </h3>
+      <div
+        className="sc-bdVaJa hGjbmD"
+        cursor="auto"
+      >
+        <label
+          className="sc-kAzzGY kPZzDI"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Filter by event type
+        </label>
+        <div
+          className="sc-hzDkRC isPhWx"
+          data-tag="dropdown"
+        >
+          <span
+            className="sc-EHOje ipPJmn"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            Don't filter
+            <svg
+              className="sc-gzVnrw iRGJwP"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              ml=".7em"
+              viewBox="0 0 24 12"
+              width=".7em"
+            >
+              <path
+                d="M0 0l11.959 12 12-12H0z"
+              />
+            </svg>
+          </span>
+          <div
+            className="sc-jhAzac eUBWEs"
+            color="black"
+            cursor="pointer"
+            disabled={false}
+            onClick={[Function]}
+            overflow="visible"
+            width="138px"
+          >
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Don't filter
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Deletions
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Downloads
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Favorites
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Inspections
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Moves
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Updates
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        className="sc-bdVaJa hGjbmD"
+        cursor="auto"
+      >
+        <label
+          className="sc-kAzzGY kPZzDI"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Event created after
+        </label>
+        <div
+          className="sc-kEYyzF fUuJBO"
+        >
+          <div
+            className="react-datepicker-wrapper"
+          >
+            <div
+              className="react-datepicker__input-container"
+            >
+              <input
+                className="sc-cJSrbW eoKHZT"
+                disabled={false}
+                onBlur={[Function]}
+                onChange={[Function]}
+                onClick={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                placeholder="Don't filter"
+                readOnly={false}
+                type="text"
+                value=""
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        className="sc-bdVaJa hGjbmD"
+        cursor="auto"
+      >
+        <label
+          className="sc-kAzzGY kPZzDI"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Event created before
+        </label>
+        <div
+          className="sc-kEYyzF fUuJBO"
+        >
+          <div
+            className="react-datepicker-wrapper"
+          >
+            <div
+              className="react-datepicker__input-container"
+            >
+              <input
+                className="sc-cJSrbW eoKHZT"
+                disabled={false}
+                onBlur={[Function]}
+                onChange={[Function]}
+                onClick={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                placeholder="Don't filter"
+                readOnly={false}
+                type="text"
+                value=""
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="sc-bdVaJa fWBlWq"
+    cursor="auto"
+  >
+    <div
+      className="sc-bdVaJa sc-jKJlTe eTxbpL"
+      cursor="auto"
+    >
+      <div
+        className="sc-bdVaJa hGjbmD"
+        cursor="auto"
+      >
+        <h3
+          className="sc-EHOje eEFUYx"
+          cursor="inherit"
+          fontSize={4}
+        >
+          Quick Filters
+        </h3>
+        <div
+          className="sc-bdVaJa hGjbmD"
+          cursor="auto"
+        >
+          <a
+            className="sc-kkGfuU kooRoB"
+            color="text"
+            href="#"
+            onClick={[Function]}
+            style={
+              Object {
+                "display": "block",
+              }
+            }
+          >
+            Today
+          </a>
+          <a
+            className="sc-kkGfuU kooRoB"
+            color="text"
+            href="#"
+            onClick={[Function]}
+            style={
+              Object {
+                "display": "block",
+              }
+            }
+          >
+            Yesterday
+          </a>
+          <a
+            className="sc-kkGfuU kooRoB"
+            color="text"
+            href="#"
+            onClick={[Function]}
+            style={
+              Object {
+                "display": "block",
+              }
+            }
+          >
+            This week
+          </a>
+          <a
+            className="sc-kkGfuU kooRoB"
+            color="text"
+            href="#"
+            onClick={[Function]}
+            style={
+              Object {
+                "display": "block",
+              }
+            }
+          >
+            No filter
+          </a>
+        </div>
+      </div>
+      <h3
+        className="sc-EHOje eEFUYx"
+        cursor="inherit"
+        fontSize={4}
+      >
+        Active Filters
+      </h3>
+      <div
+        className="sc-bdVaJa hGjbmD"
+        cursor="auto"
+      >
+        <label
+          className="sc-kAzzGY kPZzDI"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Filter by event type
+        </label>
+        <div
+          className="sc-hzDkRC isPhWx"
+          data-tag="dropdown"
+        >
+          <span
+            className="sc-EHOje ipPJmn"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            Don't filter
+            <svg
+              className="sc-gzVnrw iRGJwP"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              ml=".7em"
+              viewBox="0 0 24 12"
+              width=".7em"
+            >
+              <path
+                d="M0 0l11.959 12 12-12H0z"
+              />
+            </svg>
+          </span>
+          <div
+            className="sc-jhAzac eUBWEs"
+            color="black"
+            cursor="pointer"
+            disabled={false}
+            onClick={[Function]}
+            overflow="visible"
+            width="138px"
+          >
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Don't filter
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Deletions
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Downloads
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Favorites
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Inspections
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Moves
+            </div>
+            <div
+              className="sc-bdVaJa cLNHPA"
+              cursor="pointer"
+              onClick={[Function]}
+              width="auto"
+            >
+              Updates
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        className="sc-bdVaJa hGjbmD"
+        cursor="auto"
+      >
+        <label
+          className="sc-kAzzGY kPZzDI"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Event created after
+        </label>
+        <div
+          className="sc-kEYyzF fUuJBO"
+        >
+          <div
+            className="react-datepicker-wrapper"
+          >
+            <div
+              className="react-datepicker__input-container"
+            >
+              <input
+                className="sc-cJSrbW eoKHZT"
+                disabled={false}
+                onBlur={[Function]}
+                onChange={[Function]}
+                onClick={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                placeholder="Don't filter"
+                readOnly={false}
+                type="text"
+                value=""
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        className="sc-bdVaJa hGjbmD"
+        cursor="auto"
+      >
+        <label
+          className="sc-kAzzGY kPZzDI"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
+          Event created before
+        </label>
+        <div
+          className="sc-kEYyzF fUuJBO"
+        >
+          <div
+            className="react-datepicker-wrapper"
+          >
+            <div
+              className="react-datepicker__input-container"
+            >
+              <input
+                className="sc-cJSrbW eoKHZT"
+                disabled={false}
+                onBlur={[Function]}
+                onChange={[Function]}
+                onClick={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                placeholder="Don't filter"
+                readOnly={false}
+                type="text"
+                value=""
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h2
+        className="sc-EHOje dhprTV"
+        cursor="inherit"
+        fontSize={5}
+      >
+        No results.
+      </h2>
+    </div>
+    <div
+      className="sc-ifAKCX dmiugM"
+      cursor="inherit"
+    >
+      <button
+        className="sc-htoDjs cwuwqB"
+        color="blue"
+        disabled={false}
+        onClick={[Function]}
+      >
+        Load more
+      </button>
+    </div>
+  </div>
+</div>
+`;

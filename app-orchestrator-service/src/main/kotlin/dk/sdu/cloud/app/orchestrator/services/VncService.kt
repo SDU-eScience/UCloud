@@ -18,7 +18,7 @@ class VncService<DBSession>(
     private val serviceClient: AuthenticatedClient
 ) {
     suspend fun queryVncParameters(jobId: String, requestedBy: String): QueryInternalVncParametersResponse {
-        val (job, _) = db.withTransaction { jobDao.find(it, jobId) }
+        val (job) = db.withTransaction { jobDao.find(it, jobId) }
         if (job.owner != requestedBy) throw RPCException("Not found", HttpStatusCode.NotFound)
 
         val backend = computationBackendService.getAndVerifyByName(job.backend)

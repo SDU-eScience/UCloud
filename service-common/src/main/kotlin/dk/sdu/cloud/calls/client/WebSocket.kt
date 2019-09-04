@@ -115,12 +115,14 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             while (!channel.isClosedForReceive) {
                 val message = channel.receive()
                 if (message is WSMessage.Response) {
-                    log.info("[$callId] <- $url (${call.fullName}, $streamId) RESPONSE ${System.currentTimeMillis() - start}ms")
+                    log.info("[$callId] <- $url (${call.fullName}, $streamId) " +
+                            "RESPONSE ${System.currentTimeMillis() - start}ms")
                     response = message
                     channel.cancel()
                     session.unsubscribe(streamId)
                 } else if (message is WSMessage.Message && handler != null) {
-                    log.info("[$callId] <- $url (${call.fullName}, $streamId) MESSAGE ${System.currentTimeMillis() - start}ms")
+                    log.info("[$callId] <- $url (${call.fullName}, $streamId) " +
+                            "MESSAGE ${System.currentTimeMillis() - start}ms")
                     handler(message.payload)
                 }
             }
@@ -190,6 +192,7 @@ internal class WSClientSession constructor(
 
     fun startProcessing(scope: CoroutineScope) {
         scope.launch {
+            @Suppress("TooGenericExceptionCaught")
             try {
                 var messagesReceived = 0
                 while (true) {

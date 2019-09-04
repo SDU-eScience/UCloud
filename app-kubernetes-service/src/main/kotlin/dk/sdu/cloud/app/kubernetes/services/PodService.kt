@@ -1,6 +1,12 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.AddStatusJob
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.orchestrator.api.JobCompletedRequest
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.StateChangeRequest
+import dk.sdu.cloud.app.orchestrator.api.SubmitComputationResult
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
@@ -9,9 +15,16 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import io.fabric8.kubernetes.api.model.*
+import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
+import io.fabric8.kubernetes.api.model.EnvVar
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
+import io.fabric8.kubernetes.api.model.Pod
+import io.fabric8.kubernetes.api.model.PodSecurityContext
+import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
+import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
@@ -25,6 +38,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import java.io.File
+import java.io.InputStream
 import java.nio.file.Files
 import java.time.ZonedDateTime
 
@@ -113,15 +127,15 @@ class PodService(
             val jobId = reverseLookupJobName(jobName) ?: return
 
             // Check for failure
-            val firstOrNull = job.status?.conditions?.firstOrNull()
-            if (firstOrNull != null && firstOrNull.type == "Failed" && firstOrNull.reason == "DeadlineExceeded") {
+            val condition = job.status?.conditions?.firstOrNull()
+            if (condition != null && condition.type == "Failed" && condition.reason == "DeadlineExceeded") {
                 GlobalScope.launch {
                     jobManager.get(jobId).markAsFinished {
                         ComputationCallbackDescriptions.requestStateChange.call(
                             StateChangeRequest(
                                 jobId,
                                 JobState.TRANSFER_SUCCESS,
-                                job.status.conditions.first().message
+                                "Job did not complete within deadline"
                             ),
                             serviceClient
                         ).orThrow()
@@ -140,14 +154,14 @@ class PodService(
                 return
             }
 
-            val resources = findPods(jobId)
-            if (resources.isEmpty()) return
+            val allPods = findPods(jobId)
+            if (allPods.isEmpty()) return
 
             var isDone = true
             var maxDurationInMillis = 0L
             var isSuccess = true
-            for (resource in resources) {
-                val userContainer = resource.status.containerStatuses.getOrNull(0) ?: return
+            for (pod in allPods) {
+                val userContainer = pod.status.containerStatuses.getOrNull(0) ?: return
                 val containerState = userContainer.state.terminated
 
                 if (containerState == null || containerState.startedAt == null) {
@@ -172,7 +186,7 @@ class PodService(
             }
 
             if (isDone) {
-                val resource = resources.first()
+                val resource = allPods.first()
                 GlobalScope.launch {
                     jobManager.get(jobId).markAsFinished {
                         val duration = SimpleDuration.fromMillis(maxDurationInMillis)
@@ -221,24 +235,33 @@ class PodService(
     }
 
     private suspend fun transferLog(jobId: String, podName: String) {
-        log.debug("Downloading log")
-        val logFile = Files.createTempFile("log", ".txt").toFile()
-        k8sClient.pods().inNamespace(namespace).withName(podName)
-            .logReader.use { ins ->
-            logFile.writer().use { out ->
-                ins.copyTo(out)
+        try {
+            log.debug("Downloading log")
+            val logFile = Files.createTempFile("log", ".txt").toFile()
+            k8sClient.pods().inNamespace(namespace).withName(podName)
+                .logReader.use { ins ->
+                logFile.writer().use { out ->
+                    ins.copyTo(out)
+                }
             }
-        }
 
-        ComputationCallbackDescriptions.submitFile.call(
-            SubmitComputationResult(
-                jobId,
-                "stdout.txt",
-                false,
-                BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
-            ),
-            serviceClient
-        ).orThrow()
+            ComputationCallbackDescriptions.submitFile.call(
+                SubmitComputationResult(
+                    jobId,
+                    "stdout.txt",
+                    false,
+                    BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
+                ),
+                serviceClient
+            ).orThrow()
+        } catch (ex: KubernetesClientException) {
+            if (ex.code == 400 || ex.code == 404) {
+                // Assume that this is because there is log to retrieve
+                return
+            }
+
+            throw ex
+        }
     }
 
     suspend fun cancel(verifiedJob: VerifiedJob) {
@@ -259,6 +282,7 @@ class PodService(
         }
     }
 
+    @Suppress("LongMethod")
     fun create(verifiedJob: VerifiedJob) {
         log.info("Creating new job with name: ${verifiedJob.id}")
 
@@ -340,7 +364,7 @@ class PodService(
 
                                 withContainers(
                                     container {
-                                        val uid = verifiedJob.uid + 1000
+                                        val uid = LINUX_FS_USER_UID.toLong()
                                         val app = verifiedJob.application.invocation
                                         val tool = verifiedJob.application.invocation.tool.tool!!.description
                                         val givenParameters =
@@ -422,7 +446,10 @@ class PodService(
                                                 null,
                                                 DATA_STORAGE,
                                                 false,
-                                                verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/output" }
+                                                verifiedJob.workspace
+                                                    ?.removePrefix("/")
+                                                    ?.removeSuffix("/")
+                                                    ?.let { it + "/output" }
                                                     ?: throw RPCException(
                                                         "No workspace found",
                                                         HttpStatusCode.BadRequest
@@ -434,7 +461,10 @@ class PodService(
                                                 null,
                                                 DATA_STORAGE,
                                                 true,
-                                                verifiedJob.workspace?.removePrefix("/")?.removeSuffix("/")?.let { it + "/input" }
+                                                verifiedJob.workspace
+                                                    ?.removePrefix("/")
+                                                    ?.removeSuffix("/")
+                                                    ?.let { it + "/input" }
                                                     ?: throw RPCException(
                                                         "No workspace found",
                                                         HttpStatusCode.BadRequest
@@ -478,8 +508,18 @@ class PodService(
 
         GlobalScope.launch {
             log.info("Awaiting container start!")
+
+            @Suppress("TooGenericExceptionCaught")
             try {
                 if (verifiedJob.nodes > 1) {
+                    ComputationCallbackDescriptions.addStatus.call(
+                        AddStatusJob(
+                            verifiedJob.id,
+                            "Your job is currently waiting to be scheduled. This step might take a while."
+                        ),
+                        serviceClient
+                    )
+
                     awaitCatching(retries = 36_000, delay = 100) {
                         val pods = findPods(verifiedJob.id)
                         pods.all { pod ->
@@ -488,6 +528,14 @@ class PodService(
                             state.running != null || state.terminated != null
                         }
                     }
+
+                    ComputationCallbackDescriptions.addStatus.call(
+                        AddStatusJob(
+                            verifiedJob.id,
+                            "Configuring multi-node application"
+                        ),
+                        serviceClient
+                    )
 
                     // Now we initialize the files stored in MULTI_NODE_CONFIG
                     val findPods = findPods(verifiedJob.id)
@@ -531,8 +579,23 @@ class PodService(
                     log.debug("Multi node configuration written to all nodes for ${verifiedJob.id}")
                 }
 
-                awaitCatching(retries = 36_000, delay = 100) {
+                // We cannot really provide a better message. We truly do not know what is going on with the job.
+                // It might be pulling stuff, it might be in the queue. Really, we have no idea what is happening
+                // with it. It does not appear that Kubernetes is exposing any of this information to us.
+                //
+                // We don't really care about a failure in this one
+                ComputationCallbackDescriptions.addStatus.call(
+                    AddStatusJob(
+                        verifiedJob.id,
+                        "Your job is currently waiting to be scheduled. This step might take a while."
+                    ),
+                    serviceClient
+                )
+
+                awaitCatching(retries = 36_000 * 24, delay = 100) {
                     val pods = findPods(verifiedJob.id)
+                    check(pods.isNotEmpty()) { "Found no pods for job!" }
+
                     pods.all { pod ->
                         // Note: We are awaiting the user container
                         val state = pod.status.containerStatuses.first().state
@@ -600,6 +663,12 @@ class PodService(
         }
     }
 
+    fun watchLog(requestId: String): Pair<Closeable, InputStream>? {
+        val pod = findPods(requestId).firstOrNull() ?: return null
+        val res = k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name).watchLog()
+        return Pair(res, res.output)
+    }
+
     fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int): Tunnel {
         val pod = findPods(jobId).firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         fun findPodResource() = k8sClient.pods().inNamespace(namespace).withName(pod.metadata.name)
@@ -665,6 +734,7 @@ class PodService(
     }
 }
 
+@Suppress("ConstructorParameterNaming")
 class Tunnel(
     val jobId: String,
     val ipAddress: String,

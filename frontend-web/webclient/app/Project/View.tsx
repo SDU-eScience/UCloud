@@ -35,9 +35,8 @@ const View: React.FunctionComponent<{ match: match<{ id: string }> }> = props =>
 
     const onSubmit = async e => {
         e.preventDefault();
-        let inputField = newMemberRef.current!;
-        let username = inputField.value;
-        console.log(username);
+        const inputField = newMemberRef.current!;
+        const username = inputField.value;
 
         await createNewMember(addMemberInProject({
             projectId: id,
@@ -120,9 +119,9 @@ const ViewMember: React.FunctionComponent<{
                             props.onActionComplete();
                         }}
                         options={[
-                            {"text": "User", value: ProjectRole.USER},
-                            {"text": "Data Steward", value: ProjectRole.DATA_STEWARD},
-                            {"text": "Admin", value: ProjectRole.ADMIN}
+                            {text: "User", value: ProjectRole.USER},
+                            {text: "Data Steward", value: ProjectRole.DATA_STEWARD},
+                            {text: "Admin", value: ProjectRole.ADMIN}
                         ]}
                     />
                 }

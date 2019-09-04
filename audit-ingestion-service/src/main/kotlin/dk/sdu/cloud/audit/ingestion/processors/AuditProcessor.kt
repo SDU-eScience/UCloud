@@ -8,6 +8,7 @@ import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.index.IndexRequest
+import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.XContentType
 import java.text.DateFormat
@@ -61,7 +62,7 @@ class AuditProcessor(
                 }
                 .chunked(1000)
                 .forEach { chunk ->
-                    client.bulk(BulkRequest().also { it.add(chunk) })
+                    client.bulk(BulkRequest().also { it.add(chunk) }, RequestOptions.DEFAULT)
                 }
         })
     }

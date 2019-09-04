@@ -1,34 +1,30 @@
-import * as React from "react";
-import * as Pagination from "Pagination";
-import {connect} from "react-redux";
 import {ApplicationCard} from "Applications/Card";
-import {allFileOperations, favoriteFileFromPage} from "Utilities/FileUtilities";
-import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
-import {HeaderSearchType, ReduxObject, emptyPage} from "DefaultObjects";
-import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Dispatch} from "redux";
-import {SortOrder, SortBy, AdvancedSearchRequest, FileType} from "Files";
-import * as SSActions from "./Redux/SearchActions";
-import Text from "ui-components/Text";
-import Flex from "ui-components/Flex";
-import Hide from "ui-components/Hide";
-import theme from "ui-components/theme";
-import {MainContainer} from "MainContainer/MainContainer";
-import {toggleFilesSearchHidden, setFilename} from "Files/Redux/DetailedFileSearchActions";
+import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppName} from "Applications/Redux/DetailedApplicationSearchActions";
-import FilesTable from "Files/FilesTable";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {emptyPage, HeaderSearchType, ReduxObject} from "DefaultObjects";
+import {AdvancedSearchRequest, FileType} from "Files";
+import DetailedFileSearch from "Files/DetailedFileSearch";
+import {EmbeddedFileTable} from "Files/FileTable"
+import {setFilename, toggleFilesSearchHidden} from "Files/Redux/DetailedFileSearchActions";
+import {MainContainer} from "MainContainer/MainContainer";
+import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage} from "Navigation/Redux/StatusActions";
+import * as Pagination from "Pagination";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {SelectableText, SelectableTextWrapper} from "ui-components";
+import {GridCardGroup} from "ui-components/Grid";
+import Hide from "ui-components/Hide";
+import {SidebarPages} from "ui-components/Sidebar";
+import {Spacer} from "ui-components/Spacer";
+import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
-import styled from "styled-components";
-import {GridCardGroup} from "ui-components/Grid";
-import {SidebarPages} from "ui-components/Sidebar";
-import {setActivePage} from "Navigation/Redux/StatusActions";
-import {Spacer} from "ui-components/Spacer";
-import {Cloud} from "Authentication/SDUCloudObject";
 import {prettierString} from "UtilityFunctions";
-import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import DetailedFileSearch from "Files/DetailedFileSearch";
-import {SelectableTextWrapper, SelectableText} from "ui-components";
+import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
+import * as SSActions from "./Redux/SearchActions";
 
 function Search(props: SearchProps) {
     React.useEffect(() => {
@@ -42,7 +38,7 @@ function Search(props: SearchProps) {
             props.toggleAdvancedSearch();
             props.clear();
             props.setRefresh();
-        }
+        };
     }, []);
 
     const query = (): string => queryFromProps(props);
@@ -54,7 +50,7 @@ function Search(props: SearchProps) {
     const fileSearchBody = (): AdvancedSearchRequest => {
         // FIXME Duplicate code
         const {...fileSearch} = props.fileSearch;
-        let fileTypes: [FileType?, FileType?] = [];
+        const fileTypes: [FileType?, FileType?] = [];
         if (fileSearch.allowFiles) fileTypes.push("FILE");
         if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
         const createdAt = {
@@ -70,11 +66,14 @@ function Search(props: SearchProps) {
             fileName: !!fileSearch.fileName ? fileSearch.fileName : query(),
             extensions: [...fileSearch.extensions],
             fileTypes,
-            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
-            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            createdAt: typeof createdAt.after === "number" ||
+                       typeof createdAt.before === "number" ? createdAt : undefined,
+            modifiedAt: typeof modifiedAt.after === "number" ||
+                        typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            includeShares: fileSearch.includeShares,
             itemsPerPage: props.files.itemsPerPage || 25,
             page: 0
-        }
+        };
     };
 
     React.useEffect(() => {
@@ -88,27 +87,19 @@ function Search(props: SearchProps) {
         props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
     };
 
-    function fetchAll(search: string, itemsPerPage?: number) {
+    function fetchAll(searchQuery: string, itemsPerPage?: number) {
         props.searchFiles({
             ...fileSearchBody(),
-            fileName: search,
+            fileName: searchQuery,
             itemsPerPage: itemsPerPage || props.files.itemsPerPage
         });
-        props.searchApplications(search, 0, itemsPerPage || props.applications.itemsPerPage);
+        props.searchApplications(searchQuery, 0, itemsPerPage || props.applications.itemsPerPage);
     }
 
     const refreshFiles = () => props.searchFiles({...fileSearchBody()});
-    const {search, files, applications, filesLoading, applicationsLoading, errors} = props;
-    const fileOperations = allFileOperations({
-        stateless: true,
-        history: props.history,
-        onDeleted: () => refreshFiles(),
-        onExtracted: () => refreshFiles(),
-        onSensitivityChange: () => refreshFiles(),
-        setLoading: () => props.setFilesLoading(true),
-    });
+    const {search, files, applications, applicationsLoading} = props;
 
-    const Tab = ({searchType}: { searchType: HeaderSearchType }): JSX.Element => (
+    const Tab = ({searchType}: {searchType: HeaderSearchType}): JSX.Element => (
         <SelectableText
             cursor="pointer"
             fontSize={2}
@@ -122,36 +113,24 @@ function Search(props: SearchProps) {
 
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
 
-    let main;
+    let main: React.ReactNode = null;
     const {priority} = props.match.params;
     if (priority === "files") {
         main = <>
             <Hide xxl xl lg>
-                <DetailedFileSearch cantHide/>
+                <DetailedFileSearch cantHide />
             </Hide>
-            <Pagination.List
-                loading={filesLoading}
-                pageRenderer={page => (
-                    <FilesTable
-                        files={page.items}
-                        sortOrder={SortOrder.ASCENDING}
-                        sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY_LEVEL]}
-                        sortFiles={() => undefined}
-                        onCheckFile={() => undefined}
-                        refetchFiles={() => props.searchFiles(fileSearchBody())}
-                        sortBy={SortBy.PATH}
-                        onFavoriteFile={files => props.setFilesPage(favoriteFileFromPage(props.files, files, Cloud))}
-                        fileOperations={fileOperations}
-                    />
-                )}
-                page={files}
-                onPageChanged={pageNumber => props.searchFiles({...fileSearchBody(), page: pageNumber})}
+
+            <EmbeddedFileTable
+                page={files ? files : emptyPage}
+                onReloadRequested={refreshFiles}
+                includeVirtualFolders={false}
             />
         </>
     } else if (priority === "applications") {
         main = <>
             <Hide xxl xl lg>
-                <DetailedApplicationSearch/>
+                <DetailedApplicationSearch />
             </Hide>
             <Pagination.List
                 loading={applicationsLoading}
@@ -159,9 +138,16 @@ function Search(props: SearchProps) {
                     <GridCardGroup>
                         {items.map(app =>
                             <ApplicationCard
+                                onFavorite={async () => props.setApplicationsPage(await favoriteApplicationFromPage({
+                                    name: app.metadata.name,
+                                    version: app.metadata.version,
+                                    page: props.applications,
+                                    cloud: Cloud
+                                }))}
                                 key={`${app.metadata.name}${app.metadata.version}`}
                                 app={app}
                                 isFavorite={app.favorite}
+                                tags={app.tags}
                             />)}
                     </GridCardGroup>
                 }
@@ -176,7 +162,7 @@ function Search(props: SearchProps) {
             header={
                 <React.Fragment>
                     <SelectableTextWrapper>
-                        {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index}/>)}
+                        {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
                     </SelectableTextWrapper>
                     <Spacer left={null} right={<Pagination.EntriesPerPageSelector
                         onChange={itemsPerPage => fetchAll(props.search, itemsPerPage)}
@@ -184,7 +170,7 @@ function Search(props: SearchProps) {
                         entriesPerPage={
                             priority === "files" ? props.files.itemsPerPage : (props.applications.itemsPerPage)
                         }
-                    />}/>
+                    />} />
                 </React.Fragment>
             }
             main={main}
@@ -196,8 +182,7 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
     setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
     clear: () => {
-        dispatch(SSActions.receiveFiles(emptyPage))
-        dispatch(SSActions.receiveFiles(emptyPage))
+        dispatch(SSActions.receiveFiles(emptyPage));
     },
     searchFiles: async body => {
         dispatch(SSActions.setFilesLoading(true));
@@ -218,9 +203,10 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
-const mapStateToProps = ({simpleSearch, detailedFileSearch, detailedApplicationSearch}: ReduxObject): SimpleSearchStateProps & { favFilesCount: number } => ({
+const mapStateToProps = ({simpleSearch, detailedFileSearch, detailedApplicationSearch}: ReduxObject): SimpleSearchStateProps & {favFilesCount: number, favAppCount: number} => ({
     ...simpleSearch,
     favFilesCount: simpleSearch.files.items.filter(it => it.favorited).length,
+    favAppCount: simpleSearch.applications.items.filter(it => it.favorite).length,
     fileSearch: detailedFileSearch,
     applicationSearch: detailedApplicationSearch
 });

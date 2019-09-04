@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import {fileInfoPage, getFilenameFromPath} from "Utilities/FileUtilities";
+import {getFilenameFromPath, fileTablePage} from "Utilities/FileUtilities";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 import {Box, Card, Flex, Icon, Text, SelectableText, SelectableTextWrapper} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -34,6 +34,7 @@ import {loadingAction} from "Loading";
 import * as Pagination from "Pagination";
 import Link from "ui-components/Link";
 import {PaginationButtons} from "Pagination";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
@@ -48,7 +49,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         useCloudAPI<Page<SharesByPath>>(initialFetchParams, emptyPage) :
         useCloudAPI<SharesByPath | null>(initialFetchParams, null);
 
-    let page = props.byPath === undefined ?
+    const page = props.byPath === undefined ?
         response as APICallState<Page<SharesByPath>> :
         mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
     // End of real data
@@ -57,7 +58,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     if (props.byPath !== undefined && page.data.items.length > 0) {
         sharedByMe = page.data.items[0].sharedByMe;
     } else {
-        let listParams = params as APICallParameters<ListSharesParams>;
+        const listParams = params as APICallParameters<ListSharesParams>;
         if (listParams.parameters !== undefined) {
             sharedByMe = listParams.parameters.sharedByMe;
         }
@@ -87,16 +88,10 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 // Revert reload action
                 props.setRefresh(undefined);
             }
-        }
+        };
     });
 
     useEffect(() => {
-
-        /* In place of 
-            new Set(page.data.items.flatMap(group =>
-                group.shares.map(group.sharedByMe ? share.sharedWith : group.sharedBy)
-            ));
-        */
         const usernames: Set<string> = new Set(page.data.items.map(group =>
             group.shares.map(share => group.sharedByMe ? share.sharedWith : group.sharedBy)
         ).reduce((acc, val) => acc.concat(val), []));
@@ -134,7 +129,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 toPage={page => setPage(page)}
             />
         </GroupedShareCard>)
-    }
+    };
 
     const header = props.byPath !== undefined ? null : (
         <SelectableTextWrapper>
@@ -174,7 +169,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 shares.length === 0 ?
                     <NoShares sharedByMe={sharedByMe} /> :
                     shares.map(it =>
-                        <GroupedShareCardWrapper shareByPath={it} />
+                        <GroupedShareCardWrapper key={it.path} shareByPath={it} />
                     )
             }
         </>
@@ -203,8 +198,8 @@ const NoShares = ({sharedByMe}: {sharedByMe: boolean}) =>
 
 
 interface ListEntryProperties {
-    groupedShare: SharesByPath
-    onUpdate: () => void
+    groupedShare: SharesByPath;
+    onUpdate: () => void;
 }
 
 const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => {
@@ -218,10 +213,14 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         if (!isCreatingShare) {
             event.preventDefault();
 
-            setIsCreatingShare(true);
             const username = newShareUsername.current!.value;
+            if (username.length === 0) {
+                snackbarStore.addFailure("Please fill out the username.");
+                return;
+            }
 
             try {
+                setIsCreatingShare(true);
                 await callAPI(createShare(groupedShare.path, username, newShareRights));
                 newShareUsername.current!.value = "";
                 props.onUpdate();
@@ -233,14 +232,17 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         }
     };
 
+    const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ?
+        <Link to={fileTablePage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link> :
+        <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
     return <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" height="auto">
         <Heading.h4 mb={"10px"}>
             <Flex alignItems={"center"}>
                 <Box ml="3px" mr="10px">
                     <FileIcon
-                        fileIcon={iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder)} />
+                        fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
                 </Box>
-                <Link to={fileInfoPage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link>
+                {folderLink}
                 <Box ml="auto" />
                 {groupedShare.sharedByMe ?
                     `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?
@@ -395,15 +397,6 @@ function sharePermissionsToText(rights: AccessRight[]): string {
     if (rights.indexOf(AccessRight.WRITE) !== -1) return CAN_EDIT_TEXT;
     else if (rights.indexOf(AccessRight.READ) !== -1) return CAN_VIEW_TEXT;
     else return "No permissions";
-}
-
-interface FileTypeGuess {
-    path: string
-}
-
-function fileTypeGuess({path}: FileTypeGuess) {
-    const hasExtension = path.split("/").pop()!.includes(".");
-    return hasExtension ? "FILE" : "DIRECTORY";
 }
 
 const receiveDummyShares = (itemsPerPage: number, page: number) => {

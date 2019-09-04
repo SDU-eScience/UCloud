@@ -37,6 +37,7 @@ export interface APICallParameters<Parameters = any, Payload = any> {
     parameters?: Parameters
     disallowProjects?: boolean
     reloadId?: number // Can be used to force an ID by setting this to a random value
+    noop?: boolean // Used to indicate that this should not be run in a useCloudAPI hook.
 }
 
 export interface APIError {
@@ -58,10 +59,10 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2
 }
 
 export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
-    let method = parameters.method !== undefined ? parameters.method : "GET";
-    if (parameters.path === undefined) throw "Missing path";
+    const method = parameters.method !== undefined ? parameters.method : "GET";
+    if (parameters.path === undefined) throw Error("Missing path");
     return (await Cloud.call({
-        method: method,
+        method,
         path: parameters.path,
         body: parameters.payload,
         context: parameters.context,
@@ -95,32 +96,33 @@ export function useCloudAPI<T, Parameters = any>(
 
     useEffect(() => {
         let didCancel = false;
+        if (params.noop !== true) {
+            async function fetchData() {
+                if (params.path !== undefined) {
+                    dispatch({type: "FETCH_INIT"});
 
-        async function fetchData() {
-            if (params.path !== undefined) {
-                dispatch({type: "FETCH_INIT"});
+                    try {
+                        const result: T = await callAPI(params);
 
-                try {
-                    const result: T = await callAPI(params);
-
-                    if (!didCancel) {
-                        dispatch({type: "FETCH_SUCCESS", payload: result});
-                    }
-                } catch (e) {
-                    if (!didCancel) {
-                        let statusCode = e.request.status;
-                        let why = "Internal Server Error";
-                        if (!!e.response && e.response.why) {
-                            why = e.response.why;
+                        if (!didCancel) {
+                            dispatch({type: "FETCH_SUCCESS", payload: result});
                         }
+                    } catch (e) {
+                        if (!didCancel) {
+                            const statusCode = e.request.status;
+                            let why = "Internal Server Error";
+                            if (!!e.response && e.response.why) {
+                                why = e.response.why;
+                            }
 
-                        dispatch({type: "FETCH_FAILURE", error: {why, statusCode}});
+                            dispatch({type: "FETCH_FAILURE", error: {why, statusCode}});
+                        }
                     }
                 }
             }
-        }
 
-        fetchData();
+            fetchData();
+        }
 
         return () => {
             didCancel = true;
@@ -135,14 +137,46 @@ export function useCloudAPI<T, Parameters = any>(
     return [returnedState, doFetch, params];
 }
 
-export function useAsyncCommand(): [boolean, (call: APICallParameters) => void] {
+export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
     const [isLoading, setIsLoading] = useState(false);
-    const sendCommand = async (call: APICallParameters) => {
+    const sendCommand = async <T>(call: APICallParameters) => {
         setIsLoading(true);
-        await callAPIWithErrorHandler(call);
+        const result = await callAPIWithErrorHandler<T>(call);
         setIsLoading(false);
+        return result;
     };
 
     return [isLoading, sendCommand];
 }
 
+export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
+
+export function useAsyncWork(): AsyncWorker {
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | undefined>(undefined);
+    const startWork = async (fn: () => Promise<void>) => {
+        setError(undefined);
+        setIsLoading(true);
+        try {
+            await fn();
+        } catch (e) {
+            if (!!e.request) {
+                let why = "Internal Server Error";
+                if (!!e.response && e.response.why) {
+                    why = e.response.why;
+                }
+                setError(why);
+            } else if (typeof e === "string") {
+                setError(e);
+            } else if ("message" in e && typeof e.message === "string") {
+                setError(e.message);
+            } else {
+                setError("Internal error");
+                console.warn(e);
+            }
+        }
+        setIsLoading(false);
+    };
+
+    return [isLoading, error, startWork];
+}

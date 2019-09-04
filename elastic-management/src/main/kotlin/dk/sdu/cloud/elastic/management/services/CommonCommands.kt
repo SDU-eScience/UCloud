@@ -1,7 +1,5 @@
 package dk.sdu.cloud.elastic.management.services
 
-import dk.sdu.cloud.elastic.management.ElasticHostAndPort
-import org.apache.http.HttpHost
 import org.apache.http.util.EntityUtils
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
@@ -64,8 +62,7 @@ internal fun getAllLogNamesWithPrefix(elastic: RestHighLevelClient, prefix: Stri
     return httpLogNames.toList()
 }
 
-internal fun getDocumentCountSum(indices: List<String>, elasticHostAndPort: ElasticHostAndPort): Int{
-    val lowClient = RestClient.builder(HttpHost(elasticHostAndPort.host, elasticHostAndPort.port)).build()
+internal fun getDocumentCountSum(indices: List<String>, lowClient: RestClient): Int{
     var count = 0
     try {
     indices.forEach {

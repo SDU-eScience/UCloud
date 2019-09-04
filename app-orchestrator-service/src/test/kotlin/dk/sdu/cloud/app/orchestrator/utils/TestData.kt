@@ -96,6 +96,7 @@ val normTool = Tool("", 0L, 0L, normToolDesc)
 
 val verifiedJob = VerifiedJob(
     normAppDesc,
+    null,
     emptyList(),
     "verifiedId",
     "owner",
@@ -106,19 +107,21 @@ val verifiedJob = VerifiedJob(
     "backend",
     JobState.SCHEDULED,
     "scheduled",
+    null,
     archiveInCollection = normAppDesc.metadata.title,
     createdAt = 12345678,
-    modifiedAt = 123456789,
-    uid = 1337L
+    modifiedAt = 123456789
 )
 
 val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(
     verifiedJob,
+    "token",
     "token"
 )
 
 val startJobRequest = StartJobRequest(
     NameAndVersion("name", "2.2"),
+    null,
     emptyMap(),
     1,
     1,

@@ -29,10 +29,10 @@ const simpleSearch = (
             if (!!action.payload.error) {
                 return {...state, ...action.payload, errors: state.errors.concat([action.payload.error])}
             }
-            return {...state, ...action.payload, errors: []}
+            return {...state, ...action.payload, errors: []};
         default:
             return state
     }
-}
+};
 
 export default simpleSearch;

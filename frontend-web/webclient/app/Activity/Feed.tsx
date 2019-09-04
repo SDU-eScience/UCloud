@@ -1,33 +1,28 @@
-import * as React from "react";
-import {ActivityGroup} from "Activity";
 import * as Module from "Activity";
-import * as moment from "moment";
-import {getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
-import {fileInfoPage} from "Utilities/FileUtilities";
-import Icon, {IconName} from "ui-components/Icon";
-import {Flex, Text, Box} from "ui-components";
-import Table, {TableRow, TableCell, TableBody, TableHeader, TableHeaderCell} from "ui-components/Table";
 import {Cloud} from "Authentication/SDUCloudObject";
-import styled from "styled-components";
+import * as moment from "moment";
+import * as React from "react";
 import {Link as ReactRouterLink} from "react-router-dom";
+import styled from "styled-components";
+import {Box, Flex, Text} from "ui-components";
+import Icon, {IconName} from "ui-components/Icon";
+import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {colors} from "ui-components/theme";
+import {fileInfoPage, getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
 
-export class ActivityFeedFrame extends React.PureComponent<{containerRef?: React.RefObject<any>}> {
-    render() {
-        return <Table>
-            <TableHeader>
-                <TFRow>
-                    <TableHeaderCell width="12em" />
-                    <TableHeaderCell width="10.5em" />
-                    <TableHeaderCell width="99%" />
-                </TFRow>
-            </TableHeader>
-            <TableBody ref={this.props.containerRef}>
-                {this.props.children}
-            </TableBody>
-        </Table>;
-    }
-
+export function ActivityFeedFrame(props: {containerRef?: React.RefObject<any>, children?: JSX.Element[]}) {
+    return <Table>
+        <TableHeader>
+            <TFRow>
+                <TableHeaderCell width="12em" />
+                <TableHeaderCell width="10.5em" />
+                <TableHeaderCell width="99%" />
+            </TFRow>
+        </TableHeader>
+        <TableBody ref={props.containerRef}>
+            {props.children}
+        </TableBody>
+    </Table >;
 }
 
 export const ActivityFeed = ({activity}: {activity: Module.Activity[]}) => (
@@ -60,8 +55,10 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
                 {" "}
                 <b>
                     <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
-                    <div className="ellipsis">
-                            <Text color="black">{replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}</Text>
+                        <div className="ellipsis">
+                            <Text color="black">
+                                {replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}
+                            </Text>
                         </div>
                     </ReactRouterLink>
                 </b>
@@ -85,18 +82,18 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
 
 export const ActivityFeedSpacer = (props: {height: number}) => (
     <tr style={{height: `${props.height}px`}} />
-)
+);
 
 interface ActivityFeedProps {
-    activity: ActivityGroup
+    activity: Module.ActivityGroup;
 }
 
 export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
-    shouldComponentUpdate(nextProps: ActivityFeedProps) {
+    public shouldComponentUpdate(nextProps: ActivityFeedProps) {
         return this.props.activity.newestTimestamp !== nextProps.activity.newestTimestamp;
     }
 
-    render() {
+    public render() {
         const {activity} = this.props;
         return <TFRow>
             <TableCell>
@@ -125,23 +122,29 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
                     null
                 }
             </TableCell>
-        </TFRow>
+        </TFRow>;
     }
 }
 
 const operationToPastTense = (operation: Module.ActivityType): string => {
     switch (operation) {
-        case Module.ActivityType.DELETED: return "deleted";
-        case Module.ActivityType.DOWNLOAD: return "downloaded";
-        case Module.ActivityType.FAVORITE: return "favorited";
-        case Module.ActivityType.INSPECTED: return "inspected";
-        case Module.ActivityType.MOVED: return "moved";
-        case Module.ActivityType.UPDATED: return "updated";
+        case Module.ActivityType.DELETED:
+            return "deleted";
+        case Module.ActivityType.DOWNLOAD:
+            return "downloaded";
+        case Module.ActivityType.FAVORITE:
+            return "favorited";
+        case Module.ActivityType.INSPECTED:
+            return "inspected";
+        case Module.ActivityType.MOVED:
+            return "moved";
+        case Module.ActivityType.UPDATED:
+            return "updated";
     }
-}
+};
 
 interface EventIconAndColor {
-    icon: IconName
+    icon: IconName;
 }
 
 const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
@@ -159,11 +162,11 @@ const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
         default:
             return {icon: "ellipsis"};
     }
-}
+};
 
-function groupActivity(items: Module.Activity[] = []): ActivityGroup[] {
-    const result: ActivityGroup[] = [];
-    let currentGroup: ActivityGroup | null = null;
+function groupActivity(items: Module.Activity[] = []): Module.ActivityGroup[] {
+    const result: Module.ActivityGroup[] = [];
+    let currentGroup: Module.ActivityGroup | null = null;
 
     const pushGroup = () => {
         if (currentGroup != null) {
@@ -185,7 +188,8 @@ function groupActivity(items: Module.Activity[] = []): ActivityGroup[] {
         if (currentGroup === null) {
             initializeGroup(item);
         } else {
-            if (currentGroup.type !== item.type || Math.abs(item.timestamp - currentGroup.newestTimestamp) > (1000 * 60 * 15)) {
+            if (currentGroup.type !== item.type ||
+                Math.abs(item.timestamp - currentGroup.newestTimestamp) > (1000 * 60 * 15)) {
                 pushGroup();
                 initializeGroup(item);
             } else {

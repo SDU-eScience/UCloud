@@ -21,7 +21,7 @@ export const statusToColor = (level: StatusLevel): "green" | "yellow" | "red" =>
         case "ERROR":
             return "red";
     }
-}
+};
 
 const mapStateToProps = (state) => ({ status: state.status.status });
 export default connect(mapStateToProps)(Status);

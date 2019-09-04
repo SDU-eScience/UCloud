@@ -21,6 +21,9 @@ import dk.sdu.cloud.share.services.ProcessingService
 import dk.sdu.cloud.share.services.ShareHibernateDAO
 import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
+import dk.sdu.cloud.share.services.ShareSynchronization
+import kotlinx.coroutines.runBlocking
+import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro
@@ -53,6 +56,14 @@ class Server(
             ProcessingService(micro.hibernateDatabase, shareDao, userClientFactory, client, shareService)
 
         val shareQueryService = ShareQueryService(micro.hibernateDatabase, shareDao, client)
+
+        if (micro.commandLineArguments.contains("--sync")) {
+            val service = ShareSynchronization(micro.hibernateDatabase, shareDao, userClientFactory)
+            runBlocking {
+                service.synchronize()
+            }
+            exitProcess(0)
+        }
 
         // Processors
         StorageEventProcessor(processingService, micro.eventStreamService).init()

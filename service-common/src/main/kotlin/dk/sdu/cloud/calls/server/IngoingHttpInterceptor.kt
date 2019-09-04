@@ -209,8 +209,11 @@ class IngoingHttpInterceptor(
                 val returnType = property.returnType
                 val encodedHeaderValue = ctx.call.request.header(header)
                 val value =
-                    if (encodedHeaderValue == null) null
-                    else String(Base64.getDecoder().decode(encodedHeaderValue), Charsets.UTF_8)
+                    if (encodedHeaderValue == null) {
+                        null
+                    } else {
+                        String(Base64.getDecoder().decode(encodedHeaderValue), Charsets.UTF_8)
+                    }
 
                 val companionInstance = returnType.jvmErasure.companionObjectInstance
 
@@ -230,7 +233,6 @@ class IngoingHttpInterceptor(
                 val hasRequiredHeader = ctx.call.request.headers.contains(header)
                 if (!hasRequiredHeader) {
                     log.debug("Missing header '$header'")
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
                 null
             }

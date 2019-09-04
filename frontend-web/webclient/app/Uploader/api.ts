@@ -62,6 +62,7 @@ export const multipartUpload = async (
     request.setRequestHeader("Upload-Location", b64EncodeUnicode(location));
     if (sensitivity !== "INHERIT") request.setRequestHeader("Upload-Sensitivity", b64EncodeUnicode(sensitivity));
     request.setRequestHeader("Upload-Policy", b64EncodeUnicode(policy));
+    request.setRequestHeader("content-type", "application/octet-stream");
     request.send(file);
     return request;
 };

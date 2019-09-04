@@ -44,12 +44,10 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.startServices
-import io.ktor.application.install
-import io.ktor.features.CORS
-import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import org.slf4j.Logger
+import java.io.File
 import java.security.SecureRandom
 import java.util.*
 
@@ -142,19 +140,6 @@ class Server(
         val serverFeature = micro.feature(ServerFeature)
         with(serverFeature.ktorApplicationEngine!!.application) {
             log.info("Configuring HTTP server")
-
-            if (micro.developmentModeEnabled) {
-                install(CORS) {
-                    anyHost()
-                    allowCredentials = true
-                    allowSameOrigin = true
-                    header("authorization")
-                    header("content-type")
-                    HttpMethod.DefaultMethods.forEach {
-                        method(it)
-                    }
-                }
-            }
 
             log.info("Creating HTTP controllers")
 
@@ -249,6 +234,21 @@ class Server(
         log.info("Access token expires in one year.")
         log.info("Password is: '$password'")
         log.info("---------------")
+
+        if (role == Role.ADMIN) {
+            val idx = micro.commandLineArguments.indexOf("--save-config")
+            if (idx != -1) {
+                val configLocation = micro.commandLineArguments.getOrNull(idx + 1) ?: return
+                File(configLocation).writeText(
+                    """
+                        ---
+                        refreshToken: "${token.refreshToken}"
+                        devCsrfToken: ${token.csrfToken}
+                        devPassword: $password
+                    """.trimIndent()
+                )
+            }
+        }
     }
 
     override fun stop() {

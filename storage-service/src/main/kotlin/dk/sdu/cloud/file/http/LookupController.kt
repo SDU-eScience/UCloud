@@ -29,7 +29,7 @@ class LookupController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
-                val stat = fileLookupService.stat(ctx, request.path)
+                val stat = fileLookupService.stat(ctx, request.path, listOf(StorageFileAttribute.fileId))
 
                 val attributes = attributesOrDefault(request.attributes)
 
@@ -39,7 +39,8 @@ class LookupController<Ctx : FSUserContext>(
                     request.normalize(),
                     request.sortBy ?: FileSortBy.TYPE,
                     request.order ?: SortOrder.ASCENDING,
-                    attributes
+                    attributes,
+                    request.type
                 )
 
                 audit(SingleFileAudit(stat.fileId, request))

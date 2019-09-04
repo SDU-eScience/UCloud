@@ -1,23 +1,23 @@
 import styled from "styled-components";
 import {
+    color,
+    ColorProps,
+    minWidth,
+    MinWidthProps,
     textAlign,
     TextAlignProps,
-    WidthProps,
     width,
-    MinWidthProps,
-    minWidth,
-    backgroundColor,
-    BackgroundColorProps
+    WidthProps
 } from "styled-system";
 import {Theme} from "./theme";
 import {Cursor} from "./Types";
 
-export const Table = styled.table<WidthProps & MinWidthProps & BackgroundColorProps>`
-    ${backgroundColor}
+export const Table = styled.table<WidthProps & MinWidthProps & ColorProps>`
+    ${color}
     border: 0px;
     border-spacing: 0;
     table-layout: fixed;
-    ${width} ${minWidth}
+    ${width} ${minWidth} ${color}
 `;
 
 Table.displayName = "Table";
@@ -26,7 +26,7 @@ Table.defaultProps = {
     backgroundColor: "white",
     width: "100%",
     minWidth: "15em"
-}
+};
 
 export const TableBody = styled.tbody``;
 
@@ -40,9 +40,10 @@ export const TableCell = styled.td<TextAlignProps>`
 
 TableCell.displayName = "TableCell";
 
-const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) => highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
+const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) =>
+    highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
 
-export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string, cursor?: Cursor} & BackgroundColorProps>`
+export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string, cursor?: Cursor} & ColorProps>`
     ${highlighted};
     cursor: ${props => props.cursor};
 
@@ -57,7 +58,7 @@ export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string,
 TableRow.defaultProps = {
     backgroundColor: "white",
     cursor: "auto"
-}
+};
 
 TableRow.displayName = "TableRow";
 
@@ -76,6 +77,6 @@ export const TableHeaderCell = styled.th<TextAlignProps & WidthProps>`
     ${width} ${minWidth}
 `;
 
-TableHeaderCell.displayName =  "TableHeaderCell";
+TableHeaderCell.displayName = "TableHeaderCell";
 
 export default Table;

@@ -1,36 +1,36 @@
-import styled, {css} from 'styled-components'
+import styled, {css} from "styled-components";
 import {
-  space, themeGet, BorderProps, SpaceProps,
-  BorderRadiusProps, borderRadius,
-  fontSize, FontSizeProps, width, WidthProps
-} from 'styled-system'
-import defaultTheme from './theme'
-import Text from './Text';
+  BorderProps, borderRadius, BorderRadiusProps,
+  fontSize, FontSizeProps, space, SpaceProps,
+  width, WidthProps
+} from "styled-system";
+import Text from "./Text";
+import defaultTheme from "./theme";
 
 export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, noBorder?: boolean}) => {
   if (noBorder) return "";
   const borderColor = color ? theme.colors[color] : theme.colors.borderGray;
   const focusColor = color ? borderColor : theme.colors.blue;
   return {
-    'border-color': borderColor,
-    'box-shadow': `0 0 0 1px ${borderColor}`,
-    ':focus': {
-      outline: 0,
-      'border-color': focusColor,
-      'box-shadow': `0 0 0 1px ${focusColor},inset 0 0 0 1px ${focusColor}`
+    "border-color": borderColor,
+    "box-shadow": `0 0 0 1px ${borderColor}`,
+    ":focus": {
+      "outline": 0,
+      "border-color": focusColor,
+      "box-shadow": `0 0 0 1px ${focusColor},inset 0 0 0 1px ${focusColor}`
     }
-  }
+  };
 };
 
 export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, FontSizeProps, WidthProps {
-  leftLabel?: boolean
-  rightLabel?: boolean
-  id?: string
-  color?: string
-  noBorder?: boolean
-  error?: boolean
-  showError?: boolean
-  autocomplete?: "on" | "off"
+  leftLabel?: boolean;
+  rightLabel?: boolean;
+  id?: string;
+  color?: string;
+  noBorder?: boolean;
+  error?: boolean;
+  showError?: boolean;
+  autocomplete?: "on" | "off";
 }
 
 const left = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
@@ -44,7 +44,7 @@ const Input = styled.input<InputProps>`
   background-color: transparent;
   border-width: 0px;
   border-style: solid;
-  border-color: ${themeGet("colors.borderGray")};
+  border-color: ${({theme}) => theme.colors.borderGray};
 
   padding-top: 7px;
   padding-bottom: 7px;
@@ -53,26 +53,21 @@ const Input = styled.input<InputProps>`
 
   margin: 0;
 
-  ${({showError, theme}) => showError ? `&:invalid { 
-    background-color: ${theme.colors.lightRed}; 
-  }` : null} 
-  
-  ::placeholder {
-    color: ${themeGet("colors.gray")};
-  }
+  ${({showError, theme}) => showError ? `&:invalid {
+    background-color: ${theme.colors.lightRed};
+  }` : null};
 
-  ::-ms-clear {
-    display: none;
+  ::placeholder {
+    color: ${({theme}) => theme.colors.gray};
   }
 
   &:focus {
     outline: none;
-    background-color: ${({theme}) => theme.colors.white};
+    background-color: transparent;
   }
 
   ${borders} ${space} ${borderRadius}
-  ${left} ${width}
-  ${right}
+  ${left} ${width} ${right}
 `;
 
 Input.displayName = "Input";
@@ -91,16 +86,18 @@ export const HiddenInputField = styled(Input)`
 
 export default Input;
 
-const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
-const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
+const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ?
+  css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
+const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ?
+  css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
 
 export interface InputLabelProps extends WidthProps {
-  leftLabel?: boolean
-  rightLabel?: boolean
+  leftLabel?: boolean;
+  rightLabel?: boolean;
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`
-  border: ${themeGet("colors.borderGray")} solid 1px;
+  border: ${({theme}) => theme.colors.borderGray} solid 1px;
   margin: -1px;
   ${leftLabel}
   ${rightLabel}
@@ -109,6 +106,3 @@ export const InputLabel = styled(Text) <InputLabelProps>`
   padding-right: 1em;
   padding-top: 6px;
 `;
-
-InputLabel.defaultProps = {
-};

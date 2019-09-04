@@ -1,64 +1,70 @@
-import * as React from "react";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {capitalized, removeTrailingSlash} from "UtilityFunctions";
-import {sizeToString, getParentPath, favoriteFile, reclassifyFile, fileTablePage, expandHomeFolder} from "Utilities/FileUtilities";
-import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {SensitivityLevel, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
-import {dateToString} from "Utilities/DateUtilities"
-import {connect} from "react-redux";
-import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import ShareList from "Shares/List";
-import {File} from "Files";
 import {ActivityFeed} from "Activity/Feed";
-import {Dispatch} from "redux";
-import {fetchFileStat, setLoading, fetchFileActivity, receiveFileStat, fileInfoError} from "./Redux/FileInfoActions";
-import {Flex, Box, Icon, Card} from "ui-components";
-import List from "ui-components/List";
-import * as Heading from "ui-components/Heading"
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {Cloud} from "Authentication/SDUCloudObject";
 import {FileInfoReduxObject} from "DefaultObjects";
-import {MainContainer} from "MainContainer/MainContainer";
-import {SidebarPages} from "ui-components/Sidebar";
-import {BreadCrumbs} from "ui-components/Breadcrumbs";
+import {ReduxObject, SensitivityLevel, SensitivityLevelMap} from "DefaultObjects";
+import {File} from "Files";
 import {History} from "history";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
+import {MainContainer} from "MainContainer/MainContainer";
+import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import ShareList from "Shares/List";
+import {Box, Card, Flex, Icon} from "ui-components";
+import {BreadCrumbs} from "ui-components/Breadcrumbs";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import * as Heading from "ui-components/Heading";
+import List from "ui-components/List";
+import {SidebarPages} from "ui-components/Sidebar";
+import {dateToString} from "Utilities/DateUtilities";
+import {
+    directorySizeQuery,
+    expandHomeFolder,
+    favoriteFile,
+    fileTablePage,
+    getParentPath,
+    reclassifyFile,
+    sizeToString
+} from "Utilities/FileUtilities";
+import {capitalized, removeTrailingSlash} from "UtilityFunctions";
+import {fetchFileActivity, fetchFileStat, receiveFileStat, setLoading} from "./Redux/FileInfoActions";
 
 interface FileInfoOperations {
-    updatePageTitle: () => void
-    setLoading: (loading: boolean) => void
-    fetchFileStat: (path: string) => void
-    fetchFileActivity: (path: string) => void
-    receiveFileStat: (file: File) => void
-    setActivePage: () => void
+    updatePageTitle: () => void;
+    setLoading: (loading: boolean) => void;
+    fetchFileStat: (path: string) => void;
+    fetchFileActivity: (path: string) => void;
+    receiveFileStat: (file: File) => void;
+    setActivePage: () => void;
 }
 
 interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
-    location: {pathname: string, search: string}
-    history: History
+    location: {pathname: string, search: string;};
+    history: History;
 }
 
 function FileInfo(props: Readonly<FileInfo>) {
+    const [size, setSize] = React.useState(0);
 
     React.useEffect(() => {
         props.setActivePage();
         props.updatePageTitle();
-        const {file} = props;
         const filePath = path();
-        if (!file || getParentPath(filePath) !== file.path) {
+        if (!props.file || getParentPath(filePath) !== props.file.path) {
             props.setLoading(true);
             props.fetchFileStat(filePath);
             props.fetchFileActivity(filePath);
         }
     }, []);
 
-    function queryParams(): URLSearchParams {
-        return new URLSearchParams(props.location.search);
-    }
-
-    function path(): string {
-        const param = queryParams().get("path");
-        return param ? removeTrailingSlash(param) : "";
-    }
-
+    React.useEffect(() => {
+        const fileType = props.file && props.file.fileType;
+        if (fileType === "DIRECTORY") {
+            Cloud.post<{size: number}>(directorySizeQuery, {paths: [file!.path]})
+                .then(it => setSize(it.response.size));
+        }
+    }, [props.file && props.file.size]);
 
     const {loading, file, activity} = props;
     if (loading) return (<LoadingIcon size={18} />);
@@ -69,7 +75,7 @@ function FileInfo(props: Readonly<FileInfo>) {
                 <>
                     <Heading.h2><BreadCrumbs
                         currentPath={file.path}
-                        navigate={path => props.history.push(fileTablePage(expandHomeFolder(path, Cloud.homeFolder)))}
+                        navigate={p => props.history.push(fileTablePage(expandHomeFolder(p, Cloud.homeFolder)))}
                         homeFolder={Cloud.homeFolder}
                     /></Heading.h2>
                     <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
@@ -77,11 +83,11 @@ function FileInfo(props: Readonly<FileInfo>) {
             main={
                 <>
                     <FileView
-                        file={file}
+                        file={{...file, size}}
                         onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
                         onReclassify={async sensitivity => {
-                            props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}))
-                            props.fetchFileStat(path())
+                            props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}));
+                            props.fetchFileStat(path());
                         }} />
                     {activity.items.length ? (
                         <Flex flexDirection="row" justifyContent="center">
@@ -94,6 +100,15 @@ function FileInfo(props: Readonly<FileInfo>) {
                 </>}
         />
     );
+
+    function queryParams(): URLSearchParams {
+        return new URLSearchParams(props.location.search);
+    }
+
+    function path(): string {
+        const param = queryParams().get("path");
+        return param ? removeTrailingSlash(param) : "";
+    }
 }
 
 const Attribute: React.FunctionComponent<{name: string, value?: string}> = props => (
@@ -112,10 +127,11 @@ const AttributeBox: React.FunctionComponent = props => (
 );
 
 interface FileViewProps {
-    file: File
-    onFavorite: () => void
-    onReclassify: (level: SensitivityLevelMap) => void
+    file: File;
+    onFavorite: () => void;
+    onReclassify: (level: SensitivityLevelMap) => void;
 }
+
 const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
     !file ? null : (
         <Flex flexDirection="row" justifyContent="center" flexWrap="wrap">

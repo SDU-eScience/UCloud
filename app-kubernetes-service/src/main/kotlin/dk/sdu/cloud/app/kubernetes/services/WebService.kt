@@ -35,9 +35,26 @@ import io.ktor.util.date.GMTDate
 import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
 import io.ktor.websocket.webSocket
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.io.writer
+import kotlinx.coroutines.launch
+import kotlinx.io.core.ExperimentalIoApi
+import kotlinx.io.core.IoBuffer
+import kotlinx.io.core.use
+import java.io.File
+import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.channels.ReadableByteChannel
+import java.nio.file.Files
+import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 import kotlin.collections.set
+import kotlin.coroutines.CoroutineContext
 
 private const val SDU_CLOUD_REFRESH_TOKEN = "refreshToken"
 
@@ -53,16 +70,10 @@ class WebService(
     private val domain: String = "cloud.sdu.dk",
     private val cookieName: String = "appRefreshToken"
 ) {
-    private val client = HttpClient(OkHttp) {
-        engine {
-            config {
-                // NOTE(Dan): Anything which takes more than 15 minutes is definitely broken.
-                // I do not believe we should increase this to fix other peoples broken software.
-                readTimeout(15, TimeUnit.MINUTES)
-                writeTimeout(15, TimeUnit.MINUTES)
-            }
-        }
-    }
+    data class Communication(
+        var isDone: Boolean = false,
+        var read: Long = 0
+    )
 
     private val jobIdToJob = HashMap<String, VerifiedJob>()
 
@@ -181,7 +192,21 @@ class WebService(
     }
 
     private suspend fun PipelineContext<Unit, ApplicationCall>.proxyToServer(tunnel: Tunnel): HttpClientCall {
-        val requestPath = call.parameters.getAll("path")?.joinToString("/") ?: "/"
+        // Note(Dan): It appears that if we don't do this the client will start sending other people's responses.
+        val client = HttpClient(OkHttp) {
+            followRedirects = false
+            engine {
+                config {
+                    // NOTE(Dan): Anything which takes more than 15 minutes is definitely broken.
+                    // I do not believe we should increase this to fix other peoples broken software.
+                    readTimeout(15, TimeUnit.MINUTES)
+                    writeTimeout(15, TimeUnit.MINUTES)
+                    followRedirects(false)
+                }
+            }
+        }
+
+        val requestPath = call.request.path()
         val requestQueryParameters = call.request.queryParameters
         val method = call.request.httpMethod
         val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
@@ -251,10 +276,14 @@ class WebService(
         return client.execute(request)
     }
 
-    private suspend fun PipelineContext<Unit, ApplicationCall>.proxyResponseToClient(clientCall: HttpClientCall) =
-        with(clientCall) {
-            val statusCode = response.status
-            val responseHeaders = response.headers.toMap().mapKeys { it.key.toLowerCase() }.toMutableMap().apply {
+    private suspend fun PipelineContext<Unit, ApplicationCall>.proxyResponseToClient(clientCall: HttpClientCall) {
+        val statusCode = clientCall.response.status
+
+        val responseContentLength = clientCall.response.contentLength()
+        val responseContentType = clientCall.response.contentType()
+
+        val responseHeaders =
+            clientCall.response.headers.toMap().mapKeys { it.key.toLowerCase() }.toMutableMap().apply {
                 remove(HttpHeaders.Server.toLowerCase())
                 remove(HttpHeaders.ContentLength.toLowerCase())
                 remove(HttpHeaders.ContentType.toLowerCase())
@@ -262,30 +291,160 @@ class WebService(
                 remove(HttpHeaders.Upgrade.toLowerCase())
             }
 
-            val responseContentLength = response.contentLength()
-            val responseContentType = response.contentType()
+        // Need last check because OKHttp does not always tell encoding or content length
+        val hasResponseBody =
+            responseContentLength != null ||
+                    clientCall.response.headers[HttpHeaders.TransferEncoding] != null ||
+                    clientCall.response.content.availableForRead > 0
 
-            val hasResponseBody =
-                responseContentLength != null || response.headers[HttpHeaders.TransferEncoding] != null
+        val tempResponse = Files.createTempFile("resp", ".bin")
 
-            val responseBody: OutgoingContent = if (!hasResponseBody) {
-                EmptyContent
-            } else {
-                object : OutgoingContent.ReadChannelContent() {
-                    override val contentLength: Long? = responseContentLength
-                    override val contentType: ContentType? = responseContentType
-                    override fun readFrom(): ByteReadChannel = response.content
-                }
+        val fileChannel = FileChannel.open(
+            tempResponse, StandardOpenOption.CREATE, StandardOpenOption.READ,
+            StandardOpenOption.WRITE
+        )
+
+        val responseBody: OutgoingContent = if (!hasResponseBody) {
+            EmptyContent
+        } else {
+            val readState = Communication()
+            GlobalScope.launch {
+                producer(
+                    fileChannel,
+                    clientCall.response.content,
+                    readState,
+                    tempResponse.fileName.toString()
+                )
             }
 
-            responseHeaders.forEach { (header, values) ->
-                values.forEach { value ->
-                    call.response.headers.append(header, value)
+            object : OutgoingContent.ReadChannelContent() {
+                override fun readFrom(): ByteReadChannel = if (responseContentLength != null) {
+                    tempResponse.toFile()
+                        .keepReadingChannel(responseContentLength, null, tempResponse.fileName.toString())
+                } else {
+                    tempResponse.toFile().keepReadingChannel(null, readState, tempResponse.fileName.toString())
                 }
-            }
 
-            call.respond(statusCode, responseBody)
+                override val contentLength: Long? = responseContentLength
+                override val contentType: ContentType? = responseContentType
+            }
         }
+
+        responseHeaders.forEach { (header, values) ->
+            values.forEach { value ->
+                call.response.headers.append(header, value)
+            }
+        }
+
+        call.respond(statusCode, responseBody)
+    }
+
+    fun ReadableByteChannel.read(buffer: IoBuffer): Int {
+        if (buffer.writeRemaining == 0) return 0
+        var count = 0
+
+        buffer.writeDirect(1) { bb ->
+            count = read(bb)
+        }
+
+        return count
+    }
+
+    @UseExperimental(ExperimentalIoApi::class)
+    fun File.keepReadingChannel(
+        length: Long?,
+        readState: Communication?,
+        debug: String?,
+        coroutineContext: CoroutineContext = Dispatchers.IO
+    ): ByteReadChannel {
+        val file = RandomAccessFile(this@keepReadingChannel, "r")
+        return CoroutineScope(coroutineContext).writer(coroutineContext, autoFlush = true) {
+            try {
+                file.use {
+                    val fileChannel: FileChannel = file.channel
+                    if (length != null) {
+                        channel.writeSuspendSession {
+                            var read = 0L
+                            while (read < length) {
+                                val buffer = request(1)
+                                if (buffer == null) {
+                                    channel.flush()
+                                    tryAwait(1)
+                                    continue
+                                }
+
+                                val rc = fileChannel.read(buffer)
+                                if (rc == -1) {
+                                    delay(10)
+                                    written(0)
+                                    continue
+                                } else {
+                                    read += rc
+                                }
+                                written(rc)
+                            }
+                            flush()
+                        }
+                    } else if (readState != null) {
+                        channel.writeSuspendSession {
+                            var read = 0L
+                            while (true) {
+                                val buffer = request(1)
+                                if (buffer == null) {
+                                    channel.flush()
+                                    tryAwait(1)
+                                    continue
+                                }
+
+                                val rc = fileChannel.read(buffer)
+                                if (rc == -1) {
+                                    delay(10)
+                                    written(0)
+                                    if (readState.isDone && readState.read == read) {
+                                        break
+                                    }
+                                    if (readState.isDone && readState.read < read) {
+                                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                                    }
+                                    continue
+                                } else {
+                                    read += rc
+                                }
+                                written(rc)
+                            }
+                            flush()
+                        }
+                    } else {
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    }
+                }
+            } finally {
+                delete()
+            }
+        }.channel
+    }
+
+    suspend fun producer(
+        fileChannel: FileChannel,
+        byteReadChannel: ByteReadChannel,
+        readState: Communication,
+        debug: String
+    ) {
+        val buffer = ByteBuffer.allocate(1024 * 64)
+        var totalRead = 0L
+        do {
+            val currentRead = byteReadChannel.readAvailable(buffer)
+            if (currentRead == -1) {
+                readState.isDone = true
+                readState.read = totalRead
+                break
+            }
+            buffer.flip()
+            fileChannel.write(buffer)
+            buffer.clear()
+            totalRead += currentRead
+        } while (currentRead > 0)
+    }
 
     fun queryParameters(job: VerifiedJob): QueryInternalWebParametersResponse {
         jobIdToJob[job.id] = job

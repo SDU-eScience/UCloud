@@ -1,13 +1,13 @@
 package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.link
 import dk.sdu.cloud.file.api.modifiedAt
 import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.ownerName
@@ -21,12 +21,13 @@ import dk.sdu.cloud.indexing.util.term
 import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.DocWriteRequest
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.update.UpdateRequest
+import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.Requests
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentType
 import org.slf4j.Logger
@@ -41,7 +42,7 @@ private const val TIMEOUT_IN_MINUTES = 5L
 class ElasticIndexingService(
     private val elasticClient: RestHighLevelClient
 ) : IndexingService {
-    private val mapper = jacksonObjectMapper()
+    private val mapper = defaultMapper
 
     private fun createIndexFromJsonResource(name: String) {
         elasticClient.indices().create(
@@ -55,13 +56,13 @@ class ElasticIndexingService(
 
                     XContentType.JSON
                 )
-            }
-        ).takeIf { it.isAcknowledged } ?: throw RuntimeException("Unable to create $name index")
+            },
+            RequestOptions.DEFAULT).takeIf { it.isAcknowledged } ?: throw RuntimeException("Unable to create $name index")
     }
 
     override fun migrate() {
         try {
-            elasticClient.indices().delete(Requests.deleteIndexRequest(FILES_INDEX))
+            elasticClient.indices().delete(Requests.deleteIndexRequest(FILES_INDEX), RequestOptions.DEFAULT)
         } catch (ex: ElasticsearchStatusException) {
             if (ex.status().status != NOT_FOUND_STATUSCODE) throw ex
         }
@@ -74,13 +75,12 @@ class ElasticIndexingService(
 
         @Suppress("UNUSED_VARIABLE")
         val ignored: Any? = when (event) {
-            is StorageEvent.CreatedOrRefreshed -> elasticClient.update(handleCreatedOrModified(event))
-            is StorageEvent.Deleted -> elasticClient.delete(handleDeleted(event))
-            is StorageEvent.Moved -> elasticClient.update(handleMoved(event))
-            is StorageEvent.SensitivityUpdated -> elasticClient.update(handleSensitivityUpdated(event))
+            is StorageEvent.CreatedOrRefreshed -> elasticClient.update(handleCreatedOrModified(event), RequestOptions.DEFAULT)
+            is StorageEvent.Deleted -> elasticClient.delete(handleDeleted(event), RequestOptions.DEFAULT)
+            is StorageEvent.Moved -> elasticClient.update(handleMoved(event), RequestOptions.DEFAULT)
+            is StorageEvent.SensitivityUpdated -> elasticClient.update(handleSensitivityUpdated(event), RequestOptions.DEFAULT)
             is StorageEvent.Invalidated -> elasticClient.bulk(
-                handleInvalidated(event).takeIf { it.requests().isNotEmpty() } ?: return
-            )
+                handleInvalidated(event).takeIf { it.requests().isNotEmpty() } ?: return, RequestOptions.DEFAULT)
         }
     }
 
@@ -105,7 +105,7 @@ class ElasticIndexingService(
             request.timeout(TimeValue.timeValueMinutes(TIMEOUT_IN_MINUTES))
 
             if (request.requests().isNotEmpty()) {
-                val resp = elasticClient.bulk(request)
+                val resp = elasticClient.bulk(request, RequestOptions.DEFAULT)
                 failures.addAll(resp.items.filter { it.isFailed }.map { it.failureMessage })
             }
         }
@@ -143,8 +143,6 @@ class ElasticIndexingService(
 
             size = file.size,
             fileTimestamps = Timestamps(file.modifiedAt, file.createdAt, file.modifiedAt),
-
-            fileIsLink = file.link,
 
             sensitivity = file.ownSensitivityLevel
         )
