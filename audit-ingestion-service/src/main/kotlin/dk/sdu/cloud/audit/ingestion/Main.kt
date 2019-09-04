@@ -8,6 +8,7 @@ fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(AuditIngestionServiceDescription, args)
         install(RefreshingJWTCloudFeature)
+        install(ElasticFeature)
     }
 
     if (micro.runScriptHandler()) return

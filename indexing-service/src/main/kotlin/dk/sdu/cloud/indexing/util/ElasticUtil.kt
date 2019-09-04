@@ -16,6 +16,7 @@ import org.elasticsearch.action.search.ClearScrollResponse
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.action.search.SearchScrollRequest
+import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.query.QueryBuilder
@@ -44,7 +45,7 @@ inline fun <reified T : Any> SearchResponse.paginated(
         }
 
     return Page(
-        hits.totalHits.toInt(),
+        hits.totalHits.value.toInt(),
         paging.itemsPerPage,
         paging.page,
         items
@@ -75,7 +76,7 @@ inline fun <reified T : Any> RestHighLevelClient.search(
 }
 
 fun RestHighLevelClient.search(vararg indices: String, builder: SearchRequest.() -> Unit): SearchResponse {
-    return search(SearchRequest(indices, SearchSourceBuilder()).also(builder))
+    return search(SearchRequest(indices, SearchSourceBuilder()).also(builder), RequestOptions.DEFAULT)
 }
 
 private const val SEARCH_REQUEST_SIZE = 1000
@@ -92,15 +93,15 @@ fun RestHighLevelClient.scrollThroughSearch(
         }
         .also(builder)
 
-    var resp: SearchResponse = search(request)
+    var resp: SearchResponse = search(request, RequestOptions.DEFAULT)
     while (resp.hits.hits.isNotEmpty()) {
         handler(resp)
         resp = searchScroll(SearchScrollRequest(resp.scrollId).apply {
             scroll(TimeValue.timeValueMinutes(1))
-        })
+        }, RequestOptions.DEFAULT)
     }
 
-    clearScroll(ClearScrollRequest().apply { scrollIds = listOf(resp.scrollId) })
+    clearScroll(ClearScrollRequest().apply { scrollIds = listOf(resp.scrollId) }, RequestOptions.DEFAULT)
 }
 
 inline fun <reified T : Any> RestHighLevelClient.scrollThroughSearch(
@@ -125,10 +126,10 @@ private fun <T> actionListener(continuation: Continuation<T>): ActionListener<T>
 }
 
 fun SearchResponse.scroll(client: RestHighLevelClient): SearchResponse =
-    client.searchScroll(SearchScrollRequest(scrollId))
+    client.searchScroll(SearchScrollRequest(scrollId), RequestOptions.DEFAULT)
 
 fun SearchResponse.clearScroll(client: RestHighLevelClient): ClearScrollResponse =
-    client.clearScroll(ClearScrollRequest().apply { scrollIds = listOf(scrollId) })
+    client.clearScroll(ClearScrollRequest().apply { scrollIds = listOf(scrollId) }, RequestOptions.DEFAULT)
 
 fun SearchRequest.source(
     paging: NormalizedPaginationRequest? = null,

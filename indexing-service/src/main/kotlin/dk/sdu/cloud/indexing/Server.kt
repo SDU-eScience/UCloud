@@ -9,6 +9,7 @@ import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.FileIndexScanner
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
@@ -23,7 +24,6 @@ import kotlin.system.exitProcess
  * The primary server class for indexing-service
  */
 class Server(
-    private val elasticHostAndPort: ElasticHostAndPort,
     override val micro: Micro
 ) : CommonServer {
     private lateinit var elastic: RestHighLevelClient
@@ -34,15 +34,8 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val eventService = micro.eventStreamService
 
-        elastic = RestHighLevelClient(
-            RestClient.builder(
-                HttpHost(
-                    elasticHostAndPort.host,
-                    elasticHostAndPort.port,
-                    "http"
-                )
-            )
-        )
+        elastic = micro.elasticHighLevelClient
+
         val indexingService = ElasticIndexingService(elastic)
         val queryService = ElasticQueryService(elastic)
 

@@ -1,12 +1,51 @@
 ---
+appVersion: "6.8.1"
+image:
+  tag: "6.8.1"
+
 esConfig:
   elasticsearch.yml: |
     path.repo: ["/mnt/backup"]
 
+#production
+#master:
+#  persistence:
+#    storageClass: rbd
+#  heapSize: 2048m
+#  resources:
+#    limits:
+#      cpu: "2000m"
+#    requests:
+#      cpu: "2000m"
+#      memory: "4Gi"
+
+#data:
+#  replicas: 4
+#  persistence:
+#    storageClass: rbd
+#    size: 5000Gi
+#  heapSize: 32768m
+#  resources:
+#    limits:
+#      cpu: "16000m"
+#    requests:
+#      cpu: "8000m"
+#      memory: "32Gi"
+
+#client:
+#  heapSize: 2048m
+#  resources:
+#    limits: 
+#      cpu: "2000m"
+#    requests:
+#      cpu: "2000m"
+#      memory: "4Gi"
+
+#dev
 master:
   persistence:
     storageClass: rbd
-  heapSize: 2048m
+  heapSize: 4096m
   resources:
     limits:
       cpu: "2000m"
@@ -15,24 +54,23 @@ master:
       memory: "4Gi"
 
 data:
-  replicas: 4
-  persistence:
+  replicas: 2
+  persistence: 
     storageClass: rbd
-    size: 1000Gi
-  heapSize: 12288m
+    size: 5000Gi
+  heapSize: 32768m
   resources:
     limits:
-      cpu: "6000m"
+      cpu: 8
     requests:
-      cpu: "6000m"
-      memory: "25Gi"
+      cpu: 4
+      memory: 8Gi
 
 client:
-  heapSize: 2048m
+  heapSize: 8192m
   resources:
     limits: 
       cpu: "2000m"
     requests:
       cpu: "2000m"
-      memory: "4Gi"
-
+      memory: "8Gi"

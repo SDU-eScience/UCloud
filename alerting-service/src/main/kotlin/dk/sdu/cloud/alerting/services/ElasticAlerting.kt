@@ -113,7 +113,7 @@ class ElasticAlerting(
                 )
             )
             val numberOf5XXStatusCodes = try {
-                elastic.search(requestFor5xxCodes, RequestOptions.DEFAULT).hits.totalHits.toDouble()
+                elastic.search(requestFor5xxCodes, RequestOptions.DEFAULT).hits.totalHits.value.toDouble()
             } catch (ex: ConnectException) {
                 numberOfRetries++
                 delay(FIFTEEN_SEC)
@@ -138,12 +138,12 @@ class ElasticAlerting(
             )
 
             val totalNumberOfEntries = try {
-                elastic.search(totalNumberOfEntriesRequest, RequestOptions.DEFAULT).hits.totalHits.toDouble()
-            } catch (ex: ConnectException) {
-                numberOfRetries++
-                delay(FIFTEEN_SEC)
-                continue
-            }
+                    elastic.search(totalNumberOfEntriesRequest, RequestOptions.DEFAULT).hits.totalHits.value.toDouble()
+                } catch (ex: ConnectException) {
+                    numberOfRetries++
+                    delay(FIFTEEN_SEC)
+                    continue
+                }
             //If no indices that is by name http_logs_*date
             if (totalNumberOfEntries.toInt() == 0) {
                 delay(FIVE_MIN)
@@ -158,7 +158,7 @@ class ElasticAlerting(
                 val message = "ALERT: Too many 5XX status codes\n" +
                         "Entries last 15 min: $totalNumberOfEntries \n" +
                         "Number of 5XX status codes: $numberOf5XXStatusCodes \n" +
-                        "Percentage: ${percentage}% (Limit is $limit5xxPercentage %)"
+                        "Percentage: $percentage % (Limit is $limit5xxPercentage %)"
                 alertService.createAlert(Alert(message))
                 alertOnStatus = true
             }
