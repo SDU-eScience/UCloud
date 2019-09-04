@@ -32,3 +32,5 @@ docker build \
     -t "${name}:${version}" \
     -f Dockerfile.local \
     .
+
+docker-publish "${name}:${version}"
