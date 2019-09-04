@@ -5,6 +5,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationDescription
 import dk.sdu.cloud.app.store.api.ToolDescription
+import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.app.store.rpc.AppStoreController
 import dk.sdu.cloud.app.store.rpc.ToolController
 import dk.sdu.cloud.app.store.services.AppStoreService
@@ -12,6 +13,7 @@ import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.store.services.LogoService
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
 import dk.sdu.cloud.app.store.util.yamlMapper
+import dk.sdu.cloud.calls.authDescription
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -23,6 +25,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import java.io.File
+import kotlin.system.exitProcess
 
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()

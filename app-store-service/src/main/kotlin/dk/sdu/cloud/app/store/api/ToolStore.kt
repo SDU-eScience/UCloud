@@ -128,7 +128,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
             method = HttpMethod.Get
 
             path {
-                using(AppStore.baseContext)
+                using(baseContext)
                 +"logo"
                 +boundTo(FetchLogoRequest::name)
             }

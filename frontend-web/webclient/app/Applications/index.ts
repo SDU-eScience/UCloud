@@ -313,13 +313,13 @@ export interface ApplicationInvocationDescription {
     allowMultiNode: boolean;
 }
 
-interface Tool {
+export interface Tool {
     name: string;
     version: string;
     tool: ToolReference;
 }
 
-interface ToolReference {
+export interface ToolReference {
     owner: string;
     createdAt: number;
     modifiedAt: number;
@@ -331,7 +331,7 @@ interface NameAndVersion {
     version: string;
 }
 
-interface ToolDescription {
+export interface ToolDescription {
     info: NameAndVersion;
     container: string;
     defaultNumberOfNodes: number;

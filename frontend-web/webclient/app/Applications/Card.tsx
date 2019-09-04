@@ -1,21 +1,21 @@
 import * as React from "react";
-import Markdown from "ui-components/Markdown"
-import {Absolute, Icon, Flex, RatingBadge, Text} from "ui-components";
-import Box from "ui-components/Box";
-import Link from "ui-components/Link";
-import {EllipsedText} from "ui-components/Text";
-import * as Pages from "./Pages";
-import {FullAppInfo} from ".";
 import styled, {css} from "styled-components";
-import * as Heading from "ui-components/Heading"
-import theme from "ui-components/theme"
+import {Absolute, Flex, Icon, RatingBadge, Text} from "ui-components";
+import Box from "ui-components/Box";
+import * as Heading from "ui-components/Heading";
+import Link from "ui-components/Link";
+import Markdown from "ui-components/Markdown";
+import {EllipsedText} from "ui-components/Text";
+import theme from "ui-components/theme";
+import {WithAllAppTags, WithAppMetadata} from ".";
+import * as Pages from "./Pages";
 
 interface ApplicationCardProps {
-    onFavorite?: (name: string, version: string) => void
-    app: FullAppInfo
-    isFavorite?: boolean
-    linkToRun?: boolean
-    tags: string[]
+    onFavorite?: (name: string, version: string) => void;
+    app: WithAppMetadata & WithAllAppTags;
+    isFavorite?: boolean;
+    linkToRun?: boolean;
+    tags: string[];
 }
 
 const AppCardActionsBase = styled.div``;
@@ -205,16 +205,24 @@ const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}) => (
     </svg>
 );
 
-export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color1Offset: number, color2Offset: number, appC: number, rot: number, size: string}) => {
+interface AppLogoRawProps {
+    color1Offset: number;
+    color2Offset: number;
+    appC: number;
+    rot: number;
+    size: string;
+}
+
+export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLogoRawProps) => {
     const c1 = [color1Offset % 3, (color1Offset + 1) % 3, (color1Offset + 2) % 3];
     const c2 = [color2Offset % 3, (color2Offset + 1) % 3, (color2Offset + 2) % 3];
     const centerC = nColors - 1;
-    //const centerC = appC;
+    // const centerC = appC;
 
     const s32 = Math.sqrt(3) * .5;
-    const r1 = 0.5; //inner radius of outer element (outer radius is 1)
-    const r2 = 0.7; //outer radius of inner element
-    const r3 = (1 + r2) * .5; // radius of white background hexagon 
+    const r1 = 0.5; // inner radius of outer element (outer radius is 1)
+    const r2 = 0.7; // outer radius of inner element
+    const r3 = (1 + r2) * .5; // radius of white background hexagon
 
     const rot120 = "rotate(120 0 0)";
     const rot240 = "rotate(240 0 0)";
@@ -251,7 +259,7 @@ export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
     const i3 = (hash >>> 10) % rot.length;
     const appC = appColor(hash);
 
-    return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />
+    return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />;
 };
 
 
