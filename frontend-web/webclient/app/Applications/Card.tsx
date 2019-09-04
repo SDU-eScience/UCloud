@@ -10,8 +10,6 @@ import styled, {css} from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"
 
-const homerImg = require("Assets/Images/APPTools/pic2.gif");
-
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void
     app: WithAppMetadata
@@ -179,7 +177,7 @@ export const AppCard = styled(Link)`
     }
 `;
 
-const Tag = ({label}: {label: string}) => (
+export const Tag = ({label}: {label: string}) => (
     <RatingBadge mr="3px" bg="darkGray"><Heading.h6>{label}</Heading.h6></RatingBadge>
 );
 
@@ -282,7 +280,7 @@ export function hashF(str: string): number {
 
 }
 
-function appColor(hash: number): number {
+export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); //last color not used
 }
 
@@ -330,15 +328,18 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     );
 };
   
-export const CardHomerContainer = styled(Link)`
-    padding: 50px;
+export const CardToolContainer = styled(Box)<{appImage: string}>`
+    padding-top: 10px; 
+    padding-left: 260px; 
+    padding-bottom: 70px;
+    padding-right: 0px;
     width: 100%;
-    height: 300px;
+    height: 350px;
     display: grid;
-    grid-template-columns: repeat(7, 50px [col-start]);
+    gridAutoFlow: column;
     flex-direction: column;
     align-items: flex-start;
-    border-radius: ${props => props.theme.radius};
+    border-radius: 40px;//${props => props.theme.radius};
     position: relative;
     overflow: hidden;
     box-shadow: ${({theme}) => theme.shadows["sm"]};
@@ -358,7 +359,7 @@ export const CardHomerContainer = styled(Link)`
         pointer-events: none;
         content: "";
         position: absolute;
-        width: 104%;
+        width: 120%;
         height: 280%;
         top: 0;
         left: 0;
@@ -378,14 +379,9 @@ export const CardHomerContainer = styled(Link)`
         top: 0;
         left: 0;
         z-index: 1;
-        //background-image: src={homerImg};
-        //url(file:///Users/federica/Desktop/pic2-FG.gif);
-        background-image: url("http://homer.ucsd.edu/homer/pic2.gif");
-        background-size: 200px 200px;
-        background-position: bottom left;
-        //border: 2px solid 
-        //${props => props.theme.colors.textHighlight};
-        //opacity: 0;
+        background-image: url(${props => props.appImage});
+        background-size: 250px 250px;
+        background-position: 0% 80%;//bottom left;
         border-radius: ${props => props.theme.radius};
         pointer-events: none; //needed for star-badge
         will-change: opacity;
@@ -396,78 +392,27 @@ export const CardHomerContainer = styled(Link)`
     }
 `;
 
-export const CardCellRangerContainer = styled(Link)`
+export const SmallCard = styled(Link)<{color1: string, color2: string, color3: string}>`
+    //display: grid;
+    display:inline-block
     padding: 10px;
-    width: 100%;
-    height: 300px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    border-radius: ${props => props.theme.radius};
-    position: relative;
-    overflow: hidden;
-    box-shadow: ${({theme}) => theme.shadows["sm"]};
-
-    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-    will-change: transform;
-
-    // Background
-    &:before {
-        pointer-events: none;
-        content: "";
-        position: absolute;
-        width: 104%;
-        height: 280%;
-        top: 0;
-        left: 0;
-        z-index: -1;
-        background-color: ${props => props.theme.colors.appCard};
-        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
-        background-repeat: repeat;
-        transform: rotate(15deg) translate(0,-60%);
-        transform-origin: 0 0;
-    }
-
-    &:after {
-        content: "";
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-        z-index: 1;
-        background-image: url("https://cyverseuk.herokuapp.com/static/japps/images/samtools.png");
-        //https://commons.wikimedia.org/wiki/File:10x_Genomics_logo.svg#/media/File:10x_Genomics_logo.svg");
-        //border: 2px solid 
-        //${props => props.theme.colors.textHighlight};
-        //opacity: 0;
-        border-radius: ${props => props.theme.radius};
-        pointer-events: none; //needed for star-badge
-        will-change: opacity;
-    }
-
-    &:hover:after {
-        opacity: 1;
-    }
-`;
-
-export const HomerCard = styled(Link)`
-
-    padding: 10px;
-    width: 20%;
-    min-width: 180px;
-    height: 80px;
-    display: grid;
+    width: 200px;
+    //min-width: 220px;
+    height: 95px;
     
-    grid-column: 7 / span 1;
-    //flex-direction: column;
-    //align-items: flex-start;
-    background: rgb(16,49,217);
-    background: linear-gradient(90deg, rgba(16,49,217,1) 0%, rgba(55,35,164,1) 0%, rgba(0,212,255,1) 100%);
-    border-radius: ${props => props.theme.radius};
-    position: relative;
+    text-align: center;
+    white-space: nowrap; 
     overflow: hidden;
-    //box-shadow: ${({theme}) => theme.shadows["sm"]};
+    text-overflow: ellipsis; 
+
+    line-height: 72px;
+    font-size: 25px;
+    align-items: flex-start;
+    background: linear-gradient(to right, ${p => p.color2}, ${p => p.color3});
+    border-radius: 25px
+     
+    position: relative;
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
 
     transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
     will-change: transform;
@@ -476,41 +421,6 @@ export const HomerCard = styled(Link)`
         transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
         transform: scale(1.02);
         box-shadow: ${({theme}) => theme.shadows["md"]};
-    }
-
-    // Background
-    &:before {
-        pointer-events: none;
-        content: "";
-        position: absolute;
-        //width: 104%;
-        //height: 280%;
-        top: 0;
-        left: 0;
-        z-index: -1;
-        //background-color: ${props => props.theme.colors.appCard};
-        //background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
-        //background-repeat: repeat;
-        //transform: rotate(15deg) translate(0,-60%);
-        //transform-origin: 0 0;
-    }
-
-    &:after {
-        content: "";
-        position: absolute;
-        //width: 100%;
-        //height: 100%;
-        top: 0;
-        left: 0;
-        z-index: 1;
-        border: 2px solid ${props => props.theme.colors.textHighlight};
-        opacity: 0;
-        border-radius: ${props => props.theme.radius};
-        pointer-events: none; //needed for star-badge
-        will-change: opacity;
-    }
-
-    &:hover:after {
-        opacity: 1;
+        color: ${p => p.theme.colors.white};
     }
 `;

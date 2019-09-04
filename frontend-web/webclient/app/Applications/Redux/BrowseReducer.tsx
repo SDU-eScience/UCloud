@@ -1,7 +1,6 @@
 import {Reducer as ReduxReducer} from "redux";
 import {Type as ActionType, Tag} from "./BrowseActions";
 import {Type as ReduxType, init} from "./BrowseObject";
-import {loadableEventToContent} from "LoadableContent";
 
 export interface Reducer {
     applicationsBrowse: ReduxReducer<ReduxType>
@@ -9,10 +8,11 @@ export interface Reducer {
 
 const reducer = (state: ReduxType = init().applicationsBrowse, action: ActionType): ReduxType => {
     switch (action.type) {
-        case Tag.RECEIVE_APP: {
-            return {...state, applications: {...state.applications, ...loadableEventToContent(action.payload)}};
+        case Tag.RECEIVE_APPS_BY_KEY: {
+            const {applications} = state;
+            applications.set(action.payload.key, action.payload.page);
+            return {...state, applications};
         }
-
         default: {
             return state;
         }

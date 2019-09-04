@@ -3,7 +3,8 @@ import { Page } from "Types";
 import { ApplicationMetadata, WithAppMetadata } from "Applications";
 
 export interface Type {
-    applications: LoadableContent<Page<WithAppMetadata>>
+    applications: Map<string, Page<WithAppMetadata>>
+    loading: boolean
 }
 
 export interface Wrapper {
@@ -12,6 +13,7 @@ export interface Wrapper {
 
 export const init = (): Wrapper => ({
     applicationsBrowse: {
-        applications: emptyLoadableContent()
+        applications: new Map(),
+        loading: false
     }
 });
