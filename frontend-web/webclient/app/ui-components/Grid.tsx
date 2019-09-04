@@ -6,7 +6,7 @@ import {
     GridTemplateColumnsProps, gridTemplateRows,
     GridTemplateRowsProps, height, HeightProps,
     justifyItems, JustifyItemsProps, space,
-    SpaceProps, width, WidthProps
+    SpaceProps, width, WidthProps, gridAutoFlow, GridAutoFlowProps
 } from "styled-system";
 
 export type GridProps =
@@ -18,10 +18,12 @@ export type GridProps =
     JustifyItemsProps &
     GridGapProps &
     GridTemplateColumnsProps &
+    GridAutoFlowProps &
     GridTemplateRowsProps;
 
 const Grid = styled.div<GridProps>`
     display: grid;
+    ${gridAutoFlow}
     ${space} ${width} ${height} ${color}
     ${alignItems} ${justifyItems} ${gridGap}
     ${gridTemplateColumns} ${gridTemplateRows}
