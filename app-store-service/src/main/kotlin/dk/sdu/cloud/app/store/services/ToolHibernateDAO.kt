@@ -1,12 +1,19 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.NormalizedToolDescription
 import dk.sdu.cloud.app.store.api.Tool
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.paginatedList
+import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import java.util.*
@@ -16,7 +23,7 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
 
     override fun findAllByName(
         session: HibernateSession,
-        user: String?,
+        user: SecurityPrincipal?,
         name: String,
         paging: NormalizedPaginationRequest
     ): Page<Tool> {
@@ -27,7 +34,7 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
 
     override fun findByNameAndVersion(
         session: HibernateSession,
-        user: String?,
+        user: SecurityPrincipal?,
         name: String,
         version: String
     ): Tool {
@@ -42,7 +49,7 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
 
     override fun listLatestVersion(
         session: HibernateSession,
-        user: String?,
+        user: SecurityPrincipal?,
         paging: NormalizedPaginationRequest
     ): Page<Tool> {
         val count = session.typedQuery<Long>(
@@ -79,12 +86,12 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
 
     override fun create(
         session: HibernateSession,
-        user: String,
+        user: SecurityPrincipal,
         description: NormalizedToolDescription,
         originalDocument: String
     ) {
         val existingOwner = findOwner(session, description.info.name)
-        if (existingOwner != null && existingOwner != user) {
+        if (existingOwner != null && !canUserPerformWrite(existingOwner, user)) {
             throw ToolException.NotAllowed()
         }
 
@@ -93,7 +100,7 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
 
         session.save(
             ToolEntity(
-                user,
+                user.username,
                 Date(),
                 Date(),
                 description,
@@ -105,14 +112,14 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
 
     override fun updateDescription(
         session: HibernateSession,
-        user: String,
+        user: SecurityPrincipal,
         name: String,
         version: String,
         newDescription: String?,
         newAuthors: List<String>?
     ) {
         val existing = internalByNameAndVersion(session, name, version) ?: throw ToolException.NotFound()
-        if (existing.owner != user) throw ToolException.NotAllowed()
+        if (!canUserPerformWrite(existing.owner, user)) throw ToolException.NotAllowed()
 
         val newTool = existing.tool.let {
             if (newDescription != null) {
@@ -136,6 +143,23 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         session.update(existing)
     }
 
+    override fun createLogo(session: HibernateSession, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
+        val tool =
+            findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+        if (tool != user.username && user.role != Role.ADMIN) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        session.saveOrUpdate(
+            ToolLogoEntity(name, imageBytes)
+        )
+    }
+
+    override fun fetchLogo(session: HibernateSession, name: String): ByteArray? {
+        return ToolLogoEntity[session, name]?.data
+    }
+
     internal fun internalByNameAndVersion(session: HibernateSession, name: String, version: String): ToolEntity? {
         return session
             .criteria<ToolEntity> {
@@ -143,6 +167,11 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
                         (entity[ToolEntity::id][EmbeddedNameAndVersion::version] equal version)
             }
             .uniqueResult()
+    }
+
+    private fun canUserPerformWrite(owner: String, user: SecurityPrincipal): Boolean {
+        if (user.role == Role.ADMIN) return true
+        return owner == user.username
     }
 
     private fun findOwner(session: HibernateSession, name: String): String? {

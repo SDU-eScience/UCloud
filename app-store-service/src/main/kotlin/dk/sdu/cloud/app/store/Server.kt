@@ -1,12 +1,15 @@
 package dk.sdu.cloud.app.store
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationDescription
 import dk.sdu.cloud.app.store.api.ToolDescription
 import dk.sdu.cloud.app.store.rpc.AppStoreController
 import dk.sdu.cloud.app.store.rpc.ToolController
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
+import dk.sdu.cloud.app.store.services.LogoService
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.micro.Micro
@@ -30,11 +33,12 @@ class Server(override val micro: Micro) : CommonServer {
 
         val db = micro.hibernateDatabase
         val appStoreService = AppStoreService(db, applicationDAO, toolDAO)
+        val logoService = LogoService(db, applicationDAO, toolDAO)
 
         with(micro.server) {
             configureControllers(
-                AppStoreController(appStoreService),
-                ToolController(db, toolDAO)
+                AppStoreController(appStoreService, logoService),
+                ToolController(db, toolDAO, logoService)
             )
         }
 
@@ -44,13 +48,14 @@ class Server(override val micro: Micro) : CommonServer {
             }
 
             if (listOfApps.itemsInTotal == 0) {
+                val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
                 @Suppress("TooGenericExceptionCaught")
                 db.withTransaction { session ->
                     val tools = File("yaml", "tools")
-                    tools.listFiles().forEach {
+                    tools.listFiles()?.forEach {
                         try {
                             val description = yamlMapper.readValue<ToolDescription>(it)
-                            toolDAO.create(session, "admin@dev", description.normalize())
+                            toolDAO.create(session, dummyUser, description.normalize())
                         } catch (ex: Exception) {
                             log.info("Could not create tool: $it")
                             log.info(ex.stackTraceToString())
@@ -58,10 +63,10 @@ class Server(override val micro: Micro) : CommonServer {
                     }
 
                     val apps = File("yaml", "apps")
-                    apps.listFiles().forEach {
+                    apps.listFiles()?.forEach {
                         try {
                             val description = yamlMapper.readValue<ApplicationDescription>(it)
-                            applicationDAO.create(session, "admin@dev", description.normalize())
+                            applicationDAO.create(session, dummyUser, description.normalize())
                         } catch (ex: Exception) {
                             log.info("Could not create app: $it")
                             log.info(ex.stackTraceToString())
@@ -72,9 +77,5 @@ class Server(override val micro: Micro) : CommonServer {
         }
 
         startServices()
-    }
-
-    override fun stop() {
-        super.stop()
     }
 }

@@ -1,8 +1,12 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.NormalizedToolDescription
+import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.withDatabase
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -11,7 +15,7 @@ import kotlin.test.assertTrue
 
 class ToolHibernateDaoTest {
 
-    private val user = "user1"
+    private val user = TestUsers.user.copy(username = "user1")
     private val normToolDesc = NormalizedToolDescription(
         NameAndVersion("name", "1.2"),
         "container",
@@ -72,7 +76,8 @@ class ToolHibernateDaoTest {
     fun `find all by name test - no results`() {
         withDatabase { db ->
             val tool = ToolHibernateDAO()
-            val results = tool.findAllByName(db.openSession(), "user", "name", NormalizedPaginationRequest(10, 0))
+            val results =
+                tool.findAllByName(db.openSession(), TestUsers.user, "name", NormalizedPaginationRequest(10, 0))
             assertEquals(0, results.itemsInTotal)
         }
     }
@@ -81,30 +86,29 @@ class ToolHibernateDaoTest {
     fun `find all by name and version test - no results`() {
         withDatabase { db ->
             val tool = ToolHibernateDAO()
-            tool.findByNameAndVersion(db.openSession(), "user", "name", "2.2")
+            tool.findByNameAndVersion(db.openSession(), TestUsers.user, "name", "2.2")
         }
     }
 
     @Test
     fun `find latest Version`() {
         withDatabase { db ->
-            db.withTransaction {
+            db.withTransaction { session ->
                 val tool = ToolHibernateDAO()
 
-                tool.create(it, user, normToolDesc)
+                tool.create(session, user, normToolDesc)
                 Thread.sleep(1000)
-                tool.create(it, user, normToolDesc2)
+                tool.create(session, user, normToolDesc2)
                 Thread.sleep(1000)
-                tool.create(it, user, normToolDesc3)
+                tool.create(session, user, normToolDesc3)
                 Thread.sleep(1000)
-                tool.create(it, user, normToolDesc4)
+                tool.create(session, user, normToolDesc4)
                 Thread.sleep(1000)
 
-                val allListed = tool.listLatestVersion(it, "user", NormalizedPaginationRequest(10, 0))
+                val allListed = tool.listLatestVersion(session, user, NormalizedPaginationRequest(10, 0))
                 var previous = ""
                 allListed.items.forEach {
-                    if (it.description.info.name < previous)
-                        assert(false)
+                    assert(it.description.info.name >= previous)
                     previous = it.description.info.name
                 }
 
@@ -142,7 +146,7 @@ class ToolHibernateDaoTest {
             db.withTransaction {
                 val tool = ToolHibernateDAO()
                 tool.create(it, user, normToolDesc)
-                tool.create(it, "notTheUser", normToolDesc)
+                tool.create(it, TestUsers.user5, normToolDesc)
             }
         }
     }
@@ -201,7 +205,7 @@ class ToolHibernateDaoTest {
                 tool.create(it, user, normToolDesc)
                 tool.updateDescription(
                     it,
-                    "NotTheUserWhoCreated",
+                    TestUsers.user5,
                     normToolDesc.info.name,
                     normToolDesc.info.version,
                     "This is a new description",
@@ -218,7 +222,7 @@ class ToolHibernateDaoTest {
                 val tool = ToolHibernateDAO()
                 tool.updateDescription(
                     it,
-                    "NotTheUserWhoCreated",
+                    TestUsers.user5,
                     normToolDesc.info.name,
                     normToolDesc.info.version,
                     "This is a new description",

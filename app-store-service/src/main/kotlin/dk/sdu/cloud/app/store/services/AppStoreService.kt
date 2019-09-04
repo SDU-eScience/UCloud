@@ -21,7 +21,7 @@ class AppStoreService<DBSession>(
         db.withTransaction { session ->
             applicationDAO.toggleFavorite(
                 session,
-                securityPrincipal.username,
+                securityPrincipal,
                 name,
                 version
             )
@@ -34,7 +34,7 @@ class AppStoreService<DBSession>(
     ): Page<ApplicationSummaryWithFavorite> = db.withTransaction { session ->
         applicationDAO.retrieveFavorites(
             session,
-            securityPrincipal.username,
+            securityPrincipal,
             request.normalize()
         )
     }
@@ -47,7 +47,7 @@ class AppStoreService<DBSession>(
         db.withTransaction { session ->
             applicationDAO.searchTags(
                 session,
-                securityPrincipal.username,
+                securityPrincipal,
                 tags,
                 normalizedPaginationRequest
             )
@@ -61,7 +61,7 @@ class AppStoreService<DBSession>(
         db.withTransaction { session ->
             applicationDAO.search(
                 session,
-                securityPrincipal.username,
+                securityPrincipal,
                 query,
                 normalizedPaginationRequest
             )
@@ -72,17 +72,16 @@ class AppStoreService<DBSession>(
         name: String,
         version: String
     ): ApplicationWithFavorite {
-        val user = securityPrincipal.username
         db.withTransaction { session ->
             val result = applicationDAO.findByNameAndVersionForUser(
                 session,
-                user,
+                securityPrincipal,
                 name,
                 version
             )
 
             val toolRef = result.invocation.tool
-            val tool = toolDao.findByNameAndVersion(session, user, toolRef.name, toolRef.version)
+            val tool = toolDao.findByNameAndVersion(session, securityPrincipal, toolRef.name, toolRef.version)
 
             return result.copy(
                 invocation = result.invocation.copy(
@@ -104,7 +103,7 @@ class AppStoreService<DBSession>(
         db.withTransaction {
             applicationDAO.findAllByName(
                 it,
-                securityPrincipal.username,
+                securityPrincipal,
                 name,
                 normalizedPaginationRequest
             )
@@ -117,7 +116,7 @@ class AppStoreService<DBSession>(
         db.withTransaction { session ->
             applicationDAO.listLatestVersion(
                 session,
-                securityPrincipal.username,
+                securityPrincipal,
                 normalizedPaginationRequest
             )
 
@@ -125,19 +124,19 @@ class AppStoreService<DBSession>(
 
     fun create(securityPrincipal: SecurityPrincipal, application: Application, content: String) {
         db.withTransaction { session ->
-            applicationDAO.create(session, securityPrincipal.username, application, content)
+            applicationDAO.create(session, securityPrincipal, application, content)
         }
     }
 
-    fun createTags(tags: List<String>, applicationName: String, applicationVersion: String, user: String) {
+    fun createTags(tags: List<String>, applicationName: String, applicationVersion: String, user: SecurityPrincipal) {
         db.withTransaction { session ->
-            applicationDAO.createTags(session, tags, applicationName, applicationVersion, user)
+            applicationDAO.createTags(session, user, applicationName, applicationVersion, tags)
         }
     }
 
-    fun deleteTags(tags: List<String>, applicationName: String, applicationVersion: String, user: String) {
+    fun deleteTags(tags: List<String>, applicationName: String, applicationVersion: String, user: SecurityPrincipal) {
         db.withTransaction { session ->
-            applicationDAO.deleteTags(session, tags, applicationName, applicationVersion, user)
+            applicationDAO.deleteTags(session, user, applicationName, applicationVersion, tags)
         }
     }
 

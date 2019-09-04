@@ -8,7 +8,15 @@ import dk.sdu.cloud.service.db.WithId
 import org.hibernate.annotations.Type
 import java.io.Serializable
 import java.util.*
-import javax.persistence.*
+import javax.persistence.Column
+import javax.persistence.EmbeddedId
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Lob
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 
 /**
  * Updated in:
@@ -100,9 +108,6 @@ class ApplicationEntity(
     var website: String?,
 
     @Type(type = JSONB_TYPE)
-    var tags: List<String>,
-
-    @Type(type = JSONB_TYPE)
     var application: ApplicationInvocationDescription,
 
     @Column(name = "tool_name")
@@ -117,8 +122,33 @@ class ApplicationEntity(
     companion object : HibernateEntity<ApplicationEntity>, WithId<EmbeddedNameAndVersion>
 }
 
+@Entity
+@Table(name = "application_logos")
+class ApplicationLogoEntity(
+    @Id
+    var application: String,
+
+    @Column(length = LOGO_MAX_SIZE)
+    var data: ByteArray
+) {
+    companion object : HibernateEntity<ApplicationLogoEntity>, WithId<String>
+}
+
+@Entity
+@Table(name = "tool_logos")
+class ToolLogoEntity(
+    @Id
+    var application: String,
+
+    @Column(length = LOGO_MAX_SIZE)
+    var data: ByteArray
+) {
+    companion object : HibernateEntity<ToolLogoEntity>, WithId<String>
+}
+
 data class EmbeddedNameAndVersion(
     var name: String = "",
     var version: String = ""
 ) : Serializable
 
+const val LOGO_MAX_SIZE = 1024 * 512
