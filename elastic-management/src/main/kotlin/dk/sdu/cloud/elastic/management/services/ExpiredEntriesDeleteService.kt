@@ -1,10 +1,8 @@
 package dk.sdu.cloud.elastic.management.services
 
-import dk.sdu.cloud.elastic.management.ElasticHostAndPort
 import dk.sdu.cloud.service.Loggable
-import org.elasticsearch.action.admin.indices.flush.FlushRequest
-import org.elasticsearch.action.admin.indices.get.GetIndexRequest
 import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.core.CountRequest
 import org.elasticsearch.index.query.QueryBuilders
@@ -15,22 +13,24 @@ import java.util.*
 
 class ExpiredEntriesDeleteService(
     private val elastic: RestHighLevelClient
-){
+) {
 
     private fun deleteExpired(index: String) {
         val date = Date().time
 
-        val expiredCount = elastic.count(CountRequest().source(
+        val expiredCount = elastic.count(
+            CountRequest().source(
                 SearchSourceBuilder().query(
                     QueryBuilders.rangeQuery("expiry")
                         .lte(date)
                 )
             )
-            .indices(index),
+                .indices(index),
             RequestOptions.DEFAULT
         ).count
 
-        val sizeOfIndex = elastic.count(CountRequest().source(
+        val sizeOfIndex = elastic.count(
+            CountRequest().source(
                 SearchSourceBuilder().query(
                     QueryBuilders.matchAllQuery()
                 )
@@ -66,10 +66,10 @@ class ExpiredEntriesDeleteService(
         }
     }
 
-    fun deleteAllEmptyIndices() {
+    fun deleteAllEmptyIndices(lowLevelRestClient: RestClient) {
         val list = getListOfIndices(elastic, "*")
         list.forEach {
-            if (getDocumentCountSum(listOf(it), ElasticHostAndPort.guessDefaults()) == 0){
+            if (getDocumentCountSum(listOf(it), lowLevelRestClient) == 0) {
                 deleteIndex(it, elastic)
             }
         }

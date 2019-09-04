@@ -1,43 +1,38 @@
-import * as React from "react";
-import {ActivityGroup} from "Activity";
 import * as Module from "Activity";
-import * as moment from "moment";
-import {getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
-import {fileInfoPage} from "Utilities/FileUtilities";
-import Icon, {IconName} from "ui-components/Icon";
-import {Flex, Text, Box} from "ui-components";
-import Table, {TableRow, TableCell, TableBody, TableHeader, TableHeaderCell} from "ui-components/Table";
 import {Cloud} from "Authentication/SDUCloudObject";
-import styled from "styled-components";
+import * as moment from "moment";
+import * as React from "react";
 import {Link as ReactRouterLink} from "react-router-dom";
+import styled from "styled-components";
+import {Box, Flex, Text} from "ui-components";
+import Icon, {IconName} from "ui-components/Icon";
+import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {colors} from "ui-components/theme";
+import {fileInfoPage, getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
 
-export class ActivityFeedFrame extends React.PureComponent<{ containerRef?: React.RefObject<any> }> {
-    render() {
-        return <Table>
-            <TableHeader>
-                <TFRow>
-                    <TableHeaderCell width="12em"/>
-                    <TableHeaderCell width="10.5em"/>
-                    <TableHeaderCell width="99%"/>
-                </TFRow>
-            </TableHeader>
-            <TableBody ref={this.props.containerRef}>
-                {this.props.children}
-            </TableBody>
-        </Table>;
-    }
-
+export function ActivityFeedFrame(props: {containerRef?: React.RefObject<any>, children?: JSX.Element[]}) {
+    return <Table>
+        <TableHeader>
+            <TFRow>
+                <TableHeaderCell width="12em" />
+                <TableHeaderCell width="10.5em" />
+                <TableHeaderCell width="99%" />
+            </TFRow>
+        </TableHeader>
+        <TableBody ref={props.containerRef}>
+            {props.children}
+        </TableBody>
+    </Table >;
 }
 
-export const ActivityFeed = ({activity}: { activity: Module.Activity[] }) => (
+export const ActivityFeed = ({activity}: {activity: Module.Activity[]}) => (
     <ActivityFeedFrame>
-        {groupActivity(activity).map((a, i) => <ActivityFeedItem key={i} activity={a}/>)}
+        {groupActivity(activity).map((a, i) => <ActivityFeedItem key={i} activity={a} />)}
     </ActivityFeedFrame>
 );
 
 // Performance note: Don't use styled components here.
-const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props => (
+const ActivityEvent: React.FunctionComponent<{event: Module.Activity}> = props => (
     <div>
         <b>
             <ReactRouterLink to={fileInfoPage(props.event.originalFilePath)}>
@@ -47,12 +42,12 @@ const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props
             </ReactRouterLink>
         </b>
         {" "}
-        <OperationText event={props.event}/>
+        <OperationText event={props.event} />
     </div>
 );
 
 // Performance note: Don't use styled components here.
-const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props => {
+const OperationText: React.FunctionComponent<{event: Module.Activity}> = props => {
     switch (props.event.type) {
         case Module.ActivityType.MOVED: {
             return <span>
@@ -60,9 +55,10 @@ const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props
                 {" "}
                 <b>
                     <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
-                    <div className="ellipsis">
-                            <Text
-                                color="black">{replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}</Text>
+                        <div className="ellipsis">
+                            <Text color="black">
+                                {replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}
+                            </Text>
                         </div>
                     </ReactRouterLink>
                 </b>
@@ -84,38 +80,38 @@ const OperationText: React.FunctionComponent<{ event: Module.Activity }> = props
     }
 };
 
-export const ActivityFeedSpacer = (props: { height: number }) => (
-    <tr style={{height: `${props.height}px`}}/>
+export const ActivityFeedSpacer = (props: {height: number}) => (
+    <tr style={{height: `${props.height}px`}} />
 );
 
 interface ActivityFeedProps {
-    activity: ActivityGroup
+    activity: Module.ActivityGroup;
 }
 
 export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
-    shouldComponentUpdate(nextProps: ActivityFeedProps) {
+    public shouldComponentUpdate(nextProps: ActivityFeedProps) {
         return this.props.activity.newestTimestamp !== nextProps.activity.newestTimestamp;
     }
 
-    render() {
+    public render() {
         const {activity} = this.props;
         return <TFRow>
             <TableCell>
                 <Text fontSize={1} color="text">
                     {moment(new Date(activity.newestTimestamp)).fromNow()}
-                    <br/>
+                    <br />
                     {moment(new Date(activity.newestTimestamp)).format("lll")}
                 </Text>
             </TableCell>
             <TableCell>
                 <Flex>
-                    <Icon mr="0.5em" name={eventIcon(activity.type).icon}/>
+                    <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
                     <Text fontSize={2}>{`Files ${operationToPastTense(activity.type)}`}</Text>
                 </Flex>
             </TableCell>
             <TableCell>
                 {activity.items.map((item, idx) =>
-                    <ActivityEvent key={idx} event={item}/>
+                    <ActivityEvent key={idx} event={item} />
                 )}
 
                 {!!activity.numberOfHiddenResults ?
@@ -126,7 +122,7 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
                     null
                 }
             </TableCell>
-        </TFRow>
+        </TFRow>;
     }
 }
 
@@ -148,7 +144,7 @@ const operationToPastTense = (operation: Module.ActivityType): string => {
 };
 
 interface EventIconAndColor {
-    icon: IconName
+    icon: IconName;
 }
 
 const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
@@ -168,9 +164,9 @@ const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
     }
 };
 
-function groupActivity(items: Module.Activity[] = []): ActivityGroup[] {
-    const result: ActivityGroup[] = [];
-    let currentGroup: ActivityGroup | null = null;
+function groupActivity(items: Module.Activity[] = []): Module.ActivityGroup[] {
+    const result: Module.ActivityGroup[] = [];
+    let currentGroup: Module.ActivityGroup | null = null;
 
     const pushGroup = () => {
         if (currentGroup != null) {
@@ -192,7 +188,8 @@ function groupActivity(items: Module.Activity[] = []): ActivityGroup[] {
         if (currentGroup === null) {
             initializeGroup(item);
         } else {
-            if (currentGroup.type !== item.type || Math.abs(item.timestamp - currentGroup.newestTimestamp) > (1000 * 60 * 15)) {
+            if (currentGroup.type !== item.type ||
+                Math.abs(item.timestamp - currentGroup.newestTimestamp) > (1000 * 60 * 15)) {
                 pushGroup();
                 initializeGroup(item);
             } else {

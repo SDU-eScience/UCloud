@@ -1,20 +1,19 @@
 import * as React from "react";
-import {ScrollRequest, ScrollResult, ScrollSize} from "./Types";
 import {Button, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
+import {ScrollRequest, ScrollResult, ScrollSize} from "./Types";
 
 interface ListProps<Item, OffsetType> {
-    scroll?: ScrollResult<Item, OffsetType>
-    scrollSize?: ScrollSize
+    scroll?: ScrollResult<Item, OffsetType>;
+    scrollSize?: ScrollSize;
 
-    frame?: (containerRef: React.RefObject<any>, children) => React.ReactNode
-    renderer: (props: { item: Item }) => JSX.Element | null
-    onNextScrollRequested: (request: ScrollRequest<OffsetType>) => void
-    spacer?: (height: number) => React.ReactNode
+    frame?: (containerRef: React.RefObject<any>, children) => React.ReactNode;
+    renderer: (props: {item: Item}) => JSX.Element | null;
+    onNextScrollRequested: (request: ScrollRequest<OffsetType>) => void;
+    spacer?: (height: number) => React.ReactNode;
+    loading: boolean;
 
-    loading: boolean
-
-    customEmptyPage?: React.ReactNode
+    customEmptyPage?: React.ReactNode;
 }
 
 interface ListState {
@@ -48,7 +47,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         return this.state !== nextState || this.props !== nextProps;
     }
 
-    getSnapshotBeforeUpdate(prevProps: Readonly<ListProps<Item, OffsetType>>, prevState: Readonly<ListState>) {
+    public getSnapshotBeforeUpdate(prevProps: Readonly<ListProps<Item, OffsetType>>, prevState: Readonly<ListState>) {
         const scroll = prevProps.scroll || {endOfScroll: false, nextOffset: null, items: []};
         const nextScrollOrDefault = this.scrollOrDefault;
 
@@ -61,6 +60,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
             const missingEntries = nextScrollOrDefault.items.length - scroll.items.length;
             this.recordedHeights = this.recordedHeights.concat(Array.from({length: missingEntries}, () => 0));
         }
+        return null;
     }
 
     public componentDidMount() {
@@ -260,12 +260,12 @@ interface ListBodyProps {
     lastVisibleElement?: number
     containerRef?: React.RefObject<any>
     items: any[]
-    renderer: (props: { item: any }) => JSX.Element | null;
+    renderer: (props: {item: any}) => JSX.Element | null;
     spacer?: (height: number) => React.ReactNode
 }
 
 class ListBody extends React.Component<ListBodyProps> {
-    shouldComponentUpdate(nextProps: ListBodyProps) {
+    public shouldComponentUpdate(nextProps: ListBodyProps) {
         const {props} = this;
         return props.spacingRequired !== nextProps.spacingRequired ||
             props.postSpacingRequired !== nextProps.postSpacingRequired ||
@@ -274,7 +274,7 @@ class ListBody extends React.Component<ListBodyProps> {
             props.items.length !== nextProps.items.length;
     }
 
-    render() {
+    public render() {
         const {
             spacingRequired, postSpacingRequired, firstVisibleElement, lastVisibleElement,
             containerRef, renderer, spacer, items
@@ -285,14 +285,14 @@ class ListBody extends React.Component<ListBodyProps> {
 
         const children: React.ReactNode[] = [];
 
-        const spacerOrDefault = spacer || ((height: number) => <div style={{height: `${height}px`}}/>);
+        const spacerOrDefault = spacer || ((height: number) => <div style={{height: `${height}px`}} />);
         if (spacingRequired !== undefined) {
             children.push(spacerOrDefault(spacingRequired));
         }
 
         for (let i = first; i < last; i++) {
             const Renderer = renderer;
-            children.push(<Renderer key={i} item={items[i]}/>);
+            children.push(<Renderer key={i} item={items[i]} />);
         }
 
         if (postSpacingRequired !== undefined) {

@@ -2,8 +2,9 @@ import * as React from 'react'
 import {generateId as uniqueId} from 'UtilityFunctions';
 
 import Colors from './Colors'
+import {ColorFabric} from 'UserSettings/AvatarOptions';
 
-export default class ShirtScoopNeck extends React.Component {
+export default class ShirtScoopNeck extends React.Component<{color: ColorFabric}> {
   static optionValue = 'ShirtScoopNeck';
   private path1 = uniqueId('react-path-');
   private mask1 = uniqueId('react-mask-');
@@ -29,7 +30,7 @@ export default class ShirtScoopNeck extends React.Component {
           fillRule='evenodd'
           xlinkHref={'#' + path1}
         />
-        <Colors maskID={mask1} />
+        <Colors maskID={mask1} color={this.props.color} />
       </g>
     )
   }

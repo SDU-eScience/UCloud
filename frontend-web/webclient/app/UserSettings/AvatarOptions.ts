@@ -181,3 +181,9 @@ export enum SkinColors {
     DarkBrown = "DarkBrown",
     Black = "Black"
 }
+
+export interface HairProps {
+    hairColor: HairColor;
+    facialHair: FacialHair;
+    facialHairColor: FacialHairColor;
+}

@@ -1,13 +1,13 @@
 import {ActivityReduxObject, initActivity} from "DefaultObjects";
+import {concatScrolls} from "Scroll/Types";
 import {
     ActivityActions,
-    SET_ACTIVITY_ERROR_MESSAGE,
     RECEIVE_ACTIVITY,
-    SET_ACTIVITY_LOADING,
     RESET_ACTIVITY,
+    SET_ACTIVITY_ERROR_MESSAGE,
+    SET_ACTIVITY_LOADING,
     UPDATE_ACTIVITY_FILTER
 } from "./ActivityActions";
-import {concatScrolls} from "Scroll/Types";
 
 const activity = (state: ActivityReduxObject = initActivity(), action: ActivityActions): ActivityReduxObject => {
     switch (action.type) {

@@ -10,8 +10,10 @@ import dk.sdu.cloud.indexing.utils.minimumStatisticRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import io.mockk.every
 import io.mockk.mockk
+import org.apache.lucene.search.TotalHits
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
+import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
@@ -28,10 +30,14 @@ class ElasticQueryTest {
 
 
     private fun mockElasticSearchReponseTwentyHits(client: RestHighLevelClient) {
-        every { client.search(any()) } answers {
+        every { client.search(any(), RequestOptions.DEFAULT) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
-                val hits = SearchHits(Array(NUMBER_OF_HITS) { _ -> SearchHit(2) }, NUMBER_OF_HITS.toLong(), 1.9f)
+                val hits = SearchHits(
+                    Array(NUMBER_OF_HITS) { _ -> SearchHit(2) },
+                    TotalHits(NUMBER_OF_HITS.toLong(), TotalHits.Relation.EQUAL_TO),
+                    1.9f
+                )
                 hits
             }
             response
@@ -40,7 +46,7 @@ class ElasticQueryTest {
 
     @Test
     fun `Find Query Test`() {
-        every { client.get(any()) } answers {
+        every { client.get(any(), any()) } answers {
             val response = mockk<GetResponse>()
             every { response.isExists } returns true
             every { response.sourceAsString } returns
@@ -55,7 +61,7 @@ class ElasticQueryTest {
 
     @Test
     fun `Find Query Test - does not exist`() {
-        every { client.get(any()) } answers {
+        every { client.get(any(), any()) } answers {
             val response = mockk<GetResponse>()
             every { response.isExists } returns false
             response
