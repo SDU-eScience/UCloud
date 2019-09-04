@@ -5,6 +5,7 @@ import dk.sdu.cloud.file.services.acl.AccessRights
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundScope
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.createDummyFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
@@ -25,7 +26,7 @@ import kotlin.test.assertFalse
 class WorkspaceTest {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<*>
-    private lateinit var workspaceService: WorkspaceService
+    private lateinit var workspaceService: WorkspaceService<LinuxFSRunner>
     private lateinit var fsRoot: File
 
     @BeforeTest
@@ -39,18 +40,21 @@ class WorkspaceTest {
         val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), { throw it })
+
+        val coreFileSystem = CoreFileSystemService(
+            fs,
+            eventProducer,
+            FileSensitivityService(fs, eventProducer),
+            ClientMock.authenticatedClient
+        )
+
         val fileScanner = FileScanner(
             runner,
-            CoreFileSystemService(
-                fs,
-                eventProducer,
-                FileSensitivityService(fs, eventProducer),
-                ClientMock.authenticatedClient
-            ),
+            coreFileSystem,
             eventProducer
         )
 
-        workspaceService = WorkspaceService(fsRoot, fileScanner, aclService)
+        workspaceService = WorkspaceService(fsRoot, fileScanner, aclService, coreFileSystem, runner)
         BackgroundScope.stop()
     }
 

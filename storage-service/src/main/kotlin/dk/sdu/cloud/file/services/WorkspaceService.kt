@@ -3,20 +3,18 @@ package dk.sdu.cloud.file.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.file.api.WorkspaceMount
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
-import dk.sdu.cloud.file.services.linuxfs.Chown
-import dk.sdu.cloud.file.services.linuxfs.LinuxFS
-import dk.sdu.cloud.file.services.linuxfs.listAndClose
-import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
-import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
+import dk.sdu.cloud.file.services.linuxfs.*
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.channels.Channels
 import java.nio.file.*
@@ -33,11 +31,12 @@ private data class WorkspaceManifest(
     val createdAt: Long = System.currentTimeMillis()
 )
 
-class WorkspaceService(
+class WorkspaceService<Ctx : FSUserContext>(
     fsRoot: File,
     private val fileScanner: FileScanner<*>,
-
-    private val aclService: AclService<*>
+    private val aclService: AclService<*>,
+    private val coreFileSystem: CoreFileSystemService<Ctx>,
+    private val processRunner: FSCommandRunnerFactory<Ctx>
 ) {
     private val fsRoot = fsRoot.absoluteFile.normalize()
     private val workspaceFile = File(fsRoot, WORKSPACE_PATH)
@@ -134,20 +133,29 @@ class WorkspaceService(
          * workspace directory (meaning that they were deleted from the workspace), and delete from the
          * destination directory accordingly.
          */
-        fun cleanDestinationDirectory(destDirectoryFile: File, workspaceDirectoryFile: File) {
+        fun cleanDestinationDirectory(ctx: Ctx, destDirectoryFile: File, workspaceDirectoryFile: File) {
             if (destDirectoryFile.list() != null) {
-                destDirectoryFile.list().forEach { destFileName ->
+                destDirectoryFile.list()?.forEach { destFileName ->
                     val destFile = File(destDirectoryFile, destFileName)
                     if (!File(workspaceDirectoryFile.toString(), destFileName).exists()) {
                         log.debug("File $destFileName not found in workspace. Deleting file.")
-                        destFile.delete()
+                        runBlocking {
+                            coreFileSystem.delete(ctx, destFile.toPath().toCloudPath())
+                        }
                     } else if (destFile.isDirectory) {
                         cleanDestinationDirectory(
+                            ctx,
                             destFile,
                             Paths.get(workspaceDirectoryFile.toString(), destFileName).toFile()
                         )
                     }
                 }
+            }
+        }
+
+        suspend fun cleanDestinationDirectory(username: String, destDirectoryFile: File, workspaceDirectoryFile: File) {
+            processRunner.withContext(username) { ctx ->
+                cleanDestinationDirectory(ctx, destDirectoryFile, workspaceDirectoryFile)
             }
         }
 
@@ -256,6 +264,7 @@ class WorkspaceService(
 
         run {
             cleanDestinationDirectory(
+                manifest.username,
                 defaultDestinationDir.toFile(),
                 Paths.get(outputWorkspace.toString(), "mount").toFile()
             )
