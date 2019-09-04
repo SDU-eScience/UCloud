@@ -5,7 +5,7 @@ import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigatio
 import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import {Page} from "Types";
-import {WithAppFavorite, WithAppMetadata} from ".";
+import {WithAppFavorite, WithAppMetadata, FullAppInfo} from ".";
 import {Dispatch} from "redux";
 import {ReduxObject, emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
