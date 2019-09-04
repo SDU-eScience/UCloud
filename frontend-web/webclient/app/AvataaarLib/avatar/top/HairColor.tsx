@@ -1,10 +1,9 @@
-import * as React from "react"
-
-import {HairColorOption} from "../../options"
-import Selector from "AvataaarLib/options/Selector";
+import * as React from "react";
+import {HairColor as Color} from "UserSettings/AvatarOptions";
 
 export interface Props {
-  maskID: string
+  maskID: string;
+  optionValue: Color;
 }
 
 function makeColor(name: string, color: string) {
@@ -40,18 +39,27 @@ const Red = makeColor("Red", "#C93305");
 const SilverGray = makeColor("SilverGray", "#E8E1E1");
 
 export default function HairColor(props: Props) {
-  return (
-    <Selector option={HairColorOption} defaultOption={BrownDark}>
-      <Auburn maskID={props.maskID} />
-      <Black maskID={props.maskID} />
-      <Blonde maskID={props.maskID} />
-      <BlondeGolden maskID={props.maskID} />
-      <Brown maskID={props.maskID} />
-      <BrownDark maskID={props.maskID} />
-      <PastelPink maskID={props.maskID} />
-      <Platinum maskID={props.maskID} />
-      <Red maskID={props.maskID} />
-      <SilverGray maskID={props.maskID} />
-    </Selector>
-  )
+  switch (props.optionValue) {
+    case Color.Auburn:
+      return <Auburn maskID={props.maskID} />;
+    case Color.Black:
+      return <Black maskID={props.maskID} />;
+    case Color.Blonde:
+      return <Blonde maskID={props.maskID} />;
+    case Color.BlondeGolden:
+      return <BlondeGolden maskID={props.maskID} />;
+    case Color.Brown:
+      return <Brown maskID={props.maskID} />;
+    case Color.BrownDark:
+      return <BrownDark maskID={props.maskID} />;
+    case Color.PastelPink:
+      return <PastelPink maskID={props.maskID} />;
+    case Color.Platinum:
+      return <Platinum maskID={props.maskID} />;
+    case Color.Red:
+      return <Red maskID={props.maskID} />;
+    case Color.SilverGray:
+      return <SilverGray maskID={props.maskID} />;
+  }
+  return null;
 }

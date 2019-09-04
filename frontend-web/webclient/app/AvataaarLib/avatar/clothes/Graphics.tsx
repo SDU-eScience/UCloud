@@ -2,6 +2,7 @@ import * as React from "react";
 import {generateId as uniqueId} from "UtilityFunctions";
 import {GraphicOption} from "../../options";
 import Selector from "AvataaarLib/options/Selector";
+import {ClothesGraphic} from "UserSettings/AvatarOptions";
 
 export interface Props {
   maskID: string;
@@ -904,25 +905,36 @@ export class Espie extends React.Component<Props> {
   }
 }
 
-export default class Graphics extends React.Component<Props> {
-  public render() {
-    return (
-      <Selector option={GraphicOption} defaultOption={Skull}>
-        <Bat maskID={this.props.maskID} />
-        <Cumbia maskID={this.props.maskID} />
-        <Deer maskID={this.props.maskID} />
-        <Diamond maskID={this.props.maskID} />
-        <Hola maskID={this.props.maskID} />
-        <Pizza maskID={this.props.maskID} />
-        <Resist maskID={this.props.maskID} />
-        <Selena maskID={this.props.maskID} />
-        <Bear maskID={this.props.maskID} />
-        <SkullOutline maskID={this.props.maskID} />
-        <Skull maskID={this.props.maskID} />
-        <EScienceLogo maskID={this.props.maskID} />
-        <Teeth maskID={this.props.maskID} />
-        <Espie maskID={this.props.maskID} />
-      </Selector>
-    )
-  }
+export default function Graphics(props: Props & {graphic: ClothesGraphic}) {
+    switch (props.graphic) {
+        case ClothesGraphic.Bat:
+          return <Bat maskID={props.maskID} />;
+        case ClothesGraphic.Cumbia:
+          return <Cumbia maskID={props.maskID} />;
+        case ClothesGraphic.Deer:
+          return <Deer maskID={props.maskID} />;
+        case ClothesGraphic.Diamond:
+          return <Diamond maskID={props.maskID} />;
+        case ClothesGraphic.Hola:
+          return <Hola maskID={props.maskID} />;
+        case ClothesGraphic.Pizza:
+          return <Pizza maskID={props.maskID} />;
+        case ClothesGraphic.Resist:
+          return <Resist maskID={props.maskID} />;
+        case ClothesGraphic.Selena:
+          return <Selena maskID={props.maskID} />;
+        case ClothesGraphic.Bear:
+          return <Bear maskID={props.maskID} />;
+        case ClothesGraphic.SkullOutline:
+          return <SkullOutline maskID={props.maskID} />;
+        case ClothesGraphic.Skull:
+          return <Skull maskID={props.maskID} />;
+        case "EScienceLogo" as any:
+          return <EScienceLogo maskID={props.maskID} />;
+        case ClothesGraphic.Teeth:
+          return <Teeth maskID={props.maskID} />;
+        case ClothesGraphic.Espie:
+          return <Espie maskID={props.maskID} />;
+    }
+    return null;
 }

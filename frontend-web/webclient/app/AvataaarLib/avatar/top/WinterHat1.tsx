@@ -1,20 +1,20 @@
-import * as React from 'react'
-import {generateId as uniqueId} from 'UtilityFunctions';
+import * as React from "react";
+import {generateId as uniqueId} from "UtilityFunctions";
+import FacialHair from "./facialHair";
+import HatColor from "./HatColor";
+import {FacialHair as FaceHair, FacialHairColor} from "UserSettings/AvatarOptions";
 
-import FacialHair from './facialHair'
-import HatColor from './HatColor'
+export default class WinterHat1 extends React.Component<{facialHair: FaceHair, facialHairColor: FacialHairColor}> {
+  public static optionValue = "WinterHat1";
+  private filter1 = uniqueId("react-filter-");
+  private mask1 = uniqueId("react-mask-");
+  private mask2 = uniqueId("react-mask-");
+  private path1 = uniqueId("react-path-");
+  private path2 = uniqueId("react-path-");
+  private path3 = uniqueId("react-path-");
 
-export default class WinterHat1 extends React.Component {
-  static optionValue = 'WinterHat1';
-  private filter1 = uniqueId('react-filter-');
-  private mask1 = uniqueId('react-mask-');
-  private mask2 = uniqueId('react-mask-');
-  private path1 = uniqueId('react-path-');
-  private path2 = uniqueId('react-path-');
-  private path3 = uniqueId('react-path-');
-
-  render() {
-    const { filter1, mask1, mask2, path1, path2, path3 } = this;
+  public render() {
+    const {filter1, mask1, mask2, path1, path2, path3} = this;
     return (
       <g id="Top">
         <defs>
@@ -45,7 +45,7 @@ export default class WinterHat1 extends React.Component {
           <rect id={path2} x="74" y="50" width="118" height="36" rx="8" />
         </defs>
         <mask id={mask1} fill="white">
-          <use xlinkHref={'#' + path3} />
+          <use xlinkHref={"#" + path3} />
         </mask>
         <g id="Mask" />
         <g
@@ -62,9 +62,9 @@ export default class WinterHat1 extends React.Component {
               fill="#F4F4F4"
             />
             <mask id={mask2} fill="white">
-              <use xlinkHref={'#' + path1} />
+              <use xlinkHref={"#" + path1} />
             </mask>
-            <use id="hat-mask" fill="#D8D8D8" xlinkHref={'#' + path1} />
+            <use id="hat-mask" fill="#D8D8D8" xlinkHref={"#" + path1} />
             <HatColor maskID={mask2} defaultColor="Red" />
           </g>
           <g id="hat-front">
@@ -72,14 +72,14 @@ export default class WinterHat1 extends React.Component {
               fill="black"
               fillOpacity="1"
               filter={`url(#${path2})`}
-              xlinkHref={'#' + path2}
+              xlinkHref={"#" + path2}
             />
-            <use fill="#F4F4F4" fillRule="evenodd" xlinkHref={'#' + path2} />
+            <use fill="#F4F4F4" fillRule="evenodd" xlinkHref={"#" + path2} />
           </g>
-          <FacialHair />
+          <FacialHair facialHair={this.props.facialHair} facialHairColor={this.props.facialHairColor} />
           {this.props.children}
         </g>
       </g>
-    )
+    );
   }
 }

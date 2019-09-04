@@ -1,7 +1,7 @@
 import * as PropTypes from "prop-types";
 import * as React from "react";
 import Option from "./Option";
-import OptionContext, {OptionCtx} from "./OptionContext";
+import {OptionCtx} from "./OptionContext";
 
 function getComponentOptionValue(component: React.ComponentClass) {
   const optionValue = (component as any).optionValue;
@@ -50,9 +50,7 @@ export default function Selector(props: Props & {children: React.ReactNode}) {
   });
   return result;
 
-  function updateOptionValues(
-    nextProps?: Props & {children?: React.ReactNode}
-  ) {
+  function updateOptionValues(nextProps?: Props & {children?: React.ReactNode}) {
     if (nextProps && props.children === nextProps.children) {
       return;
     }

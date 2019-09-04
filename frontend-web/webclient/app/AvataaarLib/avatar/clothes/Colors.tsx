@@ -1,10 +1,9 @@
 import * as React from "react";
-
-import { ClotheColorOption } from "../../options";
-import Selector from "AvataaarLib/options/Selector";
+import {ColorFabric} from "UserSettings/AvatarOptions";
 
 export interface Props {
   maskID: string;
+  color: ColorFabric;
 }
 
 function makeColor(name: string, color: string) {
@@ -43,26 +42,37 @@ const Pink = makeColor("Pink", "#FF488E");
 const Red = makeColor("Red", "#FF5C5C");
 const White = makeColor("White", "#FFFFFF");
 
-export default class Colors extends React.Component<Props> {
-  public render() {
-    return (
-      <Selector option={ClotheColorOption} defaultOption={Gray01}>
-        <Black maskID={this.props.maskID} />
-        <Blue01 maskID={this.props.maskID} />
-        <Blue02 maskID={this.props.maskID} />
-        <Blue03 maskID={this.props.maskID} />
-        <Gray01 maskID={this.props.maskID} />
-        <Gray02 maskID={this.props.maskID} />
-        <Heather maskID={this.props.maskID} />
-        <PastelBlue maskID={this.props.maskID} />
-        <PastelGreen maskID={this.props.maskID} />
-        <PastelOrange maskID={this.props.maskID} />
-        <PastelRed maskID={this.props.maskID} />
-        <PastelYellow maskID={this.props.maskID} />
-        <Pink maskID={this.props.maskID} />
-        <Red maskID={this.props.maskID} />
-        <White maskID={this.props.maskID} />
-      </Selector>
-    );
+export default function Colors(props: Props) {
+  switch (props.color) {
+    case ColorFabric.Black:
+      return <Black maskID={props.maskID} />;
+    case ColorFabric.Blue01:
+      return <Blue01 maskID={props.maskID} />;
+    case ColorFabric.Blue02:
+      return <Blue02 maskID={props.maskID} />;
+    case ColorFabric.Blue03:
+      return <Blue03 maskID={props.maskID} />;
+    case ColorFabric.Gray01:
+      return <Gray01 maskID={props.maskID} />;
+    case ColorFabric.Gray02:
+      return <Gray02 maskID={props.maskID} />;
+    case ColorFabric.Heather:
+      return <Heather maskID={props.maskID} />;
+    case ColorFabric.PastelBlue:
+      return <PastelBlue maskID={props.maskID} />;
+    case ColorFabric.PastelGreen:
+      return <PastelGreen maskID={props.maskID} />;
+    case ColorFabric.PastelOrange:
+      return <PastelOrange maskID={props.maskID} />;
+    case ColorFabric.PastelRed:
+      return <PastelRed maskID={props.maskID} />;
+    case ColorFabric.PastelYellow:
+      return <PastelYellow maskID={props.maskID} />;
+    case ColorFabric.Pink:
+      return <Pink maskID={props.maskID} />;
+    case ColorFabric.Red:
+      return <Red maskID={props.maskID} />;
+    case ColorFabric.White:
+      return <White maskID={props.maskID} />;
   }
 }

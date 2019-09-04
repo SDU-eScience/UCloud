@@ -1,25 +1,25 @@
 import * as React from "react";
 import {SkinOption} from "../options";
 import Selector from "AvataaarLib/options/Selector";
+import {SkinColors} from "UserSettings/AvatarOptions";
 
 export interface Props {
   maskID: string;
+  optionValue: SkinColors;
 }
 
 function makeColor(name: string, color: string) {
-  class ColorComponent extends React.Component<Props> {
-    public render() {
-      return (
-        <g
-          id="Skin/👶🏽-03-Brown"
-          mask={`url(#${this.props.maskID})`}
-          fill={color}>
-          <g transform="translate(0.000000, 0.000000)" id="Color">
-            <rect x="0" y="0" width="264" height="280" />
-          </g>
+  function ColorComponent(props: Props) {
+    return (
+      <g
+        id="Skin/👶🏽-03-Brown"
+        mask={`url(#${props.maskID})`}
+        fill={color}>
+        <g transform="translate(0.000000, 0.000000)" id="Color">
+          <rect x="0" y="0" width="264" height="280" />
         </g>
-      );
-    }
+      </g>
+    );
   }
   const anyComponent = ColorComponent as any;
   anyComponent.displayName = name;
@@ -37,16 +37,21 @@ const Black = makeColor("Black", "#614335");
 
 export default class Skin extends React.Component<Props> {
   public render() {
-    return (
-      <Selector option={SkinOption} defaultOption={Light}>
-        <Tanned maskID={this.props.maskID} />
-        <Yellow maskID={this.props.maskID} />
-        <Pale maskID={this.props.maskID} />
-        <Light maskID={this.props.maskID} />
-        <Brown maskID={this.props.maskID} />
-        <DarkBrown maskID={this.props.maskID} />
-        <Black maskID={this.props.maskID} />
-      </Selector>
-    );
+    switch (this.props.optionValue) {
+      case SkinColors.Black:
+        return <Black maskID={this.props.maskID} />;
+      case SkinColors.Brown:
+        return <Brown maskID={this.props.maskID} />;
+      case SkinColors.DarkBrown:
+        return <DarkBrown maskID={this.props.maskID} />;
+      case SkinColors.Light:
+        return <Light maskID={this.props.maskID} />;
+      case SkinColors.Pale:
+        return <Pale maskID={this.props.maskID} />;
+      case SkinColors.Tanned:
+        return <Tanned maskID={this.props.maskID} />;
+      case SkinColors.Yellow:
+        return <Yellow maskID={this.props.maskID} />;
+    }
   }
 }

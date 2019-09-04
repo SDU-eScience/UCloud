@@ -24,61 +24,44 @@
 
 */
 
-import * as PropTypes from "prop-types";
 import * as React from "react";
-import Avatar, {AvatarStyle} from "./avatar";
-import {allOptions} from "./options";
-import OptionContext, {OptionCtx} from "./options/OptionContext";
+import {
+  Clothes,
+  ClothesGraphic,
+  ColorFabric,
+  Eyebrows,
+  Eyes,
+  FacialHair,
+  FacialHairColor,
+  HairColor,
+  MouthTypes,
+  SkinColors,
+  Top,
+  TopAccessory
+} from "UserSettings/AvatarOptions";
+import Avatar from "./avatar";
 export {default as Avatar, AvatarStyle} from "./avatar";
 
-export interface Props {
-    avatarStyle: string;
-    style?: React.CSSProperties;
-    topType?: string;
-    accessoriesType?: string;
-    hairColor?: string;
-    facialHairType?: string;
-    facialHairColor?: string;
-    clotheType?: string;
-    clotheColor?: string;
-    graphicType?: string;
-    eyeType?: string;
-    eyebrowType?: string;
-    mouthType?: string;
-    skinColor?: string;
-    pieceType?: string;
-    pieceSize?: string;
-    viewBox?: string;
+export interface AvatarComponentProps {
+  avatarStyle: string;
+  style?: React.CSSProperties;
+  topType: Top;
+  accessoriesType: TopAccessory;
+  hairColor: HairColor;
+  facialHairType: FacialHair;
+  facialHairColor: FacialHairColor;
+  clotheType: Clothes;
+  clotheColor: ColorFabric;
+  graphicType: ClothesGraphic;
+  eyeType: Eyes;
+  eyebrowType: Eyebrows;
+  mouthType: MouthTypes;
+  skinColor: SkinColors;
+  pieceType?: string;
+  pieceSize?: string;
+  viewBox?: string;
 }
 
-export default class AvatarComponent extends React.Component<Props> {
-
-    private optionContext: OptionContext = new OptionContext(allOptions);
-
-    public componentDidMount() {
-        this.updateOptionContext(this.props);
-    }
-
-    public UNSAFE_componentWillReceiveProps(nextProps: Props) {
-        this.updateOptionContext(nextProps);
-    }
-
-    public render() {
-        const {avatarStyle, style} = this.props;
-        return <OptionCtx.Provider value={this.optionContext}>
-            <Avatar avatarStyle={avatarStyle as AvatarStyle} style={style} />
-        </OptionCtx.Provider>;
-    }
-
-    private updateOptionContext(props: Props) {
-        const data: {[index: string]: string} = {};
-        for (const option of allOptions) {
-            const value = props[option.key];
-            if (!value) {
-                continue;
-            }
-            data[option.key] = value;
-        }
-        this.optionContext.setData(data);
-    }
+export default function AvatarComponent(props: AvatarComponentProps) {
+  return <Avatar {...props} />;
 }
