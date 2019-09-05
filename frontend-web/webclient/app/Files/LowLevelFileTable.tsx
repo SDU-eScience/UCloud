@@ -258,10 +258,12 @@ function apiForComponent(
     return api;
 }
 
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
+const LowLevelFileTable_: React.FunctionComponent<
+    LowLevelFileTableProps &
     RouteComponentProps &
-{responsive: ResponsiveReduxObject} &
-{showUploader: (path: string) => void}> = props => {
+    {responsive: ResponsiveReduxObject} &
+    {showUploader: (path: string) => void}
+> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -298,12 +300,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             if (props.path === undefined) return;
             const fileId = "newFolderId";
             setInjectedViaState([
-                mockFile({
-                    path: `${props.path}/newFolder`,
-                    fileId,
-                    tag: MOCK_RENAME_TAG,
-                    type: "DIRECTORY"
-                })
+               mockFile({
+                   path: `${props.path}/newFolder`,
+                   fileId,
+                   tag: MOCK_RENAME_TAG,
+                   type: "DIRECTORY"
+               })
             ]
             );
             setFileBeingRenamed(fileId);

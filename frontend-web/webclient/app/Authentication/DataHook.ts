@@ -1,23 +1,23 @@
-import {useEffect, useReducer, useState} from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {useEffect, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
 
 function dataFetchReducer(state, action) {
     switch (action.type) {
-        case 'FETCH_INIT':
+        case "FETCH_INIT":
             return {
                 ...state,
                 loading: true,
                 error: undefined
             };
-        case 'FETCH_SUCCESS':
+        case "FETCH_SUCCESS":
             return {
                 ...state,
                 loading: false,
                 error: undefined,
                 data: action.payload,
             };
-        case 'FETCH_FAILURE':
+        case "FETCH_FAILURE":
             return {
                 ...state,
                 loading: false,
@@ -29,26 +29,26 @@ function dataFetchReducer(state, action) {
 }
 
 export interface APICallParameters<Parameters = any, Payload = any> {
-    method?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH" | "OPTIONS" | "HEAD"
-    path?: string
-    payload?: Payload
-    context?: string
-    maxRetries?: number
-    parameters?: Parameters
-    disallowProjects?: boolean
-    reloadId?: number // Can be used to force an ID by setting this to a random value
-    noop?: boolean // Used to indicate that this should not be run in a useCloudAPI hook.
+    method?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH" | "OPTIONS" | "HEAD";
+    path?: string;
+    payload?: Payload;
+    context?: string;
+    maxRetries?: number;
+    parameters?: Parameters;
+    disallowProjects?: boolean;
+    reloadId?: number; // Can be used to force an ID by setting this to a random value
+    noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
 }
 
 export interface APIError {
-    why: string
-    statusCode: number
+    why: string;
+    statusCode: number;
 }
 
 export interface APICallState<T> {
-    loading: boolean
-    error?: APIError
-    data: T
+    loading: boolean;
+    error?: APIError;
+    data: T;
 }
 
 export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2): APICallState<T2> {
