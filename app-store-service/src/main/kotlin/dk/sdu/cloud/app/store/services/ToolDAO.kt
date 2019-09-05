@@ -56,6 +56,7 @@ interface ToolDAO<Session> {
         imageBytes: ByteArray
     )
 
+    fun clearLogo(session: Session, user: SecurityPrincipal, name: String)
 
     fun fetchLogo(session: Session, name: String): ByteArray?
 }

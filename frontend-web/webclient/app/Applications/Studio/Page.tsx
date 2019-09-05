@@ -6,7 +6,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
-import * as Pagination from "pagination";
+import * as Pagination from "Pagination";
 import * as React from "react";
 import styled from "styled-components";
 import {Page} from "Types";

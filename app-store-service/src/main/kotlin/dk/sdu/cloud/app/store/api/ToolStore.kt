@@ -16,7 +16,6 @@ import io.ktor.http.HttpMethod
 typealias UploadToolLogoRequest = UploadApplicationLogoRequest
 typealias UploadToolLogoResponse = Unit
 
-
 object ToolStore : CallDescriptionContainer("hpc.tools") {
     val baseContext = "/api/hpc/tools"
 
@@ -104,7 +103,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
                 method = HttpMethod.Post
 
                 path {
-                    using(AppStore.baseContext)
+                    using(baseContext)
                     +"uploadLogo"
                 }
 
@@ -114,6 +113,24 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
 
                 body {
                     bindToSubProperty(UploadToolLogoRequest::data)
+                }
+            }
+        }
+
+    val clearLogo =
+        call<ClearLogoRequest, ClearLogoResponse, CommonErrorMessage>("clearLogo") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ_WRITE
+            }
+
+            http {
+                method = HttpMethod.Delete
+
+                path {
+                    using(baseContext)
+                    +"clearLogo"
+                    +boundTo(ClearLogoRequest::name)
                 }
             }
         }

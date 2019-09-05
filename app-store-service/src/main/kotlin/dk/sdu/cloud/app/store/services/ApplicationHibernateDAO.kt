@@ -604,13 +604,24 @@ class ApplicationHibernateDAO(
         )
     }
 
-    private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {
-        if (user.role == Role.ADMIN) return true
-        return owner == user.username
+    override fun clearLogo(session: HibernateSession, user: SecurityPrincipal, name: String) {
+        val application =
+            findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+        if (application != user.username && user.role != Role.ADMIN) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        session.delete(ApplicationLogoEntity[session, name] ?: return)
     }
 
     override fun fetchLogo(session: HibernateSession, name: String): ByteArray? {
         return ApplicationLogoEntity[session, name]?.data
+    }
+
+    private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {
+        if (user.role == Role.ADMIN) return true
+        return owner == user.username
     }
 
     private fun normalizeQuery(query: String): String {

@@ -37,6 +37,15 @@ class LogoService<Session>(
         }
     }
 
+    fun clearLogo(user: SecurityPrincipal, type: LogoType, name: String) {
+        db.withTransaction { session ->
+            when (type) {
+                LogoType.APPLICATION -> appDao.clearLogo(session, user, name)
+                LogoType.TOOL -> toolDao.clearLogo(session, user, name)
+            }
+        }
+    }
+
     fun fetchLogo(type: LogoType, name: String): ByteArray {
         return db.withTransaction { session ->
             when (type) {

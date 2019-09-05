@@ -156,6 +156,17 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         )
     }
 
+    override fun clearLogo(session: HibernateSession, user: SecurityPrincipal, name: String) {
+        val application =
+            findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+        if (application != user.username && user.role != Role.ADMIN) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        session.delete(ToolLogoEntity[session, name] ?: return)
+    }
+
     override fun fetchLogo(session: HibernateSession, name: String): ByteArray? {
         return ToolLogoEntity[session, name]?.data
     }

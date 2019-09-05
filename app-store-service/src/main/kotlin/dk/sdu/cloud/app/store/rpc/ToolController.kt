@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.ToolDescription
 import dk.sdu.cloud.app.store.api.ToolStore
 import dk.sdu.cloud.app.store.services.LogoService
@@ -115,6 +116,11 @@ class ToolController<DBSession>(
                 request.data.asIngoing()
             )
 
+            ok(Unit)
+        }
+
+        implement(ToolStore.clearLogo) {
+            logoService.clearLogo(ctx.securityPrincipal, LogoType.TOOL, request.name)
             ok(Unit)
         }
 

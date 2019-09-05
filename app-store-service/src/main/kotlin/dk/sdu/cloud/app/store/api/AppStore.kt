@@ -52,6 +52,9 @@ data class UploadApplicationLogoRequest(
     val data: BinaryStream
 )
 
+data class ClearLogoRequest(val name: String)
+typealias ClearLogoResponse = Unit
+
 data class FetchLogoRequest(val name: String)
 typealias FetchLogoResponse = BinaryStream
 
@@ -271,6 +274,25 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
                 }
             }
         }
+
+    val clearLogo =
+        call<ClearLogoRequest, ClearLogoResponse, CommonErrorMessage>("clearLogo") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ_WRITE
+            }
+
+            http {
+                method = HttpMethod.Delete
+
+                path {
+                    using(baseContext)
+                    +"clearLogo"
+                    +boundTo(ClearLogoRequest::name)
+                }
+            }
+        }
+
 
     val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
         auth {

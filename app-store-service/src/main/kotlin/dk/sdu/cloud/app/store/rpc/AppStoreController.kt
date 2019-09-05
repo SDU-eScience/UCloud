@@ -134,6 +134,11 @@ class AppStoreController<DBSession>(
             ok(Unit)
         }
 
+        implement(AppStore.clearLogo) {
+            logoService.clearLogo(ctx.securityPrincipal, LogoType.APPLICATION, request.name)
+            ok(Unit)
+        }
+
         implement(AppStore.fetchLogo) {
             val logo = logoService.fetchLogo(LogoType.APPLICATION, request.name)
             ok(
