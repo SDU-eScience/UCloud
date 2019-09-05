@@ -6,8 +6,9 @@ import {File, FileResource, FileType, SortBy, SortOrder} from "Files/index";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
-import * as React from "react";
+import PromiseKeeper from "PromiseKeeper";
 import {useEffect, useState} from "react";
+import * as React from "react";
 import {connect} from "react-redux";
 import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
@@ -120,24 +121,25 @@ const invertSortOrder = (order: SortOrder): SortOrder => {
 const twoPhaseLoadFiles = async (
     attributes: FileResource[],
     callback: (page: Page<File>) => void,
-    request: ListDirectoryRequest
+    request: ListDirectoryRequest,
+    promises: PromiseKeeper
 ) => {
     const promise = callAPI<Page<File>>(listDirectory({
         ...request,
         attrs: [FileResource.FILE_ID, FileResource.PATH, FileResource.FILE_TYPE]
     })).then(result => {
-        callback(result);
+        if (!promises.canceledKeeper) callback(result);
         return result;
     });
-
     try {
         const [phaseOne, phaseTwo] = await Promise.all([
             promise,
             callAPI<Page<File>>(listDirectory({...request, attrs: attributes}))
         ]);
-
+        if (promises.canceledKeeper) return;
         callback(mergeFilePages(phaseOne, phaseTwo, attributes));
     } catch (e) {
+        if (promises.canceledKeeper) return;
         callback(emptyPage); // Set empty page to avoid rendering of this folder
         throw e; // Rethrow to set error status
     }
@@ -173,11 +175,14 @@ function apiForComponent(
 
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
     const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
+    const [promises] = useState(new PromiseKeeper());
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
         ...initialPageParameters,
         type: props.foldersOnly ? "DIRECTORY" : undefined,
         path: Cloud.homeFolder
     });
+
+    React.useEffect(() => () => promises.cancelPromises());
 
     const loadManaged = (request: ListDirectoryRequest) => {
         setPageParameters(request);
@@ -188,7 +193,8 @@ function apiForComponent(
                     FileResource.SENSITIVITY_LEVEL
                 ],
                 it => setManagedPage(it),
-                request);
+                request,
+                promises);
         });
     };
 
@@ -300,12 +306,12 @@ const LowLevelFileTable_: React.FunctionComponent<
             if (props.path === undefined) return;
             const fileId = "newFolderId";
             setInjectedViaState([
-               mockFile({
-                   path: `${props.path}/newFolder`,
-                   fileId,
-                   tag: MOCK_RENAME_TAG,
-                   type: "DIRECTORY"
-               })
+                mockFile({
+                    path: `${props.path}/newFolder`,
+                    fileId,
+                    tag: MOCK_RENAME_TAG,
+                    type: "DIRECTORY"
+                })
             ]
             );
             setFileBeingRenamed(fileId);

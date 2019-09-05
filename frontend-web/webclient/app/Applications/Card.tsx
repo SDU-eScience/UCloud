@@ -1,21 +1,21 @@
 import * as React from "react";
-import Markdown from "ui-components/Markdown"
-import {Absolute, Icon, Flex, RatingBadge, Text} from "ui-components";
-import Box from "ui-components/Box";
-import Link from "ui-components/Link";
-import {EllipsedText} from "ui-components/Text";
-import * as Pages from "./Pages";
-import {FullAppInfo} from ".";
 import styled, {css} from "styled-components";
-import * as Heading from "ui-components/Heading"
-import theme from "ui-components/theme"
+import {Absolute, Flex, Icon, RatingBadge, Text} from "ui-components";
+import Box from "ui-components/Box";
+import * as Heading from "ui-components/Heading";
+import Link from "ui-components/Link";
+import Markdown from "ui-components/Markdown";
+import {EllipsedText} from "ui-components/Text";
+import theme from "ui-components/theme";
+import {FullAppInfo} from ".";
+import * as Pages from "./Pages";
 
 interface ApplicationCardProps {
-    onFavorite?: (name: string, version: string) => void
-    app: FullAppInfo
-    isFavorite?: boolean
-    linkToRun?: boolean
-    tags: string[]
+    onFavorite?: (name: string, version: string) => void;
+    app: FullAppInfo;
+    isFavorite?: boolean;
+    linkToRun?: boolean;
+    tags: string[];
 }
 
 const AppCardActionsBase = styled.div``;
