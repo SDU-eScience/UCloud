@@ -7,6 +7,7 @@ import DetailedResult from "Applications/DetailedResult";
 import * as ApplicationsInstalled from "Applications/Installed";
 import JobResults from "Applications/JobResults";
 import Run from "Applications/Run";
+import AppStudioApps from "Applications/Studio/App";
 import AppStudioPage from "Applications/Studio/Page";
 import AppStudioTools from "Applications/Studio/Tool";
 import ApplicationView from "Applications/View";
@@ -76,6 +77,7 @@ const Core = () => {
 
                 <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
                 <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)} />
+                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
 
                 <Route exact path="/shares" component={requireAuth(Share.List)}/>
 

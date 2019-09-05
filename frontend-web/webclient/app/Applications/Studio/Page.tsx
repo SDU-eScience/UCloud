@@ -1,14 +1,12 @@
 import {ToolReference} from "Applications";
 import {listTools} from "Applications/api";
-import {AppCard} from "Applications/Card";
-import {ToolLogo} from "Applications/ToolLogo";
+import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
 import {useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import * as React from "react";
-import styled from "styled-components";
 import {Page} from "Types";
 import Box from "ui-components/Box";
 import Button from "ui-components/Button";
@@ -16,6 +14,7 @@ import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import Truncate from "ui-components/Truncate";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
+import {AppToolLogo} from "../AppToolLogo";
 
 const Studio: React.FunctionComponent = props => {
     const [tools, setToolParameters, toolParameters] =
@@ -45,9 +44,9 @@ const Studio: React.FunctionComponent = props => {
                 pageRenderer={page => {
                     return <Flex flexWrap={"wrap"} justifyContent={"center"}>
                         {page.items.map(tool =>
-                            <SmallToolCard key={tool.description.info.name} to={`/applications/studio/t/${tool.description.info.name}`}>
+                            <SmallAppToolCard key={tool.description.info.name} to={`/applications/studio/t/${tool.description.info.name}`}>
                                 <Flex>
-                                    <ToolLogo tool={tool.description.info.name}/>
+                                    <AppToolLogo type={"TOOL"} name={tool.description.info.name}/>
                                     <Box ml={8}>
                                         <Truncate width={300} cursor={"pointer"}>
                                             <b>
@@ -57,7 +56,7 @@ const Studio: React.FunctionComponent = props => {
                                         <Box cursor={"pointer"}>{tool.description.info.name}</Box>
                                     </Box>
                                 </Flex>
-                            </SmallToolCard>
+                            </SmallAppToolCard>
                         )}
                     </Flex>;
                 }}
@@ -65,14 +64,5 @@ const Studio: React.FunctionComponent = props => {
         }
     />;
 };
-
-
-const SmallToolCard = styled(AppCard)`
-    max-width: 400px;
-    min-width: 400px;
-    width: 400px;
-    max-height: 70px;
-    margin: 8px;
-`;
 
 export default Studio;

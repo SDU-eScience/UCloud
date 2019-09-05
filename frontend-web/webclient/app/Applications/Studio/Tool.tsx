@@ -1,19 +1,23 @@
-import {Application, ToolReference, WithAppInvocation, WithAppMetadata} from "Applications";
-import {clearLogo, listApplicationsByTool, listTools, listToolsByName, uploadLogo} from "Applications/api";
-import {ToolLogo} from "Applications/ToolLogo";
-import {useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
+import {ToolReference, WithAppInvocation, WithAppMetadata} from "Applications";
+import {clearLogo, listApplicationsByTool, listToolsByName, uploadLogo} from "Applications/api";
+import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
+import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
+import * as Pagination from "Pagination";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
-import {Button, VerticalButtonGroup} from "ui-components";
+import {Button, Flex, VerticalButtonGroup} from "ui-components";
+import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import {HiddenInputField} from "ui-components/Input";
+import Truncate from "ui-components/Truncate";
+import {AppToolLogo} from "../AppToolLogo";
 
 const Tool: React.FunctionComponent<RouteComponentProps> = props => {
     // tslint:disable-next-line
@@ -37,7 +41,7 @@ const Tool: React.FunctionComponent<RouteComponentProps> = props => {
     return <MainContainer
         header={
             <Heading.h1>
-                <ToolLogo tool={name} cacheBust={logoCacheBust} size={"64px"}/>
+                <AppToolLogo type={"TOOL"} name={name} cacheBust={logoCacheBust} size={"64px"}/>
                 {" "}
                 {toolTitle}
             </Heading.h1>
@@ -82,9 +86,36 @@ const Tool: React.FunctionComponent<RouteComponentProps> = props => {
 
         main={
             <>
-                Hi, {name}!
-                {tool.data.itemsInTotal} {" "}
-                {apps.data.itemsInTotal}
+                The following applications are currently using this tool, click on any to configure them further:
+
+                <Pagination.List
+                    loading={apps.loading}
+                    page={apps.data}
+                    onPageChanged={newPage =>
+                        setAppParameters(listApplicationsByTool({...appParameters.parameters, page: newPage}))
+                    }
+
+                    pageRenderer={page => {
+                        return <Flex justifyContent={"center"} flexWrap={"wrap"}>
+                            {
+                                page.items.map(app => (
+                                    <SmallAppToolCard to={`/applications/studio/a/${app.metadata.name}`}>
+                                        <Flex>
+                                            <AppToolLogo name={app.metadata.name} type={"APPLICATION"}/>
+                                            <Box ml={8}>
+                                                <Truncate width={300} cursor={"pointer"}>
+                                                    <b>
+                                                        {app.metadata.title}
+                                                    </b>
+                                                </Truncate>
+                                            </Box>
+                                        </Flex>
+                                    </SmallAppToolCard>
+                                ))
+                            }
+                        </Flex>;
+                    }}
+                />
             </>
         }
     />;

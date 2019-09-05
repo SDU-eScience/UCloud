@@ -1,12 +1,12 @@
 import {JobState, RunsSortBy} from "Applications/index";
 import {APICallParameters} from "Authentication/DataHook";
-import {SortOrder} from "Files";
-import {buildQueryString} from "Utilities/URIUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {inSuccessRange} from "UtilityFunctions";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {SortOrder} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {buildQueryString} from "Utilities/URIUtilities";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
+import {inSuccessRange} from "UtilityFunctions";
 
 export interface ListByNameProps {
     itemsPerPage: number;
@@ -72,7 +72,7 @@ export function listApplicationsByTool(props: ListByTool): APICallParameters<Lis
     };
 }
 
-type AppOrTool = "APPLICATION" | "TOOL";
+export type AppOrTool = "APPLICATION" | "TOOL";
 
 export interface UploadLogoProps {
     type: AppOrTool;
