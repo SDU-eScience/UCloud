@@ -13,7 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-const val HOST = "https://cloud.sdu.dk"
+const val HOST = "https://dev.cloud.sdu.dk"
 lateinit var driver: WebDriver
 
 class EndToEndTest {
@@ -47,9 +47,11 @@ class EndToEndTest {
     }
 
     private fun WebDriver.login(username: String, password: String) {
-        findElement(By.id("username")).sendKeys(username)
-        findElement(By.id("password")).sendKeys(password)
-        findElement(By.tagName("button")).click()
+        findElements(By.tagName("div")).find{ it.text == "More login options"}?.click()
+        val form = findElement(By.tagName("form"))
+        form.findElement(By.id("username")).sendKeys(username)
+        form.findElement(By.id("password")).sendKeys(password)
+        form.findElement(By.tagName("button")).click()
         await { !currentUrl.contains("login") }
     }
 
@@ -61,7 +63,11 @@ class EndToEndTest {
     }
 
     private fun WebDriver.createDirectory(name: String) {
-        findElement(byTag("newFolder")).click()
+        val button = findElements(By.ByTagName("button")).find {
+            val span = it.findElementOrNull(By.ByTagName("span"))
+            span?.text == "New Folder"
+        }
+        button?.click()
         val inputField = awaitElement(byTag("renameField"))
         inputField.sendKeys(name + Keys.ENTER)
     }
