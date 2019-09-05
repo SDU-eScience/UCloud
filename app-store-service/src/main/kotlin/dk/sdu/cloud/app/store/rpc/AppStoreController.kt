@@ -149,6 +149,10 @@ class AppStoreController<DBSession>(
                 )
             )
         }
+
+        implement(AppStore.findLatestByTool) {
+            ok(appStore.findLatestByTool(ctx.securityPrincipal, request.tool, request.normalize()))
+        }
     }
 
     companion object : Loggable {

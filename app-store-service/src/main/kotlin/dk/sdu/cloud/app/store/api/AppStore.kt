@@ -60,6 +60,13 @@ typealias FetchLogoResponse = BinaryStream
 
 typealias UploadApplicationLogoResponse = Unit
 
+data class FindLatestByToolRequest(
+    val tool: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+typealias FindLatestByToolResponse = Page<Application>
+
 object AppStore : CallDescriptionContainer("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
@@ -179,6 +186,28 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
                 using(baseContext)
                 +boundTo(FindApplicationAndOptionalDependencies::name)
                 +boundTo(FindApplicationAndOptionalDependencies::version)
+            }
+        }
+    }
+
+    val findLatestByTool = call<FindLatestByToolRequest, FindLatestByToolResponse, CommonErrorMessage>(
+        "findLatestByTool"
+    ) {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +"byTool"
+                +boundTo(FindLatestByToolRequest::tool)
+            }
+
+            params {
+                +boundTo(FindLatestByToolRequest::itemsPerPage)
+                +boundTo(FindLatestByToolRequest::page)
             }
         }
     }

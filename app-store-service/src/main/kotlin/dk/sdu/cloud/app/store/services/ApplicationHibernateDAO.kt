@@ -619,6 +619,50 @@ class ApplicationHibernateDAO(
         return ApplicationLogoEntity[session, name]?.data
     }
 
+    override fun findLatestByTool(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        tool: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Application> {
+        val count = session
+            .typedQuery<Long>(
+                """
+                    select count (A.id.name)
+                    from ApplicationEntity as A
+                    where (A.createdAt) in (
+                        select max(createdAt)
+                        from ApplicationEntity as B
+                        where A.id.name = B.id.name
+                        group by id.name
+                    ) and A.toolName = :toolName
+                """.trimIndent()
+            )
+            .setParameter("toolName", tool)
+            .uniqueResult()
+            .toInt()
+
+        val items = session
+            .typedQuery<ApplicationEntity>(
+                """
+                    from ApplicationEntity as A 
+                    where 
+                        (A.createdAt) in (
+                            select max(createdAt)
+                            from ApplicationEntity as B
+                            where A.id.name = B.id.name
+                            group by id.name
+                        ) and A.toolName = :toolName
+                    order by A.id.name
+                """.trimIndent()
+            )
+            .setParameter("toolName", tool)
+            .paginatedList(paging)
+            .map { it.toModelWithInvocation() }
+
+        return Page(count, paging.itemsPerPage, paging.page, items)
+    }
+
     private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {
         if (user.role == Role.ADMIN) return true
         return owner == user.username

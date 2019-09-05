@@ -1,5 +1,5 @@
-import {ToolReference} from "Applications";
-import {clearLogo, listTools, listToolsByName, uploadLogo} from "Applications/api";
+import {Application, ToolReference, WithAppInvocation, WithAppMetadata} from "Applications";
+import {clearLogo, listApplicationsByTool, listTools, listToolsByName, uploadLogo} from "Applications/api";
 import {ToolLogo} from "Applications/ToolLogo";
 import {useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
@@ -20,14 +20,18 @@ const Tool: React.FunctionComponent<RouteComponentProps> = props => {
     const name = props.match.params["name"];
     if (Cloud.userRole !== "ADMIN") return null;
 
-    const [tool, setToolParameter, toolParameter] = useCloudAPI<Page<ToolReference>>({noop: true}, emptyPage);
     const [commandLoading, invokeCommand] = useAsyncCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
+    const [tool, setToolParameter, toolParameter] = useCloudAPI<Page<ToolReference>>({noop: true}, emptyPage);
+    const [apps, setAppParameters, appParameters] = useCloudAPI<Page<WithAppMetadata & WithAppInvocation>>(
+        {noop: true}, emptyPage
+    );
 
     const toolTitle = tool.data.items.length > 0 ? tool.data.items[0].description.title : name;
 
     useEffect(() => {
         setToolParameter(listToolsByName({name, page: 0, itemsPerPage: 50}));
+        setAppParameters(listApplicationsByTool({tool: name, page: 0, itemsPerPage: 50}));
     }, [name]);
 
     return <MainContainer
@@ -65,6 +69,7 @@ const Tool: React.FunctionComponent<RouteComponentProps> = props => {
                 <Button
                     type={"button"}
                     color={"red"}
+                    disabled={commandLoading}
                     onClick={async () => {
                         await invokeCommand(clearLogo({type: "TOOL", name}));
                         setLogoCacheBust("" + Date.now());
@@ -78,7 +83,8 @@ const Tool: React.FunctionComponent<RouteComponentProps> = props => {
         main={
             <>
                 Hi, {name}!
-                {tool.data.itemsInTotal}
+                {tool.data.itemsInTotal} {" "}
+                {apps.data.itemsInTotal}
             </>
         }
     />;

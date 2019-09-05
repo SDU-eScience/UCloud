@@ -38,9 +38,17 @@ val normAppDesc3 = normAppDesc
         )
     )
 
+fun Application.withTool(name: String, version: String): Application {
+    return copy(
+        invocation = invocation.copy(
+            tool = ToolReference(name, version, null)
+        )
+    )
+}
+
 fun Application.withNameAndVersion(name: String, version: String): Application {
     return copy(
-        metadata = normAppDesc.metadata.copy(
+        metadata = metadata.copy(
             name = name,
             version = version
         )

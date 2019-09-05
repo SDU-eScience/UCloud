@@ -57,6 +57,21 @@ export function listToolsByName(props: ListByNameProps): APICallParameters<ListB
     };
 }
 
+export interface ListByTool {
+    page: number;
+    itemsPerPage: number;
+    tool: string;
+}
+
+export function listApplicationsByTool(props: ListByTool): APICallParameters<ListByTool> {
+    return {
+        reloadId: Math.random(),
+        method: "GET",
+        path: buildQueryString(`/hpc/apps/byTool/${props.tool}`, {itemsPerPage: props.itemsPerPage, page: props.page}),
+        parameters: props
+    };
+}
+
 type AppOrTool = "APPLICATION" | "TOOL";
 
 export interface UploadLogoProps {

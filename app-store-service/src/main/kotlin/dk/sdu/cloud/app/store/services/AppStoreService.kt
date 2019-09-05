@@ -140,6 +140,16 @@ class AppStoreService<DBSession>(
         }
     }
 
+    fun findLatestByTool(
+        user: SecurityPrincipal,
+        tool: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Application> {
+        return db.withTransaction { session ->
+            applicationDAO.findLatestByTool(session, user, tool, paging)
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
     }

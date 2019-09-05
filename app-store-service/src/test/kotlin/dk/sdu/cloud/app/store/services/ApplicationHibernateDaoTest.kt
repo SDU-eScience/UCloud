@@ -1,13 +1,13 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.app.store.util.normAppDesc
-import dk.sdu.cloud.app.store.util.normToolDesc
-import dk.sdu.cloud.app.store.util.withNameAndVersion
-import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.util.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.withDatabase
 import org.junit.Test
@@ -477,6 +477,50 @@ class ApplicationHibernateDaoTest {
                 val toolDAO = ToolHibernateDAO()
                 val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.deleteTags(it, user, "notAnApp", "NotVersion", listOf("A3"))
+            }
+        }
+    }
+
+    @Test
+    fun `find latest by tool`() {
+        withDatabase { db ->
+            val toolDao = ToolHibernateDAO()
+            val appDao = ApplicationHibernateDAO(toolDao)
+            val t1 = "tool1"
+            val t2 = "tool2"
+            val version = "1"
+
+            db.withTransaction { session ->
+                toolDao.create(session, TestUsers.admin, normToolDesc.copy(NameAndVersion(t1, version)))
+                toolDao.create(session, TestUsers.admin, normToolDesc.copy(NameAndVersion(t2, version)))
+
+                appDao.create(session, TestUsers.admin, normAppDesc.withNameAndVersion("a", "1").withTool(t1, version))
+                Thread.sleep(250)
+                appDao.create(session, TestUsers.admin, normAppDesc.withNameAndVersion("a", "2").withTool(t1, version))
+
+                appDao.create(session, TestUsers.admin, normAppDesc.withNameAndVersion("b", "1").withTool(t2, version))
+            }
+
+            db.withTransaction { session ->
+                val page = appDao.findLatestByTool(session, TestUsers.admin, t1, PaginationRequest().normalize())
+
+                assertThatInstance(page) { it.itemsInTotal == 1 }
+                assertThatInstance(page) { it.items.single().metadata.name == "a" }
+                assertThatInstance(page) { it.items.single().metadata.version == "2" }
+            }
+
+            db.withTransaction { session ->
+                val page = appDao.findLatestByTool(session, TestUsers.admin, t2, PaginationRequest().normalize())
+
+                assertThatInstance(page) { it.itemsInTotal == 1 }
+                assertThatInstance(page) { it.items.single().metadata.name == "b" }
+                assertThatInstance(page) { it.items.single().metadata.version == "1" }
+            }
+
+            db.withTransaction { session ->
+                val page = appDao.findLatestByTool(session, TestUsers.admin, "tool3", PaginationRequest().normalize())
+
+                assertThatInstance(page) { it.itemsInTotal == 0 }
             }
         }
     }

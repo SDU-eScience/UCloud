@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.HibernateSession
 
 interface ApplicationDAO<Session> {
     fun toggleFavorite(
@@ -110,4 +111,11 @@ interface ApplicationDAO<Session> {
     fun clearLogo(session: Session, user: SecurityPrincipal, name: String)
 
     fun fetchLogo(session: Session, name: String): ByteArray?
+
+    fun findLatestByTool(
+        session: Session,
+        user: SecurityPrincipal,
+        tool: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Application>
 }
