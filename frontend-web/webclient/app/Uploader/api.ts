@@ -142,6 +142,7 @@ function formatFromFileName(type: string): string {
 
 export enum UploadPolicy {
     OVERWRITE = "OVERWRITE",
+    MERGE = "MERGE",
     RENAME = "RENAME",
     REJECT = "REJECT"
 }
