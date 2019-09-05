@@ -112,7 +112,12 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 mapOf("Destination" to to, "original" to from)
             )
             val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
-            fs.makeDirectory(ctx, newRoot).emitAll()
+
+            if(conflictPolicy != WriteConflictPolicy.MERGE) {
+                fs.makeDirectory(ctx, newRoot).emitAll()
+            } else {
+
+            }
 
             tree(ctx, from, setOf(FileAttribute.PATH)).forEach { currentFile ->
                 val currentPath = currentFile.path.normalize()
@@ -246,6 +251,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val targetExists = exists(ctx, desiredTargetPath)
         return when (conflictPolicy) {
             WriteConflictPolicy.OVERWRITE -> desiredTargetPath
+
+            WriteConflictPolicy.MERGE -> desiredTargetPath
 
             WriteConflictPolicy.RENAME -> {
                 if (targetExists) findFreeNameForNewFile(ctx, desiredTargetPath)
