@@ -172,17 +172,16 @@ function apiForComponent(
     setSortByColumns: (s: [SortBy, SortBy]) => void
 ): InternalFileTableAPI {
     let api: InternalFileTableAPI;
-
-    const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
-    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
     const [promises] = useState(new PromiseKeeper());
+    const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
+    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork(promises);
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
         ...initialPageParameters,
         type: props.foldersOnly ? "DIRECTORY" : undefined,
         path: Cloud.homeFolder
     });
 
-    React.useEffect(() => () => promises.cancelPromises());
+    React.useEffect(() => () => promises.cancelPromises(), []);
 
     const loadManaged = (request: ListDirectoryRequest) => {
         setPageParameters(request);
@@ -284,7 +283,7 @@ const LowLevelFileTable_: React.FunctionComponent<
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
     const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(() => getSortingColumns());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
-    const [workLoading, workError, invokeWork] = useAsyncWork();
+    const [workLoading, workError, invokeWork] = useAsyncWork(new PromiseKeeper());
 
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);

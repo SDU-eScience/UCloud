@@ -4,7 +4,7 @@ import {Acl, File, FileType, SortBy} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {dateToString} from "Utilities/DateUtilities";
-import {getFilenameFromPath, isDirectory, replaceHomeFolder, sizeToString} from "Utilities/FileUtilities";
+import {getFilenameFromPath, replaceHomeFolder, sizeToString} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
 /**
