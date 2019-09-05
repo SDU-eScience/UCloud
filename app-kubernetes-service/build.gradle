@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.8.1-LOGO.0'
+version '0.8.1-LOGO.5'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"
