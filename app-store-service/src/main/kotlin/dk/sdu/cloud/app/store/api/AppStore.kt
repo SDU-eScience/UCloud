@@ -41,8 +41,7 @@ data class AppSearchRequest(
 
 data class CreateTagsRequest(
     val tags: List<String>,
-    val applicationName: String,
-    val applicationVersion: String
+    val applicationName: String
 )
 
 typealias DeleteTagsRequest = CreateTagsRequest

@@ -77,7 +77,6 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal,
         applicationName: String,
-        applicationVersion: String,
         tags: List<String>
     )
 
@@ -85,7 +84,6 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal,
         applicationName: String,
-        applicationVersion: String,
         tags: List<String>
     )
 

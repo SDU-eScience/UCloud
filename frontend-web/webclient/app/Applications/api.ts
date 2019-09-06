@@ -72,6 +72,33 @@ export function listApplicationsByTool(props: ListByTool): APICallParameters<Lis
     };
 }
 
+export interface CreateApplicationTagProps {
+    applicationName: string;
+    tags: string[];
+}
+
+export function createApplicationTag(props: CreateApplicationTagProps): APICallParameters<CreateApplicationTagProps> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/hpc/apps/createTag",
+        payload: props,
+        parameters: props
+    };
+}
+
+export type DeleteApplicationTagProps = CreateApplicationTagProps;
+
+export function deleteApplicationTag(props: DeleteApplicationTagProps): APICallParameters<DeleteApplicationTagProps> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/hpc/apps/deleteTag",
+        payload: props,
+        parameters: props
+    };
+}
+
 export type AppOrTool = "APPLICATION" | "TOOL";
 
 export interface UploadLogoProps {

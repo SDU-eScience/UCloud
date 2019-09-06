@@ -187,8 +187,8 @@ class AppTest {
                         normAppDesc2.withNameAndVersionAndTitle("name2", "2", "2title")
                     )
 
-                    appDao.createTags(it, user, "name1", "1", listOf("tag1", "tag2"))
-                    appDao.createTags(it, user, "name2", "2", listOf("tag2", "tag3"))
+                    appDao.createTags(it, user, "name1", listOf("tag1", "tag2"))
+                    appDao.createTags(it, user, "name2", listOf("tag2", "tag3"))
                 }
                 configureAppServer(appDao)
             },
@@ -433,8 +433,8 @@ class AppTest {
         withKtorTest(
             setup = {
                 val appDao = mockk<ApplicationHibernateDAO>()
-                every { appDao.createTags(any(), any(), any(), any(), any()) } just runs
-                every { appDao.deleteTags(any(), any(), any(), any(), any()) } just runs
+                every { appDao.createTags(any(), any(), any(), any()) } just runs
+                every { appDao.deleteTags(any(), any(), any(), any()) } just runs
                 micro.install(HibernateFeature)
                 configureAppServer(appDao)
             },
@@ -446,8 +446,7 @@ class AppTest {
                     user = TestUsers.admin,
                     request = CreateTagsRequest(
                         listOf("tag1", "tag2"),
-                        "applicationName",
-                        "2.2"
+                        "applicationName"
                     )
                 )
 
@@ -459,8 +458,7 @@ class AppTest {
                     user = TestUsers.admin,
                     request = DeleteTagsRequest(
                         listOf("tag1", "tag2"),
-                        "applicationName",
-                        "2.2"
+                        "applicationName"
                     )
                 )
 

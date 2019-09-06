@@ -107,7 +107,6 @@ class AppStoreController<DBSession>(
             appStore.createTags(
                 request.tags,
                 request.applicationName,
-                request.applicationVersion,
                 ctx.securityPrincipal
             )
             ok(Unit)
@@ -117,7 +116,6 @@ class AppStoreController<DBSession>(
             appStore.deleteTags(
                 request.tags,
                 request.applicationName,
-                request.applicationVersion,
                 ctx.securityPrincipal
             )
             ok(Unit)

@@ -128,15 +128,15 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun createTags(tags: List<String>, applicationName: String, applicationVersion: String, user: SecurityPrincipal) {
+    fun createTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
         db.withTransaction { session ->
-            applicationDAO.createTags(session, user, applicationName, applicationVersion, tags)
+            applicationDAO.createTags(session, user, applicationName, tags)
         }
     }
 
-    fun deleteTags(tags: List<String>, applicationName: String, applicationVersion: String, user: SecurityPrincipal) {
+    fun deleteTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
         db.withTransaction { session ->
-            applicationDAO.deleteTags(session, user, applicationName, applicationVersion, tags)
+            applicationDAO.deleteTags(session, user, applicationName, tags)
         }
     }
 

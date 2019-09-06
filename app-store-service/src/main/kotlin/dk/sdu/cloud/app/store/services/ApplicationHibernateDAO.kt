@@ -436,26 +436,22 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: SecurityPrincipal,
         applicationName: String,
-        applicationVersion: String,
         tags: List<String>
     ) {
-        val application =
-            internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
-                HttpStatusCode.NotFound,
-                "App not found"
-            )
-        if (!canUserPerformWriteOperation(application.owner, user)) {
+        val owner = findOwnerOfApplication(session, applicationName)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+        if (!canUserPerformWriteOperation(owner, user)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not owner of application")
         }
         tags.forEach { tag ->
-            val existing = findTag(session, applicationName, applicationVersion, tag)
+            val existing = findTag(session, applicationName, tag)
 
             if (existing != null) {
                 return@forEach
             }
             val entity = TagEntity(
                 applicationName,
-                applicationVersion,
                 tag
             )
             session.save(entity)
@@ -466,22 +462,19 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: SecurityPrincipal,
         applicationName: String,
-        applicationVersion: String,
         tags: List<String>
     ) {
-        val application =
-            internalByNameAndVersion(session, applicationName, applicationVersion) ?: throw RPCException.fromStatusCode(
-                HttpStatusCode.NotFound,
-                "App not found"
-            )
-        if (!canUserPerformWriteOperation(application.owner, user)) {
+        val owner = findOwnerOfApplication(session, applicationName)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+        if (!canUserPerformWriteOperation(owner, user)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not owner of application")
         }
+
         tags.forEach { tag ->
             val existing = findTag(
                 session,
                 applicationName,
-                applicationVersion,
                 tag
             ) ?: return@forEach
 
@@ -492,15 +485,13 @@ class ApplicationHibernateDAO(
     fun findTag(
         session: HibernateSession,
         name: String,
-        version: String,
         tag: String
     ): TagEntity? {
         return session
             .criteria<TagEntity> {
                 allOf(
-                    (entity[TagEntity::tag] equal tag) and
-                            (entity[TagEntity::applicationName] equal name) and
-                            (entity[TagEntity::applicationVersion] equal version)
+                    entity[TagEntity::tag] equal tag,
+                    entity[TagEntity::applicationName] equal name
                 )
             }.uniqueResult()
     }
@@ -556,7 +547,7 @@ class ApplicationHibernateDAO(
                 .criteria<FavoriteApplicationEntity> { entity[FavoriteApplicationEntity::user] equal user }
                 .list()
 
-            val allApplicationsOnPage = page.items.map { it.metadata.name }
+            val allApplicationsOnPage = page.items.map { it.metadata.name }.toSet()
             val allTagsForApplicationsOnPage = session
                 .criteria<TagEntity> { entity[TagEntity::applicationName] isInCollection (allApplicationsOnPage) }
                 .resultList
@@ -569,11 +560,10 @@ class ApplicationHibernateDAO(
                 }
 
                 val allTagsForApplication = allTagsForApplicationsOnPage
-                    .filter {
-                        item.metadata.name == it.applicationName &&
-                                item.metadata.version == it.applicationVersion
-                    }
+                    .filter { item.metadata.name == it.applicationName }
                     .map { it.tag }
+                    .toSet()
+                    .toList()
 
                 ApplicationWithFavorite(item.metadata, item.invocation, isFavorite, allTagsForApplication)
             }
@@ -583,7 +573,10 @@ class ApplicationHibernateDAO(
             val preparedPageItems = page.items.map { item ->
                 val allTagsForApplication = session
                     .criteria<TagEntity> { entity[TagEntity::applicationName] equal item.metadata.name }
-                    .resultList.map { it.tag }
+                    .resultList
+                    .map { it.tag }
+                    .toSet()
+                    .toList()
 
                 ApplicationWithFavorite(item.metadata, item.invocation, false, allTagsForApplication)
             }

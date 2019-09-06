@@ -68,8 +68,6 @@ class FavoriteApplicationEntity(
 class TagEntity(
     var applicationName: String,
 
-    var applicationVersion: String,
-
     @Column(name = "tag")
     var tag: String,
 
