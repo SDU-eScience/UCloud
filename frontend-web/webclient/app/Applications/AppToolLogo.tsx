@@ -14,15 +14,15 @@ interface AppToolLogoProps {
 }
 
 export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
-    const [hasLoadedImage, setLoadedImage] = useState(false);
+    const [hasLoadedImage, setLoadedImage] = useState(true);
     const size = props.size !== undefined ? props.size : "48px";
     const context = props.type === "APPLICATION" ? "apps" : "tools";
 
-    useEffect(() => setLoadedImage(false), [props.cacheBust]);
+    useEffect(() => setLoadedImage(true), [props.cacheBust]);
 
     return <>
         <AppToolImage
-            onLoad={() => setLoadedImage(true)}
+            onError={() => setLoadedImage(false)}
             style={hasLoadedImage ? {width: size, height: size} : {display: "none"}}
             src={Cloud.computeURL("/api", `/hpc/${context}/logo/${props.name}?cacheBust=${props.cacheBust}`)}
         />

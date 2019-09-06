@@ -11,6 +11,7 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.createCriteriaBuilder
 import dk.sdu.cloud.service.db.createQuery
@@ -308,6 +309,15 @@ class ApplicationHibernateDAO(
         name: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
+        return internalFindAllByName(session, user, name, paging).mapItems { it.withoutInvocation() }
+    }
+
+    private fun internalFindAllByName(
+        session: HibernateSession,
+        user: SecurityPrincipal?,
+        name: String,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationWithFavorite> {
         return preparePageForUser(
             session,
             user?.username,
@@ -320,7 +330,7 @@ class ApplicationHibernateDAO(
                     }
                 )
                 .mapItems { it.toModelWithInvocation() }
-        ).mapItems { it.withoutInvocation() }
+        )
     }
 
     override fun findByNameAndVersion(
@@ -609,7 +619,12 @@ class ApplicationHibernateDAO(
     }
 
     override fun fetchLogo(session: HibernateSession, name: String): ByteArray? {
-        return ApplicationLogoEntity[session, name]?.data
+        val logoFromApp = ApplicationLogoEntity[session, name]?.data
+        if (logoFromApp != null) return logoFromApp
+        val app = internalFindAllByName(session, null, name, PaginationRequest().normalize()).items.firstOrNull()
+            ?: return null
+        val toolName = app.invocation.tool.name
+        return ToolLogoEntity[session, toolName]?.data
     }
 
     override fun findLatestByTool(

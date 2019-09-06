@@ -101,7 +101,8 @@ const Tool: React.FunctionComponent<RouteComponentProps> = props => {
                                 page.items.map(app => (
                                     <SmallAppToolCard to={`/applications/studio/a/${app.metadata.name}`}>
                                         <Flex>
-                                            <AppToolLogo name={app.metadata.name} type={"APPLICATION"}/>
+                                            <AppToolLogo name={app.metadata.name} type={"APPLICATION"}
+                                                         cacheBust={logoCacheBust}/>
                                             <Box ml={8}>
                                                 <Truncate width={300} cursor={"pointer"}>
                                                     <b>

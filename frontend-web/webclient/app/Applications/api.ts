@@ -120,7 +120,15 @@ export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
         request.onreadystatechange = () => {
             if (request.status !== 0) {
                 if (!inSuccessRange(request.status)) {
-                    snackbarStore.addSnack({message: "Logo upload failed", type: SnackType.Failure});
+                    let message: string = "Logo upload failed";
+                    try {
+                        message = JSON.parse(request.responseText).why;
+                    } catch (e) {
+                        console.log(e);
+                        // Do nothing
+                    }
+
+                    snackbarStore.addSnack({message, type: SnackType.Failure});
                     resolve(false);
                 } else {
                     resolve(true);
@@ -145,6 +153,43 @@ export function clearLogo(props: ClearLogoProps): APICallParameters<ClearLogoPro
         path: `/hpc/${context}/clearLogo/${props.name}`,
         parameters: props
     };
+}
+
+export interface UploadDocumentProps {
+    type: AppOrTool;
+    document: File;
+}
+
+export async function uploadDocument(props: UploadDocumentProps): Promise<boolean> {
+    const token = await Cloud.receiveAccessTokenOrRefreshIt();
+
+    return new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        const context = props.type === "APPLICATION" ? "apps" : "tools";
+        request.open("PUT", Cloud.computeURL("/api", `/hpc/${context}`));
+        request.setRequestHeader("Authorization", `Bearer ${token}`);
+        request.responseType = "text";
+        request.onreadystatechange = () => {
+            if (request.status !== 0) {
+                if (!inSuccessRange(request.status)) {
+                    let message: string = "Upload failed";
+                    try {
+                        message = JSON.parse(request.responseText).why;
+                    } catch (e) {
+                        console.log(e);
+                        console.log(request.responseText);
+                        // Do nothing
+                    }
+                    snackbarStore.addSnack({message, type: SnackType.Failure});
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            }
+        };
+
+        request.send(props.document);
+    });
 }
 
 export interface ListJobsProps {

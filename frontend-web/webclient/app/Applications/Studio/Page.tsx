@@ -1,17 +1,20 @@
 import {ToolReference} from "Applications";
-import {listTools} from "Applications/api";
+import {listTools, uploadDocument} from "Applications/api";
 import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
 import {useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
+import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import * as React from "react";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
 import Box from "ui-components/Box";
 import Button from "ui-components/Button";
 import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
+import {HiddenInputField} from "ui-components/Input";
 import Truncate from "ui-components/Truncate";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {AppToolLogo} from "../AppToolLogo";
@@ -29,8 +32,45 @@ const Studio: React.FunctionComponent = props => {
 
         sidebar={
             <VerticalButtonGroup>
-                <Button type={"button"}>Upload Application</Button>
-                <Button type={"button"}>Upload Tool</Button>
+                <Button fullWidth as="label">
+                    Upload Application
+                    <HiddenInputField
+                        type="file"
+                        onChange={async e => {
+                            const target = e.target;
+                            if (target.files) {
+                                const file = target.files[0];
+                                target.value = "";
+                                if (file.size > 1024 * 512) {
+                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                } else {
+                                    await uploadDocument({document: file, type: "APPLICATION"});
+                                    setToolParameters(listTools({...toolParameters.parameters}));
+                                }
+                                dialogStore.success();
+                            }
+                        }}/>
+                </Button>
+
+                <Button fullWidth as="label">
+                    Upload Tool
+                    <HiddenInputField
+                        type="file"
+                        onChange={async e => {
+                            const target = e.target;
+                            if (target.files) {
+                                const file = target.files[0];
+                                target.value = "";
+                                if (file.size > 1024 * 512) {
+                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                } else {
+                                    await uploadDocument({document: file, type: "TOOL"});
+                                    setToolParameters(listTools({...toolParameters.parameters}));
+                                }
+                                dialogStore.success();
+                            }
+                        }}/>
+                </Button>
             </VerticalButtonGroup>
         }
 
