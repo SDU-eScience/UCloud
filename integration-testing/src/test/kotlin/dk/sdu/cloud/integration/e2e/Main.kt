@@ -32,9 +32,7 @@ class EndToEndTest {
                 val folderName = "0${UUID.randomUUID()}"
                 createDirectory(folderName)
                 openFolder(folderName)
-                println("uploadFile")
                 uploadFile()
-                println("uploadArchive")
                 uploadArchive()
                 renameFiles()
                 favoriteFiles()
