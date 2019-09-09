@@ -1,17 +1,19 @@
-import * as React from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {MainContainer} from "MainContainer/MainContainer";
+import {setActivePage, setLoading, SetStatusLoading} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
-import {defaultErrorHandler} from "UtilityFunctions";
-import {UserCreationState} from ".";
-import {Input, Label, Button} from "ui-components";
-import * as Heading from "ui-components/Heading";
+import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {setActivePage, SetStatusLoading, setLoading} from "Navigation/Redux/StatusActions";
-import {SidebarPages} from "ui-components/Sidebar";
-import {MainContainer} from "MainContainer/MainContainer";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Button, Input, Label} from "ui-components";
+import * as Heading from "ui-components/Heading";
+import {SidebarPages} from "ui-components/Sidebar";
+import {defaultErrorHandler} from "UtilityFunctions";
+import {UserCreationState} from ".";
+import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
+import Link from "ui-components/Link";
 
 const initialState: UserCreationState = {
     submitted: false,
@@ -50,12 +52,14 @@ function UserCreation(props: UserCreationOperations) {
         if (!usernameError && !passwordError) {
             try {
                 props.setLoading(true);
-                await promiseKeeper.makeCancelable(Cloud.post("/auth/users/register", {username, password}, "")).promise;
+                await promiseKeeper.makeCancelable(
+                    Cloud.post("/auth/users/register", {username, password}, "")
+                ).promise;
                 snackbarStore.addSnack({message: `User '${username}' successfully created`, type: SnackType.Success});
                 setState(() => initialState);
             } catch (e) {
                 const status = defaultErrorHandler(e);
-                if (status == 400) {
+                if (status === 400) {
                     snackbarStore.addSnack({
                         message: "User already exists",
                         type: SnackType.Information
@@ -68,7 +72,6 @@ function UserCreation(props: UserCreationOperations) {
         }
     }
 
-
     if (!Cloud.userIsAdmin) return null;
 
     const {
@@ -80,56 +83,66 @@ function UserCreation(props: UserCreationOperations) {
         submitted
     } = state;
 
-
-    const header = (<><Heading.h1>User Creation</Heading.h1>
-        <p>Admins can create new users on this page.</p></>);
-
     return (
         <MainContainer
-            header={header}
-            headerSize={120}
-            main={<form onSubmit={e => submit(e)}>
-                <Label mb="1em">
-                    Username
-                    <Input
-                        value={username}
-                        color={usernameError ? "red" : "gray"}
-                        onChange={({target: {value}}) => updateFields("username", value)}
-                        placeholder="Username..."
-                    />
-                </Label>
-                <Label mb="1em">
-                    Password
-                    <Input
-                        value={password}
-                        type="password"
-                        color={passwordError ? "red" : "gray"}
-                        onChange={({target: {value}}) => updateFields("password", value)}
-                        placeholder="Password..."
-                    />
-                </Label>
-                <Label mb="1em">
-                    Repeat password
-                    <Input
-                        value={repeatedPassword}
-                        type="password"
-                        color={passwordError ? "red" : "gray"}
-                        onChange={({target: {value}}) => updateFields("repeatedPassword", value)}
-                        placeholder="Repeat password..."
-                    />
-                </Label>
-                <Button
-                    type="submit"
-                    color="green"
-                    disabled={submitted}
-                >Create user</Button>
-            </form>}
+            header={<Heading.h1>User Creation</Heading.h1>}
+            headerSize={64}
+            sidebar={
+                <VerticalButtonGroup>
+                    <Link to={"/applications/studio"}>
+                        <Button type={"button"}>
+                            Application Studio
+                        </Button>
+                    </Link>
+                </VerticalButtonGroup>
+            }
+            main={
+                <>
+                    <p>Admins can create new users on this page.</p>
+                    <form onSubmit={e => submit(e)}>
+                        <Label mb="1em">
+                            Username
+                            <Input
+                                value={username}
+                                color={usernameError ? "red" : "gray"}
+                                onChange={({target: {value}}) => updateFields("username", value)}
+                                placeholder="Username..."
+                            />
+                        </Label>
+                        <Label mb="1em">
+                            Password
+                            <Input
+                                value={password}
+                                type="password"
+                                color={passwordError ? "red" : "gray"}
+                                onChange={({target: {value}}) => updateFields("password", value)}
+                                placeholder="Password..."
+                            />
+                        </Label>
+                        <Label mb="1em">
+                            Repeat password
+                            <Input
+                                value={repeatedPassword}
+                                type="password"
+                                color={passwordError ? "red" : "gray"}
+                                onChange={({target: {value}}) => updateFields("repeatedPassword", value)}
+                                placeholder="Repeat password..."
+                            />
+                        </Label>
+                        <Button
+                            type="submit"
+                            color="green"
+                            disabled={submitted}
+                        >Create user</Button>
+                    </form>
+                </>
+            }
         />
     );
 }
 
 interface UserCreationOperations extends SetStatusLoading {
-    setActivePage: () => void
+    setActivePage: () => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({

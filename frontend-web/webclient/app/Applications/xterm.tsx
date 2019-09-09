@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {Terminal} from "xterm";
 import "xterm/dist/xterm.css";
 
@@ -30,7 +30,7 @@ export function useXTerm(): [React.RefObject<HTMLDivElement>, (textToAppend: str
             cursorAccent: "#eee8d5"
         }
     }));
-    const elem = React.createRef<HTMLDivElement>();
+    const elem = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (elem.current && !didMount) {
