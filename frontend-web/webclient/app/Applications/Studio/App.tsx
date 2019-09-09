@@ -3,31 +3,41 @@ import {
     clearLogo,
     createApplicationTag,
     deleteApplicationTag,
-    listApplications,
     listByName,
     uploadLogo
 } from "Applications/api";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
+import * as Actions from "Applications/Redux/BrowseActions";
 import {TagStyle} from "Applications/View";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
+import {loadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
+import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {useEffect, useRef} from "react";
 import * as React from "react";
 import {useState} from "react";
+import {connect} from "react-redux";
 import {RouteComponentProps} from "react-router";
+import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
 import {Button, Flex, VerticalButtonGroup} from "ui-components";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import Input, {HiddenInputField} from "ui-components/Input";
-import Truncate from "ui-components/Truncate";
+import {SidebarPages} from "ui-components/Sidebar";
 
-const App: React.FunctionComponent<RouteComponentProps> = props => {
+interface AppOperations {
+    onInit: () => void;
+    setRefresh: (refresh?: () => void) => void;
+    setLoading: (loading: boolean) => void;
+}
+
+const App: React.FunctionComponent<RouteComponentProps & AppOperations> = props => {
     // tslint:disable-next-line
     const name = props.match.params["name"];
     if (Cloud.userRole !== "ADMIN") return null;
@@ -37,9 +47,19 @@ const App: React.FunctionComponent<RouteComponentProps> = props => {
     const [apps, setAppParameters, appParameters] =
         useCloudAPI<Page<WithAppMetadata & WithAllAppTags>>({noop: true}, emptyPage);
 
+    useEffect(() => props.onInit(), []);
+
     useEffect(() => {
         setAppParameters(listByName({name, itemsPerPage: 50, page: 0}));
+        props.setRefresh(() => {
+            setAppParameters(listByName({name, itemsPerPage: 50, page: 0}));
+        });
+        return () => props.setRefresh();
     }, [name]);
+
+    useEffect(() => {
+        props.setLoading(commandLoading || apps.loading);
+    }, [commandLoading, apps.loading]);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
     const tags = apps.data.items.length > 0 ? apps.data.items[0].tags : [];
@@ -149,4 +169,18 @@ const App: React.FunctionComponent<RouteComponentProps> = props => {
     />;
 };
 
-export default App;
+const mapDispatchToProps = (
+    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
+): AppOperations => ({
+    onInit: () => {
+        dispatch(updatePageTitle("Application Studio/Apps"));
+        dispatch(setPrioritizedSearch("applications"));
+        dispatch(setActivePage(SidebarPages.AppStore));
+    },
+
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+
+    setLoading: loading => dispatch(loadingAction(loading))
+});
+
+export default connect(null, mapDispatchToProps)(App);

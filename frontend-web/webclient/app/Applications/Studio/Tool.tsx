@@ -1,25 +1,38 @@
 import {ToolReference, WithAppInvocation, WithAppMetadata} from "Applications";
 import {clearLogo, listApplicationsByTool, listToolsByName, uploadLogo} from "Applications/api";
+import * as Actions from "Applications/Redux/BrowseActions";
 import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
+import {loadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
+import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import * as React from "react";
 import {useEffect, useState} from "react";
+import {connect} from "react-redux";
 import {RouteComponentProps} from "react-router";
+import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
 import {Button, Flex, VerticalButtonGroup} from "ui-components";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import {HiddenInputField} from "ui-components/Input";
+import {SidebarPages} from "ui-components/Sidebar";
 import Truncate from "ui-components/Truncate";
 import {AppToolLogo} from "../AppToolLogo";
 
-const Tool: React.FunctionComponent<RouteComponentProps> = props => {
+interface ToolOperations {
+    onInit: () => void;
+    setRefresh: (refresh?: () => void) => void;
+    setLoading: (loading: boolean) => void;
+}
+
+const Tool: React.FunctionComponent<RouteComponentProps & ToolOperations> = props => {
     // tslint:disable-next-line
     const name = props.match.params["name"];
     if (Cloud.userRole !== "ADMIN") return null;
@@ -33,10 +46,22 @@ const Tool: React.FunctionComponent<RouteComponentProps> = props => {
 
     const toolTitle = tool.data.items.length > 0 ? tool.data.items[0].description.title : name;
 
+    useEffect(() => props.onInit(), []);
+
     useEffect(() => {
         setToolParameter(listToolsByName({name, page: 0, itemsPerPage: 50}));
         setAppParameters(listApplicationsByTool({tool: name, page: 0, itemsPerPage: 50}));
+        props.setRefresh(() => {
+            setToolParameter(listToolsByName({name, page: 0, itemsPerPage: 50}));
+            setAppParameters(listApplicationsByTool({tool: name, page: 0, itemsPerPage: 50}));
+        });
+
+        return () => props.setRefresh();
     }, [name]);
+
+    useEffect(() => {
+        props.setLoading(commandLoading || tool.loading || apps.loading);
+    }, [commandLoading, tool.loading, apps.loading]);
 
     return <MainContainer
         header={
@@ -122,4 +147,18 @@ const Tool: React.FunctionComponent<RouteComponentProps> = props => {
     />;
 };
 
-export default Tool;
+const mapDispatchToProps = (
+    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
+): ToolOperations => ({
+    onInit: () => {
+        dispatch(updatePageTitle("Application Studio/Tools"));
+        dispatch(setPrioritizedSearch("applications"));
+        dispatch(setActivePage(SidebarPages.AppStore));
+    },
+
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+
+    setLoading: loading => dispatch(loadingAction(loading))
+});
+
+export default connect(null, mapDispatchToProps)(Tool);
