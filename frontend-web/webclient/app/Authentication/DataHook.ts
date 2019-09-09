@@ -152,17 +152,22 @@ export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) 
 
 export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
 
-export function useAsyncWork(promises: PromiseKeeper): AsyncWorker {
+export function useAsyncWork(): AsyncWorker {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
+    let didCancel = false;
+    useEffect(() => {
+        didCancel = true;
+    });
+
     const startWork = async (fn: () => Promise<void>) => {
-        if (promises.canceledKeeper) return;
+        if (didCancel) return;
         setError(undefined);
         setIsLoading(true);
         try {
             await fn();
         } catch (e) {
-            if (promises.canceledKeeper) return;
+            if (didCancel) return;
             if (!!e.request) {
                 let why = "Internal Server Error";
                 if (!!e.response && e.response.why) {
@@ -178,7 +183,7 @@ export function useAsyncWork(promises: PromiseKeeper): AsyncWorker {
                 console.warn(e);
             }
         }
-        if (!promises.canceledKeeper) setIsLoading(false);
+        if (!didCancel) setIsLoading(false);
     };
 
     return [isLoading, error, startWork];

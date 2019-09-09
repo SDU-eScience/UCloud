@@ -46,7 +46,7 @@ import {
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Arrow, FileIcon} from "UtilityComponents";
-import * as UF from "UtilityFunctions"
+import * as UF from "UtilityFunctions";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -174,7 +174,7 @@ function apiForComponent(
     let api: InternalFileTableAPI;
     const [promises] = useState(new PromiseKeeper());
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
-    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork(promises);
+    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
         ...initialPageParameters,
         type: props.foldersOnly ? "DIRECTORY" : undefined,
@@ -283,7 +283,7 @@ const LowLevelFileTable_: React.FunctionComponent<
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
     const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(() => getSortingColumns());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
-    const [workLoading, workError, invokeWork] = useAsyncWork(new PromiseKeeper());
+    const [workLoading, workError, invokeWork] = useAsyncWork();
 
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
@@ -550,7 +550,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                                 </ClickableDropdown>
                                             }
                                         </Flex>
-                                    </FileTableHeaderCell>
+                                    </FileTableHeaderCell>;
                                 })}
 
                                 {/* Options cell (adds a bit of spacing and hosts options in rows) */}
@@ -721,7 +721,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 autoFocus
                 data-tag="renameField"
                 onKeyDown={e => {
-                    if (!!props.onRenameFile) props.onRenameFile(e.keyCode, (e.target as HTMLInputElement).value)
+                    if (!!props.onRenameFile) props.onRenameFile(e.keyCode, (e.target as HTMLInputElement).value);
                 }}
             />
 
@@ -731,7 +731,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 ml="9px"
                 name="close"
                 onClick={() => {
-                    if (!!props.onRenameFile) props.onRenameFile(KeyCode.ESC, "")
+                    if (!!props.onRenameFile) props.onRenameFile(KeyCode.ESC, "");
                 }}
             />
         </>;
@@ -776,7 +776,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                             } catch (e) {
                                 setFavorite(initialValue);
                             }
-                        })
+                        });
                     }}
                     hoverColor="blue"
                 />
