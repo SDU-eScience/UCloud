@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.8.1-LOGO.5'
+version '0.8.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"
@@ -9,7 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.5.12"
     ext.authApiVersion = "1.21.0"
-    ext.appOrchestratorApiVersion = "0.6.1-LOGO.0"
+    ext.appOrchestratorApiVersion = "0.6.1"
 }
 
 repositories {
