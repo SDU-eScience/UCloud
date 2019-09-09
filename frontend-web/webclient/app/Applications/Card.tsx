@@ -9,6 +9,7 @@ import {EllipsedText} from "ui-components/Text";
 import theme from "ui-components/theme";
 import {WithAllAppTags, WithAppMetadata} from ".";
 import * as Pages from "./Pages";
+import {AppToolLogo} from "Applications/AppToolLogo";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
@@ -78,7 +79,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     return (
         <AppCardBase to={props.linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <Box mr={16} >
-                <AppLogo size={"32px"} hash={hashF(metadata.title)} />
+                <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
             </Box>
             <strong>{metadata.title} v{metadata.version}</strong>
             <EllipsedText>
@@ -324,7 +325,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 </AppRibbonContainer>
             }
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
-                <AppLogo size={"48px"} hash={hash} />
+                <AppToolLogo name={app.metadata.name} type={"APPLICATION"} size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">
                     <Flex>
                         <Heading.h4>{metadata.title}</Heading.h4>

@@ -33,4 +33,5 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
 
 const AppToolImage = styled(Image)`
     object-fit: contain;
+    max-width: unset;
 `;

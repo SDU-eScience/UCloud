@@ -1,4 +1,5 @@
 import {FullAppInfo, WithAppInvocation, WithAppMetadata} from "Applications";
+import {AppToolLogo} from "Applications/AppToolLogo";
 import {ReduxObject} from "DefaultObjects";
 import {LoadableContent, loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
@@ -24,7 +25,6 @@ import {TextSpan} from "ui-components/Text";
 import {dateToString} from "Utilities/DateUtilities";
 import {capitalized} from "UtilityFunctions";
 import {ApplicationCardContainer, SlimApplicationCard} from "./Card";
-import {AppLogo, hashF} from "./Card";
 import * as Pages from "./Pages";
 import * as Actions from "./Redux/ViewActions";
 import * as ViewObject from "./Redux/ViewObject";
@@ -127,7 +127,7 @@ export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boole
     return (
         <AppHeaderBase>
             <Box mr={16} >
-                <AppLogo size={size} hash={hashF(props.application.metadata.title)} />
+                <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size} />
             </Box>
             <AppHeaderDetails>
                 {isSlim ?
@@ -203,7 +203,7 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullApp
         {!props.previousVersions ? null :
             (!props.previousVersions.items.length ? null :
                 <div>
-                    <Heading.h4>Others Versions</Heading.h4>
+                    <Heading.h4>Other Versions</Heading.h4>
                     <ApplicationCardContainer>
                         {props.previousVersions.items.map((it, idx) => (
                             <SlimApplicationCard app={it} key={idx} tags={it.tags} />
