@@ -3,19 +3,7 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.FileSortBy
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
@@ -111,7 +99,7 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
-        allowOverwrite: Boolean
+        writeConflictPolicy: WriteConflictPolicy
     ): FSResult<List<StorageEvent.Moved>> = ctx.submit {
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
@@ -120,7 +108,8 @@ class LinuxFS(
         aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
-        val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+        val opts =
+            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
         // We need to record some information from before the move
         val fromStat = stat(
@@ -140,11 +129,20 @@ class LinuxFS(
                 )
             }.getOrNull()?.fileType
 
-        if (targetType != null && fromStat.fileType != targetType) {
-            throw FSException.BadRequest("Target already exists and is not of same type as source.")
+        if (targetType != null) {
+            if (fromStat.fileType != targetType) {
+                throw FSException.BadRequest("Target already exists and is not of same type as source.")
+            }
+            if (fromStat.fileType == targetType && fromStat.fileType == FileType.DIRECTORY && writeConflictPolicy == WriteConflictPolicy.OVERWRITE) {
+                throw FSException.BadRequest("Directory is not allowed to overwrite existing directory")
+            }
         }
 
-        Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+        if (systemFrom.isDirectory) {
+            moveDirectory(ctx, from, to, writeConflictPolicy)
+        } else {
+            Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+        }
 
         // We compare this information with after the move to get the correct old path.
         val toStat = stat(
@@ -177,6 +175,91 @@ class LinuxFS(
 
         FSResult(0, rows)
     }
+
+    private suspend fun moveDirectory(
+        ctx: LinuxFSRunner,
+        from: String,
+        to: String,
+        writeConflictPolicy: WriteConflictPolicy
+    ) {
+        val systemFrom = File(translateAndCheckFile(from))
+        val systemTo = File(translateAndCheckFile(to))
+
+        // We need write permission on from's parent to avoid being able to steal a file by changing the owner.
+        aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
+        aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
+
+        val opts =
+            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+
+        // We need to record some information from before the move
+        val fromStat = stat(
+            ctx,
+            systemFrom,
+            setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.FILE_TYPE),
+            hasPerformedPermissionCheck = true
+        )
+
+        val targetType =
+            runCatching {
+                stat(
+                    ctx,
+                    systemTo,
+                    setOf(FileAttribute.FILE_TYPE),
+                    hasPerformedPermissionCheck = true
+                )
+            }.getOrNull()?.fileType
+
+        if (targetType != null && fromStat.fileType != targetType && writeConflictPolicy != WriteConflictPolicy.MERGE) {
+            throw FSException.BadRequest("Target already exists and is not of same type as source.")
+        }
+
+        if (systemFrom.isDirectory) {
+            systemFrom.listFiles().forEach {
+                moveDirectory(
+                    ctx,
+                    Paths.get(from, it.name).toString(),
+                    Paths.get(to, it.name).toString(),
+                    writeConflictPolicy
+                )
+            }
+        } else {
+            Files.createDirectories(systemTo.toPath().parent)
+            Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+        }
+
+        // We compare this information with after the move to get the correct old path.
+        val toStat = stat(
+            ctx,
+            systemTo,
+            STORAGE_EVENT_MODE,
+            hasPerformedPermissionCheck = true
+        )
+        val basePath = toStat.path.removePrefix(toStat.path).removePrefix("/")
+        val oldPath = if (fromStat.fileType == FileType.DIRECTORY) {
+            joinPath(fromStat.path, basePath)
+        } else {
+            fromStat.path
+        }
+
+        val rows = if (fromStat.fileType == FileType.DIRECTORY) {
+            // We need to emit events for every single file below this root.
+            // TODO copyCausedBy
+            Files.walk(systemTo.toPath()).toList().map {
+                stat(
+                    ctx,
+                    it.toFile(),
+                    STORAGE_EVENT_MODE,
+                    hasPerformedPermissionCheck = true
+                ).toMovedEvent(oldPath, copyCausedBy = true)
+            }
+        } else {
+            listOf(toStat.toMovedEvent(oldPath, copyCausedBy = true))
+        }
+
+        FSResult(0, rows)
+    }
+
 
     override suspend fun listDirectoryPaginated(
         ctx: LinuxFSRunner,

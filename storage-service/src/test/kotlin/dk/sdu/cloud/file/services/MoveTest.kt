@@ -168,7 +168,7 @@ class MoveTest {
         }
     }
 
-    @Test
+    @Test(expected = FSException.BadRequest::class)
     fun `test moving a non empty directory into an empty directory`() {
         runTest {
             val userRootPath = "/home/user1"
@@ -286,50 +286,57 @@ class MoveTest {
                 }
             }
 
-            service.move(
-                ctx,
-                joinPath(userRootPath, "one1"),
-                joinPath(userRootPath, "one2"),
-                WriteConflictPolicy.MERGE
-            )
+            runner.withBlockingContext("user") {
+                service.move(
+                    it,
+                    joinPath(userRootPath, "one1"),
+                    joinPath(userRootPath, "one2"),
+                    WriteConflictPolicy.MERGE
+                )
+            }
 
             val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
-            val rootListing = service.listDirectory(ctx, "/home/user", mode)
-            assertEquals(2, rootListing.size)
-            assertThatInstance(rootListing) { it.any { it.path.fileName() == "one1" } }
-            assertThatInstance(rootListing) { it.any { it.path.fileName() == "one2" } }
+            runner.withBlockingContext("user") {
+                val rootListing = service.listDirectory(it, "/home/user", mode)
+                assertThatInstance(rootListing) { it.any { it.path.fileName() == "one1" } }
+                assertThatInstance(rootListing) { it.any { it.path.fileName() == "one2" } }
+            }
 
-            val listing =
-                service.listDirectory(ctx, "/home/user/one2", mode)
+            runner.withBlockingContext("user") {
+                val listing = service.listDirectory(it, "/home/user/one2", mode)
 
-            assertEquals(7, listing.size)
-            assertThatInstance(listing) { it.any { it.path.fileName() == "a" } }
-            assertThatInstance(listing) { it.any { it.path.fileName() == "b" } }
-            assertThatInstance(listing) { it.any { it.path.fileName() == "c" } }
-            assertThatInstance(listing) { it.any { it.path.fileName() == "d" } }
-            assertThatInstance(listing) { it.any { it.path.fileName() == "second1" } }
-            assertThatInstance(listing) { it.any { it.path.fileName() == "second2" } }
-            assertThatInstance(listing) { it.any { it.path.fileName() == "second3" } }
+                assertEquals(7, listing.size)
+                assertThatInstance(listing) { it.any { it.path.fileName() == "a" } }
+                assertThatInstance(listing) { it.any { it.path.fileName() == "b" } }
+                assertThatInstance(listing) { it.any { it.path.fileName() == "c" } }
+                assertThatInstance(listing) { it.any { it.path.fileName() == "d" } }
+                assertThatInstance(listing) { it.any { it.path.fileName() == "second1" } }
+                assertThatInstance(listing) { it.any { it.path.fileName() == "second2" } }
+                assertThatInstance(listing) { it.any { it.path.fileName() == "second3" } }
+            }
 
-            val listing2 =
-                service.listDirectory(ctx, "/home/user/one2/second1", mode)
+            runner.withBlockingContext("user") {
+                val listing2 = service.listDirectory(it, "/home/user/one2/second1", mode)
 
-            assertEquals(2, listing.size)
-            assertThatInstance(listing2) { it.any { it.path.fileName() == "a" } }
-            assertThatInstance(listing2) { it.any { it.path.fileName() == "b" } }
+                assertEquals(2, listing2.size)
+                assertThatInstance(listing2) { it.any { it.path.fileName() == "a" } }
+                assertThatInstance(listing2) { it.any { it.path.fileName() == "b" } }
+            }
 
-            val listing3 =
-                service.listDirectory(ctx, "/home/user/one2/second2", mode)
+            runner.withBlockingContext("user") {
+                val listing3 = service.listDirectory(it, "/home/user/one2/second2", mode)
 
-            assertEquals(2, listing.size)
-            assertThatInstance(listing3) { it.any { it.path.fileName() == "a" } }
-            assertThatInstance(listing3) { it.any { it.path.fileName() == "b" } }
+                assertEquals(2, listing3.size)
+                assertThatInstance(listing3) { it.any { it.path.fileName() == "a" } }
+                assertThatInstance(listing3) { it.any { it.path.fileName() == "b" } }
+            }
 
-            val listing4 =
-                service.listDirectory(ctx, "/home/user/one2/second3", mode)
+            runner.withBlockingContext("user") {
+                val listing4 = service.listDirectory(it, "/home/user/one2/second3", mode)
 
-            assertEquals(1, listing.size)
-            assertThatInstance(listing4) { it.any { it.path.fileName() == "a" } }
+                assertEquals(1, listing4.size)
+                assertThatInstance(listing4) { it.any { it.path.fileName() == "a" } }
+            }
         }
     }
 }

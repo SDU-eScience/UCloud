@@ -220,10 +220,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         ctx: Ctx,
         from: String,
         to: String,
-        conflictPolicy: WriteConflictPolicy
+        writeConflictPolicy: WriteConflictPolicy
     ): String {
-        val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
-        fs.move(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+        val targetPath = renameAccordingToPolicy(ctx, to, writeConflictPolicy)
+        fs.move(ctx, from, targetPath, writeConflictPolicy).emitAll()
         return targetPath
     }
 
