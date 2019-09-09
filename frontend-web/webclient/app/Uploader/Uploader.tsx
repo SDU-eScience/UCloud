@@ -1,30 +1,56 @@
-import * as React from "react";
-import * as Modal from "react-modal";
-import {Text, Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select} from "ui-components";
-import Dropzone from "react-dropzone";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {ifPresent, iconFromFilePath, prettierString, timestampUnixMs, is5xxStatusCode, errorMessageOrDefault, addTrailingSlash} from "UtilityFunctions";
-import {sizeToString, archiveExtensions, isArchiveExtension, statFileQuery, replaceHomeFolder} from "Utilities/FileUtilities";
-import {bulkUpload, multipartUpload, UploadPolicy} from "./api";
-import {connect} from "react-redux";
 import {ReduxObject, Sensitivity} from "DefaultObjects";
-import {Upload, UploadOperations, UploaderProps, UploaderStateProps} from ".";
-import {setUploaderVisible, setUploads, setUploaderError, setLoading} from "Uploader/Redux/UploaderActions";
-import {removeEntry} from "Utilities/CollectionUtilities";
-import {Box, Flex} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Toggle} from "ui-components/Toggle";
-import styled from "styled-components";
-import {TextSpan} from "ui-components/Text";
-import {Dispatch} from "redux";
-import {FileIcon, overwriteDialog} from "UtilityComponents";
-import {Spacer} from "ui-components/Spacer";
 import {File as SDUCloudFile} from "Files";
 import {Refresh} from "Navigation/Header";
-import {Dropdown, DropdownContent} from "ui-components/Dropdown";
+import * as React from "react";
+import Dropzone from "react-dropzone";
+import * as Modal from "react-modal";
+import {connect} from "react-redux";
+import {RouteComponentProps, withRouter} from "react-router";
+import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
-import Error from "ui-components/Error";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
+import {
+    Button,
+    ButtonGroup,
+    Divider,
+    Heading,
+    Icon,
+    OutlineButton,
+    Progress,
+    Select,
+    Text
+} from "ui-components";
+import {Box, Flex} from "ui-components";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {Dropdown, DropdownContent} from "ui-components/Dropdown";
+import Error from "ui-components/Error";
+import {Spacer} from "ui-components/Spacer";
+import {TextSpan} from "ui-components/Text";
+import {Toggle} from "ui-components/Toggle";
+import {setLoading, setUploaderError, setUploaderVisible, setUploads} from "Uploader/Redux/UploaderActions";
+import {removeEntry} from "Utilities/CollectionUtilities";
+import {
+    archiveExtensions,
+    isArchiveExtension,
+    replaceHomeFolder,
+    sizeToString,
+    statFileQuery
+} from "Utilities/FileUtilities";
+import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import {FileIcon, overwriteDialog} from "UtilityComponents";
+import {
+    addTrailingSlash,
+    errorMessageOrDefault,
+    iconFromFilePath,
+    ifPresent,
+    is5xxStatusCode,
+    prettierString,
+    timestampUnixMs
+} from "UtilityFunctions";
+import {Upload, UploaderProps, UploaderStateProps, UploadOperations} from ".";
+import {bulkUpload, multipartUpload, UploadPolicy} from "./api";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -46,7 +72,7 @@ const newUpload = (file: File, location: string): Upload => ({
 
 const addProgressEvent = (upload: Upload, e: ProgressEvent) => {
     const now = timestampUnixMs();
-    upload.uploadEvents = upload.uploadEvents.filter(e => now - e.timestamp < 10_000);
+    upload.uploadEvents = upload.uploadEvents.filter(evt => now - evt.timestamp < 10_000);
     upload.uploadEvents.push({timestamp: now, progressInBytes: e.loaded});
     upload.progressPercentage = (e.loaded / e.total) * 100;
 };
@@ -64,7 +90,16 @@ function calculateSpeed(upload: Upload): number {
     return (bytesTransferred / timespan) * 1000;
 }
 
-class Uploader extends React.Component<UploaderProps> {
+
+interface UploaderState {
+    finishedUploadPaths: Set<string>;
+}
+
+class Uploader extends React.Component<UploaderProps & RouteComponentProps, UploaderState> {
+
+    public state = {
+        finishedUploadPaths: new Set<string>()
+    };
 
     private readonly MAX_CONCURRENT_UPLOADS = 5;
 
@@ -103,18 +138,32 @@ class Uploader extends React.Component<UploaderProps> {
                         </>}
                     />
                     <Divider />
-                    {finishedUploads(uploads) > 0 ? (<OutlineButton mt="4px" mb="4px" color="green" fullWidth onClick={() => this.clearFinishedUploads()}>
-                        Clear finished uploads
-                </OutlineButton>) : null}
+                    {finishedUploads(uploads) > 0 ? (
+                        <OutlineButton
+                            mt="4px"
+                            mb="4px"
+                            color="green"
+                            fullWidth
+                            onClick={() => this.clearFinishedUploads()}
+                        >
+                            Clear finished uploads
+                        </OutlineButton>
+                    ) : null}
                     {uploads.filter(it => !it.isUploading).length >= 5 ?
-                        <OutlineButton color="blue" fullWidth mt="4px" mb="4px" onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}>
+                        <OutlineButton
+                            color="blue"
+                            fullWidth
+                            mt="4px"
+                            mb="4px"
+                            onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}
+                        >
                             Clear unstarted uploads
-                    </OutlineButton> : null}
+                        </OutlineButton> : null}
                     <Box>
                         {uploads.map((upload, index) => (
                             <React.Fragment key={index}>
                                 <UploaderRow
-                                    location={props.location}
+                                    location={props.path}
                                     upload={upload}
                                     setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
                                     onExtractChange={value => this.onExtractChange(index, value)}
@@ -154,26 +203,27 @@ class Uploader extends React.Component<UploaderProps> {
     private onFilesAdded = async (files: File[]): Promise<void> => {
         if (files.some(it => it.size === 0)) snackbarStore.addSnack({message: "It is not possible to upload empty files.", type: SnackType.Information});
         if (files.some(it => it.name.length > 1025)) snackbarStore.addSnack({message: "Filenames can't exceed a length of 1024 characters.", type: SnackType.Information});
-        const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it, this.props.location));
-        if (filteredFiles.length == 0) return;
+        const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it, this.props.path));
+        if (filteredFiles.length === 0) return;
 
         this.props.setLoading(true);
         const promises: ({request: XMLHttpRequest, response: SDUCloudFile} | {status: number, response: string})[] = await Promise.all(filteredFiles.map(file =>
-            Cloud.get<SDUCloudFile>(statFileQuery(`${this.props.location}/${file.file.name}`)).then(it => it).catch(it => it)
+            Cloud.get<SDUCloudFile>(statFileQuery(`${this.props.path}/${file.file.name}`)).then(it => it).catch(it => it)
         ));
 
         promises.forEach((it, index) => {
-            if ("status" in it || is5xxStatusCode(it.request.status)) filteredFiles[index].error = errorMessageOrDefault(it, "Could not reach backend, try again later");
+            if ("status" in it || is5xxStatusCode(it.request.status))
+                filteredFiles[index].error = errorMessageOrDefault(it, "Could not reach backend, try again later");
             else if (it.request.status === 200) filteredFiles[index].conflictFile = it.response;
         });
 
         if (this.props.allowMultiple !== false) { // true if no value
-            this.props.setUploads(this.props.uploads.concat(filteredFiles))
+            this.props.setUploads(this.props.uploads.concat(filteredFiles));
         } else {
-            this.props.setUploads([filteredFiles[0]])
+            this.props.setUploads([filteredFiles[0]]);
         }
         this.props.setLoading(false);
-    };
+    }
 
     private beforeUnload = (e: {returnValue: string;}) => {
         e.returnValue = "foo";
@@ -198,11 +248,10 @@ class Uploader extends React.Component<UploaderProps> {
         xhr.onloadend = () => {
             if (uploadsFinished(this.props.uploads))
                 window.removeEventListener("beforeunload", this.beforeUnload);
-            if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads))
-                this.props.onFilesUploaded(this.props.location);
             this.props.setUploads(this.props.uploads);
             this.startPending();
         };
+        this.state.finishedUploadPaths.add(upload.parentPath);
         upload.uploadXHR = xhr;
         this.props.setUploads(this.props.uploads);
     }
@@ -224,6 +273,7 @@ class Uploader extends React.Component<UploaderProps> {
             this.props.setUploads(this.props.uploads);
         };
 
+        // FIXME: Overlap in content
         if (!upload.extractArchive) {
             multipartUpload({
                 location: `${upload.parentPath}/${upload.file.name}`,
@@ -236,7 +286,7 @@ class Uploader extends React.Component<UploaderProps> {
                 },
                 onError: err => setError(err),
             }).then(xhr => this.onUploadFinished(upload, xhr))
-                .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
+                .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")));
         } else {
             bulkUpload({
                 location: upload.parentPath,
@@ -249,15 +299,15 @@ class Uploader extends React.Component<UploaderProps> {
                 },
                 onError: err => setError(err),
             }).then(xhr => this.onUploadFinished(upload, xhr))
-                .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")))
+                .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")));
         }
-    };
+    }
 
     private startAllUploads = (event: {preventDefault: () => void}) => {
         event.preventDefault();
-        this.props.uploads.forEach(it => {if (!it.uploadXHR) it.isPending = true});
+        this.props.uploads.forEach(it => {if (!it.uploadXHR) it.isPending = true;});
         this.startPending();
-    };
+    }
 
     private removeUpload = (index: number) => {
         const files = this.props.uploads.slice();
@@ -266,11 +316,11 @@ class Uploader extends React.Component<UploaderProps> {
             this.props.setUploads(remainderFiles);
             this.startPending();
         }
-    };
+    }
 
     private abort = async (index: number) => {
         const upload = this.props.uploads[index];
-        if (!!upload.uploadXHR && upload.uploadXHR.readyState != XMLHttpRequest.DONE) {
+        if (!!upload.uploadXHR && upload.uploadXHR.readyState !== XMLHttpRequest.DONE) {
             if (upload.resolution === UploadPolicy.OVERWRITE) {
                 const result = await overwriteDialog();
                 if (result.cancelled) return;
@@ -279,13 +329,13 @@ class Uploader extends React.Component<UploaderProps> {
             this.removeUpload(index);
             this.startPending();
         }
-    };
+    }
 
     private onExtractChange = (index: number, value: boolean) => {
         const uploads = this.props.uploads;
         uploads[index].extractArchive = value;
         this.props.setUploads(uploads);
-    };
+    }
 
     private updateSensitivity(index: number, sensitivity: Sensitivity) {
         const uploads = this.props.uploads;
@@ -296,7 +346,7 @@ class Uploader extends React.Component<UploaderProps> {
     private clearUpload = (index: number) => this.props.setUploads(removeEntry(this.props.uploads, index));
 
     private clearFinishedUploads = () =>
-        this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)));
+        this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)))
 
 
     private setRewritePolicy(index: number, policy: UploadPolicy) {
@@ -305,7 +355,14 @@ class Uploader extends React.Component<UploaderProps> {
         this.props.setUploads(uploads);
     }
 
-    private closeModal = () => this.props.setUploaderVisible(false);
+    private closeModal = () => {
+        this.props.setUploaderVisible(false);
+        if (finishedUploads(this.props.uploads) !== this.props.uploads.length || this.props.uploads.length > 0) return;
+        const path = getQueryParamOrElse(this.props, "path", "");
+        if ([...this.state.finishedUploadPaths].includes(path)) {
+            // reload(path);
+        }
+    }
 }
 
 const DropZoneBox = styled(Box)`
@@ -349,8 +406,11 @@ const UploaderRow = (p: {
         </DropdownContent>
     </Dropdown>) : null;
 
-    const fileTitle = <span><b>{p.upload.file.name}</b> ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} /></span>;
-    let body;
+    const fileTitle = <span>
+        <b>{p.upload.file.name} </b>
+        ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} />
+    </span>;
+    let body: React.ReactNode;
     if (!!p.upload.error) {
         body = <>
             <Box width={0.5}>
@@ -467,28 +527,32 @@ const ProgressBar = ({upload}: {upload: Upload}) => (
     </Box>
 );
 
-interface PolicySelect {setRewritePolicy: (policy: UploadPolicy) => void}
+interface PolicySelect {setRewritePolicy: (policy: UploadPolicy) => void;}
 const PolicySelect = ({setRewritePolicy}: PolicySelect) =>
     <Flex mt="-12px" width="200px" mr="0.5em">
-        <Select width="200px" defaultValue="Rename" onChange={e => setRewritePolicy(e.target.value.toUpperCase() as UploadPolicy)}>
+        <Select
+            width="200px"
+            defaultValue="Rename"
+            onChange={e => setRewritePolicy(e.target.value.toUpperCase() as UploadPolicy)}
+        >
             <option>Rename</option>
             <option>Overwrite</option>
         </Select>
     </Flex>;
 
-interface ConflictFile {file?: SDUCloudFile}
+interface ConflictFile {file?: SDUCloudFile;}
 const ConflictFile = ({file}: ConflictFile) => !!file ?
     <Box>File already exists in folder, {sizeToString(file.size!)}</Box> : null;
 
 const mapStateToProps = ({uploader}: ReduxObject): UploaderStateProps => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
-    location: uploader.path,
+    path: uploader.path,
     visible: uploader.visible,
     allowMultiple: true,
     uploads: uploader.uploads,
-    onFilesUploaded: uploader.onFilesUploaded,
     error: uploader.error,
-    loading: uploader.loading
+    loading: uploader.loading,
+    parentRefresh: uploader.onFilesUploaded
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
@@ -498,4 +562,4 @@ const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),
 });
 
-export default connect<UploaderStateProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);
+export default connect<UploaderStateProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Uploader));
