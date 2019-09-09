@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
@@ -12,10 +13,12 @@ import dk.sdu.cloud.file.util.createDummyFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.service.test.assertThatInstance
 import io.mockk.mockk
 import org.junit.Assert
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class MoveTest {
     private fun createService(root: String): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
@@ -247,6 +250,86 @@ class MoveTest {
                 joinPath(userRootPath, wrapper, conflictFileName),
                 WriteConflictPolicy.OVERWRITE
             )
+        }
+    }
+
+    @Test
+    fun `test move (merge)`() {
+        runTest {
+            val userRootPath = "/home/user"
+
+            fsRoot.resolve(".$userRootPath").apply {
+                mkdir("one2") {
+                    touch("a")
+                    touch("b")
+                    touch("d")
+                    mkdir("second1") {
+                        touch("a")
+                    }
+                    mkdir("second2") {
+                        touch("a")
+                    }
+                    mkdir("second3") {
+                        touch("a")
+                    }
+                }
+                mkdir("one1") {
+                    touch("b")
+                    touch("c")
+                    mkdir("second1") {
+                        touch("a")
+                        touch("b")
+                    }
+                    mkdir("second2") {
+                        touch("b")
+                    }
+                }
+            }
+
+            service.move(
+                ctx,
+                joinPath(userRootPath, "one1"),
+                joinPath(userRootPath, "one2"),
+                WriteConflictPolicy.MERGE
+            )
+
+            val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
+            val rootListing = service.listDirectory(ctx, "/home/user", mode)
+            assertEquals(2, rootListing.size)
+            assertThatInstance(rootListing) { it.any { it.path.fileName() == "one1" } }
+            assertThatInstance(rootListing) { it.any { it.path.fileName() == "one2" } }
+
+            val listing =
+                service.listDirectory(ctx, "/home/user/one2", mode)
+
+            assertEquals(7, listing.size)
+            assertThatInstance(listing) { it.any { it.path.fileName() == "a" } }
+            assertThatInstance(listing) { it.any { it.path.fileName() == "b" } }
+            assertThatInstance(listing) { it.any { it.path.fileName() == "c" } }
+            assertThatInstance(listing) { it.any { it.path.fileName() == "d" } }
+            assertThatInstance(listing) { it.any { it.path.fileName() == "second1" } }
+            assertThatInstance(listing) { it.any { it.path.fileName() == "second2" } }
+            assertThatInstance(listing) { it.any { it.path.fileName() == "second3" } }
+
+            val listing2 =
+                service.listDirectory(ctx, "/home/user/one2/second1", mode)
+
+            assertEquals(2, listing.size)
+            assertThatInstance(listing2) { it.any { it.path.fileName() == "a" } }
+            assertThatInstance(listing2) { it.any { it.path.fileName() == "b" } }
+
+            val listing3 =
+                service.listDirectory(ctx, "/home/user/one2/second2", mode)
+
+            assertEquals(2, listing.size)
+            assertThatInstance(listing3) { it.any { it.path.fileName() == "a" } }
+            assertThatInstance(listing3) { it.any { it.path.fileName() == "b" } }
+
+            val listing4 =
+                service.listDirectory(ctx, "/home/user/one2/second3", mode)
+
+            assertEquals(1, listing.size)
+            assertThatInstance(listing4) { it.any { it.path.fileName() == "a" } }
         }
     }
 }

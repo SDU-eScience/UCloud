@@ -251,6 +251,7 @@ class CopyTest {
         }
     }
 
+    @Test
     fun `test copy (merge) multilevel folders`() {
         ClientMock.mockCallSuccess(
             NotificationDescriptions.create,
@@ -319,21 +320,21 @@ class CopyTest {
                 val listing2 =
                     coreFs.listDirectory(ctx, "/home/user/one2/second1", mode)
 
-                assertEquals(2, listing.size)
+                assertEquals(2, listing2.size)
                 assertThatInstance(listing2) { it.any { it.path.fileName() == "a" } }
                 assertThatInstance(listing2) { it.any { it.path.fileName() == "b" } }
 
                 val listing3 =
                     coreFs.listDirectory(ctx, "/home/user/one2/second2", mode)
 
-                assertEquals(2, listing.size)
+                assertEquals(2, listing3.size)
                 assertThatInstance(listing3) { it.any { it.path.fileName() == "a" } }
                 assertThatInstance(listing3) { it.any { it.path.fileName() == "b" } }
 
                 val listing4 =
                     coreFs.listDirectory(ctx, "/home/user/one2/second3", mode)
 
-                assertEquals(1, listing.size)
+                assertEquals(1, listing4.size)
                 assertThatInstance(listing4) { it.any { it.path.fileName() == "a" } }
             }
         }

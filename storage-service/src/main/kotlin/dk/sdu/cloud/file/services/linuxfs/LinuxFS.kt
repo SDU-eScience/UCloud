@@ -65,7 +65,13 @@ class LinuxFS(
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
         val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
-        Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+
+        if (systemFrom.isDirectory) {
+            copyDirectory(ctx, from, to, allowOverwrite)
+        } else {
+            Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+        }
+
         FSResult(
             0,
             listOf(
@@ -77,6 +83,28 @@ class LinuxFS(
                 ).toCreatedEvent(true)
             )
         )
+    }
+
+    private suspend fun copyDirectory(ctx: LinuxFSRunner, from: String, to: String, allowOverwrite: Boolean) {
+        val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+
+        val systemFrom = File(translateAndCheckFile(from))
+        val systemTo = File(translateAndCheckFile(to))
+        aclService.requirePermission(from, ctx.user, AccessRight.READ)
+        aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
+
+        try {
+            Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+        } catch (e: DirectoryNotEmptyException) {
+            systemFrom.listFiles().forEach {
+                copyDirectory(
+                    ctx,
+                    Paths.get(from, it.name).toString(),
+                    Paths.get(to, it.name).toString(),
+                    allowOverwrite
+                )
+            }
+        }
     }
 
     override suspend fun move(
