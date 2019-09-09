@@ -1,23 +1,23 @@
+import Spinner from "LoadingIcon/LoadingIcon";
 import * as React from "react";
 import {Page} from "Types";
-import * as Self from ".";
-import {ifPresent} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
-import Spinner from "LoadingIcon/LoadingIcon";
+import {ifPresent} from "UtilityFunctions";
+import * as Self from ".";
 
 interface ListProps<T> {
-    pageRenderer: (page: Page<T>) => React.ReactNode
+    pageRenderer: (page: Page<T>) => React.ReactNode;
 
     // List state
-    loading: boolean
+    loading: boolean;
 
     // Page results
-    page: Page<T>
+    page: Page<T>;
 
-    customEmptyPage?: React.ReactNode
+    customEmptyPage?: React.ReactNode;
 
     // Callbacks
-    onPageChanged: (newPage: number, page: Page<T>) => void
+    onPageChanged: (newPage: number, page: Page<T>) => void;
 }
 
 export class List<T> extends React.PureComponent<ListProps<T>> {
@@ -25,7 +25,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
         super(props);
     }
 
-    render() {
+    public render() {
         const {props} = this;
         const body = this.renderBody();
 

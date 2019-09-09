@@ -103,6 +103,10 @@ fun File.createDummyFSInRoot() {
                 touch("c", "File C")
                 touch("d", "File E")
                 touch("e", "File F")
+                mkdir("subfolder") {
+                    touch("f", "File F")
+                    touch("g", "File G")
+                }
 
             }
 

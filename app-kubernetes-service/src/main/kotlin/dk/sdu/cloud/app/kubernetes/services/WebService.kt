@@ -241,7 +241,7 @@ class WebService(
                 call.request.header(HttpHeaders.TransferEncoding) != null
 
         val requestBody: OutgoingContent = if (!hasRequestBody) {
-            EmptyContent
+            EmptyContentNoContentLength
         } else {
             object : OutgoingContent.ReadChannelContent() {
                 override val contentLength: Long? = requestContentLength
@@ -266,9 +266,12 @@ class WebService(
                     appendAll(header, values)
                 }
 
+                // Note(Dan):
+                // Our current http client does not add whitespace. Some applications (say RStudio/Shiny) really wants
+                // this whitespace to be present (even though the spec clearly states that it should be ignored).
                 append(
                     HttpHeaders.Cookie,
-                    requestCookies.entries.joinToString(";") { "${it.key}=${it.value}" }
+                    requestCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
                 )
             }
         }
@@ -463,3 +466,12 @@ class WebService(
         override val log = logger()
     }
 }
+
+
+/**
+ * A variant of [EmptyContent] which does not explicitly set Content-Length.
+ *
+ * This is causing issues in some servers which use the precense (yes, you read that correctly) to determine if there
+ * is a body. They will thus complain that there is no body (even though we state that it is empty).
+ */
+object EmptyContentNoContentLength : OutgoingContent.NoContent()

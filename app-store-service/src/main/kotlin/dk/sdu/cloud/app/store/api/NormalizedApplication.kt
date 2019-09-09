@@ -8,7 +8,6 @@ data class ApplicationMetadata(
 
     val title: String,
     val description: String,
-    val tags: List<String>,
     val website: String?
 ) : NameAndVersion
 

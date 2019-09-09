@@ -7,17 +7,17 @@ import Link from "ui-components/Link";
 import Markdown from "ui-components/Markdown";
 import {EllipsedText} from "ui-components/Text";
 import theme from "ui-components/theme";
-import {FullAppInfo} from ".";
+import {WithAllAppTags, WithAppMetadata} from ".";
 import * as Pages from "./Pages";
+import {AppToolLogo} from "Applications/AppToolLogo";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
-    app: FullAppInfo;
+    app: WithAppMetadata & WithAllAppTags;
     isFavorite?: boolean;
     linkToRun?: boolean;
     tags: string[];
 }
-
 const AppCardActionsBase = styled.div``;
 
 const AppCardBase = styled(Link)`
@@ -78,7 +78,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     return (
         <AppCardBase to={props.linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <Box mr={16} >
-                <AppLogo size={"32px"} hash={hashF(metadata.title)} />
+                <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
             </Box>
             <strong>{metadata.title} v{metadata.version}</strong>
             <EllipsedText>
@@ -205,16 +205,24 @@ const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}) => (
     </svg>
 );
 
-export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color1Offset: number, color2Offset: number, appC: number, rot: number, size: string}) => {
+interface AppLogoRawProps {
+    color1Offset: number;
+    color2Offset: number;
+    appC: number;
+    rot: number;
+    size: string;
+}
+
+export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLogoRawProps) => {
     const c1 = [color1Offset % 3, (color1Offset + 1) % 3, (color1Offset + 2) % 3];
     const c2 = [color2Offset % 3, (color2Offset + 1) % 3, (color2Offset + 2) % 3];
     const centerC = nColors - 1;
-    //const centerC = appC;
+    // const centerC = appC;
 
     const s32 = Math.sqrt(3) * .5;
-    const r1 = 0.5; //inner radius of outer element (outer radius is 1)
-    const r2 = 0.7; //outer radius of inner element
-    const r3 = (1 + r2) * .5; // radius of white background hexagon 
+    const r1 = 0.5; // inner radius of outer element (outer radius is 1)
+    const r2 = 0.7; // outer radius of inner element
+    const r3 = (1 + r2) * .5; // radius of white background hexagon
 
     const rot120 = "rotate(120 0 0)";
     const rot240 = "rotate(240 0 0)";
@@ -251,7 +259,7 @@ export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
     const i3 = (hash >>> 10) % rot.length;
     const appC = appColor(hash);
 
-    return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />
+    return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />;
 };
 
 
@@ -316,7 +324,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 </AppRibbonContainer>
             }
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
-                <AppLogo size={"48px"} hash={hash} />
+                <AppToolLogo name={app.metadata.name} type={"APPLICATION"} size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">
                     <Flex>
                         <Heading.h4>{metadata.title}</Heading.h4>

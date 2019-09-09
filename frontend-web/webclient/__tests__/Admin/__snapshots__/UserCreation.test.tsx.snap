@@ -11,9 +11,9 @@ exports[`UserCreation Mount 1`] = `
   background-color: #fff;
 }
 
-.c3 {
+.c9 {
   cursor: auto;
-  padding-top: 120px;
+  padding-top: 64px;
   padding-right: 14px;
 }
 
@@ -23,7 +23,53 @@ exports[`UserCreation Mount 1`] = `
   margin: 0;
 }
 
-.c7 {
+.c8 {
+  -webkit-font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #006aff;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c8:disabled {
+  opacity: 0.25;
+}
+
+.c8:focus {
+  outline: none;
+}
+
+.c8:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c13 {
   -webkit-font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -55,21 +101,21 @@ exports[`UserCreation Mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c7:disabled {
+.c13:disabled {
   opacity: 0.25;
 }
 
-.c7:focus {
+.c13:focus {
   outline: none;
 }
 
-.c7:hover {
+.c13:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c6 {
+.c12 {
   display: block;
   font-family: inherit;
   color: inherit;
@@ -88,34 +134,34 @@ exports[`UserCreation Mount 1`] = `
   width: 100%;
 }
 
-.c6::-webkit-input-placeholder {
+.c12::-webkit-input-placeholder {
   color: #8393A7;
 }
 
-.c6::-moz-placeholder {
+.c12::-moz-placeholder {
   color: #8393A7;
 }
 
-.c6:-ms-input-placeholder {
+.c12:-ms-input-placeholder {
   color: #8393A7;
 }
 
-.c6::placeholder {
+.c12::placeholder {
   color: #8393A7;
 }
 
-.c6:focus {
+.c12:focus {
   outline: none;
   background-color: transparent;
 }
 
-.c6:focus {
+.c12:focus {
   outline: 0;
   border-color: #8393A7;
   box-shadow: 0 0 0 1px #8393A7,inset 0 0 0 1px #8393A7;
 }
 
-.c5 {
+.c11 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -130,8 +176,41 @@ exports[`UserCreation Mount 1`] = `
   width: 100%;
 }
 
-.c4 {
+.c3 {
   cursor: auto;
+}
+
+.c10 {
+  cursor: auto;
+}
+
+.c6 {
+  cursor: pointer;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  color: text;
+}
+
+.c6:hover {
+  color: textHighlight;
+}
+
+.c5 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.c5 .c7,
+.c5 .sc-dnqmqq {
+  width: 100%;
+  margin-bottom: 8px;
 }
 
 .c1 {
@@ -141,7 +220,7 @@ exports[`UserCreation Mount 1`] = `
   padding-left: 82px;
   padding-right: 14px;
   width: 100%;
-  height: 120px;
+  height: 64px;
   background-color: #fff;
   position: absolute;
   top: 48px;
@@ -150,20 +229,53 @@ exports[`UserCreation Mount 1`] = `
   z-index: 50;
 }
 
+.c4 {
+  cursor: auto;
+  padding-top: 112px;
+  padding-left: 14px;
+  padding-right: 14px;
+  width: 240px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  overflow-y: auto;
+  position: fixed;
+  z-index: 45;
+}
+
+@media screen and (max-width:511px) {
+  .c3 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:512px) and (max-width:639px) {
+  .c3 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:640px) and (max-width:767px) {
+  .c3 {
+    display: none;
+  }
+}
+
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c4 {
+  .c10 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c4 {
+  .c10 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c4 {
+  .c10 {
     display: none;
   }
 }
@@ -175,7 +287,7 @@ exports[`UserCreation Mount 1`] = `
   <div
     className="c1"
     cursor="auto"
-    height={120}
+    height={64}
     width={1}
   >
     <h1
@@ -185,9 +297,6 @@ exports[`UserCreation Mount 1`] = `
     >
       User Creation
     </h1>
-    <p>
-      Admins can create new users on this page.
-    </p>
   </div>
   <div
     className="c3"
@@ -196,12 +305,68 @@ exports[`UserCreation Mount 1`] = `
     <div
       className="c4"
       cursor="auto"
-    />
+      height="100%"
+      width={240}
+    >
+      <div
+        className="c5"
+        cursor="inherit"
+      >
+        <a
+          className="c6"
+          color="text"
+          hoverColor="textHighlight"
+          href="/applications/studio"
+          onClick={[Function]}
+        >
+          <button
+            className="c7 c8"
+            color="blue"
+            type="button"
+          >
+            Application Studio
+          </button>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div
+    className="c9"
+    cursor="auto"
+  >
+    <div
+      className="c10"
+      cursor="auto"
+    >
+      <div
+        className="c5"
+        cursor="inherit"
+      >
+        <a
+          className="c6"
+          color="text"
+          hoverColor="textHighlight"
+          href="/applications/studio"
+          onClick={[Function]}
+        >
+          <button
+            className="c7 c8"
+            color="blue"
+            type="button"
+          >
+            Application Studio
+          </button>
+        </a>
+      </div>
+    </div>
+    <p>
+      Admins can create new users on this page.
+    </p>
     <form
       onSubmit={[Function]}
     >
       <label
-        className="c5"
+        className="c11"
         color="black"
         fontSize={1}
         fontWeight="bold"
@@ -209,7 +374,7 @@ exports[`UserCreation Mount 1`] = `
       >
         Username
         <input
-          className="c6"
+          className="c12"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -219,7 +384,7 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="c5"
+        className="c11"
         color="black"
         fontSize={1}
         fontWeight="bold"
@@ -227,7 +392,7 @@ exports[`UserCreation Mount 1`] = `
       >
         Password
         <input
-          className="c6"
+          className="c12"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -238,7 +403,7 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="c5"
+        className="c11"
         color="black"
         fontSize={1}
         fontWeight="bold"
@@ -246,7 +411,7 @@ exports[`UserCreation Mount 1`] = `
       >
         Repeat password
         <input
-          className="c6"
+          className="c12"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -257,7 +422,7 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <button
-        className="c7"
+        className="c7 c13"
         color="green"
         disabled={false}
         type="submit"

@@ -57,7 +57,6 @@ class HibernateModelTest{
             "title",
             "description",
             "website",
-            listOf("tag1", "tag2"),
             ApplicationInvocationDescription(
                 ToolReference("name", "2.2", null),
                 emptyList(),
@@ -76,7 +75,6 @@ class HibernateModelTest{
         assertEquals("title", appEntity.title)
         assertEquals("description", appEntity.description)
         assertEquals("website", appEntity.website)
-        assertEquals("tag2", appEntity.tags.last())
         assertEquals("name", appEntity.application.tool.name)
         assertEquals("name", appEntity.toolName)
         assertEquals("2.2", appEntity.toolVersion)

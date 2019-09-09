@@ -8,7 +8,6 @@ import {useEffect, useMemo, useState} from "react";
 import {Page} from "Types";
 import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import PromiseKeeper from "PromiseKeeper";
 
 export interface VirtualFileTableProps extends LowLevelFileTableProps, VirtualFolderDefinition {
     // Empty
@@ -22,12 +21,9 @@ export interface VirtualFolderDefinition {
 export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = props => {
     const [loadedFakeFolder, setLoadedFakeFolder] = useState<Page<File> | undefined>(undefined);
     const mergedProperties = {...props};
-    const [promises] = useState(new PromiseKeeper());
-    const asyncWorker = props.asyncWorker ? props.asyncWorker : useAsyncWork(promises);
+    const asyncWorker = props.asyncWorker ? props.asyncWorker : useAsyncWork();
     mergedProperties.asyncWorker = asyncWorker;
     const [pageLoading, pageError, submitPageLoaderJob] = asyncWorker;
-
-    useEffect(() => () => promises.cancelPromises(), []);
 
     let fakeFolderToUse: string | undefined;
     if (props.fakeFolders !== undefined && props.loadFolder !== undefined) {
