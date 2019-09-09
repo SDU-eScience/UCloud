@@ -99,6 +99,20 @@ export function deleteApplicationTag(props: DeleteApplicationTagProps): APICallP
     };
 }
 
+export function machineTypes(): APICallParameters {
+    return {
+        reloadId: Math.random(),
+        method: "GET",
+        path: "/hpc/jobs/machine-types"
+    };
+}
+
+export interface MachineReservation {
+    name: string;
+    cpu: number | null;
+    memoryInGigs: number | null;
+}
+
 export type AppOrTool = "APPLICATION" | "TOOL";
 
 export interface UploadLogoProps {

@@ -42,6 +42,9 @@ enum class JobSortBy {
     CREATED_AT
 }
 
+typealias MachineTypesRequest = Unit
+typealias MachineTypesResponse = List<MachineReservation>
+
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
  */
@@ -207,6 +210,19 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
                 }
             }
         }
+
+    val machineTypes = call<MachineTypesRequest, MachineTypesResponse, CommonErrorMessage>("machineTypes") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +"machine-types"
+            }
+        }
+    }
 }
 
 data class FindByNameAndVersion(val name: String, val version: String)

@@ -1,3 +1,4 @@
+import {MachineTypes} from "Applications/MachineTypes";
 import {OptionalParameters} from "Applications/OptionalParameters";
 import {InputDirectoryParameter} from "Applications/Widgets/FileParameter";
 import {AdditionalPeerParameter} from "Applications/Widgets/PeerParameter";
@@ -13,6 +14,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
+import {useRef} from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
@@ -67,8 +69,6 @@ const hostnameRegex = new RegExp(
 );
 
 class Run extends React.Component<RunAppProps, RunAppState> {
-    private siteVersion = 1;
-
     constructor(props: Readonly<RunAppProps>) {
         super(props);
         this.state = {
@@ -93,6 +93,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             favoriteLoading: false,
             fsShown: false,
             previousRuns: emptyPage,
+            reservation: React.createRef(),
 
             sharedFileSystems: {mounts: []}
         };
@@ -235,6 +236,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const {name} = this.state.schedulingOptions;
         const jobName = name.current && name.current.value;
+        let reservation = this.state.reservation.current ? this.state.reservation.current.value : null;
+        if (reservation === "") reservation = null;
 
         const job = {
             application: {
@@ -247,6 +250,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             maxTime,
             mounts,
             peers,
+            reservation,
             type: "start",
             name: !!jobName ? jobName : null
         };
@@ -562,10 +566,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 this.state.previousRuns.items.length <= 0 ? null :
                                     <RunSection>
                                         <Label>Load parameters from a previous run:</Label>
-                                        <Flex flexDirection={"row"}>
+                                        <Flex flexDirection={"row"} flexWrap={"wrap"}>
                                             {
                                                 this.state.previousRuns.items.slice(0, 5).map((file, idx) => (
-                                                    <Box flexGrow={1} mr={"0.8em"} key={idx}>
+                                                    <Box mr={"0.8em"} key={idx}>
                                                         <BaseLink
                                                             href={"#"}
                                                             onClick={async (e) => {
@@ -598,6 +602,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
+                                    reservationRef={this.state.reservation}
                                     app={application}
                                 />
                             </RunSection>
@@ -820,11 +825,13 @@ interface JobSchedulingOptionsProps {
     onChange: (a, b, c) => void;
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
+    reservationRef: React.RefObject<HTMLInputElement>;
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
     const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
+
     return (
         <>
             <Flex mb="4px" mt="4px">
@@ -877,6 +884,11 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                     />
                 </Flex>
             }
+
+            <Box>
+                <Label>Machine type</Label>
+                <MachineTypes inputRef={props.reservationRef}/>
+            </Box>
         </>);
 };
 
