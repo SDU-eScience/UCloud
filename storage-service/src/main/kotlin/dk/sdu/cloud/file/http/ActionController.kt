@@ -6,10 +6,8 @@ import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
-import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext

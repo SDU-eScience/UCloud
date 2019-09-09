@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.http
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.RpcServer
