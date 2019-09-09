@@ -357,10 +357,11 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
     private closeModal = () => {
         this.props.setUploaderVisible(false);
-        if (finishedUploads(this.props.uploads) !== this.props.uploads.length || this.props.uploads.length > 0) return;
+        const {uploads} = this.props;
+        if (finishedUploads(uploads) !== uploads.length || uploads.length === 0) return;
         const path = getQueryParamOrElse(this.props, "path", "");
         if ([...this.state.finishedUploadPaths].includes(path)) {
-            // reload(path);
+            if (!!this.props.parentRefresh) this.props.parentRefresh();
         }
     }
 }

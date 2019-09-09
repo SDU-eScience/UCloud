@@ -27,7 +27,7 @@ export interface UploaderStateProps {
     allowMultiple?: boolean;
     path: string;
     loading: boolean;
-    parentRefresh: (path: string) => void;
+    parentRefresh: () => void;
 }
 
 export interface UploadOperations {

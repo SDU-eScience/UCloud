@@ -7,8 +7,8 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
 import PromiseKeeper from "PromiseKeeper";
-import {useEffect, useState} from "react";
 import * as React from "react";
+import {useEffect, useState} from "react";
 import {connect} from "react-redux";
 import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
@@ -29,7 +29,7 @@ import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} fro
 import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
+import {setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {
     createFolder, favoriteFile,
     getFilenameFromPath,
@@ -263,11 +263,13 @@ function apiForComponent(
     return api;
 }
 
+// tslint:disable-next-line: variable-name
 const LowLevelFileTable_: React.FunctionComponent<
     LowLevelFileTableProps &
     RouteComponentProps &
     {responsive: ResponsiveReduxObject} &
-    {showUploader: (path: string) => void}
+    {showUploader: (path: string) => void} &
+    {setUploaderCallback: (cb?: () => void) => void}
 > = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
@@ -287,6 +289,17 @@ const LowLevelFileTable_: React.FunctionComponent<
 
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
+
+    useEffect(() => {
+        if (!props.embedded) {
+            const {pageNumber, itemsPerPage} = page;
+            props.setUploaderCallback(() => onPageChanged(pageNumber, itemsPerPage));
+        }
+    });
+
+    useEffect(() => {
+        return () => props.setUploaderCallback();
+    }, []);
 
     // Callbacks for operations
     const callbacks: FileOperationCallback = {
@@ -646,9 +659,12 @@ const LowLevelFileTable_: React.FunctionComponent<
 const mapStateToProps = ({responsive}: ReduxObject) => {
     return {responsive};
 };
+
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: (path: string) => dispatch(setUploaderVisible(true, path))
+    showUploader: (path: string) => dispatch(setUploaderVisible(true, path)),
+    setUploaderCallback: (cb?: () => void) => dispatch(setUploaderCallback(cb))
 });
+
 export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(withRouter(LowLevelFileTable_));
 
 interface ShellProps {
