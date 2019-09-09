@@ -68,6 +68,89 @@ class Uploader extends React.Component<UploaderProps> {
 
     private readonly MAX_CONCURRENT_UPLOADS = 5;
 
+    private readonly modalStyle = {
+        // https://github.com/reactjs/react-modal/issues/62
+        content: {
+            borderRadius: "4px",
+            bottom: "auto",
+            minHeight: "10rem",
+            left: "50%",
+            maxHeight: "80vh",
+            padding: "2rem",
+            position: "fixed",
+            right: "auto",
+            top: "50%",
+            transform: "translate(-50%,-50%)",
+            minWidth: "20rem",
+            width: "80%",
+            maxWidth: "60rem",
+            background: ""
+        }
+    };
+
+    public render() {
+        const {uploads, ...props} = this.props;
+        return (
+            <Modal isOpen={props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={this.closeModal}
+                style={this.modalStyle}
+            >
+                <div data-tag={"uploadModal"}>
+                    <Spacer
+                        left={<Heading>Upload Files</Heading>}
+                        right={<>
+                            {props.loading ? <Refresh onClick={() => undefined} spin /> : null}
+                            <Icon name="close" cursor="pointer" data-tag="modalCloseButton" onClick={this.closeModal} />
+                        </>}
+                    />
+                    <Divider />
+                    {finishedUploads(uploads) > 0 ? (<OutlineButton mt="4px" mb="4px" color="green" fullWidth onClick={() => this.clearFinishedUploads()}>
+                        Clear finished uploads
+                </OutlineButton>) : null}
+                    {uploads.filter(it => !it.isUploading).length >= 5 ?
+                        <OutlineButton color="blue" fullWidth mt="4px" mb="4px" onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}>
+                            Clear unstarted uploads
+                    </OutlineButton> : null}
+                    <Box>
+                        {uploads.map((upload, index) => (
+                            <React.Fragment key={index}>
+                                <UploaderRow
+                                    location={props.location}
+                                    upload={upload}
+                                    setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
+                                    onExtractChange={value => this.onExtractChange(index, value)}
+                                    onUpload={() => this.startUpload(index)}
+                                    onDelete={it => (it.preventDefault(), this.removeUpload(index))}
+                                    onAbort={it => (it.preventDefault(), this.abort(index))}
+                                    onClear={it => (it.preventDefault(), this.clearUpload(index))}
+                                    setRewritePolicy={policy => this.setRewritePolicy(index, policy)}
+                                />
+                                <Divider />
+                            </React.Fragment>
+                        ))}
+                        {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ?
+                            <Button fullWidth color="green" onClick={this.startAllUploads}>
+                                <Icon name={"upload"} />{" "}Start all!</Button> : null}
+                        <Dropzone onDrop={this.onFilesAdded}>
+                            {({getRootProps, getInputProps}) =>
+                                <DropZoneBox {...getRootProps()}>
+                                    <input {...getInputProps()} />
+                                    <p>
+                                        <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
+                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
+                                    </p>
+                                    <p>
+                                        <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
+                                    </p>
+                                </DropZoneBox>
+                            }
+                        </Dropzone>
+                    </Box>
+                </div>
+            </Modal>
+
+        );
+    }
+
     private onFilesAdded = async (files: File[]): Promise<void> => {
         if (files.some(it => it.size === 0)) snackbarStore.addSnack({message: "It is not possible to upload empty files.", type: SnackType.Information});
         if (files.some(it => it.name.length > 1025)) snackbarStore.addSnack({message: "Filenames can't exceed a length of 1024 characters.", type: SnackType.Information});
@@ -101,7 +184,7 @@ class Uploader extends React.Component<UploaderProps> {
             type: SnackType.Information
         });
         return e;
-    };
+    }
 
     private startPending() {
         const remainingAllowedUploads = this.MAX_CONCURRENT_UPLOADS - this.props.activeUploads.length;
@@ -210,26 +293,6 @@ class Uploader extends React.Component<UploaderProps> {
         this.props.setUploads(uploads);
     }
 
-    private readonly modalStyle = {
-        // https://github.com/reactjs/react-modal/issues/62
-        content: {
-            borderRadius: "4px",
-            bottom: "auto",
-            minHeight: "10rem",
-            left: "50%",
-            maxHeight: "80vh",
-            padding: "2rem",
-            position: "fixed",
-            right: "auto",
-            top: "50%",
-            transform: "translate(-50%,-50%)",
-            minWidth: "20rem",
-            width: "80%",
-            maxWidth: "60rem",
-            background: ""
-        }
-    };
-
     private clearUpload = (index: number) => this.props.setUploads(removeEntry(this.props.uploads, index));
 
     private clearFinishedUploads = () =>
@@ -242,73 +305,15 @@ class Uploader extends React.Component<UploaderProps> {
         this.props.setUploads(uploads);
     }
 
-    render() {
-        const {uploads, ...props} = this.props;
-        return (
-            <Modal isOpen={props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.setUploaderVisible(false)}
-                style={this.modalStyle}
-            >
-                <div data-tag={"uploadModal"}>
-                    <Spacer
-                        left={<Heading>Upload Files</Heading>}
-                        right={props.loading ? <Refresh onClick={() => undefined} spin /> : null}
-                    />
-                    <Divider />
-                    {finishedUploads(uploads) > 0 ? (<OutlineButton mt="4px" mb="4px" color="green" fullWidth onClick={() => this.clearFinishedUploads()}>
-                        Clear finished uploads
-                </OutlineButton>) : null}
-                    {uploads.filter(it => !it.isUploading).length >= 5 ?
-                        <OutlineButton color="blue" fullWidth mt="4px" mb="4px" onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}>
-                            Clear unstarted uploads
-                    </OutlineButton> : null}
-                    <Box>
-                        {uploads.map((upload, index) => (
-                            <React.Fragment key={index}>
-                                <UploaderRow
-                                    location={props.location}
-                                    upload={upload}
-                                    setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
-                                    onExtractChange={value => this.onExtractChange(index, value)}
-                                    onUpload={() => this.startUpload(index)}
-                                    onDelete={it => (it.preventDefault(), this.removeUpload(index))}
-                                    onAbort={it => (it.preventDefault(), this.abort(index))}
-                                    onClear={it => (it.preventDefault(), this.clearUpload(index))}
-                                    setRewritePolicy={policy => this.setRewritePolicy(index, policy)}
-                                />
-                                <Divider />
-                            </React.Fragment>
-                        ))}
-                        {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ?
-                            <Button fullWidth color="green" onClick={this.startAllUploads}>
-                                <Icon name={"upload"} />{" "}Start all!</Button> : null}
-                        <Dropzone onDrop={this.onFilesAdded}>
-                            {({getRootProps, getInputProps}) =>
-                                <DropZoneBox {...getRootProps()}>
-                                    <input {...getInputProps()} />
-                                    <p>
-                                        <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
-                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
-                                    </p>
-                                    <p>
-                                        <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
-                                    </p>
-                                </DropZoneBox>
-                            }
-                        </Dropzone>
-                    </Box>
-                </div>
-            </Modal>
-
-        );
-    }
+    private closeModal = () => this.props.setUploaderVisible(false);
 }
 
 const DropZoneBox = styled(Box)`
     width: 100%;
-    height: 100px; 
-    border-width: 2px; 
-    border-color: rgb(102, 102, 102); 
-    border-style: dashed; 
+    height: 100px;
+    border-width: 2px;
+    border-color: rgb(102, 102, 102);
+    border-style: dashed;
     border-radius: 5px;
     margin: 16px 0 16px 0;
 
@@ -337,7 +342,7 @@ const UploaderRow = (p: {
     onCheck?: (checked: boolean) => void
 }) => {
 
-    let fileInfo = p.location !== p.upload.parentPath ? (<Dropdown>
+    const fileInfo = p.location !== p.upload.parentPath ? (<Dropdown>
         <Icon style={{pointer: "cursor"}} ml="10px" name="info" color="white" color2="black" />
         <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
             Will be uploaded to: {addTrailingSlash(replaceHomeFolder(p.location, Cloud.homeFolder))}{p.upload.file.name}

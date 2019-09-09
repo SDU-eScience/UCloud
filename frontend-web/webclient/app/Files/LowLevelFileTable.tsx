@@ -6,8 +6,9 @@ import {File, FileResource, FileType, SortBy, SortOrder} from "Files/index";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
-import * as React from "react";
+import PromiseKeeper from "PromiseKeeper";
 import {useEffect, useState} from "react";
+import * as React from "react";
 import {connect} from "react-redux";
 import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
@@ -120,24 +121,25 @@ const invertSortOrder = (order: SortOrder): SortOrder => {
 const twoPhaseLoadFiles = async (
     attributes: FileResource[],
     callback: (page: Page<File>) => void,
-    request: ListDirectoryRequest
+    request: ListDirectoryRequest,
+    promises: PromiseKeeper
 ) => {
     const promise = callAPI<Page<File>>(listDirectory({
         ...request,
         attrs: [FileResource.FILE_ID, FileResource.PATH, FileResource.FILE_TYPE]
     })).then(result => {
-        callback(result);
+        if (!promises.canceledKeeper) callback(result);
         return result;
     });
-
     try {
         const [phaseOne, phaseTwo] = await Promise.all([
             promise,
             callAPI<Page<File>>(listDirectory({...request, attrs: attributes}))
         ]);
-
+        if (promises.canceledKeeper) return;
         callback(mergeFilePages(phaseOne, phaseTwo, attributes));
     } catch (e) {
+        if (promises.canceledKeeper) return;
         callback(emptyPage); // Set empty page to avoid rendering of this folder
         throw e; // Rethrow to set error status
     }
@@ -170,14 +172,16 @@ function apiForComponent(
     setSortByColumns: (s: [SortBy, SortBy]) => void
 ): InternalFileTableAPI {
     let api: InternalFileTableAPI;
-
+    const [promises] = useState(new PromiseKeeper());
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
-    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
+    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork(promises);
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
         ...initialPageParameters,
         type: props.foldersOnly ? "DIRECTORY" : undefined,
         path: Cloud.homeFolder
     });
+
+    React.useEffect(() => () => promises.cancelPromises(), []);
 
     const loadManaged = (request: ListDirectoryRequest) => {
         setPageParameters(request);
@@ -188,7 +192,8 @@ function apiForComponent(
                     FileResource.SENSITIVITY_LEVEL
                 ],
                 it => setManagedPage(it),
-                request);
+                request,
+                promises);
         });
     };
 
@@ -258,10 +263,12 @@ function apiForComponent(
     return api;
 }
 
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
+const LowLevelFileTable_: React.FunctionComponent<
+    LowLevelFileTableProps &
     RouteComponentProps &
-{responsive: ResponsiveReduxObject} &
-{showUploader: (path: string) => void}> = props => {
+    {responsive: ResponsiveReduxObject} &
+    {showUploader: (path: string) => void}
+> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -276,7 +283,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
     const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(() => getSortingColumns());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
-    const [workLoading, workError, invokeWork] = useAsyncWork();
+    const [workLoading, workError, invokeWork] = useAsyncWork(new PromiseKeeper());
 
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);

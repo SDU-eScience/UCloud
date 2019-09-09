@@ -18,7 +18,6 @@ interface ApplicationCardProps {
     linkToRun?: boolean;
     tags: string[];
 }
-
 const AppCardActionsBase = styled.div``;
 
 const AppCardBase = styled(Link)`

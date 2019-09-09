@@ -1,4 +1,5 @@
 import {Cloud} from "Authentication/SDUCloudObject";
+import PromiseKeeper from "PromiseKeeper";
 import {useEffect, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
 
@@ -151,15 +152,17 @@ export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) 
 
 export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
 
-export function useAsyncWork(): AsyncWorker {
+export function useAsyncWork(promises: PromiseKeeper): AsyncWorker {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
     const startWork = async (fn: () => Promise<void>) => {
+        if (promises.canceledKeeper) return;
         setError(undefined);
         setIsLoading(true);
         try {
             await fn();
         } catch (e) {
+            if (promises.canceledKeeper) return;
             if (!!e.request) {
                 let why = "Internal Server Error";
                 if (!!e.response && e.response.why) {
@@ -175,7 +178,7 @@ export function useAsyncWork(): AsyncWorker {
                 console.warn(e);
             }
         }
-        setIsLoading(false);
+        if (!promises.canceledKeeper) setIsLoading(false);
     };
 
     return [isLoading, error, startWork];
