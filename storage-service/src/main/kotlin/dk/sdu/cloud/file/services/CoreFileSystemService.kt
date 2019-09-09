@@ -92,7 +92,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 )
             }
             val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
-            fs.copy(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+            fs.copy(ctx, from, targetPath, conflictPolicy).emitAll()
             writeTimeOfBirth(ctx, targetPath)
             setSensitivity(ctx, targetPath, sensitivityLevel)
             if (fromStat.size > 10000000000) {
@@ -115,8 +115,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
             if(conflictPolicy != WriteConflictPolicy.MERGE) {
                 fs.makeDirectory(ctx, newRoot).emitAll()
-            } else {
-
             }
 
             tree(ctx, from, setOf(FileAttribute.PATH)).forEach { currentFile ->
@@ -128,7 +126,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                         val desired = joinPath(newRoot, relativize(normalizedFrom, currentPath)).normalize()
                         if (desired == newRoot) return@forEach
                         val targetPath = renameAccordingToPolicy(ctx, desired, conflictPolicy)
-                        fs.copy(ctx, currentPath, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+                        fs.copy(ctx, currentPath, targetPath, conflictPolicy).emitAll()
                         writeTimeOfBirth(ctx, targetPath)
                     }
                 )

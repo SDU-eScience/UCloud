@@ -45,17 +45,22 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
-        allowOverwrite: Boolean
+        writeConflictPolicy: WriteConflictPolicy
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
         aclService.requirePermission(from, ctx.user, AccessRight.READ)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
-        val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+        val opts =
+            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
-        if (systemFrom.isDirectory) {
-            copyDirectory(ctx, from, to, allowOverwrite)
+        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
+            if (systemFrom.isDirectory) {
+                copyDirectoryPreAuthorized(ctx, from, to, writeConflictPolicy)
+            } else {
+                Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+            }
         } else {
             Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
         }
@@ -73,23 +78,27 @@ class LinuxFS(
         )
     }
 
-    private suspend fun copyDirectory(ctx: LinuxFSRunner, from: String, to: String, allowOverwrite: Boolean) {
-        val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+    private suspend fun copyDirectoryPreAuthorized(
+        ctx: LinuxFSRunner,
+        from: String,
+        to: String,
+        writeConflictPolicy: WriteConflictPolicy
+    ) {
+        val opts =
+            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
-        aclService.requirePermission(from, ctx.user, AccessRight.READ)
-        aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
         try {
             Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
         } catch (e: DirectoryNotEmptyException) {
             systemFrom.listFiles().forEach {
-                copyDirectory(
+                copyDirectoryPreAuthorized(
                     ctx,
                     Paths.get(from, it.name).toString(),
                     Paths.get(to, it.name).toString(),
-                    allowOverwrite
+                    writeConflictPolicy
                 )
             }
         }
@@ -133,13 +142,20 @@ class LinuxFS(
             if (fromStat.fileType != targetType) {
                 throw FSException.BadRequest("Target already exists and is not of same type as source.")
             }
-            if (fromStat.fileType == targetType && fromStat.fileType == FileType.DIRECTORY && writeConflictPolicy == WriteConflictPolicy.OVERWRITE) {
+            if (fromStat.fileType == targetType &&
+                fromStat.fileType == FileType.DIRECTORY &&
+                writeConflictPolicy == WriteConflictPolicy.OVERWRITE
+            ) {
                 throw FSException.BadRequest("Directory is not allowed to overwrite existing directory")
             }
         }
 
-        if (systemFrom.isDirectory) {
-            moveDirectory(ctx, from, to, writeConflictPolicy)
+        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
+            if (systemFrom.isDirectory) {
+                moveDirectoryPreAuthorized(ctx, from, to, writeConflictPolicy)
+            } else {
+                Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+            }
         } else {
             Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
         }
@@ -176,7 +192,7 @@ class LinuxFS(
         FSResult(0, rows)
     }
 
-    private suspend fun moveDirectory(
+    private suspend fun moveDirectoryPreAuthorized(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
@@ -184,10 +200,6 @@ class LinuxFS(
     ) {
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
-
-        // We need write permission on from's parent to avoid being able to steal a file by changing the owner.
-        aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
-        aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
         val opts =
             if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
@@ -200,23 +212,9 @@ class LinuxFS(
             hasPerformedPermissionCheck = true
         )
 
-        val targetType =
-            runCatching {
-                stat(
-                    ctx,
-                    systemTo,
-                    setOf(FileAttribute.FILE_TYPE),
-                    hasPerformedPermissionCheck = true
-                )
-            }.getOrNull()?.fileType
-
-        if (targetType != null && fromStat.fileType != targetType && writeConflictPolicy != WriteConflictPolicy.MERGE) {
-            throw FSException.BadRequest("Target already exists and is not of same type as source.")
-        }
-
         if (systemFrom.isDirectory) {
             systemFrom.listFiles().forEach {
-                moveDirectory(
+                moveDirectoryPreAuthorized(
                     ctx,
                     Paths.get(from, it.name).toString(),
                     Paths.get(to, it.name).toString(),

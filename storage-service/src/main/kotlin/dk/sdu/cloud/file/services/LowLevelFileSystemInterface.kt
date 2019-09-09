@@ -36,7 +36,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         from: String,
         to: String,
-        allowOverwrite: Boolean
+        writeConflictPolicy: WriteConflictPolicy
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
 
     /**
