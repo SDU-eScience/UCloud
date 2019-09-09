@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.api
 
-import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import dk.sdu.cloud.app.store.api.Application
@@ -147,7 +146,9 @@ data class VerifiedJob(
      */
     @Suppress("ConstructorParameterNaming")
     @get:JsonProperty("peers")
-    val _peers: List<ApplicationPeer>? = null
+    val _peers: List<ApplicationPeer>? = null,
+
+    val reservation: MachineReservation = MachineReservation.BURST
 ) {
     @get:JsonIgnore
     val mounts: List<ValidatedFileForUpload>

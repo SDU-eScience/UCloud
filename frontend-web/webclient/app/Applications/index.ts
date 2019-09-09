@@ -166,6 +166,7 @@ export interface RunAppState {
     fsShown: boolean;
     sharedFileSystems: { mounts: SharedFileSystemMount[] };
     previousRuns: Page<File>;
+    reservation: React.RefObject<HTMLInputElement>;
 }
 
 export interface RunOperations extends SetStatusLoading {

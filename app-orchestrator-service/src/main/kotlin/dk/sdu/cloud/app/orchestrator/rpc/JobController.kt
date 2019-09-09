@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
 import dk.sdu.cloud.app.orchestrator.api.JobStartedResponse
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobStateChange
+import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobQueryService
 import dk.sdu.cloud.app.orchestrator.services.StreamFollowService
@@ -38,7 +39,8 @@ class JobController(
     private val userClientFactory: (String?, String?) -> AuthenticatedClient,
     private val serviceClient: AuthenticatedClient,
     private val vncService: VncService<*>,
-    private val webService: WebService<*>
+    private val webService: WebService<*>,
+    private val machineTypes: List<MachineReservation> = listOf(MachineReservation.BURST)
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
@@ -133,6 +135,10 @@ class JobController(
 
         implement(JobDescriptions.queryWebParameters) {
             ok(webService.queryWebParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
+        }
+
+        implement(JobDescriptions.machineTypes) {
+            ok(machineTypes)
         }
     }
 
