@@ -157,8 +157,10 @@ export function useAsyncWork(): AsyncWorker {
     const [error, setError] = useState<string | undefined>(undefined);
     let didCancel = false;
     useEffect(() => {
-        didCancel = true;
-    });
+        return () => {
+            didCancel = true;
+        };
+    }, []);
 
     const startWork = async (fn: () => Promise<void>) => {
         if (didCancel) return;
