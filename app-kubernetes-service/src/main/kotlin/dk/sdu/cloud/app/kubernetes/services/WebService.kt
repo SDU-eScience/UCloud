@@ -1,9 +1,14 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
@@ -67,6 +72,7 @@ class WebService(
      * to skip the authentication.
      */
     private val performAuthentication: Boolean,
+    private val serviceClient: AuthenticatedClient,
     private val prefix: String = "app-",
     private val domain: String = "cloud.sdu.dk",
     private val cookieName: String = "appRefreshToken"
@@ -77,6 +83,22 @@ class WebService(
     )
 
     private val jobIdToJob = HashMap<String, VerifiedJob>()
+
+    private suspend fun findJob(id: String): VerifiedJob? {
+        return jobIdToJob[id] ?: run {
+            val job = ComputationCallbackDescriptions.lookup.call(
+                FindByStringId(id),
+                serviceClient
+            ).orNull()
+            if (job != null) cacheJob(job)
+
+            job
+        }
+    }
+
+    private fun cacheJob(job: VerifiedJob) {
+        jobIdToJob[job.id] = job
+    }
 
     // A bit primitive, should work for most cases.
     private fun String.escapeToRegex(): String = replace(".", "\\.")
@@ -89,7 +111,7 @@ class WebService(
             }
 
             if (performAuthentication) {
-                val job = jobIdToJob[id] ?: run {
+                val job = findJob(id) ?: run {
                     call.respond(HttpStatusCode.BadRequest)
                     return@get
                 }
@@ -131,7 +153,7 @@ class WebService(
                     }
 
                     log.info("Accepting websocket for job $id at ${call.request.path()}")
-                    if (!authorizeUser(call, id)) {
+                    if (!authorizeUser(call, id, sendResponse = false)) {
                         return@webSocket
                     }
 
@@ -167,25 +189,33 @@ class WebService(
         return@with
     }
 
-    private suspend fun authorizeUser(call: ApplicationCall, jobId: String): Boolean {
+    private suspend fun authorizeUser(call: ApplicationCall, jobId: String, sendResponse: Boolean = true): Boolean {
         if (!performAuthentication) return true
-        val job = jobIdToJob[jobId] ?: run {
-            call.respondText(status = HttpStatusCode.BadRequest) { "Bad request (Invalid job)." }
+        val job = findJob(jobId) ?: run {
+            if (sendResponse) {
+                call.respondText(status = HttpStatusCode.BadRequest) { "Bad request (Invalid job)." }
+            }
             return false
         }
 
         val token = call.request.cookies[cookieName] ?: run {
-            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            if (sendResponse) {
+                call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            }
             return false
         }
 
         val principal = authenticationService.validate(token) ?: run {
-            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            if (sendResponse) {
+                call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            }
             return false
         }
 
         if (job.owner != principal.principal.username) {
-            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            if (sendResponse) {
+                call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            }
             return false
         }
 
@@ -453,14 +483,14 @@ class WebService(
     }
 
     fun queryParameters(job: VerifiedJob): QueryInternalWebParametersResponse {
-        jobIdToJob[job.id] = job
+        cacheJob(job)
         return QueryInternalWebParametersResponse(
             "${AppKubernetesDescriptions.baseContext}/authorize-app/${job.id}"
         )
     }
 
     private suspend fun createTunnel(incomingId: String): Tunnel {
-        val job = jobIdToJob[incomingId] ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val job = findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val remotePort = job.application.invocation.web?.port ?: 80
         return tunnelManager.createTunnel(incomingId, remotePort)
     }

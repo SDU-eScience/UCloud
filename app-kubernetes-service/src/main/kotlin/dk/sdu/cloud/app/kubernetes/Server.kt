@@ -49,6 +49,7 @@ class Server(override val micro: Micro, private val configuration: Configuration
 
         val vncService = VncService(tunnelManager)
         val webService = WebService(
+            serviceClient = serviceClient,
             authenticationService = authenticationService,
             tunnelManager = tunnelManager,
             performAuthentication = configuration.performAuthentication,

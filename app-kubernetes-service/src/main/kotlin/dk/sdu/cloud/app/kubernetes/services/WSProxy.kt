@@ -6,7 +6,9 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.request.header
 import io.ktor.websocket.DefaultWebSocketServerSession
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
 
 suspend fun DefaultWebSocketServerSession.runWSProxy(
     tunnel: Tunnel,
@@ -41,16 +43,24 @@ suspend fun DefaultWebSocketServerSession.runWSProxy(
         }) {
         val serverConn = this
         val clientToServer = launch {
-            while (true) {
-                val frame = clientConn.incoming.receive()
-                serverConn.outgoing.send(frame)
+            try {
+                while (true) {
+                    val frame = clientConn.incoming.receive()
+                    serverConn.outgoing.send(frame)
+                }
+            } catch (ex: ClosedReceiveChannelException) {
+                log.debug("Closing channel (Client ==> Server)")
             }
         }
 
         val serverToClient = launch {
-            while (true) {
-                val frame = serverConn.incoming.receive()
-                clientConn.outgoing.send(frame)
+            try {
+                while (true) {
+                    val frame = serverConn.incoming.receive()
+                    clientConn.outgoing.send(frame)
+                }
+            } catch (ex: ClosedReceiveChannelException) {
+                log.debug("Closing channel (Server ==> Client)")
             }
         }
 
@@ -58,3 +68,5 @@ suspend fun DefaultWebSocketServerSession.runWSProxy(
         serverToClient.join()
     }
 }
+
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.app.kubernetes.services.WSProxy")
