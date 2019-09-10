@@ -2,9 +2,9 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: weekly-reindex
+  name: monthly-shard-reduction
 spec:
-  schedule: "0 3 * * 0"
+  schedule: "0 4 7 * *"
   jobTemplate:
     spec:
       template:
@@ -22,7 +22,7 @@ spec:
             - /etc/token-validation
             - --config-dir
             - /etc/elasticmanagement
-            - --reindex
+            - --monthlyReduce
             volumeMounts:
             - mountPath: /etc/refresh-token
               name: refresh-token
