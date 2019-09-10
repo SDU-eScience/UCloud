@@ -24,6 +24,7 @@ import io.ktor.http.contentType
 import io.ktor.request.header
 import io.ktor.request.httpMethod
 import io.ktor.request.path
+import io.ktor.request.uri
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.response.respondText
@@ -121,7 +122,7 @@ class WebService(
         route("{path...}") {
             host(Regex("${prefix.escapeToRegex()}.*\\.${domain.escapeToRegex()}")) {
                 webSocket {
-                    val path = call.request.path()
+                    val uri = call.request.uri
                     val host = call.request.header(HttpHeaders.Host) ?: ""
                     val id = host.substringAfter(prefix).substringBefore(".")
                     if (!host.startsWith(prefix)) {
@@ -141,7 +142,7 @@ class WebService(
                     }
 
                     val tunnel = createTunnel(id)
-                    runWSProxy(tunnel, path = path, cookies = requestCookies)
+                    runWSProxy(tunnel, uri = uri, cookies = requestCookies)
                 }
 
                 handle {

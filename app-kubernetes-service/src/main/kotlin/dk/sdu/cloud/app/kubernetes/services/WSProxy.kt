@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 
 suspend fun DefaultWebSocketServerSession.runWSProxy(
     tunnel: Tunnel,
-    path: String = "/",
+    uri: String = "/",
     cookies: Map<String, String> = emptyMap()
 ) {
     val clientConn = this
@@ -18,7 +18,7 @@ suspend fun DefaultWebSocketServerSession.runWSProxy(
         method = HttpMethod.Get,
         host = tunnel.ipAddress,
         port = tunnel.localPort,
-        path = path,
+        path = uri,
         request = {
             // We must use the same protocol and extensions for the proxying to work.
             val protocol = clientConn.call.request.header(HttpHeaders.SecWebSocketProtocol)
