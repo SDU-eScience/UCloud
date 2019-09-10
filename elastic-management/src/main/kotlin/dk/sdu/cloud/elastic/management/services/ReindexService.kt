@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
+import mbuhot.eskotlin.query.term.exists
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
@@ -8,7 +9,6 @@ import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.reindex.ReindexRequest
 import org.slf4j.Logger
 import java.io.IOException
-import java.lang.IllegalArgumentException
 import java.time.LocalDate
 
 class ReindexService(
@@ -50,7 +50,7 @@ class ReindexService(
             var toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
             while (fromCount != toCount) {
                 log.info("Waiting for target index to reach count: $fromCount. Currently doc count is: $toCount")
-                Thread.sleep(1000)
+                Thread.sleep(10000)
                 toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
             }
         }
@@ -68,10 +68,11 @@ class ReindexService(
     ) {
         getAllLogNamesWithPrefix(elastic, prefix, delimiter).forEach {
             val fromIndices = mutableListOf<String>()
+            println(it + delimiter + LocalDate.now().minusDays(daysInPast).toString().replace("-", ".") + "_*")
             for (i in 0..6) {
                 val index = it +
                         delimiter +
-                        LocalDate.now().minusDays(daysInPast+i).toString().replace("-","." ) +
+                        LocalDate.now().minusDays(daysInPast + i).toString().replace("-", ".") +
                         "_*"
                 if (indexExists(index, elastic)) {
                     fromIndices.add(index)
@@ -79,13 +80,54 @@ class ReindexService(
             }
             val toIndex = it +
                     delimiter +
-                    LocalDate.now().minusDays(daysInPast+6).toString().replace("-","." ) +
+                    LocalDate.now().minusDays(daysInPast + 6).toString().replace("-", ".") +
                     "-" +
-                    LocalDate.now().minusDays(daysInPast).toString().replace("-","." )
+                    LocalDate.now().minusDays(daysInPast).toString().replace("-", ".")
 
-            reindex(fromIndices, toIndex, lowLevelClient )
+            //if no entries in last week no need to generate an empty index.
+            if (fromIndices.isEmpty()) {
+                log.info("No entries in last week. Won't create a weekly index")
+                return@forEach
+            }
+
+            reindex(fromIndices, toIndex, lowLevelClient)
         }
 
+    }
+
+    fun reduceLastMonth(
+        prefix: String,
+        delimiter: String = "-",
+        lowLevelClient: RestClient
+    ) {
+        val lastDayOfLastMonth = LocalDate.now().withDayOfMonth(1).minusDays(1)
+        println("MONTH: ${lastDayOfLastMonth.month}")
+        val numberOfDaysInLastMonth = lastDayOfLastMonth.dayOfMonth
+        getAllLogNamesWithPrefix(elastic, prefix, delimiter).forEach {
+            val fromIndices = mutableListOf<String>()
+            for (i in 1..numberOfDaysInLastMonth) {
+                val index = it + delimiter + lastDayOfLastMonth.withDayOfMonth(i).toString().replace("-", ".") + "*"
+                if (indexExists(index, elastic)) {
+                    fromIndices.add(index)
+                }
+            }
+            val toIndex = it +
+                    delimiter +
+                    "monthly" +
+                    delimiter +
+                    lastDayOfLastMonth.withDayOfMonth(1).toString().replace("-", ".") +
+                    "-" +
+                    lastDayOfLastMonth.withDayOfMonth(numberOfDaysInLastMonth).toString().replace("-", ".")
+
+            //if no entries in last month no need to generate an empty index.
+            if (fromIndices.isEmpty()) {
+                log.info("No entries in last month. Won't create a weekly index")
+                return@forEach
+            }
+
+            reindex(fromIndices, toIndex, lowLevelClient)
+
+        }
     }
 
     companion object : Loggable {
