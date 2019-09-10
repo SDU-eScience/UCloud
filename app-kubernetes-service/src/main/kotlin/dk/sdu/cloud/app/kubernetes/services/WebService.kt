@@ -207,77 +207,79 @@ class WebService(
             }
         }
 
-        val requestPath = call.request.path()
-        val requestQueryParameters = call.request.queryParameters
-        val method = call.request.httpMethod
-        val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
-            // Remove authentication tokens
-            remove(cookieName)
-            remove(SDU_CLOUD_REFRESH_TOKEN)
-        }
-
-        val requestHeaders = call.request.headers.toMap().mapKeys { it.key.toLowerCase() }.toMutableMap().apply {
-            remove(HttpHeaders.Referrer.toLowerCase())
-            remove(HttpHeaders.ContentLength.toLowerCase())
-            remove(HttpHeaders.ContentType.toLowerCase())
-            remove(HttpHeaders.TransferEncoding.toLowerCase())
-            remove(HttpHeaders.Cookie.toLowerCase())
-            remove(HttpHeaders.Upgrade.toLowerCase())
-            remove(HttpHeaders.Host.toLowerCase())
-            remove(HttpHeaders.Origin.toLowerCase())
-
-            put(HttpHeaders.Host, listOf("${tunnel.ipAddress}:${tunnel.localPort}"))
-            put(HttpHeaders.Referrer, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}/"))
-            put(HttpHeaders.Origin, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}"))
-        }
-
-        val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
-        val requestContentType = call.request.header(HttpHeaders.ContentType)?.let {
-            runCatching {
-                ContentType.parse(it)
-            }.getOrNull()
-        } ?: ContentType.Application.OctetStream
-
-        val hasRequestBody = requestContentLength != null ||
-                call.request.header(HttpHeaders.TransferEncoding) != null
-
-        val requestBody: OutgoingContent = if (!hasRequestBody) {
-            EmptyContentNoContentLength
-        } else {
-            object : OutgoingContent.ReadChannelContent() {
-                override val contentLength: Long? = requestContentLength
-                override val contentType: ContentType = requestContentType
-                override fun readFrom(): ByteReadChannel = call.request.receiveChannel()
-            }
-        }
-
-        val request = HttpRequestBuilder().apply {
-            this.method = method
-            this.url {
-                protocol = URLProtocol.HTTP
-                host = tunnel.ipAddress
-                port = tunnel.localPort
-                encodedPath = requestPath
-                parameters.appendAll(requestQueryParameters)
+        client.use {
+            val requestPath = call.request.path()
+            val requestQueryParameters = call.request.queryParameters
+            val method = call.request.httpMethod
+            val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
+                // Remove authentication tokens
+                remove(cookieName)
+                remove(SDU_CLOUD_REFRESH_TOKEN)
             }
 
-            this.body = requestBody
-            this.headers {
-                requestHeaders.forEach { (header, values) ->
-                    appendAll(header, values)
+            val requestHeaders = call.request.headers.toMap().mapKeys { it.key.toLowerCase() }.toMutableMap().apply {
+                remove(HttpHeaders.Referrer.toLowerCase())
+                remove(HttpHeaders.ContentLength.toLowerCase())
+                remove(HttpHeaders.ContentType.toLowerCase())
+                remove(HttpHeaders.TransferEncoding.toLowerCase())
+                remove(HttpHeaders.Cookie.toLowerCase())
+                remove(HttpHeaders.Upgrade.toLowerCase())
+                remove(HttpHeaders.Host.toLowerCase())
+                remove(HttpHeaders.Origin.toLowerCase())
+
+                put(HttpHeaders.Host, listOf("${tunnel.ipAddress}:${tunnel.localPort}"))
+                put(HttpHeaders.Referrer, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}/"))
+                put(HttpHeaders.Origin, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}"))
+            }
+
+            val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
+            val requestContentType = call.request.header(HttpHeaders.ContentType)?.let {
+                runCatching {
+                    ContentType.parse(it)
+                }.getOrNull()
+            } ?: ContentType.Application.OctetStream
+
+            val hasRequestBody = requestContentLength != null ||
+                    call.request.header(HttpHeaders.TransferEncoding) != null
+
+            val requestBody: OutgoingContent = if (!hasRequestBody) {
+                EmptyContentNoContentLength
+            } else {
+                object : OutgoingContent.ReadChannelContent() {
+                    override val contentLength: Long? = requestContentLength
+                    override val contentType: ContentType = requestContentType
+                    override fun readFrom(): ByteReadChannel = call.request.receiveChannel()
+                }
+            }
+
+            val request = HttpRequestBuilder().apply {
+                this.method = method
+                this.url {
+                    protocol = URLProtocol.HTTP
+                    host = tunnel.ipAddress
+                    port = tunnel.localPort
+                    encodedPath = requestPath
+                    parameters.appendAll(requestQueryParameters)
                 }
 
-                // Note(Dan):
-                // Our current http client does not add whitespace. Some applications (say RStudio/Shiny) really wants
-                // this whitespace to be present (even though the spec clearly states that it should be ignored).
-                append(
-                    HttpHeaders.Cookie,
-                    requestCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
-                )
-            }
-        }
+                this.body = requestBody
+                this.headers {
+                    requestHeaders.forEach { (header, values) ->
+                        appendAll(header, values)
+                    }
 
-        return client.execute(request)
+                    // Note(Dan):
+                    // Our current http client does not add whitespace. Some applications (say RStudio/Shiny) really wants
+                    // this whitespace to be present (even though the spec clearly states that it should be ignored).
+                    append(
+                        HttpHeaders.Cookie,
+                        requestCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                    )
+                }
+            }
+
+            return client.execute(request)
+        }
     }
 
     private suspend fun PipelineContext<Unit, ApplicationCall>.proxyResponseToClient(clientCall: HttpClientCall) {
