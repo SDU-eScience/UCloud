@@ -27,6 +27,7 @@ import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
+import kotlin.io.FileSystemException
 import kotlin.math.min
 import kotlin.streams.toList
 
@@ -55,15 +56,7 @@ class LinuxFS(
         val opts =
             if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
-        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
-            if (systemFrom.isDirectory) {
-                copyDirectoryPreAuthorized(ctx, from, to, writeConflictPolicy)
-            } else {
-                Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
-            }
-        } else {
-            Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
-        }
+        copyPreAuthorized(ctx, from, to, writeConflictPolicy)
 
         FSResult(
             0,
@@ -78,7 +71,7 @@ class LinuxFS(
         )
     }
 
-    private suspend fun copyDirectoryPreAuthorized(
+    private suspend fun copyPreAuthorized(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
@@ -95,7 +88,7 @@ class LinuxFS(
                 Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
             } catch (e: DirectoryNotEmptyException) {
                 systemFrom.listFiles().forEach {
-                    copyDirectoryPreAuthorized(
+                    copyPreAuthorized(
                         ctx,
                         Paths.get(from, it.name).toString(),
                         Paths.get(to, it.name).toString(),
@@ -154,15 +147,7 @@ class LinuxFS(
             }
         }
 
-        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
-            if (systemFrom.isDirectory) {
-                moveDirectoryPreAuthorized(ctx, from, to, writeConflictPolicy)
-            } else {
-                Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
-            }
-        } else {
-            Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
-        }
+        movePreAuthorized(ctx, from, to, writeConflictPolicy)
 
         // We compare this information with after the move to get the correct old path.
         val toStat = stat(
@@ -196,7 +181,7 @@ class LinuxFS(
         FSResult(0, rows)
     }
 
-    private suspend fun moveDirectoryPreAuthorized(
+    private suspend fun movePreAuthorized(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
@@ -208,60 +193,24 @@ class LinuxFS(
         val opts =
             if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
-        // We need to record some information from before the move
-        val fromStat = stat(
-            ctx,
-            systemFrom,
-            setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.FILE_TYPE),
-            hasPerformedPermissionCheck = true
-        )
-
-        if (systemFrom.isDirectory) {
-            systemFrom.listFiles().forEach {
-                moveDirectoryPreAuthorized(
-                    ctx,
-                    Paths.get(from, it.name).toString(),
-                    Paths.get(to, it.name).toString(),
-                    writeConflictPolicy
-                )
+        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
+            if (systemFrom.isDirectory) {
+                systemFrom.listFiles().forEach {
+                    movePreAuthorized(
+                        ctx,
+                        Paths.get(from, it.name).toString(),
+                        Paths.get(to, it.name).toString(),
+                        writeConflictPolicy
+                    )
+                }
+            } else {
+                Files.createDirectories(systemTo.toPath().parent)
+                Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
             }
         } else {
-            Files.createDirectories(systemTo.toPath().parent)
             Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
         }
-
-        // We compare this information with after the move to get the correct old path.
-        val toStat = stat(
-            ctx,
-            systemTo,
-            STORAGE_EVENT_MODE,
-            hasPerformedPermissionCheck = true
-        )
-        val basePath = toStat.path.removePrefix(toStat.path).removePrefix("/")
-        val oldPath = if (fromStat.fileType == FileType.DIRECTORY) {
-            joinPath(fromStat.path, basePath)
-        } else {
-            fromStat.path
-        }
-
-        val rows = if (fromStat.fileType == FileType.DIRECTORY) {
-            // We need to emit events for every single file below this root.
-            // TODO copyCausedBy
-            Files.walk(systemTo.toPath()).toList().map {
-                stat(
-                    ctx,
-                    it.toFile(),
-                    STORAGE_EVENT_MODE,
-                    hasPerformedPermissionCheck = true
-                ).toMovedEvent(oldPath, copyCausedBy = true)
-            }
-        } else {
-            listOf(toStat.toMovedEvent(oldPath, copyCausedBy = true))
-        }
-
-        FSResult(0, rows)
     }
-
 
     override suspend fun listDirectoryPaginated(
         ctx: LinuxFSRunner,

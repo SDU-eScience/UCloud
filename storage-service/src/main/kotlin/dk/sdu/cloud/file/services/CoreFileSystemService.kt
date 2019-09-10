@@ -113,7 +113,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             )
             val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
 
-            if(conflictPolicy != WriteConflictPolicy.MERGE) {
+            if (!exists(ctx, newRoot)) {
                 fs.makeDirectory(ctx, newRoot).emitAll()
             }
 
