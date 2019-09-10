@@ -14,14 +14,14 @@
       "app"
     ],
     "transform": {
-      "^.+\\.(tsx?|jsx?)$": "ts-jest"
+      "^.+\\.(ts|js|jsx|tsx)$": "ts-jest"
     },
     "moduleNameMapper": {
       "^.+\\.(png|ttf|jpg)$": "file-loader",
       "^.+\\.css$": "css-loader",
       "Authentication/SDUCloudObject": "<rootDir>/__tests__/mock/Cloud.ts"
     },
-    "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(j|t)sx?$",
+    "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(js|ts)x?$",
     "moduleFileExtensions": [
       "ts",
       "tsx",
@@ -47,7 +47,7 @@
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rm -rf dist/",
     "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
-    "test": "jest",
+    "test": "jest --maxWorkers=1",
     "prepare-icons": "npm run icons-clean && npm run icons-components && npm run icons-index",
     "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
     "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components",
@@ -56,10 +56,9 @@
   "dependencies": {
     "@novnc/novnc": "^1.1.0",
     "@svgr/cli": "^4.3.2",
+    "date-fns": "^2.1.0",
     "fuse.js": "^3.4.5",
     "jsonwebtoken": "8.5.1",
-    "moment": "~2.24.0",
-    "moment-timezone": "^0.5.26",
     "react": "16.9.0",
     "react-datepicker": "2.9.6",
     "react-dom": "16.9.0",
@@ -84,7 +83,6 @@
     "@types/jest": "24.0.18",
     "@types/json-schema": "^7.0.3",
     "@types/jsonwebtoken": "^8.3.3",
-    "@types/moment-timezone": "^0.5.12",
     "@types/react": "16.9.2",
     "@types/react-datepicker": "2.9.2",
     "@types/react-dom": "^16.9.0",

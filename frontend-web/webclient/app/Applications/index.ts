@@ -51,7 +51,7 @@ export interface JobWithStatus {
     checked?: boolean;
 }
 
-export type AnalysesStateProps = AnalysisReduxObject & { responsive: ResponsiveReduxObject };
+export type AnalysesStateProps = AnalysisReduxObject & {responsive: ResponsiveReduxObject};
 export type AnalysesProps = AnalysesStateProps & AnalysesOperations;
 
 type FetchJobsOperation = (
@@ -118,7 +118,7 @@ export interface ApplicationDescription {
     parameters: ApplicationParameter[];
     outputFileGlobs: string[];
     website?: string;
-    resources: { multiNodeSupport: boolean };
+    resources: {multiNodeSupport: boolean};
     tags: string[];
 }
 
@@ -164,7 +164,7 @@ export interface RunAppState {
     mountedFolders: AdditionalMountedFolder[];
     additionalPeers: AdditionalPeer[];
     fsShown: boolean;
-    sharedFileSystems: { mounts: SharedFileSystemMount[] };
+    sharedFileSystems: {mounts: SharedFileSystemMount[]};
     previousRuns: Page<File>;
     reservation: React.RefObject<HTMLInputElement>;
 }
@@ -174,13 +174,13 @@ export interface RunOperations extends SetStatusLoading {
 }
 
 export interface RunAppProps extends RunOperations {
-    match: match<{ appName: string, appVersion: string }>;
+    match: match<{appName: string, appVersion: string}>;
     history: History;
     updatePageTitle: () => void;
 }
 
 export interface NumberParameter extends BaseParameter {
-    defaultValue: { value: number, type: "double" | "int" } | null;
+    defaultValue: {value: number, type: "double" | "int"} | null;
     min: number | null;
     max: number | null;
     step: number | null;
@@ -188,7 +188,7 @@ export interface NumberParameter extends BaseParameter {
 }
 
 export interface BooleanParameter extends BaseParameter {
-    defaultValue: { value: boolean, type: "bool" } | null;
+    defaultValue: {value: boolean, type: "bool"} | null;
     trueValue?: string | null;
     falseValue?: string | null;
     type: ParameterTypes.Boolean;
@@ -205,7 +205,7 @@ export interface InputDirectoryParameter extends BaseParameter {
 }
 
 export interface TextParameter extends BaseParameter {
-    defaultValue: { value: string, type: "string" } | null;
+    defaultValue: {value: string, type: "string"} | null;
     type: ParameterTypes.Text;
 }
 
