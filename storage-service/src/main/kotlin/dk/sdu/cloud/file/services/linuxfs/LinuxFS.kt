@@ -90,17 +90,21 @@ class LinuxFS(
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
 
-        try {
-            Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
-        } catch (e: DirectoryNotEmptyException) {
-            systemFrom.listFiles().forEach {
-                copyDirectoryPreAuthorized(
-                    ctx,
-                    Paths.get(from, it.name).toString(),
-                    Paths.get(to, it.name).toString(),
-                    writeConflictPolicy
-                )
+        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
+            try {
+                Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+            } catch (e: DirectoryNotEmptyException) {
+                systemFrom.listFiles().forEach {
+                    copyDirectoryPreAuthorized(
+                        ctx,
+                        Paths.get(from, it.name).toString(),
+                        Paths.get(to, it.name).toString(),
+                        writeConflictPolicy
+                    )
+                }
             }
+        } else {
+            Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
         }
     }
 
