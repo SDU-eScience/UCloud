@@ -206,7 +206,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                     placeholderText="Don't filter"
                     isClearable
                     selectsStart
-                    showTimeSelect
+                    showTimeInput
                     startDate={firstDate}
                     endDate={secondDate}
                     selected={firstDate}
@@ -223,7 +223,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                     placeholderText="Don't filter"
                     isClearable
                     selectsEnd
-                    showTimeSelect
+                    showTimeInput
                     startDate={firstDate}
                     endDate={secondDate}
                     selected={secondDate}
