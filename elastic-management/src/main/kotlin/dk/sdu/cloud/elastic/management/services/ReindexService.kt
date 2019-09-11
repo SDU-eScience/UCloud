@@ -126,8 +126,15 @@ class ReindexService(
             }
 
             reindex(fromIndices, toIndex, lowLevelClient)
-
         }
+    }
+
+    fun reduceLastQuarter(
+        prefix: String,
+        delimiter: String = "-",
+        lowLevelClient: RestClient
+    ) {
+
     }
 
     companion object : Loggable {
