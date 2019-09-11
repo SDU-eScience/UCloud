@@ -131,7 +131,6 @@ class RedisStreamService(
 
                 while (true) {
                     val redis = connManager.getConnection()
-                    val sync = connManager.getSync()
                     if (System.currentTimeMillis() >= nextClaim) {
                         // We reschedule messages that weren't acknowledged if they have been idle fore more than
                         // minimumIdleTime. It goes through the normal consumption mechanism.

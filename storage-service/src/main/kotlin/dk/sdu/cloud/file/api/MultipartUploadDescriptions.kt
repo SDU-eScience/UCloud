@@ -41,7 +41,9 @@ object MultiPartUploadDescriptions : CallDescriptionContainer("files.upload") {
     const val baseContext = "/api/files/upload"
 
     val simpleUpload = call<SimpleUploadRequest, Unit, CommonErrorMessage>("simpleUpload") {
-        audit<MultiPartUploadAudit>()
+        audit<MultiPartUploadAudit> {
+            longRunningResponseTime = true
+        }
 
         auth {
             access = AccessRight.READ_WRITE
@@ -69,7 +71,9 @@ object MultiPartUploadDescriptions : CallDescriptionContainer("files.upload") {
 
     val simpleBulkUpload =
         call<SimpleBulkUpload, BulkUploadErrorMessage, CommonErrorMessage>("simpleBulkUpload") {
-            audit<BulkUploadAudit>()
+            audit<BulkUploadAudit> {
+                longRunningResponseTime = true
+            }
 
             auth {
                 access = AccessRight.READ_WRITE

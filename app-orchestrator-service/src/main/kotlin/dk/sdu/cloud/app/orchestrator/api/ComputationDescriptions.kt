@@ -5,6 +5,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.bindToSubProperty
@@ -62,6 +63,10 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
      * This can only happen while the job is in state [JobState.TRANSFER_SUCCESS]
      */
     val submitFile = call<SubmitFileToComputation, Unit, ComputationErrorMessage>("submitFileV2") {
+        audit<SubmitFileToComputation> {
+            longRunningResponseTime = true
+        }
+
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
@@ -182,6 +187,10 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
     val followWSStream = call<InternalFollowWSStreamRequest, InternalFollowWSStreamResponse, CommonErrorMessage>(
         "followWSStream"
     ) {
+        audit<InternalFollowWSStreamRequest> {
+            longRunningResponseTime = true
+        }
+
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ

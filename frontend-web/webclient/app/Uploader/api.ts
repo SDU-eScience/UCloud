@@ -30,7 +30,7 @@ export const multipartUpload = async (
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
 
     let request = new XMLHttpRequest();
-    request.open("POST", "/api/files/upload/file");
+    request.open("POST", Cloud.computeURL("/api", "/files/upload/file"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
@@ -71,7 +71,7 @@ export const bulkUpload = async (
     const format = formatFromFileName(file.name);
 
     let request = new XMLHttpRequest();
-    request.open("POST", "/api/files/upload/archive");
+    request.open("POST", Cloud.computeURL("/api", "/files/upload/archive"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
@@ -133,6 +133,7 @@ function formatFromFileName(type: string): string {
 
 export enum UploadPolicy {
     OVERWRITE = "OVERWRITE",
+    MERGE = "MERGE",
     RENAME = "RENAME",
     REJECT = "REJECT"
 }

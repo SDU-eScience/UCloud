@@ -93,7 +93,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 )
             }
             val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
-            fs.copy(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+            fs.copy(ctx, from, targetPath, conflictPolicy).emitAll()
             writeTimeOfBirth(ctx, targetPath)
             setSensitivity(ctx, targetPath, sensitivityLevel)
             if (fromStat.size > 10000000000) {
@@ -113,7 +113,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 mapOf("Destination" to to, "original" to from)
             )
             val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
-            fs.makeDirectory(ctx, newRoot).emitAll()
+
+            if (!exists(ctx, newRoot)) {
+                fs.makeDirectory(ctx, newRoot).emitAll()
+            }
 
             tree(ctx, from, setOf(FileAttribute.PATH)).forEach { currentFile ->
                 val currentPath = currentFile.path.normalize()
@@ -124,7 +127,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                         val desired = joinPath(newRoot, relativize(normalizedFrom, currentPath)).normalize()
                         if (desired == newRoot) return@forEach
                         val targetPath = renameAccordingToPolicy(ctx, desired, conflictPolicy)
-                        fs.copy(ctx, currentPath, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+                        fs.copy(ctx, currentPath, targetPath, conflictPolicy).emitAll()
                         writeTimeOfBirth(ctx, targetPath)
                     }
                 )
@@ -216,10 +219,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         ctx: Ctx,
         from: String,
         to: String,
-        conflictPolicy: WriteConflictPolicy
+        writeConflictPolicy: WriteConflictPolicy
     ): String {
-        val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
-        fs.move(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+        val targetPath = renameAccordingToPolicy(ctx, to, writeConflictPolicy)
+        fs.move(ctx, from, targetPath, writeConflictPolicy).emitAll()
         return targetPath
     }
 
@@ -247,6 +250,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val targetExists = exists(ctx, desiredTargetPath)
         return when (conflictPolicy) {
             WriteConflictPolicy.OVERWRITE -> desiredTargetPath
+
+            WriteConflictPolicy.MERGE -> desiredTargetPath
 
             WriteConflictPolicy.RENAME -> {
                 if (targetExists) findFreeNameForNewFile(ctx, desiredTargetPath)

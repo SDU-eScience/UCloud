@@ -1,9 +1,14 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
@@ -67,6 +72,7 @@ class WebService(
      * to skip the authentication.
      */
     private val performAuthentication: Boolean,
+    private val serviceClient: AuthenticatedClient,
     private val prefix: String = "app-",
     private val domain: String = "cloud.sdu.dk",
     private val cookieName: String = "appRefreshToken"
@@ -77,6 +83,22 @@ class WebService(
     )
 
     private val jobIdToJob = HashMap<String, VerifiedJob>()
+
+    private suspend fun findJob(id: String): VerifiedJob? {
+        return jobIdToJob[id] ?: run {
+            val job = ComputationCallbackDescriptions.lookup.call(
+                FindByStringId(id),
+                serviceClient
+            ).orNull()
+            if (job != null) cacheJob(job)
+
+            job
+        }
+    }
+
+    private fun cacheJob(job: VerifiedJob) {
+        jobIdToJob[job.id] = job
+    }
 
     // A bit primitive, should work for most cases.
     private fun String.escapeToRegex(): String = replace(".", "\\.")
@@ -89,7 +111,7 @@ class WebService(
             }
 
             if (performAuthentication) {
-                val job = jobIdToJob[id] ?: run {
+                val job = findJob(id) ?: run {
                     call.respond(HttpStatusCode.BadRequest)
                     return@get
                 }
@@ -125,24 +147,27 @@ class WebService(
                     val uri = call.request.uri
                     val host = call.request.header(HttpHeaders.Host) ?: ""
                     val id = host.substringAfter(prefix).substringBefore(".")
-                    if (!host.startsWith(prefix)) {
-                        call.respondText(status = HttpStatusCode.NotFound) { "Not found" }
-                        return@webSocket
-                    }
+                    try {
+                        if (!host.startsWith(prefix)) {
+                            return@webSocket
+                        }
 
-                    log.info("Accepting websocket for job $id at ${call.request.path()}")
-                    if (!authorizeUser(call, id)) {
-                        return@webSocket
-                    }
+                        log.info("Accepting websocket for job $id at ${call.request.path()}")
+                        if (!authorizeUser(call, id, sendResponse = false)) {
+                            return@webSocket
+                        }
 
-                    val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
-                        // Remove authentication tokens
-                        remove(cookieName)
-                        remove(SDU_CLOUD_REFRESH_TOKEN)
-                    }
+                        val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
+                            // Remove authentication tokens
+                            remove(cookieName)
+                            remove(SDU_CLOUD_REFRESH_TOKEN)
+                        }
 
-                    val tunnel = createTunnel(id)
-                    runWSProxy(tunnel, uri = uri, cookies = requestCookies)
+                        val tunnel = createTunnel(id)
+                        runWSProxy(tunnel, uri = uri, cookies = requestCookies)
+                    } catch (ex: RPCException) {
+                        log.debug("RPCException in App WS proxy ($id): ${ex.httpStatusCode} ${ex.why}")
+                    }
                 }
 
                 handle {
@@ -167,25 +192,33 @@ class WebService(
         return@with
     }
 
-    private suspend fun authorizeUser(call: ApplicationCall, jobId: String): Boolean {
+    private suspend fun authorizeUser(call: ApplicationCall, jobId: String, sendResponse: Boolean = true): Boolean {
         if (!performAuthentication) return true
-        val job = jobIdToJob[jobId] ?: run {
-            call.respondText(status = HttpStatusCode.BadRequest) { "Bad request (Invalid job)." }
+        val job = findJob(jobId) ?: run {
+            if (sendResponse) {
+                call.respondText(status = HttpStatusCode.BadRequest) { "Bad request (Invalid job)." }
+            }
             return false
         }
 
         val token = call.request.cookies[cookieName] ?: run {
-            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            if (sendResponse) {
+                call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            }
             return false
         }
 
         val principal = authenticationService.validate(token) ?: run {
-            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            if (sendResponse) {
+                call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            }
             return false
         }
 
         if (job.owner != principal.principal.username) {
-            call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            if (sendResponse) {
+                call.respondText(status = HttpStatusCode.Unauthorized) { "Unauthorized." }
+            }
             return false
         }
 
@@ -207,77 +240,79 @@ class WebService(
             }
         }
 
-        val requestPath = call.request.path()
-        val requestQueryParameters = call.request.queryParameters
-        val method = call.request.httpMethod
-        val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
-            // Remove authentication tokens
-            remove(cookieName)
-            remove(SDU_CLOUD_REFRESH_TOKEN)
-        }
-
-        val requestHeaders = call.request.headers.toMap().mapKeys { it.key.toLowerCase() }.toMutableMap().apply {
-            remove(HttpHeaders.Referrer.toLowerCase())
-            remove(HttpHeaders.ContentLength.toLowerCase())
-            remove(HttpHeaders.ContentType.toLowerCase())
-            remove(HttpHeaders.TransferEncoding.toLowerCase())
-            remove(HttpHeaders.Cookie.toLowerCase())
-            remove(HttpHeaders.Upgrade.toLowerCase())
-            remove(HttpHeaders.Host.toLowerCase())
-            remove(HttpHeaders.Origin.toLowerCase())
-
-            put(HttpHeaders.Host, listOf("${tunnel.ipAddress}:${tunnel.localPort}"))
-            put(HttpHeaders.Referrer, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}/"))
-            put(HttpHeaders.Origin, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}"))
-        }
-
-        val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
-        val requestContentType = call.request.header(HttpHeaders.ContentType)?.let {
-            runCatching {
-                ContentType.parse(it)
-            }.getOrNull()
-        } ?: ContentType.Application.OctetStream
-
-        val hasRequestBody = requestContentLength != null ||
-                call.request.header(HttpHeaders.TransferEncoding) != null
-
-        val requestBody: OutgoingContent = if (!hasRequestBody) {
-            EmptyContentNoContentLength
-        } else {
-            object : OutgoingContent.ReadChannelContent() {
-                override val contentLength: Long? = requestContentLength
-                override val contentType: ContentType = requestContentType
-                override fun readFrom(): ByteReadChannel = call.request.receiveChannel()
-            }
-        }
-
-        val request = HttpRequestBuilder().apply {
-            this.method = method
-            this.url {
-                protocol = URLProtocol.HTTP
-                host = tunnel.ipAddress
-                port = tunnel.localPort
-                encodedPath = requestPath
-                parameters.appendAll(requestQueryParameters)
+        client.use {
+            val requestPath = call.request.path()
+            val requestQueryParameters = call.request.queryParameters
+            val method = call.request.httpMethod
+            val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
+                // Remove authentication tokens
+                remove(cookieName)
+                remove(SDU_CLOUD_REFRESH_TOKEN)
             }
 
-            this.body = requestBody
-            this.headers {
-                requestHeaders.forEach { (header, values) ->
-                    appendAll(header, values)
+            val requestHeaders = call.request.headers.toMap().mapKeys { it.key.toLowerCase() }.toMutableMap().apply {
+                remove(HttpHeaders.Referrer.toLowerCase())
+                remove(HttpHeaders.ContentLength.toLowerCase())
+                remove(HttpHeaders.ContentType.toLowerCase())
+                remove(HttpHeaders.TransferEncoding.toLowerCase())
+                remove(HttpHeaders.Cookie.toLowerCase())
+                remove(HttpHeaders.Upgrade.toLowerCase())
+                remove(HttpHeaders.Host.toLowerCase())
+                remove(HttpHeaders.Origin.toLowerCase())
+
+                put(HttpHeaders.Host, listOf("${tunnel.ipAddress}:${tunnel.localPort}"))
+                put(HttpHeaders.Referrer, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}/"))
+                put(HttpHeaders.Origin, listOf("http://${tunnel.ipAddress}:${tunnel.localPort}"))
+            }
+
+            val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
+            val requestContentType = call.request.header(HttpHeaders.ContentType)?.let {
+                runCatching {
+                    ContentType.parse(it)
+                }.getOrNull()
+            } ?: ContentType.Application.OctetStream
+
+            val hasRequestBody = requestContentLength != null ||
+                    call.request.header(HttpHeaders.TransferEncoding) != null
+
+            val requestBody: OutgoingContent = if (!hasRequestBody) {
+                EmptyContentNoContentLength
+            } else {
+                object : OutgoingContent.ReadChannelContent() {
+                    override val contentLength: Long? = requestContentLength
+                    override val contentType: ContentType = requestContentType
+                    override fun readFrom(): ByteReadChannel = call.request.receiveChannel()
+                }
+            }
+
+            val request = HttpRequestBuilder().apply {
+                this.method = method
+                this.url {
+                    protocol = URLProtocol.HTTP
+                    host = tunnel.ipAddress
+                    port = tunnel.localPort
+                    encodedPath = requestPath
+                    parameters.appendAll(requestQueryParameters)
                 }
 
-                // Note(Dan):
-                // Our current http client does not add whitespace. Some applications (say RStudio/Shiny) really wants
-                // this whitespace to be present (even though the spec clearly states that it should be ignored).
-                append(
-                    HttpHeaders.Cookie,
-                    requestCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
-                )
-            }
-        }
+                this.body = requestBody
+                this.headers {
+                    requestHeaders.forEach { (header, values) ->
+                        appendAll(header, values)
+                    }
 
-        return client.execute(request)
+                    // Note(Dan):
+                    // Our current http client does not add whitespace. Some applications (say RStudio/Shiny) really wants
+                    // this whitespace to be present (even though the spec clearly states that it should be ignored).
+                    append(
+                        HttpHeaders.Cookie,
+                        requestCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                    )
+                }
+            }
+
+            return client.execute(request)
+        }
     }
 
     private suspend fun PipelineContext<Unit, ApplicationCall>.proxyResponseToClient(clientCall: HttpClientCall) {
@@ -451,14 +486,14 @@ class WebService(
     }
 
     fun queryParameters(job: VerifiedJob): QueryInternalWebParametersResponse {
-        jobIdToJob[job.id] = job
+        cacheJob(job)
         return QueryInternalWebParametersResponse(
             "${AppKubernetesDescriptions.baseContext}/authorize-app/${job.id}"
         )
     }
 
     private suspend fun createTunnel(incomingId: String): Tunnel {
-        val job = jobIdToJob[incomingId] ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val job = findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val remotePort = job.application.invocation.web?.port ?: 80
         return tunnelManager.createTunnel(incomingId, remotePort)
     }

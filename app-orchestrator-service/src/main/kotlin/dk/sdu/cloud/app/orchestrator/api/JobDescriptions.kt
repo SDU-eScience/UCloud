@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.WithAppMetadata
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
@@ -168,6 +169,10 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
      * Follows the std streams of a job via websockets
      */
     val followWS = call<FollowWSRequest, FollowWSResponse, CommonErrorMessage>("followWS") {
+        audit<FollowWSRequest> {
+            longRunningResponseTime = true
+        }
+
         auth {
             access = AccessRight.READ
         }
