@@ -1,0 +1,7 @@
+---
+name: task
+
+namespaces:
+- task
+
+dependencies: []

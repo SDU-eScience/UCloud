@@ -1,0 +1,26 @@
+def initialize() {
+  try {
+    stage('build task-service') {
+      sh '''cd task-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'task-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'task-service-detekt-Report', reportTitles: ''])
+  }
+  try {
+    stage('test task-service') {
+      sh '''cd task-service
+      ./gradlew test'''
+    }
+  } catch (e) {
+    echo "Test FAILED"
+    return 'UNSTABLE'
+  }
+  return 'SUCCESS'
+}
+
+return this

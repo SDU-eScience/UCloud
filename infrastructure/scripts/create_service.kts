@@ -6,9 +6,9 @@ import java.nio.file.StandardCopyOption
 import kotlin.system.exitProcess
 
 object Versions {
-    val GradleBootstrap = "v0.2.16"
+    val GradleBootstrap = "v0.2.20"
     val AuthAPI = "1.21.0"
-    val ServiceCommon = "1.5.6"
+    val ServiceCommon = "1.6.0"
 }
 
 if (args.size != 1) {
