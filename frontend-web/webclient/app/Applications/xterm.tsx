@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {Terminal} from "xterm";
-import "xterm/dist/xterm.css";
+import "xterm/css/xterm.css";
 
 export function useXTerm(): [React.RefObject<HTMLDivElement>, (textToAppend: string) => void, () => void] {
     const [didMount, setDidMount] = useState(false);

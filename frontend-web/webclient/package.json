@@ -4,18 +4,9 @@
   "description": "SDUCloud",
   "author": "IMADA - eScience Center, SDU",
   "jest": {
-    "collectCoverage": true,
-    "coverageDirectory": "<rootDir>/coverage",
-    "coverageReporters": [
-      "html",
-      "cobertura"
-    ],
     "modulePaths": [
       "app"
     ],
-    "transform": {
-      "^.+\\.(ts|js|jsx|tsx)$": "ts-jest"
-    },
     "moduleNameMapper": {
       "^.+\\.(png|ttf|jpg)$": "file-loader",
       "^.+\\.css$": "css-loader",
@@ -31,7 +22,9 @@
       "node"
     ],
     "preset": "ts-jest",
-    "testMatch": null,
+    "transformIgnorePatterns": [
+      "/<rootDir>/node_modules/date-fns/*"
+    ],
     "globals": {
       "ts-jest": {
         "ts-config": "tsconfig.json",
@@ -74,7 +67,7 @@
     "styled-components": "^4.3.2",
     "styled-system": "^5.1.1",
     "svgi": "^1.1.0",
-    "xterm": "^3.14.5"
+    "xterm": "^4.0.0"
   },
   "devDependencies": {
     "@types/enzyme": "^3.10.3",
@@ -113,9 +106,9 @@
     "style-loader": "1.0.0",
     "terser-webpack-plugin": "^2.0.1",
     "ts-jest": "^24.0.2",
-    "ts-loader": "6.0.4",
+    "ts-loader": "6.1.0",
     "tslint": "^5.20.0",
-    "typescript": "^3.6.2",
+    "typescript": "^3.6.3",
     "url-loader": "2.1.0",
     "webpack": "4.39.3",
     "webpack-cli": "^3.3.8",
