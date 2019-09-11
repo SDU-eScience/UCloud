@@ -54,8 +54,8 @@ function Activity(props: ActivityProps) {
             onNextScrollRequested={req => fetchActivity(req, props)}
             loading={loading}
             frame={(ref, children) => <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>}
-            renderer={(props) => <ActivityFeedItem activity={props.item} />}
-            spacer={height => <ActivityFeedSpacer height={height} />}
+            renderer={props => <ActivityFeedItem activity={props.item} />}
+            spacer={height => <ActivityFeedSpacer key={`spacer${height}`} height={height} />}
         />;
     }
 
