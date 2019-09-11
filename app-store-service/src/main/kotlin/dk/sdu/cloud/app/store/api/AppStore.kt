@@ -6,8 +6,10 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.bindToSubProperty
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -39,11 +41,30 @@ data class AppSearchRequest(
 
 data class CreateTagsRequest(
     val tags: List<String>,
-    val applicationName: String,
-    val applicationVersion: String
+    val applicationName: String
 )
 
 typealias DeleteTagsRequest = CreateTagsRequest
+
+data class UploadApplicationLogoRequest(
+    val name: String,
+    val data: BinaryStream
+)
+
+data class ClearLogoRequest(val name: String)
+typealias ClearLogoResponse = Unit
+
+data class FetchLogoRequest(val name: String)
+typealias FetchLogoResponse = BinaryStream
+
+typealias UploadApplicationLogoResponse = Unit
+
+data class FindLatestByToolRequest(
+    val tool: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+typealias FindLatestByToolResponse = Page<Application>
 
 object AppStore : CallDescriptionContainer("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
@@ -85,6 +106,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
                 }
             }
         }
+
     val searchTags = call<TagSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("searchTags") {
         auth {
             roles = Roles.AUTHENTICATED
@@ -167,6 +189,28 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     }
 
+    val findLatestByTool = call<FindLatestByToolRequest, FindLatestByToolResponse, CommonErrorMessage>(
+        "findLatestByTool"
+    ) {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +"byTool"
+                +boundTo(FindLatestByToolRequest::tool)
+            }
+
+            params {
+                +boundTo(FindLatestByToolRequest::itemsPerPage)
+                +boundTo(FindLatestByToolRequest::page)
+            }
+        }
+    }
+
     val listAll = call<PaginationRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("listAll") {
         auth {
             roles = Roles.AUTHENTICATED
@@ -231,6 +275,67 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val uploadLogo =
+        call<UploadApplicationLogoRequest, UploadApplicationLogoResponse, CommonErrorMessage>("uploadLogo") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ_WRITE
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"uploadLogo"
+                }
+
+                headers {
+                    +boundTo("Upload-Name", UploadApplicationLogoRequest::name)
+                }
+
+                body {
+                    bindToSubProperty(UploadApplicationLogoRequest::data)
+                }
+            }
+        }
+
+    val clearLogo =
+        call<ClearLogoRequest, ClearLogoResponse, CommonErrorMessage>("clearLogo") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ_WRITE
+            }
+
+            http {
+                method = HttpMethod.Delete
+
+                path {
+                    using(baseContext)
+                    +"clearLogo"
+                    +boundTo(ClearLogoRequest::name)
+                }
+            }
+        }
+
+
+    val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PUBLIC
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"logo"
+                +boundTo(FetchLogoRequest::name)
+            }
         }
     }
 }

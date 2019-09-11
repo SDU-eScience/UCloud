@@ -19,7 +19,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const scrollSize = 250;
 
-const dropdownOptions: Array<{ text: string; value: string }> = [
+const dropdownOptions: Array<{text: string; value: string}> = [
     {value: "NO_FILTER", text: "Don't filter"},
     {value: Module.ActivityType.DELETED, text: "Deletions"},
     {value: Module.ActivityType.DOWNLOAD, text: "Downloads"},
@@ -154,12 +154,12 @@ export const getStartOfWeek = (d: Date): Date => {
     return copy;
 };
 
-export const TimeFilter = (props: { text: string, onChange: (ts?: Date) => void, selected?: Date }) => (
+export const TimeFilter = (props: {text: string, onChange: (ts?: Date) => void, selected?: Date}) => (
     <Box mb={16}>
         <Label>{props.text}</Label>
         <InputGroup>
             <DatePicker
-                showTimeSelect
+                showTimeInput
                 placeholderText={"Don't filter"}
                 selected={props.selected}
                 onChange={ts => props.onChange(ts || undefined)}

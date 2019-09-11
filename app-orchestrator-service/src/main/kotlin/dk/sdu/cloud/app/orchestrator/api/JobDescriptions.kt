@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.WithAppMetadata
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
@@ -41,6 +42,9 @@ enum class JobSortBy {
     LAST_UPDATE,
     CREATED_AT
 }
+
+typealias MachineTypesRequest = Unit
+typealias MachineTypesResponse = List<MachineReservation>
 
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
@@ -165,6 +169,10 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
      * Follows the std streams of a job via websockets
      */
     val followWS = call<FollowWSRequest, FollowWSResponse, CommonErrorMessage>("followWS") {
+        audit<FollowWSRequest> {
+            longRunningResponseTime = true
+        }
+
         auth {
             access = AccessRight.READ
         }
@@ -207,6 +215,19 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
                 }
             }
         }
+
+    val machineTypes = call<MachineTypesRequest, MachineTypesResponse, CommonErrorMessage>("machineTypes") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +"machine-types"
+            }
+        }
+    }
 }
 
 data class FindByNameAndVersion(val name: String, val version: String)

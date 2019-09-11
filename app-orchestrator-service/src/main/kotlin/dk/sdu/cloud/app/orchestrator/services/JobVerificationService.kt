@@ -1,7 +1,14 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
+import dk.sdu.cloud.app.orchestrator.api.FileForUploadArchiveType
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.MachineReservation
+import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
+import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationParameter
@@ -43,7 +50,8 @@ class JobVerificationService<Session>(
     private val defaultBackend: String,
     private val sharedMountVerificationService: SharedMountVerificationService,
     private val db: DBSessionFactory<Session>,
-    private val dao: JobDao<Session>
+    private val dao: JobDao<Session>,
+    private val machines: List<MachineReservation> = listOf(MachineReservation.BURST)
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -53,6 +61,10 @@ class JobVerificationService<Session>(
         val name = unverifiedJob.request.name
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
+        val reservation =
+            if (unverifiedJob.request.reservation == null) MachineReservation.BURST
+            else (machines.find { it.name == unverifiedJob.request.reservation }
+                ?: throw JobException.VerificationError("Bad machine reservation"))
         val verifiedParameters = verifyParameters(application, unverifiedJob)
         val workDir = URI("/$jobId")
         val files = collectFiles(application, verifiedParameters, workDir, userClient).map {
@@ -159,7 +171,8 @@ class JobVerificationService<Session>(
                 user = unverifiedJob.decodedToken.principal.username,
                 project = unverifiedJob.decodedToken.projectOrNull(),
                 _sharedFileSystemMounts = sharedMounts,
-                _peers = allPeers
+                _peers = allPeers,
+                reservation = reservation
             ),
             null,
             unverifiedJob.refreshToken

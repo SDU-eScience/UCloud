@@ -7,7 +7,8 @@ import java.time.Period
 class AuditDescription<A : Any> internal constructor(
     val context: CallDescription<*, *, *>,
     val auditType: TypeReference<A>,
-    val retentionPeriod: Period
+    val retentionPeriod: Period,
+    val longRunningResponseTime: Boolean
 ) {
     companion object {
         val descriptionKey = AttributeKey<AuditDescription<Any>>("audit-description")
@@ -32,6 +33,7 @@ class AuditDescriptionBuilder<A : Any>(
     val auditType: TypeReference<A>
 ) {
     var retentionPeriod: Period = AuditDescription.DEFAULT_RETENTION_PERIOD
+    var longRunningResponseTime: Boolean = false
 
-    fun build(): AuditDescription<A> = AuditDescription(context, auditType, retentionPeriod)
+    fun build(): AuditDescription<A> = AuditDescription(context, auditType, retentionPeriod, longRunningResponseTime)
 }

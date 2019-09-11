@@ -7,19 +7,21 @@ import dk.sdu.cloud.app.store.api.CreateTagsRequest
 import dk.sdu.cloud.app.store.api.DeleteTagsRequest
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
+import dk.sdu.cloud.app.store.services.LogoService
+import dk.sdu.cloud.app.store.services.ToolDAO
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normAppDesc2
 import dk.sdu.cloud.app.store.util.normToolDesc
 import dk.sdu.cloud.app.store.util.withNameAndVersion
 import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
-import dk.sdu.cloud.app.store.util.withTags
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
@@ -34,15 +36,16 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
-import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
 private fun KtorApplicationTestSetupContext.configureAppServer(
     appDao: ApplicationHibernateDAO
 ): List<Controller> {
-    val appStore = AppStoreService(micro.hibernateDatabase, appDao, mockk(relaxed = true))
-    return listOf(AppStoreController(appStore))
+    val toolDao = mockk<ToolDAO<HibernateSession>>(relaxed = true)
+    val appStore = AppStoreService(micro.hibernateDatabase, appDao, toolDao)
+    val logoService = LogoService(micro.hibernateDatabase, appDao, toolDao)
+    return listOf(AppStoreController(appStore, logoService))
 }
 
 class AppTest {
@@ -51,7 +54,7 @@ class AppTest {
     fun `Favorite test`() {
         withKtorTest(
             setup = {
-                val user = "user"
+                val user = TestUsers.user
                 val toolDao = ToolHibernateDAO()
                 val appDao = ApplicationHibernateDAO(toolDao)
                 micro.install(HibernateFeature)
@@ -163,12 +166,11 @@ class AppTest {
         )
     }
 
-    //@Ignore // Code only works for postgresql
     @Test
     fun `Searchtags test`() {
         withKtorTest(
             setup = {
-                val user = "user"
+                val user = TestUsers.user
                 val toolDao = ToolHibernateDAO()
                 val appDao = ApplicationHibernateDAO(toolDao)
                 micro.install(HibernateFeature)
@@ -177,13 +179,16 @@ class AppTest {
                     appDao.create(
                         it,
                         user,
-                        normAppDesc.withNameAndVersionAndTitle("name1", "1", "1title").withTags(listOf("tag1", "tag2"))
+                        normAppDesc.withNameAndVersionAndTitle("name1", "1", "1title")
                     )
                     appDao.create(
                         it,
                         user,
-                        normAppDesc2.withNameAndVersionAndTitle("name2", "2", "2title").withTags(listOf("tag2", "tag3"))
+                        normAppDesc2.withNameAndVersionAndTitle("name2", "2", "2title")
                     )
+
+                    appDao.createTags(it, user, "name1", listOf("tag1", "tag2"))
+                    appDao.createTags(it, user, "name2", listOf("tag2", "tag3"))
                 }
                 configureAppServer(appDao)
             },
@@ -252,8 +257,8 @@ class AppTest {
                 val appDao = ApplicationHibernateDAO(toolDao)
                 micro.install(HibernateFeature)
                 micro.hibernateDatabase.withTransaction {
-                    toolDao.create(it, TestUsers.user.username, normToolDesc)
-                    appDao.create(it, TestUsers.user.username, app)
+                    toolDao.create(it, TestUsers.user, normToolDesc)
+                    appDao.create(it, TestUsers.user, app)
 
                 }
                 configureAppServer(appDao)
@@ -310,7 +315,7 @@ class AppTest {
                         application.metadata,
                         application.invocation,
                         false,
-                        application.metadata.tags
+                        emptyList()
                     )
                 }
 
@@ -343,7 +348,7 @@ class AppTest {
                         1,
                         10,
                         0,
-                        listOf(ApplicationSummaryWithFavorite(application.metadata, true, application.metadata.tags))
+                        listOf(ApplicationSummaryWithFavorite(application.metadata, true, emptyList()))
                     )
                 }
 
@@ -378,7 +383,7 @@ class AppTest {
                         1,
                         10,
                         0,
-                        listOf(ApplicationSummaryWithFavorite(normAppDesc.metadata, true, normAppDesc.metadata.tags))
+                        listOf(ApplicationSummaryWithFavorite(normAppDesc.metadata, true, emptyList()))
                     )
                 }
 
@@ -428,8 +433,8 @@ class AppTest {
         withKtorTest(
             setup = {
                 val appDao = mockk<ApplicationHibernateDAO>()
-                every { appDao.createTags(any(), any(), any(), any(), any()) } just runs
-                every { appDao.deleteTags(any(), any(), any(), any(), any()) } just runs
+                every { appDao.createTags(any(), any(), any(), any()) } just runs
+                every { appDao.deleteTags(any(), any(), any(), any()) } just runs
                 micro.install(HibernateFeature)
                 configureAppServer(appDao)
             },
@@ -441,8 +446,7 @@ class AppTest {
                     user = TestUsers.admin,
                     request = CreateTagsRequest(
                         listOf("tag1", "tag2"),
-                        "applicationName",
-                        "2.2"
+                        "applicationName"
                     )
                 )
 
@@ -454,8 +458,7 @@ class AppTest {
                     user = TestUsers.admin,
                     request = DeleteTagsRequest(
                         listOf("tag1", "tag2"),
-                        "applicationName",
-                        "2.2"
+                        "applicationName"
                     )
                 )
 

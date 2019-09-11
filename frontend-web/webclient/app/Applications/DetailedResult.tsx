@@ -6,8 +6,9 @@ import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
-import * as React from "react";
+import PromiseKeeper from "PromiseKeeper";
 import {useEffect, useState} from "react";
+import * as React from "react";
 import {connect} from "react-redux";
 import {match} from "react-router";
 import {Link} from "react-router-dom";
@@ -35,7 +36,7 @@ interface DetailedResultOperations {
 }
 
 interface DetailedResultProps extends DetailedResultOperations {
-    match: match<{ jobId: string }>;
+    match: match<{jobId: string}>;
     history: History;
 }
 
@@ -48,30 +49,47 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const [interactiveLink, setInteractiveLink] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<number>(-1);
     const [xtermRef, appendToXterm, resetXterm] = useXTerm();
+    const [promises] = useState(new PromiseKeeper());
 
     const jobId = props.match.params.jobId;
     const outputFolder = jobWithStatus && jobWithStatus.outputFolder ? jobWithStatus.outputFolder : "";
 
+    useEffect(() => () => promises.cancelPromises(), []);
+
     async function fetchJob() {
-        const {response} = await Cloud.get<JobWithStatus>(hpcJobQuery(jobId));
-        setJobWithStatus(response);
-        setAppState(response.state);
-        setStatus(response.status);
-        setFailedState(response.failedState);
+        try {
+            const {response} = await promises.makeCancelable(Cloud.get<JobWithStatus>(hpcJobQuery(jobId))).promise;
+            setJobWithStatus(response);
+            setAppState(response.state);
+            setStatus(response.status);
+            setFailedState(response.failedState);
+        } catch (e) {
+            if (e.isCanceled) return;
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching job"));
+        }
     }
 
     async function fetchWebLink() {
-        const {response} = await Cloud.get(`/hpc/jobs/query-web/${jobId}`);
-        setInteractiveLink(response.path);
+        try {
+            const {response} = await promises.makeCancelable(Cloud.get(`/hpc/jobs/query-web/${jobId}`)).promise;
+            setInteractiveLink(response.path);
+        } catch (e) {
+            if (e.isCanceled) return;
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching weblink"));
+        }
     }
 
     async function fetchApplication() {
         if (jobWithStatus === null) return;
-        const {response} = await Cloud.get<WithAppInvocation>(
-            `/hpc/apps/${encodeURI(jobWithStatus.metadata.name)}/${encodeURI(jobWithStatus.metadata.version)}`
-        );
-
-        setApplication(response);
+        try {
+            const {response} = await promises.makeCancelable(Cloud.get<WithAppInvocation>(
+                `/hpc/apps/${encodeURI(jobWithStatus.metadata.name)}/${encodeURI(jobWithStatus.metadata.version)}`
+            )).promise;
+            setApplication(response);
+        } catch (e) {
+            if (e.isCanceled) return;
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching application"));
+        }
     }
 
     async function onCancelJob() {
@@ -95,20 +113,20 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 
         const connection = WSFactory.open(
             "/hpc/jobs", {
-                init: conn => {
-                    conn.subscribe({
-                        call: "hpc.jobs.followWS",
-                        payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
-                        handler: message => {
-                            const streamEntry = message.payload as FollowStdStreamResponse;
-                            if (streamEntry.state !== null) setAppState(streamEntry.state);
-                            if (streamEntry.status !== null) setStatus(streamEntry.status);
-                            if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
-                            if (streamEntry.stdout !== null) appendToXterm(streamEntry.stdout);
-                        }
-                    });
-                }
+            init: conn => {
+                conn.subscribe({
+                    call: "hpc.jobs.followWS",
+                    payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
+                    handler: message => {
+                        const streamEntry = message.payload as FollowStdStreamResponse;
+                        if (streamEntry.state !== null) setAppState(streamEntry.state);
+                        if (streamEntry.status !== null) setStatus(streamEntry.status);
+                        if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
+                        if (streamEntry.stdout !== null) appendToXterm(streamEntry.stdout);
+                    }
+                });
             }
+        }
         );
 
         return () => {
@@ -157,30 +175,30 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     }, [appState]);
 
     return <MainContainer
-        main={application === null || jobWithStatus == null ? <LoadingIcon size={24}/> :
+        main={application === null || jobWithStatus == null ? <LoadingIcon size={24} /> :
             <ContainerForText>
                 <Panel>
                     <StepGroup>
                         <StepTrackerItem
                             stateToDisplay={JobState.VALIDATED}
                             currentState={appState}
-                            failedState={failedState}/>
+                            failedState={failedState} />
                         <StepTrackerItem
                             stateToDisplay={JobState.PREPARED}
                             currentState={appState}
-                            failedState={failedState}/>
+                            failedState={failedState} />
                         <StepTrackerItem
                             stateToDisplay={JobState.SCHEDULED}
                             currentState={appState}
-                            failedState={failedState}/>
+                            failedState={failedState} />
                         <StepTrackerItem
                             stateToDisplay={JobState.RUNNING}
                             currentState={appState}
-                            failedState={failedState}/>
+                            failedState={failedState} />
                         <StepTrackerItem
                             stateToDisplay={JobState.TRANSFER_SUCCESS}
                             currentState={appState}
-                            failedState={failedState}/>
+                            failedState={failedState} />
                     </StepGroup>
                 </Panel>
 
@@ -211,7 +229,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                             {appState !== JobState.RUNNING || timeLeft <= 0 ? null :
                                 <InfoBox>
                                     <b>Time remaining:</b>{" "}
-                                    <TimeRemaining timeInMs={timeLeft}/>
+                                    <TimeRemaining timeInMs={timeLeft} />
                                 </InfoBox>
                             }
                         </List>
@@ -223,7 +241,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                         appState !== JobState.RUNNING || interactiveLink === null ? null :
                             <InteractiveApplicationLink
                                 type={application.invocation.applicationType}
-                                interactiveLink={interactiveLink}/>
+                                interactiveLink={interactiveLink} />
                     }
                     right={
                         !inCancelableState(appState) ? null :
@@ -244,7 +262,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                             Standard Streams
                             &nbsp;
                             <Dropdown>
-                                <Icon name="info" color="white" color2="black" size="1em"/>
+                                <Icon name="info" color="white" color2="black" size="1em" />
                                 <DropdownContent
                                     width="400px"
                                     visible
@@ -264,7 +282,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                 <Heading.h5>Output</Heading.h5>
                             </Box>
                             <Box width={1} backgroundColor="lightGray">
-                                <div ref={xtermRef}/>
+                                <div ref={xtermRef} />
                             </Box>
                         </Flex>
                     </Box>
@@ -285,7 +303,7 @@ const InfoBox = styled(Box)`
     padding-bottom: 0.8em;
 `;
 
-const TimeRemaining: React.FunctionComponent<{ timeInMs: number }> = props => {
+const TimeRemaining: React.FunctionComponent<{timeInMs: number}> = props => {
     const timeLeft = props.timeInMs;
     const seconds = (timeLeft / 1000) % 60;
     const minutes = ((timeLeft / (1000 * 60)) % 60);
@@ -368,8 +386,8 @@ const StepTrackerItem: React.FunctionComponent<{
         <Step active={active}>
             {complete ?
                 <Icon name={thisFailed ? "close" : "check"} color={thisFailed ? "red" : "green"} mr="0.7em"
-                      size="30px"/> :
-                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px"/>
+                    size="30px" /> :
+                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px" />
             }
             <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
         </Step>

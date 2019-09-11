@@ -73,7 +73,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             config.defaultBackend,
             sharedMountVerificationService,
             db,
-            jobHibernateDao
+            jobHibernateDao,
+            config.machines
         )
 
 
@@ -110,7 +111,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                     userClientFactory,
                     serviceClient,
                     vncService,
-                    webService
+                    webService,
+                    config.machines
                 ),
                 CallbackController(jobOrchestrator)
             )

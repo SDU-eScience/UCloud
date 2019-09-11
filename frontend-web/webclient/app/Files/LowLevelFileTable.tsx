@@ -6,6 +6,7 @@ import {File, FileResource, FileType, SortBy, SortOrder} from "Files/index";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
+import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {connect} from "react-redux";
@@ -28,7 +29,7 @@ import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} fro
 import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
+import {setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {
     createFolder, favoriteFile,
     getFilenameFromPath,
@@ -45,7 +46,7 @@ import {
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Arrow, FileIcon} from "UtilityComponents";
-import * as UF from "UtilityFunctions"
+import * as UF from "UtilityFunctions";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -120,24 +121,25 @@ const invertSortOrder = (order: SortOrder): SortOrder => {
 const twoPhaseLoadFiles = async (
     attributes: FileResource[],
     callback: (page: Page<File>) => void,
-    request: ListDirectoryRequest
+    request: ListDirectoryRequest,
+    promises: PromiseKeeper
 ) => {
     const promise = callAPI<Page<File>>(listDirectory({
         ...request,
         attrs: [FileResource.FILE_ID, FileResource.PATH, FileResource.FILE_TYPE]
     })).then(result => {
-        callback(result);
+        if (!promises.canceledKeeper) callback(result);
         return result;
     });
-
     try {
         const [phaseOne, phaseTwo] = await Promise.all([
             promise,
             callAPI<Page<File>>(listDirectory({...request, attrs: attributes}))
         ]);
-
+        if (promises.canceledKeeper) return;
         callback(mergeFilePages(phaseOne, phaseTwo, attributes));
     } catch (e) {
+        if (promises.canceledKeeper) return;
         callback(emptyPage); // Set empty page to avoid rendering of this folder
         throw e; // Rethrow to set error status
     }
@@ -170,7 +172,7 @@ function apiForComponent(
     setSortByColumns: (s: [SortBy, SortBy]) => void
 ): InternalFileTableAPI {
     let api: InternalFileTableAPI;
-
+    const [promises] = useState(new PromiseKeeper());
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
     const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
@@ -178,6 +180,8 @@ function apiForComponent(
         type: props.foldersOnly ? "DIRECTORY" : undefined,
         path: Cloud.homeFolder
     });
+
+    React.useEffect(() => () => promises.cancelPromises(), []);
 
     const loadManaged = (request: ListDirectoryRequest) => {
         setPageParameters(request);
@@ -188,7 +192,8 @@ function apiForComponent(
                     FileResource.SENSITIVITY_LEVEL
                 ],
                 it => setManagedPage(it),
-                request);
+                request,
+                promises);
         });
     };
 
@@ -258,10 +263,14 @@ function apiForComponent(
     return api;
 }
 
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
+// tslint:disable-next-line: variable-name
+const LowLevelFileTable_: React.FunctionComponent<
+    LowLevelFileTableProps &
     RouteComponentProps &
-{responsive: ResponsiveReduxObject} &
-{showUploader: (path: string) => void}> = props => {
+    {responsive: ResponsiveReduxObject} &
+    {showUploader: (path: string) => void} &
+    {setUploaderCallback: (cb?: () => void) => void}
+> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -280,6 +289,17 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
+
+    useEffect(() => {
+        if (!props.embedded) {
+            const {pageNumber, itemsPerPage} = page;
+            props.setUploaderCallback(() => onPageChanged(pageNumber, itemsPerPage));
+        }
+    });
+
+    useEffect(() => {
+        return () => props.setUploaderCallback();
+    }, []);
 
     // Callbacks for operations
     const callbacks: FileOperationCallback = {
@@ -543,7 +563,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                 </ClickableDropdown>
                                             }
                                         </Flex>
-                                    </FileTableHeaderCell>
+                                    </FileTableHeaderCell>;
                                 })}
 
                                 {/* Options cell (adds a bit of spacing and hosts options in rows) */}
@@ -639,9 +659,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 const mapStateToProps = ({responsive}: ReduxObject) => {
     return {responsive};
 };
+
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: (path: string) => dispatch(setUploaderVisible(true, path))
+    showUploader: (path: string) => dispatch(setUploaderVisible(true, path)),
+    setUploaderCallback: (cb?: () => void) => dispatch(setUploaderCallback(cb))
 });
+
 export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(withRouter(LowLevelFileTable_));
 
 interface ShellProps {
@@ -714,7 +737,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 autoFocus
                 data-tag="renameField"
                 onKeyDown={e => {
-                    if (!!props.onRenameFile) props.onRenameFile(e.keyCode, (e.target as HTMLInputElement).value)
+                    if (!!props.onRenameFile) props.onRenameFile(e.keyCode, (e.target as HTMLInputElement).value);
                 }}
             />
 
@@ -724,7 +747,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 ml="9px"
                 name="close"
                 onClick={() => {
-                    if (!!props.onRenameFile) props.onRenameFile(KeyCode.ESC, "")
+                    if (!!props.onRenameFile) props.onRenameFile(KeyCode.ESC, "");
                 }}
             />
         </>;
@@ -769,7 +792,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                             } catch (e) {
                                 setFavorite(initialValue);
                             }
-                        })
+                        });
                     }}
                     hoverColor="blue"
                 />

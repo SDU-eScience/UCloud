@@ -1,22 +1,12 @@
 import {Cloud} from "Authentication/SDUCloudObject";
-import {inSuccessRange} from "UtilityFunctions";
-import {STATUS_CODES} from "http";
 import {Sensitivity} from "DefaultObjects";
+import {STATUS_CODES} from "http";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {b64EncodeUnicode} from "Utilities/XHRUtils";
+import {inSuccessRange} from "UtilityFunctions";
 
 const timeBetweenUpdates = 150;
-
-// https://stackoverflow.com/a/30106551
-function b64EncodeUnicode(str) {
-    // first we use encodeURIComponent to get percent-encoded UTF-8,
-    // then we convert the percent encodings into raw bytes which
-    // can be fed into btoa.
-    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
-        function toSolidBytes(match, p1) {
-            return String.fromCharCode(parseInt('0x' + p1));
-        }));
-}
 
 interface UploadArgs {
     location: string
@@ -40,7 +30,7 @@ export const multipartUpload = async (
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
 
     let request = new XMLHttpRequest();
-    request.open("POST", "/api/files/upload/file");
+    request.open("POST", Cloud.computeURL("/api", "/files/upload/file"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
@@ -81,7 +71,7 @@ export const bulkUpload = async (
     const format = formatFromFileName(file.name);
 
     let request = new XMLHttpRequest();
-    request.open("POST", "/api/files/upload/archive");
+    request.open("POST", Cloud.computeURL("/api", "/files/upload/archive"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
@@ -143,6 +133,7 @@ function formatFromFileName(type: string): string {
 
 export enum UploadPolicy {
     OVERWRITE = "OVERWRITE",
+    MERGE = "MERGE",
     RENAME = "RENAME",
     REJECT = "REJECT"
 }
