@@ -147,24 +147,27 @@ class WebService(
                     val uri = call.request.uri
                     val host = call.request.header(HttpHeaders.Host) ?: ""
                     val id = host.substringAfter(prefix).substringBefore(".")
-                    if (!host.startsWith(prefix)) {
-                        call.respondText(status = HttpStatusCode.NotFound) { "Not found" }
-                        return@webSocket
-                    }
+                    try {
+                        if (!host.startsWith(prefix)) {
+                            return@webSocket
+                        }
 
-                    log.info("Accepting websocket for job $id at ${call.request.path()}")
-                    if (!authorizeUser(call, id, sendResponse = false)) {
-                        return@webSocket
-                    }
+                        log.info("Accepting websocket for job $id at ${call.request.path()}")
+                        if (!authorizeUser(call, id, sendResponse = false)) {
+                            return@webSocket
+                        }
 
-                    val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
-                        // Remove authentication tokens
-                        remove(cookieName)
-                        remove(SDU_CLOUD_REFRESH_TOKEN)
-                    }
+                        val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
+                            // Remove authentication tokens
+                            remove(cookieName)
+                            remove(SDU_CLOUD_REFRESH_TOKEN)
+                        }
 
-                    val tunnel = createTunnel(id)
-                    runWSProxy(tunnel, uri = uri, cookies = requestCookies)
+                        val tunnel = createTunnel(id)
+                        runWSProxy(tunnel, uri = uri, cookies = requestCookies)
+                    } catch (ex: RPCException) {
+                        log.debug("RPCException in App WS proxy ($id): ${ex.httpStatusCode} ${ex.why}")
+                    }
                 }
 
                 handle {
