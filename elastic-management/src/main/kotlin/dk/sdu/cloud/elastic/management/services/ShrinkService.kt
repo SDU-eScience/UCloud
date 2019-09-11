@@ -113,7 +113,7 @@ class ShrinkService(
 
 
     fun shrink() {
-        val yesterdayPeriodFormat = LocalDate.now().minusDays(32).toString().replace("-","." )
+        val yesterdayPeriodFormat = LocalDate.now().minusDays(1).toString().replace("-","." )
         val list = getListOfIndices(elastic, "*-$yesterdayPeriodFormat")
         log.info("Shrinking ${list.size} indices")
         list.forEach {
