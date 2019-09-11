@@ -33,7 +33,8 @@ import {prettierString} from "UtilityFunctions";
 import {AnalysesOperations, AnalysesProps, AnalysesStateProps, JobState, JobWithStatus, RunsSortBy} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
-import formatRelative from "date-fns/esm/formatRelative";
+import {formatRelative} from "date-fns/esm";
+import {enGB} from "date-fns/locale";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -336,11 +337,11 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
             {hide ? null : <TableCell onClick={to}>
-                {capitalized(formatRelative(analysis.createdAt, new Date()))}
+                {capitalized(formatRelative(analysis.createdAt, new Date(), {locale: enGB}))}
             </TableCell>}
             <TableCell onClick={to}>
                 {!!analysis.expiresAt && analysis.state === JobState.RUNNING ?
-                        capitalized(formatRelative(analysis.expiresAt, new Date())) : "N/A"}
+                    capitalized(formatRelative(analysis.expiresAt, new Date(), {locale: enGB})) : "N/A"}
             </TableCell>
         </TableRow>);
 };

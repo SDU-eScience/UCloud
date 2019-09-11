@@ -1,5 +1,5 @@
 import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
-import formatDistance from "date-fns/esm/formatDistance";
+import {formatDistance} from "date-fns/esm";
 import {NotificationsReduxObject, ReduxObject} from "DefaultObjects";
 import {History} from "history";
 import * as React from "react";

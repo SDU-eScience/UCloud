@@ -3,39 +3,6 @@
   "version": "0.24.1",
   "description": "SDUCloud",
   "author": "IMADA - eScience Center, SDU",
-  "jest": {
-    "modulePaths": [
-      "app"
-    ],
-    "moduleNameMapper": {
-      "^.+\\.(png|ttf|jpg)$": "file-loader",
-      "^.+\\.css$": "css-loader",
-      "Authentication/SDUCloudObject": "<rootDir>/__tests__/mock/Cloud.ts"
-    },
-    "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(js|ts)x?$",
-    "moduleFileExtensions": [
-      "ts",
-      "tsx",
-      "js",
-      "jsx",
-      "json",
-      "node"
-    ],
-    "preset": "ts-jest",
-    "transformIgnorePatterns": [
-      "/<rootDir>/node_modules/date-fns/*"
-    ],
-    "globals": {
-      "ts-jest": {
-        "ts-config": "tsconfig.json",
-        "diagnostics": {
-          "ignoreCodes": [
-            151001
-          ]
-        }
-      }
-    }
-  },
   "scripts": {
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rm -rf dist/",

@@ -152,71 +152,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   width: 100%;
 }
 
-.c11 {
-  cursor: auto;
-}
-
-.c25 {
-  cursor: auto;
-}
-
-.c21 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  border-radius: 5px;
-  border-width: 1px;
-  border-style: solid;
-  border-color: #c9d3df;
-}
-
-.c21 > .c0 {
-  width: 100%;
-  -webkit-flex: 1 1 auto;
-  -ms-flex: 1 1 auto;
-  flex: 1 1 auto;
-}
-
-.c21 .c43 {
-  border: 0;
-  box-shadow: none;
-}
-
-.c30 {
-  cursor: auto;
-  display: inline-block;
-  position: relative;
-  vertical-align: middle;
-  cursor: pointer;
-  color: #8393A7;
-}
-
-.c30 svg[data-name="checked"] {
-  display: none;
-}
-
-.c30 > input:checked ~ svg[data-name="checked"] {
-  display: inline-block;
-  color: #006aff;
-}
-
-.c30 > input:checked ~ svg[data-name="empty"] {
-  display: none;
-}
-
-.c31 {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  opacity: 0;
-  position: absolute;
-}
-
 .c5 {
   position: relative;
   display: inline-block;
@@ -289,6 +224,71 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 
 .c18 > svg ~ span {
   margin-right: 1em;
+}
+
+.c11 {
+  cursor: auto;
+}
+
+.c25 {
+  cursor: auto;
+}
+
+.c21 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  border-radius: 5px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #c9d3df;
+}
+
+.c21 > .c0 {
+  width: 100%;
+  -webkit-flex: 1 1 auto;
+  -ms-flex: 1 1 auto;
+  flex: 1 1 auto;
+}
+
+.c21 .c43 {
+  border: 0;
+  box-shadow: none;
+}
+
+.c30 {
+  cursor: auto;
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+  cursor: pointer;
+  color: #8393A7;
+}
+
+.c30 svg[data-name="checked"] {
+  display: none;
+}
+
+.c30 > input:checked ~ svg[data-name="checked"] {
+  display: inline-block;
+  color: #006aff;
+}
+
+.c30 > input:checked ~ svg[data-name="empty"] {
+  display: none;
+}
+
+.c31 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  opacity: 0;
+  position: absolute;
 }
 
 .c2 {

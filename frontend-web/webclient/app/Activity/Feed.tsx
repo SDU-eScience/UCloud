@@ -1,7 +1,6 @@
 import * as Module from "Activity";
 import {Cloud} from "Authentication/SDUCloudObject";
-import format from "date-fns/esm/format";
-import formatDistanceToNow from "date-fns/esm/formatDistanceToNow";
+import {format, formatDistanceToNow} from "date-fns/esm";
 import * as React from "react";
 import {Link as ReactRouterLink} from "react-router-dom";
 import styled from "styled-components";

@@ -2,7 +2,7 @@ import * as Accounting from "Accounting";
 import {fetchUsage} from "Accounting/Redux/AccountingActions";
 import {JobState, JobWithStatus} from "Applications";
 import {Cloud} from "Authentication/SDUCloudObject";
-import formatDistanceToNow from "date-fns/esm/formatDistanceToNow";
+import {formatDistanceToNow} from "date-fns/esm";
 import {ReduxObject} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";

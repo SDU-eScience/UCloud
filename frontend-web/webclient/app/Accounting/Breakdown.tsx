@@ -1,4 +1,4 @@
-import formatDistanceToNow from "date-fns/esm/formatDistanceToNow";
+import {formatDistanceToNow} from "date-fns/esm";
 import * as React from "react";
 import styled from "styled-components";
 import {Flex, Text} from "ui-components";

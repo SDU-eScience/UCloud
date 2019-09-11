@@ -1,5 +1,4 @@
-import format from "date-fns/esm/format";
-import formatDistance from "date-fns/esm/formatDistance";
+import {format, formatDistance} from "date-fns/esm";
 import {sizeToString} from "Utilities/FileUtilities";
 import {humanReadableNumber} from "UtilityFunctions";
 import * as DataTypes from "./DataTypes";
