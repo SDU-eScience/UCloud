@@ -88,13 +88,7 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
                             log.debug("Skipping Entry: " + entry.name)
                             entry = zipStream.nextEntry
                         } else {
-                            val allComponents = initialTargetPath.components().dropLast(1)
-                            val paths = (3..allComponents.size).map { i ->
-                                joinPath(*allComponents.take(i).toTypedArray())
-                            }
-                            paths.forEach {
-                                yield(ArchiveEntry.Directory(it))
-                            }
+                            yieldDirectoriesUntilTarget(initialTargetPath)
 
                             if (entry.isDirectory) {
                                 yield(ArchiveEntry.Directory(initialTargetPath))
@@ -110,6 +104,18 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
                     }
                 }
             })
+    }
+}
+
+private suspend fun SequenceScope<ArchiveEntry>.yieldDirectoriesUntilTarget(
+    initialTargetPath: String
+) {
+    val allComponents = initialTargetPath.components().dropLast(1)
+    val paths = (3..allComponents.size).map { i ->
+        joinPath(*allComponents.take(i).toTypedArray())
+    }
+    paths.forEach {
+        yield(ArchiveEntry.Directory(it))
     }
 }
 
@@ -148,6 +154,8 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
                             log.debug("Skipping entry: ${entry.name}")
                             cappedStream.skipRemaining()
                         } else {
+                            yieldDirectoriesUntilTarget(initialTargetPath)
+
                             if (entry.isDirectory) {
                                 yield(ArchiveEntry.Directory(initialTargetPath))
                             } else {
