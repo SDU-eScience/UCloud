@@ -493,7 +493,6 @@ const LowLevelFileTable_: React.FunctionComponent<
                             <TableRow>
                                 <FileTableHeaderCell notSticky={isEmbedded} textAlign="left" width="99%">
                                     <Flex
-                                        backgroundColor="white"
                                         alignItems="center"
                                         onClick={() => setSorting(SortBy.PATH, invertSortOrder(order))}
                                     >
@@ -515,7 +514,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                     </Flex>
                                 </FileTableHeaderCell>
                                 <FileTableHeaderCell notSticky={isEmbedded} width={"3em"}>
-                                    <Flex backgroundColor="white" />
+                                    <Flex />
                                 </FileTableHeaderCell>
 
                                 {/* Sorting columns (in header) */}
@@ -525,7 +524,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                     const isSortedBy = sortBy === column;
 
                                     return <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
-                                        <Flex backgroundColor="white" alignItems="center" cursor="pointer"
+                                        <Flex alignItems="center" cursor="pointer"
                                             justifyContent="left">
                                             <Box
                                                 onClick={() => setSorting(column, invertSortOrder(order), i)}>
