@@ -28,30 +28,30 @@ const SelectBase = styled.select<{
   color: inherit;
 
   ${p => p.showError ? `&:invalid {
-    background-color: ${p.theme.colors.lightRed};
+    border-color: ${p.theme.colors.red};
   }` : null}
 
   background-color: transparent;
   border-radius: ${theme.radius};
-  border-width: 1px;
+  border-width: ${({theme}) => theme.borderWidth};
   border-style: solid;
   border-color: ${p => p.theme.colors.borderGray};
-  ${space} ${fontSize} &:focus {
+
+  &:focus {
     outline: none;
     border-color: ${p => p.theme.colors.blue};
-    box-shadow: 0 0 0 1px ${p => p.theme.colors.blue};
   }
-  ${left}
-  ${right}
+  
+  ${space} ${fontSize} 
+  ${left} ${right}
 `;
 
 SelectBase.defaultProps = {
   theme,
-  fontSize: 1,
   m: 0,
   pl: 12,
   pr: 32,
-  py: 6.5
+  py: 7
 };
 
 const Select = styled((props: any) => (

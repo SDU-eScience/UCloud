@@ -44,6 +44,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         loadAvatars({usernames: new Set([])}), {}
     );
 
+    let sharedByMe = false;
     // Start of real data
     const [response, setFetchParams, params] = props.byPath === undefined ?
         useCloudAPI<Page<SharesByPath>>(initialFetchParams, emptyPage) :
@@ -54,7 +55,12 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
     // End of real data
 
-    let sharedByMe = false;
+    // // Need dummy data? Remove the comments!
+    // const [params, setFetchParams] = useState(listShares({sharedByMe, itemsPerPage: 100, page: 0}));
+    // const items = receiveDummyShares(params.parameters!.itemsPerPage, params.parameters!.page);
+    // const page: APICallState<Page<SharesByPath>> = {loading: false, data: items, error: undefined};
+    // // End of dummy data
+    
     if (props.byPath !== undefined && page.data.items.length > 0) {
         sharedByMe = page.data.items[0].sharedByMe;
     } else {
@@ -64,14 +70,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         }
     }
 
-    /*
-    // Need dummy data? Remove the comments!
-    const [params, setFetchParams] = useState(listShares({sharedByMe, itemsPerPage: 100, page: 0}));
-    const items = receiveDummyShares(params.parameters!.itemsPerPage, params.parameters!.page);
-    const page: APICallState<Page<SharesByPath>> = {loading: false, data: items, error: undefined};
-    // End of dummy data
-     */
-
+    
     props.setGlobalLoading(page.loading);
 
     const refresh = () => setFetchParams({...params, reloadId: Math.random()});
@@ -235,7 +234,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ?
         <Link to={fileTablePage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link> :
         <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
-    return <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" height="auto">
+    return <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" 
+            height="auto" borderRadius="15px" boxShadow="sm" backgroundColor="lightGray">
         <Heading.h4 mb={"10px"}>
             <Flex alignItems={"center"}>
                 <Box ml="3px" mr="10px">

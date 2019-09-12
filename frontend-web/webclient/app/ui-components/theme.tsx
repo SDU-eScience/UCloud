@@ -364,6 +364,8 @@ export const colorStyles = {
 export const radii = [0, 2, 6];
 export const radius = "5px";
 
+export const borderWidth = "2px";
+
 export const maxContainerWidth = "1280px";
 
 // boxShadows: styled-systems hooks into shadows
@@ -480,7 +482,8 @@ const theme = {
   maxContainerWidth,
   duration,
   timingFunctions,
-  transitionDelays
+  transitionDelays,
+  borderWidth,
 };
 
 export type Theme = typeof theme;

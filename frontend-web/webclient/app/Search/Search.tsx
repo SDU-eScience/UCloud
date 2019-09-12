@@ -101,7 +101,7 @@ function Search(props: SearchProps) {
     const Tab = ({searchType}: {searchType: HeaderSearchType}): JSX.Element => (
         <SelectableText
             cursor="pointer"
-            fontSize={2}
+            fontSize={3}
             onClick={() => setPath(searchType)}
             selected={priority === searchType}
             mr="1em"
