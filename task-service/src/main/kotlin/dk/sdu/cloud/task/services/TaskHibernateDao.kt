@@ -83,12 +83,25 @@ internal class TaskHibernateDao : TaskDao<HibernateSession> {
         return session.updateCriteria<TaskEntity>(
             setProperties = {
                 criteria.set(entity[TaskEntity::statusMessage], status)
+                criteria.set(entity[TaskEntity::modifiedAt], Date(System.currentTimeMillis()))
             },
 
             where = {
                 (entity[TaskEntity::jobId] equal id) and (entity[TaskEntity::processor] equal user)
             }
         ).executeUpdate() > 0
+    }
+
+    override fun updateLastPing(session: HibernateSession, id: String, processor: SecurityPrincipal) {
+        session.updateCriteria<TaskEntity>(
+            setProperties = {
+                criteria.set(entity[TaskEntity::modifiedAt], Date(System.currentTimeMillis()))
+            },
+
+            where = {
+                (entity[TaskEntity::jobId] equal id) and (entity[TaskEntity::processor] equal processor.username)
+            }
+        ).executeUpdate()
     }
 
     override fun create(
@@ -131,7 +144,11 @@ internal class TaskHibernateDao : TaskDao<HibernateSession> {
         user: SecurityPrincipal
     ): Page<Task> {
         return session.paginatedCriteria<TaskEntity>(pagination) {
-            (entity[TaskEntity::owner] equal user.username) or (entity[TaskEntity::processor] equal user.username)
+            ((entity[TaskEntity::owner] equal user.username) or
+                    (entity[TaskEntity::processor] equal user.username)) and
+                    (entity[TaskEntity::complete] equal literal(true)) and
+                    (entity[TaskEntity::modifiedAt] greaterThan
+                            Date(System.currentTimeMillis() - (1000 * 60 * 60 * 15)))
         }.mapItems { toModel(it) }
     }
 }

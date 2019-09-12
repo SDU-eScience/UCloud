@@ -1,15 +1,18 @@
 import * as React from "react";
-import styled, { keyframes } from 'styled-components'
-import { width, height, HeightProps, WidthProps } from "styled-system";
+import styled, { keyframes } from "styled-components";
+import { height, HeightProps, width, WidthProps } from "styled-system";
 
+interface CubeGridProps {
+    size: number;
+    margin?: number;
+}
 
-type CubeGridProps = { size: number }
-const CubeGrid = ({ size }: CubeGridProps) => {
+const CubeGrid = ({ size, margin = 20 }: CubeGridProps) => {
     type SpinnerProps = WidthProps & HeightProps;
 
     const Spinner = styled.div<SpinnerProps>`
         position: relative;
-        margin: 20px auto;
+        margin: ${margin}px auto;
         ${width}
         ${height}
     `;
@@ -71,8 +74,8 @@ const CubeGrid = ({ size }: CubeGridProps) => {
             <Cube8 />
             <Cube9 />
         </Spinner>
-    )
+    );
 };
 
-export default CubeGrid
+export default CubeGrid;
 

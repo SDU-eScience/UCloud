@@ -11,6 +11,8 @@ data class Task(
 )
 
 data class TaskUpdate(
+    val jobId: String,
+    val newTitle: String? = null,
     val speeds: List<Speed> = emptyList(),
     val progress: Progress? = null,
     val complete: Boolean = false,

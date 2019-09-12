@@ -17,7 +17,7 @@ class TaskService<Session>(
     private val dao: TaskDao<Session>,
     private val subscriptionService: SubscriptionService<Session>
 ) {
-    fun create(processor: SecurityPrincipal, title: String, status: String?, owner: String): Task {
+    suspend fun create(processor: SecurityPrincipal, title: String, status: String?, owner: String): Task {
         if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val startedAt = System.currentTimeMillis()
@@ -25,6 +25,7 @@ class TaskService<Session>(
             dao.create(session, title, status, owner, processor)
         }
 
+        postStatus(processor, id, TaskUpdate(id, title, newStatus = status))
         return Task(id, owner, processor.username, title, null, false, startedAt)
     }
 
@@ -32,9 +33,10 @@ class TaskService<Session>(
         if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val isFromOwnService = processor.role == Role.SERVICE && processor.username == "_task"
-        val task =
-            db.withTransaction { dao.findOrNull(it, id, processor.username) }
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val task = db.withTransaction { session ->
+            dao.updateLastPing(session, id, processor)
+            dao.findOrNull(session, id, processor.username)
+        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         if (!isFromOwnService) {
             if (task.processor != processor.username) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -51,7 +53,7 @@ class TaskService<Session>(
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
 
-        val update = TaskUpdate(complete = true)
+        val update = TaskUpdate(id, complete = true)
         subscriptionService.onTaskUpdate(task.owner, id, update)
     }
 

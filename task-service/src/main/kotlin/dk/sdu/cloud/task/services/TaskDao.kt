@@ -15,6 +15,7 @@ interface TaskDao<Session> {
         processor: SecurityPrincipal
     ): String
 
+    fun updateLastPing(session: Session, id: String, processor: SecurityPrincipal)
     fun updateStatus(session: Session, id: String, status: String, user: String): Boolean
     fun markAsComplete(session: Session, id: String, processor: SecurityPrincipal): Boolean
     fun list(session: Session, pagination: NormalizedPaginationRequest, user: SecurityPrincipal): Page<Task>

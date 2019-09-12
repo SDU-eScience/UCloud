@@ -9,13 +9,17 @@ export interface SidebarOption {
     children?: SidebarOption
 }
 
+export interface PaginationRequest {
+    itemsPerPage: number;
+    page: number;
+}
 
 export interface Page<T> {
-    itemsInTotal: number,
-    itemsPerPage: number,
-    pagesInTotal: number
-    pageNumber: number,
-    items: T[]
+    itemsInTotal: number;
+    itemsPerPage: number;
+    pagesInTotal: number;
+    pageNumber: number;
+    items: T[];
 }
 
 export interface TimeRange {
