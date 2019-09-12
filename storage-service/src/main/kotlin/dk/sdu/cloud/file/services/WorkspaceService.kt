@@ -139,8 +139,18 @@ class WorkspaceService<Ctx : FSUserContext>(
                     val destFile = File(destDirectoryFile, destFileName)
                     if (!File(workspaceDirectoryFile.toString(), destFileName).exists()) {
                         log.debug("File $destFileName not found in workspace. Deleting file.")
+                        val destFileCloudPath = destFile.toPath().toCloudPath()
                         runBlocking {
-                            coreFileSystem.delete(ctx, destFile.toPath().toCloudPath())
+                            val destFileStat = coreFileSystem.statOrNull(
+                                ctx,
+                                destFileCloudPath,
+                                setOf(FileAttribute.TIMESTAMPS)
+                            )
+                            if (destFileStat != null) {
+                                if (destFileStat.timestamps.modified <= manifest.createdAt) {
+                                    coreFileSystem.delete(ctx, destFileCloudPath)
+                                }
+                            }
                         }
                     } else if (destFile.isDirectory) {
                         cleanDestinationDirectory(
