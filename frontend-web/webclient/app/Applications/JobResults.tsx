@@ -4,8 +4,6 @@ import {ReduxObject} from "DefaultObjects";
 import {SortOrder} from "Files";
 import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
-import * as moment from "moment";
-import "moment/locale/en-gb";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {EntriesPerPageSelector} from "Pagination";
@@ -35,6 +33,8 @@ import {prettierString} from "UtilityFunctions";
 import {AnalysesOperations, AnalysesProps, AnalysesStateProps, JobState, JobWithStatus, RunsSortBy} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
+import {formatRelative} from "date-fns/esm";
+import {enGB} from "date-fns/locale";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -58,7 +58,6 @@ const JobResultsHeaderCell = styled(TableHeaderCell) <{pointer?: boolean}>`
 function JobResults(props: AnalysesProps & {history: History}) {
 
     React.useEffect(() => {
-        moment.locale("en-gb");
         props.onInit();
         fetchJobs();
         props.setRefresh(() => fetchJobs());
@@ -337,10 +336,12 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
-            {hide ? null : <TableCell onClick={to}>{moment(analysis.createdAt).calendar()}</TableCell>}
+            {hide ? null : <TableCell onClick={to}>
+                {capitalized(formatRelative(analysis.createdAt, new Date(), {locale: enGB}))}
+            </TableCell>}
             <TableCell onClick={to}>
-                {!!analysis.expiresAt &&
-                    analysis.state === JobState.RUNNING ? moment(analysis.expiresAt).calendar() : "N/A"}
+                {!!analysis.expiresAt && analysis.state === JobState.RUNNING ?
+                    capitalized(formatRelative(analysis.expiresAt, new Date(), {locale: enGB})) : "N/A"}
             </TableCell>
         </TableRow>);
 };

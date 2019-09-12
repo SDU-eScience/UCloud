@@ -52,7 +52,7 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
 
     }
 
-    componentDidUpdate(prevProps: OptionalParameterProps) {
+    public componentDidUpdate(prevProps: OptionalParameterProps) {
         if (this.props.parameters !== prevProps.parameters) {
             this.initFuse();
             const current = this.searchField.current;
@@ -73,10 +73,10 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
         }
     }
 
-    render() {
+    public render() {
         const {onUse} = this.props;
         const {results} = this.state;
-        const components = results.map((p, i) => <OptionalParameter key={i} parameter={p} onUse={() => onUse(p)}/>);
+        const components = results.map((p, i) => <OptionalParameter key={i} parameter={p} onUse={() => onUse(p)} />);
 
         return (
             <>
@@ -86,7 +86,7 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
                     </Box>
                     <Box flexShrink={0}>
                         <Input placeholder={"Search..."} ref={this.searchField}
-                               onChange={e => this.search(e.target.value)}/>
+                            onChange={e => this.search(e.target.value)} />
                     </Box>
                 </Flex>
                 <OptionalParamsBox>{components}</OptionalParamsBox>
@@ -96,8 +96,7 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
     }
 }
 
-class OptionalParameter extends React.Component<{ parameter: Types.ApplicationParameter, onUse: () => void }, { open: boolean }> {
-    state = {open: false};
+class OptionalParameter extends React.Component<{parameter: Types.ApplicationParameter, onUse: () => void}, {open: boolean}> {
 
     private static Base = styled(Flex)`
         align-items: center;
@@ -130,13 +129,15 @@ class OptionalParameter extends React.Component<{ parameter: Types.ApplicationPa
             flex-shrink: 0;
         }
     `;
+    
+    public state = {open: false};
 
-    render() {
+    public render() {
         const {parameter, onUse} = this.props;
         const {open} = this.state;
 
-        const toggleOpen = ({preventDefault}: { preventDefault: () => void }) => {
-            preventDefault();
+        const toggleOpen = (e: {preventDefault: () => void}) => {
+            e.preventDefault();
             this.setState({open: !open});
         };
 
@@ -154,9 +155,9 @@ class OptionalParameter extends React.Component<{ parameter: Types.ApplicationPa
                         <EllipsedText>
                             <Markdown
                                 source={parameter.description}
-                                allowedTypes={["text", "root", "paragraph"]}/>
+                                allowedTypes={["text", "root", "paragraph"]} />
                         </EllipsedText>
-                        : <Box flexGrow={1}/>}
+                        : <Box flexGrow={1} />}
 
                     <Button
                         type="button"
@@ -165,7 +166,7 @@ class OptionalParameter extends React.Component<{ parameter: Types.ApplicationPa
                         Use
                     </Button>
                 </OptionalParameter.Base>
-                {open ? <Markdown source={parameter.description}/> : null}
+                {open ? <Markdown source={parameter.description} /> : null}
             </Box>
         );
     }

@@ -11,42 +11,42 @@ export enum ActivityType {
 }
 
 export interface ActivityGroup {
-    type: ActivityType
-    newestTimestamp: number
-    numberOfHiddenResults: number | null
-    items: Activity[]
+    type: ActivityType;
+    newestTimestamp: number;
+    numberOfHiddenResults: number | null;
+    items: Activity[];
 }
 
 export interface Activity {
-    type: ActivityType
-    timestamp: number
-    fileId: string
-    username: string
-    originalFilePath: string
+    type: ActivityType;
+    timestamp: number;
+    fileId: string;
+    username: string;
+    originalFilePath: string;
 }
 
 export interface ActivityFilter {
-    collapseAt?: number
-    type?: ActivityType
-    minTimestamp?: Date
-    maxTimestamp?: Date
+    collapseAt?: number;
+    type?: ActivityType;
+    minTimestamp?: Date;
+    maxTimestamp?: Date;
 }
 
 export interface FavoriteActivity extends Activity {
-    favorite: boolean
+    favorite: boolean;
 }
 
 export interface MovedActivity extends Activity {
-    newName: string
+    newName: string;
 }
 
 
 export interface ActivityDispatchProps {
-    onMount: () => void
-    fetchActivity: (scroll: ScrollRequest<number>, filter?: ActivityFilter) => void
-    resetActivity: () => void
-    setRefresh: (refresh?: () => void) => void
-    updateFilter: (filter: Partial<ActivityFilter>) => void
+    onMount: () => void;
+    fetchActivity: (scroll: ScrollRequest<number>, filter?: ActivityFilter) => void;
+    resetActivity: () => void;
+    setRefresh: (refresh?: () => void) => void;
+    updateFilter: (filter: Partial<ActivityFilter>) => void;
 }
 
 export interface ActivityOwnProps {

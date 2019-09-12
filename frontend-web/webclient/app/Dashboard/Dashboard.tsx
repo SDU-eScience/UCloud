@@ -2,12 +2,12 @@ import * as Accounting from "Accounting";
 import {fetchUsage} from "Accounting/Redux/AccountingActions";
 import {JobState, JobWithStatus} from "Applications";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {formatDistanceToNow} from "date-fns/esm";
 import {ReduxObject} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
-import * as moment from "moment";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {Notification, NotificationEntry} from "Notifications";
@@ -21,6 +21,7 @@ import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
 import {EllipsedText} from "ui-components/Text";
+import {fileTablePage} from "Utilities/FileUtilities";
 import {
     favoriteFile,
     getFilenameFromPath,
@@ -28,7 +29,6 @@ import {
     isDirectory,
     replaceHomeFolder
 } from "Utilities/FileUtilities";
-import {fileTablePage} from "Utilities/FileUtilities";
 import {FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
@@ -184,7 +184,9 @@ const DashboardRecentFiles = ({files, isLoading}: {files: File[], isLoading: boo
                 <Flex key={i} alignItems="center" pt="0.5em" pb="0.3em">
                     <ListFileContent file={file} pixelsWide={130} />
                     <Box ml="auto" />
-                    <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt!)).fromNow()}</Text>
+                    <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(file.modifiedAt!), {
+                        addSuffix: true
+                    })}</Text>
                 </Flex>
             ))}
         </List>
@@ -208,7 +210,9 @@ const DashboardAnalyses = ({analyses, isLoading}: {analyses: JobWithStatus[], is
                         </EllipsedText>
                     </Link>
                     <Box ml="auto" />
-                    <Text fontSize={1} color="grey">{moment(new Date(analysis.modifiedAt!)).fromNow()}</Text>
+                    <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(analysis.modifiedAt!), {
+                        addSuffix: true
+                    })}</Text>
                 </Flex>
             )}
         </List>

@@ -168,8 +168,11 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     const icon: FtIconProps = {type: "FILE"};
 
     switch (type) {
-        case "DIRECTORY":
         case "SHARED_FS":
+            icon.type = "SHARED_FS";
+            return icon;
+            
+        case "DIRECTORY":
             const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
             switch (homeFolderReplaced) {
                 case "Home/Jobs":
@@ -180,6 +183,9 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
                     break;
                 case "Home/Shares":
                     icon.type = "SHARESFOLDER";
+                    break;
+                case "Home/App File Systems":
+                    icon.type = "FSFOLDER";
                     break;
                 case "Home/Trash":
                     icon.type = "TRASHFOLDER";

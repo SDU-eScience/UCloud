@@ -99,11 +99,11 @@ class IndexingService<Ctx : FSUserContext>(
         runnerFactory.withContext(SERVICE_USER) { ctx ->
             try {
                 rootToReference.map { (root, reference) ->
-                    log.debug("Calculating diff for $root")
+                    log.trace("Calculating diff for $root")
                     val diff = calculateDiff(ctx, root, reference).diff
                     if (diff.isNotEmpty()) {
                         log.info("Diff for $root caused ${diff.size} correction events to be emitted")
-                        if (log.isDebugEnabled) log.debug(diff.toString())
+                        if (log.isTraceEnabled) log.trace(diff.toString())
                     }
 
                     storageEventProducer.produce(diff)
@@ -152,7 +152,7 @@ class IndexingService<Ctx : FSUserContext>(
         val eventCollector = ArrayList<StorageEvent>()
 
         val deletedFiles = referenceById.filter { it.key !in realById }
-        log.debug("The following files were deleted: ${deletedFiles.values.map { it.path }}")
+        log.trace("The following files were deleted: ${deletedFiles.values.map { it.path }}")
         eventCollector.addAll(deletedFiles.map {
             StorageEvent.Invalidated(
                 path = it.value.path,
@@ -167,16 +167,16 @@ class IndexingService<Ctx : FSUserContext>(
         // delete based on file ID).
 
         val newFiles = realById.filter { it.key !in referenceById }
-        log.debug("The following files are new (not in reference): ${newFiles.values.map { it.path }}")
+        log.trace("The following files are new (not in reference): ${newFiles.values.map { it.path }}")
         eventCollector.addAll(newFiles.filter { it.value.fileType == FileType.FILE }.map { it.value.toCreatedEvent() })
 
         // For directories created here we can be pretty sure that the reference system does _not_ already have
         // them. We need to traverse those
         eventCollector.addAll(
             newFiles.filter { it.value.fileType == FileType.DIRECTORY }.flatMap { (_, directory) ->
-                log.debug("Looking at $directory")
+                log.trace("Looking at $directory")
                 val result = fs.tree(ctx, directory.path, STORAGE_EVENT_MODE).map { it.toCreatedEvent() }
-                log.debug("Done with $directory")
+                log.trace("Done with $directory")
                 result
             }
         )
@@ -190,13 +190,13 @@ class IndexingService<Ctx : FSUserContext>(
 
                 val events = ArrayList<StorageEvent>()
                 if (referenceFile.path != realFile.path) {
-                    log.debug("Path difference for ${realFile.path}")
+                    log.trace("Path difference for ${realFile.path}")
                     events.add(
                         realFile.toMovedEvent(referenceFile.path)
                     )
 
                     if (realFile.fileType == FileType.DIRECTORY) {
-                        log.debug("File type difference for ${realFile.fileType}")
+                        log.trace("File type difference for ${realFile.fileType}")
                         // Need to invalidate and re-index
                         //
                         // We don't attempt to just rename children since events are likely missing due to parent being
@@ -218,7 +218,7 @@ class IndexingService<Ctx : FSUserContext>(
                     referenceFile.ownSensitivityLevel != realFile.sensitivityLevel ||
                     referenceFile.creator != realFile.creator
                 ) {
-                    log.debug("Metadata difference for ${realFile.path}")
+                    log.trace("Metadata difference for ${realFile.path}")
 
                     // Note: The computed sensitivity level is ignored when performing diff checks. We only look for
                     // information in the StorageEvents which would be the ownSensitivityLevel only.

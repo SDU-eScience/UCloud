@@ -1,6 +1,6 @@
 import * as Module from "Activity";
 import {Cloud} from "Authentication/SDUCloudObject";
-import * as moment from "moment";
+import {format, formatDistanceToNow} from "date-fns/esm";
 import * as React from "react";
 import {Link as ReactRouterLink} from "react-router-dom";
 import styled from "styled-components";
@@ -98,9 +98,9 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
         return <TFRow>
             <TableCell>
                 <Text fontSize={1} color="text">
-                    {moment(new Date(activity.newestTimestamp)).fromNow()}
+                    {formatDistanceToNow(new Date(activity.newestTimestamp))}
                     <br />
-                    {moment(new Date(activity.newestTimestamp)).format("lll")}
+                    {format(new Date(activity.newestTimestamp), "d LLL yyyy HH:mm")}
                 </Text>
             </TableCell>
             <TableCell>

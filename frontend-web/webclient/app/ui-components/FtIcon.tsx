@@ -215,6 +215,10 @@ const FtIconBase = ({fileIcon, size, theme, ...props}): JSX.Element => {
       return (<Icon name={"trash"} size={size} color={"red"} color2={"lightRed"} />);
     case "RESULTFOLDER":
       return (<Icon name={"ftResultsFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+    case "FSFOLDER":
+      return (<Icon name={"ftFsFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+    case "SHARED_FS":
+        return (<Icon name={"ftFileSystem"} size={size} color={"FtFolderColor"} color2={"white"} />);
     case "DIRECTORY":
       return (<Icon name={"ftFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
   }

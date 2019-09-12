@@ -1,18 +1,341 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Mount Activity Page 1`] = `
+.c1 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-top: 48px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+  background-color: #fff;
+}
+
+.c6 {
+  cursor: auto;
+  margin-bottom: 16px;
+}
+
+.c14 {
+  cursor: pointer;
+  margin-left: -17px;
+  padding-left: 15px;
+  margin-right: -17px;
+  width: auto;
+}
+
+.c17 {
+  cursor: auto;
+  padding-top: 96px;
+  padding-right: 340px;
+}
+
+.c19 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+}
+
+.c3 {
+  cursor: inherit;
+  font-size: 32px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.c7 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c11 {
+  cursor: pointer;
+}
+
+.c12 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c21 {
+  -webkit-font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #006aff;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c21:disabled {
+  opacity: 0.25;
+}
+
+.c21:focus {
+  outline: none;
+}
+
+.c21:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c9 {
+  font-size: 10px;
+  -webkit-letter-spacing: 0.2px;
+  -moz-letter-spacing: 0.2px;
+  -ms-letter-spacing: 0.2px;
+  letter-spacing: 0.2px;
+  display: block;
+  margin: 0;
+  font-size: 14px;
+  color: #000;
+  font-weight: 700;
+  width: 100%;
+}
+
+.c10 {
+  position: relative;
+  display: inline-block;
+}
+
+.c10:hover > div {
+  display: block;
+}
+
+.c13 {
+  overflow: visible;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2),0px 6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12);
+  position: absolute;
+  background-color: #fff;
+  color: #000;
+  width: 138px;
+  min-width: 138pxpx;
+  padding: 12px 16px;
+  z-index: 47;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.c13 > *:hover:not(.c20) {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.c13 svg {
+  margin-right: 1em;
+}
+
+.c13 > svg ~ span {
+  margin-right: 1em;
+}
+
+.c4 {
+  cursor: auto;
+}
+
+.c18 {
+  cursor: auto;
+}
+
+.c15 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  border-radius: 5px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #c9d3df;
+}
+
+.c15 > .c0 {
+  width: 100%;
+  -webkit-flex: 1 1 auto;
+  -ms-flex: 1 1 auto;
+  flex: 1 1 auto;
+}
+
+.c15 .c22 {
+  border: 0;
+  box-shadow: none;
+}
+
+.c8 {
+  cursor: pointer;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  color: #1e252e;
+}
+
+.c8:hover {
+  color: #006aff;
+}
+
+.c2 {
+  cursor: auto;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 204px;
+  padding-right: 14px;
+  width: 100%;
+  height: 96px;
+  background-color: #fff;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  position: fixed;
+  z-index: 50;
+}
+
+.c5 {
+  cursor: auto;
+  padding-top: 144px;
+  padding-left: 14px;
+  padding-right: 14px;
+  width: 340px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  overflow-y: auto;
+  position: fixed;
+  z-index: 45;
+}
+
+.c16 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  font-size: 14px;
+  background-color: transparent;
+  border-radius: 5px;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+}
+
+.c16::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c16::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c16:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c16::placeholder {
+  color: #8393A7;
+}
+
+.c16::-ms-clear {
+  display: none;
+}
+
+@media screen and (max-width:511px) {
+  .c4 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:512px) and (max-width:639px) {
+  .c4 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:640px) and (max-width:767px) {
+  .c4 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c18 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c18 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c18 {
+    display: none;
+  }
+}
+
 <div
-  className="sc-bdVaJa kWHfbQ"
+  className="c0 c1"
   cursor="auto"
 >
   <div
-    className="sc-bdVaJa sc-bwzfXH sc-TOsTZ eomwRn"
+    className="c0 c2"
     cursor="auto"
     height={96}
     width={1}
   >
     <h2
-      className="sc-EHOje dhprTV"
+      className="c3"
       cursor="inherit"
       fontSize={5}
     >
@@ -20,32 +343,32 @@ exports[`Mount Activity Page 1`] = `
     </h2>
   </div>
   <div
-    className="sc-bdVaJa sc-jKJlTe dfFKDu"
+    className="c0 c4"
     cursor="auto"
   >
     <div
-      className="sc-bdVaJa sc-bwzfXH sc-kgAjT itnsYm"
+      className="c0 c5"
       cursor="auto"
       height="100%"
       width={340}
     >
       <div
-        className="sc-bdVaJa hGjbmD"
+        className="c0 c6"
         cursor="auto"
       >
         <h3
-          className="sc-EHOje eEFUYx"
+          className="c7"
           cursor="inherit"
           fontSize={4}
         >
           Quick Filters
         </h3>
         <div
-          className="sc-bdVaJa hGjbmD"
+          className="c0 c6"
           cursor="auto"
         >
           <a
-            className="sc-kkGfuU kooRoB"
+            className="c8"
             color="text"
             href="#"
             onClick={[Function]}
@@ -58,7 +381,7 @@ exports[`Mount Activity Page 1`] = `
             Today
           </a>
           <a
-            className="sc-kkGfuU kooRoB"
+            className="c8"
             color="text"
             href="#"
             onClick={[Function]}
@@ -71,7 +394,7 @@ exports[`Mount Activity Page 1`] = `
             Yesterday
           </a>
           <a
-            className="sc-kkGfuU kooRoB"
+            className="c8"
             color="text"
             href="#"
             onClick={[Function]}
@@ -84,7 +407,7 @@ exports[`Mount Activity Page 1`] = `
             This week
           </a>
           <a
-            className="sc-kkGfuU kooRoB"
+            className="c8"
             color="text"
             href="#"
             onClick={[Function]}
@@ -99,18 +422,18 @@ exports[`Mount Activity Page 1`] = `
         </div>
       </div>
       <h3
-        className="sc-EHOje eEFUYx"
+        className="c7"
         cursor="inherit"
         fontSize={4}
       >
         Active Filters
       </h3>
       <div
-        className="sc-bdVaJa hGjbmD"
+        className="c0 c6"
         cursor="auto"
       >
         <label
-          className="sc-kAzzGY kPZzDI"
+          className="c9"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -119,17 +442,17 @@ exports[`Mount Activity Page 1`] = `
           Filter by event type
         </label>
         <div
-          className="sc-hzDkRC isPhWx"
+          className="c10"
           data-tag="dropdown"
         >
           <span
-            className="sc-EHOje ipPJmn"
+            className="c11"
             cursor="pointer"
             onClick={[Function]}
           >
             Don't filter
             <svg
-              className="sc-gzVnrw iRGJwP"
+              className="c12"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -145,7 +468,7 @@ exports[`Mount Activity Page 1`] = `
             </svg>
           </span>
           <div
-            className="sc-jhAzac eUBWEs"
+            className="c13"
             color="black"
             cursor="pointer"
             disabled={false}
@@ -154,7 +477,7 @@ exports[`Mount Activity Page 1`] = `
             width="138px"
           >
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -162,7 +485,7 @@ exports[`Mount Activity Page 1`] = `
               Don't filter
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -170,7 +493,7 @@ exports[`Mount Activity Page 1`] = `
               Deletions
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -178,7 +501,7 @@ exports[`Mount Activity Page 1`] = `
               Downloads
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -186,7 +509,7 @@ exports[`Mount Activity Page 1`] = `
               Favorites
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -194,7 +517,7 @@ exports[`Mount Activity Page 1`] = `
               Inspections
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -202,7 +525,7 @@ exports[`Mount Activity Page 1`] = `
               Moves
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -213,11 +536,11 @@ exports[`Mount Activity Page 1`] = `
         </div>
       </div>
       <div
-        className="sc-bdVaJa hGjbmD"
+        className="c0 c6"
         cursor="auto"
       >
         <label
-          className="sc-kAzzGY kPZzDI"
+          className="c9"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -226,7 +549,7 @@ exports[`Mount Activity Page 1`] = `
           Event created after
         </label>
         <div
-          className="sc-kEYyzF fUuJBO"
+          className="c15"
         >
           <div
             className="react-datepicker-wrapper"
@@ -235,7 +558,7 @@ exports[`Mount Activity Page 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="sc-cJSrbW eoKHZT"
+                className="c16"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -252,11 +575,11 @@ exports[`Mount Activity Page 1`] = `
         </div>
       </div>
       <div
-        className="sc-bdVaJa hGjbmD"
+        className="c0 c6"
         cursor="auto"
       >
         <label
-          className="sc-kAzzGY kPZzDI"
+          className="c9"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -265,7 +588,7 @@ exports[`Mount Activity Page 1`] = `
           Event created before
         </label>
         <div
-          className="sc-kEYyzF fUuJBO"
+          className="c15"
         >
           <div
             className="react-datepicker-wrapper"
@@ -274,7 +597,7 @@ exports[`Mount Activity Page 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="sc-cJSrbW eoKHZT"
+                className="c16"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -293,30 +616,30 @@ exports[`Mount Activity Page 1`] = `
     </div>
   </div>
   <div
-    className="sc-bdVaJa fWBlWq"
+    className="c0 c17"
     cursor="auto"
   >
     <div
-      className="sc-bdVaJa sc-jKJlTe eTxbpL"
+      className="c0 c18"
       cursor="auto"
     >
       <div
-        className="sc-bdVaJa hGjbmD"
+        className="c0 c6"
         cursor="auto"
       >
         <h3
-          className="sc-EHOje eEFUYx"
+          className="c7"
           cursor="inherit"
           fontSize={4}
         >
           Quick Filters
         </h3>
         <div
-          className="sc-bdVaJa hGjbmD"
+          className="c0 c6"
           cursor="auto"
         >
           <a
-            className="sc-kkGfuU kooRoB"
+            className="c8"
             color="text"
             href="#"
             onClick={[Function]}
@@ -329,7 +652,7 @@ exports[`Mount Activity Page 1`] = `
             Today
           </a>
           <a
-            className="sc-kkGfuU kooRoB"
+            className="c8"
             color="text"
             href="#"
             onClick={[Function]}
@@ -342,7 +665,7 @@ exports[`Mount Activity Page 1`] = `
             Yesterday
           </a>
           <a
-            className="sc-kkGfuU kooRoB"
+            className="c8"
             color="text"
             href="#"
             onClick={[Function]}
@@ -355,7 +678,7 @@ exports[`Mount Activity Page 1`] = `
             This week
           </a>
           <a
-            className="sc-kkGfuU kooRoB"
+            className="c8"
             color="text"
             href="#"
             onClick={[Function]}
@@ -370,18 +693,18 @@ exports[`Mount Activity Page 1`] = `
         </div>
       </div>
       <h3
-        className="sc-EHOje eEFUYx"
+        className="c7"
         cursor="inherit"
         fontSize={4}
       >
         Active Filters
       </h3>
       <div
-        className="sc-bdVaJa hGjbmD"
+        className="c0 c6"
         cursor="auto"
       >
         <label
-          className="sc-kAzzGY kPZzDI"
+          className="c9"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -390,17 +713,17 @@ exports[`Mount Activity Page 1`] = `
           Filter by event type
         </label>
         <div
-          className="sc-hzDkRC isPhWx"
+          className="c10"
           data-tag="dropdown"
         >
           <span
-            className="sc-EHOje ipPJmn"
+            className="c11"
             cursor="pointer"
             onClick={[Function]}
           >
             Don't filter
             <svg
-              className="sc-gzVnrw iRGJwP"
+              className="c12"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -416,7 +739,7 @@ exports[`Mount Activity Page 1`] = `
             </svg>
           </span>
           <div
-            className="sc-jhAzac eUBWEs"
+            className="c13"
             color="black"
             cursor="pointer"
             disabled={false}
@@ -425,7 +748,7 @@ exports[`Mount Activity Page 1`] = `
             width="138px"
           >
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -433,7 +756,7 @@ exports[`Mount Activity Page 1`] = `
               Don't filter
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -441,7 +764,7 @@ exports[`Mount Activity Page 1`] = `
               Deletions
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -449,7 +772,7 @@ exports[`Mount Activity Page 1`] = `
               Downloads
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -457,7 +780,7 @@ exports[`Mount Activity Page 1`] = `
               Favorites
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -465,7 +788,7 @@ exports[`Mount Activity Page 1`] = `
               Inspections
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -473,7 +796,7 @@ exports[`Mount Activity Page 1`] = `
               Moves
             </div>
             <div
-              className="sc-bdVaJa cLNHPA"
+              className="c0 c14"
               cursor="pointer"
               onClick={[Function]}
               width="auto"
@@ -484,11 +807,11 @@ exports[`Mount Activity Page 1`] = `
         </div>
       </div>
       <div
-        className="sc-bdVaJa hGjbmD"
+        className="c0 c6"
         cursor="auto"
       >
         <label
-          className="sc-kAzzGY kPZzDI"
+          className="c9"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -497,7 +820,7 @@ exports[`Mount Activity Page 1`] = `
           Event created after
         </label>
         <div
-          className="sc-kEYyzF fUuJBO"
+          className="c15"
         >
           <div
             className="react-datepicker-wrapper"
@@ -506,7 +829,7 @@ exports[`Mount Activity Page 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="sc-cJSrbW eoKHZT"
+                className="c16"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -523,11 +846,11 @@ exports[`Mount Activity Page 1`] = `
         </div>
       </div>
       <div
-        className="sc-bdVaJa hGjbmD"
+        className="c0 c6"
         cursor="auto"
       >
         <label
-          className="sc-kAzzGY kPZzDI"
+          className="c9"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -536,7 +859,7 @@ exports[`Mount Activity Page 1`] = `
           Event created before
         </label>
         <div
-          className="sc-kEYyzF fUuJBO"
+          className="c15"
         >
           <div
             className="react-datepicker-wrapper"
@@ -545,7 +868,7 @@ exports[`Mount Activity Page 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="sc-cJSrbW eoKHZT"
+                className="c16"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -564,7 +887,7 @@ exports[`Mount Activity Page 1`] = `
     </div>
     <div>
       <h2
-        className="sc-EHOje dhprTV"
+        className="c3"
         cursor="inherit"
         fontSize={5}
       >
@@ -572,11 +895,11 @@ exports[`Mount Activity Page 1`] = `
       </h2>
     </div>
     <div
-      className="sc-ifAKCX dmiugM"
+      className="c19"
       cursor="inherit"
     >
       <button
-        className="sc-htoDjs cwuwqB"
+        className="c20 c21"
         color="blue"
         disabled={false}
         onClick={[Function]}

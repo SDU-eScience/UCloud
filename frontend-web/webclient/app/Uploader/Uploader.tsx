@@ -273,31 +273,27 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
             this.props.setUploads(this.props.uploads);
         };
 
-        // FIXME: Overlap in content
+        const uploadParams = {
+            file: upload.file,
+            sensitivity: upload.sensitivity,
+            policy: upload.resolution,
+            onProgress: (e: ProgressEvent) => {
+                addProgressEvent(upload, e);
+                this.props.setUploads(this.props.uploads);
+            },
+            onError: (err: string) => setError(err),
+        };
+
         if (!upload.extractArchive) {
             multipartUpload({
                 location: `${upload.parentPath}/${upload.file.name}`,
-                file: upload.file,
-                sensitivity: upload.sensitivity,
-                policy: upload.resolution,
-                onProgress: e => {
-                    addProgressEvent(upload, e);
-                    this.props.setUploads(this.props.uploads);
-                },
-                onError: err => setError(err),
+                ...uploadParams
             }).then(xhr => this.onUploadFinished(upload, xhr))
                 .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")));
         } else {
             bulkUpload({
                 location: upload.parentPath,
-                file: upload.file,
-                sensitivity: upload.sensitivity,
-                policy: upload.resolution,
-                onProgress: e => {
-                    addProgressEvent(upload, e);
-                    this.props.setUploads(this.props.uploads);
-                },
-                onError: err => setError(err),
+                ...uploadParams
             }).then(xhr => this.onUploadFinished(upload, xhr))
                 .catch(e => setError(errorMessageOrDefault(e, "An error occurred uploading the file")));
         }
