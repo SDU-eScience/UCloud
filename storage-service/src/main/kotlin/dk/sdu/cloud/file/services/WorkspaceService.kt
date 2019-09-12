@@ -3,13 +3,16 @@ package dk.sdu.cloud.file.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.file.api.WorkspaceMount
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
-import dk.sdu.cloud.file.services.linuxfs.*
+import dk.sdu.cloud.file.services.linuxfs.Chown
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.listAndClose
+import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
+import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -17,7 +20,13 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.channels.Channels
-import java.nio.file.*
+import java.nio.file.CopyOption
+import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.nio.file.OpenOption
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
 import java.util.*
@@ -127,7 +136,6 @@ class WorkspaceService<Ctx : FSUserContext>(
             opts.toTypedArray()
         }
 
-
         /**
          * Recurse through the destination directory, looking for files which are not present in the
          * workspace directory (meaning that they were deleted from the workspace), and delete from the
@@ -135,10 +143,10 @@ class WorkspaceService<Ctx : FSUserContext>(
          */
         fun cleanDestinationDirectory(ctx: Ctx, destDirectoryFile: File, workspaceDirectoryFile: File) {
             if (destDirectoryFile.list() != null) {
-                destDirectoryFile.list()?.forEach { destFileName ->
-                    val destFile = File(destDirectoryFile, destFileName)
-                    if (!File(workspaceDirectoryFile.toString(), destFileName).exists()) {
-                        log.debug("File $destFileName not found in workspace. Deleting file.")
+                val listFiles = destDirectoryFile.listFiles()
+                listFiles?.forEach { destFile ->
+                    if (!File(workspaceDirectoryFile.toString(), destFile.name).exists()) {
+                        log.debug("File ${destFile.name} not found in workspace. Deleting file.")
                         val destFileCloudPath = destFile.toPath().toCloudPath()
                         runBlocking {
                             val destFileStat = coreFileSystem.statOrNull(
@@ -156,7 +164,7 @@ class WorkspaceService<Ctx : FSUserContext>(
                         cleanDestinationDirectory(
                             ctx,
                             destFile,
-                            Paths.get(workspaceDirectoryFile.toString(), destFileName).toFile()
+                            File(workspaceDirectoryFile, destFile.name)
                         )
                     }
                 }
@@ -214,7 +222,7 @@ class WorkspaceService<Ctx : FSUserContext>(
                         ins.use { os.use { ins.copyTo(os) } }
                         transferred.add(resolvedDestination.toCloudPath())
                     } else {
-                        log.debug("Don't need to copy file. It has not been modified.")
+                        log.trace("Don't need to copy file. It has not been modified.")
                     }
                 } else {
                     transferred.add(resolvedDestination.toCloudPath())
@@ -272,14 +280,6 @@ class WorkspaceService<Ctx : FSUserContext>(
                 aclService.hasPermission(destination, manifest.username, AccessRight.WRITE)
         }
 
-        run {
-            cleanDestinationDirectory(
-                manifest.username,
-                defaultDestinationDir.toFile(),
-                Paths.get(outputWorkspace.toString(), "mount").toFile()
-            )
-        }
-
         filesWithMounts.forEach { (currentFile, mount) ->
             log.debug("Transferring file: $currentFile")
 
@@ -313,8 +313,18 @@ class WorkspaceService<Ctx : FSUserContext>(
                     transferFile(currentFile, defaultDestinationDir)
                 } else {
                     if (hasWritePermissionsToPath[mount.source] != true) throw FSException.PermissionException()
-
                     val destinationDir = File(translateAndCheckFile(fsRoot, mount.source)).toPath()
+
+                    // Then we remove files in the destination directory which no longer exists in the workspace.
+                    // We also do a filter (in clean directory) which ensures that new files are not deleted.
+                    runBlocking {
+                        cleanDestinationDirectory(
+                            manifest.username,
+                            destinationDir.toFile(),
+                            currentFile.toFile()
+                        )
+                    }
+
                     runCatching {
                         Files.createDirectories(destinationDir) // Ensure that directory exists
                     }

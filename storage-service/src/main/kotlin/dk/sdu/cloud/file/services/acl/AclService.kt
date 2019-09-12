@@ -47,9 +47,9 @@ class AclService<Session>(
 
     private suspend fun internalIsOwner(normalizedPath: String, username: String): Boolean {
         val homeFolder = homeFolderService.findHomeFolder(username).normalize()
-        log.debug("user is '$username' requesting path '$normalizedPath' and home is '$homeFolder'")
+        log.trace("user is '$username' requesting path '$normalizedPath' and home is '$homeFolder'")
         if (normalizedPath == homeFolder || normalizedPath.startsWith("$homeFolder/")) {
-            log.debug("We are the owner")
+            log.trace("We are the owner")
             return true
         }
 
