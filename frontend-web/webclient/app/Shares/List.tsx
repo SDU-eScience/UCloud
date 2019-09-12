@@ -135,6 +135,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
             <SelectableText
                 mr="1em"
                 cursor="pointer"
+                fontSize={3}
                 selected={!sharedByMe}
                 onClick={() => setFetchParams(listShares({sharedByMe: false, itemsPerPage: 25, page: 0}))}
             >
@@ -145,6 +146,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 mr="1em"
                 cursor="pointer"
                 selected={sharedByMe}
+                fontSize={3}
                 onClick={() => setFetchParams(listShares({sharedByMe: true, itemsPerPage: 25, page: 0}))}
             >
                 Shared by Me
@@ -234,58 +236,55 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ?
         <Link to={fileTablePage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link> :
         <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
-    return <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" 
-            height="auto" borderRadius="15px" boxShadow="sm" backgroundColor="lightGray">
-        <Heading.h4 mb={"10px"}>
-            <Flex alignItems={"center"}>
-                <Box ml="3px" mr="10px">
-                    <FileIcon
-                        fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
-                </Box>
-                {folderLink}
-                <Box ml="auto" />
-                {groupedShare.sharedByMe ?
-                    `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?
-                        "collaborators" : "collaborator"}` : sharePermissionsToText(groupedShare.shares[0].rights)}
-            </Flex>
-        </Heading.h4>
-
-        {!groupedShare.sharedByMe ? null :
-            <form onSubmit={e => doCreateShare(e)}>
-                <Flex mb={"16px"} alignItems={"center"}>
-                    <Flex flex="1 0 auto">
-                        <Flex flex="1 0 auto" style={{zIndex: 1}}>
-                            <Input disabled={isCreatingShare} rightLabel placeholder={"Username"}
-                                ref={newShareUsername} />
+    return <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} mb={12}>
+        <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center" style={{borderRadius: "6px 6px 0px 0px"}}>
+            <Box ml="3px" mr="10px">
+                <FileIcon
+                    fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
+            </Box>
+            <Heading.h4> {folderLink} </Heading.h4>
+            <Box ml="auto" />
+            {groupedShare.sharedByMe ?
+                `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?
+                    "collaborators" : "collaborator"}` : sharePermissionsToText(groupedShare.shares[0].rights)}
+        </Flex>
+        <Box px={3} pt={3}>
+            {!groupedShare.sharedByMe ? null :
+                <form onSubmit={e => doCreateShare(e)}>
+                    <Flex mb={"16px"} alignItems={"center"}>
+                        <Flex flex="1 0 auto">
+                            <Flex flex="1 0 auto" style={{ zIndex: 1 }}>
+                                <Input disabled={isCreatingShare} rightLabel placeholder={"Username"}
+                                    ref={newShareUsername} />
+                            </Flex>
+                            <InputLabel rightLabel backgroundColor="lightBlue" width="125px">
+                                <ClickableDropdown
+                                    left={"-16px"}
+                                    chevron
+                                    width="125px"
+                                    trigger={
+                                        sharePermissionsToText(newShareRights)
+                                    }
+                                >
+                                    <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)}
+                                        text={CAN_VIEW_TEXT} />
+                                    <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
+                                        text={CAN_EDIT_TEXT} />
+                                </ClickableDropdown>
+                            </InputLabel>
                         </Flex>
-                        <InputLabel rightLabel backgroundColor="lightBlue" width="125px">
-                            <ClickableDropdown
-                                left={"-16px"}
-                                chevron
-                                width="125px"
-                                trigger={
-                                    sharePermissionsToText(newShareRights)
-                                }
-                            >
-                                <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)}
-                                    text={CAN_VIEW_TEXT} />
-                                <OptionItem onClick={() => setNewShareRights(AccessRights.WRITE_RIGHTS)}
-                                    text={CAN_EDIT_TEXT} />
-                            </ClickableDropdown>
-                        </InputLabel>
-                    </Flex>
 
-                    <Box ml={"12px"} width="150px">
-                        <Button fullWidth type="submit">
-                            <Icon name="share" size="1em" mr=".7em" />
-                            Share
+                        <Box ml={"12px"} width="150px">
+                            <Button fullWidth type="submit">
+                                <Icon name="share" size="1em" mr=".7em" />
+                                Share
                         </Button>
-                    </Box>
-                </Flex>
-            </form>
-        }
-
-        {props.children}
+                        </Box>
+                    </Flex>
+                </form>
+            }
+            {props.children}
+        </Box>
     </Card>
 };
 
