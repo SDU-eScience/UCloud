@@ -312,18 +312,18 @@ const ShareRow: React.FunctionComponent<{
     let permissionsBlock: JSX.Element | string | null = null;
 
     if (share.state == ShareState.FAILURE) {
-        permissionsBlock = <Button color={"red"} disabled={isLoading} onClick={() => doRevoke()}>Remove</Button>;
+        permissionsBlock = <Button color={"red"} disabled={isLoading} onClick={() => doRevoke()}><Icon name="close" size="1em" mr=".7em" />Remove</Button>;
     } else if (share.state == ShareState.UPDATING || isLoading) {
         permissionsBlock = null;
     } else if (!sharedByMe) {
         if (share.state == ShareState.REQUEST_SENT) {
             permissionsBlock = <Box flexShrink={1}>
-                <Button color={"red"} mx={"8px"} onClick={() => doRevoke()}>Reject</Button>
-                <Button color={"green"} onClick={() => doAccept()}>Accept</Button>
+                <Button color={"red"} mx={"8px"} onClick={() => doRevoke()}><Icon name="close" size="1em" mr=".7em" />Reject</Button>
+                <Button color={"green"} onClick={() => doAccept()}><Icon name="check" size="1em" mr=".7em" />Accept</Button>
             </Box>;
         } else {
             permissionsBlock =
-                <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Reject</Button>
+                <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}><Icon name="close" size="1em" mr=".7em" />Reject</Button>
         }
     } else {
         permissionsBlock = <>
@@ -343,7 +343,10 @@ const ShareRow: React.FunctionComponent<{
                         text={CAN_EDIT_TEXT} />
                 }
             </ClickableDropdown>
-            <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>Revoke</Button>
+            <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>
+                <Icon name="close" size="1em" mr=".7em" />
+                Revoke
+            </Button>
         </>;
     }
 
