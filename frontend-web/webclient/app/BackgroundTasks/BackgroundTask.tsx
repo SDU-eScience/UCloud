@@ -13,20 +13,37 @@ import IndeterminateProgressBar from "ui-components/IndeterminateProgress";
 import ProgressBar from "ui-components/Progress";
 import {Upload} from "Uploader";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
+import {calculateUploadSpeed} from "Uploader/Uploader";
+import {sizeToHumanReadableWithUnit} from "Utilities/FileUtilities";
 
 const BackgroundTasks = (props: { activeUploads: number, uploads: Upload[], showUploader: () => void }) => {
-    const uploadsCount = props.activeUploads;
+    let speedSum = 0;
+    let uploadedSize = 0;
+    let targetUploadSize = 0;
+    props.uploads.forEach(upload => {
+        if (upload.isUploading) {
+            speedSum += calculateUploadSpeed(upload);
+            uploadedSize += upload.uploadSize;
+            if (upload.uploadEvents.length > 0) {
+                targetUploadSize += upload.uploadEvents[upload.uploadEvents.length - 1].progressInBytes;
+            }
+        }
+    });
 
-    const uploads = props.uploads.length > 0 ? (
-        <>
-            <Button color="green"
-                    fullWidth
-                    onClick={() => props.showUploader()}
-            >
-                {`${uploadsCount} active upload${uploadsCount > 1 ? "s" : ""} in progress.`}
-            </Button>
-        </>
-    ) : null;
+    const humanReadable = sizeToHumanReadableWithUnit(speedSum);
+    const uploadTask: TaskComponentProps = {
+        title: "File uploads",
+        progress: {
+            title: "Bytes uploaded",
+            maximum: targetUploadSize,
+            current: uploadedSize
+        },
+        speed: {
+            title: "Transfer speed",
+            speed: humanReadable.size,
+            unit: humanReadable.unit + "/s"
+        }
+    };
 
     return (
         <ClickableDropdown
@@ -35,14 +52,8 @@ const BackgroundTasks = (props: { activeUploads: number, uploads: Upload[], show
             top="37px"
             trigger={<TasksIcon/>}
         >
-            <TaskComponent title={"Simple"}/>
-            <TaskComponent
-                title={"Upload"}
-                progress={{current: 1000, maximum: 10000, title: "Bytes uploaded"}}
-                speed={{speed: 100, title: "Upload speed", unit: "B/s"}}
-            />
-            <TaskComponent title={"Simple"}/>
-            {uploads}
+            {" "}
+            {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
         </ClickableDropdown>
     );
 };
@@ -76,7 +87,7 @@ const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
 };
 
 const TasksIconBase = styled(Icon)`
-    animation: spin 8s linear infinite;
+    animation: spin 2s linear infinite;
     margin-right: 8px;
 
     @keyframes spin {

@@ -67,7 +67,8 @@ const newUpload = (file: File, location: string): Upload => ({
     uploadXHR: undefined,
     uploadEvents: [],
     isPending: false,
-    parentPath: location
+    parentPath: location,
+    uploadSize: 1
 });
 
 const addProgressEvent = (upload: Upload, e: ProgressEvent) => {
@@ -75,9 +76,10 @@ const addProgressEvent = (upload: Upload, e: ProgressEvent) => {
     upload.uploadEvents = upload.uploadEvents.filter(evt => now - evt.timestamp < 10_000);
     upload.uploadEvents.push({timestamp: now, progressInBytes: e.loaded});
     upload.progressPercentage = (e.loaded / e.total) * 100;
+    upload.uploadSize = e.total;
 };
 
-function calculateSpeed(upload: Upload): number {
+export function calculateUploadSpeed(upload: Upload): number {
     if (upload.uploadEvents.length === 0) return 0;
 
     const min = upload.uploadEvents[0];
@@ -518,7 +520,7 @@ const ProgressBar = ({upload}: {upload: Upload}) => (
         <Progress
             active={upload.progressPercentage !== 100}
             color="green"
-            label={`${upload.progressPercentage.toFixed(2)}% (${sizeToString(calculateSpeed(upload))}/s)`}
+            label={`${upload.progressPercentage.toFixed(2)}% (${sizeToString(calculateUploadSpeed(upload))}/s)`}
             percent={upload.progressPercentage}
         />
     </Box>

@@ -23,10 +23,7 @@ import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
-import dk.sdu.cloud.file.services.background.BackgroundExecutor
-import dk.sdu.cloud.file.services.background.BackgroundJobHibernateDao
 import dk.sdu.cloud.file.services.background.BackgroundScope
-import dk.sdu.cloud.file.services.background.BackgroundStreams
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
@@ -88,18 +85,11 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     val fileSensitivityService = FileSensitivityService(fs, eventProducer)
     val coreFs = CoreFileSystemService(fs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
-    val backgroundExecutor = BackgroundExecutor(
-        micro.hibernateDatabase,
-        BackgroundJobHibernateDao(),
-        BackgroundStreams("storage"),
-        micro.eventStreamService
-    )
+
     val aclWorker = ACLWorker(aclService)
     val homeFolderService = mockk<HomeFolderService>()
     val callRunner = CommandRunnerFactoryForCalls(runner, WSFileSessionService(runner))
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }
-
-    backgroundExecutor.init()
 
     val ctx = FileControllerContext(
         client = micro.client,

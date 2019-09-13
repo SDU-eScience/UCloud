@@ -107,5 +107,12 @@ class ActionController<Ctx : FSUserContext>(
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
+
+        implement(FileDescriptions.testTask) {
+            commandRunnerFactory.withCtxAndTimeout(this) {
+                coreFs.dummyTask(it)
+                CallResult.Success(Unit, HttpStatusCode.OK)
+            }
+        }
     }
 }

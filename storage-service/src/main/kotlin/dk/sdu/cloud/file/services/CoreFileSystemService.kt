@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
@@ -13,7 +14,7 @@ import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.relativize
-import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
+import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
@@ -23,8 +24,17 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.task.api.CreateRequest
+import dk.sdu.cloud.task.api.PostStatusRequest
+import dk.sdu.cloud.task.api.Progress
+import dk.sdu.cloud.task.api.Speed
+import dk.sdu.cloud.task.api.TaskUpdate
+import dk.sdu.cloud.task.api.Tasks
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
+import kotlin.random.Random
 
 const val XATTR_BIRTH = "birth"
 
@@ -32,7 +42,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer,
     private val sensitivityService: FileSensitivityService<Ctx>,
-    private val cloud: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient
 ) {
     private suspend fun writeTimeOfBirth(
         ctx: Ctx,
@@ -265,6 +275,66 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
+    suspend fun dummyTask(ctx: Ctx) {
+        val range = 0 until 10_000
+
+        val taskSpeed = Speed("Speeed!", 0.0, "Foo")
+        val speeds = listOf(taskSpeed)
+        val progress = Progress("Progress", 0, range.last)
+        var currentStatus: String = "Step 1"
+
+        val buffer = StringBuilder()
+        var taskId: String? = null
+        var nextUpdate: Long = 0
+        fun setNextUpdate() {
+            nextUpdate = System.currentTimeMillis() + 10_000
+        }
+
+        setNextUpdate()
+
+        BackgroundScope.launch {
+            taskId = Tasks.create.call(
+                CreateRequest("Storage Test", ctx.user, currentStatus),
+                serviceClient
+            ).orNull()?.jobId
+        }
+
+        for (iteration in range) {
+            if (System.currentTimeMillis() > nextUpdate) {
+                BackgroundScope.launch {
+                    val capturedTask = taskId ?: return@launch
+                    val messageToAppend = synchronized(buffer) {
+                        val messageToAppend = buffer.toString()
+                        buffer.clear()
+                        messageToAppend
+                    }
+
+                    Tasks.postStatus.call(
+                        PostStatusRequest(
+                            capturedTask, // TODO Duplicate IDs
+                            TaskUpdate(
+                                capturedTask,
+                                messageToAppend = messageToAppend,
+                                newStatus = currentStatus,
+                                progress = progress,
+                                speeds = speeds
+                            )
+                        ),
+                        serviceClient
+                    )
+                }
+                setNextUpdate()
+            }
+
+            currentStatus = "Working on step $iteration"
+            taskSpeed.speed = Random.nextDouble()
+            progress.current = iteration
+            buffer.appendln("Started work on $iteration")
+            delay(1000)
+            buffer.appendln("Work on $iteration complete!")
+        }
+    }
+
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
     private suspend fun findFreeNameForNewFile(ctx: Ctx, desiredPath: String): String {
         fun findFileNameNoExtension(fileName: String): String {
@@ -328,7 +398,12 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    private suspend fun sendNotification(user: String, message: String, type: String, notificationMeta: Map<String,Any>) {
+    private suspend fun sendNotification(
+        user: String,
+        message: String,
+        type: String,
+        notificationMeta: Map<String, Any>
+    ) {
         NotificationDescriptions.create.call(
             CreateNotification(
                 user,
@@ -338,7 +413,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                     meta = notificationMeta
                 )
             ),
-            cloud
+            serviceClient
         )
     }
 

@@ -9,3 +9,4 @@ namespaces:
 
 dependencies:
   - notifications
+  - task

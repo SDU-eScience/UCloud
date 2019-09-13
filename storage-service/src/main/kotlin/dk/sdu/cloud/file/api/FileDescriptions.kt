@@ -626,4 +626,19 @@ object FileDescriptions : CallDescriptionContainer("files") {
             }
         }
     }
+
+    val testTask = call<Unit, LongRunningResponse<Unit>, CommonErrorMessage>("testTask") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"testTask"
+            }
+        }
+    }
 }

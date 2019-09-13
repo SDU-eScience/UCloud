@@ -4,7 +4,6 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.ActionController
-import dk.sdu.cloud.file.http.BackgroundJobController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
 import dk.sdu.cloud.file.http.FileSecurityController
@@ -19,10 +18,7 @@ import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.background.BackgroundExecutor
-import dk.sdu.cloud.file.services.background.BackgroundJobHibernateDao
 import dk.sdu.cloud.file.services.background.BackgroundScope
-import dk.sdu.cloud.file.services.background.BackgroundStreams
 import dk.sdu.cloud.file.services.linuxfs.*
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
@@ -59,10 +55,6 @@ class Server(
         log.info("Creating core services")
 
         Chown.isDevMode = micro.developmentModeEnabled
-
-        val bgDao = BackgroundJobHibernateDao()
-        val bgExecutor =
-            BackgroundExecutor(micro.hibernateDatabase, bgDao, BackgroundStreams("storage"), micro.eventStreamService)
 
         // FS root
         val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }
@@ -110,9 +102,6 @@ class Server(
         // RPC services
         val wsService = WSFileSessionService(processRunner)
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
-
-        // Initialize the background executor (must be last)
-        bgExecutor.init()
 
         log.info("Core services constructed!")
 
@@ -183,9 +172,7 @@ class Server(
                     sensitivityService
                 ),
 
-                WorkspaceController(workspaceService),
-
-                BackgroundJobController(bgExecutor)
+                WorkspaceController(workspaceService)
             )
         }
 

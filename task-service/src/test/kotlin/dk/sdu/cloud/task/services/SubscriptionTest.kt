@@ -43,7 +43,7 @@ class SubscriptionTest {
     private val remotePort = 50000
 
     private val dummyId = "foobar"
-    private val dummyUpdate = TaskUpdate()
+    private val dummyUpdate = TaskUpdate(dummyId)
 
     @BeforeTest
     fun beforeTest() {

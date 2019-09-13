@@ -21,13 +21,13 @@ data class TaskUpdate(
 )
 
 data class Speed(
-    val title: String,
-    val speed: Double,
-    val unit: String
+    var title: String,
+    var speed: Double,
+    var unit: String
 )
 
 data class Progress(
-    val title: String,
-    val current: Int,
-    val maximum: Int
+    var title: String,
+    var current: Int,
+    var maximum: Int
 )
