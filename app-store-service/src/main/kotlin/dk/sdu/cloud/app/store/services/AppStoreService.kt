@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
-import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
-import dk.sdu.cloud.app.store.api.ToolReference
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -147,6 +144,20 @@ class AppStoreService<DBSession>(
     ): Page<Application> {
         return db.withTransaction { session ->
             applicationDAO.findLatestByTool(session, user, tool, paging)
+        }
+    }
+
+    fun advancedSearch(
+        user: SecurityPrincipal,
+        name: String?,
+        version: String?,
+        versionRange: Pair<String, String>?,
+        tags: List<String>?,
+        description: String?,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummary> {
+        return db.withTransaction { session ->
+            applicationDAO.advancedSearch(session, user, name, version, versionRange, tags, description, paging)
         }
     }
 

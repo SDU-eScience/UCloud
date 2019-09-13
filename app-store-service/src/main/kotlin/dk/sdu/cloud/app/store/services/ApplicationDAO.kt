@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.Application
+import dk.sdu.cloud.app.store.api.ApplicationSummary
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -109,6 +110,17 @@ interface ApplicationDAO<Session> {
     fun clearLogo(session: Session, user: SecurityPrincipal, name: String)
 
     fun fetchLogo(session: Session, name: String): ByteArray?
+
+    fun advancedSearch(
+        session: Session,
+        user: SecurityPrincipal,
+        name: String?,
+        version: String?,
+        versionRange: Pair<String, String>?,
+        tags: List<String>?,
+        description: String?,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummary>
 
     fun findLatestByTool(
         session: Session,

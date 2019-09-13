@@ -524,4 +524,139 @@ class ApplicationHibernateDaoTest {
             }
         }
     }
+
+    @Test
+    fun `Advanced search`() {
+        val toolDao = ToolHibernateDAO()
+        val appDao = ApplicationHibernateDAO(toolDao)
+        val t1 = "tool1"
+        withDatabase { db ->
+            db.withTransaction { session ->
+                toolDao.create(session, TestUsers.admin, normToolDesc.copy(NameAndVersion(t1, "1")))
+                appDao.create(session, TestUsers.admin, normAppDesc.withNameAndVersion("a", "1").withTool(t1, "1"))
+                appDao.createTags(session, TestUsers.admin, "a", listOf("A1", "A2"))
+                println("")
+                println(appDao.findAllByName(session, TestUsers.admin, "a", NormalizedPaginationRequest(25, 0)).items.single())
+                println("")
+
+                assertEquals(1, appDao.advancedSearch(
+                    session,
+                    TestUsers.admin,
+                    "a",
+                    "1",
+                    null,
+                    null,
+                    "app description",
+                    NormalizedPaginationRequest(25, 0)
+                ).items.size)
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        "a",
+                        null,
+                        null,
+                        null,
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    0, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        "b",
+                        null,
+                        null,
+                        null,
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        "1",
+                        null,
+                        null,
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    0, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        "2",
+                        null,
+                        null,
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        null,
+                        listOf("A1", "A2"),
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                // Exact app description
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "app description",
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                // Part of app description
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "description",
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                // Wrong app description
+                assertEquals(
+                    0, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "pap description",
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+            }
+        }
+    }
 }

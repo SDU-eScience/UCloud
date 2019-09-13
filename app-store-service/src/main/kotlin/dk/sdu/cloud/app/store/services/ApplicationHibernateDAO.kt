@@ -671,6 +671,51 @@ class ApplicationHibernateDAO(
         return Page(count, paging.itemsPerPage, paging.page, items)
     }
 
+    override fun advancedSearch(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        name: String?,
+        version: String?,
+        versionRange: Pair<String, String>?,
+        tags: List<String>?,
+        description: String?,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummary> {
+        if (version != null && versionRange != null) {
+            throw RPCException.fromStatusCode(
+                HttpStatusCode.BadRequest,
+                "Version and version range can't both be defined"
+            )
+        }
+
+        return session.paginatedCriteria<ApplicationEntity>(
+            paging,
+            predicate = {
+                if (name == null && version == null && versionRange == null && tags == null && description == null)
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Must provide any argument")
+
+                val namePredicate =
+                    if (name != null) entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] like name
+                    else literal(true).toPredicate()
+                val versionPredicate =
+                    if (version != null) entity[ApplicationEntity::id][EmbeddedNameAndVersion::version] equal version
+                    else literal(true).toPredicate()
+                val tagPredicate =
+                    if (tags != null) {
+                        // FIXME: Don't do this paginated, otherwise
+                        val apps = searchTags(session, user, tags, paging).items.map { it.metadata.name }
+                        entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] isInCollection apps
+                    }
+                    else literal(true).toPredicate()
+                val descriptionPredicate =
+                    // FIXME: `like` description only allows exact matches without wildcard operators
+                    if (description != null) entity[ApplicationEntity::description] like description
+                    else literal(true).toPredicate()
+                allOf(namePredicate, versionPredicate, tagPredicate, descriptionPredicate)
+            }
+        ).mapItems { it.toModel() }
+    }
+
     private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {
         if (user.role == Role.ADMIN) return true
         return owner == user.username
