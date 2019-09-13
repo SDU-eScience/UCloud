@@ -85,15 +85,20 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
     }
 
     override fun computeUsage(session: HibernateSession, context: ContextQuery, user: String): Long {
-        return session.createCriteriaBuilder<Long, JobCompletedEntity>().run {
-            criteria.select(sum(entity[JobCompletedEntity::durationInMs]))
+        val query = session.createCriteriaBuilder<Pair<Long, Int>, JobCompletedEntity>().run {
+            criteria.multiselect(entity[JobCompletedEntity::durationInMs], entity[JobCompletedEntity::nodes])
             criteria.where(
                 (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
             )
             criteria
-        }.createQuery(session)
-            .list()
-            ?.singleOrNull() ?: 0L
+        }.createQuery(session).list()
+
+        var usage = 0L
+        query.forEach {
+            usage += it.first * it.second
+        }
+
+        return usage
     }
 
     private fun CriteriaBuilderContext<*, JobCompletedEntity>.matchingContext(context: ContextQuery): Predicate {
