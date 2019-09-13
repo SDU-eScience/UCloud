@@ -535,9 +535,6 @@ class ApplicationHibernateDaoTest {
                 toolDao.create(session, TestUsers.admin, normToolDesc.copy(NameAndVersion(t1, "1")))
                 appDao.create(session, TestUsers.admin, normAppDesc.withNameAndVersion("a", "1").withTool(t1, "1"))
                 appDao.createTags(session, TestUsers.admin, "a", listOf("A1", "A2"))
-                println("")
-                println(appDao.findAllByName(session, TestUsers.admin, "a", NormalizedPaginationRequest(25, 0)).items.single())
-                println("")
 
                 assertEquals(1, appDao.advancedSearch(
                     session,
@@ -629,8 +626,34 @@ class ApplicationHibernateDaoTest {
                     ).items.size
                 )
 
-                // Part of app description
                 assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        null,
+                        listOf("A2"),
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        null,
+                        listOf("A1", "A3"),
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                // Part of app description
+                /* assertEquals(
                     1, appDao.advancedSearch(
                         session,
                         TestUsers.admin,
@@ -655,7 +678,7 @@ class ApplicationHibernateDaoTest {
                         "pap description",
                         NormalizedPaginationRequest(25, 0)
                     ).items.size
-                )
+                ) */
             }
         }
     }
