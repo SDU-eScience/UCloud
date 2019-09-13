@@ -16,7 +16,7 @@
   "dependencies": {
     "@novnc/novnc": "^1.1.0",
     "@svgr/cli": "^4.3.2",
-    "date-fns": "^2.1.0",
+    "date-fns": "^2.2.1",
     "fuse.js": "^3.4.5",
     "jsonwebtoken": "8.5.1",
     "react": "16.9.0",
@@ -32,9 +32,9 @@
     "redux": "4.0.4",
     "redux-responsive": "^4.3.8",
     "styled-components": "^4.3.2",
-    "styled-system": "^5.1.1",
+    "styled-system": "^5.1.2",
     "svgi": "^1.1.0",
-    "xterm": "^4.0.0"
+    "xterm": "^4.0.1"
   },
   "devDependencies": {
     "@types/enzyme": "^3.10.3",
@@ -72,12 +72,12 @@
     "source-map-loader": "^0.2.4",
     "style-loader": "1.0.0",
     "terser-webpack-plugin": "^2.0.1",
-    "ts-jest": "^24.0.2",
+    "ts-jest": "^24.1.0",
     "ts-loader": "6.1.0",
     "tslint": "^5.20.0",
     "typescript": "^3.6.3",
     "url-loader": "2.1.0",
-    "webpack": "4.39.3",
+    "webpack": "4.40.1",
     "webpack-cli": "^3.3.8",
     "webpack-dev-server": "3.8.0",
     "webpack-merge": "4.2.2"

@@ -35,18 +35,20 @@ exports[`Shares List Shares component 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  border-bottom: 1px solid #f5f7f9;
+  border-bottom: 2px solid #c9d3df;
   cursor: pointer;
 }
 
 .c3 {
   cursor: pointer;
+  font-size: 20px;
   margin-right: 1em;
-  border-bottom: 2px solid #006aff;
+  border-bottom: 3px solid #006aff;
 }
 
 .c4 {
   cursor: pointer;
+  font-size: 20px;
   margin-right: 1em;
 }
 
@@ -101,6 +103,7 @@ exports[`Shares List Shares component 1`] = `
       <div
         className="c3"
         cursor="pointer"
+        fontSize={3}
         onClick={[Function]}
         selected={true}
       >
@@ -109,6 +112,7 @@ exports[`Shares List Shares component 1`] = `
       <div
         className="c4"
         cursor="pointer"
+        fontSize={3}
         onClick={[Function]}
         selected={false}
       >
