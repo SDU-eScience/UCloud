@@ -34,7 +34,8 @@
     "styled-components": "^4.3.2",
     "styled-system": "^5.1.2",
     "svgi": "^1.1.0",
-    "xterm": "^4.0.1"
+    "xterm": "^4.0.1",
+    "xterm-addon-fit": "^0.2.1"
   },
   "devDependencies": {
     "@types/enzyme": "^3.10.3",

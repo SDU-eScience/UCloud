@@ -1,14 +1,1 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="100%" height="100%" viewBox="0 0 25 25" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
-    <g transform="matrix(1,0,0,1,-863.998,-760)">
-        <g id="New-Folder" serif:id="New Folder" transform="matrix(1,0,0,1,172,268)">
-            <g transform="matrix(1,0,0,1,-0.00248357,1)">
-                <path d="M692.005,514.025L692.002,514C692.002,510.248 692.002,496.991 692.002,492.5C692.002,492.102 692.161,491.721 692.442,491.439C692.723,491.158 693.105,491 693.502,491C696.063,491 701.002,491 701.002,491L704.003,495C704.003,495 711.284,495 714.503,495C714.901,495 715.282,495.158 715.564,495.439C715.845,495.721 716.003,496.102 716.003,496.5C716.003,500.392 716.003,510.738 716.003,514C716.003,514.552 715.555,515 715.003,515C711.098,515 696.907,515 693.002,515L693.002,515L703.002,515L703.002,512L713.002,512L713.002,498L702.002,498L699.002,494L695.002,494L695.003,504L692.005,504L692.005,514.025Z" style="fill:rgb(131,147,167);"/>
-            </g>
-            <g transform="matrix(1.625,0,0,1.75,677.373,482.75)">
-                <path d="M12,14L9,14L9,16L12,16L12,19L14,19L14,16L17,16L17,14L14,14L14,11L12,11L12,14Z" style="fill:rgb(83,101,125);"/>
-            </g>
-        </g>
-    </g>
-</svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="100%" height="100%" viewBox="0 0 25 25" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g id="New-Folder" serif:id="New Folder"><path d="M0.005,23.07c-0.002,-0.023 -0.003,-0.047 -0.003,-0.07c0,-3.752 0,-17.009 0,-21.5c0,-0.398 0.159,-0.779 0.44,-1.061c0.281,-0.281 0.663,-0.439 1.061,-0.439c3.219,0 10.499,0 10.499,0l3,4l7.501,0c0.398,0 0.779,0.158 1.061,0.439c0.281,0.282 0.439,0.663 0.439,1.061c0,3.892 0,14.238 0,17.5c0,0.552 -0.448,1 -1,1c-3.905,0 -18.096,0 -22.001,0l-0.005,0l10.005,0l0,-3l10,0l0,-14l-8,0l-3,-4l-7,0l0.001,10l-2.998,0l0,10.07Z" style="fill:#8393a7;"/><path d="M4.875,15.25l-4.875,0l0,3.5l4.875,0l0,5.25l3.25,0l0,-5.25l4.875,0l0,-3.5l-4.875,0l0,-5.25l-3.25,0l0,5.25Z" style="fill:#53657d;"/></g></svg>
