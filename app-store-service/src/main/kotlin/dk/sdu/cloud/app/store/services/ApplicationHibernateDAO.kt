@@ -22,20 +22,9 @@ class ApplicationHibernateDAO(
     override fun toggleFavorite(session: HibernateSession, user: SecurityPrincipal, name: String, version: String) {
         val foundApp = internalByNameAndVersion(session, name, version) ?: throw ApplicationException.BadApplication()
 
-        val isFavorite = session.typedQuery<Long>(
-            """
-                select count (A.applicationName)
-                from FavoriteApplicationEntity as A
-                where A.user = :user
-                    and A.applicationName = :name
-                    and A.applicationVersion= :version
-            """.trimIndent()
-        ).setParameter("user", user.username)
-            .setParameter("name", name)
-            .setParameter("version", version)
-            .uniqueResult()
+        val isFavorite = isFavorite(session, user, name, version)
 
-        if (isFavorite != 0L) {
+        if (isFavorite) {
             val query = session.createQuery(
                 """
                 delete from FavoriteApplicationEntity as A
@@ -57,6 +46,21 @@ class ApplicationHibernateDAO(
                 )
             )
         }
+    }
+
+    private fun isFavorite(session: HibernateSession, user: SecurityPrincipal, name: String, version: String): Boolean {
+        return 0L != session.typedQuery<Long>(
+            """
+                select count (A.applicationName)
+                from FavoriteApplicationEntity as A
+                where A.user = :user
+                    and A.applicationName = :name
+                    and A.applicationVersion= :version
+            """.trimIndent()
+        ).setParameter("user", user.username)
+            .setParameter("name", name)
+            .setParameter("version", version)
+            .uniqueResult()
     }
 
     override fun retrieveFavorites(
@@ -321,7 +325,7 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal?,
         name: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationWithFavorite> {
+    ): Page<ApplicationWithFavoriteAndTags> {
         return preparePageForUser(
             session,
             user?.username,
@@ -359,7 +363,7 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         name: String,
         version: String
-    ): ApplicationWithFavorite {
+    ): ApplicationWithFavoriteAndTags {
         val entity = internalByNameAndVersion(session, name, version)?.toModelWithInvocation()
             ?: throw ApplicationException.NotFound()
         return preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()
@@ -555,7 +559,7 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: String?,
         page: Page<Application>
-    ): Page<ApplicationWithFavorite> {
+    ): Page<ApplicationWithFavoriteAndTags> {
         if (!user.isNullOrBlank()) {
             val allFavorites = session
                 .criteria<FavoriteApplicationEntity> { entity[FavoriteApplicationEntity::user] equal user }
@@ -579,7 +583,7 @@ class ApplicationHibernateDAO(
                     .toSet()
                     .toList()
 
-                ApplicationWithFavorite(item.metadata, item.invocation, isFavorite, allTagsForApplication)
+                ApplicationWithFavoriteAndTags(item.metadata, item.invocation, isFavorite, allTagsForApplication)
             }
 
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
@@ -592,7 +596,7 @@ class ApplicationHibernateDAO(
                     .toSet()
                     .toList()
 
-                ApplicationWithFavorite(item.metadata, item.invocation, false, allTagsForApplication)
+                ApplicationWithFavoriteAndTags(item.metadata, item.invocation, false, allTagsForApplication)
             }
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         }
@@ -684,7 +688,7 @@ class ApplicationHibernateDAO(
         tags: List<String>?,
         description: String?,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummary> {
+    ): Page<ApplicationWithFavoriteAndTags> {
         if (version != null && versionRange != null) {
             throw RPCException.fromStatusCode(
                 HttpStatusCode.BadRequest,
@@ -692,7 +696,7 @@ class ApplicationHibernateDAO(
             )
         }
 
-        return session.paginatedCriteria<ApplicationEntity>(
+        return preparePageForUser(session, user.username, session.paginatedCriteria<ApplicationEntity>(
             paging,
             predicate = {
                 if (name == null && version == null && versionRange == null && tags == null && description == null)
@@ -715,7 +719,7 @@ class ApplicationHibernateDAO(
                     else literal(true).toPredicate()
                 allOf(namePredicate, versionPredicate, tagPredicate, descriptionPredicate)
             }
-        ).mapItems { it.toModel() }
+        ).mapItems { it.toModelWithInvocation() })
     }
 
     private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {
