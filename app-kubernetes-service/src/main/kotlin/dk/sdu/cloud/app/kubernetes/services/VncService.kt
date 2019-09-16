@@ -37,6 +37,6 @@ class VncService(
         val jobId = incomingId // Slightly less secure, but should work for prototype
         val job = jobIdToJob[jobId] ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val port = job.application.invocation.vnc?.port ?: 5900
-        return tunnelManager.createTunnel(jobId, port)
+        return tunnelManager.createOrUseExistingTunnel(jobId, port)
     }
 }

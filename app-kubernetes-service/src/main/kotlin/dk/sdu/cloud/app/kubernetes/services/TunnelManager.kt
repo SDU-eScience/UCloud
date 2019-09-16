@@ -50,7 +50,7 @@ class TunnelManager(
         }
     }
 
-    suspend fun createTunnel(id: String, remotePort: Int): Tunnel {
+    suspend fun createOrUseExistingTunnel(id: String, remotePort: Int): Tunnel {
         mutex.withLock {
             val existing = openTunnels[id]
             val alive = existing?.tunnel?.isAlive() ?: false

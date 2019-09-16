@@ -1,0 +1,74 @@
+dynamic_resources:
+  cds_config:
+    path: /Users/danthrane/work/sdu-cloud/app-kubernetes-service/envoy/clusters.yaml
+#    api_config_source:
+#      api_type: GRPC
+#      grpc_services:
+#        envoy_grpc:
+#          cluster_name: xds_cluster
+
+node:
+  cluster: my-cluster
+  id: mystack
+
+admin:
+  access_log_path: "/dev/stdout"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 15001
+
+static_resources:
+  listeners:
+  - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 80
+    filter_chains:
+      - filters:
+        - name: envoy.http_connection_manager
+          config:
+            codec_type: auto
+            stat_prefix: ingress_http
+            rds:
+              route_config_name: local_route
+              config_source:
+                path: /Users/danthrane/work/sdu-cloud/app-kubernetes-service/envoy/rds.yaml
+            http_filters:
+              - name: envoy.ext_authz
+                config:
+                  http_service:
+                    path_prefix: /api/app/compute/kubernetes/app-authorization/
+                    authorization_request:
+                      allowed_headers:
+                        patterns:
+                          - exact: Cookie
+                    authorization_response:
+                      allowed_upstream_headers:
+                        patterns:
+                          - exact: Cookie
+                    server_uri:
+                      uri: http://0.0.0.0:8800/
+                      cluster: ext-authz
+                      timeout: 0.25s
+                      failure_mode_allow: false
+              - name: envoy.router
+                config: {}
+  clusters:
+   - name: ext-authz
+     connect_timeout: 0.25s
+     type: STATIC
+     lb_policy: ROUND_ROBIN
+     upstream_connection_options:
+       # configure a TCP keep-alive to detect and reconnect to the admin
+       # server in the event of a TCP socket half open connection
+       tcp_keepalive: {}
+     load_assignment:
+       cluster_name: ext-authz
+       endpoints:
+       - lb_endpoints:
+         - endpoint:
+             address:
+               socket_address:
+                 address: 127.0.0.1
+                 port_value: 8800
