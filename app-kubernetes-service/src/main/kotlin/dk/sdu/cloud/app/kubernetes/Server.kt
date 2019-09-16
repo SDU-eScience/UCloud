@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.kubernetes
 
-import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
 import dk.sdu.cloud.app.kubernetes.services.ApplicationProxyService
 import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
@@ -16,19 +15,15 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.serviceInstance
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
-import io.ktor.application.call
-import io.ktor.response.header
-import io.ktor.response.respondText
-import io.ktor.routing.get
-import io.ktor.routing.method
-import io.ktor.routing.route
 import io.ktor.routing.routing
 import java.io.File
 
@@ -57,6 +52,24 @@ class Server(override val micro: Micro, private val configuration: Configuration
             File("./envoy/clusters.yaml")
         )
 
+        run {
+            val port = micro.featureOrNull(ServiceDiscoveryOverrides)?.get(micro.serviceDescription.name)?.port
+                ?: 8080
+            val renderedConfig =
+                Server::class.java.classLoader.getResourceAsStream("config_template.yaml")
+                    .bufferedReader()
+                    .readText()
+                    .replace("\$SERVICE_PORT", port.toString())
+                    .replace("\$PWD", File("./envoy").absoluteFile.normalize().absolutePath)
+
+            val configFile = File("./envoy/config.yaml")
+            configFile.writeText(renderedConfig)
+            log.info("Wrote configuration at ${configFile.absolutePath}")
+            if (micro.developmentModeEnabled) {
+                log.warn("For proxying to work you must point envoy at the configuration file mentioned above!")
+            }
+        }
+
         val applicationProxyService = ApplicationProxyService(
             envoyConfigurationService,
             prefix = configuration.prefix,
@@ -83,8 +96,7 @@ class Server(override val micro: Micro, private val configuration: Configuration
             serviceClient = serviceClient,
             authenticationService = authenticationService,
             tunnelManager = tunnelManager,
-//            performAuthentication = configuration.performAuthentication,
-            performAuthentication = true,
+            performAuthentication = configuration.performAuthentication,
             cookieName = configuration.cookieName,
             applicationProxyService = applicationProxyService,
             prefix = configuration.prefix,

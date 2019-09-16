@@ -1,11 +1,6 @@
 dynamic_resources:
   cds_config:
-    path: /Users/danthrane/work/sdu-cloud/app-kubernetes-service/envoy/clusters.yaml
-#    api_config_source:
-#      api_type: GRPC
-#      grpc_services:
-#        envoy_grpc:
-#          cluster_name: xds_cluster
+    path: $PWD/clusters.yaml
 
 node:
   cluster: my-cluster
@@ -33,7 +28,7 @@ static_resources:
             rds:
               route_config_name: local_route
               config_source:
-                path: /Users/danthrane/work/sdu-cloud/app-kubernetes-service/envoy/rds.yaml
+                path: $PWD/rds.yaml
             http_filters:
               - name: envoy.ext_authz
                 config:
@@ -48,7 +43,7 @@ static_resources:
                         patterns:
                           - exact: Cookie
                     server_uri:
-                      uri: http://0.0.0.0:8800/
+                      uri: http://0.0.0.0:$SERVICE_PORT/
                       cluster: ext-authz
                       timeout: 0.25s
                       failure_mode_allow: false
@@ -71,4 +66,4 @@ static_resources:
              address:
                socket_address:
                  address: 127.0.0.1
-                 port_value: 8800
+                 port_value: $SERVICE_PORT

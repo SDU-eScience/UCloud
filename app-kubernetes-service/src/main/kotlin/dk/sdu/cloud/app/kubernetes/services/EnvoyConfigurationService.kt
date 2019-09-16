@@ -11,6 +11,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.*
 
 private val yamlFactory = YAMLFactory()
@@ -29,27 +30,27 @@ class EnvoyConfigurationService(
         log.debug("Envoy is configured at ${routeConfiguration.absolutePath} and ${clusterConfiguration.absolutePath}")
         if (!routeConfiguration.exists() || !clusterConfiguration.exists()) {
             runBlocking {
-                lock.withLock {
-                    log.debug("Creating empty resources")
-                    configure(EnvoyResources(emptyList()), EnvoyResources(emptyList()))
-                }
+                routeConfiguration.writeText("{}")
+                clusterConfiguration.writeText("{}")
+                log.debug("Creating empty resources")
+                configure(emptyList(), emptyList())
             }
         }
     }
 
-    suspend fun configure(routes: EnvoyResources<EnvoyRoute>, clusters: EnvoyResources<EnvoyCluster>) {
+    suspend fun configure(routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
         lock.withLock {
-            log.debug("Reconfiguring envoy with ${routes.resources.size} routes and ${clusters.resources.size} clusters")
-            val tempRouteFile = Files.createTempFile("routes", ".yml").toFile().also {
-                it.writeText(yamlMapper.writeValueAsString(routes))
+            log.debug("Reconfiguring envoy with ${routes.size} routes and ${clusters.size} clusters")
+            val tempRouteFile = File("./envoy/temp-route-file.yaml").also {
+                it.writeText(yamlMapper.writeValueAsString(EnvoyResources(listOf(EnvoyRouteConfiguration(routes)))))
             }
 
-            val tempClusterFile = Files.createTempFile("clusters", ".yml").toFile().also {
-                it.writeText(yamlMapper.writeValueAsString(clusters))
+            val tempClusterFile = File("./envoy/temp-cluster-file.yaml").also {
+                it.writeText(yamlMapper.writeValueAsString(EnvoyResources(clusters)))
             }
 
-            tempRouteFile.renameTo(routeConfiguration)
-            tempClusterFile.renameTo(clusterConfiguration)
+            Files.move(tempRouteFile.toPath(), routeConfiguration.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            Files.move(tempClusterFile.toPath(), clusterConfiguration.toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
     }
 
@@ -65,20 +66,19 @@ data class EnvoyResources<T>(
     val version: String = UUID.randomUUID().toString()
 )
 
-class EnvoyRoute(
-    @get:JsonIgnore
+data class EnvoyRoute(
     val domain: String,
-
-    @get:JsonIgnore
     val cluster: String
-) {
+)
+
+class EnvoyRouteConfiguration(routes: List<EnvoyRoute>) {
     @get:JsonProperty("@type")
     val resourceType = "type.googleapis.com/envoy.api.v2.RouteConfiguration"
 
     val name: String = "local_route"
 
     @get:JsonProperty("virtual_hosts")
-    val virtualHosts = listOf(
+    val virtualHosts = routes.map { (domain, cluster) ->
         mapOf<String, Any?>(
             "name" to name,
             "domains" to listOf(domain),
@@ -88,12 +88,18 @@ class EnvoyRoute(
                         "prefix" to "/"
                     ),
                     "route" to mapOf(
-                        "cluster" to cluster
+                        "cluster" to cluster,
+                        "upgrade_configs" to listOf(
+                            mapOf(
+                                "upgrade_type" to "websocket",
+                                "enabled" to true
+                            )
+                        )
                     )
                 )
             )
         )
-    )
+    }
 }
 
 class EnvoyCluster(

@@ -56,7 +56,7 @@ class ApplicationProxyService (
         val allEntries = lock.withLock { entries.map { it.value } }
         val routes = allEntries.map { it.route }
         val clusters = allEntries.map { it.cluster }
-        envoyConfigurationService.configure(EnvoyResources(routes), EnvoyResources(clusters))
+        envoyConfigurationService.configure(routes, clusters)
     }
 }
 
