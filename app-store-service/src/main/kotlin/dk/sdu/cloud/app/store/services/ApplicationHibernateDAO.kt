@@ -703,10 +703,10 @@ class ApplicationHibernateDAO(
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Must provide any argument")
 
                 val namePredicate =
-                    if (name != null) entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] like name
+                    if (name != null) builder.lower(entity[ApplicationEntity::title]) like "%${name}%".toLowerCase()
                     else literal(true).toPredicate()
                 val versionPredicate =
-                    if (version != null) entity[ApplicationEntity::id][EmbeddedNameAndVersion::version] equal version
+                    if (version != null) entity[ApplicationEntity::id][EmbeddedNameAndVersion::version] like "$version%"
                     else literal(true).toPredicate()
                 val tagPredicate =
                     if (tags != null) {

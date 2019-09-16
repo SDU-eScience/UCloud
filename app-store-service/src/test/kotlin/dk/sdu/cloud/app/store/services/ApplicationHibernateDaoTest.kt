@@ -307,7 +307,7 @@ class ApplicationHibernateDaoTest {
                 val appDAO = ApplicationHibernateDAO(toolDAO)
 
                 val commonTag = "common"
-                val appA = normAppDesc.withNameAndVersionAndTitle("A", "1","Atitle")
+                val appA = normAppDesc.withNameAndVersionAndTitle("A", "1", "Atitle")
                 val appB = normAppDesc.withNameAndVersionAndTitle("B", "1", "Btitle")
 
                 appDAO.create(it, user, appA)
@@ -459,7 +459,7 @@ class ApplicationHibernateDaoTest {
         }
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `create tag for invalid app`() {
         withDatabase { db ->
             db.withTransaction {
@@ -470,7 +470,7 @@ class ApplicationHibernateDaoTest {
         }
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `delete tag for invalid app`() {
         withDatabase { db ->
             db.withTransaction {
@@ -533,25 +533,27 @@ class ApplicationHibernateDaoTest {
         withDatabase { db ->
             db.withTransaction { session ->
                 toolDao.create(session, TestUsers.admin, normToolDesc.copy(NameAndVersion(t1, "1")))
-                appDao.create(session, TestUsers.admin, normAppDesc.withNameAndVersion("a", "1").withTool(t1, "1"))
-                appDao.createTags(session, TestUsers.admin, "a", listOf("A1", "A2"))
-
-                assertEquals(1, appDao.advancedSearch(
-                    session,
-                    TestUsers.admin,
-                    "a",
-                    "1",
-                    null,
-                    null,
-                    "app description",
-                    NormalizedPaginationRequest(25, 0)
-                ).items.size)
+                appDao.create(session, TestUsers.admin, normAppDesc.withNameAndVersion(t1, "1").withTool(t1, "1"))
+                appDao.createTags(session, TestUsers.admin, t1, listOf("A1", "A2"))
 
                 assertEquals(
                     1, appDao.advancedSearch(
                         session,
                         TestUsers.admin,
-                        "a",
+                        "title",
+                        "1",
+                        null,
+                        null,
+                        "app description",
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        "title",
                         null,
                         null,
                         null,
