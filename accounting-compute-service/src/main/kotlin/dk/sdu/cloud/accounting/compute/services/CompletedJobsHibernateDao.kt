@@ -93,12 +93,7 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
             criteria
         }.createQuery(session).list()
 
-        var usage = 0L
-        query.forEach {
-            usage += it.first * it.second
-        }
-
-        return usage
+        return query.map { it.first * it.second }.sum()
     }
 
     private fun CriteriaBuilderContext<*, JobCompletedEntity>.matchingContext(context: ContextQuery): Predicate {
