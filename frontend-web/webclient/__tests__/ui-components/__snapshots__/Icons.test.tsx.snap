@@ -699,6 +699,39 @@ Array [
 
 <span>
     <span>
+      extract
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="-2 0 20 25"
+      width={24}
+    >
+      <path
+        d="M9 0v3H3v18h12V11h2.999v-1H18v11.743A2.244 2.244 0 0115.756 24H2.244A2.26 2.26 0 010 21.743V2.258A2.245 2.245 0 012.244 0H9zm5.999 10H15v1h-.001v-1z"
+        fill={null}
+      />
+      <path
+        d="M19.999 0l-9.193.707 2.829 2.829-6.364 6.363 2.828 2.829 6.364-6.364 2.829 2.828L19.999 0z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
       favIcon
     </span>
     : 
@@ -2729,7 +2762,7 @@ Array [
       width={24}
     >
       <path
-        d="M.005 23.025L.002 23V1.5a1.504 1.504 0 011.5-1.5h7.5l3 4h10.5a1.503 1.503 0 011.5 1.5V23a1 1 0 01-1 1h-22 10v-3h10V7h-11l-3-4h-4v10H.006v10.025z"
+        d="M.005 23.07A.82.82 0 01.002 23V1.5A1.504 1.504 0 011.503 0h10.499l3 4h7.501a1.503 1.503 0 011.5 1.5V23a1 1 0 01-1 1H.997h10.005v-3h10V7h-8l-3-4h-7l.001 10H.005v10.07z"
         fill={null}
       />
       <path
@@ -3581,7 +3614,7 @@ Array [
       fill="currentcolor"
       fillRule="evenodd"
       height={24}
-      viewBox="0 0 21 24"
+      viewBox="-2 0 21 24"
       width={24}
     >
       <path
