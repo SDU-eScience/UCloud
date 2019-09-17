@@ -50,7 +50,7 @@ class AutoSettingsService(
         elastic.indices().putTemplate(developmentTemplateRequest, RequestOptions.DEFAULT)
 
         val productionTemplateRequest = PutIndexTemplateRequest("production-template")
-        productionTemplateRequest.patterns(listOf("kubernetes-default*"))
+        productionTemplateRequest.patterns(listOf("kubernetes-production*"))
 
         productionTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 1)

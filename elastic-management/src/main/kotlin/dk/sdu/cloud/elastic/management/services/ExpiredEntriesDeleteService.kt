@@ -9,6 +9,7 @@ import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.Logger
+import java.time.LocalDate
 import java.util.*
 
 class ExpiredEntriesDeleteService(
@@ -56,6 +57,18 @@ class ExpiredEntriesDeleteService(
             elastic.deleteByQuery(request, RequestOptions.DEFAULT)
             flushIndex(elastic, index)
         }
+    }
+
+    fun deleteOldRancherLogs() {
+        val currentdate = LocalDate.now()
+        val monthsToSave = 3
+
+        val indexToDelete = if (indexExists("development_default-*", elastic))
+            "development_default-${currentdate.minusMonths(monthsToSave.toLong())}"
+        else
+            "kubernetes-production-${currentdate.minusMonths(monthsToSave.toLong())}"
+
+        deleteIndex(indexToDelete, elastic)
     }
 
     fun deleteExpiredAllIndices() {
