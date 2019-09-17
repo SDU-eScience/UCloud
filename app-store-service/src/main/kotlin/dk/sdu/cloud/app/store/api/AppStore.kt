@@ -54,7 +54,6 @@ data class UploadApplicationLogoRequest(
 data class AdvancedSearchRequest(
     val name: String?,
     val version: String?,
-    val versionRange: Pair<String, String>?,
     val description: String?,
     val tags: List<String>?,
     override val itemsPerPage: Int?,
