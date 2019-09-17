@@ -3,8 +3,8 @@ dynamic_resources:
     path: $PWD/clusters.yaml
 
 node:
-  cluster: my-cluster
-  id: mystack
+  cluster: appk8cluster
+  id: appk8stack
 
 admin:
   access_log_path: "/dev/stdout"
