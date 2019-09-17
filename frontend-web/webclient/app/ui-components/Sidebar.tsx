@@ -220,11 +220,10 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                 <React.Fragment key={categoryIdx}>
                     {category.items.map(({icon, label, to}: MenuElement) => (
                         <React.Fragment key={label}>
-                            {categoryIdx === 0 ? <SidebarSpacer /> : null}
+                            <SidebarSpacer />
                             <SidebarElement icon={icon} activePage={page} label={label}
                                 to={typeof to === "function" ? to() : to} />
                         </React.Fragment>))}
-                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="6px" mb="6px" />) : null}
                 </React.Fragment>
             )}
             <SidebarPushToBottom />

@@ -214,6 +214,8 @@ const Search = ({navigate, searchType, setSearchType}: SearchProps) => {
         <SearchInput>
             <Input
                 pl="30px"
+                pt="6px"
+                pb="6px"
                 id="search_input"
                 type="text"
                 value={search}

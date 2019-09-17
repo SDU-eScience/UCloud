@@ -16,8 +16,21 @@ spec:
         app: app-kubernetes
     spec:
       containers:
+      - name: envoy
+        image: envoyproxy/envoy:v1.11.1
+        command:
+        - "sh"
+        - "-c"
+        - >
+          while [ ! -f /mnt/shared/envoy/config.yaml ]; do sleep 0.5; done;
+          envoy -c /mnt/shared/envoy/config.yaml
+        workingDir: /mnt/shared/envoy
+        volumeMounts:
+        - mountPath: /mnt/shared/envoy
+          name: envoy
+
       - name: app-kubernetes
-        image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.9.6
+        image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.9.7
         command:
         - /opt/service/bin/service
         - --config-dir
@@ -28,6 +41,7 @@ spec:
         - /etc/psql
         - --config-dir
         - /etc/config
+        workingDir: /mnt/shared
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
@@ -37,6 +51,8 @@ spec:
           name: app-kubernetes-psql
         - mountPath: /etc/config
           name: config
+        - mountPath: /mnt/shared/envoy
+          name: envoy
         env:
         - name: POD_IP
           valueFrom:
@@ -58,6 +74,8 @@ spec:
       - name: config
         configMap:
           name: app-kubernetes
+      - name: envoy
+        emptyDir: {}
 
       imagePullSecrets:
         - name: esci-docker

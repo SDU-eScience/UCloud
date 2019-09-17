@@ -67,7 +67,7 @@ const MachineBox: React.FunctionComponent<{ machine: MachineReservation }> = ({m
 const MachineDropdown = styled(Box)`
     cursor: pointer;
     border-radius: 5px;
-    border: 1px solid ${({theme}) => theme.colors.midGray};
+    border: ${({theme}) => theme.borderWidth} solid ${({theme}) => theme.colors.midGray};
     padding: 15px;
     width: 100%;
 

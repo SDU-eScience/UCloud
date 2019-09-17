@@ -2,6 +2,7 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {isLightThemeStored} from "UtilityFunctions";
 import {Terminal} from "xterm";
+import { FitAddon } from 'xterm-addon-fit';
 import "xterm/css/xterm.css";
 
 export function useXTerm(): [React.RefObject<HTMLDivElement>, (textToAppend: string) => void, () => void] {
@@ -38,13 +39,17 @@ export function useXTerm(): [React.RefObject<HTMLDivElement>, (textToAppend: str
             green: "#859900"
         }
     }));
+    const [fitAddon] = useState(() => new FitAddon());
     const elem = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (elem.current && !didMount) {
-            term.resize(100, 40);
-            term.open(elem.current);
-            setDidMount(true);
+        if (elem.current) {
+            if (!didMount) {
+                term.loadAddon(fitAddon);
+                term.open(elem.current);
+                setDidMount(true);
+            }
+            fitAddon.fit();
         } else if (elem.current === null) {
             setDidMount(false);
         }

@@ -8,16 +8,16 @@ import Text from "./Text";
 import defaultTheme from "./theme";
 
 export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, noBorder?: boolean}) => {
-  if (noBorder) return "";
+  if (noBorder) return {"border-width": "0px"};
   const borderColor = color ? theme.colors[color] : theme.colors.borderGray;
   const focusColor = color ? borderColor : theme.colors.blue;
   return {
+    "border-width": theme.borderWidth, 
     "border-color": borderColor,
-    "box-shadow": `0 0 0 1px ${borderColor}`,
+    "border-style": "solid",
     ":focus": {
       "outline": 0,
       "border-color": focusColor,
-      "box-shadow": `0 0 0 1px ${focusColor},inset 0 0 0 1px ${focusColor}`
     }
   };
 };
@@ -42,19 +42,11 @@ const Input = styled.input<InputProps>`
   color: ${props => props.error ? "red" : "inherit"};
   ${fontSize}
   background-color: transparent;
-  border-width: 0px;
-  border-style: solid;
-  border-color: ${({theme}) => theme.colors.borderGray};
-
-  padding-top: 7px;
-  padding-bottom: 7px;
-  padding-left: 12px;
-  padding-right: 12px;
 
   margin: 0;
 
   ${({showError, theme}) => showError ? `&:invalid {
-    background-color: ${theme.colors.lightRed};
+    border-color: ${theme.colors.red};
   }` : null};
 
   ::placeholder {
@@ -78,6 +70,10 @@ Input.defaultProps = {
   width: "100%",
   noBorder: false,
   borderRadius: "5px",
+  pt: "7px",
+  pb: "7px",
+  pl: "12px",
+  pr: "12px",
 };
 
 export const HiddenInputField = styled(Input)`
@@ -97,8 +93,7 @@ export interface InputLabelProps extends WidthProps {
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`
-  border: ${({theme}) => theme.colors.borderGray} solid 1px;
-  margin: -1px;
+  border: ${({theme}) => theme.colors.borderGray} solid ${({theme}) => theme.borderWidth};
   ${leftLabel}
   ${rightLabel}
   ${width}
