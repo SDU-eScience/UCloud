@@ -13,7 +13,7 @@ spec:
 
           containers:
           - name: elastic-management
-            image: registry.cloud.sdu.dk/sdu-cloud/elastic-management:1.0.15
+            image: registry.cloud.sdu.dk/sdu-cloud/elastic-management:1.0.16
             command:
             - /opt/service/bin/service
             - --config-dir

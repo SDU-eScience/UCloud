@@ -61,13 +61,17 @@ class ExpiredEntriesDeleteService(
 
     fun deleteOldRancherLogs() {
         val currentdate = LocalDate.now()
-        val monthsToSave = 3
+        val daysToSave = 180
 
         val indexToDelete = if (indexExists("development_default-*", elastic))
-            "development_default-${currentdate.minusMonths(monthsToSave.toLong())}"
+            "development_default-${currentdate.minusDays(daysToSave.toLong())}"
         else
-            "kubernetes-production-${currentdate.minusMonths(monthsToSave.toLong())}"
+            "kubernetes-production-${currentdate.minusDays(daysToSave.toLong())}"
 
+        if (!indexExists(indexToDelete, elastic)) {
+            log.info("no index with the name $indexToDelete")
+            return
+        }
         deleteIndex(indexToDelete, elastic)
     }
 

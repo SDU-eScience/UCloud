@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.15'
+version '1.0.16'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.elastic.management.MainKt"
