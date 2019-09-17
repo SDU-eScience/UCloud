@@ -65,18 +65,6 @@ emulator by running:
     ``` 
     Press \[Enter\] to start the dependencies.
     
-    __NOTE__ When you are done, stop the script by pressing \[Enter\]
-    again, not `Ctrl-C`. The reason for this is that multiple processes
-    are started within this script, and pressing `Ctrl-C` will not
-    terminate these processes properly. If the script stopped
-    unexpectedly or you accidentially pressed `Ctrl-C` any way, you
-    might not be able to relaunch the script. In this case you can
-    terminate the processes manually by running
-    
-    ```  
-    ps aux | grep MainKt | grep -v grep | awk '{print $2}' | xargs -I _ kill _ 
-    ```      
-    
 3.  The `start-dependencies` script does not start the target service,
     thus this should be started separately, either from an IDE or using
     gradle with your SDUCloud configuration directory, i.e.
