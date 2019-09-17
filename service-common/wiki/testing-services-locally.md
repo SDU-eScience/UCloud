@@ -16,7 +16,8 @@ start dependencies of a target service, namely `start-dependencies`.
 This document will serve as a documentation and tutorial in how to run
 your changes locally.
 
-## Dependencies 
+## `start-dependencies`
+### Dependencies 
 To run services locally, the following should be installed on your
 system:
  
@@ -26,7 +27,7 @@ system:
  - `yq` --- Can be installed by running `pip install yq`
  
 
-## Running
+### Running
 
 1. Start [Redis](https://redis.io). This can be done from a terminal
 emulator by running:
@@ -98,4 +99,5 @@ emulator by running:
     __HINT__ In Firefox the developer console can be reached by pressing
     Ctrl-Shift-K.
     
+    You should now be authenticated, and ready to test your changes.
     
