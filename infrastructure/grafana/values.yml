@@ -1,7 +1,7 @@
 ---
 persistence:
   enabled: true
-  size: 25Gi
+  size: 100Gi
   storageClassName: rbd
   accessModes:
   - ReadWriteOnce

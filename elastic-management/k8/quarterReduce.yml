@@ -2,9 +2,9 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: weekly-reindex
+  name: reduce-last-quarter
 spec:
-  schedule: "0 3 * * 0"
+  schedule: "0 4 2 */3 *"
   jobTemplate:
     spec:
       template:
@@ -24,7 +24,7 @@ spec:
             - /etc/elasticmanagement
             - --config-dir
             - /etc/elasticsearch-credentials
-            - --reindex
+            - --reduceLastQuarter
             volumeMounts:
             - mountPath: /etc/refresh-token
               name: refresh-token
@@ -58,4 +58,4 @@ spec:
               secretName: elasticsearch-credentials
 
           imagePullSecrets:
-            - name: esci-docker
+          - name: esci-docker
