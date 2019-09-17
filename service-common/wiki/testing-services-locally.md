@@ -21,11 +21,24 @@ your changes locally.
 To run services locally, the following should be installed on your
 system:
  
- - Redis --- Can most likely be found in your package manager.
- Otherwise download from [here](https://redis.io/download).
+ - Redis --- Download from [here](https://redis.io/download), or by using your package manager.
  - `jq` --- Most likely already installed on your system 
- - `yq` --- Can be installed by running `pip install yq`
+ - `yq` --- Can be installed by running `pip install yq`.
  
+### Configuration
+    
+1. Make sure you have a folder in your home folder called `sducloud` 
+2. Create the file `~/sducloud/tokenvalidation.yml` with the following content:
+   ```
+   ---
+   tokenValidation:
+     jwt:
+       sharedSecret: notverysecret
+   ```
+3. Add an environment variable named `ADMINTOK` with the following token. If you are using `bash` the following can be added to your `.bashrc`:
+   ```
+   export ADMINTOK=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbkBkZXYiLCJ1aWQiOjAsImxhc3ROYW1lIjoiRGV2IiwiYXVkIjoiYWxsOndyaXRlIiwicm9sZSI6IkFETUlOIiwiaXNzIjoiY2xvdWQuc2R1LmRrIiwiZmlyc3ROYW1lcyI6IkFkbWluIiwiZXhwIjoxNTg5ODY5NDM3LCJleHRlbmRlZEJ5Q2hhaW4iOltdLCJpYXQiOjE1NTgzMzM0MzcsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsInB1YmxpY1Nlc3Npb25SZWZlcmVuY2UiOiJiZjE5NzIwNy02MDNmLTRjMjUtYmE2Mi1lMWI4MjUwYWZiMWQifQ.27xbjXVIvXMFc22kWxXF1SYqIWBkC4j4BubqlZdHnp4rTvasLDobD8ClJFXJjGVY1QaoPVxyhkHaEuT0tk7Gow
+   ```
 
 ### Running
 
@@ -64,7 +77,11 @@ emulator by running:
     Press enter to continue. Once all services are running you can
     press enter again to kill all services. 
     ``` 
-    Press \[Enter\] to start the dependencies.
+    Press \[Enter\] again to start the dependencies.
+    
+    __NOTE__ In case you want to start more than one service, you can
+    add more services using the `--include` parameter, as well as you
+    can exclude services using the `--exclude` parameter.
     
 3.  The `start-dependencies` script does not start the target service,
     thus this should be started separately, either from an IDE or using
@@ -85,7 +102,7 @@ emulator by running:
     npm run start 
     ``` 
     
-    This will start the frontend at [http://localhost:9000] 
+    This will start the frontend at [localhost:9000](http://localhost:9000)
     
 5.  Finally you will have to authenticate. To do this, run
     
@@ -93,7 +110,7 @@ emulator by running:
     bash /infrastructure/scripts/findauth.sh
     ```
     
-    This will return a JavaScript snippet. Go to [http://localhost:9000]
+    This will return a JavaScript snippet. Go to [localhost:9000](http://localhost:9000)
     and copy and paste the snippet into your browsers' developer console.
     
     __HINT__ In Firefox the developer console can be reached by pressing
