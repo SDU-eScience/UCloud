@@ -72,8 +72,6 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
         val targetHost = ctx.attributes.outgoingTargetHost
         val host = targetHost.host.removeSuffix("/")
-//        val scheme = targetHost.scheme?.replace("http", "ws") ?: "ws"
-//        val port = targetHost.port ?: if (targetHost.scheme == "https") 443 else 80
 
         // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
         // when redirected from WS to WSS.

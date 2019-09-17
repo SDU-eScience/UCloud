@@ -30,11 +30,13 @@ class AppKubernetesController(
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppKubernetesDescriptions.cleanup) {
+            // TODO FIXME Will block the coroutine until we get a response.
             podService.cleanup(request.id)
             ok(Unit)
         }
 
         implement(AppKubernetesDescriptions.follow) {
+            // TODO FIXME Blocks the coroutine for quite a while
             val (log, nextLine) = podService.retrieveLogs(
                 request.job.id,
                 request.stdoutLineStart,
@@ -55,6 +57,8 @@ class AppKubernetesController(
 
             // Then we set up the subscription
             coroutineScope {
+                // TODO FIXME This will run out of threads real quick. The backing dispatcher will never create more
+                //  than 64 threads.
                 launch(Dispatchers.IO) {
                     val (resource, logStream) = podService.watchLog(request.job.id) ?: return@launch
                     streams[streamId] = resource
@@ -98,6 +102,7 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.jobPrepared) {
+            // TODO FIXME Blocks the coroutine for quite a while
             podService.create(request)
             ok(Unit)
         }
@@ -111,6 +116,7 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.cancel) {
+            // TODO FIXME Blocks the coroutine for quite a while.
             podService.cancel(request.verifiedJob)
             ok(Unit)
         }

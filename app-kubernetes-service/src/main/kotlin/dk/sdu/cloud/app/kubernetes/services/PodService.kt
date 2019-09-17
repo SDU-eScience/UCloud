@@ -535,6 +535,7 @@ class PodService(
         }
 
         GlobalScope.launch {
+            // TODO FIXME This will probably run out of threads real quick
             log.info("Awaiting container start!")
 
             @Suppress("TooGenericExceptionCaught")
@@ -730,7 +731,7 @@ class PodService(
             val bufferedReader = k8sTunnel.inputStream.bufferedReader()
             bufferedReader.readLine()
 
-            val job = GlobalScope.launch(Dispatchers.IO) {
+            val job = GlobalScope.launch(Dispatchers.IO) { // TODO FIXME Will run out of threads
                 // Read remaining lines to avoid buffer filling up
                 bufferedReader.lineSequence().forEach {
                     // Discard line
