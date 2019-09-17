@@ -104,6 +104,7 @@ class PodService(
     private val networkPolicyService: NetworkPolicyService,
     private val sharedFileSystemMountService: SharedFileSystemMountService,
     private val hostAliasesService: HostAliasesService,
+    private val applicationProxyService: ApplicationProxyService,
     private val namespace: String = "app-kubernetes",
     private val appRole: String = "sducloud-app"
 ) {
@@ -258,7 +259,7 @@ class PodService(
             ).orThrow()
         } catch (ex: KubernetesClientException) {
             if (ex.code == 400 || ex.code == 404) {
-                // Assume that this is because there is log to retrieve
+                // Assume that this is because there is no log to retrieve
                 return
             }
 
@@ -582,7 +583,7 @@ class PodService(
                             .withName(pod.metadata.name)
 
                         fun writeFile(path: String, contents: String) {
-                            val (out, _, ins) = podResource.execWithDefaultListener(
+                            val (_, _, ins) = podResource.execWithDefaultListener(
                                 listOf("sh", "-c", "cat > $path"),
                                 attachStdout = true,
                                 attachStdin = true,
@@ -653,7 +654,13 @@ class PodService(
         }
     }
 
-    fun cleanup(requestId: String) {
+    suspend fun cleanup(requestId: String) {
+        try {
+            applicationProxyService.removeEntry(requestId)
+        } catch (ignored: Throwable) {
+            // Ignored
+        }
+
         try {
             networkPolicyService.deletePolicy(requestId)
         } catch (ex: KubernetesClientException) {
