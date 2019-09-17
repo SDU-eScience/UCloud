@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.5.0-advanced-app-search-3'
+version '0.5.0-advanced-app-search-4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.store.MainKt"

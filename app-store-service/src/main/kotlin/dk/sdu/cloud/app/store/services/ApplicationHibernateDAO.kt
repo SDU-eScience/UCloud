@@ -108,10 +108,15 @@ class ApplicationHibernateDAO(
     }
 
     private fun findAppNamesFromTags(session: HibernateSession, tags: List<String>): List<String> {
-        return session
-            .criteria<TagEntity> {
-                (entity[TagEntity::tag] isInCollection tags)
-            }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
+        return session.criteria<TagEntity> {
+            (entity[TagEntity::tag] isInCollection tags)
+        }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
+    }
+
+    private fun findAppNamesFromTagsInsensitive(session: HibernateSession, tags: List<String>): List<String> {
+        return session.criteria<TagEntity> {
+            (builder.lower(entity[TagEntity::tag]) isInCollection tags.map { it.toLowerCase() })
+        }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
     }
 
     private fun findAppsFromAppNames(
@@ -710,7 +715,7 @@ class ApplicationHibernateDAO(
                     else literal(true).toPredicate()
                 val tagPredicate =
                     if (tags != null) {
-                        val applications = findAppNamesFromTags(session, tags)
+                        val applications = findAppNamesFromTagsInsensitive(session, tags)
                         entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] isInCollection applications
                     } else literal(true).toPredicate()
                 val descriptionPredicate =
