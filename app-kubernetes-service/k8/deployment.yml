@@ -28,6 +28,7 @@ spec:
         volumeMounts:
         - mountPath: /mnt/shared/envoy
           name: envoy
+
       - name: app-kubernetes
         image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.9.7
         command:
