@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlin.reflect.KClass
 
 interface IngoingCall {
@@ -386,6 +387,7 @@ class RpcServer {
             log.debug("Result of $call is $responseResult")
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
+            val isEarlyClose = ex is ClosedSendChannelException
             if (ex !is RPCException) {
                 log.info("Uncaught exception in handler for $call")
                 log.info(ex.stackTraceToString())
@@ -403,11 +405,16 @@ class RpcServer {
 
                 @Suppress("UNCHECKED_CAST")
                 OutgoingCallResponse.Error(errorMessage as E, statusCode)
+            } else if (isEarlyClose) {
+                OutgoingCallResponse.Error<S, E>(null, HttpStatusCode(499, "Connection closed early by client"))
             } else {
                 OutgoingCallResponse.Error<S, E>(null, statusCode)
             }
 
-            source.produceResponse(ctx, call, callResult)
+            if (!isEarlyClose) {
+                source.produceResponse(ctx, call, callResult)
+            }
+
             response = callResult
         }
 
