@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
+
+# Stop running dependencies on CTRL-C
+function cleanup() {
+    echo 'Terminating processes..'
+    exec `ps aux | grep MainKt | grep dk.sdu.cloud | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
+    exec `ps aux | grep dependencies-frontend-server | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
+    exec `ps aux | grep FrontendHelperKt | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
+    echo 'Done!'
+}
+
+trap cleanup SIGINT SIGTERM
+
 set -e
 script=`dirname "$0"`/development-utils/src/main/kotlin/Main.kt
 output=`kscript "$script" "$@"`
 bash $output
+wait
