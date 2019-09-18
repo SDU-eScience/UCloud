@@ -6,8 +6,9 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import * as React from "react";
 
 interface InputFileParameterProps extends ParameterProps {
-    onRemove?: () => void
-    defaultValue?: string
+    onRemove?: () => void ;
+    defaultValue?: string ;
+    unitWidth?: string | number ;
 }
 
 export const InputFileParameter = (props: InputFileParameterProps) => (
@@ -22,6 +23,7 @@ export const InputFileParameter = (props: InputFileParameterProps) => (
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             isRequired={!props.parameter.optional}
             unitName={props.parameter.unitName}
+            unitWidth={props.unitWidth}
         />
     </BaseParameter>
 );
@@ -40,6 +42,7 @@ export const InputDirectoryParameter = (props: InputFileParameterProps) => (
             onlyAllowFolders
             isRequired={!props.parameter.optional}
             unitName={props.parameter.unitName}
+            unitWidth={props.unitWidth}
             remove={props.onRemove}
         />
     </BaseParameter>

@@ -321,6 +321,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     defaultValue={entry.defaultValue}
                                                     initialSubmit={false}
                                                     parameterRef={entry.ref}
+                                                    unitWidth={"180px"}
                                                     onRemove={() => {
                                                         this.setState(s => ({
                                                             mountedFolders: removeEntry(s.mountedFolders, i)
@@ -335,24 +336,22 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                         defaultValue: "",
                                                         visible: true,
                                                         unitName: (
-                                                            <Box width={"105px"} height={"37px"}>
-                                                                <ClickableDropdown
-                                                                    chevron
-                                                                    minWidth="150px"
-                                                                    onChange={key => {
-                                                                        const {mountedFolders} = this.state;
-                                                                        mountedFolders[i].readOnly = key === "READ";
-                                                                        this.setState(() => ({mountedFolders}));
-                                                                    }}
-                                                                    trigger={entry.readOnly ?
-                                                                        "Read only" : "Read/Write"
-                                                                    }
-                                                                    options={[
-                                                                        {text: "Read only", value: "READ"},
-                                                                        {text: "Read/Write", value: "READ/WRITE"}
-                                                                    ]}
-                                                                />
-                                                            </Box>
+                                                            <ClickableDropdown
+                                                                chevron
+                                                                width="180px"
+                                                                onChange={key => {
+                                                                    const {mountedFolders} = this.state;
+                                                                    mountedFolders[i].readOnly = key === "READ";
+                                                                    this.setState(() => ({mountedFolders}));
+                                                                }}
+                                                                trigger={entry.readOnly ?
+                                                                    "Read only" : "Read/Write"
+                                                                }
+                                                                options={[
+                                                                    {text: "Read only", value: "READ"},
+                                                                    {text: "Read/Write", value: "READ/WRITE"}
+                                                                ]}
+                                                            />
                                                         ),
                                                     }}
                                                 />
