@@ -2,6 +2,7 @@ import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authenticat
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
+import {defaultFileQuickLaunchApps, FileQuickLaunchApp, FileQuickLaunchCallback} from "Files/FileQuickLaunch";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files/index";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
@@ -55,6 +56,7 @@ export interface LowLevelFileTableProps {
     embedded?: boolean;
 
     fileOperations?: FileOperation[];
+    quickLaunchApps?: FileQuickLaunchApp[];
     onReloadRequested?: () => void;
 
     injectedFiles?: File[];
@@ -357,6 +359,7 @@ const LowLevelFileTable_: React.FunctionComponent<
             (props.responsive.greaterThan.md ? 1 : 0));
     const numberOfColumns = props.numberOfColumns !== undefined ? props.numberOfColumns : numberOfColumnsBasedOnSpace;
     const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
+    const fileQuickLaunchApps = props.quickLaunchApps !== undefined ? props.quickLaunchApps : defaultFileQuickLaunchApps;
     const fileFilter = props.fileFilter ? props.fileFilter : () => true;
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
         .filter(fileFilter);
@@ -565,12 +568,22 @@ const LowLevelFileTable_: React.FunctionComponent<
                                     </FileTableHeaderCell>;
                                 })}
 
+                                {/* Launch cell (adds a bit of spacing and hosts options in rows) */}
+                                <FileTableHeaderCell
+                                    notSticky={isEmbedded}
+
+                                    // TODO This is not correct. We had some custom code before. This should be ported.
+                                    width={"3em"}
+                                >
+                                    <Flex />
+                                </FileTableHeaderCell>
+
                                 {/* Options cell (adds a bit of spacing and hosts options in rows) */}
                                 <FileTableHeaderCell
                                     notSticky={isEmbedded}
 
                                     // TODO This is not correct. We had some custom code before. This should be ported.
-                                    width={"7em"}
+                                    width={"3em"}
                                 >
                                     <Flex />
                                 </FileTableHeaderCell>
@@ -613,9 +626,38 @@ const LowLevelFileTable_: React.FunctionComponent<
                                         if (i >= numberOfColumns) return null;
                                         // Sorting columns
                                         return <TableCell key={i}>
-                                            {sC ? UF.sortingColumnToValue(sC, file) : null}
+                                            {sC ? UF.sortingColumnToValue(sC, file) : null}/
                                         </TableCell>;
                                     })}
+
+                                    <TableCell textAlign="center">
+                                        {/* Launch cell */}
+                                        {
+                                            checkedFiles.size > 0 || file.fileType !== "FILE" ||
+                                            (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
+                                                fileQuickLaunchApps.length > 1 ?
+                                                    <ClickableDropdown
+                                                        width="175px"
+                                                        left="-160px"
+                                                        trigger={<Icon name="play" size="1em" />}
+                                                    >
+                                                        <FileQuickLaunchApps
+                                                            files={[file]}
+                                                            applications={fileQuickLaunchApps}
+                                                            inDropdown
+                                                            ml="-17px"
+                                                            mr="-17px"
+                                                            pl="15px"
+                                                            callback={callbacks}
+                                                        />
+                                                    </ClickableDropdown> :
+                                                    <FileQuickLaunchApps
+                                                        files={[file]}
+                                                        applications={fileQuickLaunchApps}
+                                                        callback={callbacks}
+                                                    />
+                                        }
+                                    </TableCell>
 
                                     <TableCell textAlign="center">
                                         {/* Options cell */}
@@ -900,6 +942,55 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
         {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`} />)}
     </>;
 };
+
+interface FileQuickLaunchApps extends SpaceProps {
+    files: File[];
+    applications: FileQuickLaunchApp[];
+    callback: FileQuickLaunchCallback;
+    inDropdown?: boolean;
+}
+
+const FileQuickLaunchApps = ({files, applications, ...props}: FileQuickLaunchApps) => {
+    if (applications.length === 0) return null;
+
+    const buttons: FileQuickLaunchApp[] = applications.filter(it => it.currentDirectoryMode === true);
+    const options: FileQuickLaunchApp[] = applications.filter(it => it.currentDirectoryMode !== true);
+
+
+    const Application = ({quickLaunchApp}: {quickLaunchApp: FileQuickLaunchApp}) => {
+        if (quickLaunchApp.currentDirectoryMode === true) return null;
+        // @ts-ignore
+        const filesInCallback = quickLaunchApp.currentDirectoryMode === true ? [props.directory!] : files;
+
+        let As: typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
+        if (applications.length === 1) {
+            As = OutlineButton;
+        } else if (props.inDropdown === true) {
+            As = Box;
+        } else {
+            As = Flex;
+        }
+
+        return <As
+            cursor="pointer"
+            color={quickLaunchApp.color}
+            alignItems="center"
+            onClick={() => quickLaunchApp.onClick(filesInCallback, props.callback)}
+            {...props}
+        >
+            {quickLaunchApp.icon ? <Icon size={16} mr="1em" name={quickLaunchApp.icon} /> : null}
+            <span>{quickLaunchApp.text}</span>
+        </As>;
+    };
+    return <>
+        {buttons.map((ap, i) => <Application quickLaunchApp={ap} key={`button-${i}`} />)}
+        {files.length === 0 || applications.length === 1 || props.inDropdown ? null :
+            <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
+        }
+        {options.map((ap, i) => <Application quickLaunchApp={ap} key={`opt-${i}`} />)}
+    </>;
+};
+
 
 function getSortingColumnAt(columnIndex: 0 | 1): SortBy {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
