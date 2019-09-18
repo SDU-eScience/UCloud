@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+# Check if yq is installed
+command -v yq >/dev/null 2>&1 || {
+  echo >&2 "start-dependencies requires yq, but it does not appear to be installed.
+Install by running
+
+  pip install yq
+
+Aborting..";
+  exit 1;
+}
+
 # Stop running dependencies on CTRL-C
 function cleanup() {
     printf '\nTerminating processes..\n'
