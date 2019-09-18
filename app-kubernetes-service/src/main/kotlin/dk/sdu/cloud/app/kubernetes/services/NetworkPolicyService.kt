@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.Loggable
 import io.fabric8.kubernetes.api.model.LabelSelector
 import io.fabric8.kubernetes.api.model.networking.NetworkPolicyPeer
 import io.fabric8.kubernetes.client.KubernetesClient
@@ -89,13 +91,21 @@ class NetworkPolicyService(
                 .done()
         }
 
-        spec
+        val networkPolicy = spec
             .withPodSelector(clientSelector)
             .endSpec()
             .done()
+
+        log.debug("Creating network policy with name: policy-$jobId")
+        log.info(defaultMapper.writeValueAsString(networkPolicy))
+
     }
 
     fun deletePolicy(jobId: String) {
         k8sClient.network().networkPolicies().inNamespace(namespace).withName("policy-$jobId").delete()
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
