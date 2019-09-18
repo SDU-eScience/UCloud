@@ -114,7 +114,6 @@ interface ApplicationDAO<Session> {
         user: SecurityPrincipal,
         name: String?,
         version: String?,
-        versionRange: Pair<String, String>?,
         tags: List<String>?,
         description: String?,
         paging: NormalizedPaginationRequest

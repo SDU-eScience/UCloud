@@ -151,13 +151,12 @@ class AppStoreService<DBSession>(
         user: SecurityPrincipal,
         name: String?,
         version: String?,
-        versionRange: Pair<String, String>?,
         tags: List<String>?,
         description: String?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationWithFavoriteAndTags> {
         return db.withTransaction { session ->
-            applicationDAO.advancedSearch(session, user, name, version, versionRange, tags, description, paging)
+            applicationDAO.advancedSearch(session, user, name, version, tags, description, paging)
         }
     }
 

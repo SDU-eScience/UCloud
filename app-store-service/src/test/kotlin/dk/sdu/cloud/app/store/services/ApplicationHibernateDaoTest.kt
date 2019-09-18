@@ -543,7 +543,6 @@ class ApplicationHibernateDaoTest {
                         "title",
                         "1",
                         null,
-                        null,
                         "app description",
                         NormalizedPaginationRequest(25, 0)
                     ).items.size
@@ -554,7 +553,6 @@ class ApplicationHibernateDaoTest {
                         session,
                         TestUsers.admin,
                         "title",
-                        null,
                         null,
                         null,
                         null,
@@ -570,7 +568,6 @@ class ApplicationHibernateDaoTest {
                         null,
                         null,
                         null,
-                        null,
                         NormalizedPaginationRequest(25, 0)
                     ).items.size
                 )
@@ -581,7 +578,6 @@ class ApplicationHibernateDaoTest {
                         TestUsers.admin,
                         null,
                         "1",
-                        null,
                         null,
                         null,
                         NormalizedPaginationRequest(25, 0)
@@ -596,7 +592,6 @@ class ApplicationHibernateDaoTest {
                         "2",
                         null,
                         null,
-                        null,
                         NormalizedPaginationRequest(25, 0)
                     ).items.size
                 )
@@ -605,7 +600,6 @@ class ApplicationHibernateDaoTest {
                     1, appDao.advancedSearch(
                         session,
                         TestUsers.admin,
-                        null,
                         null,
                         null,
                         listOf("A1", "A2"),
@@ -622,7 +616,6 @@ class ApplicationHibernateDaoTest {
                         null,
                         null,
                         null,
-                        null,
                         "app description",
                         NormalizedPaginationRequest(25, 0)
                     ).items.size
@@ -632,7 +625,6 @@ class ApplicationHibernateDaoTest {
                     1, appDao.advancedSearch(
                         session,
                         TestUsers.admin,
-                        null,
                         null,
                         null,
                         listOf("A2"),
@@ -647,40 +639,11 @@ class ApplicationHibernateDaoTest {
                         TestUsers.admin,
                         null,
                         null,
-                        null,
                         listOf("A1", "A3"),
                         null,
                         NormalizedPaginationRequest(25, 0)
                     ).items.size
                 )
-
-                // Part of app description
-                /* assertEquals(
-                    1, appDao.advancedSearch(
-                        session,
-                        TestUsers.admin,
-                        null,
-                        null,
-                        null,
-                        null,
-                        "description",
-                        NormalizedPaginationRequest(25, 0)
-                    ).items.size
-                )
-
-                // Wrong app description
-                assertEquals(
-                    0, appDao.advancedSearch(
-                        session,
-                        TestUsers.admin,
-                        null,
-                        null,
-                        null,
-                        null,
-                        "pap description",
-                        NormalizedPaginationRequest(25, 0)
-                    ).items.size
-                ) */
             }
         }
     }

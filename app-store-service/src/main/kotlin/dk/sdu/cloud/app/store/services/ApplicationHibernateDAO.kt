@@ -689,24 +689,16 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         name: String?,
         version: String?,
-        versionRange: Pair<String, String>?,
         tags: List<String>?,
         description: String?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationWithFavoriteAndTags> {
-        if (version != null && versionRange != null) {
-            throw RPCException.fromStatusCode(
-                HttpStatusCode.BadRequest,
-                "Version and version range can't both be defined"
-            )
-        }
+        if (name == null && version == null && tags == null && description == null)
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Must provide any argument")
 
         return preparePageForUser(session, user.username, session.paginatedCriteria<ApplicationEntity>(
             paging,
             predicate = {
-                if (name == null && version == null && versionRange == null && tags == null && description == null)
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Must provide any argument")
-
                 val namePredicate =
                     if (name != null) builder.lower(entity[ApplicationEntity::title]) like "%${name}%".toLowerCase()
                     else literal(true).toPredicate()
