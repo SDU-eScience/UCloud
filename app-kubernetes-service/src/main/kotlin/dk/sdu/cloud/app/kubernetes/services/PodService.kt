@@ -1,12 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.orchestrator.api.AddStatusJob
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
-import dk.sdu.cloud.app.orchestrator.api.JobCompletedRequest
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.StateChangeRequest
-import dk.sdu.cloud.app.orchestrator.api.SubmitComputationResult
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
@@ -18,15 +12,7 @@ import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
-import io.fabric8.kubernetes.api.model.EnvVar
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
-import io.fabric8.kubernetes.api.model.Pod
-import io.fabric8.kubernetes.api.model.PodSecurityContext
-import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
-import io.fabric8.kubernetes.api.model.Quantity
-import io.fabric8.kubernetes.api.model.ResourceRequirements
-import io.fabric8.kubernetes.api.model.VolumeMount
+import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
@@ -134,14 +120,7 @@ class PodService(
             if (condition != null && condition.type == "Failed" && condition.reason == "DeadlineExceeded") {
                 GlobalScope.launch {
                     jobManager.get(jobId).markAsFinished {
-                        ComputationCallbackDescriptions.requestStateChange.call(
-                            StateChangeRequest(
-                                jobId,
-                                JobState.TRANSFER_SUCCESS,
-                                "Job did not complete within deadline"
-                            ),
-                            serviceClient
-                        ).orThrow()
+                        changeState(jobId, JobState.TRANSFER_SUCCESS, "Job did not complete within deadline.")
 
                         ComputationCallbackDescriptions.completed.call(
                             JobCompletedRequest(
@@ -190,19 +169,13 @@ class PodService(
 
             if (isDone) {
                 val resource = allPods.first()
+                // TODO FIXME Blocking on coroutine
                 GlobalScope.launch {
                     jobManager.get(jobId).markAsFinished {
                         val duration = SimpleDuration.fromMillis(maxDurationInMillis)
                         log.info("App finished in $duration")
 
-                        ComputationCallbackDescriptions.requestStateChange.call(
-                            StateChangeRequest(
-                                jobId,
-                                JobState.TRANSFER_SUCCESS,
-                                "Job has finished. Total duration: $duration."
-                            ),
-                            serviceClient
-                        ).orThrow()
+                        changeState(jobId, JobState.TRANSFER_SUCCESS, "Job has finished. Total duration: $duration.")
 
                         transferLog(jobId, resource.metadata.name)
 
@@ -239,6 +212,8 @@ class PodService(
 
     private suspend fun transferLog(jobId: String, podName: String) {
         try {
+            // TODO FIXME will block on coroutine thread. Maybe we should schedule this on a different thread?
+            //  I guess there is no need to wait for the log to be returned?
             log.debug("Downloading log")
             val logFile = Files.createTempFile("log", ".txt").toFile()
             k8sClient.pods().inNamespace(namespace).withName(podName)
@@ -285,15 +260,20 @@ class PodService(
         }
     }
 
-    @Suppress("LongMethod")
     fun create(verifiedJob: VerifiedJob) {
         log.info("Creating new job with name: ${verifiedJob.id}")
 
-        val (sharedVolumes, sharedMounts) = sharedFileSystemMountService.createVolumesAndMounts(verifiedJob)
+        createJobs(verifiedJob)
+        GlobalScope.launch { runPostSubmissionHandlers(verifiedJob) }
+    }
 
+    private fun createJobs(verifiedJob: VerifiedJob) {
+        // We need to create and prepare some other resources as well
+        val (sharedVolumes, sharedMounts) = sharedFileSystemMountService.createVolumesAndMounts(verifiedJob)
         networkPolicyService.createPolicy(verifiedJob.id, verifiedJob.peers.map { it.jobId })
         val hostAliases = hostAliasesService.findAliasesForPeers(verifiedJob.peers)
 
+        // Create a kubernetes job for each node in our job
         repeat(verifiedJob.nodes) { rank ->
             val podName = jobName(verifiedJob.id, rank)
             k8sClient.batch().jobs().inNamespace(namespace).createNew()
@@ -400,7 +380,8 @@ class PodService(
                                                 }
                                             }.toMap()
 
-                                        val command = app.invocation.flatMap { it.buildInvocationList(givenParameters) }
+                                        val command =
+                                            app.invocation.flatMap { it.buildInvocationList(givenParameters) }
 
                                         log.debug("Container is: ${tool.container}")
                                         log.debug("Executing command: $command")
@@ -517,7 +498,12 @@ class PodService(
                                 withVolumes(
                                     volume {
                                         withName(DATA_STORAGE)
-                                        withPersistentVolumeClaim(PersistentVolumeClaimVolumeSource("cephfs", false))
+                                        withPersistentVolumeClaim(
+                                            PersistentVolumeClaimVolumeSource(
+                                                "cephfs",
+                                                false
+                                            )
+                                        )
                                     },
 
                                     volume {
@@ -533,126 +519,111 @@ class PodService(
                 }
                 .done()
         }
+    }
 
-        GlobalScope.launch {
-            // TODO FIXME This will probably run out of threads real quick
-            log.info("Awaiting container start!")
+    private suspend fun runPostSubmissionHandlers(verifiedJob: VerifiedJob) {
+        // TODO FIXME This will probably run out of threads real quick
+        log.info("Awaiting container start!")
 
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                if (verifiedJob.nodes > 1) {
-                    ComputationCallbackDescriptions.addStatus.call(
-                        AddStatusJob(
-                            verifiedJob.id,
-                            "Your job is currently waiting to be scheduled. This step might take a while."
-                        ),
-                        serviceClient
-                    )
+        @Suppress("TooGenericExceptionCaught")
+        try {
+            if (verifiedJob.nodes > 1) {
+                configureMultiNodeJob(verifiedJob)
+            }
 
-                    awaitCatching(retries = 36_000, delay = 100) {
-                        val pods = findPods(verifiedJob.id)
-                        pods.all { pod ->
-                            // Note: We are awaiting the init containers
-                            val state = pod.status.initContainerStatuses.first().state
-                            state.running != null || state.terminated != null
-                        }
-                    }
+            // We cannot really provide a better message. We truly do not know what is going on with the job.
+            // It might be pulling stuff, it might be in the queue. Really, we have no idea what is happening
+            // with it. It does not appear that Kubernetes is exposing any of this information to us.
+            //
+            // We don't really care about a failure in this one
+            verifiedJob.addStatus("Your job is currently waiting to be scheduled. This step might take a while.")
 
-                    ComputationCallbackDescriptions.addStatus.call(
-                        AddStatusJob(
-                            verifiedJob.id,
-                            "Configuring multi-node application"
-                        ),
-                        serviceClient
-                    )
+            awaitCatching(retries = 36_000 * 24, time = 100) {
+                val pods = findPods(verifiedJob.id)
+                check(pods.isNotEmpty()) { "Found no pods for job!" }
 
-                    // Now we initialize the files stored in MULTI_NODE_CONFIG
-                    val findPods = findPods(verifiedJob.id)
-
-                    log.info("Found the following pods: ${findPods.map { it.metadata.name }}")
-
-                    val podsWithIp = findPods.map {
-                        val rankLabel = it.metadata.labels[RANK_LABEL]!!.toInt()
-                        rankLabel to it.status.podIP
-                    }
-
-                    log.info(podsWithIp.toString())
-
-                    findPods.forEach { pod ->
-                        val podResource = k8sClient.pods()
-                            .inNamespace(namespace)
-                            .withName(pod.metadata.name)
-
-                        fun writeFile(path: String, contents: String) {
-                            val (_, _, ins) = podResource.execWithDefaultListener(
-                                listOf("sh", "-c", "cat > $path"),
-                                attachStdout = true,
-                                attachStdin = true,
-                                container = MULTI_NODE_CONTAINER
-                            )
-
-                            ins!!.use {
-                                it.write(contents.toByteArray())
-                            }
-                        }
-
-                        podsWithIp.forEach { (rank, ip) ->
-                            writeFile("$MULTI_NODE_DIRECTORY/node-$rank.txt", ip + "\n")
-                        }
-
-                        writeFile("$MULTI_NODE_DIRECTORY/rank.txt", pod.metadata.labels[RANK_LABEL]!! + "\n")
-                        writeFile("$MULTI_NODE_DIRECTORY/number_of_nodes.txt", verifiedJob.nodes.toString() + "\n")
-                        writeFile("$MULTI_NODE_DIRECTORY/job_id.txt", verifiedJob.id + "\n")
-                    }
-
-                    log.debug("Multi node configuration written to all nodes for ${verifiedJob.id}")
-                }
-
-                // We cannot really provide a better message. We truly do not know what is going on with the job.
-                // It might be pulling stuff, it might be in the queue. Really, we have no idea what is happening
-                // with it. It does not appear that Kubernetes is exposing any of this information to us.
-                //
-                // We don't really care about a failure in this one
-                ComputationCallbackDescriptions.addStatus.call(
-                    AddStatusJob(
-                        verifiedJob.id,
-                        "Your job is currently waiting to be scheduled. This step might take a while."
-                    ),
-                    serviceClient
-                )
-
-                awaitCatching(retries = 36_000 * 24, delay = 100) {
-                    val pods = findPods(verifiedJob.id)
-                    check(pods.isNotEmpty()) { "Found no pods for job!" }
-
-                    pods.all { pod ->
-                        // Note: We are awaiting the user container
-                        val state = pod.status.containerStatuses.first().state
-                        state.running != null || state.terminated != null
-                    }
-                }
-
-                jobManager.get(verifiedJob.id).withLock {
-                    // We need to hold the lock until we get a response to avoid race conditions.
-                    ComputationCallbackDescriptions.requestStateChange.call(
-                        StateChangeRequest(
-                            verifiedJob.id,
-                            JobState.RUNNING,
-                            "Your job is now running. You will be able to follow the logs while the job is running."
-                        ),
-                        serviceClient
-                    ).orThrow()
-                }
-            } catch (ex: Throwable) {
-                jobManager.get(verifiedJob.id).markAsFinished {
-                    log.warn("Container did not start within deadline!")
-                    ComputationCallbackDescriptions.requestStateChange.call(
-                        StateChangeRequest(verifiedJob.id, JobState.FAILURE, "Job did not start within deadline."),
-                        serviceClient
-                    ).orThrow()
+                pods.all { pod ->
+                    // Note: We are awaiting the user container
+                    val state = pod.status.containerStatuses.first().state
+                    state.running != null || state.terminated != null
                 }
             }
+
+            jobManager.get(verifiedJob.id).withLock {
+                // We need to hold the lock until we get a response to avoid race conditions.
+                changeState(
+                    verifiedJob.id,
+                    JobState.RUNNING,
+                    "Your job is now running. You will be able to follow the logs while the job is running."
+                )
+            }
+        } catch (ex: Throwable) {
+            jobManager.get(verifiedJob.id).markAsFinished {
+                log.warn("Container did not start within deadline!")
+                changeState(verifiedJob.id, JobState.FAILURE, "Job did not start within deadline.")
+            }
         }
+    }
+
+    private suspend fun configureMultiNodeJob(verifiedJob: VerifiedJob) {
+        require(verifiedJob.nodes > 1)
+
+        verifiedJob.addStatus(
+            "Your job is currently waiting to be scheduled. " +
+                    "This step might take a while."
+        )
+
+        awaitCatching(retries = 36_000, time = 100) {
+            val pods = findPods(verifiedJob.id)
+            pods.all { pod ->
+                // Note: We are awaiting the init containers
+                val state = pod.status.initContainerStatuses.first().state
+                state.running != null || state.terminated != null
+            }
+        }
+
+        verifiedJob.addStatus("Configuring multi-node application")
+
+        // Now we initialize the files stored in MULTI_NODE_CONFIG
+        val findPods = findPods(verifiedJob.id)
+
+        log.debug("Found the following pods: ${findPods.map { it.metadata.name }}")
+
+        val podsWithIp = findPods.map {
+            val rankLabel = it.metadata.labels[RANK_LABEL]!!.toInt()
+            rankLabel to it.status.podIP
+        }
+
+        log.debug(podsWithIp.toString())
+
+        findPods.forEach { pod ->
+            val podResource = k8sClient.pods()
+                .inNamespace(namespace)
+                .withName(pod.metadata.name)
+
+            fun writeFile(path: String, contents: String) {
+                val (_, _, ins) = podResource.execWithDefaultListener(
+                    listOf("sh", "-c", "cat > $path"),
+                    attachStdout = true,
+                    attachStdin = true,
+                    container = MULTI_NODE_CONTAINER
+                )
+
+                ins!!.use {
+                    it.write(contents.toByteArray())
+                }
+            }
+
+            podsWithIp.forEach { (rank, ip) ->
+                writeFile("$MULTI_NODE_DIRECTORY/node-$rank.txt", ip + "\n")
+            }
+
+            writeFile("$MULTI_NODE_DIRECTORY/rank.txt", pod.metadata.labels[RANK_LABEL]!! + "\n")
+            writeFile("$MULTI_NODE_DIRECTORY/number_of_nodes.txt", verifiedJob.nodes.toString() + "\n")
+            writeFile("$MULTI_NODE_DIRECTORY/job_id.txt", verifiedJob.id + "\n")
+        }
+
+        log.debug("Multi node configuration written to all nodes for ${verifiedJob.id}")
     }
 
     suspend fun cleanup(requestId: String) {
@@ -731,7 +702,8 @@ class PodService(
             val bufferedReader = k8sTunnel.inputStream.bufferedReader()
             bufferedReader.readLine()
 
-            val job = GlobalScope.launch(Dispatchers.IO) { // TODO FIXME Will run out of threads
+            val job = GlobalScope.launch(Dispatchers.IO) {
+                // TODO FIXME Will run out of threads
                 // Read remaining lines to avoid buffer filling up
                 bufferedReader.lineSequence().forEach {
                     // Discard line
@@ -762,6 +734,24 @@ class PodService(
                 _close = { }
             )
         }
+    }
+
+    private suspend fun VerifiedJob.addStatus(message: String) {
+        ComputationCallbackDescriptions.addStatus.call(
+            AddStatusJob(id, message),
+            serviceClient
+        )
+    }
+
+    private suspend fun changeState(
+        jobId: String,
+        state: JobState,
+        newStatus: String? = null
+    ) {
+        ComputationCallbackDescriptions.requestStateChange.call(
+            StateChangeRequest(jobId, state, newStatus),
+            serviceClient
+        ).orThrow()
     }
 
     companion object : Loggable {
