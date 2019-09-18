@@ -32,8 +32,10 @@ class RedisFeature : MicroFeature {
 
         log.info("Connected to redis")
 
+        ctx.redisConnectionManager = RedisConnectionManager(RedisClient.create("redis://$hostname"))
+
         ctx.eventStreamService = RedisStreamService(
-            RedisConnectionManager(RedisClient.create("redis://$hostname")),
+            ctx.redisConnectionManager,
             ctx.serviceDescription.name,
             ctx.serviceInstance.hostname,
             Runtime.getRuntime().availableProcessors()
@@ -52,3 +54,13 @@ class RedisFeature : MicroFeature {
         private val defaultHostNames = listOf("redis", "localhost")
     }
 }
+
+private val redisConnectionManagerKey = MicroAttributeKey<RedisConnectionManager>("redis-connection-manager")
+var Micro.redisConnectionManager: RedisConnectionManager
+    get() {
+        return attributes[redisConnectionManagerKey]
+    }
+    set(value) {
+        attributes[redisConnectionManagerKey] = value
+    }
+
