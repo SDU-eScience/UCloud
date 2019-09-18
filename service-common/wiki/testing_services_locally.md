@@ -35,10 +35,6 @@ system:
      jwt:
        sharedSecret: notverysecret
    ```
-3. Add an environment variable named `ADMINTOK` with the following token. If you are using `bash` the following can be added to your `.bashrc`:
-   ```
-   export ADMINTOK=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbkBkZXYiLCJ1aWQiOjAsImxhc3ROYW1lIjoiRGV2IiwiYXVkIjoiYWxsOndyaXRlIiwicm9sZSI6IkFETUlOIiwiaXNzIjoiY2xvdWQuc2R1LmRrIiwiZmlyc3ROYW1lcyI6IkFkbWluIiwiZXhwIjoxNTg5ODY5NDM3LCJleHRlbmRlZEJ5Q2hhaW4iOltdLCJpYXQiOjE1NTgzMzM0MzcsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsInB1YmxpY1Nlc3Npb25SZWZlcmVuY2UiOiJiZjE5NzIwNy02MDNmLTRjMjUtYmE2Mi1lMWI4MjUwYWZiMWQifQ.27xbjXVIvXMFc22kWxXF1SYqIWBkC4j4BubqlZdHnp4rTvasLDobD8ClJFXJjGVY1QaoPVxyhkHaEuT0tk7Gow
-   ```
 
 ### Running
 
