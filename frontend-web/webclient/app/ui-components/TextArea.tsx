@@ -11,6 +11,7 @@ export const TextArea = styled.textarea<{width?: string | number}>`
     color: ${({theme}) => theme.colors.black};
     padding: 5px;
     resize: none;
+    vertical-align: top;
     &:focus {
         outline: none;
     }
