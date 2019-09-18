@@ -44,6 +44,12 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
+    fun findBySupportedFileType(
+        session: Session,
+        user: SecurityPrincipal?,
+        fileType: String
+    ): Page<Application>
+
     fun findByNameAndVersion(
         session: Session,
         user: SecurityPrincipal?,

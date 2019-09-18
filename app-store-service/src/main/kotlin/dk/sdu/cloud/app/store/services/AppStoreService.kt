@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
-import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
-import dk.sdu.cloud.app.store.api.ToolReference
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -94,6 +91,19 @@ class AppStoreService<DBSession>(
             )
         }
     }
+
+    fun findBySupportedFileType(
+        securityPrincipal: SecurityPrincipal,
+        fileType: String
+    ): Page<Application> =
+        db.withTransaction {
+            applicationDAO.findBySupportedFileType(
+                it,
+                securityPrincipal,
+                fileType
+            )
+        }
+
 
     fun findByName(
         securityPrincipal: SecurityPrincipal,

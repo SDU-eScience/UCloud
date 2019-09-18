@@ -1,4 +1,3 @@
 package dk.sdu.cloud.app.store.api
 
-class FindBySupportedFileType {
-}
+data class FindBySupportedFileType(val supportedFileType: String)

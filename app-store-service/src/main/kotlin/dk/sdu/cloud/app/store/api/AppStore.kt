@@ -107,6 +107,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
         }
 
+
     val searchTags = call<TagSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("searchTags") {
         auth {
             roles = Roles.AUTHENTICATED
@@ -188,6 +189,26 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
         }
     }
+
+    val findBySupportedFileType =
+        call<FindBySupportedFileType, Page<Application>, CommonErrorMessage>("findBySupportedFileType") {
+            auth {
+                roles = Roles.AUTHENTICATED
+                access = AccessRight.READ
+            }
+
+            http {
+                path {
+                    using(baseContext)
+                    + "bySupportedFileType"
+                }
+
+                params {
+                    +boundTo(FindBySupportedFileType::supportedFileType)
+                }
+            }
+        }
+
 
     val findLatestByTool = call<FindLatestByToolRequest, FindLatestByToolResponse, CommonErrorMessage>(
         "findLatestByTool"

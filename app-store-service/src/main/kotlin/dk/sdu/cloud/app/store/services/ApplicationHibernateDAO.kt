@@ -350,6 +350,21 @@ class ApplicationHibernateDAO(
         return result
     }
 
+    override fun findBySupportedFileType(
+        session: HibernateSession,
+        user: SecurityPrincipal?,
+        fileType: String
+    ): Page<Application> {
+        // TODO
+        throw ApplicationException.NotFound()
+
+        /*val result = internal(session, name, version)
+            ?.toModelWithInvocation() ?: throw ApplicationException.NotFound()
+
+        byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
+        return result*/
+    }
+
     override fun findByNameAndVersionForUser(
         session: HibernateSession,
         user: SecurityPrincipal,
@@ -538,6 +553,14 @@ class ApplicationHibernateDAO(
             }
             .uniqueResult()
     }
+
+    // TODO
+    /*private fun internalBySupportedFileType(
+        session: HibernateSession,
+        fileType: String
+    ): Page<Application> {
+        return
+    }*/
 
     private fun findOwnerOfApplication(session: HibernateSession, applicationName: String): String? {
         return session.criteria<ApplicationEntity> {
