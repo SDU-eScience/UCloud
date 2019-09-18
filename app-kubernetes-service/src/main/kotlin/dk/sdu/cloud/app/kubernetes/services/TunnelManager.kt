@@ -21,17 +21,10 @@ class TunnelManager(
         cleanupExecutor.schedule({
             runBlocking {
                 mutex.withLock {
-                    val now = System.currentTimeMillis()
-
                     val iterator = openTunnels.iterator()
                     while (iterator.hasNext()) {
                         val (_, tunnelWithTracking) = iterator.next()
                         if (!tunnelWithTracking.tunnel.isAlive()) {
-                            iterator.remove()
-                        }
-
-                        if (now - tunnelWithTracking.lastUsed > 60_000 * 15) {
-                            tunnelWithTracking.tunnel.close()
                             iterator.remove()
                         }
                     }
@@ -42,12 +35,6 @@ class TunnelManager(
 
     fun shutdown() {
         cleanupExecutor.shutdownNow()
-    }
-
-    suspend fun refresh(id: String) {
-        mutex.withLock {
-            openTunnels[id]?.lastUsed = System.currentTimeMillis()
-        }
     }
 
     suspend fun createOrUseExistingTunnel(id: String, remotePort: Int): Tunnel {

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.app.kubernetes.watcher.api.JobEvents
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -9,21 +10,18 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.events.EventConsumer
+import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.*
 import io.fabric8.kubernetes.api.model.*
-import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
-import io.fabric8.kubernetes.client.Watcher
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import java.io.File
 import java.io.InputStream
@@ -41,48 +39,8 @@ const val DATA_STORAGE = "workspace-storage"
 const val MULTI_NODE_STORAGE = "multi-node-config"
 const val MULTI_NODE_CONTAINER = "init"
 
-private class K8JobState(val id: String) {
-    private val mutex: Mutex = Mutex()
-    var finished: Boolean = false
-        private set
-
-    suspend fun markAsFinished(block: suspend () -> Unit) {
-        mutex.withLock {
-            if (!finished) {
-                block()
-                finished = true
-            }
-        }
-    }
-
-    suspend fun withLock(block: suspend () -> Unit) {
-        mutex.withLock {
-            if (!finished) {
-                block()
-            }
-        }
-    }
-}
-
-// This manager will leak memory, but we shouldn't just delete from it when a job finishes. In fact we need it for
-// slightly after we delete a job since we will be notified about it during deletion.
-//
-// Be careful when this leak is being fixed. For now we just leave it in, it is unlikely to leak a lot of memory.
-private class JobManager {
-    private val mutex = Mutex()
-    private val states = HashMap<String, K8JobState>()
-
-    suspend fun get(jobId: String): K8JobState {
-        mutex.withLock {
-            val existing = states[jobId]
-            if (existing != null) return existing
-
-            val state = K8JobState(jobId)
-            states[jobId] = state
-            return state
-        }
-    }
-}
+const val LOCK_PREFIX = "lock-app-k8-job-"
+const val STATUS_PREFIX = "status-app-k8-job-"
 
 class PodService(
     private val k8sClient: KubernetesClient,
@@ -90,12 +48,13 @@ class PodService(
     private val networkPolicyService: NetworkPolicyService,
     private val sharedFileSystemMountService: SharedFileSystemMountService,
     private val hostAliasesService: HostAliasesService,
-    private val applicationProxyService: ApplicationProxyService,
+    private val broadcastingStream: BroadcastingStream,
+    private val eventStreamService: EventStreamService,
+    private val lockFactory: DistributedLockFactory,
+    private val stateFactory: DistributedStateFactory,
     private val namespace: String = "app-kubernetes",
     private val appRole: String = "sducloud-app"
 ) {
-    private val jobManager = JobManager()
-
     private val isRunningInsideKubernetes: Boolean by lazy {
         runCatching {
             File("/var/run/secrets/kubernetes.io").exists()
@@ -110,40 +69,47 @@ class PodService(
     private fun findPods(jobId: String?): List<Pod> =
         k8sClient.pods().inNamespace(namespace).withLabel(JOB_ID_LABEL, jobId).list().items
 
+    private fun getLock(jobId: String): DistributedLock = lockFactory.create(LOCK_PREFIX + jobId)
+    private fun getCompletionState(jobId: String): DistributedState<Boolean> =
+        stateFactory.create(STATUS_PREFIX + jobId, 1000L * 60 * 60 * 24)
+
     fun initializeListeners() {
-        fun handlePodEvent(job: Job) {
-            val jobName = job.metadata.name
-            val jobId = reverseLookupJobName(jobName) ?: return
+        eventStreamService.subscribe(JobEvents.events, EventConsumer.Immediate { (jobName, condition) ->
+            val jobId = reverseLookupJobName(jobName) ?: return@Immediate
 
             // Check for failure
-            val condition = job.status?.conditions?.firstOrNull()
             if (condition != null && condition.type == "Failed" && condition.reason == "DeadlineExceeded") {
                 GlobalScope.launch {
-                    jobManager.get(jobId).markAsFinished {
-                        changeState(jobId, JobState.TRANSFER_SUCCESS, "Job did not complete within deadline.")
+                    getLock(jobId).withLock {
+                        val state = getCompletionState(jobId)
+                        if (state.get() != true) {
+                            changeState(jobId, JobState.TRANSFER_SUCCESS, "Job did not complete within deadline.")
 
-                        ComputationCallbackDescriptions.completed.call(
-                            JobCompletedRequest(
-                                jobId,
-                                null,
-                                false
-                            ),
-                            serviceClient
-                        ).orThrow()
+                            ComputationCallbackDescriptions.completed.call(
+                                JobCompletedRequest(
+                                    jobId,
+                                    null,
+                                    false
+                                ),
+                                serviceClient
+                            ).orThrow()
+
+                            state.set(true)
+                        }
                     }
                 }
 
-                return
+                return@Immediate
             }
 
             val allPods = findPods(jobId)
-            if (allPods.isEmpty()) return
+            if (allPods.isEmpty()) return@Immediate
 
             var isDone = true
             var maxDurationInMillis = 0L
             var isSuccess = true
             for (pod in allPods) {
-                val userContainer = pod.status.containerStatuses.getOrNull(0) ?: return
+                val userContainer = pod.status.containerStatuses.getOrNull(0) ?: return@Immediate
                 val containerState = userContainer.state.terminated
 
                 if (containerState == null || containerState.startedAt == null) {
@@ -169,51 +135,36 @@ class PodService(
 
             if (isDone) {
                 val resource = allPods.first()
-                // TODO FIXME Blocking on coroutine
-                GlobalScope.launch {
-                    jobManager.get(jobId).markAsFinished {
-                        val duration = SimpleDuration.fromMillis(maxDurationInMillis)
-                        log.info("App finished in $duration")
 
-                        changeState(jobId, JobState.TRANSFER_SUCCESS, "Job has finished. Total duration: $duration.")
+                GlobalScope.launch(Dispatchers.IO) {
+                    getLock(jobId).withLock {
+                        val state = getCompletionState(jobId)
 
-                        transferLog(jobId, resource.metadata.name)
+                        if (state.get() != true) {
+                            val duration = SimpleDuration.fromMillis(maxDurationInMillis)
+                            log.info("App finished in $duration")
 
-                        log.info("Calling completed")
-                        ComputationCallbackDescriptions.completed.call(
-                            JobCompletedRequest(
+                            changeState(
                                 jobId,
-                                duration,
-                                isSuccess
-                            ),
-                            serviceClient
-                        ).orThrow()
+                                JobState.TRANSFER_SUCCESS,
+                                "Job has finished. Total duration: $duration."
+                            )
+                            transferLogAndMarkAsCompleted(jobId, resource.metadata.name, duration, isSuccess)
+                            state.set(true)
+                        }
                     }
                 }
-            }
-        }
-
-        // Handle old pods on start up
-        k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, appRole).list().items.forEach {
-            handlePodEvent(it)
-        }
-
-        // Watch for new pods
-        k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, appRole).watch(object : Watcher<Job> {
-            override fun onClose(cause: KubernetesClientException?) {
-                // Do nothing
-            }
-
-            override fun eventReceived(action: Watcher.Action, resource: Job) {
-                handlePodEvent(resource)
             }
         })
     }
 
-    private suspend fun transferLog(jobId: String, podName: String) {
+    private suspend fun transferLogAndMarkAsCompleted(
+        jobId: String,
+        podName: String,
+        duration: SimpleDuration?,
+        success: Boolean
+    ) {
         try {
-            // TODO FIXME will block on coroutine thread. Maybe we should schedule this on a different thread?
-            //  I guess there is no need to wait for the log to be returned?
             log.debug("Downloading log")
             val logFile = Files.createTempFile("log", ".txt").toFile()
             k8sClient.pods().inNamespace(namespace).withName(podName)
@@ -233,30 +184,35 @@ class PodService(
                 serviceClient
             ).orThrow()
         } catch (ex: KubernetesClientException) {
-            if (ex.code == 400 || ex.code == 404) {
-                // Assume that this is because there is no log to retrieve
-                return
+            // Assume that this is because there is no log to retrieve
+            if (ex.code != 400 && ex.code != 404) {
+                throw ex
             }
-
-            throw ex
         }
+
+        ComputationCallbackDescriptions.completed.call(
+            JobCompletedRequest(jobId, duration, success),
+            serviceClient
+        ).orThrow()
     }
 
-    suspend fun cancel(verifiedJob: VerifiedJob) {
+    fun cancel(verifiedJob: VerifiedJob) {
         val pod = findPods(verifiedJob.id).firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        jobManager.get(verifiedJob.id).markAsFinished {
-            transferLog(verifiedJob.id, pod.metadata.name)
+        GlobalScope.launch(Dispatchers.IO) {
+            getLock(verifiedJob.id).withLock {
+                val state = getCompletionState(verifiedJob.id)
+                if (state.get() != true) {
+                    transferLogAndMarkAsCompleted(verifiedJob.id, pod.metadata.name, null, true)
 
-            k8sClient.batch().jobs()
-                .inNamespace(namespace)
-                .withLabel(ROLE_LABEL, appRole)
-                .withLabel(JOB_ID_LABEL, verifiedJob.id)
-                .delete()
+                    k8sClient.batch().jobs()
+                        .inNamespace(namespace)
+                        .withLabel(ROLE_LABEL, appRole)
+                        .withLabel(JOB_ID_LABEL, verifiedJob.id)
+                        .delete()
 
-            ComputationCallbackDescriptions.completed.call(
-                JobCompletedRequest(verifiedJob.id, null, true),
-                serviceClient
-            ).orThrow()
+                    state.set(true)
+                }
+            }
         }
     }
 
@@ -549,7 +505,7 @@ class PodService(
                 }
             }
 
-            jobManager.get(verifiedJob.id).withLock {
+            getLock(verifiedJob.id).withLock {
                 // We need to hold the lock until we get a response to avoid race conditions.
                 changeState(
                     verifiedJob.id,
@@ -558,9 +514,13 @@ class PodService(
                 )
             }
         } catch (ex: Throwable) {
-            jobManager.get(verifiedJob.id).markAsFinished {
-                log.warn("Container did not start within deadline!")
-                changeState(verifiedJob.id, JobState.FAILURE, "Job did not start within deadline.")
+            getLock(verifiedJob.id).withLock {
+                val state = getCompletionState(verifiedJob.id)
+                if (state.get() != true) {
+                    log.warn("Container did not start within deadline!")
+                    changeState(verifiedJob.id, JobState.FAILURE, "Job did not start within deadline.")
+                    state.set(true)
+                }
             }
         }
     }
@@ -628,7 +588,7 @@ class PodService(
 
     suspend fun cleanup(requestId: String) {
         try {
-            applicationProxyService.removeEntry(requestId)
+            broadcastingStream.broadcast(ProxyEvent(requestId, shouldCreate = false), ProxyEvents.events)
         } catch (ignored: Throwable) {
             // Ignored
         }

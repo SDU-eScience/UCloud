@@ -1,30 +1,14 @@
 package dk.sdu.cloud.app.kubernetes
 
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
-import dk.sdu.cloud.app.kubernetes.services.ApplicationProxyService
-import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
-import dk.sdu.cloud.app.kubernetes.services.EnvoyConfigurationService
-import dk.sdu.cloud.app.kubernetes.services.HostAliasesService
-import dk.sdu.cloud.app.kubernetes.services.NetworkPolicyService
-import dk.sdu.cloud.app.kubernetes.services.PodService
-import dk.sdu.cloud.app.kubernetes.services.SharedFileSystemMountService
-import dk.sdu.cloud.app.kubernetes.services.TunnelManager
-import dk.sdu.cloud.app.kubernetes.services.VncService
-import dk.sdu.cloud.app.kubernetes.services.WebService
+import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.serviceInstance
-import dk.sdu.cloud.micro.tokenValidation
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.*
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.ktor.routing.routing
+import kotlinx.coroutines.runBlocking
 import java.io.File
 
 class Server(override val micro: Micro, private val configuration: Configuration) : CommonServer {
@@ -70,11 +54,11 @@ class Server(override val micro: Micro, private val configuration: Configuration
             }
         }
 
-        val applicationProxyService = ApplicationProxyService(
-            envoyConfigurationService,
-            prefix = configuration.prefix,
-            domain = configuration.domain
-        )
+        val jobCache = VerifiedJobCache(serviceClient)
+        val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
+
+        val lockFactory = DistributedLockBestEffortFactory(micro)
+        val distributedStateFactory = RedisDistributedStateFactory(micro)
 
         val sharedFileSystemMountService = SharedFileSystemMountService()
         val podService = PodService(
@@ -84,23 +68,37 @@ class Server(override val micro: Micro, private val configuration: Configuration
             appRole = appRole,
             sharedFileSystemMountService = sharedFileSystemMountService,
             hostAliasesService = hostAliasesService,
-            applicationProxyService = applicationProxyService
+            eventStreamService = micro.eventStreamService,
+            lockFactory = lockFactory,
+            stateFactory = distributedStateFactory,
+            broadcastingStream = broadcastingStream
         )
 
         val authenticationService = AuthenticationService(serviceClient, micro.tokenValidation)
         tunnelManager = TunnelManager(podService)
         tunnelManager.install()
 
+        val applicationProxyService = ApplicationProxyService(
+            envoyConfigurationService,
+            prefix = configuration.prefix,
+            domain = configuration.domain,
+            jobCache = jobCache,
+            tunnelManager = tunnelManager,
+            broadcastingStream = broadcastingStream
+        )
+        runBlocking {
+            applicationProxyService.initializeListener()
+        }
+
         val vncService = VncService(tunnelManager)
         val webService = WebService(
-            serviceClient = serviceClient,
             authenticationService = authenticationService,
-            tunnelManager = tunnelManager,
             performAuthentication = configuration.performAuthentication,
             cookieName = configuration.cookieName,
-            applicationProxyService = applicationProxyService,
             prefix = configuration.prefix,
-            domain = configuration.domain
+            domain = configuration.domain,
+            broadcastingStream = broadcastingStream,
+            jobCache = jobCache
         )
 
         podService.initializeListeners()
