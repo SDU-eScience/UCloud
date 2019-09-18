@@ -10,7 +10,8 @@ import {
     right,
     RightProps,
     top,
-    TopProps
+    TopProps,
+    HeightProps,
 } from "styled-system";
 import {Button} from "ui-components";
 import {Cursor} from "./Types";
@@ -18,7 +19,7 @@ import {Cursor} from "./Types";
 interface FullWidthProps {fullWidth?: boolean;}
 const useFullWidth = ({fullWidth}: FullWidthProps) => fullWidth ? {width: "100%"} : null;
 
-export const Dropdown = styled.div<{hover?: boolean, fullWidth?: boolean}>`
+export const Dropdown = styled.div<DropdownProps>`
     position: relative;
     display: inline-block;
     ${useFullWidth};
@@ -31,6 +32,11 @@ export const Dropdown = styled.div<{hover?: boolean, fullWidth?: boolean}>`
 
 Dropdown.defaultProps = {
     hover: true
+};
+
+interface DropdownProps {
+    hover?: boolean, 
+    fullWidth?: boolean
 };
 
 export const DropdownContent = styled.div<DropdownContentProps>`
@@ -91,12 +97,11 @@ DropdownContent.defaultProps = {
 
 Dropdown.displayName = "Dropdown";
 
-interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps {
+interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps, HeightProps {
     hover?: boolean;
     width?: string | number;
     disabled?: boolean;
     overflow?: string;
-    height?: string | number;
     minWidth?: string;
     maxHeight?: number | string;
     cursor?: Cursor;

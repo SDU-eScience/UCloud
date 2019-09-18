@@ -272,7 +272,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 <Heading.h4>Select additional folders to use</Heading.h4>
                                             </Box>
 
-                                            <Button type="button" ml="5px" onClick={() => this.addFolder()} height={35}>
+                                            <Button type="button" ml="5px" lineHeight={"16px"} onClick={() => this.addFolder()}>
                                                 Add folder
                                             </Button>
                                         </Flex>
@@ -369,7 +369,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         </Box>
                                         <Button
                                             type={"button"}
-                                            height={35}
+                                            lineHeight={"16px"}
                                             onClick={() => this.connectToJob()}
                                         >
                                             Connect to job
