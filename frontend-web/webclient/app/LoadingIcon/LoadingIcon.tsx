@@ -1,78 +1,78 @@
 import * as React from "react";
-import styled, { keyframes } from 'styled-components'
+import styled, { css, keyframes } from 'styled-components'
 import { width, height, HeightProps, WidthProps } from "styled-system";
 
 
-type CubeGridProps = { size: number }
-const CubeGrid = ({ size }: CubeGridProps) => {
+type HexSpinProps = { size?: number }
+const HexSpin = ({ size = 32 }: HexSpinProps) => {
     type SpinnerProps = WidthProps & HeightProps;
 
-    const Spinner = styled.div<SpinnerProps>`
-        position: relative;
-        margin: 20px auto;
-        ${width}
-        ${height}
-    `;
-    const grid = keyframes`
-        0%,
-        70%,
-        100% {
-        transform: scale3D(1, 1, 1);
-        }
-        35% {
-        transform: scale3D(0, 0, 1);
-        }
-    `;
-    const Cube = styled.div`
-		width: 33.3333%;
-		height: 33.3333%;
-		background-color: ${props => props.theme.colors.spinnerColor};
-		float: left;
-		animation: ${grid} 1.3s infinite ease-in-out;
-	`;
+    const hexColors = ["#0057B8", "#82A", "#266D7F",  "#F8A527", "#F11E4A"];
+    const nColors = hexColors.length;
 
-    const Cube1 = styled(Cube)`
-		animation-delay: 0.2s;
-	`;
-    const Cube2 = styled(Cube)`
-		animation-delay: 0.3s;
-	`;
-    const Cube3 = styled(Cube)`
-		animation-delay: 0.4s;
-	`;
-    const Cube4 = styled(Cube)`
-		animation-delay: 0.1s;
-	`;
-    const Cube5 = styled(Cube)`
-		animation-delay: 0.2s;
-	`;
-    const Cube6 = styled(Cube)`
-		animation-delay: 0.3s;
-	`;
-    const Cube7 = styled(Cube)`
-		animation-delay: 0s;
-	`;
-    const Cube8 = styled(Cube)`
-		animation-delay: 0.1s;
-	`;
-    const Cube9 = styled(Cube)`
-		animation-delay: 0.2s;
-	`;
+    function createKF() {
+      let kf = ``;
+      for (let i = 0; i < nColors; i += 1) {
+         kf += `${i*100/nColors}% { fill: ${hexColors[i]}; }`
+      }
+      kf += `100% { fill: ${hexColors[0]}; }`
+      return css`${kf}`;
+    }
 
+    const spinColor = keyframes`
+      ${createKF()}
+    `;
+
+    const delay = 0.04;
+    const pathN = 18;
+
+    function createCSS() {
+      let style = ``;
+      for (let i = 1; i <= pathN; i += 1) {
+         style += `
+          path:nth-child(${i}) {
+            animation: ${spinColor.getName()} ${delay*pathN}s linear infinite;
+            animation-delay: -${i*delay}s; 
+          }
+         `
+      }
+      return css`${style}`;
+    }
+
+    const HexSpinner = styled.div<SpinnerProps>`
+      ${width} ${height}
+      margin: 20px auto;
+      & > svg {
+        ${createCSS()};
+      }
+      animation-name: ${spinColor};
+    `;
+    
     return (
-        <Spinner width={size} height={size}>
-            <Cube1 />
-            <Cube2 />
-            <Cube3 />
-            <Cube4 />
-            <Cube5 />
-            <Cube6 />
-            <Cube7 />
-            <Cube8 />
-            <Cube9 />
-        </Spinner>
-    )
+      <HexSpinner width={size} height={size} >
+        <svg xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" version="1.1" id="svg" width={size} height={size} viewBox="0 0 220 220" >
+          <path d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"/>
+          <path d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"  />
+          <path d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"  />
+          <path d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"  />
+          <path d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"  />
+          <path d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"  />
+          <path d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"  />
+          <path d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"  />
+          <path d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"  />
+          <path d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"  />
+          <path d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"  />
+          <path d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"  />
+          <path d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"  />
+          <path d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"  />
+          <path d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"  />
+          <path d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"  />
+          <path d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"  />
+          <path d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"  />
+        </svg>
+      </HexSpinner>
+    )  
 };
 
-export default CubeGrid
+export default HexSpin
 
