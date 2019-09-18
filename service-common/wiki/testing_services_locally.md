@@ -48,10 +48,11 @@ emulator by running:
     redis-server
     ```
 
-2. From the root of the SDUCloud repository, run
-
+2. Execute the `start-dependencies` script, located in 
+   `infrastructure/scripts/`, i.e. 
+    
     ```
-    bash infrastructure/scripts/start-dependencies --target [service_name]
+    ./start-dependencies --target [service_name]
     ```
     
     where `[service_name]` is the name of the backend service you want
@@ -62,8 +63,8 @@ emulator by running:
     bash infrastructure/scripts/start-dependencies --target storage
     ```
     
-    If in doubt of the name of the service, refer to the name in the
-    `service.yml` file of the service. 
+    __NOTE__ If in doubt of the name of the service, refer to the name in the
+    `service.yml` file of the service, i.e. `storage-service/service.yml`.
     
     If everything have been set up correctly, the output should similar
     to:
@@ -113,8 +114,8 @@ emulator by running:
     This will return a JavaScript snippet. Go to [localhost:9000](http://localhost:9000)
     and copy and paste the snippet into your browsers' developer console.
     
-    __HINT__ In Firefox the developer console can be reached by pressing
-    Ctrl-Shift-K.
+    __NOTE__ In most browsers the developer console can be reached by pressing
+    \[F12\] and switching to the _Console_ tab
     
     You should now be authenticated, and ready to test your changes.
     
