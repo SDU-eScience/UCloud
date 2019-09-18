@@ -72,7 +72,7 @@ class ReindexService(
     ) {
         getAllLogNamesWithPrefix(elastic, prefix, delimiter).forEach {
             val fromIndices = mutableListOf<String>()
-            println(it + delimiter + LocalDate.now().minusDays(daysInPast).toString().replace("-", ".") + "_*")
+
             for (i in 0..6) {
                 val index = it +
                         delimiter +
