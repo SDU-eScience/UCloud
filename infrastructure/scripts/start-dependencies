@@ -2,17 +2,22 @@
 
 # Stop running dependencies on CTRL-C
 function cleanup() {
-    echo 'Terminating processes..'
+    printf '\nTerminating processes..\n'
     exec `ps aux | grep MainKt | grep dk.sdu.cloud | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
     exec `ps aux | grep dependencies-frontend-server | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
     exec `ps aux | grep FrontendHelperKt | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
-    echo 'Done!'
+    printf 'Done!\n'
 }
-
 trap cleanup SIGINT SIGTERM
 
+script_dir="$(dirname "$0")"
+start_dir=$PWD
+
+cd "$script_dir"
+cd "../../"
 set -e
-script=`dirname "$0"`/development-utils/src/main/kotlin/Main.kt
-output=`kscript "$script" "$@"`
-bash $output
+script="infrastructure/scripts/development-utils/src/main/kotlin/Main.kt"
+output=$(kscript "$script" "$@")
+bash "$output"
+cd "$start_dir"
 wait
