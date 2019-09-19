@@ -26,8 +26,8 @@ export const BaseParameter: React.FunctionComponent<{
                 </Flex>
                 {!parameter.optional || !onRemove ? null :
                     <>
-                        <Box ml="auto" />
-                        <Text cursor="pointer" mb="4px" onClick={onRemove}>
+                        <Box ml="auto"/>
+                        <Text color="red" cursor="pointer" mb="4px" onClick={onRemove}>
                             Remove
                             <Icon ml="6px" size={16} name="close" />
                         </Text>

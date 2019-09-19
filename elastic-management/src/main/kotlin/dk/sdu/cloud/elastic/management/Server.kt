@@ -60,6 +60,7 @@ class Server(
                 deleteService.deleteExpiredAllIndices()
                 val shrinkService = ShrinkService(elasticHighLevelClient, config.gatherNode)
                 shrinkService.shrink()
+                deleteService.deleteOldRancherLogs()
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
@@ -71,7 +72,7 @@ class Server(
             @Suppress("TooGenericExceptionCaught")
             try {
                 val reindexService = ReindexService(elasticHighLevelClient)
-                reindexService.reindexLogsWithPrefixAWeekBackFrom(1, "http_logs", elasticLowLevelClient)
+                reindexService.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", elasticLowLevelClient)
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
@@ -84,6 +85,18 @@ class Server(
             try {
                 val reindexService = ReindexService(elasticHighLevelClient)
                 reindexService.reduceLastMonth("http_logs", lowLevelClient = elasticLowLevelClient)
+                exitProcess(0)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                exitProcess(1)
+            }
+        }
+
+        if (micro.commandLineArguments.contains("--reduceLastQuarter")) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                val reindexService = ReindexService(elasticHighLevelClient)
+                reindexService.reduceLastQuarter("http_logs", lowLevelClient = elasticLowLevelClient)
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())

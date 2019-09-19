@@ -81,7 +81,7 @@ class UsageContainer extends React.Component<UsageProps> {
             />;
         } else {
             if (!!usage.error) return usage.error.errorMessage;
-            else return <Spinner size={24} />;
+            else return <Spinner />;
         }
     }
 

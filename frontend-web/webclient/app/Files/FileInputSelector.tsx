@@ -3,8 +3,7 @@ import FileSelector from "Files/FileSelector";
 import * as React from "react";
 import {useState} from "react";
 import styled from "styled-components";
-import Button from "ui-components/Button";
-import Flex from "ui-components/Flex";
+import { Button, Flex, Icon } from "ui-components";
 import Input, {InputLabel} from "ui-components/Input";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 
@@ -67,7 +66,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
                 />
                 {
                     !props.unitName ? null :
-                        <InputLabel width={props.unitWidth || "auto"} rightLabel>
+                        <InputLabel width={props.unitWidth || "auto"} backgroundColor="lightBlue" rightLabel>
                             {props.unitName}
                         </InputLabel>
                 }
@@ -88,5 +87,5 @@ interface FileSelectorButton {
 
 const UploadButton = ({onClick}: FileSelectorButton) => (
     <Button ml="5px" height={"35px"} type="button" onClick={onClick}>Upload File</Button>);
-const RemoveButton = ({onClick}: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>✗</Button>);
+const RemoveButton = ({onClick}: FileSelectorButton) => (<Button color={"red"} ml={"8px"} onClick={onClick}><Icon name="close" size="1em"/></Button>);
 
