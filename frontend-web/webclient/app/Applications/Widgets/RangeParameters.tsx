@@ -18,8 +18,8 @@ function RangeParameter(props: RangeParameterProps) {
         return [props.parameter.min, props.parameter.max];
     });
 
-    if (ref.current != null) {
-        const {bounds} = ref.current.state;
+    if (props.parameterRef.current != null) {
+        const {bounds} = props.parameterRef.current.state;
         if (bounds[0] !== values[0] || bounds[1] !== values[1]) {
             setValues(bounds);
         }

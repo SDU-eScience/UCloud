@@ -1,14 +1,15 @@
 import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
-import {FileInputSelector} from "Files/FileInputSelector";
-import {addTrailingSlash} from "UtilityFunctions";
-import {replaceHomeFolder, resolvePath} from "Utilities/FileUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {FileInputSelector} from "Files/FileInputSelector";
 import * as React from "react";
+import {replaceHomeFolder, resolvePath} from "Utilities/FileUtilities";
+import {addTrailingSlash} from "UtilityFunctions";
 
 interface InputFileParameterProps extends ParameterProps {
-    onRemove?: () => void ;
-    defaultValue?: string ;
-    unitWidth?: string | number ;
+    onRemove?: () => void;
+    defaultValue?: string;
+    unitWidth?: string | number;
+    parameterRef: React.RefObject<HTMLInputElement>;
 }
 
 export const InputFileParameter = (props: InputFileParameterProps) => (

@@ -11,7 +11,7 @@ export default function Playground() {
         main={<RangeParameter
             parameter={first as any}
             application={app}
-            parameterRef={ref}
+            parameterRef={ref as any}
             initialSubmit={false}
         />}
     />);

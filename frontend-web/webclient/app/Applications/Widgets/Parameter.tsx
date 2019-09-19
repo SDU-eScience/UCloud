@@ -10,13 +10,15 @@ import {PeerParameter} from "Applications/Widgets/PeerParameter";
 import {SharedFileSystemParameter} from "Applications/Widgets/SharedFileSystemParameter";
 
 export const Parameter = (props: ParameterProps) => {
-    let component = (<div/>);
+    let component = (<div />);
     switch (props.parameter.type) {
-        case Types.ParameterTypes.InputFile:
-            component = <InputFileParameter {...props} />;
-            break;
+        case Types.ParameterTypes.InputFile:{
+            const p = {...props, parameterRef: props.parameterRef as React.RefObject<HTMLInputElement>}
+            component = <InputFileParameter {...p} />;
+            break;}
         case Types.ParameterTypes.InputDirectory:
-            component = <InputDirectoryParameter {...props} />;
+            const p = {...props, parameterRef: props.parameterRef as React.RefObject<HTMLInputElement>}
+            component = <InputDirectoryParameter {...p} />;
             break;
         case Types.ParameterTypes.Integer:
             component = <IntegerParameter
