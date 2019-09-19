@@ -1,27 +1,27 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { loadingEvent } from "LoadableContent";
-import { HeaderActions, setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/HeaderActions";
-import { setActivePage, StatusActions, updatePageTitle } from "Navigation/Redux/StatusActions";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {loadingEvent} from "LoadableContent";
+import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
-import { Page } from "Types";
-import { WithAppFavorite, WithAppMetadata, FullAppInfo } from ".";
-import { Dispatch } from "redux";
-import { ReduxObject, emptyPage } from "DefaultObjects";
-import { MainContainer } from "MainContainer/MainContainer";
-import { ApplicationCard, CardToolContainer, SmallCard, hashF, Tag } from "./Card";
+import {Page} from "Types";
+import {WithAppMetadata, FullAppInfo} from ".";
+import {Dispatch} from "redux";
+import {ReduxObject, emptyPage} from "DefaultObjects";
+import {MainContainer} from "MainContainer/MainContainer";
+import {ApplicationCard, CardToolContainer, SmallCard, hashF, Tag} from "./Card";
 import * as Heading from "ui-components/Heading";
-import { Link, Box, Flex } from "ui-components";
+import {Link, Box, Flex} from "ui-components";
 import Grid from "ui-components/Grid";
-import { getQueryParam, RouterLocationProps, getQueryParamOrElse } from "Utilities/URIUtilities";
+import {getQueryParam, RouterLocationProps, getQueryParamOrElse} from "Utilities/URIUtilities";
 import * as Pages from "./Pages";
-import { Type as ReduxType } from "./Redux/BrowseObject";
+import {Type as ReduxType} from "./Redux/BrowseObject";
 import * as Actions from "./Redux/BrowseActions";
-import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
-import { SidebarPages } from "ui-components/Sidebar";
-import { Spacer } from "ui-components/Spacer";
+import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
+import {SidebarPages} from "ui-components/Sidebar";
+import {Spacer} from "ui-components/Spacer";
 import theme from "ui-components/theme";
-import { connect } from "react-redux";
+import {connect} from "react-redux";
 import styled from "styled-components";
 const bedtoolsImg = require("Assets/Images/APPTools/bedtools.png");
 const cellrangerImg = require("Assets/Images/APPTools/10xGenomics.png");
@@ -33,7 +33,7 @@ const macs2Img = require("Assets/Images/APPTools/macslogo.png");
 const salmonImg = require("Assets/Images/APPTools/salmonlogo2.png");
 const samtoolsImg = require("Assets/Images/APPTools/gene-samtools.png");
 
-const ShowAllTagItem: React.FunctionComponent<{ tag?: string }> = props => (
+const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
@@ -70,7 +70,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
     }
 
     public async componentDidMount() {
-        const { props } = this;
+        const {props} = this;
         props.onInit();
 
         this.props.receiveAppsByKey(25, 0, "Featured");
@@ -92,7 +92,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
     }
 
     public render() {
-        const { applications } = this.props;
+        const {applications} = this.props;
         const featured = applications.has("Featured") ? applications.get("Featured") : emptyPage;
         const main = (
             <>
@@ -103,8 +103,8 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                             {<Box>
                                 {<Spacer pt="15px" left={<Heading.h2>Featured</Heading.h2>} right={<ShowAllTagItem tag="Featured"><Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />}
                             </Box>}
-                            <Box pl="10px" pb="5px" style={{ overflow: "none", overflowX: "scroll" }}>
-                                <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{ gridAutoFlow: "column" }}>
+                            <Box pl="10px" pb="5px" style={{overflow: "none", overflowX: "scroll"}}>
+                                <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{gridAutoFlow: "column"}}>
                                     {page.items.map((app, index) =>
                                         <ApplicationCard
                                             key={index}
@@ -176,7 +176,7 @@ const ScrollBox = styled(Box)`
     overflow-x: scroll;
 `;
 
-const ToolGroup_ = (props: { tag: string; page: Page<FullAppInfo> }) => {
+const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
@@ -249,11 +249,11 @@ function tagToImage(tag: string): string {
 }
 
 
-const mapToolGroupStateToProps = ({ applicationsBrowse }: ReduxObject, ownProps: { tag: string }): { page: Page<WithAppMetadata> } => {
-    const { applications } = applicationsBrowse;
+const mapToolGroupStateToProps = ({applicationsBrowse}: ReduxObject, ownProps: {tag: string}): {page: Page<WithAppMetadata>} => {
+    const {applications} = applicationsBrowse;
     const page = applications.get(ownProps.tag);
-    if (page != null) return { page };
-    return { page: emptyPage };
+    if (page != null) return {page};
+    return {page: emptyPage};
 }
 
 const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_)
@@ -268,12 +268,12 @@ const mapDispatchToProps = (
     },
 
     fetchByTag: async (tag: string, itemsPerPage: number, page: number) => {
-        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetchByTag(tag, itemsPerPage, page));
     },
 
     fetchDefault: async (itemsPerPage: number, page: number) => {
-        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetch(itemsPerPage, page));
     },
 
@@ -285,10 +285,10 @@ const mapDispatchToProps = (
 
 function getColorFromName(name: string): [string, string, string] {
     const hash = hashF(name);
-    const number = (hash >>> 22) % (theme.appColors.length - 1);
-    return theme.appColors[number] as [string, string, string];
+    const num = (hash >>> 22) % (theme.appColors.length - 1);
+    return theme.appColors[num] as [string, string, string];
 }
 
-const mapStateToProps = ({ applicationsBrowse }: ReduxObject): ReduxType & { mapSize } => ({ ...applicationsBrowse, mapSize: applicationsBrowse.applications.size });
+const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {mapSize} => ({...applicationsBrowse, mapSize: applicationsBrowse.applications.size});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);
