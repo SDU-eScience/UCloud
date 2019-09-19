@@ -22,109 +22,137 @@ exports[`RunApp component Mount 1`] = `
 }
 
 .c3 {
-  position: relative;
-  margin: 20px auto;
   width: 18px;
   height: 18px;
+  margin: 20px auto;
+  -webkit-animation-name: cIivWO;
+  animation-name: cIivWO;
 }
 
-.c4 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0.2s;
-  animation-delay: 0.2s;
+.c3 > svg path:nth-child(1) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.04s;
+  animation-delay: -0.04s;
 }
 
-.c5 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0.3s;
-  animation-delay: 0.3s;
+.c3 > svg path:nth-child(2) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.08s;
+  animation-delay: -0.08s;
 }
 
-.c6 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0.4s;
-  animation-delay: 0.4s;
+.c3 > svg path:nth-child(3) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.12s;
+  animation-delay: -0.12s;
 }
 
-.c7 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0.1s;
-  animation-delay: 0.1s;
+.c3 > svg path:nth-child(4) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.16s;
+  animation-delay: -0.16s;
 }
 
-.c8 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0.2s;
-  animation-delay: 0.2s;
+.c3 > svg path:nth-child(5) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.2s;
+  animation-delay: -0.2s;
 }
 
-.c9 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0.3s;
-  animation-delay: 0.3s;
+.c3 > svg path:nth-child(6) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.24s;
+  animation-delay: -0.24s;
 }
 
-.c10 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0s;
-  animation-delay: 0s;
+.c3 > svg path:nth-child(7) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.28s;
+  animation-delay: -0.28s;
 }
 
-.c11 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0.1s;
-  animation-delay: 0.1s;
+.c3 > svg path:nth-child(8) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.32s;
+  animation-delay: -0.32s;
 }
 
-.c12 {
-  width: 33.3333%;
-  height: 33.3333%;
-  background-color: #006aff;
-  float: left;
-  -webkit-animation: kXNajp 1.3s infinite ease-in-out;
-  animation: kXNajp 1.3s infinite ease-in-out;
-  -webkit-animation-delay: 0.2s;
-  animation-delay: 0.2s;
+.c3 > svg path:nth-child(9) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.36s;
+  animation-delay: -0.36s;
+}
+
+.c3 > svg path:nth-child(10) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.4s;
+  animation-delay: -0.4s;
+}
+
+.c3 > svg path:nth-child(11) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.44s;
+  animation-delay: -0.44s;
+}
+
+.c3 > svg path:nth-child(12) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.48s;
+  animation-delay: -0.48s;
+}
+
+.c3 > svg path:nth-child(13) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.52s;
+  animation-delay: -0.52s;
+}
+
+.c3 > svg path:nth-child(14) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.56s;
+  animation-delay: -0.56s;
+}
+
+.c3 > svg path:nth-child(15) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.6s;
+  animation-delay: -0.6s;
+}
+
+.c3 > svg path:nth-child(16) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.64s;
+  animation-delay: -0.64s;
+}
+
+.c3 > svg path:nth-child(17) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.68s;
+  animation-delay: -0.68s;
+}
+
+.c3 > svg path:nth-child(18) {
+  -webkit-animation: cIivWO 0.72s linear infinite;
+  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation-delay: -0.72s;
+  animation-delay: -0.72s;
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
@@ -162,33 +190,70 @@ exports[`RunApp component Mount 1`] = `
       height={18}
       width={18}
     >
-      <div
-        className="c4"
-      />
-      <div
-        className="c5"
-      />
-      <div
-        className="c6"
-      />
-      <div
-        className="c7"
-      />
-      <div
-        className="c8"
-      />
-      <div
-        className="c9"
-      />
-      <div
-        className="c10"
-      />
-      <div
-        className="c11"
-      />
-      <div
-        className="c12"
-      />
+      <svg
+        height={18}
+        id="svg"
+        version="1.1"
+        viewBox="0 0 220 220"
+        width={18}
+        xmlns="http://www.w3.org/2000/svg"
+        xmlnsXlink="http://www.w3.org/1999/xlink"
+      >
+        <path
+          d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+        />
+        <path
+          d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"
+        />
+        <path
+          d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+        />
+        <path
+          d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"
+        />
+        <path
+          d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+        />
+        <path
+          d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"
+        />
+        <path
+          d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"
+        />
+        <path
+          d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"
+        />
+        <path
+          d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+        />
+        <path
+          d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"
+        />
+        <path
+          d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"
+        />
+        <path
+          d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"
+        />
+        <path
+          d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+        />
+        <path
+          d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+        />
+        <path
+          d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+        />
+        <path
+          d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+        />
+        <path
+          d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+        />
+        <path
+          d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+        />
+      </svg>
     </div>
   </div>
 </div>
