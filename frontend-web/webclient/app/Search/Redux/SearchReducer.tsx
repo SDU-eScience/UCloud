@@ -6,9 +6,9 @@ export const RECEIVE_SIMPLE_FILES_PAGE = "RECEIVE_SIMPLE_FILES_PAGE";
 export const RECEIVE_SIMPLE_APPLICATIONS_PAGE = "RECEIVE_SIMPLE_FILES_PAGE";
 export const SET_SIMPLE_SEARCH_SEARCH = "SET_SIMPLE_SEARCH_SEARCH";
 
-import {SimpleSearchActions} from "./SearchActions";
 import {initSimpleSearch} from "DefaultObjects";
 import {SimpleSearchStateProps} from "Search";
+import {SimpleSearchActions} from "./SearchActions";
 
 const simpleSearch = (
     state: SimpleSearchStateProps = initSimpleSearch(),
@@ -31,7 +31,7 @@ const simpleSearch = (
             }
             return {...state, ...action.payload, errors: []};
         default:
-            return state
+            return state;
     }
 };
 

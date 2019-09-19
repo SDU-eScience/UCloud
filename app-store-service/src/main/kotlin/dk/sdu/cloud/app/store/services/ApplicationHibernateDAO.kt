@@ -2,26 +2,15 @@ package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationMetadata
-import dk.sdu.cloud.app.store.api.ApplicationSummary
-import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
-import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
-import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.createCriteriaBuilder
-import dk.sdu.cloud.service.db.createQuery
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
-import dk.sdu.cloud.service.db.paginatedList
-import dk.sdu.cloud.service.db.typedQuery
+import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
+import org.hibernate.query.Query
 import java.util.*
 
 @Suppress("TooManyFunctions") // Does not make sense to split
@@ -33,20 +22,9 @@ class ApplicationHibernateDAO(
     override fun toggleFavorite(session: HibernateSession, user: SecurityPrincipal, name: String, version: String) {
         val foundApp = internalByNameAndVersion(session, name, version) ?: throw ApplicationException.BadApplication()
 
-        val isFavorite = session.typedQuery<Long>(
-            """
-                select count (A.applicationName)
-                from FavoriteApplicationEntity as A
-                where A.user = :user
-                    and A.applicationName = :name
-                    and A.applicationVersion= :version
-            """.trimIndent()
-        ).setParameter("user", user.username)
-            .setParameter("name", name)
-            .setParameter("version", version)
-            .uniqueResult()
+        val isFavorite = isFavorite(session, user, name, version)
 
-        if (isFavorite != 0L) {
+        if (isFavorite) {
             val query = session.createQuery(
                 """
                 delete from FavoriteApplicationEntity as A
@@ -68,6 +46,21 @@ class ApplicationHibernateDAO(
                 )
             )
         }
+    }
+
+    private fun isFavorite(session: HibernateSession, user: SecurityPrincipal, name: String, version: String): Boolean {
+        return 0L != session.typedQuery<Long>(
+            """
+                select count (A.applicationName)
+                from FavoriteApplicationEntity as A
+                where A.user = :user
+                    and A.applicationName = :name
+                    and A.applicationVersion= :version
+            """.trimIndent()
+        ).setParameter("user", user.username)
+            .setParameter("name", name)
+            .setParameter("version", version)
+            .uniqueResult()
     }
 
     override fun retrieveFavorites(
@@ -114,16 +107,59 @@ class ApplicationHibernateDAO(
         )
     }
 
+    private fun findAppNamesFromTags(session: HibernateSession, tags: List<String>): List<String> {
+        return session.criteria<TagEntity> {
+            (entity[TagEntity::tag] isInCollection tags)
+        }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
+    }
+
+    private fun findAppNamesFromTagsInsensitive(session: HibernateSession, tags: List<String>): List<String> {
+        return session.criteria<TagEntity> {
+            (builder.lower(entity[TagEntity::tag]) isInCollection tags.map { it.toLowerCase() })
+        }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
+    }
+
+    private fun findAppsFromAppNames(
+        session: HibernateSession,
+        applicationNames: List<String>
+    ): Pair<Query<ApplicationEntity>, Int> {
+        val itemsInTotal = session.typedQuery<Long>(
+            """
+            select count (A.title)
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where (A.title= B.title)
+                group by title
+            ) and (A.id.name) in (:applications)
+            """.trimIndent()
+        ).setParameter("applications", applicationNames)
+            .uniqueResult()
+            .toInt()
+
+        return Pair(
+            session.typedQuery<ApplicationEntity>(
+                """
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where (A.title= B.title)
+                group by title
+            ) and (A.id.name) in (:applications)
+            order by A.title
+        """.trimIndent()
+            ).setParameter("applications", applicationNames), itemsInTotal
+        )
+    }
+
+
     override fun searchTags(
         session: HibernateSession,
         user: SecurityPrincipal,
         tags: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val applications = session
-            .criteria<TagEntity> {
-                (entity[TagEntity::tag] isInCollection (tags))
-            }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
+        val applications = findAppNamesFromTags(session, tags)
 
         if (applications.isEmpty()) {
             return preparePageForUser(
@@ -138,31 +174,8 @@ class ApplicationHibernateDAO(
             ).mapItems { it.withoutInvocation() }
         }
 
-        val itemsInTotal = session.typedQuery<Long>(
-            """
-            select count (A.title)
-            from ApplicationEntity as A where (A.createdAt) in (
-                select max(createdAt)
-                from ApplicationEntity as B
-                where (A.title= B.title)
-                group by title
-            ) and (A.id.name) in (:applications)
-            """.trimIndent()
-        ).setParameter("applications", applications)
-            .uniqueResult()
-            .toInt()
-
-        val items = session.typedQuery<ApplicationEntity>(
-            """
-            from ApplicationEntity as A where (A.createdAt) in (
-                select max(createdAt)
-                from ApplicationEntity as B
-                where (A.title= B.title)
-                group by title
-            ) and (A.id.name) in (:applications)
-            order by A.title
-        """.trimIndent()
-        ).setParameter("applications", applications).paginatedList(paging)
+        val (apps, itemsInTotal) = findAppsFromAppNames(session, applications)
+        val items = apps.paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
         return preparePageForUser(
@@ -317,7 +330,7 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal?,
         name: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationWithFavorite> {
+    ): Page<ApplicationWithFavoriteAndTags> {
         return preparePageForUser(
             session,
             user?.username,
@@ -355,7 +368,7 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         name: String,
         version: String
-    ): ApplicationWithFavorite {
+    ): ApplicationWithFavoriteAndTags {
         val entity = internalByNameAndVersion(session, name, version)?.toModelWithInvocation()
             ?: throw ApplicationException.NotFound()
         return preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()
@@ -551,7 +564,7 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: String?,
         page: Page<Application>
-    ): Page<ApplicationWithFavorite> {
+    ): Page<ApplicationWithFavoriteAndTags> {
         if (!user.isNullOrBlank()) {
             val allFavorites = session
                 .criteria<FavoriteApplicationEntity> { entity[FavoriteApplicationEntity::user] equal user }
@@ -575,7 +588,7 @@ class ApplicationHibernateDAO(
                     .toSet()
                     .toList()
 
-                ApplicationWithFavorite(item.metadata, item.invocation, isFavorite, allTagsForApplication)
+                ApplicationWithFavoriteAndTags(item.metadata, item.invocation, isFavorite, allTagsForApplication)
             }
 
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
@@ -588,7 +601,7 @@ class ApplicationHibernateDAO(
                     .toSet()
                     .toList()
 
-                ApplicationWithFavorite(item.metadata, item.invocation, false, allTagsForApplication)
+                ApplicationWithFavoriteAndTags(item.metadata, item.invocation, false, allTagsForApplication)
             }
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         }
@@ -669,6 +682,41 @@ class ApplicationHibernateDAO(
             .map { it.toModelWithInvocation() }
 
         return Page(count, paging.itemsPerPage, paging.page, items)
+    }
+
+    override fun advancedSearch(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        name: String?,
+        version: String?,
+        tags: List<String>?,
+        description: String?,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationWithFavoriteAndTags> {
+        if (name == null && version == null && tags == null && description == null)
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Must provide any argument")
+
+        return preparePageForUser(session, user.username, session.paginatedCriteria<ApplicationEntity>(
+            paging,
+            predicate = {
+                val namePredicate =
+                    if (name != null) builder.lower(entity[ApplicationEntity::title]) like "%${name}%".toLowerCase()
+                    else literal(true).toPredicate()
+                val versionPredicate =
+                    if (version != null) entity[ApplicationEntity::id][EmbeddedNameAndVersion::version] like "$version%"
+                    else literal(true).toPredicate()
+                val tagPredicate =
+                    if (tags != null) {
+                        val applications = findAppNamesFromTagsInsensitive(session, tags)
+                        entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] isInCollection applications
+                    } else literal(true).toPredicate()
+                val descriptionPredicate =
+                    // FIXME: `like` description only allows exact matches without wildcard operators
+                    if (description != null) entity[ApplicationEntity::description] like description
+                    else literal(true).toPredicate()
+                allOf(namePredicate, versionPredicate, tagPredicate, descriptionPredicate)
+            }
+        ).mapItems { it.toModelWithInvocation() })
     }
 
     private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {

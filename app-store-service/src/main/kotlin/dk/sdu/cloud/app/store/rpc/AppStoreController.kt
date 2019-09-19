@@ -61,6 +61,17 @@ class AppStoreController<DBSession>(
             ok(appStore.listAll(ctx.securityPrincipal, request.normalize()))
         }
 
+        implement(AppStore.advancedSearch) {
+            ok(appStore.advancedSearch(
+                ctx.securityPrincipal,
+                request.name,
+                request.version,
+                request.tags,
+                request.description,
+                request.normalize()
+            ))
+        }
+
         implement(AppStore.create) {
             with(ctx as HttpCall) {
                 val content = try {
