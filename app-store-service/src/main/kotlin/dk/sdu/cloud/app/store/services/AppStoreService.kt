@@ -92,15 +92,17 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun findBySupportedFileType(
+    fun findBySupportedFileExtension(
         securityPrincipal: SecurityPrincipal,
-        fileType: String
-    ): Page<Application> =
+        fileType: String,
+        normalizedPaginationRequest: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite> =
         db.withTransaction {
-            applicationDAO.findBySupportedFileType(
+            applicationDAO.findBySupportedFileExtension(
                 it,
                 securityPrincipal,
-                fileType
+                fileType,
+                normalizedPaginationRequest
             )
         }
 

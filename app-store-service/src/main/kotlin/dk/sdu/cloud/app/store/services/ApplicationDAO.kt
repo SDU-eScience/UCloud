@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.Application
+import dk.sdu.cloud.app.store.api.ApplicationSummary
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -44,11 +45,12 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
-    fun findBySupportedFileType(
+    fun findBySupportedFileExtension(
         session: Session,
-        user: SecurityPrincipal?,
-        fileType: String
-    ): Page<Application>
+        user: SecurityPrincipal,
+        fileExtension: String,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite>
 
     fun findByNameAndVersion(
         session: Session,

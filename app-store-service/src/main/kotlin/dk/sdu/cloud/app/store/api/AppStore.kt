@@ -190,8 +190,8 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     }
 
-    val findBySupportedFileType =
-        call<FindBySupportedFileType, Page<Application>, CommonErrorMessage>("findBySupportedFileType") {
+    val findBySupportedFileExtension =
+        call<FindBySupportedFileExtension, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("findBySupportedFileExtension") {
             auth {
                 roles = Roles.AUTHENTICATED
                 access = AccessRight.READ
@@ -200,11 +200,13 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             http {
                 path {
                     using(baseContext)
-                    + "bySupportedFileType"
+                    + "bySupportedFileExtension"
                 }
 
                 params {
-                    +boundTo(FindBySupportedFileType::supportedFileType)
+                    +boundTo(FindBySupportedFileExtension::fileExtension)
+                    +boundTo(FindBySupportedFileExtension::itemsPerPage)
+                    +boundTo(FindBySupportedFileExtension::page)
                 }
             }
         }

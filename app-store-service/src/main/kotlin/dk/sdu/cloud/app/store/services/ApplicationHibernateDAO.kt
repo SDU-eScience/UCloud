@@ -350,19 +350,13 @@ class ApplicationHibernateDAO(
         return result
     }
 
-    override fun findBySupportedFileType(
+    override fun findBySupportedFileExtension(
         session: HibernateSession,
-        user: SecurityPrincipal?,
-        fileType: String
-    ): Page<Application> {
-        // TODO
-        throw ApplicationException.NotFound()
-
-        /*val result = internal(session, name, version)
-            ?.toModelWithInvocation() ?: throw ApplicationException.NotFound()
-
-        byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
-        return result*/
+        user: SecurityPrincipal,
+        fileExtension: String,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite> {
+        return internalBySupportedFileExtension(session, user, fileExtension, paging)
     }
 
     override fun findByNameAndVersionForUser(
@@ -554,13 +548,69 @@ class ApplicationHibernateDAO(
             .uniqueResult()
     }
 
-    // TODO
-    /*private fun internalBySupportedFileType(
+    private fun internalBySupportedFileExtension(
         session: HibernateSession,
-        fileType: String
-    ): Page<Application> {
-        return
-    }*/
+        user: SecurityPrincipal,
+        fileExtension: String,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite> {
+
+        val count = session
+            .typedQuery<Long>(
+                """
+                    select count (A.id.name)
+                    from FavoriteApplicationEntity as F, ApplicationEntity as A
+                    where
+                        F.user = :user and
+                        F.applicationName = A.id.name and
+                        F.applicationVersion = A.id.version and
+                        (A.name) in (
+                            select name
+                            from ApplicationFileExtensionEntity as B
+                            where B.fileExtensions @> {"fileExtensions": [":fileExtension"]}
+                            A.id.name = B.id.name
+                            group by id.name
+                        )
+                """.trimIndent()
+            )
+            .setParameter("fileExtension", fileExtension)
+            .setParameter("user", user.username)
+            .uniqueResult()
+            .toInt()
+
+        val items = session
+            .typedQuery<ApplicationEntity>(
+                """
+                    select A.id.name
+                    from FavoriteApplicationEntity as F, ApplicationEntity as A
+                    where
+                        F.user = :user and
+                        F.applicationName = A.id.name and
+                        F.applicationVersion = A.id.version and
+                        (A.name) in (
+                            select name
+                            from ApplicationFileExtensionEntity as B
+                            where B.fileExtensions @> {"fileExtensions": [":fileExtension"]}
+                            A.id.name = B.id.name
+                            group by id.name
+                        )
+                """.trimIndent()
+            )
+            .setParameter("fileExtension", fileExtension)
+            .paginatedList(paging)
+            .map { it.toModelWithInvocation() }
+
+        return preparePageForUser(
+            session,
+            user.username,
+            Page(
+                count,
+                paging.itemsPerPage,
+                paging.page,
+                items
+            )
+        ).mapItems { it.withoutInvocation() }
+    }
 
     private fun findOwnerOfApplication(session: HibernateSession, applicationName: String): String? {
         return session.criteria<ApplicationEntity> {

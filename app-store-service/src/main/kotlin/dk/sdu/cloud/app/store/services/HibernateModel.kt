@@ -78,6 +78,21 @@ class TagEntity(
     companion object : HibernateEntity<TagEntity>, WithId<Long>
 }
 
+@Entity
+@Table(name = "application_file_extensions")
+class FileExtensionEntity(
+    var applicationName: String,
+
+    @Column(name = "extension")
+    var extension: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
+) {
+    companion object : HibernateEntity<FileExtensionEntity>, WithId<Long>
+}
+
 /**
  * Updated in:
  *
