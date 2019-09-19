@@ -35,7 +35,7 @@ const CategoryItem: React.FunctionComponent<{tag?: string}> = props => (
     <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
 );
 
-const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}) => (<>
+/*const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}) => (<>
     <Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
 
     <Heading.h4 m="0 0 -14px">Categories</Heading.h4>
@@ -55,7 +55,7 @@ const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}
         <CategoryItem tag="SAMtools">SAMtools</CategoryItem>
     </CategoryList>
 </>);
-
+*/
 export interface ApplicationsOperations {
     onInit: () => void;
     fetchDefault: (itemsPerPage: number, page: number) => void;
@@ -123,8 +123,8 @@ class Applications extends React.Component<ApplicationsProps> {
                 } />}
                 loadable={this.props.applicationsPage}
                 main={main}
-                fallbackSidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
-                sidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
+                // fallbackSidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
+                // sidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
             />
         );
     }

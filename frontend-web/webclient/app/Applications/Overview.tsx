@@ -26,8 +26,10 @@ import styled from "styled-components";
 const bedtoolsImg = require("Assets/Images/APPTools/bedtools.png");
 const cellrangerImg = require("Assets/Images/APPTools/10xGenomics.png");
 const homerImg = require("Assets/Images/APPTools/pic2.gif");
+//const kallistoImg = require("Assets/Images/APPTools/bird.png");
 const kallistoImg = require("Assets/Images/APPTools/bear-kallistologo.jpg");
 const macs2Img = require("Assets/Images/APPTools/macslogo.png");
+//const salmonImg = require("Assets/Images/APPTools/salmon-logo-6.png");
 const salmonImg = require("Assets/Images/APPTools/salmonlogo2.png");
 const samtoolsImg = require("Assets/Images/APPTools/gene-samtools.png");
 
@@ -179,9 +181,9 @@ const ToolGroup_ = (props: { tag: string; page: Page<FullAppInfo> }) => {
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
     return (
-        <CardToolContainer appImage={tagToImage(props.tag)} mt="30px">
-            {<Spacer mt="10px" ml="-250px" mr="8px" left={<Heading.h2> {props.tag} </Heading.h2>} right={<ShowAllTagItem tag={props.tag} ><Heading.h4 ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />}
-            <ScrollBox pb="250px" >
+        <CardToolContainer appImage={tagToImage(props.tag)} mt="30px" >
+            {<Spacer mt="10px" ml="-200px" mr="8px" left={<Heading.h2> {props.tag} </Heading.h2>} right={<ShowAllTagItem tag={props.tag} ><Heading.h4 ><strong> Show All</strong></Heading.h4></ShowAllTagItem>} />}
+            <ScrollBox pb="220px">
                 <Grid pt="20px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="3px" gridAutoFlow="column">
                     {props.page.items.map(application => {
                         const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
@@ -196,7 +198,7 @@ const ToolGroup_ = (props: { tag: string; page: Page<FullAppInfo> }) => {
                 </Grid>
             </ScrollBox>
             <Box >
-                <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
+                <Flex ml="9px" flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
                     {[...tags].filter(it => it !== props.tag).map(tag => (<Tag label={tag} />))}
                 </Flex>
             </Box>

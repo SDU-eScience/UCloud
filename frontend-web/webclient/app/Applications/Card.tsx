@@ -1,5 +1,5 @@
 import * as React from "react";
-import Markdown from "ui-components/Markdown"
+import Markdown from "ui-components/Markdown";
 import {Absolute, Icon, Flex, RatingBadge, Text} from "ui-components";
 import Box from "ui-components/Box";
 import Link from "ui-components/Link";
@@ -7,15 +7,15 @@ import {EllipsedText} from "ui-components/Text";
 import * as Pages from "./Pages";
 import {FullAppInfo} from ".";
 import styled, {css} from "styled-components";
-import * as Heading from "ui-components/Heading"
-import theme from "ui-components/theme"
+import * as Heading from "ui-components/Heading";
+import theme from "ui-components/theme";
 
 interface ApplicationCardProps {
-    onFavorite?: (name: string, version: string) => void
-    app: FullAppInfo
-    isFavorite?: boolean
-    linkToRun?: boolean
-    tags: string[]
+    onFavorite?: (name: string, version: string) => void;
+    app: FullAppInfo;
+    isFavorite?: boolean;
+    linkToRun?: boolean;
+    tags: string[];
 }
 
 const AppCardActionsBase = styled.div``;
@@ -209,11 +209,11 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: {color
     const c1 = [color1Offset % 3, (color1Offset + 1) % 3, (color1Offset + 2) % 3];
     const c2 = [color2Offset % 3, (color2Offset + 1) % 3, (color2Offset + 2) % 3];
     const centerC = nColors - 1;
-    //const centerC = appC;
+    // const centerC = appC;
 
     const s32 = Math.sqrt(3) * .5;
-    const r1 = 0.5; //inner radius of outer element (outer radius is 1)
-    const r2 = 0.7; //outer radius of inner element
+    const r1 = 0.5; // inner radius of outer element (outer radius is 1)
+    const r2 = 0.7; // outer radius of inner element
     const r3 = (1 + r2) * .5; // radius of white background hexagon 
 
     const rot120 = "rotate(120 0 0)";
@@ -344,16 +344,16 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
 
 export const CardToolContainer = styled(Box) <{appImage: string}>`
     padding-top: 10px; 
-    padding-left: 260px; 
+    padding-left: 210px;
     padding-bottom: 70px;
-    padding-right: 0px;
+    padding-right: 10px;
     width: 100%;
-    height: 350px;
+    height: 330px;
     display: grid;
     gridAutoFlow: column;
     flex-direction: column;
     align-items: flex-start;
-    border-radius: 40px;//${props => props.theme.radius};
+    border-radius: 20px;//${props => props.theme.radius};
     position: relative;
     overflow: hidden;
     box-shadow: ${({theme}) => theme.shadows["sm"]};
@@ -394,9 +394,9 @@ export const CardToolContainer = styled(Box) <{appImage: string}>`
         left: 0;
         z-index: 1;
         background-image: url(${props => props.appImage});
-        background-size: 250px 250px;
-        background-position: 0% 80%;//bottom left;
-        border-radius: ${props => props.theme.radius};
+        background-size: 160px 175px;
+        background-position: 2% 54%;//left bottom;
+        border-radius-image: ${props => props.theme.radius};
         pointer-events: none; //needed for star-badge
         will-change: opacity;
     }
@@ -411,16 +411,15 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     display:inline-block
     padding: 10px;
     width: 200px;
-    //min-width: 220px;
-    height: 95px;
+    height: 80px;
     
     text-align: center;
     white-space: nowrap; 
     overflow: hidden;
     text-overflow: ellipsis; 
 
-    line-height: 72px;
-    font-size: 25px;
+    line-height: 60px;
+    font-size: 22px;
     align-items: flex-start;
     background: linear-gradient(to right, ${p => p.color2}, ${p => p.color3});
     border-radius: 25px
