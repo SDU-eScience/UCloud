@@ -25,8 +25,7 @@ const app: FullAppInfo = {
             "Dan Sebastian Thrane <dthrane@imada.sdu.dk>"
         ],
         title: "Figlet Count",
-        description: "Render some text!\n",
-        tags: []
+        description: "Render some text!\n"
     },
     invocation: {
         tool: {
