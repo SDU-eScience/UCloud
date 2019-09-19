@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.services.K8JobCreationService
 import dk.sdu.cloud.app.kubernetes.services.K8JobMonitoringService
@@ -13,23 +14,37 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.events.EventStreamContainer
+import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.runBlocking
 import java.io.Closeable
 import java.util.*
 import kotlin.collections.HashMap
+
+private object CancelWSStream : EventStreamContainer() {
+    val events = stream<FindByStringId>("appk8-ws-cancel", { "id" })
+}
 
 class AppKubernetesController(
     private val jobMonitoringService: K8JobMonitoringService,
     private val jobCreationService: K8JobCreationService,
     private val logService: K8LogService,
     private val vncService: VncService,
-    private val webService: WebService
+    private val webService: WebService,
+    private val broadcastStream: BroadcastingStream
 ) : Controller {
     private val streams = HashMap<String, Closeable>()
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
+        runBlocking {
+            broadcastStream.subscribe(CancelWSStream.events) { (id) ->
+                streams.remove(id)?.close()
+            }
+        }
+
         implement(AppKubernetesDescriptions.cleanup) {
             jobCreationService.cleanup(request.id)
             ok(Unit)
@@ -46,7 +61,7 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.cancelWSStream) {
-            streams.remove(request.streamId)?.close()
+            broadcastStream.broadcast(FindByStringId(request.streamId), CancelWSStream.events)
             ok(Unit)
         }
 

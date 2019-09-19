@@ -9,7 +9,6 @@ import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
 import dk.sdu.cloud.app.orchestrator.api.JobCompletedEvent
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobStateChange
-import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.orchestrator.rpc.JOB_MAX_TIME
@@ -25,6 +24,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -64,8 +64,6 @@ import kotlinx.coroutines.runBlocking
  *   - Accounting backends are notified (See [AccountingEvents])
  *   - Backends are asked to clean up temporary files via [ComputationDescriptions.cleanup]
  *
- * At startup the job orchestrator can restart otherwise unmanaged jobs. This should be performed at startup via
- * [replayLostJobs]. Only one instance of this microservice must run at the same time!
  */
 class JobOrchestrator<DBSession>(
     private val serviceClient: AuthenticatedClient,
@@ -78,7 +76,9 @@ class JobOrchestrator<DBSession>(
     private val jobFileService: JobFileService,
     private val jobDao: JobDao<DBSession>,
 
-    private val defaultBackend: String
+    private val defaultBackend: String,
+
+    private val scope: BackgroundScope
 ) {
     /**
      * Shared error handling for methods that work with a live job.
@@ -181,7 +181,11 @@ class JobOrchestrator<DBSession>(
                 }
             } else {
                 // if we have bad transition on canceling, the job is finished and should not change status
-                if (proposedState != JobState.CANCELING) {
+                if (proposedState != JobState.CANCELING || job.currentState.isFinal()) {
+                    if (job.currentState.isFinal()) {
+                        log.info("Bad state transition from ${job.currentState} to $proposedState")
+                    }
+
                     throw JobException.BadStateTransition(job.currentState, event.newState)
                 }
             }
@@ -265,9 +269,8 @@ class JobOrchestrator<DBSession>(
         event: JobStateChange,
         newStatus: String? = null,
         isReplay: Boolean = false
-    ): Job = OrchestrationScope.launch {
+    ): Job = scope.launch {
         withJobExceptionHandler(event.systemId, rethrow = false) {
-
             if (!isReplay) {
                 db.withTransaction(autoFlush = true) {
                     val failedStateOrNull =
@@ -322,7 +325,7 @@ class JobOrchestrator<DBSession>(
 
                 JobState.CANCELING, JobState.TRANSFER_SUCCESS -> {
                     if (backendConfig.useWorkspaces) {
-                        OrchestrationScope.launch {
+                        scope.launch {
                             jobFileService.transferWorkspace(jobWithToken, isReplay)
                         }
                     }

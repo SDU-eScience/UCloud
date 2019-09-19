@@ -35,10 +35,8 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.ktor.routing.routing
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
-import kotlin.system.exitProcess
 
 class Server(override val micro: Micro, private val configuration: Configuration) : CommonServer {
     override val log = logger()
@@ -142,7 +140,14 @@ class Server(override val micro: Micro, private val configuration: Configuration
 
         with(micro.server) {
             configureControllers(
-                AppKubernetesController(jobMonitoringService, jobCreationService, logService, vncService, webService)
+                AppKubernetesController(
+                    jobMonitoringService,
+                    jobCreationService,
+                    logService,
+                    vncService,
+                    webService,
+                    broadcastingStream
+                )
             )
         }
 
