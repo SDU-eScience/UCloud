@@ -106,6 +106,7 @@ class RedisStreamService(
                             try {
                                 if (consumer.accept(events)) {
                                     xackA(stream.name, group, ids.toSet())
+                                    Unit // I think this will fix a class cast exception
                                 }
                             } catch (ex: Throwable) {
                                 log.warn("Caught exception while consuming from $stream")

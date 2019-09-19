@@ -1,7 +1,9 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
-import dk.sdu.cloud.app.kubernetes.services.PodService
+import dk.sdu.cloud.app.kubernetes.services.K8JobCreationService
+import dk.sdu.cloud.app.kubernetes.services.K8JobMonitoringService
+import dk.sdu.cloud.app.kubernetes.services.K8LogService
 import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
 import dk.sdu.cloud.app.orchestrator.api.InternalFollowWSStreamResponse
@@ -14,15 +16,14 @@ import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import java.io.Closeable
 import java.util.*
 import kotlin.collections.HashMap
 
 class AppKubernetesController(
-    private val podService: PodService,
+    private val jobMonitoringService: K8JobMonitoringService,
+    private val jobCreationService: K8JobCreationService,
+    private val logService: K8LogService,
     private val vncService: VncService,
     private val webService: WebService
 ) : Controller {
@@ -30,14 +31,12 @@ class AppKubernetesController(
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppKubernetesDescriptions.cleanup) {
-            // TODO FIXME Will block the coroutine until we get a response.
-            podService.cleanup(request.id)
+            jobCreationService.cleanup(request.id)
             ok(Unit)
         }
 
         implement(AppKubernetesDescriptions.follow) {
-            // TODO FIXME Blocks the coroutine for quite a while
-            val (log, nextLine) = podService.retrieveLogs(
+            val (log, nextLine) = logService.retrieveLogs(
                 request.job.id,
                 request.stdoutLineStart,
                 request.stdoutMaxLines
@@ -55,30 +54,30 @@ class AppKubernetesController(
             val streamId = UUID.randomUUID().toString()
             sendWSMessage(InternalFollowWSStreamResponse(streamId))
 
-            // Then we set up the subscription
-            coroutineScope {
-                // TODO FIXME This will run out of threads real quick. The backing dispatcher will never create more
-                //  than 64 threads.
-                launch(Dispatchers.IO) {
-                    val (resource, logStream) = podService.watchLog(request.job.id) ?: return@launch
-                    streams[streamId] = resource
+            logService.useLogWatch(request.job.id) { resource, logStream ->
+                log.debug("Following log for ${request.job.id}")
+                streams[streamId] = resource
 
-                    withContext<WSCall> {
-                        ctx.session.addOnCloseHandler {
-                            resource.close()
-                        }
+                withContext<WSCall> {
+                    ctx.session.addOnCloseHandler {
+                        log.debug("[Log: ${request.job.id}] Client has closed connection")
+                        resource.close()
                     }
+                }
 
-                    val buffer = CharArray(4096)
-                    val reader = logStream.reader()
-                    while (streams[streamId] != null) {
-                        val read = reader.read(buffer)
-                        if (read == -1) break
-
-                        sendWSMessage(InternalFollowWSStreamResponse(streamId, String(buffer, 0, read), null))
+                val buffer = CharArray(4096)
+                val reader = logStream.reader()
+                while (streams[streamId] != null) {
+                    val read = reader.read(buffer)
+                    if (read == -1) {
+                        log.debug("[Log: ${request.job.id}] EOF reached")
+                        break
                     }
-                }.join()
-            }
+                    val stdout = String(buffer, 0, read)
+                    log.debug("[Log: ${request.job.id}] stdout: $stdout")
+                    sendWSMessage(InternalFollowWSStreamResponse(streamId, stdout, null))
+                }
+            }.join()
 
             ok(InternalFollowWSStreamResponse(streamId))
         }
@@ -102,8 +101,7 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.jobPrepared) {
-            // TODO FIXME Blocks the coroutine for quite a while
-            podService.create(request)
+            jobCreationService.create(request)
             ok(Unit)
         }
 
@@ -116,8 +114,7 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.cancel) {
-            // TODO FIXME Blocks the coroutine for quite a while.
-            podService.cancel(request.verifiedJob)
+            jobMonitoringService.cancel(request.verifiedJob)
             ok(Unit)
         }
 

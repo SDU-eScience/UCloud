@@ -10,10 +10,23 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.redisConnectionManager
 import io.lettuce.core.SetArgs
 
+/**
+ * A factory for creating [DistributedState].
+ *
+ * @see DistributedState
+ */
 interface DistributedStateFactory {
+    /**
+     * Creates a [DistributedState]. The [name] is not namespaced.
+     *
+     * @see DistributedState
+     */
     fun <T> create(reader: TypeReference<T>, name: String, expiry: Long? = null): DistributedState<T>
 }
 
+/**
+ * A factory for creating [RedisDistributedState].
+ */
 class RedisDistributedStateFactory(micro: Micro) : DistributedStateFactory {
     private val connManager = micro.redisConnectionManager
 
@@ -22,10 +35,24 @@ class RedisDistributedStateFactory(micro: Micro) : DistributedStateFactory {
     }
 }
 
+/**
+ * Creates a [DistributedState]. The [name] is not namespaced.
+ *
+ * @see DistributedState
+ */
 inline fun <reified T> DistributedStateFactory.create(name: String, expiry: Long? = null): DistributedState<T> {
     return create(jacksonTypeRef(), name, expiry)
 }
 
+/**
+ * A piece of distributed state which can be accessed by multiple services.
+ *
+ * The state is uniquely identified by [name]. Note that the [name] is _not_ namespaced. This means that the key
+ * should be truly unique across the entire system. This allows you to share state between different services if
+ * needed but this also means that you should be careful when choosing a [name].
+ *
+ * If [expiry] is specified then this piece of state will expire (be removed) after [expiry]ms.
+ */
 interface DistributedState<T> {
     val name: String
     val expiry: Long?
@@ -34,6 +61,11 @@ interface DistributedState<T> {
     suspend fun set(value: T)
 }
 
+/**
+ * A redis based implementation of [DistributedState].
+ *
+ * @see DistributedState
+ */
 class RedisDistributedState<T>(
     override val name: String,
     override val expiry: Long?,

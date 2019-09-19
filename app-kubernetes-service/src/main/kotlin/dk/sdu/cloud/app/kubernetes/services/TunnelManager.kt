@@ -1,21 +1,30 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Loggable
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 private data class TunnelWithUsageTracking(val tunnel: Tunnel, var lastUsed: Long)
 
-class TunnelManager(
-    private val podService: PodService
-) {
+class TunnelManager(private val k8: K8Dependencies) {
     private val openTunnels = HashMap<String, TunnelWithUsageTracking>()
     private val mutex = Mutex()
     private val cleanupExecutor = Executors.newSingleThreadScheduledExecutor()
     private val usedPorts = HashSet<Int>()
+
+    private val isRunningInsideKubernetes: Boolean by lazy {
+        runCatching {
+            File("/var/run/secrets/kubernetes.io").exists()
+        }.getOrNull() == true
+    }
 
     fun install() {
         cleanupExecutor.schedule({
@@ -62,10 +71,76 @@ class TunnelManager(
                     return@run -1
                 }
 
-                val newTunnel = podService.createTunnel(id, localPort, remotePort)
+                val newTunnel = createTunnel(id, localPort, remotePort)
                 openTunnels[id] = TunnelWithUsageTracking(newTunnel, System.currentTimeMillis())
                 newTunnel
             }
         }
+    }
+
+    private fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int): Tunnel {
+        val pod =
+            k8.nameAllocator.listPods(jobId).firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+        fun findPodResource() = k8.nameAllocator.findPodByName(pod.metadata.name)
+        val podResource = findPodResource()
+
+        if (!isRunningInsideKubernetes) {
+            val k8sTunnel = run {
+                podResource.portForward(remotePort)
+                // Using kubectl port-forward appears to be a lot more reliable than using the built-in.
+                ProcessBuilder().apply {
+                    val cmd = listOf(
+                        "kubectl",
+                        "port-forward",
+                        "-n",
+                        k8.nameAllocator.namespace,
+                        pod.metadata.name,
+                        "$localPortSuggestion:$remotePort"
+                    )
+                    log.debug("Running command: $cmd")
+                    command(cmd)
+                }.start()
+            }
+
+            // Consume first line (wait for process to be ready)
+            val bufferedReader = k8sTunnel.inputStream.bufferedReader()
+            bufferedReader.readLine()
+
+            val job = k8.scope.launch {
+                // Read remaining lines to avoid buffer filling up
+                bufferedReader.lineSequence().forEach {
+                    // Discard line
+                }
+            }
+
+            log.info("Port forwarding $jobId to $localPortSuggestion")
+            return Tunnel(
+                jobId = jobId,
+                ipAddress = "127.0.0.1",
+                localPort = localPortSuggestion,
+                _isAlive = {
+                    k8sTunnel.isAlive
+                },
+                _close = {
+                    k8sTunnel.destroyForcibly()
+                    job.cancel()
+                }
+            )
+        } else {
+            val ipAddress = podResource.get().status.podIP
+            log.debug("Running inside of kubernetes going directly to pod at $ipAddress")
+            return Tunnel(
+                jobId = jobId,
+                ipAddress = ipAddress,
+                localPort = remotePort,
+                _isAlive = { runCatching { findPodResource()?.get() }.getOrNull() != null },
+                _close = { }
+            )
+        }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

@@ -5,12 +5,23 @@ import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.RedisConnectionManager
 import io.lettuce.core.pubsub.RedisPubSubAdapter
 
+/**
+ * Broadcasting streams allows a set of live subscribers to receive messages from other members. All subscribers
+ * will receive all messages.
+ *
+ * This works significantly different from normal event streams which will load-balance the messages between members
+ * of a service. In a [BroadcastingStream] all members will receive all events. Offline members are never notified
+ * about these events.
+ */
 interface BroadcastingStream{
     suspend fun <T : Any> subscribe(stream: EventStream<T>, handler: (T) -> Unit)
     suspend fun <T : Any> unsubscribe(stream: EventStream<T>)
     suspend fun <T : Any> broadcast(message: T, stream: EventStream<T>)
 }
 
+/**
+ * A redis based implementation of [BroadcastingStream].
+ */
 class RedisBroadcastingStream(
     private val connManager: RedisConnectionManager
 ) : BroadcastingStream {
