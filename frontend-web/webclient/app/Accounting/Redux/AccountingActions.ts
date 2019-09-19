@@ -1,9 +1,9 @@
-import { Cloud } from "Authentication/SDUCloudObject";
-import { PayloadAction, Page } from "Types";
-import { LoadableEvent, unwrapCall } from "LoadableContent";
-import { resourceName } from "./AccountingObject";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {LoadableEvent, unwrapCall} from "LoadableContent";
+import {Page, PayloadAction} from "Types";
+import {buildQueryString} from "Utilities/URIUtilities";
 import * as API from "../api";
-import { buildQueryString } from "Utilities/URIUtilities";
+import {resourceName} from "./AccountingObject";
 
 export enum Tag {
     RECEIVE_CHART = "ACCOUNTING_RECEIVE_CHART",
@@ -13,10 +13,10 @@ export enum Tag {
 }
 
 export type Type = ReceiveChart | ReceiveEvents | ReceiveUsage | ClearResource;
-type ReceiveChart = PayloadAction<typeof Tag.RECEIVE_CHART, { resource: string, event: LoadableEvent<API.ChartResponse> }>;
-type ReceiveEvents = PayloadAction<typeof Tag.RECEIVE_EVENTS, { resource: string, event: LoadableEvent<Page<API.AccountingEvent>> }>;
-type ReceiveUsage = PayloadAction<typeof Tag.RECEIVE_USAGE, { resource: string, event: LoadableEvent<API.Usage> }>;
-type ClearResource = PayloadAction<typeof Tag.CLEAR_RESOURCE, { resource: string }>
+type ReceiveChart = PayloadAction<typeof Tag.RECEIVE_CHART, {resource: string, event: LoadableEvent<API.ChartResponse>}>;
+type ReceiveEvents = PayloadAction<typeof Tag.RECEIVE_EVENTS, {resource: string, event: LoadableEvent<Page<API.AccountingEvent>>}>;
+type ReceiveUsage = PayloadAction<typeof Tag.RECEIVE_USAGE, {resource: string, event: LoadableEvent<API.Usage>}>;
+type ClearResource = PayloadAction<typeof Tag.CLEAR_RESOURCE, {resource: string}>;
 
 export const fetchChart = async (resource: string, subResource: string): Promise<ReceiveChart> => ({
     type: Tag.RECEIVE_CHART,

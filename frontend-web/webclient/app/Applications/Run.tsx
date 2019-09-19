@@ -14,7 +14,6 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
-import {useRef} from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
@@ -62,6 +61,7 @@ import {
 } from ".";
 import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
+import {RangeRef} from "./Widgets/RangeParameters";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -594,13 +594,15 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             ).promise;
             const app = response;
             const toolDescription = app.invocation.tool.tool.description;
-            const parameterValues = new Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>();
+            const parameterValues = new Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement | RangeRef>>();
 
             app.invocation.parameters.forEach(it => {
                 if (Object.values(ParameterTypes).includes(it.type)) {
                     parameterValues.set(it.name, React.createRef<HTMLInputElement>());
                 } else if (it.type === "boolean") {
                     parameterValues.set(it.name, React.createRef<HTMLSelectElement>());
+                } else if (it.type === "range") {
+                    parameterValues.set(it.name, React.createRef<RangeRef>());
                 }
             });
             this.setState(() => ({
@@ -718,7 +720,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
                         const ref = this.state.parameterValues.get(key);
                         if (ref && ref.current) {
-                            ref.current.value = userInputValues[key];
+                            if ("value" in ref.current) ref.current.value = userInputValues[key];
+                            else (ref.current.setState(() => ({bounds: JSON.parse(userInputValues[key])})));
                             this.state.parameterValues.set(key, ref);
                         }
                     });
