@@ -440,7 +440,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 sortBy: SortBy.CREATED_AT
             }));
             this.setState(s => ({previousRuns}));
-        } catch (ignored) {
+        } catch {
             // Do nothing
         }
     }

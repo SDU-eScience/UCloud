@@ -26,6 +26,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import Status from "Navigation/StatusPage";
 import NoVNCClient from "NoVNC/NoVNCClient";
+import Playground from "Playground/Playground";
 import ProjectCreate from "Project/Create";
 import ProjectList from "Project/List";
 import ProjectView from "Project/View";
@@ -38,6 +39,7 @@ import Sidebar from "ui-components/Sidebar";
 import Uploader from "Uploader/Uploader";
 import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
+import {inDevEnvironment} from "UtilityFunctions";
 
 const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -78,6 +80,10 @@ const Core = () => {
                 <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
                 <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)} />
                 <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
+
+                {!inDevEnvironment() ? null :
+                    <Route exact path={"/playground/"} component={Playground} />
+                }
 
                 <Route exact path="/shares" component={requireAuth(Share.List)}/>
 

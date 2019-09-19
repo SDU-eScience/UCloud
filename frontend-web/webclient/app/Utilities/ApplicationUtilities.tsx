@@ -155,6 +155,9 @@ const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
             return parseInt(parameter, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
             return typeof parseFloat(parameter) === "number";
+        case ParameterTypes.Range:
+            console.error("FIXME \"typeMatchesValue\"");
+            return false;
         case ParameterTypes.Text:
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
@@ -168,6 +171,7 @@ const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
 interface ExtractedParameters {
     [key: string]: string | number | boolean |
     {source: string, destination: string;} |
+    {min: number, max: number} |
     {fileSystemId: string} |
     {jobId: string};
 }
@@ -206,6 +210,11 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
                         return;
                     default:
                         return;
+                }
+            case ParameterTypes.Range:
+                extracted[key] = {
+                    min: 0,
+                    max: 0
                 }
             case ParameterTypes.Integer:
                 extracted[key] = parseInt(current.value, 10);

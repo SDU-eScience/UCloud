@@ -221,6 +221,13 @@ export interface TextParameter extends BaseParameter {
     type: ParameterTypes.Text;
 }
 
+export interface RangeParameter extends BaseParameter {
+    type: ParameterTypes.Range;
+    defaultValue: {min: number; max: number;};
+    min: number;
+    max: number;
+}
+
 export interface PeerParameter extends BaseParameter {
     suggestedApplication: string | null;
     type: ParameterTypes.Peer;
@@ -249,6 +256,7 @@ export type ApplicationParameter =
     NumberParameter |
     BooleanParameter |
     TextParameter |
+    RangeParameter |
     PeerParameter |
     SharedFileSystemParameter;
 
@@ -276,6 +284,7 @@ export enum ParameterTypes {
     FloatingPoint = "floating_point",
     Text = "text",
     Boolean = "boolean",
+    Range = "range",
     Peer = "peer",
     SharedFileSystem = "shared_file_system"
 }
