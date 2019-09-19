@@ -115,6 +115,7 @@ private suspend fun SequenceScope<ArchiveEntry>.yieldDirectoriesUntilTarget(
         joinPath(*allComponents.take(i).toTypedArray())
     }
     paths.forEach {
+        println("YIELDING: ${ArchiveEntry.Directory(it)}")
         yield(ArchiveEntry.Directory(it))
     }
 }
@@ -147,6 +148,7 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
                 TarInputStream(GZIPInputStream(stream)).use {
                     var entry: TarEntry? = it.nextEntry
                     while (entry != null) {
+                        println("While")
                         val initialTargetPath = joinPath(path, entry.name)
                         val cappedStream = CappedInputStream(it, entry.size)
                         if (entry.name.contains("PaxHeader/")) {
@@ -157,8 +159,14 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
                             yieldDirectoriesUntilTarget(initialTargetPath)
 
                             if (entry.isDirectory) {
+                                println("DIR: ${ArchiveEntry.Directory(initialTargetPath)}")
                                 yield(ArchiveEntry.Directory(initialTargetPath))
                             } else {
+                                println("FILE: ${ArchiveEntry.File(
+                                    path = initialTargetPath,
+                                    stream = cappedStream,
+                                    dispose = { cappedStream.skipRemaining() }
+                                )}")
                                 yield(
                                     ArchiveEntry.File(
                                         path = initialTargetPath,

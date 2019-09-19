@@ -129,4 +129,5 @@ agent:
 
 persistence:
   enabled: true
+  size: 16Gi
   existingClaim: jenkins
