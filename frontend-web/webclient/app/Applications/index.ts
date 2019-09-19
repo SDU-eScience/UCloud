@@ -306,7 +306,6 @@ export interface ApplicationMetadata {
     authors: string[];
     title: string;
     description: string;
-    tags: string[];
     website?: string;
 }
 

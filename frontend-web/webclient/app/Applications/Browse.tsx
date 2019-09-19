@@ -10,7 +10,6 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import styled from "styled-components";
 import {Page} from "Types";
-import {Link} from "ui-components";
 import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -23,44 +22,11 @@ import * as Pages from "./Pages";
 import * as Actions from "./Redux/BrowseActions";
 import {Type as ReduxType} from "./Redux/BrowseObject";
 
-const CategoryList = styled.ul`
-    padding: 0;
-
-    & > li {
-        list-style: none;
-    }
-`;
-
-const CategoryItem: React.FunctionComponent<{tag?: string}> = props => (
-    <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
-);
-
-const Sidebar: React.FunctionComponent<{itemsPerPage: number}> = ({itemsPerPage}) => (<>
-    <Heading.h4 m="0 0 14px"><Link to={Pages.browse(itemsPerPage)}>All</Link></Heading.h4>
-
-    <Heading.h4 m="0 0 -14px">Categories</Heading.h4>
-    <CategoryList>
-        <CategoryItem tag="Bioinformatics">Bioinformatics</CategoryItem>
-        <CategoryItem tag="Natural Science">Natural Sciences</CategoryItem>
-        <CategoryItem tag="Toy">Toys</CategoryItem>
-    </CategoryList>
-
-    <Heading.h4 m="0 0 -14px">Tools</Heading.h4>
-    <CategoryList>
-        <CategoryItem tag="Cell Ranger">Cell Ranger</CategoryItem>
-        <CategoryItem tag="HOMER">HOMER</CategoryItem>
-        <CategoryItem tag="Kallisto">Kallisto</CategoryItem>
-        <CategoryItem tag="MACS2">MACS2</CategoryItem>
-        <CategoryItem tag="Salmon">Salmon</CategoryItem>
-        <CategoryItem tag="SAMtools">SAMtools</CategoryItem>
-    </CategoryList>
-</>);
-
 export interface ApplicationsOperations {
     onInit: () => void;
     fetchDefault: (itemsPerPage: number, page: number) => void;
     fetchByTag: (tag: string, itemsPerPage: number, page: number) => void;
-    receiveApplications: (page: Page<WithAppMetadata>) => void;
+    receiveApplications: (page: Page<FullAppInfo>) => void;
     setRefresh: (refresh?: () => void) => void;
 }
 
@@ -88,7 +54,7 @@ class Applications extends React.Component<ApplicationsProps> {
     public render() {
         const main = (
             <Pagination.List
-                loading={this.props.applications.loading}
+                loading={this.props.applicationsPage.loading}
                 pageRenderer={(page: Page<FullAppInfo>) =>
                     <GridCardGroup>
                         {page.items.map((app, index) =>
@@ -107,24 +73,22 @@ class Applications extends React.Component<ApplicationsProps> {
                         )}
                     </GridCardGroup>
                 }
-                page={this.props.applications.content as Page<WithAppMetadata>}
+                page={this.props.applicationsPage.content as Page<WithAppMetadata>}
                 onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
             />
         );
 
         return (
             <LoadableMainContainer
-                header={<Spacer left={<Heading.h1>Applications</Heading.h1>} right={
+                header={<Spacer left={<Heading.h1>{getQueryParam(this.props, "tag")}</Heading.h1>} right={
                     <Pagination.EntriesPerPageSelector
                         content="Apps per page"
                         entriesPerPage={this.itemsPerPage()}
                         onChange={itemsPerPage => this.props.history.push(this.updateItemsPerPage(itemsPerPage))}
                     />
                 } />}
-                loadable={this.props.applications}
+                loadable={this.props.applicationsPage}
                 main={main}
-                fallbackSidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
-                sidebar={<Sidebar itemsPerPage={this.itemsPerPage()} />}
             />
         );
     }
@@ -197,8 +161,8 @@ const mapDispatchToProps = (
 
 const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {favCount: number} => ({
     ...applicationsBrowse,
-    favCount: applicationsBrowse.applications.content ?
-        applicationsBrowse.applications.content.items.filter((it: any) => it.favorite).length : 0
+    favCount: applicationsBrowse.applicationsPage.content ?
+        applicationsBrowse.applicationsPage.content.items.filter((it: any) => it.favorite).length : 0
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);
