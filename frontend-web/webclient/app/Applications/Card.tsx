@@ -178,7 +178,7 @@ export const AppCard = styled(Link)`
     }
 `;
 
-const Tag = ({label}: {label: string}) => (
+export const Tag = ({label}: {label: string}) => (
     <RatingBadge mr="3px" bg="darkGray"><Heading.h6>{label}</Heading.h6></RatingBadge>
 );
 
@@ -290,7 +290,7 @@ export function hashF(str: string): number {
 
 }
 
-function appColor(hash: number): number {
+export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); // last color not used
 }
 
@@ -349,6 +349,102 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
         }
     }
 };
+
+export const CardToolContainer = styled(Box) <{appImage: string}>`
+    padding-top: 10px; 
+    padding-left: 210px;
+    padding-bottom: 70px;
+    padding-right: 10px;
+    width: 100%;
+    height: 330px;
+    display: grid;
+    gridAutoFlow: column;
+    flex-direction: column;
+    align-items: flex-start;
+    border-radius: 20px;//${props => props.theme.radius};
+    position: relative;
+    overflow: hidden;
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
+    //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
+
+    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    will-change: transform;
+
+    //&:hover {
+    //    transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    //   transform: scale(1.02);
+    //   box-shadow: ${({theme}) => theme.shadows["md"]};
+    }
+
+    // Background
+    &:before {
+        pointer-events: none;
+        content: "";
+        position: absolute;
+        width: 120%;
+        height: 280%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        background-color: ${props => props.theme.colors.appCard};
+        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
+        background-repeat: repeat;
+        transform: rotate(15deg) translate(0,-60%);
+        transform-origin: 0 0;
+    }
+
+    &:after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        background-image: url(${props => props.appImage});
+        background-size: 160px 175px;
+        background-position: 2% 54%;//left bottom;
+        border-radius-image: ${props => props.theme.radius};
+        pointer-events: none; //needed for star-badge
+        will-change: opacity;
+    }
+
+    &:hover:after {
+        opacity: 1;
+    }
+`;
+
+export const SmallCard = styled(Link) <{color1: string, color2: string, color3: string}>`
+    //display: grid;
+    display:inline-block
+    padding: 10px;
+    width: 200px;
+    height: 80px;
+    
+    text-align: center;
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis; 
+
+    line-height: 60px;
+    font-size: 22px;
+    align-items: flex-start;
+    background: linear-gradient(to right, ${p => p.color2}, ${p => p.color3});
+    border-radius: 25px
+     
+    position: relative;
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
+
+    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    will-change: transform;
+
+    &:hover {
+        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+        transform: scale(1.02);
+        box-shadow: ${({theme}) => theme.shadows["md"]};
+        color: ${p => p.theme.colors.white};
+    }
+`;
 
 function buildTags(tags: string[]): string[] {
     let limit = 40;
