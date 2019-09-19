@@ -3,19 +3,7 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.FileSortBy
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
@@ -39,6 +27,7 @@ import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
+import kotlin.io.FileSystemException
 import kotlin.math.min
 import kotlin.streams.toList
 
@@ -57,15 +46,18 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
-        allowOverwrite: Boolean
+        writeConflictPolicy: WriteConflictPolicy
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
         aclService.requirePermission(from, ctx.user, AccessRight.READ)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
-        val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
-        Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+        val opts =
+            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+
+        copyPreAuthorized(ctx, from, to, writeConflictPolicy)
+
         FSResult(
             0,
             listOf(
@@ -79,11 +71,41 @@ class LinuxFS(
         )
     }
 
+    private suspend fun copyPreAuthorized(
+        ctx: LinuxFSRunner,
+        from: String,
+        to: String,
+        writeConflictPolicy: WriteConflictPolicy
+    ) {
+        val opts =
+            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+
+        val systemFrom = File(translateAndCheckFile(from))
+        val systemTo = File(translateAndCheckFile(to))
+
+        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
+            try {
+                Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+            } catch (e: DirectoryNotEmptyException) {
+                systemFrom.listFiles().forEach {
+                    copyPreAuthorized(
+                        ctx,
+                        Paths.get(from, it.name).toString(),
+                        Paths.get(to, it.name).toString(),
+                        writeConflictPolicy
+                    )
+                }
+            }
+        } else {
+            Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+        }
+    }
+
     override suspend fun move(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
-        allowOverwrite: Boolean
+        writeConflictPolicy: WriteConflictPolicy
     ): FSResult<List<StorageEvent.Moved>> = ctx.submit {
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
@@ -92,7 +114,8 @@ class LinuxFS(
         aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
-        val opts = if (allowOverwrite) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+        val opts =
+            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
         // We need to record some information from before the move
         val fromStat = stat(
@@ -112,11 +135,19 @@ class LinuxFS(
                 )
             }.getOrNull()?.fileType
 
-        if (targetType != null && fromStat.fileType != targetType) {
-            throw FSException.BadRequest("Target already exists and is not of same type as source.")
+        if (targetType != null) {
+            if (fromStat.fileType != targetType) {
+                throw FSException.BadRequest("Target already exists and is not of same type as source.")
+            }
+            if (fromStat.fileType == targetType &&
+                fromStat.fileType == FileType.DIRECTORY &&
+                writeConflictPolicy == WriteConflictPolicy.OVERWRITE
+            ) {
+                throw FSException.BadRequest("Directory is not allowed to overwrite existing directory")
+            }
         }
 
-        Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+        movePreAuthorized(ctx, from, to, writeConflictPolicy)
 
         // We compare this information with after the move to get the correct old path.
         val toStat = stat(
@@ -148,6 +179,37 @@ class LinuxFS(
         }
 
         FSResult(0, rows)
+    }
+
+    private suspend fun movePreAuthorized(
+        ctx: LinuxFSRunner,
+        from: String,
+        to: String,
+        writeConflictPolicy: WriteConflictPolicy
+    ) {
+        val systemFrom = File(translateAndCheckFile(from))
+        val systemTo = File(translateAndCheckFile(to))
+
+        val opts =
+            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+
+        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
+            if (systemFrom.isDirectory) {
+                systemFrom.listFiles().forEach {
+                    movePreAuthorized(
+                        ctx,
+                        Paths.get(from, it.name).toString(),
+                        Paths.get(to, it.name).toString(),
+                        writeConflictPolicy
+                    )
+                }
+            } else {
+                Files.createDirectories(systemTo.toPath().parent)
+                Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+            }
+        } else {
+            Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+        }
     }
 
     override suspend fun listDirectoryPaginated(

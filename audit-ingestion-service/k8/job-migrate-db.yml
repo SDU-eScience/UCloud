@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: audit-ingestion-service
-          image: registry.cloud.sdu.dk/sdu-cloud/audit-ingestion-service:0.1.0
+          image: registry.cloud.sdu.dk/sdu-cloud/audit-ingestion-service:0.1.7
           args:
           - /opt/service/bin/service
           - --config-dir
@@ -22,6 +22,8 @@ spec:
           - /etc/token-validation
           - --config-dir
           - /etc/psql
+          - --config-dir
+          - /etc/elasticsearch-credentials
           - --run-script
           - migrate-db
           volumeMounts:
@@ -31,6 +33,8 @@ spec:
             name: token-validation
           - mountPath: /etc/psql
             name: audit-ingestion-psql
+          - mountPath: /etc/elasticsearch-credentials
+            name: elasticsearch-credentials
 
       volumes:
       - name: refresh-token
@@ -45,6 +49,10 @@ spec:
         secret:
           optional: false
           secretName: audit-ingestion-psql
+      - name: elasticsearch-credentials
+        secret:
+          optional: false
+          secretName: elasticsearch-credentials
 
       restartPolicy: Never
       imagePullSecrets:

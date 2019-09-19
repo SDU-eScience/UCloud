@@ -6,11 +6,13 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.request.header
 import io.ktor.websocket.DefaultWebSocketServerSession
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
 
 suspend fun DefaultWebSocketServerSession.runWSProxy(
     tunnel: Tunnel,
-    path: String = "/",
+    uri: String = "/",
     cookies: Map<String, String> = emptyMap()
 ) {
     val clientConn = this
@@ -18,7 +20,7 @@ suspend fun DefaultWebSocketServerSession.runWSProxy(
         method = HttpMethod.Get,
         host = tunnel.ipAddress,
         port = tunnel.localPort,
-        path = path,
+        path = uri,
         request = {
             // We must use the same protocol and extensions for the proxying to work.
             val protocol = clientConn.call.request.header(HttpHeaders.SecWebSocketProtocol)
@@ -41,16 +43,24 @@ suspend fun DefaultWebSocketServerSession.runWSProxy(
         }) {
         val serverConn = this
         val clientToServer = launch {
-            while (true) {
-                val frame = clientConn.incoming.receive()
-                serverConn.outgoing.send(frame)
+            try {
+                while (true) {
+                    val frame = clientConn.incoming.receive()
+                    serverConn.outgoing.send(frame)
+                }
+            } catch (ex: ClosedReceiveChannelException) {
+                log.debug("Closing channel (Client ==> Server)")
             }
         }
 
         val serverToClient = launch {
-            while (true) {
-                val frame = serverConn.incoming.receive()
-                clientConn.outgoing.send(frame)
+            try {
+                while (true) {
+                    val frame = serverConn.incoming.receive()
+                    clientConn.outgoing.send(frame)
+                }
+            } catch (ex: ClosedReceiveChannelException) {
+                log.debug("Closing channel (Server ==> Client)")
             }
         }
 
@@ -58,3 +68,5 @@ suspend fun DefaultWebSocketServerSession.runWSProxy(
         serverToClient.join()
     }
 }
+
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.app.kubernetes.services.WSProxy")

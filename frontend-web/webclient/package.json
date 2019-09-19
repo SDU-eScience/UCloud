@@ -1,53 +1,13 @@
 {
   "name": "sducloud",
-  "version": "0.22.1",
+  "version": "0.24.3",
   "description": "SDUCloud",
   "author": "IMADA - eScience Center, SDU",
-  "jest": {
-    "collectCoverage": true,
-    "coverageDirectory": "<rootDir>/coverage",
-    "coverageReporters": [
-      "html",
-      "cobertura"
-    ],
-    "modulePaths": [
-      "app"
-    ],
-    "transform": {
-      "^.+\\.(tsx?|jsx?)$": "ts-jest"
-    },
-    "moduleNameMapper": {
-      "^.+\\.(png|ttf|jpg)$": "file-loader",
-      "^.+\\.css$": "css-loader",
-      "Authentication/SDUCloudObject": "<rootDir>/__tests__/mock/Cloud.ts"
-    },
-    "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(j|t)sx?$",
-    "moduleFileExtensions": [
-      "ts",
-      "tsx",
-      "js",
-      "jsx",
-      "json",
-      "node"
-    ],
-    "preset": "ts-jest",
-    "testMatch": null,
-    "globals": {
-      "ts-jest": {
-        "ts-config": "tsconfig.json",
-        "diagnostics": {
-          "ignoreCodes": [
-            151001
-          ]
-        }
-      }
-    }
-  },
   "scripts": {
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rm -rf dist/",
     "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
-    "test": "jest",
+    "test": "jest --maxWorkers=1",
     "prepare-icons": "npm run icons-clean && npm run icons-components && npm run icons-index",
     "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
     "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components",
@@ -56,15 +16,14 @@
   "dependencies": {
     "@novnc/novnc": "^1.1.0",
     "@svgr/cli": "^4.3.2",
+    "date-fns": "^2.2.1",
     "fuse.js": "^3.4.5",
     "jsonwebtoken": "8.5.1",
-    "moment": "~2.24.0",
-    "moment-timezone": "^0.5.26",
     "react": "16.9.0",
-    "react-datepicker": "2.8.0",
+    "react-datepicker": "2.9.6",
     "react-dom": "16.9.0",
     "react-dropzone": "^10.1.8",
-    "react-markdown": "^4.2.1",
+    "react-markdown": "^4.2.2",
     "react-modal": "^3.10.1",
     "react-redux": "^7.1.1",
     "react-router": "5.0.1",
@@ -73,9 +32,10 @@
     "redux": "4.0.4",
     "redux-responsive": "^4.3.8",
     "styled-components": "^4.3.2",
-    "styled-system": "^5.1.1",
+    "styled-system": "^5.1.2",
     "svgi": "^1.1.0",
-    "xterm": "^3.14.5"
+    "xterm": "^4.0.1",
+    "xterm-addon-fit": "^0.2.1"
   },
   "devDependencies": {
     "@types/enzyme": "^3.10.3",
@@ -84,9 +44,8 @@
     "@types/jest": "24.0.18",
     "@types/json-schema": "^7.0.3",
     "@types/jsonwebtoken": "^8.3.3",
-    "@types/moment-timezone": "^0.5.12",
     "@types/react": "16.9.2",
-    "@types/react-datepicker": "2.8.1",
+    "@types/react-datepicker": "2.9.2",
     "@types/react-dom": "^16.9.0",
     "@types/react-dropzone": "^5.1.0",
     "@types/react-modal": "3.8.3",
@@ -95,7 +54,7 @@
     "@types/react-router-dom": "^4.3.5",
     "@types/react-test-renderer": "16.9.0",
     "@types/recharts": "^1.1.21",
-    "@types/styled-components": "4.1.18",
+    "@types/styled-components": "4.1.19",
     "@types/styled-system": "^5.1.1",
     "compression-webpack-plugin": "^3.0.0",
     "copy-webpack-plugin": "5.0.4",
@@ -113,15 +72,15 @@
     "redux-devtools-extension": "^2.13.8",
     "source-map-loader": "^0.2.4",
     "style-loader": "1.0.0",
-    "terser-webpack-plugin": "^1.4.1",
-    "ts-jest": "^24.0.2",
-    "ts-loader": "6.0.4",
-    "tslint": "^5.19.0",
-    "typescript": "^3.6.2",
+    "terser-webpack-plugin": "^2.1.0",
+    "ts-jest": "^24.1.0",
+    "ts-loader": "6.1.0",
+    "tslint": "^5.20.0",
+    "typescript": "^3.6.3",
     "url-loader": "2.1.0",
-    "webpack": "4.39.3",
-    "webpack-cli": "^3.3.7",
-    "webpack-dev-server": "3.8.0",
+    "webpack": "4.40.2",
+    "webpack-cli": "^3.3.9",
+    "webpack-dev-server": "3.8.1",
     "webpack-merge": "4.2.2"
   }
 }

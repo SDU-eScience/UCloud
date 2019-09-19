@@ -12,7 +12,6 @@ import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.ApplicationType
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.NormalizedToolDescription
-import dk.sdu.cloud.app.store.api.ResourceRequirements
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.StringApplicationParameter
 import dk.sdu.cloud.app.store.api.Tool
@@ -46,9 +45,7 @@ val applicationMetadata = ApplicationMetadata(
     listOf("Author1", "Author2"),
     "Application title",
     "Application description",
-    listOf("Tag1", "Tag2"),
-    "Application.com"
-
+    null
 )
 
 val applicationInvocation = ApplicationInvocationDescription(
@@ -60,8 +57,7 @@ val applicationInvocation = ApplicationInvocationDescription(
     listOf(),
     listOf(),
     listOf(),
-    ApplicationType.WEB,
-    ResourceRequirements()
+    ApplicationType.WEB
 )
 
 val application = Application(

@@ -1,18 +1,17 @@
 group 'dk.sdu.cloud'
-version '2.2.0'
+version '2.2.5'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.12"
+    ext.serviceCommonVersion = "1.6.0"
 }
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
 
 dependencies {
     implementation group: 'org.kamranzafar', name: 'jtar', version: '2.3'
-
     implementation "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     implementation "dk.sdu.cloud:auth-api:1.21.0"
     implementation "dk.sdu.cloud:notification-api:1.1.4"

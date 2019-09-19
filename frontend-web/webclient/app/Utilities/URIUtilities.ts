@@ -1,11 +1,11 @@
 import { History } from "history";
 
 export interface RouterLocationProps {
-    history: History
+    history: History;
     location: {
         // TODO There is more here
         search: string
-    }
+    };
 }
 
 export const getQueryParam = (
@@ -28,7 +28,7 @@ export const getQueryParamOrElse = (
 export const buildQueryString = (path: string, params: any): string => {
     const builtParams = Object.entries(params).map(
         pair => {
-            let [key, val] = pair;
+            const [key, val] = pair;
             if (val === undefined) return "";
 
             // normalize val to always an array
@@ -38,9 +38,9 @@ export const buildQueryString = (path: string, params: any): string => {
             // then make a different query string for each val member
             return arr.map(
                 member => `${encodedKey}=${encodeURIComponent(member)}`
-            ).join('&');
+            ).join("&");
         }
-    ).filter(it => it !== "").join('&');
+    ).filter(it => it !== "").join("&");
 
-    return path + '?' + builtParams;
+    return path + "?" + builtParams;
 };

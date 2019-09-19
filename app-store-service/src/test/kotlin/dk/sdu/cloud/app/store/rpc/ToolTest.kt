@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.store.rpc
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.services.LogoService
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
@@ -26,7 +27,8 @@ private fun KtorApplicationTestSetupContext.configureToolServer(
     toolDao: ToolHibernateDAO
 ): List<ToolController<HibernateSession>> {
     micro.install(HibernateFeature)
-    return listOf(ToolController(micro.hibernateDatabase, toolDao))
+    val logoService = LogoService(micro.hibernateDatabase, mockk(relaxed = true), toolDao)
+    return listOf(ToolController(micro.hibernateDatabase, toolDao, logoService))
 }
 
 class ToolTest {

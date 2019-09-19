@@ -24,6 +24,8 @@ import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
+import io.fabric8.kubernetes.api.model.Quantity
+import io.fabric8.kubernetes.api.model.ResourceRequirements
 import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.client.KubernetesClient
@@ -102,6 +104,7 @@ class PodService(
     private val networkPolicyService: NetworkPolicyService,
     private val sharedFileSystemMountService: SharedFileSystemMountService,
     private val hostAliasesService: HostAliasesService,
+    private val applicationProxyService: ApplicationProxyService,
     private val namespace: String = "app-kubernetes",
     private val appRole: String = "sducloud-app"
 ) {
@@ -256,7 +259,7 @@ class PodService(
             ).orThrow()
         } catch (ex: KubernetesClientException) {
             if (ex.code == 400 || ex.code == 404) {
-                // Assume that this is because there is log to retrieve
+                // Assume that this is because there is no log to retrieve
                 return
             }
 
@@ -309,6 +312,23 @@ class PodService(
                 .spec {
                     val containerConfig = verifiedJob.application.invocation.container ?: ContainerDescription()
 
+                    val reservation = verifiedJob.reservation
+                    val resourceRequirements =
+                        if (reservation.cpu != null && reservation.memoryInGigs != null) {
+                            ResourceRequirements(
+                                mapOf(
+                                    "memory" to Quantity("${reservation.memoryInGigs}Gi"),
+                                    "cpu" to Quantity("${reservation.cpu!! * 1000}m")
+                                ),
+                                mapOf(
+                                    "memory" to Quantity("${reservation.memoryInGigs}Gi"),
+                                    "cpu" to Quantity("${reservation.cpu!! * 1000}m")
+                                )
+                            )
+                        } else {
+                            null
+                        }
+
                     val deadline = verifiedJob.maxTime.toSeconds()
                     withActiveDeadlineSeconds(deadline)
                     withBackoffLimit(1)
@@ -349,6 +369,10 @@ class PodService(
                                             )
                                             withAutomountServiceAccountToken(false)
 
+                                            if (resourceRequirements != null) {
+                                                withResources(resourceRequirements)
+                                            }
+
                                             withVolumeMounts(
                                                 VolumeMount(
                                                     MULTI_NODE_DIRECTORY,
@@ -386,6 +410,10 @@ class PodService(
                                         withRestartPolicy("Never")
                                         withCommand(command)
                                         withAutomountServiceAccountToken(false)
+
+                                        if (resourceRequirements != null) {
+                                            withResources(resourceRequirements)
+                                        }
 
                                         run {
                                             val envVars = ArrayList<EnvVar>()
@@ -555,7 +583,7 @@ class PodService(
                             .withName(pod.metadata.name)
 
                         fun writeFile(path: String, contents: String) {
-                            val (out, _, ins) = podResource.execWithDefaultListener(
+                            val (_, _, ins) = podResource.execWithDefaultListener(
                                 listOf("sh", "-c", "cat > $path"),
                                 attachStdout = true,
                                 attachStdin = true,
@@ -626,7 +654,13 @@ class PodService(
         }
     }
 
-    fun cleanup(requestId: String) {
+    suspend fun cleanup(requestId: String) {
+        try {
+            applicationProxyService.removeEntry(requestId)
+        } catch (ignored: Throwable) {
+            // Ignored
+        }
+
         try {
             networkPolicyService.deletePolicy(requestId)
         } catch (ex: KubernetesClientException) {

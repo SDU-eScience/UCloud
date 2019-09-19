@@ -27,6 +27,8 @@ spec:
         - /etc/token-validation
         - --config-dir
         - /etc/alerting
+        - --config-dir
+        - /etc/elasticsearch-credentials
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
@@ -34,6 +36,8 @@ spec:
           name: token-validation
         - mountPath: /etc/alerting
           name: alerting
+        - mountPath: /etc/elasticsearch-credentials
+          name: elasticsearch-credentials
         env:
         - name: POD_IP
           valueFrom:
@@ -52,6 +56,10 @@ spec:
         secret:
           optional: false
           secretName: alerting-tokens
+      - name: elasticsearch-credentials
+        secret:
+          optional: false
+          secretName: elasticsearch-credentials
 
       imagePullSecrets:
         - name: esci-docker

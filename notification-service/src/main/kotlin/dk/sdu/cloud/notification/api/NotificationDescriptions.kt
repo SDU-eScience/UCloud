@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
@@ -152,6 +153,10 @@ object NotificationDescriptions : CallDescriptionContainer("notifications") {
     }
 
     val subscription = call<SubscriptionRequest, SubscriptionResponse, CommonErrorMessage>("subscription") {
+        audit<SubscriptionRequest> {
+            longRunningResponseTime = true
+        }
+
         auth {
             access = AccessRight.READ
         }

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import mbuhot.eskotlin.query.term.exists
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
@@ -49,6 +50,8 @@ class ShrinkService(
                     //Choose that the index should use best_compression strategy.
                     //Slower search, but less space usage
                     .put("index.codec", "best_compression")
+                    //Should have access to all nodes again
+                    .putNull("index.routing.allocation.require._name")
             )
             try {
                 elastic.indices().shrink(request, RequestOptions.DEFAULT)
@@ -63,6 +66,7 @@ class ShrinkService(
                     //usually an index-already-exists error due to previous failure having created the resized
                     // index but failed before it could delete the original index
                     is ElasticsearchStatusException -> {
+                        log.warn(ex.stackTraceToString())
                         deleteIndex(targetIndex, elastic)
                     }
                     else -> throw Exception("Another error has occured: ${ex.message}")
@@ -114,6 +118,10 @@ class ShrinkService(
         log.info("Shrinking ${list.size} indices")
         list.forEach {
             log.info("Shrinking $it")
+            if (getShardCount(it, elastic) == 1) {
+                log.info("Index is already at 1 shard")
+                return@forEach
+            }
             prepareSourceIndex(it)
             waitForRelocation(it)
             shrinkIndex(it)

@@ -9,6 +9,7 @@ import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
 import dk.sdu.cloud.app.orchestrator.api.JobCompletedEvent
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobStateChange
+import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.orchestrator.rpc.JOB_MAX_TIME

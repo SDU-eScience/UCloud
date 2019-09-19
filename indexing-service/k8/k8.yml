@@ -24,11 +24,15 @@ spec:
         - /etc/refresh-token
         - --config-dir
         - /etc/token-validation
+        - --config-dir
+        - /etc/elasticsearch-credentials
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
         - mountPath: /etc/token-validation
           name: token-validation
+        - mountPath: /etc/elasticsearch-credentials
+          name: elasticsearch-credentials
 
       volumes:
       - name: refresh-token
@@ -40,6 +44,10 @@ spec:
         configMap:
           defaultMode: 420
           name: token-validation
+      - name: elasticsearch-credentials
+        secret:
+          optional: false
+          secretName: elasticsearch-credentials
 
       imagePullSecrets:
         - name: esci-docker

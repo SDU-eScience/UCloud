@@ -16,27 +16,14 @@ import dk.sdu.cloud.file.http.WorkspaceController
 import dk.sdu.cloud.file.processors.ScanProcessor
 import dk.sdu.cloud.file.processors.StorageProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
-import dk.sdu.cloud.file.services.ACLWorker
-import dk.sdu.cloud.file.services.BulkDownloadService
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileScanner
-import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.IndexingService
-import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.WSFileSessionService
-import dk.sdu.cloud.file.services.WorkspaceService
+import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.background.BackgroundExecutor
 import dk.sdu.cloud.file.services.background.BackgroundJobHibernateDao
 import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.background.BackgroundStreams
-import dk.sdu.cloud.file.services.linuxfs.Chown
-import dk.sdu.cloud.file.services.linuxfs.LinuxFS
-import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.linuxfs.linuxFSRealPathSupplier
+import dk.sdu.cloud.file.services.linuxfs.*
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
@@ -118,7 +105,7 @@ class Server(
             micro.eventStreamService
         )
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
-        val workspaceService = WorkspaceService(fsRootFile, fileScanner, newAclService)
+        val workspaceService = WorkspaceService(fsRootFile, fileScanner, newAclService, coreFileSystem, processRunner)
 
         // RPC services
         val wsService = WSFileSessionService(processRunner)

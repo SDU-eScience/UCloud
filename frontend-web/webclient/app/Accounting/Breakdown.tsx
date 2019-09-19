@@ -1,21 +1,15 @@
+import {formatDistanceToNow} from "date-fns/esm";
 import * as React from "react";
-import * as API from "./api";
-import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } from "ui-components/Table";
-import { Dropdown, DropdownContent } from "ui-components/Dropdown";
-import { Text, Flex } from "ui-components";
-import * as moment from "moment";
-import { data as MockEvents } from "./mock/events.json";
 import styled from "styled-components";
+import {Flex, Text} from "ui-components";
+import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import * as API from "./api";
+import {data as MockEvents} from "./mock/events.json";
 
-const BreakdownItem: React.FunctionComponent<{ item: API.AccountingEvent }> = props => {
+const BreakdownItem: React.FunctionComponent<{item: API.AccountingEvent}> = props => {
     return <VARow>
         <TableCell>
-            <Dropdown>
-                <Text fontSize={1} color="text">{moment(new Date(props.item.timestamp)).fromNow()}</Text>
-                <DropdownContent>
-                    {moment(new Date(props.item.timestamp)).format("llll")}
-                </DropdownContent>
-            </Dropdown>
+            <Text fontSize={1} color="text">{formatDistanceToNow(props.item.timestamp, {addSuffix: true})}</Text>
         </TableCell>
         <TableCell>
             <Flex>
@@ -33,7 +27,7 @@ const VARow = styled(TableRow)`
 `;
 
 interface BreakdownProps {
-    events?: API.AccountingEvent[]
+    events?: API.AccountingEvent[];
 }
 
 function Breakdown(props: BreakdownProps) {

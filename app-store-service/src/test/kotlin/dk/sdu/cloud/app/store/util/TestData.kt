@@ -10,7 +10,6 @@ val normAppDesc = Application(
         listOf("Authors"),
         "title",
         "app description",
-        emptyList(),
         null
     ),
     ApplicationInvocationDescription(
@@ -39,9 +38,17 @@ val normAppDesc3 = normAppDesc
         )
     )
 
+fun Application.withTool(name: String, version: String): Application {
+    return copy(
+        invocation = invocation.copy(
+            tool = ToolReference(name, version, null)
+        )
+    )
+}
+
 fun Application.withNameAndVersion(name: String, version: String): Application {
     return copy(
-        metadata = normAppDesc.metadata.copy(
+        metadata = metadata.copy(
             name = name,
             version = version
         )
@@ -57,12 +64,6 @@ fun Application.withNameAndVersionAndTitle(name: String, version: String, title:
         )
     )
 }
-
-fun Application.withTags(tags: List<String>): Application = copy(
-    metadata = metadata.copy(
-        tags = tags
-    )
-)
 
 fun Application.withInvocation(invocation: List<InvocationParameter>): Application = copy(
     invocation = this.invocation.copy(

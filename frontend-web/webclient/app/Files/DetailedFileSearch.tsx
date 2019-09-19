@@ -13,11 +13,9 @@ import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import {searchPage} from "Utilities/SearchUtilities";
 import {
-    AdvancedSearchRequest,
     DetailedFileSearchOperations,
     DetailedFileSearchReduxState,
     DetailedFileSearchStateProps,
-    FileType,
     PossibleTime
 } from ".";
 import {
@@ -36,6 +34,7 @@ interface DetailedFileSearchGivenProps {
     controlledSearch?: [string, (path: string) => void];
     cantHide?: boolean;
     omitFileName?: boolean;
+    onSearch: () => void;
 }
 
 type DetailedFileSearchProps = DetailedFileSearchStateProps & DetailedFileSearchGivenProps;
@@ -50,7 +49,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     public componentDidMount() {
         if (!!this.props.defaultFilename) this.props.setFilename(this.props.defaultFilename);
     }
-
 
     public componentWillUnmount() {
         if (!this.props.hidden) this.props.toggleHidden();
@@ -286,31 +284,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 
     private onSearch = () => {
         this.onAddExtension();
-        const fileTypes: [FileType?, FileType?] = [];
-        if (this.props.allowFiles) fileTypes.push("FILE");
-        if (this.props.allowFolders) fileTypes.push("DIRECTORY");
-        const createdAt = {
-            after: !!this.props.createdAfter ? this.props.createdAfter.valueOf() : undefined,
-            before: !!this.props.createdBefore ? this.props.createdBefore.valueOf() : undefined,
-        };
-        const modifiedAt = {
-            after: !!this.props.modifiedAfter ? this.props.modifiedAfter.valueOf() : undefined,
-            before: !!this.props.modifiedBefore ? this.props.modifiedBefore.valueOf() : undefined,
-        };
-        const fileName = this.props.fileName;
-        const request: AdvancedSearchRequest = {
-            fileName,
-            extensions: [...this.props.extensions],
-            sensitivity: [...this.props.sensitivities],
-            fileTypes,
-            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ?
-                createdAt : undefined,
-            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ?
-                modifiedAt : undefined,
-            itemsPerPage: 25,
-            page: 0
-        };
         this.props.history.push(searchPage("files", this.props.fileName));
+        this.props.onSearch();
     }
 }
 
@@ -320,7 +295,7 @@ interface SearchStampsProps {
     clearAll: () => void;
 }
 
-const SearchStamps = ({stamps, onStampRemove, clearAll}: SearchStampsProps) => (
+export const SearchStamps = ({stamps, onStampRemove, clearAll}: SearchStampsProps) => (
     <Box pb="5px">
         {[...stamps].map(l => (
             <Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}

@@ -8,7 +8,6 @@ import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.reindex.ReindexRequest
 import org.slf4j.Logger
 import java.io.IOException
-import java.lang.IllegalArgumentException
 import java.time.LocalDate
 
 class ReindexService(
@@ -18,6 +17,11 @@ class ReindexService(
     fun reindex(fromIndices: List<String>, toIndex: String, lowLevelClient: RestClient) {
         //Should always be lowercase
         val destinationIndex = toIndex.toLowerCase()
+
+        if (fromIndices.isEmpty()) {
+            //Nothing to reindex
+            return
+        }
 
         var error = false
         fromIndices.forEach {
@@ -50,7 +54,7 @@ class ReindexService(
             var toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
             while (fromCount != toCount) {
                 log.info("Waiting for target index to reach count: $fromCount. Currently doc count is: $toCount")
-                Thread.sleep(1000)
+                Thread.sleep(10000)
                 toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
             }
         }
@@ -68,10 +72,11 @@ class ReindexService(
     ) {
         getAllLogNamesWithPrefix(elastic, prefix, delimiter).forEach {
             val fromIndices = mutableListOf<String>()
+
             for (i in 0..6) {
                 val index = it +
                         delimiter +
-                        LocalDate.now().minusDays(daysInPast+i).toString().replace("-","." ) +
+                        LocalDate.now().minusDays(daysInPast + i).toString().replace("-", ".") +
                         "_*"
                 if (indexExists(index, elastic)) {
                     fromIndices.add(index)
@@ -79,13 +84,84 @@ class ReindexService(
             }
             val toIndex = it +
                     delimiter +
-                    LocalDate.now().minusDays(daysInPast+6).toString().replace("-","." ) +
+                    LocalDate.now().minusDays(daysInPast + 6).toString().replace("-", ".") +
                     "-" +
-                    LocalDate.now().minusDays(daysInPast).toString().replace("-","." )
+                    LocalDate.now().minusDays(daysInPast).toString().replace("-", ".")
 
-            reindex(fromIndices, toIndex, lowLevelClient )
+            //if no entries in last week no need to generate an empty index.
+            if (fromIndices.isEmpty()) {
+                log.info("No entries in last week. Won't create a weekly index")
+                return@forEach
+            }
+
+            reindex(fromIndices, toIndex, lowLevelClient)
         }
 
+    }
+
+    fun reduceLastMonth(
+        prefix: String,
+        delimiter: String = "-",
+        lowLevelClient: RestClient
+    ) {
+        val lastDayOfLastMonth = LocalDate.now().withDayOfMonth(1).minusDays(1)
+        println("MONTH: ${lastDayOfLastMonth.month}")
+        val numberOfDaysInLastMonth = lastDayOfLastMonth.dayOfMonth
+        getAllLogNamesWithPrefix(elastic, prefix, delimiter).forEach {
+            val fromIndices = mutableListOf<String>()
+            for (i in 1..numberOfDaysInLastMonth) {
+                val index = it + delimiter + lastDayOfLastMonth.withDayOfMonth(i).toString().replace("-", ".") + "*"
+                if (indexExists(index, elastic)) {
+                    fromIndices.add(index)
+                }
+            }
+            val toIndex = it +
+                    delimiter +
+                    "monthly" +
+                    delimiter +
+                    lastDayOfLastMonth.withDayOfMonth(1).toString().replace("-", ".") +
+                    "-" +
+                    lastDayOfLastMonth.withDayOfMonth(numberOfDaysInLastMonth).toString().replace("-", ".")
+
+            //if no entries in last month no need to generate an empty index.
+            if (fromIndices.isEmpty()) {
+                log.info("No entries in last month. Won't create a monthly index")
+                return@forEach
+            }
+
+            reindex(fromIndices, toIndex, lowLevelClient)
+        }
+    }
+
+    fun reduceLastQuarter(
+        prefix: String,
+        delimiter: String = "-",
+        lowLevelClient: RestClient
+    ) {
+        val currentDate = LocalDate.now()
+        getAllLogNamesWithPrefix(elastic, prefix).forEach {
+            val fromIndices = mutableListOf<String>()
+            for (i in 1..3) {
+                val date = currentDate.minusMonths(i.toLong())
+                val index = it +
+                        delimiter +
+                        "monthly" +
+                        delimiter +
+                        date.withDayOfMonth(1).toString().replace("-",".") +
+                        "*"
+                if (indexExists(index, elastic)) {
+                    fromIndices.add(index)
+                }
+            }
+            val toIndex = it +
+                    delimiter +
+                    "quarter" +
+                    delimiter +
+                    currentDate.withDayOfMonth(1).minusMonths(3).toString().replace("-",".") +
+                    delimiter +
+                    currentDate.withDayOfMonth(1).minusDays(1).toString().replace("-",".")
+            reindex(fromIndices, toIndex, lowLevelClient)
+        }
     }
 
     companion object : Loggable {

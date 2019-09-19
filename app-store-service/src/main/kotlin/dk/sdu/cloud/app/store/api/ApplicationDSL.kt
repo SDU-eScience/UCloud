@@ -31,8 +31,6 @@ sealed class ApplicationDescription(val application: String) {
         val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
         outputFileGlobs: List<String> = emptyList(),
 
-        val tags: List<String> = emptyList(),
-
         applicationType: String? = null,
         val vnc: VncDescription? = null,
         val web: WebDescription? = null,
@@ -61,11 +59,6 @@ sealed class ApplicationDescription(val application: String) {
             ::version.disallowCharacters('\n')
             ::version.requireSize(maxSize = 255)
 
-            tags.forEach {
-                if (it.isBlank()) {
-                    throw ApplicationVerificationException.BadValue(name, "Cannot be empty")
-                }
-            }
             if (authors.isEmpty()) throw ToolVerificationException.BadValue(::authors.name, "Authors is empty")
 
             val badAuthorIndex = authors.indexOfFirst { it.contains("\n") }
@@ -233,7 +226,6 @@ sealed class ApplicationDescription(val application: String) {
                 authors,
                 title,
                 description,
-                tags,
                 null
             )
 

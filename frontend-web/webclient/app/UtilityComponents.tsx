@@ -165,6 +165,7 @@ export function rewritePolicyDialog({
                 <Select onChange={e => policy = e.target.value} defaultValue="RENAME">
                     <option value="RENAME">Rename</option>
                     {!allowOverwrite ? null : <option value="OVERWRITE">Overwrite</option>}
+                    {allowOverwrite ? null : <option value="MERGE">Merge</option>}
                 </Select>
                 {filesRemaining > 1 ?
                     <Flex mt="20px">

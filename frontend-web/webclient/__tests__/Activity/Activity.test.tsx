@@ -8,6 +8,7 @@ import activity from "../../app/Activity/Redux/ActivityReducer";
 import {initActivity} from "../../app/DefaultObjects";
 import theme, {responsiveBP} from "../../app/ui-components/theme";
 import {configureStore} from "../../app/Utilities/ReduxUtilities";
+import "jest-styled-components";
 
 const store = configureStore({
     activity: initActivity(),

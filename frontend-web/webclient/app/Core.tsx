@@ -8,6 +8,9 @@ import * as ApplicationsInstalled from "Applications/Installed";
 import JobResults from "Applications/JobResults";
 import ApplicationsOverview from "Applications/Overview";
 import Run from "Applications/Run";
+import AppStudioApps from "Applications/Studio/App";
+import AppStudioPage from "Applications/Studio/Page";
+import AppStudioTools from "Applications/Studio/Tool";
 import ApplicationView from "Applications/View";
 import {Cloud} from "Authentication/SDUCloudObject";
 import Dashboard from "Dashboard/Dashboard";
@@ -73,6 +76,10 @@ const Core = () => {
                 <Route exact path="/applications/results" component={requireAuth(JobResults)}/>
                 <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)}/>
                 <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)}/>
+
+                <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
+                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)} />
+                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
 
                 <Route exact path="/shares" component={requireAuth(Share.List)}/>
 

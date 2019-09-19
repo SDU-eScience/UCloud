@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.6.0'
+version '0.7.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
@@ -7,9 +7,9 @@ mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.5.12"
+    ext.serviceCommonVersion = "1.6.0"
     ext.authApiVersion = "1.21.0"
-    ext.appStoreApiVersion = "0.4.0"
+    ext.appStoreApiVersion = "0.5.0"
     ext.fileApiVersion = "2.1.0"
     ext.appFsVersion = "0.1.0"
 }

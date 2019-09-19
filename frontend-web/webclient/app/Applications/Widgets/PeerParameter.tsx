@@ -20,6 +20,7 @@ import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import Input from "ui-components/Input";
 import Label from "ui-components/Label";
+import Icon from "ui-components/Icon";
 import OutlineButton from "ui-components/OutlineButton";
 import Text from "ui-components/Text";
 import {dateToString} from "Utilities/DateUtilities";
@@ -51,22 +52,22 @@ export const AdditionalPeerParameter: React.FunctionComponent<AdditionalPeerPara
         <Box>
             <Label>
                 {props.hideLabels ? null : <>Hostname <MandatoryField/></>}
-                <Input placeholder={"Example: spark-cluster"} ref={props.nameRef}/>
             </Label>
+            <Input placeholder={"Example: spark-cluster"} ref={props.nameRef}/>
         </Box>
 
         <Box flexGrow={1} ml={2}>
             <Label>
                 {props.hideLabels ? null : <>Job <MandatoryField/></>}
-                <JobSelector parameterRef={props.jobIdRef} suggestedApplication={null}/>
             </Label>
+            <JobSelector parameterRef={props.jobIdRef} suggestedApplication={null}/>
         </Box>
 
         <Box ml={2}>
             <Label>
                 {props.hideLabels ? null : <br/>}
-                <Button type={"button"} height={"35px"} onClick={() => props.onRemove()}>✗</Button>
             </Label>
+            <Button color={"red"} height={"42px"} onClick={() => props.onRemove()}><Icon name="close" size="1em"/></Button>
         </Box>
     </Flex>;
 };

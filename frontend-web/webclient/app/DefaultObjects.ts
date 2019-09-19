@@ -124,7 +124,7 @@ export interface UploaderReduxObject {
     visible: boolean;
     path: string;
     allowMultiple: boolean;
-    onFilesUploaded: (p: string) => void;
+    onFilesUploaded: () => void;
     error?: string;
     loading: boolean;
 }
@@ -295,5 +295,5 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     hidden: true,
     appName: "",
     appVersion: "",
-    tags: ""
+    tags: new Set()
 });

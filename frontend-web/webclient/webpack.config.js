@@ -67,9 +67,5 @@ module.exports = {
             favicon: "app/Assets/Images/favicon.png"
         }),
         new MiniCSSExtractPlugin("[name].[hash:6].css"),
-        // Allows overriding inferred information.
-        // https://github.com/moment/moment/issues/2979#issuecomment-189899510
-        new webpack.ContextReplacementPlugin(/\.\/locale$/, "empty-module", false, /js$/),
-        //new webpack.DefinePlugin({ REACT_BASE_HREF: JSON.stringify(baseHref) })
     ]
 };

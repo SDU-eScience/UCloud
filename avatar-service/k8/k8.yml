@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: avatar
-        image: registry.cloud.sdu.dk/sdu-cloud/avatar-service:1.1.3
+        image: registry.cloud.sdu.dk/sdu-cloud/avatar-service:1.2.0
         command:
         - /opt/service/bin/service
         - --config-dir

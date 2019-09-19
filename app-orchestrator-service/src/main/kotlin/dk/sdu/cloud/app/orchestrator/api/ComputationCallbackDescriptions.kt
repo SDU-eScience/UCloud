@@ -82,6 +82,10 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
      * This can only happen while the job is in state [JobState.RUNNING]
      */
     val submitFile = call<SubmitComputationResult, Unit, CommonErrorMessage>("submitFileV2") {
+        audit<SubmitComputationResult> {
+            longRunningResponseTime = true
+        }
+
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE

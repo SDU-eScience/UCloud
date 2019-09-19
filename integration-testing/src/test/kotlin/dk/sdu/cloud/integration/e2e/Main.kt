@@ -13,7 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-const val HOST = "https://cloud.sdu.dk"
+const val HOST = "https://dev.cloud.sdu.dk"
 lateinit var driver: WebDriver
 
 class EndToEndTest {
@@ -29,15 +29,11 @@ class EndToEndTest {
                 login(username, password)
                 goToFiles()
 
-                val folderName = UUID.randomUUID().toString()
+                val folderName = "0${UUID.randomUUID()}"
                 createDirectory(folderName)
                 openFolder(folderName)
-
                 uploadFile()
                 uploadArchive()
-                createAndThrowAway()
-                testSensitivity()
-                createCopyInOwnDirectory()
                 renameFiles()
                 favoriteFiles()
             } finally {
@@ -47,21 +43,30 @@ class EndToEndTest {
     }
 
     private fun WebDriver.login(username: String, password: String) {
-        findElement(By.id("username")).sendKeys(username)
-        findElement(By.id("password")).sendKeys(password)
-        findElement(By.tagName("button")).click()
+        findElements(By.tagName("div")).find{ it.text == "More login options"}?.click()
+        val form = findElement(By.tagName("form"))
+        form.findElement(By.id("username")).sendKeys(username)
+        form.findElement(By.id("password")).sendKeys(password)
+        form.findElement(By.tagName("button")).click()
         await { !currentUrl.contains("login") }
     }
 
     private fun WebDriver.goToFiles() {
-        get("$HOST/app/files")
+        driver.findElements(By.tagName("div")).find {
+            val svg = it.findElementOrNull(By.tagName("svg"))
+            val div = it.findElementOrNull(By.tagName("div"))
+            div?.text == "Files" && svg != null
+        }?.click()
         val selector = byTag("fileRow")
-        println(selector)
         awaitElements(selector)
     }
 
     private fun WebDriver.createDirectory(name: String) {
-        findElement(byTag("newFolder")).click()
+        val button = findElements(By.ByTagName("button")).find {
+            val span = it.findElementOrNull(By.ByTagName("span"))
+            span?.text == "New Folder"
+        }
+        button?.click()
         val inputField = awaitElement(byTag("renameField"))
         inputField.sendKeys(name + Keys.ENTER)
     }
@@ -69,7 +74,7 @@ class EndToEndTest {
     private fun WebDriver.openFolder(name: String) {
         retrySection {
             val rows = findElements(byTag("fileRow"))
-            val row = FileRow(rows.find { it.findElementOrNull(byTag("fileName"))?.text == name }!!)
+            val row = FileRow(rows.find { it.findElementOrNull(By.ByTagName("div"))?.text == name }!!)
             val findElement = row.path?.findElement(By.tagName("div"))
             // Correct element will for some reason not be clicked
             findElement?.click()
@@ -82,12 +87,15 @@ class EndToEndTest {
             val flag = Files.createTempFile("file", ".txt").toFile().also { it.writeText("Hi!") }
             selectFile(flag.absolutePath)
 
-            val uploadRow = UploadDialog.rows.single()
+            val uploadRow = rows.single()
             uploadRow.start()
+            println("await Complete")
             uploadRow.awaitComplete()
+            println("remove")
             uploadRow.remove()
-            assertEquals(0, UploadDialog.rows.size)
-
+            println("assert")
+            assertEquals(0, rows.size)
+            println("close")
             close()
         }
     }
@@ -108,66 +116,6 @@ class EndToEndTest {
             uploadRow.awaitComplete()
             uploadRow.remove()
             close()
-        }
-    }
-
-    private fun WebDriver.createAndThrowAway() {
-        val folderName2 = "Other"
-        createDirectory(folderName2)
-        retrySection {
-            FileTable.byName(folderName2)!!.clickDropdownOption(DropdownOption.MOVE_TO_TRASH)
-        }
-
-        retrySection {
-            SwalDialog.confirm()
-        }
-
-        retrySection {
-            assertNull(FileTable.byName(folderName2))
-        }
-    }
-
-    private fun WebDriver.testSensitivity() {
-        val sensitiveFile = "Sensitive"
-        createDirectory(sensitiveFile)
-        lateinit var fileRow: FileRow
-        retrySection {
-            fileRow = FileTable.byName(sensitiveFile)!!
-            fileRow.clickDropdownOption(DropdownOption.SENSITIVITY)
-        }
-
-        retrySection {
-            SwalDialog.selectOption("SENSITIVE")
-            SwalDialog.confirm()
-        }
-
-        retrySection {
-            assertEquals("S", fileRow.sensitivityBadge.text.trim())
-        }
-    }
-
-    private fun WebDriver.createCopyInOwnDirectory() {
-        val copy = "Copy"
-        createDirectory(copy)
-
-        lateinit var fileRow: FileRow
-        retrySection {
-            fileRow = FileTable.byName(copy)!!
-            fileRow.clickDropdownOption(DropdownOption.COPY)
-        }
-
-        retrySection {
-            val thisFolder = FileTable.rows.find { it.fileName.text.contains("Current folder", ignoreCase = true) }!!
-            thisFolder.actionButton!!.click()
-        }
-
-        retrySection {
-            SwalDialog.selectOption("RENAME")
-            SwalDialog.confirm()
-        }
-
-        retrySection {
-            FileTable.byName("$copy(1)")!!
         }
     }
 
@@ -212,43 +160,23 @@ class EndToEndTest {
 
 fun byTag(tag: String): By = By.cssSelector("[data-tag=\"$tag\"]")
 
-object SwalDialog {
-    val isOpen: Boolean
-        get() = driver.findElementOrNull(By.cssSelector(".swal2-actions"))?.isDisplayed == true
-
-    fun confirm() {
-        driver.findElement(By.cssSelector(".swal2-confirm")).click()
-    }
-
-    fun canel() {
-        driver.findElement(By.cssSelector(".swal2-cancel")).click()
-    }
-
-    fun selectOption(value: String) {
-        val select = driver.findElementOrNull(By.cssSelector(".swal2-select"))?.takeIf { it.isDisplayed }
-        if (select != null) {
-            select.sendKeys(value)
-        } else {
-            driver
-                .findElement(By.cssSelector(".swal2-content"))
-                .findElement(By.tagName("select"))
-                .sendKeys(value)
-        }
-    }
-}
-
 object UploadDialog {
-    val modal: WebElement?
+    private val modal: WebElement?
         get() = driver.findElementOrNull(byTag("uploadModal"))
 
     val rows: List<UploadRow>
         get() = driver.findElements(byTag("uploadRow")).map { UploadRow(it) }
 
-    val isOpen: Boolean
+    private val isOpen: Boolean
         get() = modal?.isDisplayed == true
 
     fun open(): Unit = with(driver) {
-        findElement(byTag("uploadButton")).click()
+        retrySection {
+            driver.findElements(By.ByTagName("button")).find {
+                val span = it.findElementOrNull(By.ByTagName("span"))
+                span?.text == "Upload Files"
+            }?.click()
+        }
         await { isOpen }
     }
 
@@ -262,13 +190,13 @@ object UploadDialog {
     }
 
     fun close() {
-        driver.get(driver.currentUrl)
+        driver.findElement(byTag("modalCloseButton")).click()
         await { !isOpen }
     }
 }
 
 object FileTable {
-    val rows: List<FileRow>
+    private val rows: List<FileRow>
         get() = driver.findElements(byTag("fileRow")).map { FileRow(it) }
 
     fun byName(name: String): FileRow? {
@@ -277,7 +205,7 @@ object FileTable {
 }
 
 class FileRow(private val element: WebElement) {
-    val checkBox: WebElement?
+    private val checkBox: WebElement?
         get() = element.findElementOrNull(By.tagName("label"))
 
     val path: WebElement

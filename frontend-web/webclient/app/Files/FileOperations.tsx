@@ -143,7 +143,7 @@ export const defaultFileOperations: FileOperation[] = [
         ),
         disabled: (files) => !files.every(it => isArchiveExtension(it.path)) || isAnyMockFile(files) ||
             isAnySharedFs(files),
-        icon: "open"
+        icon: "extract"
     },
     {
         text: "View Parent",
@@ -152,6 +152,12 @@ export const defaultFileOperations: FileOperation[] = [
         },
         disabled: files => files.length !== 1,
         icon: "open"
+    },
+    {
+        text: "Properties",
+        onClick: (files, cb) => cb.history.push(fileInfoPage(files[0].path)),
+        disabled: (files) => files.length !== 1 || isAnyMockFile(files) || isAnySharedFs(files),
+        icon: "properties"
     },
     {
         text: "Move to Trash",
@@ -196,12 +202,6 @@ export const defaultFileOperations: FileOperation[] = [
             isAnySharedFs(files),
         icon: "trash",
         color: "red"
-    },
-    {
-        text: "Properties",
-        onClick: (files, cb) => cb.history.push(fileInfoPage(files[0].path)),
-        disabled: (files) => files.length !== 1 || isAnyMockFile(files) || isAnySharedFs(files),
-        icon: "properties", color: "blue"
     },
 
     // Shared File Systems

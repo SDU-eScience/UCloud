@@ -111,7 +111,9 @@ class AuditToEventStream(
                 val userAgent = context.userAgent
 
                 val startTime = auditData.requestStart
-                val responseTime = System.currentTimeMillis() - startTime
+                val responseTime =
+                    if (auditDescription?.longRunningResponseTime == true) 0L
+                    else System.currentTimeMillis() - startTime
 
                 val responseCode = result.statusCode.value
 
@@ -186,7 +188,7 @@ private val auditJavaTypeCache: MutableMap<String, JavaType> =
     Collections.synchronizedMap(HashMap<String, JavaType>())
 
 private val CallDescription<*, *, *>.auditJavaType: JavaType
-    get () {
+    get() {
         val fullName = fullName
         val cached = auditJavaTypeCache[fullName]
         if (cached != null) return cached

@@ -3,11 +3,13 @@ package dk.sdu.cloud.file.http
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.api.WorkspaceDescriptions
 import dk.sdu.cloud.file.api.Workspaces
+import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.WorkspaceService
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.service.Controller
 
 class WorkspaceController(
-    private val workspaceService: WorkspaceService
+    private val workspaceService: WorkspaceService<LinuxFSRunner>
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(WorkspaceDescriptions.create) {

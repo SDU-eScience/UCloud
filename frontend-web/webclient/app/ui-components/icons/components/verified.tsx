@@ -2,7 +2,7 @@ import * as React from "react";
 
 const SvgVerified = (props: any) => (
   <svg
-    viewBox="0 0 21 24"
+    viewBox="-2 0 21 24"
     fillRule="evenodd"
     clipRule="evenodd"
     fill="currentcolor"

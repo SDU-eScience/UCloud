@@ -254,14 +254,14 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
 }
 
 interface ListBodyProps {
-    spacingRequired?: number
-    postSpacingRequired?: number
-    firstVisibleElement?: number
-    lastVisibleElement?: number
-    containerRef?: React.RefObject<any>
-    items: any[]
+    spacingRequired?: number;
+    postSpacingRequired?: number;
+    firstVisibleElement?: number;
+    lastVisibleElement?: number;
+    containerRef?: React.RefObject<any>;
+    items: any[];
     renderer: (props: {item: any}) => JSX.Element | null;
-    spacer?: (height: number) => React.ReactNode
+    spacer?: (height: number) => React.ReactNode;
 }
 
 class ListBody extends React.Component<ListBodyProps> {
@@ -285,7 +285,7 @@ class ListBody extends React.Component<ListBodyProps> {
 
         const children: React.ReactNode[] = [];
 
-        const spacerOrDefault = spacer || ((height: number) => <div style={{height: `${height}px`}} />);
+        const spacerOrDefault = spacer || ((height: number) => <div key={`spacer${height}`} style={{height: `${height}px`}} />);
         if (spacingRequired !== undefined) {
             children.push(spacerOrDefault(spacingRequired));
         }

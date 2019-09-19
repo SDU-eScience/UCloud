@@ -17,5 +17,6 @@ data class StartJobRequest(
     val archiveInCollection: String? = null,
     val mounts: List<Any> = emptyList(),
     val sharedFileSystemMounts: List<SharedFileSystemMountDescription> = emptyList(),
-    val peers: List<ApplicationPeer> = emptyList()
+    val peers: List<ApplicationPeer> = emptyList(),
+    val reservation: String? = null
 )
