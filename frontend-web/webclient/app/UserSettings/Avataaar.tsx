@@ -69,7 +69,7 @@ function Modification(props: AvataaarModificationOperations) {
                 </Flex></>}
 
             main={
-                loading ? (<Spinner size={24} />) : <>
+                loading ? (<Spinner />) : <>
                     <AvatarSelect
                         defaultValue={avatar.top}
                         update={value => setAvatar({...avatar, top: value})}

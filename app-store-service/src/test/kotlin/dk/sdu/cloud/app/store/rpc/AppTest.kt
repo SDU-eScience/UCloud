@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.store.rpc
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
-import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
+import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
 import dk.sdu.cloud.app.store.api.CreateTagsRequest
 import dk.sdu.cloud.app.store.api.DeleteTagsRequest
 import dk.sdu.cloud.app.store.services.AppStoreService
@@ -311,7 +311,7 @@ class AppTest {
                 val appDao = mockk<ApplicationHibernateDAO>()
 
                 every { appDao.findByNameAndVersionForUser(any(), any(), any(), any()) } answers {
-                    ApplicationWithFavorite(
+                    ApplicationWithFavoriteAndTags(
                         application.metadata,
                         application.invocation,
                         false,

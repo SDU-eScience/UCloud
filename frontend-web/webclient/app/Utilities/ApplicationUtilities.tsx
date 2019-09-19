@@ -37,6 +37,10 @@ export function hpcJobsQuery(
     return query;
 }
 
+export function advancedSearchQuery(): string {
+    return "/hpc/apps/advancedSearch";
+}
+
 export const hpcFavoriteApp = (name: string, version: string) =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
@@ -51,9 +55,6 @@ interface HPCApplicationsSearchQuery {
     page: number;
     itemsPerPage: number;
 }
-
-export const hpcApplicationsSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
-    `/hpc/apps/search?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const hpcApplicationsTagSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
     `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;

@@ -89,7 +89,7 @@ data class Application(
     fun withoutInvocation(): ApplicationSummary = ApplicationSummary(metadata)
 }
 
-data class ApplicationWithFavorite(
+data class ApplicationWithFavoriteAndTags(
     override val metadata: ApplicationMetadata,
     override val invocation: ApplicationInvocationDescription,
     override val favorite: Boolean,
@@ -97,6 +97,8 @@ data class ApplicationWithFavorite(
 ) : WithAppMetadata, WithAppInvocation, WithAppFavorite, WithAllAppTags {
     fun withoutInvocation(): ApplicationSummaryWithFavorite = ApplicationSummaryWithFavorite(metadata, favorite, tags)
 }
+
+
 
 data class ApplicationSummaryWithFavorite(
     override val metadata: ApplicationMetadata,

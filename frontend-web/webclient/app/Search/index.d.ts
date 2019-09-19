@@ -2,15 +2,16 @@ import {
     DetailedApplicationSearchReduxState,
     FullAppInfo
 } from "Applications";
-import { HeaderSearchType } from "DefaultObjects";
-import { AdvancedSearchRequest, DetailedFileSearchReduxState, File } from "Files";
-import { History } from "history";
-import { match } from "react-router-dom";
-import { Page } from "Types";
-import { RouterLocationProps } from "Utilities/URIUtilities";
+import {HeaderSearchType} from "DefaultObjects";
+import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
+import {AdvancedSearchRequest as AppSearchRequest} from "Applications";
+import {History} from "history";
+import {match} from "react-router-dom";
+import {Page} from "Types";
+import {RouterLocationProps} from "Utilities/URIUtilities";
 
 export interface SearchProps extends SimpleSearchOperations, SimpleSearchStateProps, RouterLocationProps {
-    match: match<{ priority: string }>;
+    match: match<{priority: string}>;
     history: History;
 }
 
@@ -30,7 +31,7 @@ export interface SimpleSearchOperations {
     setFilesLoading: (loading: boolean) => void;
     setApplicationsLoading: (loading: boolean) => void;
     searchFiles: (body: AdvancedSearchRequest) => void;
-    searchApplications: (query: string, page: number, itemsPerPage: number) => void;
+    searchApplications: (body: AppSearchRequest) => void;
     setFilesPage: (page: Page<File>) => void;
     setApplicationsPage: (page: Page<FullAppInfo>) => void;
     setSearch: (search: string) => void;
