@@ -1,5 +1,34 @@
 #!/usr/bin/env bash
+
+# Check if yq is installed
+command -v yq >/dev/null 2>&1 || {
+  echo >&2 "start-dependencies requires yq, but it does not appear to be installed.
+Install by running
+
+  pip install yq
+
+Aborting..";
+  exit 1;
+}
+
+# Stop running dependencies on CTRL-C
+function cleanup() {
+    printf '\nTerminating processes..\n'
+    exec `ps aux | grep MainKt | grep dk.sdu.cloud | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
+    exec `ps aux | grep dependencies-frontend-server | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
+    exec `ps aux | grep FrontendHelperKt | grep -v grep | awk '{print $2}' | xargs -I _ kill _`
+    printf 'Done!\n'
+}
+trap cleanup SIGINT SIGTERM
+
+script_dir="$(dirname "$0")"
+start_dir=$PWD
+
+cd "$script_dir"
+cd "../../"
 set -e
-script=`dirname "$0"`/development-utils/src/main/kotlin/Main.kt
-output=`kscript "$script" "$@"`
-bash $output
+script="infrastructure/scripts/development-utils/src/main/kotlin/Main.kt"
+output=$(kscript "$script" "$@")
+bash "$output"
+cd "$start_dir"
+wait

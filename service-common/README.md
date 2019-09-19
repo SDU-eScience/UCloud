@@ -15,6 +15,7 @@ SDUCloud.
 
 ## Other Relevant Pages
 
+- [Testing services locally](./wiki/testing_services_locally.md)
 - [Call RPC endpoints from the CLI](./wiki/REST-CLI.md)
 - [Deployment procedure](./wiki/deployment.md)
 - [Using Stolon](./wiki/stolon.md)
