@@ -27,7 +27,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import Status from "Navigation/StatusPage";
 import NoVNCClient from "NoVNC/NoVNCClient";
-import Playground from "Playground/Playground";
+import {Playground} from "Playground/Playground";
 import ProjectCreate from "Project/Create";
 import ProjectList from "Project/List";
 import ProjectView from "Project/View";
