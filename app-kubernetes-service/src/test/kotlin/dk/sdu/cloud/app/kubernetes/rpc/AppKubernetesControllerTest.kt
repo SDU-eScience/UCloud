@@ -3,7 +3,9 @@ package dk.sdu.cloud.app.kubernetes.rpc
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.kubernetes.internalFollowStdStreamsRequest
 import dk.sdu.cloud.app.kubernetes.jobVerifiedRequest
-import dk.sdu.cloud.app.kubernetes.services.PodService
+import dk.sdu.cloud.app.kubernetes.services.K8JobCreationService
+import dk.sdu.cloud.app.kubernetes.services.K8JobMonitoringService
+import dk.sdu.cloud.app.kubernetes.services.K8LogService
 import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
 import dk.sdu.cloud.app.kubernetes.wrongSharedFileSystem
@@ -22,24 +24,33 @@ import dk.sdu.cloud.service.test.setJobSubmitid
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.setBody
 import io.mockk.coEvery
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
 
 class AppKubernetesControllerTest {
 
-    private val podService = mockk<PodService>()
+    private val k8JobMonitoringService = mockk<K8JobMonitoringService>()
+    private val jobCreation = mockk<K8JobCreationService>()
+    private val logService = mockk<K8LogService>()
     private val vncService = mockk<VncService>()
     private val webService = mockk<WebService>()
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        listOf(AppKubernetesController(podService, vncService, webService))
+        listOf(
+            AppKubernetesController(
+                k8JobMonitoringService,
+                jobCreation,
+                logService,
+                vncService,
+                webService,
+                mockk(relaxed = true)
+            )
+        )
     }
 
     @Test
@@ -107,7 +118,7 @@ class AppKubernetesControllerTest {
 
     @Test
     fun `Test cleanup`() {
-        coEvery { podService.cleanup(any()) } just runs
+        coEvery { jobCreation.cleanup(any()) } just runs
 
         withKtorTest(
             setup,
@@ -126,7 +137,7 @@ class AppKubernetesControllerTest {
 
     @Test
     fun `Test follow`() {
-        coEvery { podService.retrieveLogs(any(), any(), any()) } answers {
+        coEvery { logService.retrieveLogs(any(), any(), any()) } answers {
             Pair("logging", 1)
         }
 

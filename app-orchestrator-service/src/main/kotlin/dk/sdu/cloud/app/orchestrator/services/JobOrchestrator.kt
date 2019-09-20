@@ -184,6 +184,7 @@ class JobOrchestrator<DBSession>(
                 if (proposedState != JobState.CANCELING || job.currentState.isFinal()) {
                     if (job.currentState.isFinal()) {
                         log.info("Bad state transition from ${job.currentState} to $proposedState")
+                        return
                     }
 
                     throw JobException.BadStateTransition(job.currentState, event.newState)
