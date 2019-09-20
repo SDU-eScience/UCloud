@@ -148,17 +148,16 @@ export const findKnownParameterValues = (
 
 export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
 
-const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
+const typeMatchesValue = (type: ParameterTypes, parameter: string | [number, number]): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
             return parameter === "Yes" || parameter === "No" || parameter === "";
         case ParameterTypes.Integer:
-            return parseInt(parameter, 10) % 1 === 0;
+            return parseInt(parameter as string, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
-            return typeof parseFloat(parameter) === "number";
+            return typeof parseFloat(parameter as string) === "number";
         case ParameterTypes.Range:
-            console.error("FIXME \"typeMatchesValue\"");
-            return false;
+            return typeof parameter === "object" && "size" in parameter;
         case ParameterTypes.Text:
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:

@@ -272,7 +272,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 <Heading.h4>Select additional folders to use</Heading.h4>
                                             </Box>
 
-                                            <Button type="button" ml="5px" lineHeight={"16px"} onClick={() => this.addFolder()}>
+                                            <Button
+                                                type="button"
+                                                ml="5px"
+                                                lineHeight={"16px"}
+                                                onClick={() => this.addFolder()}
+                                            >
                                                 Add folder
                                             </Button>
                                         </Flex>
@@ -586,7 +591,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
     }
 
-    private async retrieveApplication(name: string, version: string) {
+    private async retrieveApplication(name: string, version: string): Promise<void> {
         try {
             this.props.setLoading(true);
             const {response} = await this.state.promises.makeCancelable(
@@ -640,7 +645,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     maxTime,
                     siteVersion
                 } = JSON.parse(rawInputFile);
-
                 // Verify metadata
                 if (application.name !== thisApp.metadata.name) {
                     snackbarStore.addSnack({
@@ -721,7 +725,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         const ref = this.state.parameterValues.get(key);
                         if (ref && ref.current) {
                             if ("value" in ref.current) ref.current.value = userInputValues[key];
-                            else (ref.current.setState(() => ({bounds: JSON.parse(userInputValues[key])})));
+                            else (ref.current.setState(() => ({bounds: userInputValues[key] as any})));
                             this.state.parameterValues.set(key, ref);
                         }
                     });

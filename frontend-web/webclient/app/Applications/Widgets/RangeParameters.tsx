@@ -3,14 +3,13 @@ import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter"
 import {Range} from "rc-slider";
 import "rc-slider/assets/index.css";
 import * as React from "react";
-import {TextSpan} from "ui-components/Text";
 
-export type RangeRef = React.Component<{}, {bounds: [number, number]}>;
+export type RangeRef = React.Component<{}, {bounds: number[]}>;
 
 function RangeParameter(props: RangeParameterProps) {
     const {parameter} = props;
 
-    const [values, setValues] = React.useState(() => {
+    const [values, setValues] = React.useState<number[]>(() => {
         if (!!props.parameter.defaultValue) {
             const {min, max} = props.parameter.defaultValue;
             return [!!min ? min : props.parameter.min, !!max ? max : props.parameter.max];
@@ -25,14 +24,15 @@ function RangeParameter(props: RangeParameterProps) {
         }
     }
 
+    const [first, second] = values;
+
     return <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
-        <TextSpan>{values[0]} to {values[1]}</TextSpan>
+        {first} to {second}
         <Range
             max={parameter.max}
             min={parameter.min}
             included
             ref={props.parameterRef}
-            value={values}
             defaultValue={!parameter.defaultValue ? undefined :
                 [parameter.defaultValue.min, parameter.defaultValue.max]}
             onChange={setValues}
