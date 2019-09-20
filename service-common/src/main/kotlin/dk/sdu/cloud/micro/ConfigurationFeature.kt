@@ -17,7 +17,8 @@ import io.ktor.http.HttpStatusCode
 import java.io.File
 
 sealed class ServerConfigurationException(why: String, status: HttpStatusCode) : RPCException(why, status) {
-    class MissingNode : ServerConfigurationException("Node does not exist", HttpStatusCode.InternalServerError)
+    class MissingNode(path: String) :
+        ServerConfigurationException("Missing configuration at $path", HttpStatusCode.InternalServerError)
 }
 
 class ServerConfiguration internal constructor(
@@ -27,13 +28,13 @@ class ServerConfiguration internal constructor(
     fun <T> requestChunk(valueTypeRef: TypeReference<T>, node: String): T {
         val jsonNode =
             tree.get(node)?.takeIf { !it.isMissingNode }
-                ?: throw ServerConfigurationException.MissingNode()
+                ?: throw ServerConfigurationException.MissingNode(node)
         return jsonNode.traverse(jsonMapper).readValueAs<T>(valueTypeRef)
     }
 
     fun <T> requestChunkAt(valueTypeRef: TypeReference<T>, vararg path: String): T {
         val jsonNode = tree.at("/" + path.joinToString("/"))?.takeIf { !it.isMissingNode }
-            ?: throw ServerConfigurationException.MissingNode()
+            ?: throw ServerConfigurationException.MissingNode(path.joinToString("/"))
         return jsonNode.traverse(jsonMapper).readValueAs<T>(valueTypeRef)
     }
 
@@ -90,7 +91,7 @@ class ConfigurationFeature : MicroFeature {
                 } else {
                     if (configDirectory.exists() && configDirectory.isDirectory) {
                         allConfigFiles.addAll(
-                            configDirectory.listFiles().filter { it.extension in knownExtensions }
+                            configDirectory.listFiles()?.filter { it.extension in knownExtensions } ?: emptyList()
                         )
                     }
                 }
@@ -98,13 +99,12 @@ class ConfigurationFeature : MicroFeature {
         }
 
         val tree = jsonMapper.readTree("{}")
-        val serverConfiguration =
-            ServerConfiguration(jsonMapper, tree)
+        val serverConfiguration = ServerConfiguration(jsonMapper, tree)
         for (configFile in allConfigFiles) {
             injectFile(serverConfiguration, configFile)
         }
 
-        // This is not meant to be recursive.
+        // NOTE: This is not meant to be recursive.
         val additionalDirs =
             serverConfiguration.requestChunkAtOrNull<List<String>>("config", "additionalDirectories") ?: emptyList()
         for (additionalDir in additionalDirs) {

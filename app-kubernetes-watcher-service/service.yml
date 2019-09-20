@@ -1,0 +1,7 @@
+---
+name: app-kubernetes-watcher
+
+namespaces:
+- app.kubernetes.watcher
+
+dependencies: []

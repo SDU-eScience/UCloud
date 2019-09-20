@@ -1,5 +1,10 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.BroadcastingStream
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -8,15 +13,18 @@ import kotlinx.coroutines.sync.withLock
  *
  * Actual configuration is performed by [EnvoyConfigurationService] this service simply makes sure state is up-to-date.
  */
-class ApplicationProxyService (
+class ApplicationProxyService(
     private val envoyConfigurationService: EnvoyConfigurationService,
+    private val jobCache: VerifiedJobCache,
+    private val tunnelManager: TunnelManager,
+    private val broadcastingStream: BroadcastingStream,
     private val prefix: String = "app-",
     private val domain: String = "cloud.sdu.dk"
-){
+) {
     private val entries = HashMap<String, RouteAndCluster>()
     private val lock = Mutex()
 
-    suspend fun addEntry(tunnel: Tunnel) {
+    private suspend fun addEntry(tunnel: Tunnel) {
         lock.withLock {
             if (entries.containsKey(tunnel.jobId)) return
 
@@ -37,7 +45,7 @@ class ApplicationProxyService (
         renderConfiguration()
     }
 
-    suspend fun removeEntry(jobId: String) {
+    private suspend fun removeEntry(jobId: String) {
         lock.withLock {
             if (!entries.containsKey(jobId)) return
 
@@ -45,6 +53,18 @@ class ApplicationProxyService (
         }
 
         renderConfiguration()
+    }
+
+    suspend fun initializeListener() {
+        broadcastingStream.subscribe(ProxyEvents.events) { event ->
+            GlobalScope.launch {
+                if (event.shouldCreate) {
+                    addEntry(createOrUseExistingTunnel(event.id))
+                } else {
+                    removeEntry(event.id)
+                }
+            }
+        }
     }
 
     private suspend fun renderConfiguration() {
@@ -57,6 +77,12 @@ class ApplicationProxyService (
         val routes = allEntries.map { it.route }
         val clusters = allEntries.map { it.cluster }
         envoyConfigurationService.configure(routes, clusters)
+    }
+
+    private suspend fun createOrUseExistingTunnel(incomingId: String): Tunnel {
+        val job = jobCache.findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val remotePort = job.application.invocation.web?.port ?: 80
+        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort)
     }
 }
 

@@ -51,6 +51,16 @@ data class UploadApplicationLogoRequest(
     val data: BinaryStream
 )
 
+data class AdvancedSearchRequest(
+    val name: String?,
+    val version: String?,
+    val description: String?,
+    val tags: List<String>?,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+
+
 data class ClearLogoRequest(val name: String)
 typealias ClearLogoResponse = Unit
 
@@ -172,9 +182,29 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
         }
 
+    val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationWithFavoriteAndTags>,CommonErrorMessage>("advancedSearch") {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"advancedSearch"
+            }
+
+            body {
+                bindEntireRequestFromBody()
+            }
+        }
+    }
+
     val findByNameAndVersion = call<
             FindApplicationAndOptionalDependencies,
-            ApplicationWithFavorite,
+            ApplicationWithFavoriteAndTags,
             CommonErrorMessage>("findByNameAndVersion") {
         auth {
             roles = Roles.AUTHENTICATED

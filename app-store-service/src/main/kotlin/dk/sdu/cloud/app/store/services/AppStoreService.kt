@@ -68,7 +68,7 @@ class AppStoreService<DBSession>(
         securityPrincipal: SecurityPrincipal,
         name: String,
         version: String
-    ): ApplicationWithFavorite {
+    ): ApplicationWithFavoriteAndTags {
         db.withTransaction { session ->
             val result = applicationDAO.findByNameAndVersionForUser(
                 session,
@@ -159,6 +159,19 @@ class AppStoreService<DBSession>(
     ): Page<Application> {
         return db.withTransaction { session ->
             applicationDAO.findLatestByTool(session, user, tool, paging)
+        }
+    }
+
+    fun advancedSearch(
+        user: SecurityPrincipal,
+        name: String?,
+        version: String?,
+        tags: List<String>?,
+        description: String?,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationWithFavoriteAndTags> {
+        return db.withTransaction { session ->
+            applicationDAO.advancedSearch(session, user, name, version, tags, description, paging)
         }
     }
 

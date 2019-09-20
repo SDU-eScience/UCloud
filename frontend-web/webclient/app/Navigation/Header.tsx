@@ -1,9 +1,13 @@
+import {AdvancedSearchRequest as AppSearchRequest, DetailedApplicationSearchReduxState, FullAppInfo} from "Applications";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import {Cloud} from "Authentication/SDUCloudObject"
+import {setAppName} from "Applications/Redux/DetailedApplicationSearchActions";
+import {Cloud} from "Authentication/SDUCloudObject";
 import Avatar from "AvataaarLib";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import {HeaderSearchType, KeyCode, ReduxObject} from "DefaultObjects";
+import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
 import DetailedFileSearch from "Files/DetailedFileSearch";
+import {setFilename} from "Files/Redux/DetailedFileSearchActions";
 import {History} from "history";
 import {HeaderStateToProps} from "Navigation";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
@@ -12,8 +16,11 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
+import {searchApplications, searchFiles, setApplicationsLoading, setFilesLoading} from "Search/Redux/SearchActions";
+import {applicationSearchBody, fileSearchBody} from "Search/Search";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
+import {Page} from "Types";
 import {
     Absolute,
     Box,
@@ -39,6 +46,7 @@ import {ThemeToggler} from "ui-components/ThemeToggle";
 import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
+import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString} from "UtilityFunctions";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteComponentProps {
@@ -47,7 +55,7 @@ interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteCompone
 }
 
 const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
-    <DevelopmentBadgeBase>DEVELOPMENT</DevelopmentBadgeBase> : null;
+    <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps) {
     if (!Cloud.isLoggedIn) return null;
@@ -56,18 +64,14 @@ function Header(props: HeaderProps) {
         props.fetchAvatar();
     }, []);
 
-    const {prioritizedSearch, history, refresh, spin} = props;
+    const {refresh, spin} = props;
 
     return (
         <HeaderContainer color="headerText" bg="headerBg">
             <Logo />
             <Box ml="auto" />
             <Hide xs sm md>
-                <Search
-                    searchType={props.prioritizedSearch}
-                    navigate={path => history.push(searchPage(prioritizedSearch, path))}
-                    setSearchType={st => props.setSearchType(st)}
-                />
+                <Search history={props.history} match={props.match} location={props.location} />
             </Hide>
             <Hide lg xxl xl>
                 <Icon name="search" size="32" mr="3px" cursor="pointer"
@@ -201,14 +205,25 @@ const SearchInput = styled(Flex)`
 `;
 
 
-interface SearchProps {
-    searchType: HeaderSearchType;
-    navigate: (path: string) => void;
-    setSearchType: (st: HeaderSearchType) => void;
+interface SearchStateProps {
+    prioritizedSearch: HeaderSearchType;
+    fileSearch: DetailedFileSearchReduxState;
+    appSearch: DetailedApplicationSearchReduxState;
+    files: Page<File>;
+    applications: Page<FullAppInfo>;
 }
 
-const Search = ({navigate, searchType, setSearchType}: SearchProps) => {
+interface SearchOperations {
+    setSearchType: (st: HeaderSearchType) => void;
+    searchFiles: (body: AdvancedSearchRequest) => void;
+    searchApplications: (body: AppSearchRequest) => void;
+}
+
+type SearchProps = SearchOperations & SearchStateProps;
+
+const _Search = (props: SearchProps & RouteComponentProps) => {
     const [search, setSearch] = React.useState("");
+    const {history, prioritizedSearch, setSearchType} = props;
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     return (<Relative>
         <SearchInput>
@@ -221,8 +236,7 @@ const Search = ({navigate, searchType, setSearchType}: SearchProps) => {
                 value={search}
                 noBorder
                 onKeyDown={e => {
-                    if (e.keyCode === KeyCode.ENTER && (search))
-                        navigate(search);
+                    if (e.keyCode === KeyCode.ENTER && search) searchByName(search);
                 }}
                 onChange={({target}) => setSearch(target.value)}
             />
@@ -248,24 +262,91 @@ const Search = ({navigate, searchType, setSearchType}: SearchProps) => {
                     <Box ml="auto" />
                     {allowedSearchTypes.map(it =>
                         <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
-                            selected={it === searchType}>
+                            selected={it === prioritizedSearch}>
                             {prettierString(it)}
                         </SelectableText>
                     )}
                     <Box mr="auto" />
                 </SelectableTextWrapper>
-                {searchType === "files" ?
-                    <DetailedFileSearch controlledSearch={[search, setSearch]} cantHide /> :
-
-                    searchType === "applications" ?
+                {prioritizedSearch === "files" ?
+                    <DetailedFileSearch
+                        onSearch={() => fetchAll()}
+                        controlledSearch={[search, setSearch]}
+                        cantHide
+                    /> :
+                    prioritizedSearch === "applications" ?
                         <DetailedApplicationSearch
-                        controlledSearch={[search, setSearch]} defaultAppName={search} /> : null}
+                            onSearch={() => fetchAll()}
+                            controlledSearch={[search, setSearch]}
+                            defaultAppName={search}
+                        /> : null}
             </ClickableDropdown>
             {!Cloud.isLoggedIn ? <Login /> : null}
         </SearchInput>
-    </Relative>
-    );
+    </Relative>);
+
+    function fetchAll(itemsPerPage?: number) {
+        props.searchFiles({
+            ...fileSearchBody(
+                props.fileSearch,
+                itemsPerPage || props.files.itemsPerPage,
+                props.files.pageNumber
+            ), fileName: search
+        });
+        props.searchApplications({
+            ...applicationSearchBody(
+                props.appSearch,
+                itemsPerPage || props.applications.itemsPerPage,
+                props.applications.pageNumber
+            ), name: search
+        });
+        history.push(searchPage(prioritizedSearch, search));
+    }
+
+    function searchByName(name: string) {
+        props.searchApplications({
+            name,
+            itemsPerPage: props.applications.itemsPerPage,
+            page: props.applications.pageNumber
+        });
+        props.searchFiles({
+            fileName: name,
+            fileTypes: ["DIRECTORY", "FILE"],
+            itemsPerPage: props.files.itemsPerPage,
+            page: props.files.pageNumber
+        });
+        history.push(searchPage(prioritizedSearch, search));
+    }
 };
+
+const mapSearchStateToProps = ({
+    header,
+    detailedFileSearch,
+    detailedApplicationSearch,
+    simpleSearch
+}: ReduxObject): SearchStateProps => ({
+    prioritizedSearch: header.prioritizedSearch,
+    fileSearch: detailedFileSearch,
+    appSearch: detailedApplicationSearch,
+    files: simpleSearch.files,
+    applications: simpleSearch.applications
+});
+
+const mapSearchDispatchToProps = (dispatch: Dispatch) => ({
+    setSearchType: (st: HeaderSearchType) => dispatch(setPrioritizedSearch(st)),
+    searchFiles: async (body: AdvancedSearchRequest) => {
+        dispatch(setFilesLoading(true));
+        dispatch(await searchFiles(body));
+        dispatch(setFilename(body.fileName || ""));
+    },
+    searchApplications: async (body: AppSearchRequest) => {
+        dispatch(setApplicationsLoading(true));
+        dispatch(await searchApplications(body));
+        dispatch(setAppName(body.name || ""));
+    },
+});
+
+const Search = connect<SearchStateProps, SearchOperations>(mapSearchStateToProps, mapSearchDispatchToProps)(_Search);
 
 const ClippedBox = styled(Flex)`
     align-items: center;
@@ -298,15 +379,13 @@ export const UserAvatar = ({avatar}: UserAvatar) => (
 
 interface HeaderOperations {
     fetchAvatar: () => void;
-    setSearchType: (st: HeaderSearchType) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     fetchAvatar: async () => {
         const action = await findAvatar();
         if (action !== null) dispatch(action);
-    },
-    setSearchType: st => dispatch(setPrioritizedSearch(st)),
+    }
 });
 
 const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToProps => ({
@@ -320,7 +399,8 @@ const isAnyLoading = (rO: ReduxObject): boolean =>
     rO.loading === true || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
     || rO.simpleSearch.applicationsLoading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
-    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading
+    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.loading
+    || rO.applicationsFavorite.applications.loading || /* rO.applicationsBrowse.applicationsPage.loading */ false
     || rO.accounting.resources["compute/timeUsed"].events.loading
     || rO.accounting.resources["storage/bytesUsed"].events.loading;
 

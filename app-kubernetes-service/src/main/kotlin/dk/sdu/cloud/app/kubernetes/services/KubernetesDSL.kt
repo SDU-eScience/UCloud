@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.store.api.SimpleDuration
 import io.fabric8.kubernetes.api.model.Container
 import io.fabric8.kubernetes.api.model.ContainerBuilder
 import io.fabric8.kubernetes.api.model.DoneablePod
@@ -11,6 +10,7 @@ import io.fabric8.kubernetes.api.model.Volume
 import io.fabric8.kubernetes.api.model.VolumeBuilder
 import io.fabric8.kubernetes.api.model.batch.DoneableJob
 import io.fabric8.kubernetes.api.model.batch.JobSpecBuilder
+import kotlinx.coroutines.delay
 
 
 fun PodTemplateSpecBuilder.metadata(builder: ObjectMetaBuilder.() -> Unit): PodTemplateSpecBuilder {
@@ -68,19 +68,19 @@ fun PodSpecBuilder.volume(builder: VolumeBuilder.() -> Unit): Volume {
     return volumeBuilder.build()
 }
 
-fun await(retries: Int = 50, delay: Long = 100, condition: () -> Boolean) {
+suspend fun await(retries: Int = 50, time: Long = 100, condition: () -> Boolean) {
     for (attempt in 0 until retries) {
         if (condition()) return
-        Thread.sleep(delay)
+        delay(time)
     }
 
     throw IllegalStateException("Condition failed!")
 }
 
-fun awaitCatching(retries: Int = 50, delay: Long = 100, condition: () -> Boolean) {
+suspend fun awaitCatching(retries: Int = 50, time: Long = 100, condition: () -> Boolean) {
     for (attempt in 0 until retries) {
         if (runCatching(condition).getOrNull() == true) return
-        Thread.sleep(delay)
+        delay(time)
     }
 
     throw IllegalStateException("Condition failed!")
