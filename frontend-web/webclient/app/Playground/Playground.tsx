@@ -22,6 +22,14 @@ export const Playground: React.FunctionComponent = props => {
                 >
                     Client Test
                 </Button>
+
+                <Button
+                    onClick={() => {
+                        Cloud.post("/files/testTask");
+                    }}
+                >
+                    Task Test
+                </Button>
             </>
         }
     />;

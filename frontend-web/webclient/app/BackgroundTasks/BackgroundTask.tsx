@@ -1,10 +1,13 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {Progress, Speed, Task, TaskUpdate} from "BackgroundTasks/api";
+import {taskUpdateAction} from "BackgroundTasks/redux";
 import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
+import {useEffect} from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import styled from "styled-components";
+import {Dictionary} from "Types";
 import {Button, Icon} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -16,10 +19,39 @@ import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {calculateUploadSpeed} from "Uploader/Uploader";
 import {sizeToHumanReadableWithUnit} from "Utilities/FileUtilities";
 
-const BackgroundTasks = (props: { activeUploads: number, uploads: Upload[], showUploader: () => void }) => {
+interface BackgroundTaskProps {
+    activeUploads: number;
+    uploads: Upload[];
+    showUploader: () => void;
+    tasks?: Dictionary<TaskUpdate>;
+    onTaskUpdate: (update: TaskUpdate) => void;
+}
+
+const BackgroundTasks = (props: BackgroundTaskProps) => {
     let speedSum = 0;
     let uploadedSize = 0;
     let targetUploadSize = 0;
+
+    useEffect(() => {
+        const wsConnection = WSFactory.open("/tasks", {
+            init: conn => {
+                conn.subscribe({
+                    call: "task.listen",
+                    payload: {},
+                    handler: message => {
+                        if (message.type === "message") {
+                            const payload = message.payload as TaskUpdate;
+                            props.onTaskUpdate(payload);
+                        }
+                        console.log(message);
+                    }
+                });
+            }
+        });
+
+        return () => wsConnection.close();
+    }, []);
+
     props.uploads.forEach(upload => {
         if (upload.isUploading) {
             speedSum += calculateUploadSpeed(upload);
@@ -54,6 +86,16 @@ const BackgroundTasks = (props: { activeUploads: number, uploads: Upload[], show
         >
             {" "}
             {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
+            {!props.tasks ? null :
+                Object.values(props.tasks).map(update => {
+                    console.log(update, props.tasks);
+                    return <TaskComponent
+                        title={update.newTitle ? update.newTitle : ""}
+                        speed={!!update.speeds ? update.speeds[0] : undefined}
+                        progress={update.progress ? update.progress : undefined}
+                    />;
+                })
+            }
         </ClickableDropdown>
     );
 };
@@ -96,14 +138,16 @@ const TasksIconBase = styled(Icon)`
     }
 `;
 
-const mapStateToProps = ({uploader}: ReduxObject) => ({
-    uploads: uploader.uploads,
-    activeUploads: uploader.uploads.filter(it => it.uploadXHR &&
-        it.uploadXHR.readyState > XMLHttpRequest.UNSENT && it.uploadXHR.readyState < XMLHttpRequest.DONE).length
+const mapStateToProps = (state: ReduxObject) => ({
+    uploads: state.uploader.uploads,
+    activeUploads: state.uploader.uploads.filter(it => it.uploadXHR &&
+        it.uploadXHR.readyState > XMLHttpRequest.UNSENT && it.uploadXHR.readyState < XMLHttpRequest.DONE).length,
+    tasks: state.tasks
 });
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: () => dispatch(setUploaderVisible(true, Cloud.homeFolder))
+    showUploader: () => dispatch(setUploaderVisible(true, Cloud.homeFolder)),
+    onTaskUpdate: (update: TaskUpdate) => dispatch(taskUpdateAction(update)),
 });
 
 const TasksIcon = () => <TasksIconBase name="notchedCircle"/>;

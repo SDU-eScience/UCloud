@@ -13,6 +13,8 @@ export interface Task {
 }
 
 export interface TaskUpdate {
+    jobId: string;
+    newTitle: string | null;
     speeds: Speed[];
     progress: Progress | null;
     complete: boolean;

@@ -76,7 +76,7 @@ export type ReceivePage<T1, T2> = PayloadAction<T1, {page: Page<T2>}>
 export interface PayloadAction<T1, T2> extends Action<T1> {payload: T2}
 
 export interface Dictionary<V> {
-    [key: string]: V
+    [key: string]: V;
 }
 
 export interface PredicatedOperation<T> {

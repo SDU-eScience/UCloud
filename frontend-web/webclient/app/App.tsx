@@ -5,6 +5,7 @@ import analyses from "Applications/Redux/AnalysesReducer";
 import applications from "Applications/Redux/BrowseReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
 import {Cloud} from "Authentication/SDUCloudObject";
+import * as TaskRedux from "BackgroundTasks/redux";
 import Core from "Core";
 import dashboard from "Dashboard/Redux/DashboardReducer";
 import {initObject} from "DefaultObjects";
@@ -51,6 +52,7 @@ const store = configureStore(initObject(), {
     ...AccountingRedux.reducers,
     avatar,
     loading,
+    tasks: TaskRedux.reducer,
     project: ProjectRedux.reducer,
     responsive: createResponsiveStateReducer(
         responsiveBP,

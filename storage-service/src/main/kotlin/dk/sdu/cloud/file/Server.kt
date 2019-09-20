@@ -47,6 +47,7 @@ class Server(
     override val log: Logger = logger()
 
     override fun start() = runBlocking {
+        BackgroundScope.init()
         supportReverseInH2(micro)
 
         val streams = micro.eventStreamService

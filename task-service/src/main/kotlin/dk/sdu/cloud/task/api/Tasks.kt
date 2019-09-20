@@ -21,7 +21,7 @@ typealias ListResponse = Page<Task>
 typealias ViewRequest = FindByStringId
 typealias ViewResponse = Task
 
-typealias ListenRequest = FindByStringId
+typealias ListenRequest = Unit
 typealias ListenResponse = TaskUpdate
 
 data class CreateRequest(val title: String, val owner: String, val initialStatus: String? = null)
@@ -34,7 +34,7 @@ typealias MarkAsCompleteRequest = FindByStringId
 typealias MarkAsCompleteResponse = Unit
 
 object Tasks : CallDescriptionContainer("task") {
-    val baseContext = "/api/task"
+    val baseContext = "/api/tasks"
 
     val list = call<ListRequest, ListResponse, CommonErrorMessage>("list") {
         auth {
