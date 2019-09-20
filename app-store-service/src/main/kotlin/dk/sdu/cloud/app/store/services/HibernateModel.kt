@@ -8,15 +8,7 @@ import dk.sdu.cloud.service.db.WithId
 import org.hibernate.annotations.Type
 import java.io.Serializable
 import java.util.*
-import javax.persistence.Column
-import javax.persistence.EmbeddedId
-import javax.persistence.Entity
-import javax.persistence.GeneratedValue
-import javax.persistence.Id
-import javax.persistence.Lob
-import javax.persistence.Table
-import javax.persistence.Temporal
-import javax.persistence.TemporalType
+import javax.persistence.*
 
 /**
  * Updated in:
@@ -78,21 +70,6 @@ class TagEntity(
     companion object : HibernateEntity<TagEntity>, WithId<Long>
 }
 
-@Entity
-@Table(name = "application_file_extensions")
-class FileExtensionEntity(
-    var applicationName: String,
-
-    @Column(name = "extension")
-    var extension: String,
-
-    @Id
-    @GeneratedValue
-    var id: Long? = null
-) {
-    companion object : HibernateEntity<FileExtensionEntity>, WithId<Long>
-}
-
 /**
  * Updated in:
  *
@@ -100,7 +77,12 @@ class FileExtensionEntity(
  * - V4__Tools.sql
  */
 @Entity
-@Table(name = "applications")
+@Table(
+    name = "applications",
+    indexes = [
+        Index(name = "application_file_extensions", columnList = "application")
+    ]
+)
 class ApplicationEntity(
     var owner: String,
 
