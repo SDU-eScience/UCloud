@@ -1,17 +1,21 @@
-import { LoadableContent, emptyLoadableContent } from "LoadableContent";
-import { Page } from "Types";
-import { ApplicationMetadata, WithAppMetadata } from "Applications";
+import {FullAppInfo, WithAppMetadata} from "Applications";
+import {emptyLoadableContent, LoadableContent} from "LoadableContent";
+import {Page} from "Types";
 
 export interface Type {
-    applications: LoadableContent<Page<WithAppMetadata>>
+    applications: Map<string, Page<WithAppMetadata>>;
+    loading: boolean;
+    applicationsPage: LoadableContent<Page<FullAppInfo>>;
 }
 
 export interface Wrapper {
-    applicationsBrowse: Type
+    applicationsBrowse: Type;
 }
 
 export const init = (): Wrapper => ({
     applicationsBrowse: {
-        applications: emptyLoadableContent()
+        applications: new Map(),
+        loading: false,
+        applicationsPage: emptyLoadableContent()
     }
 });

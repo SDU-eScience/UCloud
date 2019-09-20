@@ -1,29 +1,28 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.app.kubernetes.services.K8NameAllocator.Companion.JOB_ID_LABEL
+import dk.sdu.cloud.app.kubernetes.services.K8NameAllocator.Companion.ROLE_LABEL
 import io.fabric8.kubernetes.api.model.LabelSelector
 import io.fabric8.kubernetes.api.model.networking.NetworkPolicyPeer
-import io.fabric8.kubernetes.client.KubernetesClient
 
-class NetworkPolicyService(
-    private val k8sClient: KubernetesClient,
-    private val namespace: String = "app-kubernetes",
-    private val appRole: String = "sducloud-app"
-) {
+class NetworkPolicyService(private val k8: K8Dependencies) {
     fun createPolicy(jobId: String, peers: List<String>) {
         val clientSelector = LabelSelector().also {
             it.matchLabels = hashMapOf(
                 JOB_ID_LABEL to jobId,
-                ROLE_LABEL to appRole
+                ROLE_LABEL to k8.nameAllocator.appRole
             )
         }
 
-        val spec = k8sClient.network().networkPolicies()
-            .inNamespace(namespace)
+        val spec = k8.client.network().networkPolicies()
+            .inNamespace(k8.nameAllocator.namespace)
 
-            .createNew()
+            .createOrReplaceWithNew()
             .withNewMetadata()
             .withName("policy-$jobId")
-            .withNamespace(namespace)
+            .withNamespace(k8.nameAllocator.namespace)
             .endMetadata()
 
             .withNewSpec()
@@ -45,7 +44,7 @@ class NetworkPolicyService(
             // We ensure that egress is allowed to our peer
             val peerSelector = LabelSelector().also {
                 it.matchLabels = hashMapOf(
-                    ROLE_LABEL to appRole,
+                    ROLE_LABEL to k8.nameAllocator.appRole,
                     JOB_ID_LABEL to peer
                 )
             }
@@ -66,8 +65,8 @@ class NetworkPolicyService(
 
             // We also need to ensure that ingress is allowed in our peer (we need to modify their policy for this)
             // We don't need to remove this later since the job id is always unique.
-            k8sClient.network().networkPolicies()
-                .inNamespace(namespace)
+            k8.client.network().networkPolicies()
+                .inNamespace(k8.nameAllocator.namespace)
                 .withName("policy-$peer")
                 .edit()
                 .editSpec()
@@ -89,13 +88,21 @@ class NetworkPolicyService(
                 .done()
         }
 
-        spec
+        val networkPolicy = spec
             .withPodSelector(clientSelector)
             .endSpec()
             .done()
+
+        log.debug("Creating network policy with name: policy-$jobId")
+        log.info(defaultMapper.writeValueAsString(networkPolicy))
+
     }
 
     fun deletePolicy(jobId: String) {
-        k8sClient.network().networkPolicies().inNamespace(namespace).withName("policy-$jobId").delete()
+        k8.client.network().networkPolicies().inNamespace(k8.nameAllocator.namespace).withName("policy-$jobId").delete()
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

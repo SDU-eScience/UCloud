@@ -32,10 +32,12 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.isSuccess
 import io.ktor.http.withCharset
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
+import okhttp3.ConnectionPool
 import java.net.ConnectException
 import java.net.URLEncoder
 import java.util.*
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.reflect.KClass
 import kotlin.reflect.full.companionObjectInstance
@@ -53,12 +55,17 @@ class OutgoingHttpCall(val builder: KtorHttpRequestBuilder) : OutgoingCall {
 
 class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCall, OutgoingHttpCall.Companion> {
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
+    private val sampleCounter = AtomicInteger(0)
 
     private val httpClient = HttpClient(OkHttp) {
         engine {
             config {
                 readTimeout(5, TimeUnit.MINUTES)
                 writeTimeout(5, TimeUnit.MINUTES)
+
+                // All of our connections are going to the same address (cloud.sdu.dk). So we keep a large pool
+                // ready with a large timeout. (This doesn't apply to local dev but this won't break anything)
+                connectionPool(ConnectionPool(128, 30, TimeUnit.MINUTES))
             }
         }
 
@@ -86,7 +93,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         return OutgoingHttpCall(KtorHttpRequestBuilder())
     }
 
-    @Suppress("NestedBlockDepth")
+    @Suppress("NestedBlockDepth", "BlockingMethodInNonBlockingContext")
     override suspend fun <R : Any, S : Any, E : Any> finalizeCall(
         call: CallDescription<R, S, E>,
         request: R,
@@ -97,6 +104,8 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         val shortRequestMessage = request.toString().take(100)
 
         var attempts = 0
+
+        val ourSampleCount = sampleCounter.incrementAndGet()
 
         while (true) {
             attempts++
@@ -136,7 +145,11 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                     body = TextContent("Fix", ContentType.Text.Plain)
                 }
 
-                log.debug("[$callId] -> $url: $shortRequestMessage")
+                if (ourSampleCount % SAMPLE_FREQUENCY == 0) {
+                    log.info("[$callId] -> ${call.fullName}: $shortRequestMessage")
+                } else {
+                    log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
+                }
             }
 
             val resp = try {
@@ -147,13 +160,22 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             }
 
             if (resp.status.value in 500..599) {
-                log.info("[$callId] Failed with status ${resp.status}. Retrying...")
+                log.info("[$callId] name=${call.fullName} Failed with status ${resp.status}. Retrying...")
                 continue
             }
 
             val result = parseResponse(resp, call, callId)
             val end = System.currentTimeMillis()
-            log.debug("[$callId] (Time: ${end - start}ms. Attempts: $attempts) <- ${result.toString().take(100)}")
+
+            val responseDebug =
+                "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
+
+            if (ourSampleCount % SAMPLE_FREQUENCY == 0) {
+                log.info(responseDebug)
+            } else {
+                log.debug(responseDebug)
+            }
+
             return result
         }
     }
@@ -177,7 +199,6 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             }
 
             else -> {
-                // TODO Blocking
                 defaultMapper.readValue<S>(resp.content.toInputStream(), type)
             }
         }
@@ -342,6 +363,8 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     companion object : Loggable {
         override val log = logger()
+
+        private const val SAMPLE_FREQUENCY = 100
     }
 }
 

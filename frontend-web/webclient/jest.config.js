@@ -1,5 +1,11 @@
 module.exports = {
   preset: 'ts-jest',
+  collectCoverage: true,
+  coverageDirectory: "<rootDir>/coverage",
+  coverageReporters: [
+    "html",
+    "cobertura"
+  ],
   transform: {
     "^.+\\.tsx?$": "ts-jest",
     "^.+\\.jsx?$": "<rootDir>/node_modules/babel-jest",

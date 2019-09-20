@@ -81,7 +81,7 @@ export interface LoadingMainContainerProps extends MainContainerProps {
 export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerProps> = props => {
     let main: React.ReactNode;
     if (props.loading) {
-        main = <Spinner size={24}/>;
+        main = <Spinner />;
     } else if (props.error !== undefined) {
         main = <Heading.h2>{props.error}</Heading.h2>;
     } else {
@@ -109,7 +109,7 @@ export function LoadableMainContainer(props: LoadableMainContainerProps): JSX.El
     if (!props.loadable.content) {
         const main = !!props.loadable.error ?
             <Heading.h2>{props.loadable.error.statusCode} - {props.loadable.error.errorMessage}</Heading.h2> :
-            <Spinner size={24}/>;
+            <Spinner />;
         return <MainContainer
             header={props.fallbackHeader}
             sidebar={props.fallbackSidebar}

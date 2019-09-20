@@ -307,7 +307,7 @@ class ApplicationHibernateDaoTest {
                 val appDAO = ApplicationHibernateDAO(toolDAO)
 
                 val commonTag = "common"
-                val appA = normAppDesc.withNameAndVersionAndTitle("A", "1","Atitle")
+                val appA = normAppDesc.withNameAndVersionAndTitle("A", "1", "Atitle")
                 val appB = normAppDesc.withNameAndVersionAndTitle("B", "1", "Btitle")
 
                 appDAO.create(it, user, appA)
@@ -459,7 +459,7 @@ class ApplicationHibernateDaoTest {
         }
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `create tag for invalid app`() {
         withDatabase { db ->
             db.withTransaction {
@@ -470,7 +470,7 @@ class ApplicationHibernateDaoTest {
         }
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `delete tag for invalid app`() {
         withDatabase { db ->
             db.withTransaction {
@@ -521,6 +521,129 @@ class ApplicationHibernateDaoTest {
                 val page = appDao.findLatestByTool(session, TestUsers.admin, "tool3", PaginationRequest().normalize())
 
                 assertThatInstance(page) { it.itemsInTotal == 0 }
+            }
+        }
+    }
+
+    @Test
+    fun `Advanced search`() {
+        val toolDao = ToolHibernateDAO()
+        val appDao = ApplicationHibernateDAO(toolDao)
+        val t1 = "tool1"
+        withDatabase { db ->
+            db.withTransaction { session ->
+                toolDao.create(session, TestUsers.admin, normToolDesc.copy(NameAndVersion(t1, "1")))
+                appDao.create(session, TestUsers.admin, normAppDesc.withNameAndVersion(t1, "1").withTool(t1, "1"))
+                appDao.createTags(session, TestUsers.admin, t1, listOf("A1", "A2"))
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        "title",
+                        "1",
+                        null,
+                        "app description",
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        "title",
+                        null,
+                        null,
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    0, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        "b",
+                        null,
+                        null,
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        "1",
+                        null,
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    0, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        "2",
+                        null,
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        listOf("A1", "A2"),
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                // Exact app description
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        null,
+                        "app description",
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        listOf("A2"),
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
+
+                assertEquals(
+                    1, appDao.advancedSearch(
+                        session,
+                        TestUsers.admin,
+                        null,
+                        null,
+                        listOf("A1", "A3"),
+                        null,
+                        NormalizedPaginationRequest(25, 0)
+                    ).items.size
+                )
             }
         }
     }

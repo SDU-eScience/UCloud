@@ -26,6 +26,18 @@ export enum JobState {
     CANCELLING = "CANCELLING"
 }
 
+export interface AdvancedSearchRequest {
+    name?: string;
+    version?: string;
+    versionRange?: [string, string];
+    description?: string;
+    tags?: string[];
+
+    // FIXME: replace with PaginationRequest
+    itemsPerPage: number;
+    page: number;
+}
+
 export function isJobStateFinal(state: JobState): boolean {
     return state === JobState.SUCCESS || state === JobState.FAILURE;
 }
@@ -272,7 +284,7 @@ export interface DetailedApplicationSearchReduxState {
     hidden: boolean;
     appName: string;
     appVersion: string;
-    tags: string;
+    tags: Set<string>;
     error?: string;
     loading: boolean;
 }
@@ -280,10 +292,11 @@ export interface DetailedApplicationSearchReduxState {
 export interface DetailedApplicationOperations {
     setAppName: (n: string) => void;
     setVersionName: (v: string) => void;
+    addTag: (tag: string) => void;
+    removeTag: (tag: string) => void;
+    clearTags: () => void;
     // tslint:disable-next-line:ban-types
-    fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void;
-    // tslint:disable-next-line:ban-types
-    fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void;
+    fetchApplications: (b: AdvancedSearchRequest, c?: Function) => void;
 }
 
 // New interfaces
@@ -293,7 +306,6 @@ export interface ApplicationMetadata {
     authors: string[];
     title: string;
     description: string;
-    tags: string[];
     website?: string;
 }
 

@@ -100,7 +100,7 @@ function Support() {
                     <p>Describe your problem below and we will investigate it.</p>}
                 <form onSubmit={e => onSubmit(e)}>
                     <TextArea width="100%" ref={textArea} rows={6} />
-                    <Button mt="0.4em" fullWidth type="submit" disabled={loading}>
+                    <Button mt="6px" fullWidth type="submit" disabled={loading}>
                         <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="darkGray" />
                         <TextSpan fontSize={2}>Send</TextSpan>
                     </Button>

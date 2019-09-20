@@ -17,6 +17,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(AppOrchestratorServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(BackgroundScopeFeature)
     }
 
     if (micro.runScriptHandler()) return

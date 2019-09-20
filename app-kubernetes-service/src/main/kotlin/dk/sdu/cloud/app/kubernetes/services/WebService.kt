@@ -1,14 +1,9 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
@@ -24,42 +19,23 @@ import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.route
 import io.ktor.util.date.GMTDate
-import kotlin.collections.set
 
 private const val SDU_CLOUD_REFRESH_TOKEN = "refreshToken"
 
 class WebService(
     private val authenticationService: AuthenticationService,
-    private val tunnelManager: TunnelManager,
+
     /**
      * For some dev environments it might not be possible to set a cookie on the app domain. We allow configuration
      * to skip the authentication.
      */
     private val performAuthentication: Boolean,
-    private val serviceClient: AuthenticatedClient,
-    private val applicationProxyService: ApplicationProxyService,
+    private val jobCache: VerifiedJobCache,
+    private val broadcastingStream: BroadcastingStream,
     private val cookieName: String = "appRefreshToken",
     private val prefix: String,
     private val domain: String
 ) {
-    private val jobIdToJob = HashMap<String, VerifiedJob>()
-
-    private suspend fun findJob(id: String): VerifiedJob? {
-        return jobIdToJob[id] ?: run {
-            val job = ComputationCallbackDescriptions.lookup.call(
-                FindByStringId(id),
-                serviceClient
-            ).orNull()
-            if (job != null) cacheJob(job)
-
-            job
-        }
-    }
-
-    private fun cacheJob(job: VerifiedJob) {
-        jobIdToJob[job.id] = job
-    }
-
     fun install(routing: Route): Unit = with(routing) {
         // Called when entering the application. This sets the cookie containing the refresh token.
         get("${AppKubernetesDescriptions.baseContext}/authorize-app/{id}") {
@@ -69,7 +45,7 @@ class WebService(
             }
 
             if (performAuthentication) {
-                val job = findJob(id) ?: run {
+                val job = jobCache.findJob(id) ?: run {
                     call.respond(HttpStatusCode.BadRequest)
                     return@get
                 }
@@ -128,7 +104,7 @@ class WebService(
 
     private suspend fun authorizeUser(call: ApplicationCall, jobId: String, sendResponse: Boolean = true): Boolean {
         if (!performAuthentication) return true
-        val job = findJob(jobId) ?: run {
+        val job = jobCache.findJob(jobId) ?: run {
             if (sendResponse) {
                 call.respondText(status = HttpStatusCode.BadRequest) { "Bad request (Invalid job)." }
             }
@@ -160,16 +136,9 @@ class WebService(
     }
 
     suspend fun queryParameters(job: VerifiedJob): QueryInternalWebParametersResponse {
-        cacheJob(job)
-        val tunnel = createOrUseExistingTunnel(job.id)
-        applicationProxyService.addEntry(tunnel)
+        jobCache.cacheJob(job)
+        broadcastingStream.broadcast(ProxyEvent(job.id, true), ProxyEvents.events)
         return QueryInternalWebParametersResponse("${AppKubernetesDescriptions.baseContext}/authorize-app/${job.id}")
-    }
-
-    private suspend fun createOrUseExistingTunnel(incomingId: String): Tunnel {
-        val job = findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        val remotePort = job.application.invocation.web?.port ?: 80
-        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort)
     }
 
     companion object : Loggable {

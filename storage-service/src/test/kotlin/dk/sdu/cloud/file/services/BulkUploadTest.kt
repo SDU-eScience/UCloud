@@ -182,7 +182,7 @@ class BulkUploadTest {
                 assertFalse(testFile.isDirectory)
                 assertEquals("hello!", testFile.readText())
 
-                assertEquals(1, result.size)
+                assertEquals(2, result.size)
             }
         } finally {
             BackgroundScope.stop()
@@ -237,7 +237,7 @@ class BulkUploadTest {
                 assertFalse(origTestFile.isDirectory)
                 assertEquals("hello!", origTestFile.readText())
 
-                assertEquals(1, result.size)
+                assertEquals(2, result.size)
             }
         } finally {
             BackgroundScope.stop()
@@ -290,8 +290,8 @@ class BulkUploadTest {
             assertFalse(origTestFile.isDirectory)
             assertEquals(originalContents, origTestFile.readText())
 
-            assertEquals(1, result.size)
-            assertEquals(listOf("/home/user/test"), result)
+            assertEquals(2, result.size)
+            assertEquals(listOf("/home/user/test", "/home/user/test"), result)
         }
     }
 
@@ -342,7 +342,7 @@ class BulkUploadTest {
             assertFalse(origTestFile.isDirectory)
             assertEquals(originalContents, origTestFile.readText())
 
-            assertThatPropertyEquals(result, { it.size }, 3)
+            assertThatPropertyEquals(result, { it.size }, 6)
             assertCollectionHasItem(result, matcher = { it == "/home/user/test/file/foo" })
         }
     }
@@ -380,6 +380,8 @@ class BulkUploadTest {
                     ""
                 )
 
+            result.forEach { entry -> println(entry) }
+
             val homeDir = File(fsRoot, "/home/user")
             assertTrue(homeDir.exists())
 
@@ -391,7 +393,7 @@ class BulkUploadTest {
             assertTrue(origTestFile.exists())
             assertTrue(origTestFile.isDirectory)
 
-            assertThatPropertyEquals(result, { it.size }, 2)
+            assertThatPropertyEquals(result, { it.size }, 3)
             assertCollectionHasItem(result, matcher = { it == "/home/user/test/file" })
         }
     }

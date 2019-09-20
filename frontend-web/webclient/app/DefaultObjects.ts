@@ -295,5 +295,5 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     hidden: true,
     appName: "",
     appVersion: "",
-    tags: ""
+    tags: new Set()
 });

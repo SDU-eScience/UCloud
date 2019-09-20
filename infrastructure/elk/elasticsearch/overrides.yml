@@ -8,69 +8,70 @@ esConfig:
     path.repo: ["/mnt/backup"]
 
 #production
-#master:
-#  persistence:
-#    storageClass: rbd
-#  heapSize: 2048m
-#  resources:
-#    limits:
-#      cpu: "2000m"
-#    requests:
-#      cpu: "2000m"
-#      memory: "4Gi"
-
-#data:
-#  replicas: 4
-#  persistence:
-#    storageClass: rbd
-#    size: 5000Gi
-#  heapSize: 32768m
-#  resources:
-#    limits:
-#      cpu: "16000m"
-#    requests:
-#      cpu: "8000m"
-#      memory: "32Gi"
-
-#client:
-#  heapSize: 2048m
-#  resources:
-#    limits: 
-#      cpu: "2000m"
-#    requests:
-#      cpu: "2000m"
-#      memory: "4Gi"
-
-#dev
 master:
+  replicas: 3
   persistence:
     storageClass: rbd
-  heapSize: 4096m
+  heapSize: 2048m
   resources:
     limits:
       cpu: "2000m"
     requests:
       cpu: "2000m"
       memory: "4Gi"
-
 data:
-  replicas: 2
-  persistence: 
+  replicas: 4
+  persistence:
     storageClass: rbd
     size: 5000Gi
-  heapSize: 32768m
+  heapSize: 20g
   resources:
     limits:
-      cpu: 8
+      cpu: "16000m"
     requests:
-      cpu: 4
-      memory: 8Gi
-
+      cpu: "8000m"
+      memory: "32Gi"
 client:
-  heapSize: 8192m
+  replicas: 2
+  heapSize: 2048m
   resources:
     limits: 
       cpu: "2000m"
     requests:
       cpu: "2000m"
-      memory: "8Gi"
+      memory: "4Gi"
+
+#dev
+#master:
+#  persistence:
+#    storageClass: rbd
+#  heapSize: 4096m
+#  resources:
+#    limits:
+#      cpu: "2000m"
+#    requests:
+#      cpu: "2000m"
+#      memory: "4Gi"
+#
+#data:
+#  replicas: 2
+#  persistence: 
+#    storageClass: rbd
+#    size: 5000Gi
+#  heapSize: 32768m
+#  resources:
+#    limits:
+#      cpu: 8
+#    requests:
+#      cpu: 4
+#      memory: 8Gi
+#
+#client:
+#  heapSize: 8192m
+#  resources:
+#    limits: 
+#      cpu: "2000m"
+#    requests:
+#      cpu: "2000m"
+#      memory: "8Gi"
+#

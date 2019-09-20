@@ -1,15 +1,16 @@
-import * as SSActionTypes from "./SearchReducer";
+import {FullAppInfo} from "Applications";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {Page, PayloadAction} from "Types";
-import {File, AdvancedSearchRequest} from "Files";
-import {FullAppInfo, WithAppFavorite, WithAppMetadata} from "Applications";
-import {hpcApplicationsSearchQuery} from "Utilities/ApplicationUtilities";
-import {advancedFileSearch} from "Utilities/FileUtilities";
+import {AdvancedSearchRequest, File} from "Files";
+import {AdvancedSearchRequest as AppSearchRequest} from "Applications";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Page, PayloadAction} from "Types";
+import {advancedFileSearch} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
+import * as SSActionTypes from "./SearchReducer";
+import {advancedSearchQuery} from "Utilities/ApplicationUtilities";
 
 export type SimpleSearchActions = SetFilesLoading | SetApplicationsLoading | SetProjectsLoading | ReceiveFiles |
-    ReceiveApplications | SetErrorMessage | SetSearchType
+    ReceiveApplications | SetErrorMessage | SetSearchType;
 
 type SetFilesLoading = PayloadAction<typeof SSActionTypes.SET_SIMPLE_FILES_LOADING, {filesLoading: boolean}>
 export const setFilesLoading = (loading: boolean): SetFilesLoading => ({
@@ -36,13 +37,13 @@ export async function searchFiles(request: AdvancedSearchRequest): Promise<any> 
         return receiveFiles(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for files\n"));
-        return setErrorMessage({filesLoading: false})
+        return setErrorMessage({filesLoading: false});
     }
 }
 
-export async function searchApplications(query: string, page: number, itemsPerPage: number): Promise<any> {
+export async function searchApplications(body: AppSearchRequest): Promise<any> {
     try {
-        const {response} = await Cloud.get(hpcApplicationsSearchQuery({query, page, itemsPerPage}));
+        const {response} = await Cloud.post(advancedSearchQuery(), body);
         return receiveApplications(response);
     } catch (e) {
         snackbarStore.addFailure("An error occurred searching for applications");
@@ -62,20 +63,20 @@ export const receiveApplications = (applications: Page<FullAppInfo>): ReceiveApp
     payload: {applications, applicationsLoading: false}
 });
 
-type SetSearchType = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_SEARCH, {search: string}>
+type SetSearchType = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_SEARCH, {search: string}>;
 export const setSearch = (search: string): SetSearchType => ({
     type: SSActionTypes.SET_SIMPLE_SEARCH_SEARCH,
     payload: {search}
 });
 
-type SetErrorMessage = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_ERROR, {error?: string} & LoadingPanes>
+type SetErrorMessage = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_ERROR, {error?: string} & LoadingPanes>;
 export const setErrorMessage = (loading?: LoadingPanes): SetErrorMessage => ({
     type: SSActionTypes.SET_SIMPLE_SEARCH_ERROR,
     payload: {...loading}
 });
 
 interface LoadingPanes {
-    filesLoading?: boolean
-    applicationsLoading?: boolean
-    projectsLoading?: boolean
+    filesLoading?: boolean;
+    applicationsLoading?: boolean;
+    projectsLoading?: boolean;
 }

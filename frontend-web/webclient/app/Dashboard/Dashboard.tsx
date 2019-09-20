@@ -46,7 +46,7 @@ const DashboardCard: React.FunctionComponent<{title: string, isLoading: boolean}
             <Heading.h4>{title}</Heading.h4>
         </Flex>
         <Box px={3} py={1}>
-            {isLoading && <Spinner size={24} />}
+            {isLoading && <Spinner />}
             <Box pb="0.5em" />
             {!isLoading ? children : null}
         </Box>
