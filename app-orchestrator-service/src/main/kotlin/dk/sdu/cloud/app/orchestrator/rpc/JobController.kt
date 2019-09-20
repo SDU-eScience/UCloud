@@ -126,7 +126,7 @@ class JobController(
         }
 
         implement(JobDescriptions.followWS) {
-            streamFollowService.followWSStreams(request, ctx.securityPrincipal.username, this)
+            streamFollowService.followWSStreams(request, ctx.securityPrincipal.username, this).join()
         }
 
         implement(JobDescriptions.queryVncParameters) {

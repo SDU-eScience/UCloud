@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-kubernetes-watcher
+  labels:
+    app: app-kubernetes-watcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-kubernetes-watcher
+  template:
+    metadata:
+      labels:
+        app: app-kubernetes-watcher
+    spec:
+      containers:
+      - name: app-kubernetes-watcher
+        image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-watcher-service:0.1.1
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/psql
+          name: app-kubernetes-watcher-psql
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-kubernetes-watcher-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+      - name: app-kubernetes-watcher-psql
+        secret:
+          optional: false
+          secretName: app-kubernetes-watcher-psql
+
+      imagePullSecrets:
+        - name: esci-docker
+
+      serviceAccountName: app-kubernetes

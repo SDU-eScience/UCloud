@@ -11,6 +11,8 @@ import io.lettuce.core.XAddArgs
 import io.lettuce.core.XReadArgs
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
+import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
+import io.lettuce.core.pubsub.api.async.RedisPubSubAsyncCommands
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -104,6 +106,7 @@ class RedisStreamService(
                             try {
                                 if (consumer.accept(events)) {
                                     xackA(stream.name, group, ids.toSet())
+                                    Unit // I think this will fix a class cast exception
                                 }
                             } catch (ex: Throwable) {
                                 log.warn("Caught exception while consuming from $stream")
@@ -201,6 +204,7 @@ class RedisConnectionManager(private val client: RedisClient) {
     private val mutex = Mutex()
     private var openConnection: RedisAsyncCommands<String, String>? = null
     private var syncConnection: RedisCommands<String, String>? = null
+    private var pubSubConnection: StatefulRedisPubSubConnection<String, String>? = null
 
     suspend fun getConnection(): RedisAsyncCommands<String, String> {
         run {
@@ -214,6 +218,22 @@ class RedisConnectionManager(private val client: RedisClient) {
 
             val newConnection = client.connect().async()
             openConnection = newConnection
+            return newConnection
+        }
+    }
+
+    suspend fun getPubSubConnection(): StatefulRedisPubSubConnection<String, String> {
+        run {
+            val conn = pubSubConnection
+            if (conn != null && conn.isOpen) return conn
+        }
+
+        mutex.withLock {
+            val conn = pubSubConnection
+            if (conn != null && conn.isOpen) return conn
+
+            val newConnection = client.connectPubSub()
+            pubSubConnection = newConnection
             return newConnection
         }
     }

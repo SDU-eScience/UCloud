@@ -9,7 +9,7 @@ rules:
   resources: ["pods", "pods/log", "pods/portforward", "pods/exec"]
   verbs: ["*"]
 - apiGroups: ["batch", "extensions"]
-  resources: ["jobs"]
+  resources: ["jobs", "networkpolicies"]
   verbs: ["*"]
 - apiGroups: ["networking.k8s.io"]
   resources: ["networkpolicies"]
