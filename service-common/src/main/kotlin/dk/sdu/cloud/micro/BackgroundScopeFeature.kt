@@ -21,6 +21,7 @@ class BackgroundScopeFeature : MicroFeature {
         scope.init()
 
         ctx.backgroundScope = scope
+        ctx.ioDispatcher = scope.dispatcher
 
         ctx.feature(DeinitFeature).addHandler {
             ctx.backgroundScope.stop()

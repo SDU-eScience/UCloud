@@ -53,6 +53,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
     override val companion = OutgoingWSCall
     private val connectionPool = WSConnectionPool()
     private val streamId = AtomicInteger()
+    private val sampleCounter = AtomicInteger(0)
 
     override suspend fun <R : Any, S : Any, E : Any> prepareCall(
         call: CallDescription<R, S, E>,
@@ -73,6 +74,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val targetHost = ctx.attributes.outgoingTargetHost
         val host = targetHost.host.removeSuffix("/")
 
+        val ourSampleCount = sampleCounter.incrementAndGet()
+
         // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
         // when redirected from WS to WSS.
         val port = targetHost.takeIf { it.port != 443 }?.port ?: 80
@@ -84,7 +87,13 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
         val streamId = streamId.getAndIncrement().toString()
 
-        log.info("[$callId] -> $url (${call.fullName}, $streamId): $shortRequestMessage")
+        val requestDebug = "[$callId] -> ${call.fullName}: $shortRequestMessage"
+        if (ourSampleCount % SAMPLE_FREQUENCY == 0) {
+            log.info(requestDebug)
+        } else {
+            log.debug(requestDebug)
+        }
+
         val session = connectionPool.retrieveConnection(url)
         val wsRequest = WSRequest(
             call.fullName,
@@ -101,7 +110,6 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         )
         val subscription = session.subscribe(streamId)
         val text = writer.writeValueAsString(wsRequest)
-        log.debug("[$callId] -> $text")
         session.underlyingSession.outgoing.send(Frame.Text(text))
 
         val handler = ctx.attributes.getOrNull(OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY)
@@ -113,14 +121,18 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             while (!channel.isClosedForReceive) {
                 val message = channel.receive()
                 if (message is WSMessage.Response) {
-                    log.info("[$callId] <- $url (${call.fullName}, $streamId) " +
-                            "RESPONSE ${System.currentTimeMillis() - start}ms")
+                    val responseDebug = "[$callId] <- ${call.fullName} RESPONSE ${System.currentTimeMillis() - start}ms"
+                    if (message.status in 400..599 || ourSampleCount % SAMPLE_FREQUENCY == 0) {
+                        log.info(responseDebug)
+                    } else {
+                        log.debug(responseDebug)
+                    }
+
                     response = message
                     channel.cancel()
                     session.unsubscribe(streamId)
                 } else if (message is WSMessage.Message && handler != null) {
-                    log.info("[$callId] <- $url (${call.fullName}, $streamId) " +
-                            "MESSAGE ${System.currentTimeMillis() - start}ms")
+                    log.debug("[$callId] <- ${call.fullName} MESSAGE ${System.currentTimeMillis() - start}ms")
                     handler(message.payload)
                 }
             }
@@ -169,6 +181,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
     companion object : Loggable {
         override val log = logger()
+
+        const val SAMPLE_FREQUENCY = 100
     }
 }
 
