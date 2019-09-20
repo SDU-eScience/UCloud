@@ -79,12 +79,12 @@ const Core = () => {
                 <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)}/>
                 <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)}/>
 
-                <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
-                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)} />
-                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
+                <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)}/>
+                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)}/>
+                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)}/>
 
                 {!inDevEnvironment() ? null :
-                    <Route exact path={"/playground/"} component={Playground} />
+                    <Route exact path={"/playground"} component={Playground}/>
                 }
 
                 <Route exact path="/shares" component={requireAuth(Share.List)}/>

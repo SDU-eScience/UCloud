@@ -8,7 +8,7 @@ interface Loggable {
     val log: Logger
 
     fun logger(): Logger {
-        return LoggerFactory.getLogger(unwrapCompanionClass(this.javaClass).name)
+        return LoggerFactory.getLogger(unwrapCompanionClass(this.javaClass).name.substringBeforeLast('$'))
     }
 }
 

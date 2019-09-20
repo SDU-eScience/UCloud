@@ -3,6 +3,7 @@ package dk.sdu.cloud.service.test
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.micro.ClientFeature
 import dk.sdu.cloud.micro.ConfigurationFeature
+import dk.sdu.cloud.micro.DeinitFeature
 import dk.sdu.cloud.micro.DevelopmentOverrides
 import dk.sdu.cloud.micro.KtorServerProviderFeature
 import dk.sdu.cloud.micro.Micro
@@ -65,6 +66,7 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
 
         init(serviceDescription, (listOf("--dev") + configArgs + additionalArgs).toTypedArray())
 
+        install(DeinitFeature)
         install(ScriptFeature)
         install(ConfigurationFeature)
         install(ServiceDiscoveryOverrides)
