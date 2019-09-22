@@ -129,16 +129,16 @@ export const AppCard = styled(Link)`
     border-radius: ${props => props.theme.radius};
     position: relative;
     overflow: hidden;
-    box-shadow: ${({theme}) => theme.shadows["sm"]};
+    box-shadow: ${p => p.theme.shadows["sm"]};
     //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    transition: transform ${p => `${p.theme.timingFunctions.easeIn} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
     will-change: transform;
 
     &:hover {
-        transition: transform ${({theme}) => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
+        transition: transform ${p => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
         transform: scale(1.02);
-        box-shadow: ${({theme}) => theme.shadows["md"]};
+        box-shadow: ${p => p.theme.shadows["md"]};
     }
 
     // Background
@@ -327,7 +327,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 <AppToolLogo name={app.metadata.name} type={"APPLICATION"} size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">
                     <Flex>
-                        <Heading.h4>{metadata.title}</Heading.h4>
+                        <EllipsedText fontSize="20px" maxWidth="220px">{metadata.title}</EllipsedText>
                         <Text ml="0.4em" mt="3px" color="gray">v{metadata.version}</Text>
                     </Flex>
                     <EllipsedText width={200} title={`by ${metadata.authors.join(", ")} `} color="gray">
