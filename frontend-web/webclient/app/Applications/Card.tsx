@@ -351,30 +351,19 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
 };
 
 export const CardToolContainer = styled(Box) <{appImage: string}>`
-    padding-top: 10px; 
     padding-left: 210px;
-    padding-bottom: 70px;
+    padding-bottom: 10px;
     padding-right: 10px;
     width: 100%;
-    height: 330px;
     display: grid;
     gridAutoFlow: column;
     flex-direction: column;
     align-items: flex-start;
-    border-radius: 20px;//${props => props.theme.radius};
-    position: relative;
+    border-radius: 5px;//${props => props.theme.radius};
     overflow: hidden;
     box-shadow: ${({theme}) => theme.shadows["sm"]};
-    //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
     will-change: transform;
-
-    //&:hover {
-    //    transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
-    //   transform: scale(1.02);
-    //   box-shadow: ${({theme}) => theme.shadows["md"]};
-    }
 
     // Background
     &:before {
@@ -396,43 +385,33 @@ export const CardToolContainer = styled(Box) <{appImage: string}>`
     &:after {
         content: "";
         position: absolute;
-        width: 100%;
+        width: 200px;
         height: 100%;
         top: 0;
         left: 0;
         z-index: 1;
         background-image: url(${props => props.appImage});
-        background-size: 160px 175px;
-        background-position: 2% 54%;//left bottom;
+        background-size: contain;
+        background-position: center;
         border-radius-image: ${props => props.theme.radius};
         pointer-events: none; //needed for star-badge
-        will-change: opacity;
     }
 
-    &:hover:after {
-        opacity: 1;
-    }
 `;
 
 export const SmallCard = styled(Link) <{color1: string, color2: string, color3: string}>`
-    //display: grid;
-    display:inline-block
+    display: flex;
     padding: 10px;
-    width: 200px;
-    height: 80px;
+    width: 150px;
+    height: 50px;
     
+    font-size: ${({theme}) => theme.fontSizes[1]};
     text-align: center;
-    white-space: nowrap; 
-    overflow: hidden;
-    text-overflow: ellipsis; 
-
-    line-height: 60px;
-    font-size: 22px;
-    align-items: flex-start;
+    align-items: center;
+    justify-content: center;
     background: linear-gradient(to right, ${p => p.color2}, ${p => p.color3});
-    border-radius: 25px
+    border-radius: 5px
      
-    position: relative;
     box-shadow: ${({theme}) => theme.shadows["sm"]};
 
     transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
