@@ -187,7 +187,6 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
                 <Grid pt="20px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="3px" gridAutoFlow="column">
                     {props.page.items.map(application => {
                         const [first, second, third] = getColorFromName(application.metadata.name);
-                        console.log(application.metadata.name);
                         const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
                         return <div key={application.metadata.name}>
                             <SmallCard title={withoutTag} ml={2} color1={first} color2={second} color3={third} to={Pages.viewApplication(application.metadata)} color={`white`}>
