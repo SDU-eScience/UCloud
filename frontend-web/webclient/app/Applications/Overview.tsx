@@ -183,7 +183,7 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
     return (
         <CardToolContainer appImage={tagToImage(props.tag)} mt="30px" >
-            {<Spacer alignItems={"center"} left={<Heading.h2> {props.tag} </Heading.h2>} right={<ShowAllTagItem tag={props.tag} ><Heading.h4 ><strong> Show All</strong></Heading.h4></ShowAllTagItem>} />}
+            {<Spacer alignItems={"center"} left={<Heading.h3> {props.tag} </Heading.h3>} right={<ShowAllTagItem tag={props.tag} ><Heading.h5><strong> Show All</strong></Heading.h5></ShowAllTagItem>} />}
             <ScrollBox>
                 <Grid py="10px" pl="10px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="8px" gridAutoFlow="column">
                     {props.page.items.map(application => {

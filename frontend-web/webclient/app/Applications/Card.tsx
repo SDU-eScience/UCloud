@@ -351,8 +351,9 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
 };
 
 export const CardToolContainer = styled(Box) <{appImage: string}>`
-    padding-left: 210px;
     padding-bottom: 10px;
+    padding-bottom: 10px;
+    padding-left: 210px;
     padding-right: 10px;
     width: 100%;
     display: grid;
@@ -378,7 +379,7 @@ export const CardToolContainer = styled(Box) <{appImage: string}>`
         background-color: ${props => props.theme.colors.appCard};
         background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
         background-repeat: repeat;
-        transform: rotate(15deg) translate(0,-60%);
+        transform: rotate(15deg) translate(0,-65%);
         transform-origin: 0 0;
     }
 
@@ -409,7 +410,9 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     text-align: center;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(to right, ${p => p.color2}, ${p => p.color3});
+    background-color: ${p => p.color2};
+    // background: linear-gradient(180deg, ${p => p.color1}, ${p => p.color3});
+    // background: radial-gradient(ellipse at bottom left, ${p => p.color3}, ${p => p.color1});
     border-radius: 5px
      
     box-shadow: ${({theme}) => theme.shadows["sm"]};
