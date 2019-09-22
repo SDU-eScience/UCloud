@@ -100,9 +100,9 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                     loading={this.props.loading}
                     pageRenderer={(page: Page<FullAppInfo>) =>
                         <>
-                            {<Box>
-                                {<Spacer pt="15px" left={<Heading.h2>Featured</Heading.h2>} right={<ShowAllTagItem tag="Featured"><Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />}
-                            </Box>}
+                            <Box>
+                                <Spacer pt="15px" left={<Heading.h2>Featured</Heading.h2>} right={<ShowAllTagItem tag="Featured"><Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />
+                            </Box>
                             <Box pl="10px" pb="5px" style={{overflow: "none", overflowX: "scroll"}}>
                                 <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{gridAutoFlow: "column"}}>
                                     {page.items.map((app, index) =>
@@ -186,8 +186,9 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
             <ScrollBox pb="220px">
                 <Grid pt="20px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="3px" gridAutoFlow="column">
                     {props.page.items.map(application => {
+                        const [first, second, third] = getColorFromName(application.metadata.name);
+                        console.log(application.metadata.name);
                         const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
-                        const [first, second, third] = getColorFromName(withoutTag);
                         return <div key={application.metadata.name}>
                             <SmallCard title={withoutTag} ml={2} color1={first} color2={second} color3={third} to={Pages.viewApplication(application.metadata)} color={`white`}>
                                 {withoutTag}
