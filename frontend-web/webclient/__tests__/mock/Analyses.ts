@@ -21,7 +21,6 @@ export const analyses: Page<JobWithStatus> = {
             authors: [],
             description: "",
             name: "",
-            tags: [],
             title: "",
             version: "",
             website: ""
@@ -42,7 +41,6 @@ export const analyses: Page<JobWithStatus> = {
             authors: [],
             description: "",
             name: "",
-            tags: [],
             title: "",
             version: "",
             website: ""
@@ -63,7 +61,6 @@ export const analyses: Page<JobWithStatus> = {
             authors: [],
             description: "",
             name: "",
-            tags: [],
             title: "",
             version: "",
             website: ""
@@ -84,7 +81,6 @@ export const analyses: Page<JobWithStatus> = {
             authors: [],
             description: "",
             name: "",
-            tags: [],
             title: "",
             version: "",
             website: ""

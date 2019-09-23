@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rpc-test-b
+  labels:
+    app: rpc-test-b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rpc-test-b
+  template:
+    metadata:
+      labels:
+        app: rpc-test-b
+    spec:
+      containers:
+      - name: rpc-test-b
+        image: registry.cloud.sdu.dk/sdu-cloud/rpc-test-b-service:0.1.7
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/psql
+          name: rpc-test-b-psql
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: rpc-test-b-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+      - name: rpc-test-b-psql
+        secret:
+          optional: false
+          secretName: rpc-test-b-psql
+
+      imagePullSecrets:
+        - name: esci-docker

@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -31,8 +32,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
     override val log = logger()
 
     override fun start() {
-        OrchestrationScope.init()
-
         val db = micro.hibernateDatabase
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val serviceClientWS = micro.authenticator.authenticateClient(OutgoingWSCall)
@@ -77,7 +76,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             config.machines
         )
 
-
         val jobOrchestrator =
             JobOrchestrator(
                 serviceClient,
@@ -87,7 +85,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 computationBackendService,
                 jobFileService,
                 jobHibernateDao,
-                config.defaultBackend
+                config.defaultBackend,
+                micro.backgroundScope
             )
 
         val streamFollowService =
@@ -97,7 +96,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 serviceClientWS,
                 computationBackendService,
                 db,
-                jobHibernateDao
+                jobHibernateDao,
+                micro.backgroundScope
             )
 
         val jobQueryService = JobQueryService(db, jobHibernateDao, jobFileService)
@@ -118,6 +118,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             )
         }
 
+        /*
         log.info("Replaying lost jobs")
         @Suppress("TooGenericExceptionCaught")
         try {
@@ -127,13 +128,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             log.warn(ex.stackTraceToString())
             log.warn("Caught exception while replaying lost jobs. These are ignored!")
         }
+         */
 
         log.info("Starting application services")
         startServices()
-    }
-
-    override fun stop() {
-        super.stop()
-        OrchestrationScope.stop()
     }
 }

@@ -129,16 +129,16 @@ export const AppCard = styled(Link)`
     border-radius: ${props => props.theme.radius};
     position: relative;
     overflow: hidden;
-    box-shadow: ${({theme}) => theme.shadows["sm"]};
+    box-shadow: ${p => p.theme.shadows["sm"]};
     //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    transition: transform ${p => `${p.theme.timingFunctions.easeIn} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
     will-change: transform;
 
     &:hover {
-        transition: transform ${({theme}) => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
+        transition: transform ${p => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
         transform: scale(1.02);
-        box-shadow: ${({theme}) => theme.shadows["md"]};
+        box-shadow: ${p => p.theme.shadows["md"]};
     }
 
     // Background
@@ -178,7 +178,7 @@ export const AppCard = styled(Link)`
     }
 `;
 
-const Tag = ({label}: {label: string}) => (
+export const Tag = ({label}: {label: string}) => (
     <RatingBadge mr="3px" bg="darkGray"><Heading.h6>{label}</Heading.h6></RatingBadge>
 );
 
@@ -290,7 +290,7 @@ export function hashF(str: string): number {
 
 }
 
-function appColor(hash: number): number {
+export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); // last color not used
 }
 
@@ -327,7 +327,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 <AppToolLogo name={app.metadata.name} type={"APPLICATION"} size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">
                     <Flex>
-                        <Heading.h4>{metadata.title}</Heading.h4>
+                        <EllipsedText fontSize="20px" maxWidth="220px">{metadata.title}</EllipsedText>
                         <Text ml="0.4em" mt="3px" color="gray">v{metadata.version}</Text>
                     </Flex>
                     <EllipsedText width={200} title={`by ${metadata.authors.join(", ")} `} color="gray">
@@ -349,6 +349,84 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
         }
     }
 };
+
+export const CardToolContainer = styled(Box) <{appImage: string}>`
+    padding-bottom: 10px;
+    padding-bottom: 10px;
+    padding-left: 210px;
+    padding-right: 10px;
+    width: 100%;
+    display: grid;
+    gridAutoFlow: column;
+    flex-direction: column;
+    align-items: flex-start;
+    border-radius: 5px;//${props => props.theme.radius};
+    overflow: hidden;
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
+
+    will-change: transform;
+
+    // Background
+    &:before {
+        pointer-events: none;
+        content: "";
+        position: absolute;
+        width: 120%;
+        height: 280%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        background-color: ${props => props.theme.colors.appCard};
+        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
+        background-repeat: repeat;
+        transform: rotate(15deg) translate(0,-65%);
+        transform-origin: 0 0;
+    }
+
+    &:after {
+        content: "";
+        position: absolute;
+        width: 200px;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        background-image: url(${props => props.appImage});
+        background-size: contain;
+        background-position: center;
+        border-radius-image: ${props => props.theme.radius};
+        pointer-events: none; //needed for star-badge
+    }
+
+`;
+
+export const SmallCard = styled(Link) <{color1: string, color2: string, color3: string}>`
+    display: flex;
+    padding: 10px;
+    width: 150px;
+    height: 50px;
+    
+    font-size: ${({theme}) => theme.fontSizes[1]};
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    background-color: ${p => p.color2};
+    // background: linear-gradient(180deg, ${p => p.color1}, ${p => p.color3});
+    // background: radial-gradient(ellipse at bottom left, ${p => p.color3}, ${p => p.color1});
+    border-radius: 5px
+     
+    box-shadow: ${({theme}) => theme.shadows["sm"]};
+
+    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    will-change: transform;
+
+    &:hover {
+        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+        transform: scale(1.02);
+        box-shadow: ${({theme}) => theme.shadows["md"]};
+        color: ${p => p.theme.colors.white};
+    }
+`;
 
 function buildTags(tags: string[]): string[] {
     let limit = 40;

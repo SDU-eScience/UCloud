@@ -2,10 +2,11 @@ import * as Accounting from "Accounting";
 import Activity from "Activity/Page";
 import UserCreation from "Admin/UserCreation";
 import {dispatchUserAction, onLogin} from "App";
-import Applications from "Applications/Browse";
+import ApplicationsBrowse from "Applications/Browse";
 import DetailedResult from "Applications/DetailedResult";
 import * as ApplicationsInstalled from "Applications/Installed";
 import JobResults from "Applications/JobResults";
+import ApplicationsOverview from "Applications/Overview";
 import Run from "Applications/Run";
 import AppStudioApps from "Applications/Studio/App";
 import AppStudioPage from "Applications/Studio/Page";
@@ -26,6 +27,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import Status from "Navigation/StatusPage";
 import NoVNCClient from "NoVNC/NoVNCClient";
+import {Playground} from "Playground/Playground";
 import ProjectCreate from "Project/Create";
 import ProjectList from "Project/List";
 import ProjectView from "Project/View";
@@ -38,6 +40,7 @@ import Sidebar from "ui-components/Sidebar";
 import Uploader from "Uploader/Uploader";
 import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
+import {inDevEnvironment} from "UtilityFunctions";
 
 const NotFound = () => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -67,7 +70,8 @@ const Core = () => {
 
                 <Route exact path="/novnc" component={requireAuth(NoVNCClient)}/>
 
-                <Route exact path="/applications" component={requireAuth(Applications)}/>
+                <Route exact path="/applications" component={requireAuth(ApplicationsBrowse)}/>
+                <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)}/>
                 <Route exact path="/applications/installed" component={requireAuth(ApplicationsInstalled.default)}/>
                 <Route exact path="/applications/details/:appName/:appVersion"
                        component={requireAuth(ApplicationView)}/>
@@ -75,9 +79,13 @@ const Core = () => {
                 <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)}/>
                 <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)}/>
 
-                <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
-                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)} />
-                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
+                <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)}/>
+                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)}/>
+                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)}/>
+
+                {!inDevEnvironment() ? null :
+                    <Route exact path={"/playground"} component={Playground}/>
+                }
 
                 <Route exact path="/shares" component={requireAuth(Share.List)}/>
 

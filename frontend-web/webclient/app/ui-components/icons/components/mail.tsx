@@ -8,15 +8,29 @@ const SvgMail = (props: any) => (
     fill="currentcolor"
     {...props}
   >
-    <path d="M8.978 19.12l5.017-5.335-4.493-.035-.524 5.37z" fill="#798aa0" />
+    <path d="M9.898 19.684l5.017-5.335-4.598-.044-.419 5.379z" fill="#798aa0" />
     <path
-      d="M.585 8.69a.916.916 0 00.042 1.727l7.966 2.654 9.692 7.238a1 1 0 001.576-.587l4.111-18.697a.844.844 0 00-1.129-.968L.585 8.69z"
+      d="M.586 8.691a.918.918 0 00.041 1.726l7.966 2.654 9.693 7.238a.999.999 0 001.575-.587l4.111-18.697a.845.845 0 00-1.129-.968L.586 8.691z"
       fill={undefined}
     />
     <path
-      d="M6.391 12.337l12.78-8.124a.237.237 0 01.288.375c-3.382 3.11-9.957 9.162-9.957 9.162l-.437 5.17a.34.34 0 01-.663.07l-2.01-6.653z"
-      fill={props.color2 ? props.color2 : null}
+      d="M7.542 12.72s7.743-5.83 11.934-8.494a.236.236 0 01.315.056.239.239 0 01-.028.319c-3.382 3.112-9.357 9.823-9.357 9.823s-.237 2.997-.41 5.052a.34.34 0 01-.663.07c-.738-2.441-1.791-6.826-1.791-6.826z"
+      fill="url(#mail_svg___Linear1)"
     />
+    <defs>
+      <linearGradient
+        id="mail_svg___Linear1"
+        x1={0}
+        y1={0}
+        x2={1}
+        y2={0}
+        gradientUnits="userSpaceOnUse"
+        gradientTransform="matrix(7 -6 6 7 7.996 13.785)"
+      >
+        <stop offset={0} stopColor={props.color2 ? props.color2 : null} />
+        <stop offset={1} stopColor="#3d4b5c" />
+      </linearGradient>
+    </defs>
   </svg>
 );
 

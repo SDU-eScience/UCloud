@@ -16,7 +16,11 @@ import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.micro.BackgroundScopeFeature
+import dk.sdu.cloud.micro.DeinitFeature
 import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
@@ -33,6 +37,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
@@ -46,12 +51,13 @@ class JobOrchestratorTest {
     private lateinit var backend: NamedComputationBackendDescriptions
     private lateinit var orchestrator: JobOrchestrator<HibernateSession>
     private lateinit var streamFollowService: StreamFollowService<HibernateSession>
+    private lateinit var micro: Micro
 
     @BeforeTest
     fun init() {
-        OrchestrationScope.reset()
-        val micro = initializeMicro()
+        micro = initializeMicro()
         micro.install(HibernateFeature)
+        micro.install(BackgroundScopeFeature)
         val db = micro.hibernateDatabase
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
@@ -79,7 +85,8 @@ class JobOrchestratorTest {
             compBackend,
             jobFileService,
             jobDao,
-            backendName
+            backendName,
+            micro.backgroundScope
         )
 
         backend = compBackend.getAndVerifyByName(backendName)
@@ -104,7 +111,13 @@ class JobOrchestratorTest {
         )
 
         this.orchestrator = orchestrator
-        this.streamFollowService = StreamFollowService(jobFileService, client, client, compBackend, db, jobDao)
+        this.streamFollowService =
+            StreamFollowService(jobFileService, client, client, compBackend, db, jobDao, micro.backgroundScope)
+    }
+
+    @AfterTest
+    fun deinit() {
+        micro.feature(DeinitFeature).runHandlers()
     }
 
     fun setup(): JobOrchestrator<HibernateSession> = orchestrator

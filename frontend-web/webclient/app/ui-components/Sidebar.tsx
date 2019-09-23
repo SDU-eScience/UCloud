@@ -191,7 +191,7 @@ export const sideBarMenuElements: {
             {icon: "files", label: "Files", to: () => fileTablePage(Cloud.homeFolder)},
             {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "starFilled", label: "Favorites", to: "/favorites"},
-            {icon: "appStore", label: "Apps", to: "/applications/"},
+            {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/applications/results/"}
         ], predicate: () => Cloud.isLoggedIn
     },

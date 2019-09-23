@@ -122,7 +122,13 @@ function Search(props: SearchProps) {
                     </GridCardGroup>
                 }
                 page={applications}
-                onPageChanged={pageNumber => props.searchApplications({itemsPerPage: 25, page: pageNumber})}
+                onPageChanged={pageNumber => props.searchApplications(
+                    applicationSearchBody(
+                        props.applicationSearch,
+                        props.applications.itemsPerPage,
+                        pageNumber
+                    ))
+                }
             />
         </>;
     }
@@ -225,7 +231,7 @@ export function applicationSearchBody(
     return {
         name: !!appName ? appName : undefined,
         version: !!appVersion ? appVersion : undefined,
-        tags: [...tags],
+        tags: tags.size > 0 ? [...tags] : undefined,
         itemsPerPage,
         page
     };

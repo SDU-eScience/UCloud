@@ -87,6 +87,7 @@ function Support() {
                             onChange={() => setType(SupportType.SUGGESTION)}
                         />
                         Suggestion
+                        <Icon name="suggestion" size="1.5em" ml=".5em" />
                     </Label>
                     <Label>
                         <Radio
@@ -94,6 +95,7 @@ function Support() {
                             onChange={() => setType(SupportType.BUG)}
                         />
                         Bug
+                        <Icon name="bug" size="1.5em" ml=".5em" />
                     </Label>
                 </Flex>
                 {type === SupportType.SUGGESTION ? <p>Describe your suggestion and we will look into it.</p> :
@@ -101,7 +103,7 @@ function Support() {
                 <form onSubmit={e => onSubmit(e)}>
                     <TextArea width="100%" ref={textArea} rows={6} />
                     <Button mt="6px" fullWidth type="submit" disabled={loading}>
-                        <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="darkGray" />
+                        <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
                         <TextSpan fontSize={2}>Send</TextSpan>
                     </Button>
                 </form>
