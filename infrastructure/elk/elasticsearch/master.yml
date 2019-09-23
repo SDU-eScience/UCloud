@@ -1,0 +1,39 @@
+# Temporarily set to 3 so we can scale up/down the old a new cluster
+# one at a time whilst always keeping 3 masters running
+#replicas: 1
+#replicas: 2
+replicas: 3
+
+#esMajorVersion: 6
+#imageTag: "6.8.1"
+imageTag: "7.3.0"
+
+#extraEnvs:
+#  - name: discovery.zen.ping.unicast.hosts
+#    value: "elasticsearch-discovery"
+
+esJavaOpts: "-Xmx4g -Xms4g"
+
+resources:
+  limits:
+    cpu: "2000m"
+    memory: "6Gi"
+  requests:
+    cpu: "2000m"
+    memory: "6Gi"
+
+clusterName: "elasticsearch"
+nodeGroup: "newmaster"
+masterService: "elasticsearch-newmaster"
+
+roles:
+  master: "true"
+  ingest: "false"
+  data: "false"
+
+volumeClaimTemplate:
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: "rbd"
+  resources:
+    requests:
+      storage: 4Gi

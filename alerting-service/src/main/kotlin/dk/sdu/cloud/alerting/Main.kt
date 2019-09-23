@@ -19,7 +19,8 @@ data class Limits(
     val percentLimit500Status: Double,
     val storageInfoLimit: Double,
     val storageWarnLimit: Double,
-    val storageCriticalLimit: Double
+    val storageCriticalLimit: Double,
+    val alertWhenNumberOfShardsAvailableIsLessThan: Int?
 )
 
 data class Notifiers(

@@ -1,0 +1,39 @@
+replicas: 4
+
+#esMajorVersion: 6
+#imageTag: "6.8.1"
+imageTag: "7.3.0"
+
+#extraEnvs:
+#  - name: discovery.zen.ping.unicast.hosts
+#    value: "elasticsearch-discovery"
+
+clusterName: "elasticsearch"
+nodeGroup: "newdata"
+masterService: elasticsearch-newmaster
+
+#esConfig:
+#  elasticsearch.yml: |
+#    path.repo: ["/mnt/backup"]
+
+roles:
+  master: "false"
+  ingest: "false"
+  data: "true"
+
+esJavaOpts: "-Xmx20g -Xms20g"
+
+resources:
+  limits:
+    cpu: 8
+    memory: 30Gi
+  requests:
+    cpu: 4
+    memory: 30Gi    
+
+volumeClaimTemplate:
+  accessModes: [ "ReadWriteOnce" ]
+  resources:
+    requests:
+      storage: 5000Gi
+  storageClassName: "rbd"
