@@ -24,9 +24,8 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -164,7 +163,9 @@ class StreamFollowService<DBSession>(
 
                     delay(1000)
                 } catch (ex: Throwable) {
-                    log.info(ex.stackTraceToString())
+                    if (ex !is ClosedReceiveChannelException && ex.cause !is ClosedReceiveChannelException) {
+                        log.info(ex.stackTraceToString())
+                    }
                     break
                 }
             }

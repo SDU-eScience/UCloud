@@ -388,11 +388,9 @@ class RpcServer {
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
             val isEarlyClose = ex is ClosedSendChannelException
-            if (ex !is RPCException) {
+            if (ex !is RPCException && !isEarlyClose) {
                 log.info("Uncaught exception in handler for $call")
                 log.info(ex.stackTraceToString())
-            } else {
-                log.debug(ex.stackTraceToString())
             }
 
             val statusCode = (ex as? RPCException)?.httpStatusCode ?: HttpStatusCode.InternalServerError
@@ -406,13 +404,17 @@ class RpcServer {
                 @Suppress("UNCHECKED_CAST")
                 OutgoingCallResponse.Error(errorMessage as E, statusCode)
             } else if (isEarlyClose) {
-                OutgoingCallResponse.Error<S, E>(null, HttpStatusCode(400, "Connection closed early by client"))
+                OutgoingCallResponse.Error<S, E>(null, HttpStatusCode(499, "Connection closed early by client"))
             } else {
                 OutgoingCallResponse.Error<S, E>(null, statusCode)
             }
 
             if (!isEarlyClose) {
-                source.produceResponse(ctx, call, callResult)
+                // Attempt to send a reponse (if possible). Silently discard any exception as it is likely a failure
+                // on the wire.
+                runCatching {
+                    source.produceResponse(ctx, call, callResult)
+                }
             }
 
             response = callResult
