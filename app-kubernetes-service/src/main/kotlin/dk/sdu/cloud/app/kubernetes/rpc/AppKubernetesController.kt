@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
+import io.ktor.util.cio.ChannelWriteException
 import kotlinx.coroutines.runBlocking
 import java.io.Closeable
 import java.util.*
@@ -86,11 +87,20 @@ class AppKubernetesController(
                     val read = reader.read(buffer)
                     if (read == -1) {
                         log.debug("[Log: ${request.job.id}] EOF reached")
+                        resource.close()
+                        streams.remove(streamId)
                         break
                     }
                     val stdout = String(buffer, 0, read)
                     log.debug("[Log: ${request.job.id}] stdout: $stdout")
-                    sendWSMessage(InternalFollowWSStreamResponse(streamId, stdout, null))
+
+                    try {
+                        sendWSMessage(InternalFollowWSStreamResponse(streamId, stdout, null))
+                    } catch (ex: ChannelWriteException) {
+                        resource.close()
+                        streams.remove(streamId)
+                        break
+                    }
                 }
             }.join()
 

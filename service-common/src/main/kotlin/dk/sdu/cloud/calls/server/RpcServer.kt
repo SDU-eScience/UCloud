@@ -388,11 +388,9 @@ class RpcServer {
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
             val isEarlyClose = ex is ClosedSendChannelException
-            if (ex !is RPCException) {
+            if (ex !is RPCException && !isEarlyClose) {
                 log.info("Uncaught exception in handler for $call")
                 log.info(ex.stackTraceToString())
-            } else {
-                log.debug(ex.stackTraceToString())
             }
 
             val statusCode = (ex as? RPCException)?.httpStatusCode ?: HttpStatusCode.InternalServerError
@@ -412,7 +410,11 @@ class RpcServer {
             }
 
             if (!isEarlyClose) {
-                source.produceResponse(ctx, call, callResult)
+                // Attempt to send a reponse (if possible). Silently discard any exception as it is likely a failure
+                // on the wire.
+                runCatching {
+                    source.produceResponse(ctx, call, callResult)
+                }
             }
 
             response = callResult

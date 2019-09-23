@@ -3,7 +3,7 @@ import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import {History} from "history";
 import * as React from "react";
 import {connect} from "react-redux";
-import {withRouter} from "react-router";
+import {withRouter, RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Checkbox, Flex, Input, InputGroup, Label, OutlineButton, Stamp} from "ui-components";
@@ -39,7 +39,7 @@ interface DetailedFileSearchGivenProps {
 
 type DetailedFileSearchProps = DetailedFileSearchStateProps & DetailedFileSearchGivenProps;
 
-class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
+class DetailedFileSearch extends React.Component<DetailedFileSearchProps & RouteComponentProps> {
     private extensionsInput = React.createRef<HTMLInputElement>();
 
     constructor(props) {

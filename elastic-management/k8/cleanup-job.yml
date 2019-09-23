@@ -21,8 +21,8 @@ spec:
             - --config-dir
             - /etc/token-validation
             - --config-dir
-            - --config-dir
             - /etc/elasticsearch-credentials
+            - --config-dir
             - /etc/elasticmanagement
             - --cleanup
             volumeMounts:

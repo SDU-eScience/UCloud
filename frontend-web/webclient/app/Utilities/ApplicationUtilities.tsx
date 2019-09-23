@@ -6,6 +6,7 @@ import {
     ParameterTypes,
     RunsSortBy
 } from "Applications";
+import {RangeRef} from "Applications/Widgets/RangeParameters";
 import Cloud from "Authentication/lib";
 import {SortOrder} from "Files";
 import * as React from "react";
@@ -147,14 +148,16 @@ export const findKnownParameterValues = (
 
 export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
 
-const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
+const typeMatchesValue = (type: ParameterTypes, parameter: string | [number, number]): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
             return parameter === "Yes" || parameter === "No" || parameter === "";
         case ParameterTypes.Integer:
-            return parseInt(parameter, 10) % 1 === 0;
+            return parseInt(parameter as string, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
-            return typeof parseFloat(parameter) === "number";
+            return typeof parseFloat(parameter as string) === "number";
+        case ParameterTypes.Range:
+            return typeof parameter === "object" && "size" in parameter;
         case ParameterTypes.Text:
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
@@ -168,11 +171,12 @@ const typeMatchesValue = (type: ParameterTypes, parameter: string): boolean => {
 interface ExtractedParameters {
     [key: string]: string | number | boolean |
     {source: string, destination: string;} |
+    {min: number, max: number} |
     {fileSystemId: string} |
     {jobId: string};
 }
 
-export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>;
+export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement | RangeRef>>;
 
 interface ExtractParametersFromMap {
     map: ParameterValues;
@@ -182,46 +186,61 @@ interface ExtractParametersFromMap {
 
 export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractParametersFromMap): ExtractedParameters {
     const extracted: ExtractedParameters = {};
-    map.forEach(({current}, key) => {
+    map.forEach((r, key) => {
         const parameter = appParameters.find(it => it.name === key);
-        if (!current) return;
-        if (!current.value || !current.checkValidity()) return;
+        if (!r.current) return;
+        if (("value" in r.current && !r.current.value) || ("checkValidity" in r.current && !r.current.checkValidity())) return;
         if (!parameter) return;
-        switch (parameter.type) {
-            case ParameterTypes.InputDirectory:
-            case ParameterTypes.InputFile:
-                const expandedValue = expandHomeFolder(current.value, cloud.homeFolder);
-                extracted[key] = {
-                    source: expandedValue,
-                    destination: removeTrailingSlash(expandedValue).split("/").pop()!
-                };
-                return;
-            case ParameterTypes.Boolean:
-                switch (current.value) {
-                    case "Yes":
-                        extracted[key] = true;
-                        return;
-                    case "No":
-                        extracted[key] = false;
-                        return;
-                    default:
-                        return;
-                }
-            case ParameterTypes.Integer:
-                extracted[key] = parseInt(current.value, 10);
-                return;
-            case ParameterTypes.FloatingPoint:
-                extracted[key] = parseFloat(current.value);
-                return;
-            case ParameterTypes.Text:
-                extracted[key] = current.value;
-                return;
-            case ParameterTypes.SharedFileSystem:
-                extracted[key] = {fileSystemId: current.value};
-                return;
-            case ParameterTypes.Peer:
-                extracted[key] = {jobId: current.value};
-                return;
+        if ("value" in r.current) {
+            switch (parameter.type) {
+                case ParameterTypes.InputDirectory:
+                case ParameterTypes.InputFile:
+                    const expandedValue = expandHomeFolder(r.current.value, cloud.homeFolder);
+                    extracted[key] = {
+                        source: expandedValue,
+                        destination: removeTrailingSlash(expandedValue).split("/").pop()!
+                    };
+                    return;
+                case ParameterTypes.Boolean:
+                    switch (r.current.value) {
+                        case "Yes":
+                            extracted[key] = true;
+                            return;
+                        case "No":
+                            extracted[key] = false;
+                            return;
+                        default:
+                            return;
+                    }
+                case ParameterTypes.Range:
+                    extracted[key] = {
+                        min: 0,
+                        max: 0
+                    };
+                case ParameterTypes.Integer:
+                    extracted[key] = parseInt(r.current.value, 10);
+                    return;
+                case ParameterTypes.FloatingPoint:
+                    extracted[key] = parseFloat(r.current.value);
+                    return;
+                case ParameterTypes.Text:
+                    extracted[key] = r.current.value;
+                    return;
+                case ParameterTypes.SharedFileSystem:
+                    extracted[key] = {fileSystemId: r.current.value};
+                    return;
+                case ParameterTypes.Peer:
+                    extracted[key] = {jobId: r.current.value};
+                    return;
+
+            }
+        } else {
+            switch (parameter.type) {
+                case ParameterTypes.Range:
+                    const {bounds} = r.current.state;
+                    extracted[key] = {min: bounds[0], max: bounds[1]};
+                    return;
+            }
         }
     });
     return extracted;
@@ -243,8 +262,9 @@ export function validateOptionalFields(
         ({name: it.name, title: it.title})
     );
     optionalParams.forEach(it => {
-        const param = parameters.get(it.name)!;
-        if (!param.current!.checkValidity()) optionalErrors.push(it.title);
+        const {current} = parameters.get(it.name)!;
+        if (current == null || !("checkValidity" in current)) return;
+        if (("checkValidity" in current! && !current!.checkValidity())) optionalErrors.push(it.title);
     });
 
     if (optionalErrors.length > 0) {

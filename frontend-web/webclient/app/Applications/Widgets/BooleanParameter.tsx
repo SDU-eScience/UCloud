@@ -1,12 +1,12 @@
+import * as Types from "Applications";
 import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
+import * as React from "react";
 import {Flex, Select} from "ui-components";
 import {InputLabel} from "ui-components/Input";
-import * as React from "react";
-import * as Types from "Applications";
 
 interface BooleanParameter extends ParameterProps {
-    parameter: Types.BooleanParameter
-    parameterRef: React.RefObject<HTMLSelectElement>
+    parameter: Types.BooleanParameter;
+    parameterRef: React.RefObject<HTMLSelectElement>;
 }
 
 export const BooleanParameter = (props: BooleanParameter) => {

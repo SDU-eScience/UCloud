@@ -1,17 +1,17 @@
+import * as Types from "Applications";
+import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
 import * as React from "react";
 import {Flex} from "ui-components";
 import Input, {InputLabel} from "ui-components/Input";
-import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
-import * as Types from "Applications";
 
-const GenericNumberParameter = (props: NumberParameterProps) => {
+const GenericNumberParameter = (props: NumberParameterProps): JSX.Element => {
     const {parameter, parameterRef} = props;
     const optSliderRef = React.useRef<HTMLInputElement>(null);
     const hasUnitName = !!props.parameter.unitName;
     if (optSliderRef.current && parameterRef.current && parameterRef.current.value !== optSliderRef.current!.value)
         optSliderRef.current.value = parameterRef.current.value;
 
-    let baseField = (
+    const baseField = (
         <Flex>
             <Input
                 showError={props.initialSubmit || props.parameter.optional}
@@ -22,7 +22,7 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
                 ref={parameterRef}
                 key={parameter.name}
                 onChange={e => {
-                    if (optSliderRef.current) optSliderRef.current.value = e.target.value
+                    if (optSliderRef.current) optSliderRef.current.value = e.target.value;
                 }}
                 max={parameter.max != null ? parameter.max : undefined}
                 min={parameter.min != null ? parameter.min : undefined}
@@ -59,16 +59,16 @@ const GenericNumberParameter = (props: NumberParameterProps) => {
 };
 
 interface NumberParameterProps extends ParameterProps {
-    parameter: Types.NumberParameter
-    parameterRef: React.RefObject<HTMLInputElement>
-    initialSubmit: boolean
+    parameter: Types.NumberParameter;
+    parameterRef: React.RefObject<HTMLInputElement>;
+    initialSubmit: boolean;
 }
 
 export const IntegerParameter = (props: NumberParameterProps) => {
-    let childProps = {...props};
+    const childProps = {...props};
     return <GenericNumberParameter {...childProps} />;
 };
 export const FloatingParameter = (props: NumberParameterProps) => {
-    let childProps = {...props};
+    const childProps = {...props};
     return <GenericNumberParameter {...childProps} />;
 };

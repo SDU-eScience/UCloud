@@ -1,6 +1,7 @@
 package dk.sdu.cloud.alerting.services
 
 import dk.sdu.cloud.alerting.Configuration
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.delay
 import org.apache.http.util.EntityUtils
@@ -138,12 +139,12 @@ class ElasticAlerting(
             )
 
             val totalNumberOfEntries = try {
-                    elastic.search(totalNumberOfEntriesRequest, RequestOptions.DEFAULT).hits.totalHits.value.toDouble()
-                } catch (ex: ConnectException) {
-                    numberOfRetries++
-                    delay(FIFTEEN_SEC)
-                    continue
-                }
+                elastic.search(totalNumberOfEntriesRequest, RequestOptions.DEFAULT).hits.totalHits.value.toDouble()
+            } catch (ex: ConnectException) {
+                numberOfRetries++
+                delay(FIFTEEN_SEC)
+                continue
+            }
             //If no indices that is by name http_logs_*date
             if (totalNumberOfEntries.toInt() == 0) {
                 delay(FIVE_MIN)
@@ -195,7 +196,8 @@ class ElasticAlerting(
                 val fields = line.split(" ").filter { it != "" }
                 if (
                     !(fields.last().startsWith("elasticsearch-data") ||
-                    fields.last().startsWith("elasticsearch-newdata"))) return@forEach
+                            fields.last().startsWith("elasticsearch-newdata"))
+                ) return@forEach
                 val usedStoragePercentage = fields.first().toDouble()
                 log.info("${fields.last()} is using $usedStoragePercentage% of storage.")
                 when {
@@ -224,6 +226,56 @@ class ElasticAlerting(
                 }
             }
             delay(ONE_HOUR)
+        }
+    }
+
+    suspend fun alertOnIndicesCount(lowLevelClient: RestClient, configuration: Configuration) {
+        val alertLimit = configuration.limits?.alertWhenNumberOfShardsAvailableIsLessThan ?: 500
+        var alertSent = false
+        while (true) {
+            val healthResponse = lowLevelClient.performRequest(Request("GET", "/_cluster/health"))
+            if (healthResponse.statusLine.statusCode != 200) {
+                log.warn("Statuscode for health response was not 200")
+                delay(ONE_HOUR)
+                continue
+            }
+            val responseForActiveShards = EntityUtils.toString(healthResponse.entity)
+            val numberOfActiveShards = defaultMapper.readTree(responseForActiveShards).findValue("active_shards").asInt()
+            val numberOfDataNodes = defaultMapper.readTree(responseForActiveShards).findValue("number_of_data_nodes").asInt()
+
+           log.info("Number of Active shards: $numberOfActiveShards")
+
+            val settingsResponse = lowLevelClient.performRequest(Request("GET", "_cluster/settings?flat_settings=true"))
+            if (settingsResponse.statusLine.statusCode != 200) {
+                log.warn("Statuscode for settings response was not 200")
+                delay(ONE_HOUR)
+                continue
+            }
+            val responseForMaxShardsPerNode = EntityUtils.toString(settingsResponse.entity)
+            val maximumNumberOfShardsPerDataNode = defaultMapper.readTree(responseForMaxShardsPerNode).findValue("cluster.max_shards_per_node").asInt()
+
+            val totalMaximumNumberOfShards = maximumNumberOfShardsPerDataNode * numberOfDataNodes
+
+            log.info("Total maximum number of shards for cluster: $totalMaximumNumberOfShards")
+            log.info("Number of shards still available: ${totalMaximumNumberOfShards - numberOfActiveShards}")
+
+            if ((totalMaximumNumberOfShards - numberOfActiveShards) <= alertLimit && !alertSent) {
+                val message =
+                    "Number of shards remaining before hard limit of $totalMaximumNumberOfShards is reached is " +
+                            "below $alertLimit (Used: $numberOfActiveShards). " +
+                            "Either reduce number of shards or increase limit."
+                alertService.createAlert(Alert(message))
+                alertSent = true
+            }
+            if ((totalMaximumNumberOfShards - numberOfActiveShards) > alertLimit && alertSent) {
+                val message = "Number of available shards are acceptable again."
+                alertService.createAlert(Alert(message))
+                alertSent = false
+            }
+            if (alertSent)
+                delay(THIRTY_SEC)
+            else
+                delay(HALF_DAY)
         }
     }
 

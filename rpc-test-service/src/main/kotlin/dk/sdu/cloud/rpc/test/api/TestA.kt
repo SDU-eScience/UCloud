@@ -2,12 +2,14 @@ package dk.sdu.cloud.rpc.test.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.websocket
 import io.ktor.http.HttpMethod
 
 data class StartRequest(val parallelism: Int? = null, val ws: Boolean? = null)
@@ -85,5 +87,13 @@ object TestA : CallDescriptionContainer("rpc.test") {
 
             body { bindEntireRequestFromBody() }
         }
+    }
+
+    val pingSelf = call<Unit, FindByStringId, CommonErrorMessage>("pingSelf") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
     }
 }
