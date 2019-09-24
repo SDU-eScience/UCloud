@@ -94,17 +94,33 @@ class AppStoreService<DBSession>(
 
     fun findBySupportedFileExtension(
         securityPrincipal: SecurityPrincipal,
-        fileType: String,
+        files: String,
         normalizedPaginationRequest: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> =
-        db.withTransaction {
-            applicationDAO.findBySupportedFileExtension(
-                it,
-                securityPrincipal,
-                fileType,
-                normalizedPaginationRequest
-            )
+    ): List<Page<ApplicationSummary>> {
+
+        println("Hello world")
+
+        files.split(",").forEach { file ->
+            println(file.split(".").last())
         }
+
+        return files.split(",").map { file ->
+            val ext = if(file.contains(".")) {
+                "." + file.split(".").last()
+            } else {
+                file.split('/').last()
+            }
+            db.withTransaction {
+                applicationDAO.findBySupportedFileExtension(
+                    it,
+                    securityPrincipal,
+                    ext,
+                    normalizedPaginationRequest
+                )
+            }
+        }
+    }
+
 
 
     fun findByName(

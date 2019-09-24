@@ -49,7 +49,7 @@ interface ApplicationDAO<Session> {
         user: SecurityPrincipal,
         fileExtension: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite>
+    ): Page<ApplicationSummary>
 
     fun findByNameAndVersion(
         session: Session,

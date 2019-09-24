@@ -4,11 +4,8 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
-import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import org.hibernate.query.Query
 import java.util.*
@@ -368,7 +365,7 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         fileExtension: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> {
+    ): Page<ApplicationSummary> {
         return internalBySupportedFileExtension(session, user, fileExtension, paging)
     }
 
@@ -566,62 +563,35 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         fileExtension: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> {
+    ): Page<ApplicationSummary> {
 
-        val count = session
-            .typedQuery<Long>(
+        val items = session
+            .createNativeQuery<ApplicationEntity>(
                 """
-                    select count (A.id.name)
-                    from FavoriteApplicationEntity as F, ApplicationEntity as A
+                    select A.*
+                    from app_store.favorited_by as F, app_store.applications as A
                     where
-                        F.user = :user and
-                        F.applicationName = A.id.name and
-                        F.applicationVersion = A.id.version and
-                        (A.name) in (
-                            select name
-                            from ApplicationFileExtensionEntity as B
-                            where B.fileExtensions @> {"fileExtensions": [":fileExtension"]}
-                            A.id.name = B.id.name
-                            group by id.name
+                        F.the_user = :user and
+                        F.application_name = A.name and
+                        F.application_version = A.version and
+                        A.name in (
+                            select B.name
+                            from app_store.applications as B
+                            where B.application -> 'fileExtensions' @> json_build_array(:fileExtension)::::jsonb
+                            group by B.name
                         )
-                """.trimIndent()
+                """.trimIndent(), ApplicationEntity::class.java
             )
             .setParameter("fileExtension", fileExtension)
             .setParameter("user", user.username)
-            .uniqueResult()
-            .toInt()
-
-        val items = session
-            .typedQuery<ApplicationEntity>(
-                """
-                    select A.id.name
-                    from FavoriteApplicationEntity as F, ApplicationEntity as A
-                    where
-                        F.user = :user and
-                        F.applicationName = A.id.name and
-                        F.applicationVersion = A.id.version and
-                        (A.name) in (
-                            select name
-                            from ApplicationFileExtensionEntity as B
-                            where B.fileExtensions @> {"fileExtensions": [":fileExtension"]}
-                            A.id.name = B.id.name
-                            group by id.name
-                        )
-                """.trimIndent()
-            )
-            .setParameter("fileExtension", fileExtension)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
-        return preparePageForUser(
-            session,
-            user.username,
-            Page(
-                count,
-                paging.itemsPerPage,
-                paging.page,
-                items
-            )
+        return Page(
+            items.count(),
+            paging.itemsPerPage,
+            paging.page,
+            items
         ).mapItems { it.withoutInvocation() }
     }
 
