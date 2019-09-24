@@ -35,6 +35,7 @@ function Search(props: SearchProps) {
         props.setSearch(q);
         props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
         props.setRefresh(() => fetchAll());
+        fetchAll();
         return () => {
             props.toggleAdvancedSearch();
             props.clear();
@@ -49,12 +50,12 @@ function Search(props: SearchProps) {
 
     function fetchAll(itemsPerPage?: number) {
         props.searchFiles(fileSearchBody(
-            props.fileSearch,
+            {...props.fileSearch, fileName: query(props)},
             itemsPerPage || props.files.itemsPerPage,
             props.files.pageNumber
         ));
         props.searchApplications(applicationSearchBody(
-            props.applicationSearch,
+            {...props.applicationSearch, appName: query(props)},
             itemsPerPage || props.applications.itemsPerPage,
             props.applications.pageNumber
         ));
