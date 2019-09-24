@@ -1,9 +1,11 @@
 import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {Progress, Speed, Task, TaskUpdate} from "BackgroundTasks/api";
+import DetailedTask from "BackgroundTasks/DetailedTask";
 import {taskUpdateAction} from "BackgroundTasks/redux";
 import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
+import * as ReactModal from "react-modal";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import styled from "styled-components";
@@ -31,6 +33,8 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
     let speedSum = 0;
     let uploadedSize = 0;
     let targetUploadSize = 0;
+
+    const [taskInFocus, setTaskInFocus] = useState<string | null>(null);
 
     useEffect(() => {
         const wsConnection = WSFactory.open("/tasks", {
@@ -77,7 +81,7 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
         }
     };
 
-    return (
+    return <>
         <ClickableDropdown
             width="600px"
             left="-400px"
@@ -88,8 +92,8 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
             {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
             {!props.tasks ? null :
                 Object.values(props.tasks).map(update => {
-                    console.log(update, props.tasks);
                     return <TaskComponent
+                        onClick={() => setTaskInFocus(update.jobId)}
                         title={update.newTitle ? update.newTitle : ""}
                         speed={!!update.speeds ? update.speeds[0] : undefined}
                         progress={update.progress ? update.progress : undefined}
@@ -97,18 +101,23 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                 })
             }
         </ClickableDropdown>
-    );
+
+        <ReactModal isOpen={taskInFocus !== null} onRequestClose={() => setTaskInFocus(null)}>
+            {!taskInFocus ? null : <DetailedTask taskId={taskInFocus}/>}
+        </ReactModal>
+    </>;
 };
 
 interface TaskComponentProps {
     title: string;
     progress?: Progress;
     speed?: Speed;
+    onClick?: () => void;
 }
 
 const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
     const label = !props.speed ? "" : `${props.speed.speed} ${props.speed.unit}`;
-    return <Flex p={16}>
+    return <Flex p={16} onClick={props.onClick}>
         <Box mr={16}>
             <b>{props.title}</b>
         </Box>

@@ -1,6 +1,7 @@
-import {TaskUpdate} from "BackgroundTasks/api";
+import {Speed, TaskUpdate} from "BackgroundTasks/api";
 import {Action} from "redux";
 import {Dictionary} from "Types";
+import {takeLast} from "Utilities/CollectionUtilities";
 
 export interface TaskReduxState {
     tasks?: Dictionary<TaskUpdate>;
@@ -25,10 +26,13 @@ export const reducer = (
 ): TaskReduxState => {
     switch (action.type) {
         case "TASK_UPDATE": {
-            const existingTask: TaskUpdate | undefined = state? state[action.update.jobId] : undefined;
+            const existingTask: TaskUpdate | undefined = state ? state[action.update.jobId] : undefined;
             if (!existingTask) {
                 const tasks = {...state};
-                tasks[action.update.jobId] = action.update;
+                tasks[action.update.jobId] = {
+                    ...action.update,
+                    speeds: insertTimestamps(action.update.speeds)
+                };
                 return tasks;
             } else {
                 const currentMessage = existingTask.messageToAppend ? existingTask.messageToAppend : "";
@@ -38,7 +42,7 @@ export const reducer = (
                 const newStatus = action.update.newStatus ? action.update.newStatus : existingTask.newStatus;
                 const newTitle = action.update.newTitle ? action.update.newTitle : existingTask.newTitle;
                 const newProgress = action.update.progress ? action.update.progress : existingTask.progress;
-                const newSpeed = action.update.speeds ? action.update.speeds : existingTask.speeds;
+                const newSpeed = takeLast((existingTask.speeds || []).concat(action.update.speeds || []), 500);
                 const newComplete = action.update.complete ? action.update.complete : existingTask.complete;
 
                 const tasks = {...state};
@@ -46,7 +50,7 @@ export const reducer = (
                     ...existingTask,
                     messageToAppend: newMessage,
                     progress: newProgress,
-                    speeds: newSpeed,
+                    speeds: insertTimestamps(newSpeed),
                     complete: newComplete,
                     newStatus,
                     newTitle
@@ -58,3 +62,13 @@ export const reducer = (
     }
     return state;
 };
+
+function insertTimestamps(speeds: Speed[]): Speed[] {
+    return speeds.map(it => {
+        if (it.clientTimestamp) {
+            return it;
+        } else {
+            return {...it, clientTimestamp: Date.now()};
+        }
+    });
+}

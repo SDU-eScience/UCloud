@@ -26,6 +26,7 @@ export interface Speed {
     title: string;
     speed: number;
     unit: string;
+    clientTimestamp?: number;
 }
 
 export interface Progress {

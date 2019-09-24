@@ -276,7 +276,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     }
 
     suspend fun dummyTask(ctx: Ctx) {
-        val range = 0 until 10_000
+        val range = 0 until 100_000
 
         val taskSpeed = Speed("Speeed!", 0.0, "Foo")
         val speeds = listOf(taskSpeed)
@@ -287,7 +287,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         var taskId: String? = null
         var nextUpdate: Long = 0
         fun setNextUpdate() {
-            nextUpdate = System.currentTimeMillis() + 10_000
+            nextUpdate = System.currentTimeMillis() + 1000
         }
 
         setNextUpdate()
@@ -330,7 +330,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             taskSpeed.speed = Random.nextDouble()
             progress.current = iteration
             buffer.appendln("Started work on $iteration")
-            delay(1000)
+            delay(100)
             buffer.appendln("Work on $iteration complete!")
         }
     }

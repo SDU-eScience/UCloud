@@ -2,6 +2,7 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import Button from "ui-components/Button";
+import DetailedTask from "BackgroundTasks/DetailedTask";
 
 export const Playground: React.FunctionComponent = props => {
     return <MainContainer
