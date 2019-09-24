@@ -173,14 +173,6 @@ exports[`UserCreation Mount 1`] = `
   width: 100%;
 }
 
-.c3 {
-  cursor: auto;
-}
-
-.c10 {
-  cursor: auto;
-}
-
 .c6 {
   cursor: pointer;
   -webkit-text-decoration: none;
@@ -190,6 +182,14 @@ exports[`UserCreation Mount 1`] = `
 
 .c6:hover {
   color: textHighlight;
+}
+
+.c3 {
+  cursor: auto;
+}
+
+.c10 {
+  cursor: auto;
 }
 
 .c5 {

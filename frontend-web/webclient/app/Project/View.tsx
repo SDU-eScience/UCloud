@@ -13,13 +13,13 @@ import {
     viewProject
 } from "Project/index";
 import Box from "ui-components/Box";
-import {UserAvatar} from "Navigation/Header";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import Flex from "ui-components/Flex";
 import Button from "ui-components/Button";
 import Input from "ui-components/Input";
 import Label from "ui-components/Label";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
 
 const View: React.FunctionComponent<{ match: match<{ id: string }> }> = props => {
     const id = props.match.params.id;
