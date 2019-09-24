@@ -1,7 +1,7 @@
-import {Speed, TaskUpdate} from "BackgroundTasks/api";
+import {Speed, Task, TaskUpdate} from "BackgroundTasks/api";
 import {Action} from "redux";
-import {Dictionary} from "Types";
-import {takeLast} from "Utilities/CollectionUtilities";
+import {Dictionary, Page} from "Types";
+import {associateBy, takeLast} from "Utilities/CollectionUtilities";
 
 export interface TaskReduxState {
     tasks?: Dictionary<TaskUpdate>;
@@ -11,14 +11,19 @@ interface TaskUpdateAction extends Action<"TASK_UPDATE"> {
     update: TaskUpdate;
 }
 
-export function taskUpdateAction(update: TaskUpdate): TaskUpdateAction {
-    return {
-        type: "TASK_UPDATE",
-        update
-    };
+interface TaskLoadAction extends Action<"TASK_LOAD"> {
+    page: Page<Task>;
 }
 
-type TypeActions = TaskUpdateAction;
+export function taskUpdateAction(update: TaskUpdate): TaskUpdateAction {
+    return {type: "TASK_UPDATE", update};
+}
+
+export function taskLoadAction(page: Page<Task>): TaskLoadAction {
+    return {type: "TASK_LOAD", page};
+}
+
+type TypeActions = TaskUpdateAction | TaskLoadAction;
 
 export const reducer = (
     state: any = ({}),
@@ -58,6 +63,22 @@ export const reducer = (
 
                 return tasks;
             }
+        }
+
+        case "TASK_LOAD": {
+            const updates: TaskUpdate[] = action.page.items.map(item => {
+                return {
+                    jobId: item.jobId,
+                    speeds: [],
+                    messageToAppend: null,
+                    progress: null,
+                    newTitle: item.title,
+                    complete: false,
+                    newStatus: item.status
+                };
+            });
+
+            return associateBy(updates, it => it.jobId);
         }
     }
     return state;

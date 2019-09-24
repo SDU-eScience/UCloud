@@ -1,7 +1,7 @@
 import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {Progress, Speed, Task, TaskUpdate} from "BackgroundTasks/api";
 import DetailedTask from "BackgroundTasks/DetailedTask";
-import {taskUpdateAction} from "BackgroundTasks/redux";
+import {taskLoadAction, taskUpdateAction} from "BackgroundTasks/redux";
 import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
 import {useEffect, useState} from "react";
@@ -9,7 +9,7 @@ import * as ReactModal from "react-modal";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import styled from "styled-components";
-import {Dictionary} from "Types";
+import {Dictionary, Page} from "Types";
 import {Button, Icon} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -20,6 +20,7 @@ import {Upload} from "Uploader";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {calculateUploadSpeed} from "Uploader/Uploader";
 import {sizeToHumanReadableWithUnit} from "Utilities/FileUtilities";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 interface BackgroundTaskProps {
     activeUploads: number;
@@ -27,6 +28,7 @@ interface BackgroundTaskProps {
     showUploader: () => void;
     tasks?: Dictionary<TaskUpdate>;
     onTaskUpdate: (update: TaskUpdate) => void;
+    loadInitialTasks: () => void;
 }
 
 const BackgroundTasks = (props: BackgroundTaskProps) => {
@@ -35,6 +37,10 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
     let targetUploadSize = 0;
 
     const [taskInFocus, setTaskInFocus] = useState<string | null>(null);
+
+    useEffect(() => {
+        props.loadInitialTasks();
+    }, []);
 
     useEffect(() => {
         const wsConnection = WSFactory.open("/tasks", {
@@ -47,7 +53,6 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                             const payload = message.payload as TaskUpdate;
                             props.onTaskUpdate(payload);
                         }
-                        console.log(message);
                     }
                 });
             }
@@ -93,16 +98,17 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
             {!props.tasks ? null :
                 Object.values(props.tasks).map(update => {
                     return <TaskComponent
+                        key={update.jobId}
                         onClick={() => setTaskInFocus(update.jobId)}
                         title={update.newTitle ? update.newTitle : ""}
-                        speed={!!update.speeds ? update.speeds[0] : undefined}
+                        speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
                         progress={update.progress ? update.progress : undefined}
                     />;
                 })
             }
         </ClickableDropdown>
 
-        <ReactModal isOpen={taskInFocus !== null} onRequestClose={() => setTaskInFocus(null)}>
+        <ReactModal isOpen={taskInFocus !== null} onRequestClose={() => setTaskInFocus(null)} ariaHideApp={true}>
             {!taskInFocus ? null : <DetailedTask taskId={taskInFocus}/>}
         </ReactModal>
     </>;
@@ -116,8 +122,8 @@ interface TaskComponentProps {
 }
 
 const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
-    const label = !props.speed ? "" : `${props.speed.speed} ${props.speed.unit}`;
-    return <Flex p={16} onClick={props.onClick}>
+    const label = !props.speed ? "" : `${props.speed.speed.toFixed(3)} ${props.speed.unit}`;
+    return <TaskContainer onClick={props.onClick}>
         <Box mr={16}>
             <b>{props.title}</b>
         </Box>
@@ -134,8 +140,17 @@ const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
                 />
             }
         </Box>
-    </Flex>;
+    </TaskContainer>;
 };
+
+const TaskContainer = styled(Flex)`
+    padding: 16px;
+    cursor: pointer;
+
+    > * {
+        cursor: inherit;
+    }
+`;
 
 const TasksIconBase = styled(Icon)`
     animation: spin 2s linear infinite;
@@ -157,6 +172,10 @@ const mapStateToProps = (state: ReduxObject) => ({
 const mapDispatchToProps = (dispatch: Dispatch) => ({
     showUploader: () => dispatch(setUploaderVisible(true, Cloud.homeFolder)),
     onTaskUpdate: (update: TaskUpdate) => dispatch(taskUpdateAction(update)),
+    loadInitialTasks: async () => {
+        const result: Page<Task> = (await Cloud.get(buildQueryString("/tasks", {itemsPerPage: 100, page: 0}))).response;
+        dispatch(taskLoadAction(result));
+    }
 });
 
 const TasksIcon = () => <TasksIconBase name="notchedCircle"/>;

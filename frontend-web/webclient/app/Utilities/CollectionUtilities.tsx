@@ -36,6 +36,15 @@ export function groupBy<T>(items: T[], keySelector: (t: T) => string): Dictionar
     return result;
 }
 
+export function associateBy<T>(items: T[], keySelector: (t: T) => string): Dictionary<T> {
+    const result: Dictionary<T> = {};
+    items.forEach(item => {
+        const key = keySelector(item);
+        result[key] = item;
+    });
+    return result;
+}
+
 export function takeLast<T>(items: T[], numberOfItems: number): T[] {
     return items.slice(Math.max(0, items.length - numberOfItems));
 }

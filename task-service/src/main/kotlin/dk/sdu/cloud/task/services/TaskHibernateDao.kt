@@ -146,9 +146,9 @@ internal class TaskHibernateDao : TaskDao<HibernateSession> {
         return session.paginatedCriteria<TaskEntity>(pagination) {
             ((entity[TaskEntity::owner] equal user.username) or
                     (entity[TaskEntity::processor] equal user.username)) and
-                    (entity[TaskEntity::complete] equal literal(true)) and
+                    (entity[TaskEntity::complete] equal literal(false)) and
                     (entity[TaskEntity::modifiedAt] greaterThan
-                            Date(System.currentTimeMillis() - (1000 * 60 * 60 * 15)))
+                            Date(System.currentTimeMillis() - (1000L * 60 * 60 * 15)))
         }.mapItems { toModel(it) }
     }
 }
