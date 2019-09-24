@@ -23,8 +23,9 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import dk.sdu.cloud.task.api.Progress
-import dk.sdu.cloud.task.api.Speed
+import dk.sdu.cloud.task.api.SimpleSpeed
 import dk.sdu.cloud.task.api.runTask
 import kotlinx.coroutines.delay
 import java.io.InputStream
@@ -275,9 +276,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
         runTask(serviceClient, BackgroundScope, "Storage Test", ctx.user) {
             val progress = Progress("Progress", 0, range.last)
-            val taskSpeed = Speed("Speeed!", 0.0, "Foo")
+            val taskSpeed = SimpleSpeed("Speeed!", 0.0, "Foo")
+            val tasksPerSecond = MeasuredSpeedInteger("Tasks") { "T/s" }
 
-            speeds = listOf(taskSpeed)
+            speeds = listOf(taskSpeed, tasksPerSecond)
             this.progress = progress
 
             for (iteration in range) {
@@ -286,6 +288,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 progress.current = iteration
                 writeln("Started work on $iteration")
                 delay(100)
+                tasksPerSecond.increment(1)
                 writeln("Work on $iteration complete!")
             }
         }

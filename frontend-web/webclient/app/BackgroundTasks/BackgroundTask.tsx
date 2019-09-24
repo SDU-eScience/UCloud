@@ -52,7 +52,6 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                         if (message.type === "message") {
                             const payload = message.payload as TaskUpdate;
                             props.onTaskUpdate(payload);
-                            console.log(message);
                         }
                     }
                 });
@@ -86,6 +85,10 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
             unit: humanReadable.unit + "/s"
         }
     };
+
+    if (props.activeUploads <= 0 && !props.tasks) {
+        return null;
+    }
 
     return <>
         <ClickableDropdown

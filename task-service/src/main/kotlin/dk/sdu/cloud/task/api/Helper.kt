@@ -11,17 +11,46 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.math.min
 
-class TaskHelperContext @PublishedApi internal constructor(
+interface TaskContext {
+    val title: String
+    val owner: String
+    var speeds: List<Speed>
+    var progress: Progress?
+    var status: String?
+
+    suspend fun writeln(message: String)
+    fun writelnBlocking(message: String)
+    fun markAsComplete()
+}
+
+object DiscardingTaskContext : TaskContext {
+    override val title: String = ""
+    override val owner: String = ""
+    override var speeds: List<Speed> = emptyList()
+    override var progress: Progress? = null
+    override var status: String? = null
+
+    override suspend fun writeln(message: String) {
+    }
+
+    override fun writelnBlocking(message: String) {
+    }
+
+    override fun markAsComplete() {
+    }
+}
+
+class RealTaskContext @PublishedApi internal constructor(
     private val serviceClient: AuthenticatedClient,
     private val scope: CoroutineScope,
-    private val title: String,
-    private val owner: String,
+    override val title: String,
+    override val owner: String,
 
     private val updateFrequencyMs: Long = 1_000
-) {
-    var speeds: List<Speed> = emptyList()
-    var progress: Progress? = null
-    var status: String? = null
+) : TaskContext {
+    override var speeds: List<Speed> = emptyList()
+    override var progress: Progress? = null
+    override var status: String? = null
 
     private val buffer = StringBuilder()
     private var nextUpdate: Long = 0
@@ -36,19 +65,19 @@ class TaskHelperContext @PublishedApi internal constructor(
         nextUpdate = System.currentTimeMillis() + updateFrequencyMs
     }
 
-    suspend fun writeln(message: String) {
+    override suspend fun writeln(message: String) {
         bufferMutex.withLock {
             buffer.appendln(message)
         }
     }
 
-    fun writelnBlocking(message: String) {
+    override fun writelnBlocking(message: String) {
         runBlocking {
             writeln(message)
         }
     }
 
-    fun markAsComplete() {
+    override fun markAsComplete() {
         isComplete = true
     }
 
@@ -104,9 +133,9 @@ inline fun <R> runTask(
     owner: String,
     updateFrequencyMs: Long = 1_000,
     autoComplete: Boolean = true,
-    task: TaskHelperContext.() -> R
+    task: RealTaskContext.() -> R
 ): R {
-    val ctx = TaskHelperContext(serviceClient, scope, title, owner, updateFrequencyMs)
+    val ctx = RealTaskContext(serviceClient, scope, title, owner, updateFrequencyMs)
     ctx.initialize()
     val result = ctx.task()
     if (autoComplete) ctx.markAsComplete()
