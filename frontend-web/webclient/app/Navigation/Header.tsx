@@ -48,6 +48,7 @@ import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString} from "UtilityFunctions";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteComponentProps {
     history: History;
@@ -347,35 +348,6 @@ const mapSearchDispatchToProps = (dispatch: Dispatch) => ({
 });
 
 const Search = connect<SearchStateProps, SearchOperations>(mapSearchStateToProps, mapSearchDispatchToProps)(_Search);
-
-const ClippedBox = styled(Flex)`
-    align-items: center;
-    overflow: hidden;
-    height: 48px;
-`;
-
-interface UserAvatar extends SpaceProps {
-    avatar: AvatarType;
-}
-
-export const UserAvatar = ({avatar}: UserAvatar) => (
-    <ClippedBox mx="8px" width="60px">
-        <Avatar
-            avatarStyle="Circle"
-            topType={avatar.top}
-            accessoriesType={avatar.topAccessory}
-            hairColor={avatar.hairColor}
-            facialHairType={avatar.facialHair}
-            facialHairColor={avatar.facialHairColor}
-            clotheType={avatar.clothes}
-            clotheColor={avatar.colorFabric}
-            graphicType={avatar.clothesGraphic}
-            eyeType={avatar.eyes}
-            eyebrowType={avatar.eyebrows}
-            mouthType={avatar.mouthTypes}
-            skinColor={avatar.skinColors}
-        />
-    </ClippedBox>);
 
 interface HeaderOperations {
     fetchAvatar: () => void;

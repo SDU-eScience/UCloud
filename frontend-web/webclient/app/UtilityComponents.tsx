@@ -1,27 +1,24 @@
+import {APICallState, mapCallState, useCloudAPI} from "Authentication/DataHook";
+import SDUCloud from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
 import * as React from "react";
+import {findShare, loadAvatars, SharesByPath} from "Shares";
 import styled from "styled-components";
-import {
-    Absolute,
-    Box,
-    Button,
-    Checkbox,
-    Divider,
-    Flex,
-    FtIcon,
-    Icon,
-    Input,
-    Label,
-    Radio,
-    Select,
-    Text
-} from "ui-components";
+import {Dictionary, singletonToPage} from "Types";
+import {Absolute, Box, Button, Checkbox, Divider, Icon, Flex, FtIcon, Label, Select, Text} from "ui-components";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
-import {FtIconProps} from "UtilityFunctions";
+import Input, {InputLabel} from "ui-components/Input";
+import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
+import {FtIconProps, inDevEnvironment} from "UtilityFunctions";
+import {ShareRow} from "Shares/List";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {SnackType} from "Snackbar/Snackbars";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
 
 interface StandardDialog {
     title?: string;
@@ -33,8 +30,7 @@ interface StandardDialog {
     validator?: () => boolean;
 }
 
-export function addStandardDialog(
-    {
+export function addStandardDialog({
         title,
         message,
         onConfirm,
@@ -42,8 +38,7 @@ export function addStandardDialog(
         validator = () => true,
         cancelText = "Cancel",
         confirmText = "Confirm"
-    }: StandardDialog
-) {
+    }: StandardDialog) {
     dialogStore.addDialog(<Box>
         <Box>
             <Heading.h3>{title}</Heading.h3>
@@ -78,51 +73,141 @@ export function sensitivityDialog(): Promise<{ cancelled: true } | { option: Sen
     }));
 }
 
-export function shareDialog(): Promise<{ cancelled: true } | { username: string, access: "read" | "read_edit" }> {
+export function shareDialog(paths: string[], cloud: SDUCloud) {
     // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
-    return new Promise(resolve => dialogStore.addDialog(
-        <SharePrompt resolve={resolve} />
-    , () => resolve({cancelled: true})));
+    dialogStore.addDialog( <SharePrompt cloud={cloud} paths={paths} />, () => undefined);
 }
 
-export function SharePrompt({resolve}) {
+export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) {
+    const readEditOptions = [
+        {text: "Can view", value: "read"},
+        {text: "Can edit", value: "read_edit"}
+    ];
     const username = React.useRef<HTMLInputElement>(null);
-    const [access, setAccess] =  React.useState<"read" | "read_edit">("read");
-    return (<form onSubmit={e => e.preventDefault()}>
-    <Heading.h3>Share</Heading.h3>
-    <Divider/>
-    <Flex mb="10px">
-        <Label>
-            <Radio
-                name="right"
-                checked={access === "read"}
-                onClick={() => setAccess("read")}
-                onChange={() => setAccess("read")}
-            /> {" "} Can view
-        </Label>
-        <Label>
-            <Radio
-                name="right"
-                checked={access === "read_edit"}
-                onClick={() => setAccess("read_edit")}
-                onChange={() => setAccess("read_edit")}
-            /> {" "} Can edit
-        </Label>
-    </Flex>
-    <Label>
-        <Input required type="text" ref={username}
-               placeholder="Enter username..."/>
-    </Label>
-    <Flex mt="20px">
-        <Button type="button" onClick={() => dialogStore.failure()} color="red" mr="5px">Cancel</Button>
-        <Button onClick={() => {
-            if (username.current && username.current.value) {
-                dialogStore.success();
-                resolve({username: username.current.value, access});
-            }
-        }} color="green">Share</Button>
-        </Flex>
-    </form>);
+    const [access, setAccess] = React.useState<"read" | "read_edit">("read");
+    const [linkAccess, setLinkAccess] = React.useState<"read" | "read_edit">("read");
+
+    return (
+        <Box style={{overflowY: "scroll"}} maxHeight={"80vh"} width="600px">
+            <Box alignItems="center" width="580px">
+            <form onSubmit={e => (e.preventDefault(), e.stopPropagation())}>
+                <Heading.h3>Share</Heading.h3>
+                <Divider/>
+                Collaborators
+                <Label>
+                    <Flex>
+                        <Input rightLabel required type="text" ref={username}
+                            placeholder="Enter username..."/>
+                            <InputLabel width="152px" rightLabel>
+                            <ClickableDropdown
+                                chevron
+                                width="180px"
+                                onChange={(val: "read" | "read_edit") => setAccess(val)}
+                                trigger={access === "read" ? "Can view" : "Can Edit"}
+                                options={readEditOptions}
+                            />
+                        </InputLabel>
+                        <Button onClick={submit} ml="5px">Add</Button>
+                    </Flex>
+                </Label>
+                {paths.map(path =>
+                    <React.Fragment key={path}>
+                        <Text ml="5px" bold mt="4px">{getFilenameFromPath(path)}</Text>
+                        <Rows path={path} />
+                    </React.Fragment>
+                )}
+            </form>
+            {!inDevEnvironment() || paths.length !== 1 ? null :
+                    <><Divider/>
+                    <Heading.h3 mb="4px">Sharable links</Heading.h3>
+                    <Flex mb="10px">
+                        <Box mr="auto"/>
+                        <Button>Generate Sharable Link</Button>
+                        <Box ml="12px" mt="6px">
+                            <ClickableDropdown
+                                chevron
+                                onChange={(val: "read" | "read_edit") => setLinkAccess(val)}
+                                trigger={linkAccess === "read" ? "Can view" : "Can Edit"}
+                                options={readEditOptions}
+                            />
+                        </Box>
+                        <Box ml="auto"/>
+                    </Flex>
+                <Divider/>
+            </>}
+            <Flex mt="15px"><Box mr="auto"/>
+                <Button type="button" onClick={() => dialogStore.success()}>Close</Button>
+            <Box ml="auto"/></Flex>
+            </Box>
+        </Box>
+    );
+
+    function submit() {
+        if (username.current == null || !username.current.value) return;
+        const value = username.current.value;
+        const rights: string[] = [];
+        if (access.includes("read")) rights.push("READ");
+        if (access.includes("read_edit")) rights.push("WRITE");
+        let iteration = 0;
+        // Replace with Promise.all
+        paths.forEach(path => {
+            const body = {
+                sharedWith: value,
+                path,
+                rights
+            };
+            cloud.put(`/shares/`, body)
+                .then(() => {
+                    if (++iteration === paths.length) snackbarStore.addSnack({
+                        message: "Files shared successfully",
+                        type: SnackType.Success
+                    });
+                })
+                .catch(({response}) => {
+                    if (!(paths.length > 1 && "why" in response && response.why !== "Already exists"))
+                        snackbarStore.addFailure(response.why);
+                });
+        });
+    }
+}
+
+function Rows({path}: {path: string}): JSX.Element {
+    const initialFetchParams = findShare(path);
+    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<Dictionary<AvatarType>>(
+        loadAvatars({usernames: new Set([])}), {}
+    );
+
+    const [response, setFetchParams, params] = useCloudAPI<SharesByPath | null>(initialFetchParams, null);
+
+    const refresh = () => setFetchParams({...params, reloadId: Math.random()});
+
+    const page = mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
+
+    React.useEffect(() => {
+        const usernames: Set<string> = new Set(page.data.items.map(group =>
+            group.shares.map(share => group.sharedByMe ? share.sharedWith : group.sharedBy)
+        ).reduce((acc, val) => acc.concat(val), []));
+
+        if (JSON.stringify(Array.from(avatarParams.parameters!.usernames)) !== JSON.stringify(Array.from(usernames))) {
+            setAvatarParams(loadAvatars({usernames}));
+        }
+    }, [page]);
+
+    const shareByPath = page.data.items[0];
+
+    return <>{shareByPath == null ? <Heading.h5 textAlign="center">No shares</Heading.h5> :
+        shareByPath.shares.map(share =>
+            <ShareRow
+                revokeAsIcon
+                share={share}
+                key={share.id}
+                sharedBy={shareByPath.sharedBy}
+                onUpdate={refresh}
+                sharedByMe
+            >
+                <AvatarComponent avatars={avatars} username={share.sharedWith} />
+            </ShareRow>
+        )}</>;
 }
 
 
@@ -328,3 +413,12 @@ export const MasterCheckbox = ({onClick, checked}: MasterCheckbox) => (
         />
     </Label>
 );
+
+// FIXME: Shouldn't be here
+const AvatarComponent = (props: {username: string, avatars: APICallState<Dictionary<AvatarType>>}) => {
+    let avatar = defaultAvatar;
+    const loadedAvatar =
+        !!props.avatars.data && !!props.avatars.data.avatars ? props.avatars.data.avatars[props.username] : undefined;
+    if (!!loadedAvatar) avatar = loadedAvatar;
+    return <UserAvatar avatar={avatar} />;
+};

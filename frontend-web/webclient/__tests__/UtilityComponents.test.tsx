@@ -20,6 +20,7 @@ import {
     SharePrompt
 } from "../app/UtilityComponents";
 import {iconFromFilePath} from "../app/UtilityFunctions";
+import {Cloud} from "../app/Authentication/SDUCloudObject";
 
 configure({adapter: new Adapter()});
 
@@ -109,7 +110,7 @@ describe("Dialogs", () => {
     test("Add share dialog", () => {
         let dialogCount = 0;
         dialogStore.subscribe(dialogs => dialogCount = dialogs.length);
-        shareDialog();
+        shareDialog([], Cloud);
         expect(dialogCount).toBe(1);
         dialogStore.failure();
         expect(dialogCount).toBe(0);
@@ -154,10 +155,8 @@ describe("Dialogs", () => {
 });
 
 test("Share prompt", () => {
-    let r: () => void = () => undefined;
-    new Promise(resolve => r = resolve);
     expect(create(
         <ThemeProvider theme={theme}>
-            <SharePrompt resolve={r} />
+            <SharePrompt paths={[""]} cloud={Cloud} />
         </ThemeProvider>).toJSON()).toMatchSnapshot();
 });
