@@ -4,7 +4,7 @@ import {SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
 import * as React from "react";
-import {findShare, loadAvatars, SharesByPath, Share} from "Shares";
+import {findShare, loadAvatars, SharesByPath} from "Shares";
 import styled from "styled-components";
 import {Dictionary, singletonToPage} from "Types";
 import {Absolute, Box, Button, Checkbox, Divider, Icon, Flex, FtIcon, Label, Select, Text} from "ui-components";
@@ -14,7 +14,7 @@ import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
-import {FtIconProps, inDevEnvironment} from "UtilityFunctions";
+import {FtIconProps, inDevEnvironment, copyToClipboard} from "UtilityFunctions";
 import {ShareRow} from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
@@ -88,6 +88,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
     const [access, setAccess] = React.useState<"read" | "read_edit">("read");
     const [linkAccess, setLinkAccess] = React.useState<"read" | "read_edit">("read");
     const [loading, setLoading] = React.useState(false);
+    const [sharableLink, setSharableLink] = React.useState("");
 
     return (
         <Box style={{overflowY: "scroll"}} maxHeight={"80vh"} width="600px">
@@ -121,10 +122,25 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
             </form>
             {!inDevEnvironment() || paths.length !== 1 ? null :
                     <><Divider/>
-                    <Heading.h3 mb="4px">Sharable links</Heading.h3>
+                    <Flex>
+                        <Heading.h3 mb="4px">Sharable links</Heading.h3>
+                        {!sharableLink ? null :
+                            <Text
+                                fontSize="14px"
+                                bold
+                                ml="8px"
+                                mt="9px"
+                                cursor="pointer"
+                                onClick={() => setSharableLink("")}
+                                color="red"
+                            >
+                                Remove
+                            </Text>
+                        }
+                    </Flex>
                     <Flex mb="10px">
-                        <Box mr="auto"/>
-                        <Button>Generate Sharable Link</Button>
+                        {!sharableLink ? <><Box mr="auto"/>
+                        <Button onClick={() => setSharableLink("https://example.com")}>Generate Sharable Link</Button>
                         <Box ml="12px" mt="6px">
                             <ClickableDropdown
                                 chevron
@@ -133,7 +149,13 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                                 options={readEditOptions}
                             />
                         </Box>
-                        <Box ml="auto"/>
+                        <Box ml="auto"/></> :
+                            <><Input readOnly value={sharableLink} rightLabel/>
+                            <InputLabel rightLabel onClick={() => copyToClipboard({
+                                value: sharableLink,
+                                message: "Link copied to clipboard"
+                            })} backgroundColor="blue" cursor="pointer">Copy</InputLabel></> 
+                        }
                     </Flex>
                 <Divider/>
             </>}
