@@ -1,29 +1,30 @@
-import * as React from "react";
-import {useEffect, useRef, useState} from "react";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
-import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import {getFilenameFromPath, fileTablePage} from "Utilities/FileUtilities";
-import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
-import {Box, Card, Flex, Icon, Text, SelectableText, SelectableTextWrapper} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {MainContainer} from "MainContainer/MainContainer";
-import {FileIcon, addStandardDialog} from "UtilityComponents";
-import {emptyPage} from "DefaultObjects";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {TextSpan} from "ui-components/Text";
-import {colors} from "ui-components/theme";
-import Input, {InputLabel} from "ui-components/Input";
 import {
     APICallParameters,
     APICallState,
     callAPI,
-    mapCallState, useAsyncCommand,
+    mapCallState,
+    useAsyncCommand,
     useCloudAPI
 } from "Authentication/DataHook";
-import Button from "ui-components/Button";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {emptyPage} from "DefaultObjects";
+import {MainContainer} from "MainContainer/MainContainer";
+import * as React from "react";
+import {useEffect, useRef, useState} from "react";
 import {connect} from "react-redux";
+import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
+import {Box, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text} from "ui-components";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import * as Heading from "ui-components/Heading";
+import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {fileTablePage, getFilenameFromPath} from "Utilities/FileUtilities";
+import {addStandardDialog, FileIcon} from "UtilityComponents";
+import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
+import Button from "ui-components/Button";
+import Input, {InputLabel} from "ui-components/Input";
+import {TextSpan} from "ui-components/Text";
+import {colors} from "ui-components/theme";
 import {Dispatch} from "redux";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -34,7 +35,7 @@ import * as Pagination from "Pagination";
 import Link from "ui-components/Link";
 import {PaginationButtons} from "Pagination";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?

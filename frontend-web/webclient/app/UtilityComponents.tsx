@@ -4,7 +4,7 @@ import {SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
 import * as React from "react";
-import {findShare, loadAvatars, SharesByPath} from "Shares";
+import {findShare, loadAvatars, SharesByPath, Share} from "Shares";
 import styled from "styled-components";
 import {Dictionary, singletonToPage} from "Types";
 import {Absolute, Box, Button, Checkbox, Divider, Icon, Flex, FtIcon, Label, Select, Text} from "ui-components";
@@ -19,6 +19,7 @@ import {ShareRow} from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
+import Spinner from "LoadingIcon/LoadingIcon";
 
 interface StandardDialog {
     title?: string;
@@ -86,6 +87,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
     const username = React.useRef<HTMLInputElement>(null);
     const [access, setAccess] = React.useState<"read" | "read_edit">("read");
     const [linkAccess, setLinkAccess] = React.useState<"read" | "read_edit">("read");
+    const [loading, setLoading] = React.useState(false);
 
     return (
         <Box style={{overflowY: "scroll"}} maxHeight={"80vh"} width="600px">
@@ -113,7 +115,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                 {paths.map(path =>
                     <React.Fragment key={path}>
                         <Text ml="5px" bold mt="4px">{getFilenameFromPath(path)}</Text>
-                        <Rows path={path} />
+                        {loading ? <Spinner /> : <Rows path={path} />}
                     </React.Fragment>
                 )}
             </form>
@@ -148,8 +150,10 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
         const rights: string[] = [];
         if (access.includes("read")) rights.push("READ");
         if (access.includes("read_edit")) rights.push("WRITE");
-        let iteration = 0;
+        let successes = 0;
+        let failures = 0;
         // Replace with Promise.all
+        setLoading(true);
         paths.forEach(path => {
             const body = {
                 sharedWith: value,
@@ -158,14 +162,17 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
             };
             cloud.put(`/shares/`, body)
                 .then(() => {
-                    if (++iteration === paths.length) snackbarStore.addSnack({
+                    if (++successes === paths.length) snackbarStore.addSnack({
                         message: "Files shared successfully",
                         type: SnackType.Success
                     });
                 })
-                .catch(({response}) => {
-                    if (!(paths.length > 1 && "why" in response && response.why !== "Already exists"))
-                        snackbarStore.addFailure(response.why);
+                .catch(e => {
+                    failures++;
+                    if (!(paths.length > 1 && "why" in e.response && e.response.why !== "Already exists"))
+                        snackbarStore.addFailure(e.response.why);
+                }).finally(() => {
+                    if (failures + successes === paths.length) setLoading(false);
                 });
         });
     }
@@ -193,25 +200,28 @@ function Rows({path}: {path: string}): JSX.Element {
         }
     }, [page]);
 
-    const shareByPath = page.data.items[0];
+    const sharesByPath = page.data.items[0];
 
-    return <>{shareByPath == null ? <Heading.h5 textAlign="center">No shares</Heading.h5> :
-        shareByPath.shares.map(share =>
+    return sharesByPath == null ? <Heading.h5 textAlign="center">No shares</Heading.h5> : <SharesByPathRow/>;
+
+    function SharesByPathRow() {
+        return <>{sharesByPath.shares.map(share =>
             <ShareRow
                 revokeAsIcon
                 share={share}
                 key={share.id}
-                sharedBy={shareByPath.sharedBy}
+                sharedBy={sharesByPath.sharedBy}
                 onUpdate={refresh}
                 sharedByMe
             >
                 <AvatarComponent avatars={avatars} username={share.sharedWith} />
             </ShareRow>
         )}</>;
+    }
 }
 
 
-export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
+export function overwriteDialog(): Promise<{cancelled?: boolean}> {
     return new Promise(resolve => addStandardDialog({
         title: "Warning",
         message: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
