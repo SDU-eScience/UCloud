@@ -32,7 +32,7 @@ class TaskController(
         }
 
         implement(Tasks.postStatus) {
-            taskService.postStatus(ctx.securityPrincipal, request.id, request.update)
+            taskService.postStatus(ctx.securityPrincipal, request.update)
             ok(Unit)
         }
 

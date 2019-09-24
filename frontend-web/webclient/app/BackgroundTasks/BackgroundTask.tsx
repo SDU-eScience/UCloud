@@ -52,6 +52,7 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                         if (message.type === "message") {
                             const payload = message.payload as TaskUpdate;
                             props.onTaskUpdate(payload);
+                            console.log(message);
                         }
                     }
                 });
@@ -100,7 +101,7 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                     return <TaskComponent
                         key={update.jobId}
                         onClick={() => setTaskInFocus(update.jobId)}
-                        title={update.newTitle ? update.newTitle : ""}
+                        title={update.newTitle || ""}
                         speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
                         progress={update.progress ? update.progress : undefined}
                     />;

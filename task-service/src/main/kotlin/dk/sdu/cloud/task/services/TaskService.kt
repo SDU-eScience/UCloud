@@ -25,11 +25,12 @@ class TaskService<Session>(
             dao.create(session, title, status, owner, processor)
         }
 
-        postStatus(processor, id, TaskUpdate(id, title, newStatus = status))
+        postStatus(processor, TaskUpdate(id, title, newStatus = status))
         return Task(id, owner, processor.username, title, null, false, startedAt)
     }
 
-    suspend fun postStatus(processor: SecurityPrincipal, id: String, status: TaskUpdate) {
+    suspend fun postStatus(processor: SecurityPrincipal, status: TaskUpdate) {
+        val id = status.jobId
         if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val isFromOwnService = processor.role == Role.SERVICE && processor.username == "_task"

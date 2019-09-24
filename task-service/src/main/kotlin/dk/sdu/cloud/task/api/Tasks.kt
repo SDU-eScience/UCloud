@@ -27,7 +27,7 @@ typealias ListenResponse = TaskUpdate
 data class CreateRequest(val title: String, val owner: String, val initialStatus: String? = null)
 typealias CreateResponse = Task
 
-data class PostStatusRequest(val id: String, val update: TaskUpdate)
+data class PostStatusRequest(val update: TaskUpdate)
 typealias PostStatusResponse = Unit
 
 typealias MarkAsCompleteRequest = FindByStringId

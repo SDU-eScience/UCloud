@@ -126,7 +126,7 @@ class SubscriptionService<Session>(
                         .map { subscription ->
                             val client = serviceClient.withFixedHost(subscription.host)
                             launch {
-                                Tasks.postStatus.call(PostStatusRequest(id, update), client)
+                                Tasks.postStatus.call(PostStatusRequest(update), client)
                             }
                         }
                 }

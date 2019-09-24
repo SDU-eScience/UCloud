@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
@@ -24,14 +23,10 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.task.api.CreateRequest
-import dk.sdu.cloud.task.api.PostStatusRequest
 import dk.sdu.cloud.task.api.Progress
 import dk.sdu.cloud.task.api.Speed
-import dk.sdu.cloud.task.api.TaskUpdate
-import dk.sdu.cloud.task.api.Tasks
+import dk.sdu.cloud.task.api.runTask
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.random.Random
@@ -278,60 +273,21 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     suspend fun dummyTask(ctx: Ctx) {
         val range = 0 until 100_000
 
-        val taskSpeed = Speed("Speeed!", 0.0, "Foo")
-        val speeds = listOf(taskSpeed)
-        val progress = Progress("Progress", 0, range.last)
-        var currentStatus: String = "Step 1"
+        runTask(serviceClient, BackgroundScope, "Storage Test", ctx.user) {
+            val progress = Progress("Progress", 0, range.last)
+            val taskSpeed = Speed("Speeed!", 0.0, "Foo")
 
-        val buffer = StringBuilder()
-        var taskId: String? = null
-        var nextUpdate: Long = 0
-        fun setNextUpdate() {
-            nextUpdate = System.currentTimeMillis() + 1000
-        }
+            speeds = listOf(taskSpeed)
+            this.progress = progress
 
-        setNextUpdate()
-
-        BackgroundScope.launch {
-            taskId = Tasks.create.call(
-                CreateRequest("Storage Test", ctx.user, currentStatus),
-                serviceClient
-            ).orNull()?.jobId
-        }
-
-        for (iteration in range) {
-            if (System.currentTimeMillis() > nextUpdate) {
-                BackgroundScope.launch {
-                    val capturedTask = taskId ?: return@launch
-                    val messageToAppend = synchronized(buffer) {
-                        val messageToAppend = buffer.toString()
-                        buffer.clear()
-                        messageToAppend
-                    }
-
-                    Tasks.postStatus.call(
-                        PostStatusRequest(
-                            capturedTask, // TODO Duplicate IDs
-                            TaskUpdate(
-                                capturedTask,
-                                messageToAppend = messageToAppend,
-                                newStatus = currentStatus,
-                                progress = progress,
-                                speeds = speeds
-                            )
-                        ),
-                        serviceClient
-                    )
-                }
-                setNextUpdate()
+            for (iteration in range) {
+                status = "Working on step $iteration"
+                taskSpeed.speed = Random.nextDouble()
+                progress.current = iteration
+                writeln("Started work on $iteration")
+                delay(100)
+                writeln("Work on $iteration complete!")
             }
-
-            currentStatus = "Working on step $iteration"
-            taskSpeed.speed = Random.nextDouble()
-            progress.current = iteration
-            buffer.appendln("Started work on $iteration")
-            delay(100)
-            buffer.appendln("Work on $iteration complete!")
         }
     }
 
