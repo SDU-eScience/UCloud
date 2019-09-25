@@ -1,15 +1,5 @@
 create sequence hibernate_sequence start with 1 increment by 1;
 
-create table subscriptions
-(
-    id        bigint  not null,
-    hostname  varchar(255),
-    last_ping timestamp,
-    port      integer not null,
-    username  varchar(255),
-    primary key (id)
-);
-
 create table tasks
 (
     job_id         varchar(255) not null,

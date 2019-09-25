@@ -1,6 +1,5 @@
 package dk.sdu.cloud.task.services
 
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
@@ -15,7 +14,7 @@ import io.ktor.http.HttpStatusCode
 class TaskService<Session>(
     private val db: DBSessionFactory<Session>,
     private val dao: TaskDao<Session>,
-    private val subscriptionService: SubscriptionService<Session>
+    private val subscriptionService: SubscriptionService
 ) {
     suspend fun create(processor: SecurityPrincipal, title: String, status: String?, owner: String): Task {
         if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
@@ -33,17 +32,14 @@ class TaskService<Session>(
         val id = status.jobId
         if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
-        val isFromOwnService = processor.role == Role.SERVICE && processor.username == "_task"
         val task = db.withTransaction { session ->
             dao.updateLastPing(session, id, processor)
             dao.findOrNull(session, id, processor.username)
         } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-        if (!isFromOwnService) {
-            if (task.processor != processor.username) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
+        if (task.processor != processor.username) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-        subscriptionService.onTaskUpdate(task.owner, id, status, allowRemoteCalls = !isFromOwnService)
+        subscriptionService.onTaskUpdate(task.owner, status)
     }
 
     suspend fun markAsComplete(processor: SecurityPrincipal, id: String) {
@@ -55,7 +51,7 @@ class TaskService<Session>(
         }
 
         val update = TaskUpdate(id, complete = true)
-        subscriptionService.onTaskUpdate(task.owner, id, update)
+        subscriptionService.onTaskUpdate(task.owner, update)
     }
 
     fun list(user: SecurityPrincipal, pagination: NormalizedPaginationRequest): Page<Task> {

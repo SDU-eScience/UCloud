@@ -2,6 +2,7 @@ package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
@@ -52,6 +53,7 @@ class Server(
 
         val streams = micro.eventStreamService
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val wsClient = micro.authenticator.authenticateClient(OutgoingWSCall)
 
         log.info("Creating core services")
 
@@ -83,7 +85,7 @@ class Server(
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
 
         // High level FS
-        val coreFileSystem = CoreFileSystemService(fs, storageEventProducer, sensitivityService, client)
+        val coreFileSystem = CoreFileSystemService(fs, storageEventProducer, sensitivityService, wsClient)
 
         // Bulk operations
         val bulkDownloadService = BulkDownloadService(coreFileSystem)

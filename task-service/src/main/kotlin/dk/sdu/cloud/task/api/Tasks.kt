@@ -51,6 +51,8 @@ object Tasks : CallDescriptionContainer("task") {
                 +boundTo(ListRequest::page)
             }
         }
+
+        websocket(baseContext)
     }
 
     val view = call<ViewRequest, ViewResponse, CommonErrorMessage>("view") {
@@ -64,6 +66,8 @@ object Tasks : CallDescriptionContainer("task") {
                 +boundTo(ViewRequest::id)
             }
         }
+
+        websocket(baseContext)
     }
 
     val listen = call<ListenRequest, ListenResponse, CommonErrorMessage>("listen") {
@@ -93,6 +97,8 @@ object Tasks : CallDescriptionContainer("task") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        websocket(baseContext)
     }
 
     val postStatus = call<PostStatusRequest, PostStatusResponse, CommonErrorMessage>("postStatus") {
@@ -110,6 +116,8 @@ object Tasks : CallDescriptionContainer("task") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        websocket(baseContext)
     }
 
     val markAsComplete = call<MarkAsCompleteRequest, MarkAsCompleteResponse, CommonErrorMessage>("markAsComplete") {
@@ -126,5 +134,7 @@ object Tasks : CallDescriptionContainer("task") {
                 +boundTo(MarkAsCompleteRequest::id)
             }
         }
+
+        websocket(baseContext)
     }
 }

@@ -8,7 +8,6 @@ import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
@@ -34,7 +33,7 @@ import kotlin.test.assertEquals
 class SubscriptionTest {
     private lateinit var micro: Micro
     private lateinit var db: HibernateSessionFactory
-    private lateinit var subscriptionService: SubscriptionService<HibernateSession>
+    private lateinit var subscriptionService: SubscriptionService
     private lateinit var subscriptionDao: SubscriptionHibernateDao
     private lateinit var callHandler: CallHandler<*, TaskUpdate, *>
     private lateinit var wsCall: WSCall

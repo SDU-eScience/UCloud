@@ -12,7 +12,7 @@ import dk.sdu.cloud.task.services.TaskService
 import kotlinx.coroutines.delay
 
 class TaskController(
-    private val subscriptionService: SubscriptionService<*>,
+    private val subscriptionService: SubscriptionService,
     private val taskService: TaskService<*>
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {

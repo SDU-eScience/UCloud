@@ -1,142 +1,111 @@
 package dk.sdu.cloud.task.services
 
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.HostInfo
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.withFixedHost
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.WSSession
 import dk.sdu.cloud.calls.server.sendWSMessage
+import dk.sdu.cloud.events.EventStream
+import dk.sdu.cloud.events.JsonEventStream
+import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.task.api.PostStatusRequest
 import dk.sdu.cloud.task.api.TaskUpdate
-import dk.sdu.cloud.task.api.Tasks
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.Closeable
 import java.util.*
 
-data class LocalSubscription(
-    val username: String,
-    val handler: CallHandler<*, TaskUpdate, *>,
-    val id: Long
-)
+private typealias Socket = CallHandler<*, TaskUpdate, *>
 
-class SubscriptionService<Session>(
-    private val localhost: HostInfo,
-    private val wsServiceClient: AuthenticatedClient,
-    private val db: DBSessionFactory<Session>,
-    private val subscriptionDao: SubscriptionDao<Session>,
-    private val serviceClient: AuthenticatedClient
-) : Closeable {
-    private var isRunning: Boolean = true
+private class UserHandler(
+    val user: String,
+    private val stream: EventStream<TaskUpdate>,
+    private val broadcastingStream: BroadcastingStream,
+    private val scope: CoroutineScope
+) {
+    private val mutex = Mutex()
+    private val sockets = HashMap<String, Socket>()
 
-    init {
-        localhost.port ?: throw NullPointerException("localhost.port == null")
-
-        GlobalScope.launch {
-            while (isActive && isRunning) {
-                db.withTransaction { subscriptionDao.refreshSessions(it, localhost.host, localhost.port!!) }
-                delay(3000)
+    suspend fun addSocket(socketId: String, socket: Socket) {
+        mutex.withLock {
+            sockets[socketId] = socket
+            if (sockets.size == 1) {
+                initialize()
             }
         }
     }
 
-    private val internalSessions = HashMap<WSSession, LocalSubscription>()
-    private val internalSubscriptions = HashMap<Long, LocalSubscription>()
-    private val lock = Mutex()
+    suspend fun removeSocketAndReturnIfEmpty(socketId: String): Boolean {
+        mutex.withLock {
+            sockets.remove(socketId)
 
-    override fun close() {
-        isRunning = false
+            if (sockets.isEmpty()) {
+                broadcastingStream.unsubscribe(stream)
+                return true
+            }
+
+            return false
+        }
     }
 
-    suspend fun onConnection(user: String, handler: CallHandler<*, TaskUpdate, *>) {
-        db.withTransaction { session ->
-            val id = subscriptionDao.open(session, user, localhost.host, localhost.port!!)
-            lock.withLock {
-                val localSubscription = LocalSubscription(user, handler, id)
-                internalSubscriptions[id] = localSubscription
-                internalSessions[(handler.ctx as WSCall).session] = localSubscription
+    private suspend fun initialize() {
+        broadcastingStream.subscribe(stream) { update ->
+            scope.launch {
+                mutex.withLock {
+                    sockets.forEach { it.value.sendWSMessage(update) }
+                }
             }
         }
     }
+}
+
+class SubscriptionService(
+    private val broadcastingStream: BroadcastingStream,
+    private val scopeForWSMessages: CoroutineScope
+) {
+    private val userToHandler = HashMap<String, UserHandler>()
+    private val socketIdToHandler = HashMap<String, UserHandler>()
+
+    private val globalLock = Mutex()
+
+    suspend fun onConnection(user: String, socket: Socket) {
+        val socketId = (socket.ctx as WSCall).session.id
+
+        globalLock.withLock {
+            val existing = userToHandler[user]
+            val userHandler = if (existing != null) {
+                existing.addSocket(socketId, socket)
+                existing
+            } else {
+                val userHandler = UserHandler(user, eventStream(user), broadcastingStream, scopeForWSMessages)
+                userHandler.addSocket(socketId, socket)
+                userToHandler[user] = userHandler
+                userHandler
+            }
+
+            socketIdToHandler[socketId] = userHandler
+        }
+    }
+
+    private fun eventStream(user: String) =
+        JsonEventStream<TaskUpdate>("task-sub-${user}", jacksonTypeRef(), { it.jobId })
 
     suspend fun onDisconnect(session: WSSession) {
-        val id = lock.withLock {
-            val local = internalSessions[session]
-            if (local != null) {
-                internalSessions.remove(session)
-                internalSubscriptions.remove(local.id)
+        globalLock.withLock {
+            val handler = socketIdToHandler.remove(session.id) ?: return
 
+            if (handler.removeSocketAndReturnIfEmpty(session.id)) {
+                userToHandler.remove(handler.user)
             }
-
-            local?.id
         }
-
-        // It is safe to close it multiple times.
-        if (id != null) db.withTransaction { subscriptionDao.close(it, id) }
     }
 
-    suspend fun onTaskUpdate(user: String, id: String, update: TaskUpdate, allowRemoteCalls: Boolean = true) {
-        val subscriptions = db.withTransaction {
-            subscriptionDao.findConnections(it, user)
-        }
-
-        // Deal with local subscriptions
-        run {
-            val invalidSubscriptions = ArrayList<Long>()
-            subscriptions.filter { it.host == localhost }.forEach { subscription ->
-                val localSubscription = internalSubscriptions[subscription.id]
-                if (localSubscription == null) {
-                    invalidSubscriptions.add(subscription.id)
-                } else {
-                    try {
-                        localSubscription.handler.sendWSMessage(update)
-                    } catch (ex: Throwable) {
-                        invalidSubscriptions.add(subscription.id)
-                    }
-                }
-
-                Unit
-            }
-
-            if (invalidSubscriptions.isNotEmpty()) {
-                db.withTransaction { session ->
-                    invalidSubscriptions.forEach { id ->
-                        log.debug("Closing dead session: $id")
-                        subscriptionDao.close(session, id)
-                    }
-                }
-            }
-        }
-
-        if (allowRemoteCalls) {
-            // Deal with remote subscriptions
-            run {
-                GlobalScope.launch {
-                    subscriptions
-                        .filter { it.host != localhost }
-                        .map { subscription ->
-                            val client = serviceClient.withFixedHost(subscription.host)
-                            launch {
-                                Tasks.postStatus.call(PostStatusRequest(update), client)
-                            }
-                        }
-                }
-            }
-        }
+    suspend fun onTaskUpdate(user: String, update: TaskUpdate) {
+        broadcastingStream.broadcast(update, eventStream(user))
     }
 
     companion object : Loggable {
         override val log = logger()
-
-        const val MAX_MS_SINCE_LAST_PING = 10_000
     }
 }

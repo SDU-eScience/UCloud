@@ -34,7 +34,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer,
     private val sensitivityService: FileSensitivityService<Ctx>,
-    private val serviceClient: AuthenticatedClient
+    private val wsServiceClient: AuthenticatedClient
 ) {
     private suspend fun writeTimeOfBirth(
         ctx: Ctx,
@@ -86,7 +86,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val normalizedFrom = from.normalize()
         val fromStat = stat(ctx, from, setOf(FileAttribute.FILE_TYPE, FileAttribute.SIZE))
         if (fromStat.fileType != FileType.DIRECTORY) {
-            runTask(serviceClient, BackgroundScope, "File copy", ctx.user) {
+            runTask(wsServiceClient, BackgroundScope, "File copy", ctx.user) {
                 status = "Copying file from '$from' to '$to'"
 
                 val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
@@ -97,7 +97,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 return targetPath
             }
         } else {
-            runTask(serviceClient, BackgroundScope, "File copy", ctx.user) {
+            runTask(wsServiceClient, BackgroundScope, "File copy", ctx.user) {
                 status = "Copying files from '$from' to '$to'"
                 val filesPerSecond = MeasuredSpeedInteger("Files copied per second") { "Files/s" }
                 this.speeds = listOf(filesPerSecond)
@@ -265,7 +265,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     suspend fun dummyTask(ctx: Ctx) {
         val range = 0 until 100_000
 
-        runTask(serviceClient, BackgroundScope, "Storage Test", ctx.user) {
+        runTask(wsServiceClient, BackgroundScope, "Storage Test", ctx.user) {
             val progress = Progress("Progress", 0, range.last)
             val taskSpeed = SimpleSpeed("Speeed!", 0.0, "Foo")
             val tasksPerSecond = MeasuredSpeedInteger("Tasks") { "T/s" }
