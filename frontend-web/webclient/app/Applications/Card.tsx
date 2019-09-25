@@ -18,7 +18,6 @@ interface ApplicationCardProps {
     linkToRun?: boolean;
     tags: string[];
 }
-const AppCardActionsBase = styled.div``;
 
 const AppCardBase = styled(Link)`
     padding: 10px;
@@ -112,7 +111,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                     unwrapDisallowed
                 />
             </EllipsedText>
-            <AppCardActionsBase><Icon name="chevronDown" rotation={-90} /></AppCardActionsBase>
+            <div><Icon name="chevronDown" rotation={-90} /></div>
         </AppCardBase>
     );
 };

@@ -1,8 +1,12 @@
-import {AdvancedSearchRequest as AppSearchRequest, DetailedApplicationSearchReduxState, FullAppInfo} from "Applications";
+import {
+    AdvancedSearchRequest as AppSearchRequest,
+    DetailedApplicationSearchReduxState,
+    FullAppInfo
+} from "Applications";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppName} from "Applications/Redux/DetailedApplicationSearchActions";
 import {Cloud} from "Authentication/SDUCloudObject";
-import Avatar from "AvataaarLib";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import {HeaderSearchType, KeyCode, ReduxObject} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
@@ -19,7 +23,6 @@ import {Dispatch} from "redux";
 import {searchApplications, searchFiles, setApplicationsLoading, setFilesLoading} from "Search/Redux/SearchActions";
 import {applicationSearchBody, fileSearchBody} from "Search/Search";
 import styled from "styled-components";
-import {SpaceProps} from "styled-system";
 import {Page} from "Types";
 import {
     Absolute,
@@ -43,12 +46,10 @@ import {Dropdown} from "ui-components/Dropdown";
 import Link from "ui-components/Link";
 import {TextSpan} from "ui-components/Text";
 import {ThemeToggler} from "ui-components/ThemeToggle";
-import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString} from "UtilityFunctions";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {getQueryParamOrElse} from "Utilities/URIUtilities";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteComponentProps {
     history: History;
@@ -222,8 +223,9 @@ interface SearchOperations {
 
 type SearchProps = SearchOperations & SearchStateProps;
 
+// tslint:disable-next-line: variable-name
 const _Search = (props: SearchProps & RouteComponentProps) => {
-    const [search, setSearch] = React.useState("");
+    const [search, setSearch] = React.useState(getQueryParamOrElse(props, "query", ""));
     const {history, prioritizedSearch, setSearchType} = props;
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     return (<Relative>
@@ -247,6 +249,7 @@ const _Search = (props: SearchProps & RouteComponentProps) => {
                 </Label>
             </Absolute>
             <ClickableDropdown
+                keepOpenOnOutsideClick
                 overflow={"visible"}
                 left={-425}
                 top={15}
@@ -256,7 +259,7 @@ const _Search = (props: SearchProps & RouteComponentProps) => {
                 squareTop
                 trigger={
                     <Absolute top={-12.5} right={12} bottom={0} left={-28}>
-                        <Icon name="chevronDown" size="15px" />
+                        <Icon cursor="pointer" name="chevronDown" size="15px" />
                     </Absolute>
                 }>
                 <SelectableTextWrapper>
@@ -272,13 +275,11 @@ const _Search = (props: SearchProps & RouteComponentProps) => {
                 {prioritizedSearch === "files" ?
                     <DetailedFileSearch
                         onSearch={() => fetchAll()}
-                        controlledSearch={[search, setSearch]}
                         cantHide
                     /> :
                     prioritizedSearch === "applications" ?
                         <DetailedApplicationSearch
                             onSearch={() => fetchAll()}
-                            controlledSearch={[search, setSearch]}
                             defaultAppName={search}
                         /> : null}
             </ClickableDropdown>
