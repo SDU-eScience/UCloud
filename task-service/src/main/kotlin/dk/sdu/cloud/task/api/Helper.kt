@@ -122,6 +122,8 @@ class RealTaskContext @PublishedApi internal constructor(
                 // We don't want the co-routine to never exit so we loop at least once every 500ms
                 delay(min(500, updateFrequencyMs))
             }
+
+            Tasks.markAsComplete.call(MarkAsCompleteRequest(taskId), serviceClient)
         }
     }
 }
@@ -137,7 +139,9 @@ inline fun <R> runTask(
 ): R {
     val ctx = RealTaskContext(serviceClient, scope, title, owner, updateFrequencyMs)
     ctx.initialize()
-    val result = ctx.task()
-    if (autoComplete) ctx.markAsComplete()
-    return result
+    try {
+        return ctx.task()
+    } finally {
+        if (autoComplete) ctx.markAsComplete()
+    }
 }
