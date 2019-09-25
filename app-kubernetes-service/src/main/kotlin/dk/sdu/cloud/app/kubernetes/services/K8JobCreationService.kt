@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.app.kubernetes.services.K8NameAllocator.Companion.JOB_ID_LABEL
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -9,15 +10,18 @@ import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
+import io.fabric8.kubernetes.api.model.DoneablePod
 import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
 import io.fabric8.kubernetes.api.model.EnvVar
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
+import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
 import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.api.model.ResourceRequirements
 import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.client.KubernetesClientException
+import io.fabric8.kubernetes.client.dsl.PodResource
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
 
@@ -27,6 +31,7 @@ const val MULTI_NODE_DIRECTORY = "/etc/sducloud"
 const val DATA_STORAGE = "workspace-storage"
 const val MULTI_NODE_STORAGE = "multi-node-config"
 const val MULTI_NODE_CONTAINER = "init"
+const val USER_CONTAINER = "user-job"
 
 /**
  * Creates user jobs in Kubernetes.
@@ -146,7 +151,7 @@ class K8JobCreationService(
                                             withCommand(
                                                 "sh",
                                                 "-c",
-                                                "while [ ! -f $MULTI_NODE_DIRECTORY/job_id.txt ]; do sleep 0.5; done;"
+                                                "while [ ! -f $MULTI_NODE_DIRECTORY/ready.txt ]; do sleep 0.5; done;"
                                             )
                                             withAutomountServiceAccountToken(false)
 
@@ -187,7 +192,7 @@ class K8JobCreationService(
                                         log.debug("Container is: ${tool.container}")
                                         log.debug("Executing command: $command")
 
-                                        withName("user-job")
+                                        withName(USER_CONTAINER)
                                         withImage(tool.container)
                                         withRestartPolicy("Never")
                                         withCommand(command)
@@ -322,64 +327,166 @@ class K8JobCreationService(
         }
     }
 
+    private suspend fun awaitContainerStart(verifiedJob: VerifiedJob, useInit: Boolean): List<Pod> {
+        lateinit var pods: List<Pod>
+        awaitCatching(retries = 36_000, time = 100) {
+            pods = k8.nameAllocator.listPods(verifiedJob.id)
+            pods.isNotEmpty() && pods.all { pod ->
+                // Note: We are awaiting the init containers
+                val state = if (useInit) {
+                    pod.status.initContainerStatuses.first().state
+                } else {
+                    pod.status.containerStatuses.first().state
+                }
+
+                state.running != null || state.terminated != null
+            }
+        }
+        return pods
+    }
+
+    private fun writeToFile(
+        podResource: PodResource<Pod, DoneablePod>,
+        path: String,
+        contents: String,
+        container: String? = null,
+        append: Boolean = false
+    ) {
+        val operator = if (append) ">>" else ">"
+        val (_, _, ins) = podResource.execWithDefaultListener(
+            listOf("sh", "-c", "cat $operator $path"),
+            attachStdout = true,
+            attachStdin = true,
+            container = container
+        )
+
+        ins!!.use {
+            it.write(contents.toByteArray())
+        }
+    }
+
     private suspend fun runPostSubmissionHandlers(verifiedJob: VerifiedJob) {
         if (verifiedJob.nodes > 1) {
+            // Configure multi-node applications
+
             k8.addStatus(
                 verifiedJob.id,
                 "Your job is currently waiting to be scheduled. This step might take a while."
             )
 
-            awaitCatching(retries = 36_000, time = 100) {
-                val pods = k8.nameAllocator.listPods(verifiedJob.id)
-                pods.all { pod ->
-                    // Note: We are awaiting the init containers
-                    val state = pod.status.initContainerStatuses.first().state
-                    state.running != null || state.terminated != null
-                }
-            }
+            val ourPods = awaitContainerStart(verifiedJob, useInit = true)
 
             k8.addStatus(verifiedJob.id, "Configuring multi-node application")
 
-            // Now we initialize the files stored in MULTI_NODE_CONFIG
-            val findPods = k8.nameAllocator.listPods(verifiedJob.id)
+            log.debug("Found the following pods: ${ourPods.map { it.metadata.name }}")
 
-            log.debug("Found the following pods: ${findPods.map { it.metadata.name }}")
-
-            val podsWithIp = findPods.map {
+            val podsWithIp = ourPods.map {
                 val rankLabel = it.metadata.labels[K8NameAllocator.RANK_LABEL]!!.toInt()
                 rankLabel to it.status.podIP
             }
 
             log.debug(podsWithIp.toString())
 
-            findPods.forEach { pod ->
+            ourPods.forEach { pod ->
                 val podResource = k8.client.pods()
                     .inNamespace(k8.nameAllocator.namespace)
                     .withName(pod.metadata.name)
 
-                fun writeFile(path: String, contents: String) {
-                    val (_, _, ins) = podResource.execWithDefaultListener(
-                        listOf("sh", "-c", "cat > $path"),
-                        attachStdout = true,
-                        attachStdin = true,
+                podsWithIp.forEach { (rank, ip) ->
+                    writeToFile(
+                        podResource,
+                        "$MULTI_NODE_DIRECTORY/node-$rank.txt",
+                        ip + "\n",
                         container = MULTI_NODE_CONTAINER
                     )
-
-                    ins!!.use {
-                        it.write(contents.toByteArray())
-                    }
                 }
 
-                podsWithIp.forEach { (rank, ip) ->
-                    writeFile("$MULTI_NODE_DIRECTORY/node-$rank.txt", ip + "\n")
-                }
+                writeToFile(
+                    podResource,
+                    "$MULTI_NODE_DIRECTORY/rank.txt",
+                    pod.metadata.labels[K8NameAllocator.RANK_LABEL]!! + "\n",
+                    container = MULTI_NODE_CONTAINER
+                )
 
-                writeFile("$MULTI_NODE_DIRECTORY/rank.txt", pod.metadata.labels[K8NameAllocator.RANK_LABEL]!! + "\n")
-                writeFile("$MULTI_NODE_DIRECTORY/number_of_nodes.txt", verifiedJob.nodes.toString() + "\n")
-                writeFile("$MULTI_NODE_DIRECTORY/job_id.txt", verifiedJob.id + "\n")
+                writeToFile(
+                    podResource,
+                    "$MULTI_NODE_DIRECTORY/number_of_nodes.txt",
+                    verifiedJob.nodes.toString() + "\n",
+                    container = MULTI_NODE_CONTAINER
+                )
+
+                writeToFile(
+                    podResource,
+                    "$MULTI_NODE_DIRECTORY/job_id.txt",
+                    verifiedJob.id + "\n",
+                    container = MULTI_NODE_CONTAINER
+                )
             }
 
             log.debug("Multi node configuration written to all nodes for ${verifiedJob.id}")
+        }
+
+        if (verifiedJob.peers.isNotEmpty()) {
+            // Find peers and inject hostname of new application.
+            //
+            // This is done to aid applications which assume that their hostnames are routable and are as such
+            // advertised to other services as being routable. Without this networking will fail in certain cases.
+            // Spark is an application of such application assuming hostnames to be routable.
+
+            val ourPods = awaitContainerStart(verifiedJob, useInit = verifiedJob.nodes > 1)
+
+            log.debug("Found the following pods: $ourPods")
+
+            // Collect ips and hostnames from the new job
+            val ipsToHostName = ourPods.map { pod ->
+                val ip = pod.status.podIP
+                val hostname = pod.metadata.name
+
+                Pair(ip, hostname)
+            }
+
+            // Find peering pods that we will need to inject our hostname into
+            val peeringPods = verifiedJob.peers.flatMap { peer ->
+                log.debug("Looking for peers with ID: ${peer.jobId}")
+                k8.client.pods()
+                    .inNamespace(k8.nameAllocator.namespace)
+                    .withLabel(JOB_ID_LABEL, peer.jobId)
+                    .list()
+                    .items
+            }
+
+            log.debug("Found the following peers: $peeringPods")
+
+            peeringPods.forEach { peer ->
+                log.debug("Injecting hostnames into ${peer.metadata.name}")
+                val pod = k8.client.pods().inNamespace(k8.nameAllocator.namespace).withName(peer.metadata.name)
+
+                // Defensive new-lines to avoid missing new-lines on either side
+                val newEntriesAsString = "\n" + ipsToHostName.joinToString("\n") { (ip, hostname) ->
+                    "$ip\t$hostname"
+                } + "\n"
+
+                log.debug("Injected config: $newEntriesAsString")
+
+                val container = if (verifiedJob.nodes > 1) MULTI_NODE_CONTAINER else USER_CONTAINER
+                writeToFile(pod, "/etc/hosts", newEntriesAsString, container = container, append = true)
+            }
+        }
+
+        if (verifiedJob.nodes > 1) {
+            log.debug("Writing ready flag in all nodes")
+            val ourPods = awaitContainerStart(verifiedJob, useInit = true)
+            ourPods.forEach { pod ->
+                val podResource =
+                    k8.client.pods().inNamespace(k8.nameAllocator.namespace).withName(pod.metadata.name)
+
+                writeToFile(
+                    podResource,
+                    "$MULTI_NODE_DIRECTORY/ready.txt",
+                    "READY",
+                    container = MULTI_NODE_CONTAINER
+                )
+            }
         }
     }
 
