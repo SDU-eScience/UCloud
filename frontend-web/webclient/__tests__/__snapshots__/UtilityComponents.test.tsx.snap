@@ -380,32 +380,88 @@ exports[`PP Visible PP-Component 1`] = `
 `;
 
 exports[`Share prompt 1`] = `
-.c2 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-bottom: 10px;
-}
-
-.c9 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-top: 20px;
-}
-
 .c0 {
+  cursor: auto;
+  width: 600px;
+  max-height: 80vh;
+}
+
+.c1 {
+  cursor: auto;
+  width: 580px;
+}
+
+.c12 {
+  cursor: pointer;
+  margin-left: -17px;
+  padding-left: 15px;
+  margin-right: -17px;
+  width: auto;
+}
+
+.c18 {
+  cursor: auto;
+  margin-right: auto;
+}
+
+.c20 {
+  cursor: auto;
+  margin-left: auto;
+}
+
+.c5 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c17 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: 15px;
+}
+
+.c2 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
   font-weight: 400;
 }
 
+.c9 {
+  cursor: pointer;
+}
+
+.c15 {
+  cursor: inherit;
+  margin-left: 5px;
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.c16 {
+  cursor: inherit;
+  font-size: 16px;
+  text-align: center;
+  margin: 0;
+  font-weight: 700;
+}
+
 .c10 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c14 {
   -webkit-font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -427,7 +483,7 @@ exports[`Share prompt 1`] = `
   line-height: 1.5;
   cursor: pointer;
   border-radius: 5px;
-  background-color: #c00;
+  background-color: #006aff;
   color: #fff;
   border-width: 0;
   border-style: solid;
@@ -435,24 +491,24 @@ exports[`Share prompt 1`] = `
   transition: cubic-bezier(0.5,0,0.25,1) 60ms;
   font-size: 14px;
   padding: 9.5px 18px;
-  margin-right: 5px;
+  margin-left: 5px;
 }
 
-.c10:disabled {
+.c14:disabled {
   opacity: 0.25;
 }
 
-.c10:focus {
+.c14:focus {
   outline: none;
 }
 
-.c10:hover {
+.c14:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c11 {
+.c19 {
   -webkit-font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -474,7 +530,7 @@ exports[`Share prompt 1`] = `
   line-height: 1.5;
   cursor: pointer;
   border-radius: 5px;
-  background-color: #00C05A;
+  background-color: #006aff;
   color: #fff;
   border-width: 0;
   border-style: solid;
@@ -484,21 +540,21 @@ exports[`Share prompt 1`] = `
   padding: 9.5px 18px;
 }
 
-.c11:disabled {
+.c19:disabled {
   opacity: 0.25;
 }
 
-.c11:focus {
+.c19:focus {
   outline: none;
 }
 
-.c11:hover {
+.c19:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c1 {
+.c3 {
   border: 0;
   border-bottom-style: solid;
   border-bottom-width: 1px;
@@ -507,7 +563,7 @@ exports[`Share prompt 1`] = `
   border-color: #c9d3df;
 }
 
-.c8 {
+.c6 {
   display: block;
   font-family: inherit;
   color: inherit;
@@ -522,35 +578,51 @@ exports[`Share prompt 1`] = `
   padding-right: 12px;
   border-radius: 5px;
   width: 100%;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
-.c8::-webkit-input-placeholder {
+.c6::-webkit-input-placeholder {
   color: #8393A7;
 }
 
-.c8::-moz-placeholder {
+.c6::-moz-placeholder {
   color: #8393A7;
 }
 
-.c8:-ms-input-placeholder {
+.c6:-ms-input-placeholder {
   color: #8393A7;
 }
 
-.c8::placeholder {
+.c6::placeholder {
   color: #8393A7;
 }
 
-.c8:focus {
+.c6:focus {
   outline: none;
   background-color: transparent;
 }
 
-.c8:focus {
+.c6:focus {
   outline: 0;
   border-color: #006aff;
 }
 
-.c3 {
+.c7 {
+  cursor: inherit;
+  width: 152px;
+  border: #c9d3df solid 2px;
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-left: 0px;
+  margin-left: 0;
+  width: 152px;
+  padding-left: 1em;
+  padding-right: 1em;
+  padding-top: 6px;
+}
+
+.c4 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -564,175 +636,198 @@ exports[`Share prompt 1`] = `
   width: 100%;
 }
 
-.c4 {
+.c8 {
+  position: relative;
   display: inline-block;
-  color: #c9d3df;
 }
 
-.c7 {
-  display: inline-block;
-  color: #c9d3df;
+.c8:hover > div {
+  display: block;
 }
 
-.c7:hover {
-  color: #006aff;
-}
-
-.c5 {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  opacity: 0;
+.c11 {
+  overflow: visible;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2),0px 6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12);
   position: absolute;
-  z-index: 0;
+  background-color: #fff;
+  color: #000;
+  width: 180px;
+  min-width: 138pxpx;
+  padding: 12px 16px;
+  z-index: 47;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.c5:focus {
-  box-shadow: none;
+.c11 > *:hover:not(.c13) {
+  background-color: rgba(0,0,0,0.05);
 }
 
-.c5:checked ~ svg {
-  color: #006aff;
+.c11 svg {
+  margin-right: 1em;
 }
 
-.c5:disabled ~ svg {
-  color: #c9d3df;
+.c11 > svg ~ span {
+  margin-right: 1em;
 }
 
-.c6 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  vertical-align: middle;
-}
-
-<form
-  onSubmit={[Function]}
+<div
+  className="c0"
+  cursor="auto"
+  style={
+    Object {
+      "overflowY": "scroll",
+    }
+  }
+  width="600px"
 >
-  <h3
-    className="c0"
-    cursor="inherit"
-    fontSize={4}
-  >
-    Share
-  </h3>
-  <hr
+  <div
     className="c1"
-  />
-  <div
-    className="c2"
-    cursor="inherit"
+    cursor="auto"
+    width="580px"
   >
-    <label
-      className="c3"
-      color="black"
-      fontSize={1}
-      fontWeight="bold"
-      width="100%"
+    <form
+      onSubmit={[Function]}
     >
-      <div
-        checked={true}
+      <h3
+        className="c2"
+        cursor="inherit"
+        fontSize={4}
+      >
+        Share
+      </h3>
+      <hr
+        className="c3"
+      />
+      Collaborators
+      <label
         className="c4"
+        color="black"
+        fontSize={1}
+        fontWeight="bold"
+        width="100%"
       >
-        <input
-          checked={true}
+        <div
           className="c5"
-          name="right"
-          onChange={[Function]}
-          onClick={[Function]}
-          type="radio"
-        />
-        <svg
-          className="c6"
           cursor="inherit"
-          fill="currentcolor"
-          height={24}
-          viewBox="0 0 24 24"
-          width={24}
         >
-          <path
-            d="M12 7c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0-5C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"
+          <input
+            className="c6"
+            id="default"
+            placeholder="Enter username..."
+            required={true}
+            type="text"
+            width="100%"
           />
-        </svg>
+          <div
+            className="c7"
+            cursor="inherit"
+            width="152px"
+          >
+            <div
+              className="c8"
+              data-tag="dropdown"
+            >
+              <span
+                className="c9"
+                cursor="pointer"
+                onClick={[Function]}
+              >
+                Can view
+                <svg
+                  className="c10"
+                  clipRule="evenodd"
+                  cursor="inherit"
+                  fill="currentcolor"
+                  fillRule="evenodd"
+                  height=".7em"
+                  ml=".7em"
+                  viewBox="0 0 24 12"
+                  width=".7em"
+                >
+                  <path
+                    d="M0 0l11.959 12 12-12H0z"
+                  />
+                </svg>
+              </span>
+              <div
+                className="c11"
+                color="black"
+                cursor="pointer"
+                disabled={false}
+                onClick={[Function]}
+                overflow="visible"
+                width="180px"
+              >
+                <div
+                  className="c12"
+                  cursor="pointer"
+                  onClick={[Function]}
+                  width="auto"
+                >
+                  Can view
+                </div>
+                <div
+                  className="c12"
+                  cursor="pointer"
+                  onClick={[Function]}
+                  width="auto"
+                >
+                  Can edit
+                </div>
+              </div>
+            </div>
+          </div>
+          <button
+            className="c13 c14"
+            color="blue"
+            onClick={[Function]}
+          >
+            Add
+          </button>
+        </div>
+      </label>
+      <div
+        className="c15"
+        cursor="inherit"
+      >
+        
       </div>
-       
-       
-       Can view
-    </label>
-    <label
-      className="c3"
-      color="black"
-      fontSize={1}
-      fontWeight="bold"
-      width="100%"
+      <h5
+        className="c16"
+        cursor="inherit"
+        fontSize={2}
+      >
+        No shares
+      </h5>
+    </form>
+    <div
+      className="c17"
+      cursor="inherit"
     >
       <div
-        checked={false}
-        className="c7"
+        className="c18"
+        cursor="auto"
+      />
+      <button
+        className="c13 c19"
+        color="blue"
+        onClick={[Function]}
+        type="button"
       >
-        <input
-          checked={false}
-          className="c5"
-          name="right"
-          onChange={[Function]}
-          onClick={[Function]}
-          type="radio"
-        />
-        <svg
-          className="c6"
-          cursor="inherit"
-          fill="currentcolor"
-          height={24}
-          viewBox="0 0 24 24"
-          width={24}
-        >
-          <path
-            d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"
-          />
-        </svg>
-      </div>
-       
-       
-       Can edit
-    </label>
+        Close
+      </button>
+      <div
+        className="c20"
+        cursor="auto"
+      />
+    </div>
   </div>
-  <label
-    className="c3"
-    color="black"
-    fontSize={1}
-    fontWeight="bold"
-    width="100%"
-  >
-    <input
-      className="c8"
-      id="default"
-      placeholder="Enter username..."
-      required={true}
-      type="text"
-      width="100%"
-    />
-  </label>
-  <div
-    className="c9"
-    cursor="inherit"
-  >
-    <button
-      className="c10"
-      color="red"
-      onClick={[Function]}
-      type="button"
-    >
-      Cancel
-    </button>
-    <button
-      className="c11"
-      color="green"
-      onClick={[Function]}
-    >
-      Share
-    </button>
-  </div>
-</form>
+</div>
 `;

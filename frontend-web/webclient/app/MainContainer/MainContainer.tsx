@@ -72,10 +72,10 @@ const mapStateToProps = ({responsive}: ReduxObject): MainContainerStateProps => 
 export const MainContainer = connect<MainContainerStateProps>(mapStateToProps)(_MainContainer);
 
 export interface LoadingMainContainerProps extends MainContainerProps {
-    loading?: boolean
-    error?: string
-    fallbackHeader?: JSX.Element
-    fallbackSidebar?: JSX.Element
+    loading?: boolean;
+    error?: string;
+    fallbackHeader?: JSX.Element;
+    fallbackSidebar?: JSX.Element;
 }
 
 export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerProps> = props => {
@@ -100,9 +100,9 @@ export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerP
 };
 
 export interface LoadableMainContainerProps<T = any> extends MainContainerProps {
-    loadable: LoadableContent<T>
-    fallbackHeader?: JSX.Element
-    fallbackSidebar?: JSX.Element
+    loadable: LoadableContent<T>;
+    fallbackHeader?: JSX.Element;
+    fallbackSidebar?: JSX.Element;
 }
 
 export function LoadableMainContainer(props: LoadableMainContainerProps): JSX.Element {
@@ -115,7 +115,7 @@ export function LoadableMainContainer(props: LoadableMainContainerProps): JSX.El
             sidebar={props.fallbackSidebar}
             main={main}/>;
     } else {
-        return <MainContainer {...props} />
+        return <MainContainer {...props} />;
     }
 }
 

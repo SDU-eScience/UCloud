@@ -170,6 +170,17 @@ exports[`Mount Activity Page 1`] = `
   margin-right: 1em;
 }
 
+.c8 {
+  cursor: pointer;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  color: #1e252e;
+}
+
+.c8:hover {
+  color: #006aff;
+}
+
 .c4 {
   cursor: auto;
 }
@@ -203,17 +214,6 @@ exports[`Mount Activity Page 1`] = `
 .c15 .c22 {
   border: 0;
   box-shadow: none;
-}
-
-.c8 {
-  cursor: pointer;
-  -webkit-text-decoration: none;
-  text-decoration: none;
-  color: #1e252e;
-}
-
-.c8:hover {
-  color: #006aff;
 }
 
 .c2 {

@@ -19,8 +19,9 @@ exports[`UserCreation Mount 1`] = `
 
 .c2 {
   cursor: inherit;
-  font-size: 48px;
+  font-size: 40px;
   margin: 0;
+  font-weight: 700;
 }
 
 .c8 {
@@ -173,23 +174,23 @@ exports[`UserCreation Mount 1`] = `
   width: 100%;
 }
 
+.c6 {
+  cursor: pointer;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  color: #1e252e;
+}
+
+.c6:hover {
+  color: #006aff;
+}
+
 .c3 {
   cursor: auto;
 }
 
 .c10 {
   cursor: auto;
-}
-
-.c6 {
-  cursor: pointer;
-  -webkit-text-decoration: none;
-  text-decoration: none;
-  color: text;
-}
-
-.c6:hover {
-  color: textHighlight;
 }
 
 .c5 {

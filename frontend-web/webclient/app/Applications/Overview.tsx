@@ -24,6 +24,7 @@ import theme from "ui-components/theme";
 import {connect} from "react-redux";
 import styled from "styled-components";
 import { EllipsedText } from "ui-components/Text";
+import Installed from "./Installed";
 const bedtoolsImg = require("Assets/Images/APPTools/bedtools.png");
 const cellrangerImg = require("Assets/Images/APPTools/10xGenomics.png");
 const homerImg = require("Assets/Images/APPTools/pic2.gif");
@@ -97,6 +98,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         const featured = applications.has("Featured") ? applications.get("Featured") : emptyPage;
         const main = (
             <>
+                <Installed header={null} />
                 <Pagination.List
                     loading={this.props.loading}
                     pageRenderer={(page: Page<FullAppInfo>) =>
