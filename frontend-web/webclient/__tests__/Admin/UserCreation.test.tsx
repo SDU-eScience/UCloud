@@ -12,6 +12,8 @@ import {create} from "react-test-renderer";
 import {createResponsiveStateReducer} from "redux-responsive";
 import {responsiveBP} from "ui-components/theme";
 import {configureStore} from "Utilities/ReduxUtilities";
+import {ThemeProvider} from "styled-components";
+import theme from "../../app/ui-components/theme";
 
 configure({adapter: new Adapter()});
 
@@ -22,12 +24,15 @@ const store = configureStore({status: initStatus(), responsive: initResponsive()
         {infinity: "xxl"})
 });
 
-const userCreation = () =>
+const userCreation = () => (
     <Provider store={store}>
         <MemoryRouter>
-            <UserCreation/>
+            <ThemeProvider theme={theme}>
+                <UserCreation />
+            </ThemeProvider>
         </MemoryRouter>
     </Provider>
+);
 
 describe("UserCreation", () => {
     test("Mount", () => expect(create(userCreation()).toJSON()).toMatchSnapshot());

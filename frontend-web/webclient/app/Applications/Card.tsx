@@ -362,7 +362,7 @@ export const CardToolContainer = styled(Box) <{appImage: string}>`
     align-items: flex-start;
     border-radius: 5px;//${props => props.theme.radius};
     overflow: hidden;
-    box-shadow: ${({theme}) => theme.shadows["sm"]};
+    box-shadow: ${p => p.theme.shadows["sm"]};
 
     will-change: transform;
 
@@ -405,25 +405,25 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     padding: 10px;
     width: 150px;
     height: 50px;
-    
-    font-size: ${({theme}) => theme.fontSizes[1]};
+
+    font-size: ${p => p.theme.fontSizes[1]};
     text-align: center;
     align-items: center;
     justify-content: center;
     background-color: ${p => p.color2};
-    // background: linear-gradient(180deg, ${p => p.color1}, ${p => p.color3});
-    // background: radial-gradient(ellipse at bottom left, ${p => p.color3}, ${p => p.color1});
+    // background: linear-gradient(180deg, ${p => `${p.color1}, ${p.color3}`});
+    // background: radial-gradient(ellipse at bottom left, ${p => `${p.color3}, ${p.color1}`});
     border-radius: 5px
-     
-    box-shadow: ${({theme}) => theme.shadows["sm"]};
 
-    transition: transform ${({theme}) => theme.timingFunctions.easeIn} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+    box-shadow: ${p => p.theme.shadows["sm"]};
+
+    transition: transform ${p => `${p.theme.timingFunctions.easeIn} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
     will-change: transform;
 
     &:hover {
-        transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
+        transition: transform ${p => `${p.theme.timingFunctions.easeOut} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
         transform: scale(1.02);
-        box-shadow: ${({theme}) => theme.shadows["md"]};
+        box-shadow: ${p => p.theme.shadows["md"]};
         color: ${p => p.theme.colors.white};
     }
 `;
