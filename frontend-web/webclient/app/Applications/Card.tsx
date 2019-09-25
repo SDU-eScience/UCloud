@@ -356,6 +356,7 @@ export const CardToolContainer = styled(Box) <{appImage: string}>`
     padding-left: 210px;
     padding-right: 10px;
     width: 100%;
+    height: 200px;
     display: grid;
     gridAutoFlow: column;
     flex-direction: column;
