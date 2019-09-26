@@ -63,7 +63,7 @@ const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskS
                     color={"green"}
                     label={
                         `${task.progress.title}: ${task.progress.current} of ${task.progress.maximum} ` +
-                        `(${((task.progress.current / task.progress.maximum) * 100).toFixed(2)})%`
+                        `(${((task.progress.current / task.progress.maximum) * 100).toFixed(2)}%)`
                     }
                     percent={(task.progress.current / task.progress.maximum) * 100}
                 />
