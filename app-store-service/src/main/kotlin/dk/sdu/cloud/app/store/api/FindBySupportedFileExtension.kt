@@ -1,9 +1,3 @@
 package dk.sdu.cloud.app.store.api
 
-import dk.sdu.cloud.service.WithPaginationRequest
-
-data class FindBySupportedFileExtension(
-    val files: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
-): WithPaginationRequest
+data class FindBySupportedFileExtension(val files: String)

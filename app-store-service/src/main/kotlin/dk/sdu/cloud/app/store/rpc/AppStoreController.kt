@@ -55,7 +55,12 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.findBySupportedFileExtension) {
-            ok(appStore.findBySupportedFileExtension(ctx.securityPrincipal, request.files, request.normalize()))
+            ok(
+                appStore.findBySupportedFileExtension(
+                    ctx.securityPrincipal,
+                    request.files.split(",")
+                )
+            )
         }
 
         implement(AppStore.findByName) {
@@ -67,14 +72,16 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.advancedSearch) {
-            ok(appStore.advancedSearch(
-                ctx.securityPrincipal,
-                request.name,
-                request.version,
-                request.tags,
-                request.description,
-                request.normalize()
-            ))
+            ok(
+                appStore.advancedSearch(
+                    ctx.securityPrincipal,
+                    request.name,
+                    request.version,
+                    request.tags,
+                    request.description,
+                    request.normalize()
+                )
+            )
         }
 
         implement(AppStore.create) {

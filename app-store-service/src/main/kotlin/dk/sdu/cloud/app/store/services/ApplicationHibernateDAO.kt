@@ -8,6 +8,7 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import io.ktor.http.HttpStatusCode
 import org.hibernate.query.Query
+import java.lang.StringBuilder
 import java.util.*
 
 @Suppress("TooManyFunctions") // Does not make sense to split
@@ -363,10 +364,49 @@ class ApplicationHibernateDAO(
     override fun findBySupportedFileExtension(
         session: HibernateSession,
         user: SecurityPrincipal,
-        fileExtension: String,
-        paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummary> {
-        return internalBySupportedFileExtension(session, user, fileExtension, paging)
+        fileExtensions: Set<String>
+    ): List<ApplicationWithExtension> {
+        var query = ""
+        query += """
+                    select A.*
+                    from app_store.favorited_by as F, app_store.applications as A
+                    where
+                        F.the_user = :user and
+                        F.application_name = A.name and
+                        F.application_version = A.version and
+                        A.name in (
+                            select B.name
+                            from app_store.applications as B
+                            where
+                            """
+
+        for (index in fileExtensions.indices) {
+            query += """ B.application -> 'fileExtensions' @> jsonb_build_array(:ext$index) """
+            if (index != fileExtensions.size - 1) {
+                query += "or "
+            }
+        }
+
+        query += """
+                            group by B.name
+                        )
+                """
+
+        return session
+            .createNativeQuery<ApplicationEntity>(
+                query.trimIndent(), ApplicationEntity::class.java
+            )
+            .setParameter("user", user.username)
+            .apply {
+                fileExtensions.forEachIndexed { index, ext ->
+                    setParameter("ext$index", ext)
+                    println("$index $ext")
+                }
+            }
+            .list()
+            .map {
+                ApplicationWithExtension(it.toMetadata(), it.application.fileExtensions)
+            }
     }
 
     override fun findByNameAndVersionForUser(
@@ -556,43 +596,6 @@ class ApplicationHibernateDAO(
                         (entity[ApplicationEntity::id][EmbeddedNameAndVersion::version] equal version)
             }
             .uniqueResult()
-    }
-
-    private fun internalBySupportedFileExtension(
-        session: HibernateSession,
-        user: SecurityPrincipal,
-        fileExtension: String,
-        paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummary> {
-
-        val items = session
-            .createNativeQuery<ApplicationEntity>(
-                """
-                    select A.*
-                    from app_store.favorited_by as F, app_store.applications as A
-                    where
-                        F.the_user = :user and
-                        F.application_name = A.name and
-                        F.application_version = A.version and
-                        A.name in (
-                            select B.name
-                            from app_store.applications as B
-                            where B.application -> 'fileExtensions' @> json_build_array(:fileExtension)::::jsonb
-                            group by B.name
-                        )
-                """.trimIndent(), ApplicationEntity::class.java
-            )
-            .setParameter("fileExtension", fileExtension)
-            .setParameter("user", user.username)
-            .paginatedList(paging)
-            .map { it.toModelWithInvocation() }
-
-        return Page(
-            items.count(),
-            paging.itemsPerPage,
-            paging.page,
-            items
-        ).mapItems { it.withoutInvocation() }
     }
 
     private fun findOwnerOfApplication(session: HibernateSession, applicationName: String): String? {
