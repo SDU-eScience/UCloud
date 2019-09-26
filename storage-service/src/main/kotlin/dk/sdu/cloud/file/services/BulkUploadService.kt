@@ -84,7 +84,8 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
                     var entry: ZipEntry? = zipStream.nextEntry
                     while (entry != null) {
                         val initialTargetPath = joinPath(path, entry.name)
-                        if (entry.name.contains("__MACOSX")) {
+                        if (entry.name.contains("__MACOSX") ||
+                                entry.name.contains(".DS_Store")) {
                             log.debug("Skipping Entry: " + entry.name)
                             entry = zipStream.nextEntry
                         } else {
@@ -115,7 +116,6 @@ private suspend fun SequenceScope<ArchiveEntry>.yieldDirectoriesUntilTarget(
         joinPath(*allComponents.take(i).toTypedArray())
     }
     paths.forEach {
-        println("YIELDING: ${ArchiveEntry.Directory(it)}")
         yield(ArchiveEntry.Directory(it))
     }
 }
@@ -148,10 +148,11 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
                 TarInputStream(GZIPInputStream(stream)).use {
                     var entry: TarEntry? = it.nextEntry
                     while (entry != null) {
-                        println("While")
                         val initialTargetPath = joinPath(path, entry.name)
                         val cappedStream = CappedInputStream(it, entry.size)
-                        if (entry.name.contains("PaxHeader/")) {
+                        if (entry.name.contains("PaxHeader/") ||
+                            entry.name.contains("/._") ||
+                            entry.name.contains(".DS_Store")) {
                             // This is some meta data stuff in the tarball. We don't want this
                             log.debug("Skipping entry: ${entry.name}")
                             cappedStream.skipRemaining()
@@ -159,14 +160,8 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
                             yieldDirectoriesUntilTarget(initialTargetPath)
 
                             if (entry.isDirectory) {
-                                println("DIR: ${ArchiveEntry.Directory(initialTargetPath)}")
                                 yield(ArchiveEntry.Directory(initialTargetPath))
                             } else {
-                                println("FILE: ${ArchiveEntry.File(
-                                    path = initialTargetPath,
-                                    stream = cappedStream,
-                                    dispose = { cappedStream.skipRemaining() }
-                                )}")
                                 yield(
                                     ArchiveEntry.File(
                                         path = initialTargetPath,

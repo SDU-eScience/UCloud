@@ -1,30 +1,30 @@
-import * as React from "react";
-import {useEffect, useRef, useState} from "react";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
-import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import {getFilenameFromPath, fileTablePage} from "Utilities/FileUtilities";
-import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
-import {Box, Card, Flex, Icon, Text, SelectableText, SelectableTextWrapper} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {MainContainer} from "MainContainer/MainContainer";
-import {FileIcon, addStandardDialog} from "UtilityComponents";
-import {emptyPage} from "DefaultObjects";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
-import {UserAvatar} from "Navigation/Header";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {TextSpan} from "ui-components/Text";
-import {colors} from "ui-components/theme";
-import Input, {InputLabel} from "ui-components/Input";
 import {
     APICallParameters,
     APICallState,
     callAPI,
-    mapCallState, useAsyncCommand,
+    mapCallState,
+    useAsyncCommand,
     useCloudAPI
 } from "Authentication/DataHook";
-import Button from "ui-components/Button";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {emptyPage} from "DefaultObjects";
+import {MainContainer} from "MainContainer/MainContainer";
+import * as React from "react";
+import {useEffect, useRef, useState} from "react";
 import {connect} from "react-redux";
+import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
+import {Box, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text} from "ui-components";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import * as Heading from "ui-components/Heading";
+import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {fileTablePage, getFilenameFromPath} from "Utilities/FileUtilities";
+import {addStandardDialog, FileIcon} from "UtilityComponents";
+import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
+import Button from "ui-components/Button";
+import Input, {InputLabel} from "ui-components/Input";
+import {TextSpan} from "ui-components/Text";
+import {colors} from "ui-components/theme";
 import {Dispatch} from "redux";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -35,6 +35,7 @@ import * as Pagination from "Pagination";
 import Link from "ui-components/Link";
 import {PaginationButtons} from "Pagination";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 
 const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
@@ -60,7 +61,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     // const items = receiveDummyShares(params.parameters!.itemsPerPage, params.parameters!.page);
     // const page: APICallState<Page<SharesByPath>> = {loading: false, data: items, error: undefined};
     // // End of dummy data
-    
+
     if (props.byPath !== undefined && page.data.items.length > 0) {
         sharedByMe = page.data.items[0].sharedByMe;
     } else {
@@ -70,7 +71,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         }
     }
 
-    
+
     props.setGlobalLoading(page.loading);
 
     const refresh = () => setFetchParams({...params, reloadId: Math.random()});
@@ -102,7 +103,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
 
     const AvatarComponent = (props: {username: string}) => {
         let avatar = defaultAvatar;
-        let loadedAvatar = !!avatars.data && !!avatars.data.avatars ? avatars.data.avatars[props.username] : undefined;
+        const loadedAvatar = !!avatars.data && !!avatars.data.avatars ? avatars.data.avatars[props.username] : undefined;
         if (!!loadedAvatar) avatar = loadedAvatar;
         return <UserAvatar avatar={avatar} mr={"10px"} />;
     };
@@ -127,7 +128,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
                 currentPage={page}
                 toPage={page => setPage(page)}
             />
-        </GroupedShareCard>)
+        </GroupedShareCard>);
     };
 
     const header = props.byPath !== undefined ? null : (
@@ -154,7 +155,7 @@ const List: React.FunctionComponent<ListProps & ListOperations> = props => {
         </SelectableTextWrapper>
     );
 
-    const shares = page.data.items.filter(it => it.sharedByMe == sharedByMe || props.byPath !== undefined);
+    const shares = page.data.items.filter(it => it.sharedByMe === sharedByMe || props.byPath !== undefined);
     const main = <Pagination.List
         loading={page.loading}
         page={page.data}
@@ -237,10 +238,11 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         <Link to={fileTablePage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link> :
         <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
     return <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} mb={12}>
-        <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center" style={{borderRadius: "6px 6px 0px 0px"}}>
+        <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center" style={{
+            borderRadius: "6px 6px 0px 0px"
+        }}>
             <Box ml="3px" mr="10px">
-                <FileIcon
-                    fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
+                <FileIcon fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
             </Box>
             <Heading.h4> {folderLink} </Heading.h4>
             <Box ml="auto" />
@@ -253,7 +255,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 <form onSubmit={e => doCreateShare(e)}>
                     <Flex mb={"16px"} alignItems={"center"}>
                         <Flex flex="1 0 auto">
-                            <Flex flex="1 0 auto" style={{ zIndex: 1 }}>
+                            <Flex flex="1 0 auto" style={{zIndex: 1}}>
                                 <Input disabled={isCreatingShare} rightLabel placeholder={"Username"}
                                     ref={newShareUsername} />
                             </Flex>
@@ -262,9 +264,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                                     left={"-16px"}
                                     chevron
                                     width="125px"
-                                    trigger={
-                                        sharePermissionsToText(newShareRights)
-                                    }
+                                    trigger={sharePermissionsToText(newShareRights)}
                                 >
                                     <OptionItem onClick={() => setNewShareRights(AccessRights.READ_RIGHTS)}
                                         text={CAN_VIEW_TEXT} />
@@ -285,20 +285,21 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             }
             {props.children}
         </Box>
-    </Card>
+    </Card>;
 };
 
-const ShareRow: React.FunctionComponent<{
+export const ShareRow: React.FunctionComponent<{
     share: Share,
     sharedByMe: boolean,
     sharedBy: string,
-    onUpdate: () => void
+    onUpdate: () => void,
+    revokeAsIcon?: boolean
 }> = ({share, sharedByMe, onUpdate, sharedBy, ...props}) => {
     const [isLoading, sendCommand] = useAsyncCommand();
 
     const sendCommandAndUpdate = async (call: APICallParameters) => {
         await sendCommand(call);
-        onUpdate()
+        onUpdate();
     };
 
     const doAccept = () => sendCommandAndUpdate(acceptShare(share.id));
@@ -311,19 +312,40 @@ const ShareRow: React.FunctionComponent<{
 
     let permissionsBlock: JSX.Element | string | null = null;
 
-    if (share.state == ShareState.FAILURE) {
-        permissionsBlock = <Button color={"red"} disabled={isLoading} onClick={() => doRevoke()}><Icon name="close" size="1em" mr=".7em" />Remove</Button>;
-    } else if (share.state == ShareState.UPDATING || isLoading) {
+    if (share.state === ShareState.FAILURE) {
+        permissionsBlock = <Button
+            color={"red"}
+            disabled={isLoading}
+            onClick={() => doRevoke()}
+        ><Icon name="close" size="1em" mr=".7em" />Remove</Button>;
+    } else if (share.state === ShareState.UPDATING || isLoading) {
         permissionsBlock = null;
     } else if (!sharedByMe) {
-        if (share.state == ShareState.REQUEST_SENT) {
+        if (share.state === ShareState.REQUEST_SENT) {
             permissionsBlock = <Box flexShrink={1}>
-                <Button color={"red"} mx={"8px"} onClick={() => doRevoke()}><Icon name="close" size="1em" mr=".7em" />Reject</Button>
-                <Button color={"green"} onClick={() => doAccept()}><Icon name="check" size="1em" mr=".7em" />Accept</Button>
+                <Button
+                    color="red"
+                    mx="8px"
+                    onClick={() => doRevoke()}
+                >
+                    <Icon name="close" size="1em" mr=".7em" />Reject
+                </Button>
+                <Button
+                    color="green"
+                    onClick={() => doAccept()}
+                >
+                    <Icon name="check" size="1em" mr=".7em" />Accept
+                </Button>
             </Box>;
         } else {
             permissionsBlock =
-                <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}><Icon name="close" size="1em" mr=".7em" />Reject</Button>
+                <Button
+                    color="red"
+                    ml="16px"
+                    onClick={() => doRevoke()}
+                >
+                    <Icon name="close" size="1em" mr=".7em" />Reject
+                </Button>;
         }
     } else {
         permissionsBlock = <>
@@ -334,19 +356,24 @@ const ShareRow: React.FunctionComponent<{
                 trigger={sharePermissionsToText(share.rights)}
             >
                 {share.rights.indexOf(AccessRight.WRITE) !== -1 ?
-                    <OptionItem
-                        onClick={() => doUpdate(AccessRights.READ_RIGHTS)}
-                        text={CAN_VIEW_TEXT} />
-                    :
-                    <OptionItem
-                        onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)}
-                        text={CAN_EDIT_TEXT} />
+                    <OptionItem onClick={() => doUpdate(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT} /> :
+                    <OptionItem onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)} text={CAN_EDIT_TEXT} />
                 }
             </ClickableDropdown>
-            <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>
-                <Icon name="close" size="1em" mr=".7em" />
-                Revoke
-            </Button>
+            {props.revokeAsIcon ?
+                <Icon
+                    name="close"
+                    size="1em"
+                    mr=".7em"
+                    ml=".7em"
+                    color="red"
+                    cursor="pointer"
+                    onClick={() => sendCommandAndUpdate(revokeShare(share.id))}
+                /> :
+                <Button color={"red"} ml={"16px"} onClick={() => doRevoke()}>
+                    <Icon name="close" size="1em" mr=".7em" />
+                    Revoke
+            </Button>}
         </>;
     }
 
@@ -361,7 +388,7 @@ const ShareRow: React.FunctionComponent<{
         <Box flexGrow={1} />
 
         {permissionsBlock}
-    </Flex>
+    </Flex>;
 };
 
 const OptionItem: React.FunctionComponent<{onClick: () => void, text: string, color?: string}> = (props) => (
@@ -416,7 +443,7 @@ const receiveDummyShares = (itemsPerPage: number, page: number) => {
                 rights: AccessRights.WRITE_RIGHTS,
                 id: (Math.random() * 100000000).toString(),
                 sharedWith: "user"
-            }
+            };
         });
 
         return {
@@ -424,12 +451,12 @@ const receiveDummyShares = (itemsPerPage: number, page: number) => {
             sharedBy,
             sharedByMe,
             shares
-        }
+        };
     });
 
     return ({
         itemsInTotal: 500,
-        itemsPerPage: itemsPerPage,
+        itemsPerPage,
         pageNumber: page,
         pagesInTotal: 500 / itemsPerPage,
         items: payload
@@ -437,10 +464,10 @@ const receiveDummyShares = (itemsPerPage: number, page: number) => {
 };
 
 interface ListOperations {
-    updatePageTitle: () => void,
-    setRefresh: (f?: () => void) => void
-    setActivePage: () => void
-    setGlobalLoading: (loading: boolean) => void
+    updatePageTitle: () => void;
+    setRefresh: (f?: () => void) => void;
+    setActivePage: () => void;
+    setGlobalLoading: (loading: boolean) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ListOperations => ({

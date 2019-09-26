@@ -3,7 +3,7 @@ import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import {History} from "history";
 import * as React from "react";
 import {connect} from "react-redux";
-import {withRouter, RouteComponentProps} from "react-router";
+import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Checkbox, Flex, Input, InputGroup, Label, OutlineButton, Stamp} from "ui-components";
@@ -27,11 +27,9 @@ import {
     DETAILED_FILES_REMOVE_TAGS
 } from "./Redux/DetailedFileSearchReducer";
 
-
 interface DetailedFileSearchGivenProps {
     history: History;
     defaultFilename?: string;
-    controlledSearch?: [string, (path: string) => void];
     cantHide?: boolean;
     omitFileName?: boolean;
     onSearch: () => void;
@@ -61,9 +59,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & Route
                 Search</OutlineButton>);
         }
 
-        const value = this.props.controlledSearch ? this.props.controlledSearch[0] : this.props.fileName;
-        const setFilename = this.props.controlledSearch ? this.props.controlledSearch[1] : this.props.setFilename;
-
         return (
             <>
                 {!cantHide ? <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced
@@ -71,16 +66,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & Route
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
                         <form onSubmit={e => (e.preventDefault(), this.onSearch())}>
-                            <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
-                            <Input
-                                pb="6px"
-                                pt="8px"
-                                mt="-2px"
-                                width="100%"
-                                placeholder="Filename must include..."
-                                value={value}
-                                onChange={({target}) => setFilename(target.value)}
-                            />
                             <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
                             <InputGroup>
                                 <DatePicker

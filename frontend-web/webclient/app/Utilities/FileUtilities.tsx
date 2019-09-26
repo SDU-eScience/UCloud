@@ -491,28 +491,7 @@ interface ShareFiles {
 }
 
 export const shareFiles = async ({files, cloud}: ShareFiles) => {
-    const input = await shareDialog();
-    if ("cancelled" in input) return;
-    const rights: string[] = [];
-    if (input.access.includes("read")) rights.push("READ");
-    if (input.access.includes("read_edit")) rights.push("WRITE");
-    let iteration = 0;
-    // Replace with Promise.all
-    files.map(f => f.path).forEach((path, _, paths) => {
-        const body = {
-            sharedWith: input.username,
-            path,
-            rights
-        };
-        cloud.put(`/shares/`, body)
-            .then(() => {
-                if (++iteration === paths.length) snackbarStore.addSnack({
-                    message: "Files shared successfully",
-                    type: SnackType.Success
-                });
-            })
-            .catch(({response}) => snackbarStore.addSnack({message: `${response.why}`, type: SnackType.Failure}));
-    });
+    shareDialog(files.map(it => it.path), cloud);
 };
 
 const moveToTrashDialog = ({filePaths, onConfirm}: { onConfirm: () => void, filePaths: string[] }): void => {

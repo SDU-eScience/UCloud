@@ -1,11 +1,11 @@
 group 'dk.sdu.cloud'
-version '2.2.5'
+version '2.2.6-WITHOUTMETAEXTRACTION'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
 
 buildscript {
-    ext.serviceCommonVersion = "1.8.2"
+    ext.serviceCommonVersion = "1.8.3"
 }
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"

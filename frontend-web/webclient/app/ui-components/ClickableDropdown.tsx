@@ -23,6 +23,7 @@ interface ClickableDropdownProps {
     overflow?: string;
     colorOnHover?: boolean;
     squareTop?: boolean;
+    keepOpenOnOutsideClick?: boolean
     onChange?: (value: string) => void;
 }
 
@@ -88,6 +89,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
 
     // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
     private handleClickOutside = event => {
+        if (this.props.keepOpenOnOutsideClick) return;
         if (this.ref.current && !this.ref.current.contains(event.target) && this.state.open) {
             this.setState(() => ({open: false}));
         }

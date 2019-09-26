@@ -6,8 +6,8 @@ const randomInt = (min:number, max:number) => {
 }
 
 function Bug({size, theme, color2, spin, ...props}) {
-  const [idx, setIdx] = React.useState(0);
   const bugs: string[] = ['bug1','bug2','bug3','bug4','bug5','bug6'];
+  const [idx, setIdx] = React.useState(randomInt(0, bugs.length-1));
 
   React.useEffect(() => {
     const timer = setInterval(() => {

@@ -19,7 +19,6 @@ interface DetailedApplicationSearchProps extends
     DetailedApplicationOperations, DetailedApplicationSearchReduxState, RouteComponentProps {
     onSearch: () => void;
     defaultAppName?: string;
-    controlledSearch?: [string, (path: string) => void];
 }
 
 function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProps>) {
@@ -29,12 +28,8 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
 
     const ref = React.useRef<HTMLInputElement>(null);
 
-    const localSearch = React.useState(props.appName);
-    const [search, setSearch] = props.controlledSearch ? props.controlledSearch : localSearch;
-
     function onSearch(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        props.setAppName(search);
         props.addTag(ref.current!.value);
         ref.current!.value = "";
         props.onSearch();
@@ -44,16 +39,6 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
         <Flex flexDirection="column" pl="0.5em" pr="0.5em">
             <Box mt="0.5em">
                 <form onSubmit={e => onSearch(e)}>
-                    <Heading.h5 pb="0.3em" pt="0.5em">Application Name</Heading.h5>
-                    <Input
-                        pb="6px"
-                        pt="8px"
-                        mt="-2px"
-                        width="100%"
-                        value={search}
-                        onChange={({target}) => setSearch(target.value)}
-                        placeholder="Search by name..."
-                    />
                     <Heading.h5 pb="0.3em" pt="0.5em">Version Name</Heading.h5>
                     <Input
                         pb="6px"
