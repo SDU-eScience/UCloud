@@ -50,67 +50,73 @@ const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskS
         }
     }, [isScrollLocked, ref]);
 
-    return <Box height={"100%"}>
-        <Flex flexDirection={"column"} height={"100%"}>
-            <Heading.h2>{task.newTitle ? task.newTitle : "Task"}</Heading.h2>
+    return (
+        <Box height={"100%"}>
+            <Flex flexDirection={"column"} height={"100%"}>
+                <Heading.h2>{task.newTitle ? task.newTitle : "Task"}</Heading.h2>
 
-            <p><b>Status:</b> {task.newStatus || "No recent status update."}</p>
+                <p><b>Status:</b> {task.newStatus || "No recent status update."}</p>
 
-            {!task.progress ? <IndeterminateProgressBar color={"green"} label={task.newTitle ? task.newTitle : ""}/> :
+                {!task.progress ?
+                    <IndeterminateProgressBar color={"green"} label={task.newTitle ? task.newTitle : ""}/> : (
+                        <ProgressBar
+                            active={true}
+                            color={"green"}
+                            label={
+                                `${task.progress.title}: ${task.progress.current} of ${task.progress.maximum} ` +
+                                `(${((task.progress.current / task.progress.maximum) * 100).toFixed(2)}%)`
+                            }
+                            percent={(task.progress.current / task.progress.maximum) * 100}
+                        />
+                    )}
 
-                <ProgressBar
-                    active
-                    color={"green"}
-                    label={
-                        `${task.progress.title}: ${task.progress.current} of ${task.progress.maximum} ` +
-                        `(${((task.progress.current / task.progress.maximum) * 100).toFixed(2)}%)`
-                    }
-                    percent={(task.progress.current / task.progress.maximum) * 100}
-                />
-            }
+                {task.speeds.length === 0 ? null : <Heading.h3>Speed Measurements</Heading.h3>}
 
-            {task.speeds.length === 0 ? null : <Heading.h3>Speed Measurements</Heading.h3>}
+                {Object.values(groupBy(task.speeds, it => it.title)).map(allSpeeds => {
+                    const speeds = takeLast(allSpeeds, 50);
+                    const lastElement = speeds[speeds.length - 1];
+                    return (
+                        <>
+                            <Flex key={lastElement.title}>
+                                <Box flexGrow={1}>{lastElement.title}</Box>
+                                <Box>
+                                    {lastElement.asText}
+                                </Box>
+                            </Flex>
+                            <Container aspect={16 / 9} maxHeight={200}>
+                                <AreaChart data={speeds}>
+                                    <XAxis
+                                        dataKey="clientTimestamp"
+                                        type={"number"}
+                                        domain={["dataMin", "dataMax"]}
+                                        tickFormatter={() => ""}
+                                    />
+                                    <YAxis dataKey="speed" type={"number"}/>
+                                    <CartesianGrid strokeDasharray="3 3"/>
+                                    <Area
+                                        isAnimationActive={false}
+                                        type="monotone"
+                                        stroke="#8884d8"
+                                        dataKey="speed"
+                                        name={lastElement.title}
+                                    />
+                                </AreaChart>
+                            </Container>
+                        </>
+                    );
+                })}
 
-            {Object.values(groupBy(task.speeds, it => it.title)).map(allSpeeds => {
-                const speeds = takeLast(allSpeeds, 50);
-                const lastElement = speeds[speeds.length - 1];
-                return <>
-                    <Flex key={lastElement.title}>
-                        <Box flexGrow={1}>{lastElement.title}</Box>
-                        <Box>
-                            {lastElement.speed.toFixed(3)}
-                            {" "}
-                            {lastElement.unit}
-                        </Box>
-                    </Flex>
-                    <Container aspect={16 / 9} maxHeight={200}>
-                        <AreaChart data={speeds}>
-                            <XAxis dataKey="clientTimestamp" type={"number"} domain={["dataMin", "dataMax"]}
-                                   tickFormatter={() => ""}/>
-                            <YAxis dataKey="speed" type={"number"}/>
-                            <CartesianGrid strokeDasharray="3 3"/>
-                            <Area
-                                isAnimationActive={false}
-                                type="monotone"
-                                stroke="#8884d8"
-                                dataKey="speed"
-                                name={lastElement.title}
-                            />
-                        </AreaChart>
-                    </Container>
-                </>;
-            })}
-
-            {!task.messageToAppend ? null :
-                <>
-                    <Heading.h3>Output</Heading.h3>
-                    <StatusBox ref={ref} onScroll={checkScroll}>
-                        <pre><code>{task.messageToAppend}</code></pre>
-                    </StatusBox>
-                </>
-            }
-        </Flex>
-    </Box>;
+                {!task.messageToAppend ? null : (
+                    <>
+                        <Heading.h3>Output</Heading.h3>
+                        <StatusBox ref={ref} onScroll={checkScroll}>
+                            <pre><code>{task.messageToAppend}</code></pre>
+                        </StatusBox>
+                    </>
+                )}
+            </Flex>
+        </Box>
+    );
 };
 
 const Container = styled(ResponsiveContainer)`

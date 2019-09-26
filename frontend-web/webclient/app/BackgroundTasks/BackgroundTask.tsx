@@ -4,7 +4,7 @@ import DetailedTask from "BackgroundTasks/DetailedTask";
 import {taskLoadAction, taskUpdateAction} from "BackgroundTasks/redux";
 import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
@@ -44,8 +44,8 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
 
     useEffect(() => {
         const wsConnection = WSFactory.open("/tasks", {
-            init: conn => {
-                conn.subscribe({
+            init: async conn => {
+                await conn.subscribe({
                     call: "task.listen",
                     payload: {},
                     handler: message => {
@@ -59,6 +59,10 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
         });
 
         return () => wsConnection.close();
+    }, []);
+
+    const onDetailedClose = useCallback(() => {
+        setTaskInFocus(null);
     }, []);
 
     props.uploads.forEach(upload => {
@@ -82,7 +86,8 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
         speed: {
             title: "Transfer speed",
             speed: humanReadable.size,
-            unit: humanReadable.unit + "/s"
+            unit: humanReadable.unit + "/s",
+            asText: `${humanReadable.size} ${humanReadable.unit}/s`
         }
     };
 
@@ -91,61 +96,79 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
     }
 
     const hasTaskInFocus = taskInFocus && (props.tasks && props.tasks[taskInFocus]);
-    return <>
-        <ClickableDropdown
-            width="600px"
-            left="-400px"
-            top="37px"
-            trigger={<TasksIcon/>}
-        >
-            {" "}
-            {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
-            {!props.tasks ? null :
-                Object.values(props.tasks).map(update => {
-                    return <TaskComponent
-                        key={update.jobId}
-                        onClick={() => setTaskInFocus(update.jobId)}
-                        title={update.newTitle || ""}
-                        speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
-                        progress={update.progress ? update.progress : undefined}
-                    />;
-                })
-            }
-        </ClickableDropdown>
+    return (
+        <>
+            <ClickableDropdown
+                width="600px"
+                left="-400px"
+                top="37px"
+                trigger={<TasksIcon/>}
+            >
+                {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
+                {!props.tasks ? null :
+                    Object.values(props.tasks).map(update => {
+                        return (
+                            <TaskComponent
+                                key={update.jobId}
+                                jobId={update.jobId}
+                                onClick={setTaskInFocus}
+                                title={update.newTitle || ""}
+                                speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
+                                progress={update.progress ? update.progress : undefined}
+                            />
+                        );
+                    })
+                }
+            </ClickableDropdown>
 
-        <ReactModal isOpen={!!hasTaskInFocus} onRequestClose={() => setTaskInFocus(null)} ariaHideApp={true}>
-            {!hasTaskInFocus ? null : <DetailedTask taskId={taskInFocus!}/>}
-        </ReactModal>
-    </>;
+            <ReactModal isOpen={!!hasTaskInFocus} onRequestClose={onDetailedClose} ariaHideApp={false}>
+                {!hasTaskInFocus ? null : <DetailedTask taskId={taskInFocus!}/>}
+            </ReactModal>
+        </>
+    );
 };
 
 interface TaskComponentProps {
     title: string;
     progress?: Progress;
     speed?: Speed;
-    onClick?: () => void;
+    onClick?: (jobId: string) => void;
+    jobId?: string;
 }
 
 const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
-    const label = !props.speed ? "" : `${props.speed.speed.toFixed(3)} ${props.speed.unit}`;
-    return <TaskContainer onClick={props.onClick}>
-        <Box mr={16}>
-            <b>{props.title}</b>
-        </Box>
-
-        <Box flexGrow={1}>
-            {!props.progress ?
-                <IndeterminateProgressBar color={"green"} label={label}/> :
-
-                <ProgressBar
-                    active
-                    color={"green"}
-                    label={label}
-                    percent={(props.progress.current / props.progress.maximum) * 100}
-                />
+    const label = !props.speed ? "" : props.speed.asText;
+    const onClickHandler = useCallback(
+        () => {
+            if (props.onClick && props.jobId) {
+                props.onClick(props.jobId);
             }
-        </Box>
-    </TaskContainer>;
+        },
+        [props.jobId, props.onClick]
+    );
+
+    return (
+        <TaskContainer onClick={onClickHandler}>
+            <Box mr={16}>
+                <b>{props.title}</b>
+            </Box>
+
+            <Box flexGrow={1}>
+                {!props.progress ?
+                    <IndeterminateProgressBar color={"green"} label={label}/> :
+
+                    (
+                        <ProgressBar
+                            active={true}
+                            color={"green"}
+                            label={label}
+                            percent={(props.progress.current / props.progress.maximum) * 100}
+                        />
+                    )
+                }
+            </Box>
+        </TaskContainer>
+    );
 };
 
 const TaskContainer = styled(Flex)`

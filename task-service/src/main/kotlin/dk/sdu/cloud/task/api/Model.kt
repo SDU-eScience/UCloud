@@ -28,17 +28,20 @@ interface Speed {
     val title: String
     val speed: Double
     val unit: String
+    val asText: String get() = "${String.format("%.3f", speed)} $unit"
 }
 
 data class SimpleSpeed(
     override val title: String,
     override var speed: Double,
-    override var unit: String
+    override var unit: String,
+    override val asText: String = "${String.format("%.3f", speed)} $unit"
 ) : Speed
 
 class MeasuredSpeedInteger(
     override val title: String,
-    private val unitFormatter: (speed: Double) -> String
+    override val unit: String,
+    private val customFormatter: ((speed: Double) -> String)? = null
 ) : Speed {
     private var lastUpdate: Long = System.currentTimeMillis()
     private var counter: Long = 0
@@ -52,12 +55,8 @@ class MeasuredSpeedInteger(
             return field
         }
 
-    override var unit: String = unitFormatter(0.0)
-        private set
-        get() {
-            update()
-            return field
-        }
+    override val asText: String
+        get() = customFormatter?.invoke(speed) ?: super.asText
 
     fun start() {
         synchronized(this) {
@@ -82,7 +81,6 @@ class MeasuredSpeedInteger(
                 val delta = System.currentTimeMillis() - lastUpdate
                 val unitsPerSecond = (counter / (delta / 1000.0))
                 counter = 0
-                unit = unitFormatter(unitsPerSecond)
                 speed = unitsPerSecond
                 lastUpdate = System.currentTimeMillis()
                 isFirstUpdate = false

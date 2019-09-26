@@ -99,7 +99,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         } else {
             runTask(wsServiceClient, BackgroundScope, "File copy", ctx.user) {
                 status = "Copying files from '$from' to '$to'"
-                val filesPerSecond = MeasuredSpeedInteger("Files copied per second") { "Files/s" }
+                val filesPerSecond = MeasuredSpeedInteger("Files copied per second", "Files/s")
                 this.speeds = listOf(filesPerSecond)
 
                 val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
@@ -268,7 +268,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         runTask(wsServiceClient, BackgroundScope, "Storage Test", ctx.user, updateFrequencyMs = 50) {
             val progress = Progress("Progress", 0, range.last)
             val taskSpeed = SimpleSpeed("Speeed!", 0.0, "Foo")
-            val tasksPerSecond = MeasuredSpeedInteger("Tasks") { "T/s" }
+            val tasksPerSecond = MeasuredSpeedInteger("Tasks", "T/s")
 
             speeds = listOf(taskSpeed, tasksPerSecond)
             this.progress = progress

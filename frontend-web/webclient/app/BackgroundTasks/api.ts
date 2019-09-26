@@ -26,6 +26,7 @@ export interface Speed {
     title: string;
     speed: number;
     unit: string;
+    asText: string;
     clientTimestamp?: number;
 }
 
