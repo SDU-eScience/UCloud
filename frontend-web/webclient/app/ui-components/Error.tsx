@@ -24,7 +24,7 @@ const Error = (props: ErrorProps) => !!props.error ?
                         size="1em"
                         name="close"
                         color="black"
-                        onClick={e => {
+                        onClick={(e: React.MouseEvent<HTMLElement, MouseEvent>) => {
                             props.clearError!();
                             e.stopPropagation();
                         }}

@@ -439,9 +439,8 @@ export const MasterCheckbox = ({onClick, checked}: MasterCheckbox) => (
     <Label>
         <Checkbox
             data-tag="masterCheckbox"
-            onClick={(e: any) => onClick(!!e.target.checked)}
             checked={checked}
-            onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
+            onChange={e => (e.stopPropagation(), onClick(e.target.checked))}
         />
     </Label>
 );

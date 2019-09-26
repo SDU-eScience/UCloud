@@ -1127,7 +1127,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                   data-tag="masterCheckbox"
                   disabled={false}
                   onChange={[Function]}
-                  onClick={[Function]}
                   size={20}
                   type="checkbox"
                 />
@@ -1238,7 +1237,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                     className="c31"
                     disabled={false}
                     onChange={[Function]}
-                    onClick={[Function]}
                     size={20}
                     type="checkbox"
                   />
@@ -1352,7 +1350,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                     className="c31"
                     disabled={false}
                     onChange={[Function]}
-                    onClick={[Function]}
                     size={20}
                     type="checkbox"
                   />
@@ -1466,7 +1463,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                     className="c31"
                     disabled={false}
                     onChange={[Function]}
-                    onClick={[Function]}
                     size={20}
                     type="checkbox"
                   />
@@ -1580,7 +1576,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                     className="c31"
                     disabled={false}
                     onChange={[Function]}
-                    onClick={[Function]}
                     size={20}
                     type="checkbox"
                   />

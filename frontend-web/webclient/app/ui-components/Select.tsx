@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {fontSize, space, SpaceProps} from "styled-system";
+import {fontSize, space, SpaceProps, WidthProps} from "styled-system";
 import Flex from "./Flex";
 import Icon from "./Icon";
 import theme from "./theme";
@@ -15,12 +15,14 @@ const right = ({rightLabel}: {rightLabel?: boolean}) =>
   rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 
-const SelectBase = styled.select<{
+interface SelectProps extends SpaceProps, WidthProps {
   fontSize?: number | string,
   leftLabel?: boolean,
   rightLabel?: boolean,
   showError?: boolean
-} & SpaceProps>`
+}
+
+const SelectBase = styled.select<SelectProps>`
   appearance: none;
   display: block;
   width: 100%;
@@ -54,7 +56,7 @@ SelectBase.defaultProps = {
   py: 7
 };
 
-const Select = styled((props: any) => (
+const Select = styled((props: SelectProps & {selectRef?: React.RefObject<HTMLSelectElement>} & React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <Flex width={1} alignItems="center">
     <SelectBase {...props} ref={props.selectRef} />
     <ClickableIcon ml={-32} name="chevronDown" color="gray" size="0.7em" />
