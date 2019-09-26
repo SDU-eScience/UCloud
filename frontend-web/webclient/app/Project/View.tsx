@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import {match} from "react-router";
+import {match, useRouteMatch, useParams} from "react-router";
 import {LoadingMainContainer} from "MainContainer/MainContainer";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
@@ -21,8 +21,8 @@ import Label from "ui-components/Label";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 
-const View: React.FunctionComponent<{ match: match<{ id: string }> }> = props => {
-    const id = props.match.params.id;
+const View: React.FunctionComponent = () => {
+    const {id} = useParams<{id: string}>();
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
     const role = roleInProject(project.data);
     const allowManagement = role === ProjectRole.PI;

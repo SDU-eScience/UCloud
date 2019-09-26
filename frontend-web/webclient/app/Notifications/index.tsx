@@ -1,10 +1,9 @@
 import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {formatDistance} from "date-fns/esm";
 import {NotificationsReduxObject, ReduxObject} from "DefaultObjects";
-import {History} from "history";
 import * as React from "react";
 import {connect} from "react-redux";
-import {Redirect, RouteComponentProps, useHistory} from "react-router";
+import {Redirect, useHistory} from "react-router";
 import {Dispatch} from "redux";
 import {Snack} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
