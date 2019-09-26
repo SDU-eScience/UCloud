@@ -4,10 +4,8 @@ import styled from "styled-components";
 import {color, ColorProps, ResponsiveValue, space, SpaceProps, style} from "styled-system";
 import * as icons from "./icons";
 import Bug from "./Bug";
-import theme, {Theme, ThemeColor} from "./theme";
+import theme from "./theme";
 import {Cursor} from "./Types";
-
-type IconOption = keyof typeof icons;
 
 const IconBase = ({name, size, theme, color2,...props}): JSX.Element => {
   let key = 0;
