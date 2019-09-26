@@ -10,7 +10,8 @@ export const JobStateIcon: React.FunctionComponent<{
     color?: ThemeColor
 } & SpaceProps> = (props) => {
     let iconName: IconName;
-    let defaultColor: ThemeColor = "iconColor";
+    // let defaultColor: ThemeColor = "iconColor";
+    let defaultColor;
 
     switch (props.state) {
         case JobState.VALIDATED:
