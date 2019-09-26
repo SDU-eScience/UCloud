@@ -240,7 +240,7 @@ const _Search = (props: SearchProps) => {
                 value={search}
                 noBorder
                 onKeyDown={e => {
-                    if (e.keyCode === KeyCode.ENTER && search) searchByName(search);
+                    if (e.keyCode === KeyCode.ENTER && search) fetchAll();
                 }}
                 onChange={({target}) => setSearch(target.value)}
             />
@@ -302,21 +302,6 @@ const _Search = (props: SearchProps) => {
                 itemsPerPage || props.applications.itemsPerPage,
                 props.applications.pageNumber
             ), name: search
-        });
-        history.push(searchPage(prioritizedSearch, search));
-    }
-
-    function searchByName(name: string) {
-        props.searchApplications({
-            name,
-            itemsPerPage: props.applications.itemsPerPage,
-            page: props.applications.pageNumber
-        });
-        props.searchFiles({
-            fileName: name,
-            fileTypes: ["DIRECTORY", "FILE"],
-            itemsPerPage: props.files.itemsPerPage,
-            page: props.files.pageNumber
         });
         history.push(searchPage(prioritizedSearch, search));
     }
