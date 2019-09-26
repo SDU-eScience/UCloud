@@ -32,6 +32,12 @@ export const reducer = (
     switch (action.type) {
         case "TASK_UPDATE": {
             const existingTask: TaskUpdate | undefined = state ? state[action.update.jobId] : undefined;
+            if (action.update.complete) {
+                const copy = {...state};
+                delete copy[action.update.jobId];
+                return copy;
+            }
+
             if (!existingTask) {
                 const tasks = {...state};
                 tasks[action.update.jobId] = {

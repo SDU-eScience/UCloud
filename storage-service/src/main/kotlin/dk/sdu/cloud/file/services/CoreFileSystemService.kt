@@ -263,9 +263,9 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     }
 
     suspend fun dummyTask(ctx: Ctx) {
-        val range = 0 until 100_000
+        val range = 0 until 100
 
-        runTask(wsServiceClient, BackgroundScope, "Storage Test", ctx.user) {
+        runTask(wsServiceClient, BackgroundScope, "Storage Test", ctx.user, updateFrequencyMs = 50) {
             val progress = Progress("Progress", 0, range.last)
             val taskSpeed = SimpleSpeed("Speeed!", 0.0, "Foo")
             val tasksPerSecond = MeasuredSpeedInteger("Tasks") { "T/s" }
@@ -275,7 +275,9 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
             for (iteration in range) {
                 status = "Working on step $iteration"
-                taskSpeed.speed = Random.nextDouble()
+                if (iteration % 10 == 0) {
+                    taskSpeed.speed = Random.nextDouble()
+                }
                 progress.current = iteration
                 writeln("Started work on $iteration")
                 delay(100)

@@ -86,10 +86,11 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
         }
     };
 
-    if (props.activeUploads <= 0 && !props.tasks) {
+    if (props.activeUploads <= 0 && (props.tasks === undefined || (Object.keys(props.tasks).length === 0))) {
         return null;
     }
 
+    const hasTaskInFocus = taskInFocus && (props.tasks && props.tasks[taskInFocus]);
     return <>
         <ClickableDropdown
             width="600px"
@@ -112,8 +113,8 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
             }
         </ClickableDropdown>
 
-        <ReactModal isOpen={taskInFocus !== null} onRequestClose={() => setTaskInFocus(null)} ariaHideApp={true}>
-            {!taskInFocus ? null : <DetailedTask taskId={taskInFocus}/>}
+        <ReactModal isOpen={!!hasTaskInFocus} onRequestClose={() => setTaskInFocus(null)} ariaHideApp={true}>
+            {!hasTaskInFocus ? null : <DetailedTask taskId={taskInFocus!}/>}
         </ReactModal>
     </>;
 };
