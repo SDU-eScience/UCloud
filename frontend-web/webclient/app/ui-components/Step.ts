@@ -93,7 +93,7 @@ Step.defaultProps = {
 export const StepGroup = styled.div`
     text-align: center;
     display: inline-block;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+    box-shadow: ${p => p.theme.shadows["sm"]};
     overflow: hidden;
     border-radius: 5px;
     counter-reset: stepcounter;
