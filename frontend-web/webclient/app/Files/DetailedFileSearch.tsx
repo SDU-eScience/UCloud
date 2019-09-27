@@ -188,7 +188,6 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                             fullWidth
                             disabled={props.loading}
                             mt="1em"
-                            mb={"1.5em"}
                             color="blue"
                         >Search</Button>
                     </form>
