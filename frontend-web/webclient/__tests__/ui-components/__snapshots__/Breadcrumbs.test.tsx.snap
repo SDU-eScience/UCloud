@@ -18,19 +18,19 @@ exports[`Breadcrumbs Build breadcrumbs 1`] = `
 
 .c0 li + li:before {
   padding: 8px;
-  color: #000;
+  color: #1e252e;
   content: "/";
 }
 
 .c0 li span {
-  color: #0275d8;
+  color: #1e252e;
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
 .c0 li span:hover {
   cursor: pointer;
-  color: #01447e;
+  color: #006aff;
   -webkit-text-decoration: none;
   text-decoration: none;
 }

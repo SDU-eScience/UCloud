@@ -20,18 +20,18 @@ const BreadCrumbsBase = styled.ul<{divider?: string}>`
 
     & li + li:before {
         padding: 8px;
-        color: ${p => p.theme.colors.black};
+        color: ${p => p.theme.colors.text};
         content: "${p => p.divider}";
     }
 
     & li span {
-        color: #0275d8;
+        color: ${p => p.theme.colors.text};
         text-decoration: none;
     }
 
     & li span:hover {
         cursor: pointer;
-        color: #01447e;
+        color: ${p => p.theme.colors.blue};
         text-decoration: none;
     }
 `;
