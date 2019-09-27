@@ -2,10 +2,10 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
@@ -30,7 +30,8 @@ sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: 
         stream: InputStream,
         sensitivity: SensitivityLevel?,
         sensitivityService: FileSensitivityService<Ctx>,
-        archiveName: String
+        archiveName: String,
+        backgroundScope: BackgroundScope
     ): List<String>
 
     companion object {
@@ -59,7 +60,8 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
         stream: InputStream,
         sensitivity: SensitivityLevel?,
         sensitivityService: FileSensitivityService<LinuxFSRunner>,
-        archiveName: String
+        archiveName: String,
+        backgroundScope: BackgroundScope
     ): List<String> {
         return BasicUploader.uploadFromSequence(
             serviceCloud,
@@ -70,6 +72,7 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
             sensitivity,
             sensitivityService,
             archiveName,
+            backgroundScope,
             sequence {
                 yield(ArchiveEntry.Directory(path))
 
@@ -127,7 +130,8 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
         stream: InputStream,
         sensitivity: SensitivityLevel?,
         sensitivityService: FileSensitivityService<LinuxFSRunner>,
-        archiveName: String
+        archiveName: String,
+        backgroundScope: BackgroundScope
     ): List<String> {
         return BasicUploader.uploadFromSequence(
             serviceCloud,
@@ -138,6 +142,7 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
             sensitivity,
             sensitivityService,
             archiveName,
+            backgroundScope,
             sequence {
                 TarInputStream(GZIPInputStream(stream)).use {
                     var entry: TarEntry? = it.nextEntry
@@ -198,6 +203,7 @@ private object BasicUploader : Loggable {
         sensitivity: SensitivityLevel?,
         sensitivityService: FileSensitivityService<Ctx>,
         archiveName: String,
+        backgroundScope: BackgroundScope,
         sequence: Sequence<ArchiveEntry>
     ): List<String> {
         val rejectedFiles = ArrayList<String>()
@@ -207,7 +213,7 @@ private object BasicUploader : Loggable {
         var ctx = contextFactory()
 
         try {
-            runTask(serviceCloud, BackgroundScope, "File extraction", ctx.user) {
+            runTask(serviceCloud, backgroundScope, "File extraction", ctx.user) {
                 status = "Extracting '$archiveName'"
                 val bytesPerSecond = MeasuredSpeedInteger("Transfer speed", "B/s") { speed ->
                     bytesToString(speed) + "/s"

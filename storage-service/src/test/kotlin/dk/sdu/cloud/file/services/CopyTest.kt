@@ -1,11 +1,9 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
@@ -13,12 +11,13 @@ import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.micro.BackgroundScope
 import java.io.File
 import java.nio.file.Files
-import kotlin.test.Test
+import kotlin.test.*
 import kotlin.test.assertEquals
 
-class CopyTest {
+class CopyTest : WithBackgroundScope() {
     val user = "user"
 
     data class TestContext<Ctx : FSUserContext>(
@@ -30,13 +29,18 @@ class CopyTest {
     )
 
     private fun initTest(root: File): TestContext<FSUserContext> {
-        BackgroundScope.init()
-
         val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath)
-        val storageEventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
+        val storageEventProducer =
+            StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope) {}
         val sensitivityService =
             FileSensitivityService(fs, storageEventProducer)
-        val coreFs = CoreFileSystemService(fs, storageEventProducer, sensitivityService, ClientMock.authenticatedClient)
+        val coreFs = CoreFileSystemService(
+            fs,
+            storageEventProducer,
+            sensitivityService,
+            ClientMock.authenticatedClient,
+            backgroundScope
+        )
         val fileLookupService = FileLookupService(runner, coreFs)
 
         return TestContext(runner, fs, coreFs, fileLookupService, sensitivityService) as TestContext<FSUserContext>

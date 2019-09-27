@@ -4,7 +4,6 @@ import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.modifiedAt
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.service.test.ClientMock
@@ -12,6 +11,7 @@ import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.file.util.mkdir
+import dk.sdu.cloud.micro.BackgroundScope
 import io.mockk.mockk
 import kotlinx.coroutines.delay
 import java.io.File
@@ -19,8 +19,9 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.*
 
-class CreatedAtTest {
+class CreatedAtTest : WithBackgroundScope() {
     val user = "user"
 
     data class TestContext(
@@ -31,16 +32,16 @@ class CreatedAtTest {
     )
 
     private fun initTest(root: File): TestContext {
-        BackgroundScope.init()
-
         val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath)
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         val coreFs =
             CoreFileSystemService(
                 fs,
-                StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {}),
+                StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope, {}),
                 fileSensitivityService,
-                ClientMock.authenticatedClient)
+                ClientMock.authenticatedClient,
+                backgroundScope
+            )
         val fileLookupService = FileLookupService(runner, coreFs)
 
         return TestContext(runner, fs, coreFs, fileLookupService)

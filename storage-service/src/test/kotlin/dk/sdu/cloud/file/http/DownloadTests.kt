@@ -1,16 +1,16 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.auth.api.validateAndClaim
-import dk.sdu.cloud.file.api.BulkDownloadRequest
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.services.WithBackgroundScope
 import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.TokenValidationMock
-import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpHeaders
@@ -22,8 +22,9 @@ import org.junit.Test
 import java.util.zip.ZipInputStream
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.*
 
-class DownloadTests {
+class DownloadTests : WithBackgroundScope() {
     @Test
     fun downloadFileTest() {
         withKtorTest(
@@ -54,7 +55,7 @@ class DownloadTests {
     private fun KtorApplicationTestSetupContext.configureWithDownloadController(
         additional: ((FileControllerContext) -> Unit)? = null
     ): List<Controller> {
-        return configureServerWithFileController {
+        return configureServerWithFileController(backgroundScope) {
             val tokenValidation = micro.tokenValidation as TokenValidationJWT
             val jwt = tokenValidation.validate(TokenValidationMock.createTokenForPrincipal(TestUsers.user))
             mockkStatic("dk.sdu.cloud.auth.api.ValidationUtilsKt")

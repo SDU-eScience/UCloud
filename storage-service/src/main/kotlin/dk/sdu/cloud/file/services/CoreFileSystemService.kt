@@ -12,10 +12,10 @@ import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.relativize
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -34,7 +34,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer,
     private val sensitivityService: FileSensitivityService<Ctx>,
-    private val wsServiceClient: AuthenticatedClient
+    private val wsServiceClient: AuthenticatedClient,
+    private val backgroundScope: BackgroundScope
 ) {
     private suspend fun writeTimeOfBirth(
         ctx: Ctx,
@@ -86,7 +87,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val normalizedFrom = from.normalize()
         val fromStat = stat(ctx, from, setOf(FileAttribute.FILE_TYPE, FileAttribute.SIZE))
         if (fromStat.fileType != FileType.DIRECTORY) {
-            runTask(wsServiceClient, BackgroundScope, "File copy", ctx.user) {
+            runTask(wsServiceClient, backgroundScope, "File copy", ctx.user) {
                 status = "Copying file from '$from' to '$to'"
 
                 val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
@@ -97,7 +98,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 return targetPath
             }
         } else {
-            runTask(wsServiceClient, BackgroundScope, "File copy", ctx.user) {
+            runTask(wsServiceClient, backgroundScope, "File copy", ctx.user) {
                 status = "Copying files from '$from' to '$to'"
                 val filesPerSecond = MeasuredSpeedInteger("Files copied per second", "Files/s")
                 this.speeds = listOf(filesPerSecond)
@@ -265,7 +266,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     suspend fun dummyTask(ctx: Ctx) {
         val range = 0 until 100
 
-        runTask(wsServiceClient, BackgroundScope, "Storage Test", ctx.user, updateFrequencyMs = 50) {
+        runTask(wsServiceClient, backgroundScope, "Storage Test", ctx.user, updateFrequencyMs = 50) {
             val progress = Progress("Progress", 0, range.last)
             val taskSpeed = SimpleSpeed("Speeed!", 0.0, "Foo")
             val tasksPerSecond = MeasuredSpeedInteger("Tasks", "T/s")

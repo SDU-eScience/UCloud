@@ -7,19 +7,18 @@ import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.api.sensitivityLevel
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.test.*
 import org.slf4j.Logger
 import java.io.File
 import java.nio.file.Files
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import kotlin.test.*
 
-class SensitivityTest {
+class SensitivityTest : WithBackgroundScope() {
     val user = "user"
 
     data class TestContext<Ctx : FSUserContext>(
@@ -31,13 +30,18 @@ class SensitivityTest {
     )
 
     private fun initTest(root: String): TestContext<FSUserContext> {
-        BackgroundScope.init()
-
         val (runner, fs) = linuxFSWithRelaxedMocks(root)
-        val storageEventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
+        val storageEventProducer =
+            StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope, {})
         val sensitivityService =
             FileSensitivityService(fs, storageEventProducer)
-        val coreFs = CoreFileSystemService(fs, storageEventProducer, sensitivityService, ClientMock.authenticatedClient)
+        val coreFs = CoreFileSystemService(
+            fs,
+            storageEventProducer,
+            sensitivityService,
+            ClientMock.authenticatedClient,
+            backgroundScope
+        )
         val fileLookupService = FileLookupService(runner, coreFs)
 
         return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService) as TestContext<FSUserContext>

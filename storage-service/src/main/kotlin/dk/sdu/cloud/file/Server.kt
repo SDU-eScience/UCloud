@@ -19,23 +19,11 @@ import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.*
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.tokenValidation
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.H2_DIALECT
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -48,7 +36,6 @@ class Server(
     override val log: Logger = logger()
 
     override fun start() = runBlocking {
-        BackgroundScope.init()
         supportReverseInH2(micro)
 
         val streams = micro.eventStreamService
@@ -74,18 +61,20 @@ class Server(
         val fs = LinuxFS(fsRootFile, newAclService)
 
         // High level FS
-        val storageEventProducer = StorageEventProducer(streams.createProducer(StorageEvents.events)) {
-            log.warn("Caught exception while emitting a storage event!")
-            log.warn(it.stackTraceToString())
-            stop()
-        }
+        val storageEventProducer =
+            StorageEventProducer(streams.createProducer(StorageEvents.events), micro.backgroundScope) {
+                log.warn("Caught exception while emitting a storage event!")
+                log.warn(it.stackTraceToString())
+                stop()
+            }
 
         // Metadata services
         val aclService = ACLWorker(newAclService)
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
 
         // High level FS
-        val coreFileSystem = CoreFileSystemService(fs, storageEventProducer, sensitivityService, wsClient)
+        val coreFileSystem =
+            CoreFileSystemService(fs, storageEventProducer, sensitivityService, wsClient, micro.backgroundScope)
 
         // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
@@ -96,7 +85,7 @@ class Server(
             newAclService,
             micro.eventStreamService
         )
-        val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer)
+        val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer, micro.backgroundScope)
         val workspaceService = WorkspaceService(fsRootFile, fileScanner, newAclService, coreFileSystem, processRunner)
 
         // RPC services
@@ -158,7 +147,8 @@ class Server(
                     client,
                     processRunner,
                     coreFileSystem,
-                    sensitivityService
+                    sensitivityService,
+                    micro.backgroundScope
                 ),
 
                 ExtractController(
@@ -166,7 +156,8 @@ class Server(
                     coreFileSystem,
                     fileLookupService,
                     processRunner,
-                    sensitivityService
+                    sensitivityService,
+                    micro.backgroundScope
                 ),
 
                 WorkspaceController(workspaceService)
@@ -203,10 +194,5 @@ class Server(
                 exitProcess(1)
             }
         }
-    }
-
-    override fun stop() {
-        super.stop()
-        BackgroundScope.stop()
     }
 }

@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.util.FSException
@@ -13,19 +12,29 @@ import dk.sdu.cloud.file.util.createDummyFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.mockk.mockk
 import org.junit.Assert
 import java.io.File
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class MoveTest {
+class MoveTest : WithBackgroundScope() {
     private fun createService(root: String): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root)
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
-        return Pair(runner,
-            CoreFileSystemService(fs, mockk(relaxed = true), fileSensitivityService, ClientMock.authenticatedClient)
+        return Pair(
+            runner,
+            CoreFileSystemService(
+                fs,
+                mockk(relaxed = true),
+                fileSensitivityService,
+                ClientMock.authenticatedClient,
+                backgroundScope
+            )
         )
     }
 
@@ -37,17 +46,12 @@ class MoveTest {
     )
 
     private fun runTest(user: String = "user1", consumer: suspend TestContext.() -> Unit) {
-        BackgroundScope.reset()
-        try {
-            val fsRoot = createDummyFS()
-            val (runner, service) = createService(fsRoot.absolutePath)
+        val fsRoot = createDummyFS()
+        val (runner, service) = createService(fsRoot.absolutePath)
 
-            runner.withBlockingContext(user) {
-                val testContext = TestContext(fsRoot, runner, service, it)
-                testContext.consumer()
-            }
-        } finally {
-            BackgroundScope.stop()
+        runner.withBlockingContext(user) {
+            val testContext = TestContext(fsRoot, runner, service, it)
+            testContext.consumer()
         }
     }
 

@@ -23,18 +23,12 @@ import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.util.createDummyFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.client
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.test.ClientMock
@@ -71,19 +65,22 @@ data class FileControllerContext(
 )
 
 fun KtorApplicationTestSetupContext.configureServerWithFileController(
+    scope: BackgroundScope,
     fsRootInitializer: () -> File = { createDummyFS() },
     fileUpdateAclWhitelist: Set<String> = emptySet(),
     additional: (FileControllerContext) -> List<Controller> = { emptyList() }
 ): List<Controller> {
-    BackgroundScope.reset()
-
     val fsRoot = fsRootInitializer()
     val (runner, fs, aclService) = linuxFSWithRelaxedMocks(fsRoot.absolutePath)
     micro.install(HibernateFeature)
     val eventProducer =
-        StorageEventProducer(micro.eventStreamService.createProducer(StorageEvents.events), { it.printStackTrace() })
+        StorageEventProducer(
+            micro.eventStreamService.createProducer(StorageEvents.events),
+            scope,
+            { it.printStackTrace() }
+        )
     val fileSensitivityService = FileSensitivityService(fs, eventProducer)
-    val coreFs = CoreFileSystemService(fs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
+    val coreFs = CoreFileSystemService(fs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient, scope)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
 
     val aclWorker = ACLWorker(aclService)
