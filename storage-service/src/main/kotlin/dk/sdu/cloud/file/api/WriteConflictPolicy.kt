@@ -7,7 +7,4 @@ enum class WriteConflictPolicy {
     REJECT;
 
     fun allowsOverwrite(): Boolean = this == OVERWRITE || this == MERGE
-
-
-
 }

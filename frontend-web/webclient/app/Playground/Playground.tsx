@@ -17,10 +17,17 @@ export const Playground: React.FunctionComponent = props => {
                                 promises.length = 0;
                             }
                         }
-                        console.log("Test is done");
                     }}
                 >
                     Client Test
+                </Button>
+
+                <Button
+                    onClick={() => {
+                        Cloud.post("/files/testTask");
+                    }}
+                >
+                    Task Test
                 </Button>
             </>
         }

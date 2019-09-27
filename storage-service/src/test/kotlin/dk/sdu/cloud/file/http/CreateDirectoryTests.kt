@@ -1,16 +1,17 @@
 package dk.sdu.cloud.file.http
 
+import dk.sdu.cloud.file.services.WithBackgroundScope
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
-import org.junit.Ignore
-import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.*
 
-class CreateDirectoryTests {
-    @Test
+class CreateDirectoryTests : WithBackgroundScope() {
+   @Test
     fun `make directory valid`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/newDir"
@@ -27,7 +28,7 @@ class CreateDirectoryTests {
     @Test
     fun `make folder that already exists`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val response = engine.makeDir("/home/user1/folder")
@@ -40,7 +41,7 @@ class CreateDirectoryTests {
     @Test
     fun `test if directories are created recursively`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/folder/newDir/newnew"

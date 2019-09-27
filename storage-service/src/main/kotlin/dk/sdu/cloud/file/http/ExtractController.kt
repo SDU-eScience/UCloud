@@ -11,7 +11,6 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
@@ -19,6 +18,7 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Controller
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
@@ -28,7 +28,8 @@ class ExtractController<Ctx : FSUserContext>(
     private val coreFs: CoreFileSystemService<Ctx>,
     private val fileLookupService: FileLookupService<Ctx>,
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
-    private val sensitivityService: FileSensitivityService<Ctx>
+    private val sensitivityService: FileSensitivityService<Ctx>,
+    private val backgroundScope: BackgroundScope
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileDescriptions.extract) {
@@ -48,7 +49,7 @@ class ExtractController<Ctx : FSUserContext>(
                 HttpStatusCode.BadRequest
             )
 
-            BackgroundScope.launch {
+            backgroundScope.launch {
                 commandRunnerFactory.withContext(user) { readContext ->
                     coreFs.read(readContext, request.path) {
                         val fileInputStream = this
@@ -62,7 +63,8 @@ class ExtractController<Ctx : FSUserContext>(
                             fileInputStream,
                             null,
                             sensitivityService,
-                            request.path.fileName()
+                            request.path.fileName(),
+                            backgroundScope
                         )
                     }
 

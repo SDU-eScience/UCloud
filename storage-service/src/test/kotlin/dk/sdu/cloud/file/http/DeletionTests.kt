@@ -1,15 +1,18 @@
 package dk.sdu.cloud.file.http
 
+import dk.sdu.cloud.file.services.WithBackgroundScope
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.*
 
-class DeletionTests {
+class DeletionTests : WithBackgroundScope() {
     @Test
     fun `delete a file`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/folder/a"
@@ -28,7 +31,7 @@ class DeletionTests {
     @Test
     fun `delete a folder`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/folder"

@@ -11,7 +11,6 @@ import dk.sdu.cloud.file.api.MultiPartUploadAudit
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.UploadRequestAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
@@ -20,6 +19,7 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -32,7 +32,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     private val serviceCloud: AuthenticatedClient,
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val sensitivityService: FileSensitivityService<Ctx>
+    private val sensitivityService: FileSensitivityService<Ctx>,
+    private val backgroundScope: BackgroundScope
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(MultiPartUploadDescriptions.simpleUpload) {
@@ -95,7 +96,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 request.file.asIngoing().channel.copyTo(outs)
             }
 
-            BackgroundScope.launch {
+            backgroundScope.launch {
                 try {
                     uploader.upload(
                         serviceCloud,
@@ -106,7 +107,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                         temporaryFile.inputStream(),
                         request.sensitivity,
                         sensitivityService,
-                        archiveName
+                        archiveName,
+                        backgroundScope
                     )
                 } finally {
                     runCatching { temporaryFile.delete() }

@@ -33,7 +33,6 @@ class SimpleDownloadController<Ctx : FSUserContext>(
     private val cloud: AuthenticatedClient,
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val bulkDownloadService: BulkDownloadService<Ctx>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
     private val fileLookupService: FileLookupService<Ctx>
 ) : Controller {
@@ -175,27 +174,6 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                     )
                 }
             }
-        }
-
-        implement(FileDescriptions.bulkDownload) {
-            val filesDownloaded = ArrayList<String?>()
-            audit(BulkFileAudit(filesDownloaded, request))
-
-            ok(
-                BinaryStream.Outgoing(
-                    DirectWriteContent(contentType = ContentType.Application.GZip) {
-                        commandRunnerFactory.withContext(ctx.securityPrincipal.username) { ctx ->
-                            bulkDownloadService.downloadFiles(
-                                ctx,
-                                request.prefix,
-                                request.files,
-                                toOutputStream(),
-                                filesDownloaded
-                            )
-                        }
-                    }
-                )
-            )
         }
     }
 
