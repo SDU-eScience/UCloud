@@ -165,7 +165,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             <MainContainer
                 headerSize={48}
                 header={
-                    <Flex ml="12%">
+                    <Flex ml="50px">
                         <AppHeader slim application={application} />
                     </Flex>
                 }
