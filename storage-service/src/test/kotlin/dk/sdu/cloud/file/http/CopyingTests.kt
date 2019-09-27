@@ -1,10 +1,13 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.notification.api.FindByNotificationId
-import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.file.services.successfulTaskMock
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.task.api.CreateResponse
+import dk.sdu.cloud.task.api.MarkAsCompleteResponse
+import dk.sdu.cloud.task.api.PostStatusResponse
+import dk.sdu.cloud.task.api.Tasks
 import io.ktor.http.HttpStatusCode
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -113,10 +116,7 @@ class CopyingTests {
                 val path = "/home/user1/folder"
                 val newPath = "/home/user1/new-folder"
 
-                ClientMock.mockCallSuccess(
-                    NotificationDescriptions.create,
-                    FindByNotificationId(1)
-                )
+                successfulTaskMock()
 
                 val response = engine.stat(path)
                 assertEquals(HttpStatusCode.OK, response.status())

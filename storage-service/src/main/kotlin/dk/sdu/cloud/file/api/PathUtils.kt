@@ -36,13 +36,13 @@ fun String.normalize(): String {
 
     for (component in inputComponents) {
         when (component) {
-            "." -> {
+            ".", "" -> {
                 // Do nothing
             }
 
             ".." -> {
                 if (reconstructedComponents.isNotEmpty()) {
-                    reconstructedComponents.removeAt(0)
+                    reconstructedComponents.removeAt(reconstructedComponents.lastIndex)
                 }
             }
 

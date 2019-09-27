@@ -166,8 +166,8 @@ class AclTest {
 
     @Test
     fun `test non-normalized path`() = runBlocking {
-        assertTrue(aclService.hasPermission("/home/user/../user/././././/", "user", AccessRight.WRITE))
-        assertTrue(aclService.hasPermission("/home/user/../user/././././/", "user", AccessRight.READ))
+        assertTrue(aclService.hasPermission("/home/user/../user/././././", "user", AccessRight.WRITE))
+        assertTrue(aclService.hasPermission("/home/user/../user/././././", "user", AccessRight.READ))
     }
 
     @Test

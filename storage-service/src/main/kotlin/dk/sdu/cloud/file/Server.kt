@@ -107,9 +107,7 @@ class Server(
 
         UserProcessor(
             streams,
-            fileScanner,
-            processRunner,
-            coreFileSystem
+            fileScanner
         ).init()
 
         StorageProcessor(streams, newAclService).init()

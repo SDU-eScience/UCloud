@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.http
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.file.api.BulkDownloadRequest
 import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
@@ -20,8 +19,6 @@ import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
 import io.mockk.mockkStatic
 import org.junit.Test
-import java.io.InputStream
-import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -62,14 +59,12 @@ class DownloadTests {
             val jwt = tokenValidation.validate(TokenValidationMock.createTokenForPrincipal(TestUsers.user))
             mockkStatic("dk.sdu.cloud.auth.api.ValidationUtilsKt")
             coEvery { tokenValidation.validateAndClaim(any(), any(), any()) } returns jwt
-            val bulk = BulkDownloadService(it.coreFs)
             additional?.invoke(it)
             listOf(
                 SimpleDownloadController(
                     it.authenticatedClient,
                     it.runner,
                     it.coreFs,
-                    bulk,
                     tokenValidation,
                     it.lookupService
                 )
@@ -113,42 +108,6 @@ class DownloadTests {
                 ).response
 
                 assertEquals(HttpStatusCode.NotFound, response.status())
-            }
-        )
-    }
-
-    @Test
-    fun downloadBulkFilesTest() {
-        withKtorTest(
-            setup = { configureWithDownloadController() },
-            test = {
-                val response = sendJson(
-                    HttpMethod.Post,
-                    "/api/files/bulk",
-                    BulkDownloadRequest("/home/user/folder/", listOf("a", "b", "c")),
-                    TestUsers.user
-                ).response
-
-                println(response.headers.allValues())
-                assertEquals(HttpStatusCode.OK, response.status())
-            }
-        )
-    }
-
-    @Test
-    fun downloadBulkFilesWithSingleMissingFileTest() {
-        withKtorTest(
-            setup = { configureWithDownloadController() },
-            test = {
-                val response = sendJson(
-                    HttpMethod.Post,
-                    "/api/files/bulk",
-                    BulkDownloadRequest("/home/user/folder/", listOf("a", "b", "c", "d")),
-                    TestUsers.user
-                ).response
-
-                //Should be OK since non existing files are filtered away.
-                assertEquals(HttpStatusCode.OK, response.status())
             }
         )
     }

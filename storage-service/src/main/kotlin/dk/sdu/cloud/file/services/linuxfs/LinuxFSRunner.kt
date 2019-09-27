@@ -64,7 +64,9 @@ class LinuxFSRunner(
 
     suspend fun <T> submit(job: suspend () -> T): T {
         return withContext(dispatcher) {
-            job()
+            runAndRethrowNIOExceptions {
+                job()
+            }
         }
     }
 

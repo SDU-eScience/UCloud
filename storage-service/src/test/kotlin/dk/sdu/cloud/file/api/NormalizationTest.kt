@@ -30,4 +30,10 @@ class NormalizationTest {
         assertEquals("/normal/path/nothing/special", "/normal/path/nothing/special".normalize())
         assertEquals("/normal/path/nothing/special", "/normal/path/nothing/special/".normalize())
     }
+
+    @Test
+    fun `test case from existing test`() {
+        assertEquals("/home/user1/folder/./../folder/./", "/home/user1/folder/./../folder/./Weirdpath".parent())
+        assertEquals("/home/user1/folder", "/home/user1/folder/./../folder/./Weirdpath".parent().normalize())
+    }
 }

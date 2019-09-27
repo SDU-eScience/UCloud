@@ -7,7 +7,6 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.assertThatInstance
@@ -47,11 +46,8 @@ class CopyTest {
 
     @Test
     fun `test copying a folder`() {
+        successfulTaskMock()
 
-        ClientMock.mockCallSuccess(
-            NotificationDescriptions.create,
-            FindByLongId(1)
-        )
         val root = createRoot()
         with(initTest(root)) {
             root.mkdir("home") {
@@ -94,10 +90,7 @@ class CopyTest {
 
     @Test
     fun `test copying a folder (rename)`() {
-        ClientMock.mockCallSuccess(
-            NotificationDescriptions.create,
-            FindByLongId(1)
-        )
+        successfulTaskMock()
 
         val root = createRoot()
         with(initTest(root)) {
@@ -125,7 +118,7 @@ class CopyTest {
                 val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
 
                 val rootListing = coreFs.listDirectory(ctx, "/home/user", mode)
-                assertEquals(2, rootListing.size)
+                assertThatInstance(rootListing) { it.size == 2 }
                 assertThatInstance(rootListing) { it.any { it.path.fileName() == "folder" } }
                 assertThatInstance(rootListing) { it.any { it.path.fileName() == "folder(1)" } }
 
@@ -147,10 +140,7 @@ class CopyTest {
 
     @Test
     fun `test copy (merge) folders with disjoint set of filenames`() {
-        ClientMock.mockCallSuccess(
-            NotificationDescriptions.create,
-            FindByLongId(1)
-        )
+        successfulTaskMock()
 
         val root = createRoot()
         with(initTest(root)) {
@@ -203,10 +193,7 @@ class CopyTest {
 
     @Test
     fun `test copy (merge) folders with intersecting set of filenames`() {
-        ClientMock.mockCallSuccess(
-            NotificationDescriptions.create,
-            FindByLongId(1)
-        )
+        successfulTaskMock()
 
         val root = createRoot()
         with(initTest(root)) {
@@ -253,10 +240,7 @@ class CopyTest {
 
     @Test
     fun `test copy (merge) multilevel folders`() {
-        ClientMock.mockCallSuccess(
-            NotificationDescriptions.create,
-            FindByLongId(1)
-        )
+        successfulTaskMock()
 
         val root = createRoot()
         with(initTest(root)) {
