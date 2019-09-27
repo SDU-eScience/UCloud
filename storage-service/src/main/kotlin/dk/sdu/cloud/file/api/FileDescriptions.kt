@@ -47,14 +47,6 @@ data class ACLEntryRequest(
     val revoke: Boolean = false
 )
 
-data class ChmodRequest(
-    val path: String,
-    val owner: Set<FileAccessRight>,
-    val group: Set<FileAccessRight>,
-    val other: Set<FileAccessRight>,
-    val recurse: Boolean
-)
-
 data class StatRequest(
     val path: String,
     val attributes: String? = null
@@ -189,8 +181,6 @@ data class DeleteFileRequest(val path: String)
 data class MoveRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
 
 data class CopyRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
-
-data class BulkDownloadRequest(val prefix: String, val files: List<String>)
 
 data class FindHomeFolderRequest(val username: String)
 data class FindHomeFolderResponse(val path: String)
@@ -496,27 +486,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
             path {
                 using(baseContext)
                 +"deliver-materialized"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    @Deprecated("No longer in use")
-    val chmod = call<ChmodRequest, Unit, CommonErrorMessage>("chmod") {
-        audit<BulkFileAudit<ChmodRequest>>()
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        websocket(wsBaseContext)
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"chmod"
             }
 
             body { bindEntireRequestFromBody() }
