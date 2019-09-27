@@ -9,7 +9,7 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: task
-      prefix: ^/api/task(/.*)?$
+      prefix: ^/api/tasks(/.*)?$
       prefix_regex: true
       service: task:8080
       rewrite: ""

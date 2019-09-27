@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.AccessRight

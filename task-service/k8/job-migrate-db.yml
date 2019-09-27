@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: task-service
-          image: registry.cloud.sdu.dk/sdu-cloud/task-service:0.1.0
+          image: registry.cloud.sdu.dk/sdu-cloud/task-service:0.2.1
           args:
           - /opt/service/bin/service
           - --config-dir
