@@ -80,8 +80,8 @@ function View(props: ViewProps) {
         <LoadableMainContainer
             loadable={props.application}
             main={
-                <ContainerForText>
-                    <Box m={16} />
+                <ContainerForText left>
+                    <Box m={16}/>
                     <AppHeader application={application!} />
                     <Content
                         application={application!}

@@ -202,8 +202,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     </StepGroup>
                 </Panel>
 
-
-                <Panel>
+                <Panel width={1}>
                     <Heading.h4>Job Information</Heading.h4>
                     <Card height="auto" p="14px 14px 14px 14px">
                         <List>
@@ -236,7 +235,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     </Card>
                 </Panel>
 
-                <Spacer
+                <Spacer width={1}
                     left={
                         appState !== JobState.RUNNING || interactiveLink === null ? null :
                             <InteractiveApplicationLink
@@ -257,29 +256,28 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                 }
 
                 {isJobStateFinal(appState) ? null :
-                    <Box width="100%" mt={24}>
-                        <Heading.h4>
-                            Standard Streams
-                            &nbsp;
-                            <Dropdown>
-                                <Icon name="info" color="white" color2="black" size="1em" />
-                                <DropdownContent
-                                    width="400px"
-                                    visible
-                                    colorOnHover={false}
-                                    color="white"
-                                    backgroundColor="black"
-                                >
-                                    <TextSpan fontSize={1}>
-                                        Streams are collected
-                                        from <code>stdout</code> and <code>stderr</code> of your application.
-                                    </TextSpan>
-                                </DropdownContent>
-                            </Dropdown>
-                        </Heading.h4>
+                    <Box width={1} mt={24}>
                         <Flex flexDirection="column">
-                            <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"}>
-                                <Heading.h5>Output</Heading.h5>
+                            <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"} style={{borderRadius: "5px 5px 0px 0px"}}>
+                                <Heading.h4>
+                                    Output
+                                    &nbsp;
+                                    <Dropdown>
+                                        <Icon name="info" color="white" color2="black" size="1em" />
+                                        <DropdownContent
+                                            width="400px"
+                                            visible
+                                            colorOnHover={false}
+                                            color="white"
+                                            backgroundColor="black"
+                                        >
+                                            <TextSpan fontSize={1}>
+                                                Streams are collected
+                                                from <code>stdout</code> and <code>stderr</code> of your application.
+                                            </TextSpan>
+                                        </DropdownContent>
+                                    </Dropdown>
+                                </Heading.h4>
                             </Box>
                             <Box width={1} backgroundColor="lightGray">
                                 <div ref={xtermRef} />

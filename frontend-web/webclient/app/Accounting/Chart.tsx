@@ -34,18 +34,20 @@ function Chart (props: ChartProps) {
 
     return <Container aspect={16 / 9} maxHeight={576}>
         <LineChart data={normalizedData}>
+            <CartesianGrid strokeDasharray="3 3" strokeWidth="2px"/>
             <XAxis
                 dataKey="name"
-                tickCount={12}
+                tickCount={10}
+                axisLine={{strokeWidth: "2px"}}
             />
 
             <YAxis
                 dataKey="value"
                 tickFormatter={(d: number) =>
                     API.formatDataType(getOrElse(1, DataTypes.NUMBER, chart.dataTypes), d)}
+                axisLine={{strokeWidth: "2px"}}
             />
 
-            <CartesianGrid strokeDasharray="3 3" />
             <Tooltip
                 formatter={(d: number) =>
                     API.formatDataType(getOrElse(1, DataTypes.NUMBER, chart.dataTypes), d)}
@@ -53,8 +55,9 @@ function Chart (props: ChartProps) {
             <Legend />
             <Line
                 type="monotone"
-                stroke="#8884d8"
+                stroke="#006aff"
                 dataKey="value"
+                strokeWidth="3px"
                 name={chart.dataTitle || "Value"}
             />
         </LineChart>

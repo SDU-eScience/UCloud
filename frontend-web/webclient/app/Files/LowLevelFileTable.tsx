@@ -462,20 +462,18 @@ const LowLevelFileTable_: React.FunctionComponent<
         sidebar={
             <Box pl="5px" pr="5px">
                 <VerticalButtonGroup>
-                    <SidebarContent>
-                        <FileOperations
-                            files={checkedFilesWithInfo}
-                            fileOperations={fileOperations}
-                            callback={callbacks}
-                            // Don't pass a directory if the page is set. This should indicate that the path is fake.
-                            directory={props.page !== undefined ? undefined : mockFile({
-                                path: props.path ? props.path : "",
-                                fileId: "currentDir",
-                                tag: MOCK_RELATIVE,
-                                type: "DIRECTORY"
-                            })}
-                        />
-                    </SidebarContent>
+                    <FileOperations
+                        files={checkedFilesWithInfo}
+                        fileOperations={fileOperations}
+                        callback={callbacks}
+                        // Don't pass a directory if the page is set. This should indicate that the path is fake.
+                        directory={props.page !== undefined ? undefined : mockFile({
+                            path: props.path ? props.path : "",
+                            fileId: "currentDir",
+                            tag: MOCK_RELATIVE,
+                            type: "DIRECTORY"
+                        })}
+                    />
                 </VerticalButtonGroup>
             </Box>
         }
@@ -687,16 +685,6 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
         sidebar={props.sidebar}
     />;
 };
-
-const SidebarContent = styled.div`
-    grid: auto-flow;
-    & > * {
-        min-width: 75px;
-        max-width: 225px;
-        margin-left: 5px;
-        margin-right: 5px;
-    }
-`;
 
 interface NameBoxProps {
     file: File;
