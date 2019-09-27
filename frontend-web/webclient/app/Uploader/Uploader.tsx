@@ -128,39 +128,57 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
     public render() {
         const {uploads, ...props} = this.props;
         return (
-            <Modal isOpen={props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={this.closeModal}
+            <Modal
+                isOpen={props.visible}
+                shouldCloseOnEsc={true}
+                ariaHideApp={false}
+                onRequestClose={this.closeModal}
                 style={this.modalStyle}
             >
                 <div data-tag={"uploadModal"}>
                     <Spacer
                         left={<Heading>Upload Files</Heading>}
-                        right={<>
-                            {props.loading ? <Refresh onClick={() => undefined} spin /> : null}
-                            <Icon name="close" cursor="pointer" data-tag="modalCloseButton" onClick={this.closeModal} />
-                        </>}
+                        right={(
+                            <>
+                                {props.loading ? <Refresh onClick={() => undefined} spin={true}/> : null}
+                                <Icon
+                                    name={"close"}
+                                    cursor={"pointer"}
+                                    data-tag={"modalCloseButton"}
+                                    onClick={this.closeModal}
+                                />
+                            </>
+                        )}
                     />
-                    <Divider />
+
+                    <Divider/>
+
                     {finishedUploads(uploads) > 0 ? (
                         <OutlineButton
                             mt="4px"
                             mb="4px"
                             color="green"
-                            fullWidth
+                            fullWidth={true}
                             onClick={() => this.clearFinishedUploads()}
                         >
                             Clear finished uploads
                         </OutlineButton>
                     ) : null}
+
                     {uploads.filter(it => !it.isUploading).length >= 5 ?
-                        <OutlineButton
-                            color="blue"
-                            fullWidth
-                            mt="4px"
-                            mb="4px"
-                            onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}
-                        >
-                            Clear unstarted uploads
-                        </OutlineButton> : null}
+                        (
+                            <OutlineButton
+                                color="blue"
+                                fullWidth={true}
+                                mt="4px"
+                                mb="4px"
+                                onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}
+                            >
+                                Clear unstarted uploads
+                            </OutlineButton>
+                        ) : null
+                    }
+
                     <Box>
                         {uploads.map((upload, index) => (
                             <React.Fragment key={index}>
@@ -175,24 +193,39 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
                                     onClear={it => (it.preventDefault(), this.clearUpload(index))}
                                     setRewritePolicy={policy => this.setRewritePolicy(index, policy)}
                                 />
-                                <Divider />
+                                <Divider/>
                             </React.Fragment>
                         ))}
-                        {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ?
-                            <Button fullWidth color="green" onClick={this.startAllUploads}>
-                                <Icon name={"upload"} />{" "}Start all!</Button> : null}
+
+                        {
+                            uploads.filter(it => !it.isUploading).length > 1 &&
+                            uploads.filter(it => !it.conflictFile).length ?
+                                (
+                                    <Button
+                                        fullWidth={true}
+                                        color="green"
+                                        onClick={this.startAllUploads}
+                                    >
+                                        <Icon name={"upload"}/>{" "}Start all!
+                                    </Button>
+                                ) : null
+                        }
                         <Dropzone onDrop={this.onFilesAdded}>
                             {({getRootProps, getInputProps}) =>
-                                <DropZoneBox {...getRootProps()}>
-                                    <input {...getInputProps()} />
-                                    <p>
-                                        <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
-                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
-                                    </p>
-                                    <p>
-                                        <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
-                                    </p>
-                                </DropZoneBox>
+                                (
+                                    <DropZoneBox {...getRootProps()}>
+                                        <input {...getInputProps()} />
+                                        <p>
+                                            <TextSpan mr="0.5em"><Icon name="upload"/></TextSpan>
+                                            <TextSpan mr="0.3em">Drop files here or </TextSpan>
+                                            <a href="#">{" browse"}</a>
+                                        </p>
+                                        <p>
+                                            <b>Bulk upload</b> supported for file
+                                            types: <i><code>{archiveExtensions.join(", ")}</code></i>
+                                        </p>
+                                    </DropZoneBox>
+                                )
                             }
                         </Dropzone>
                     </Box>
@@ -203,13 +236,19 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
     }
 
     private onFilesAdded = async (files: File[]): Promise<void> => {
-        if (files.some(it => it.size === 0)) snackbarStore.addSnack({message: "It is not possible to upload empty files.", type: SnackType.Information});
-        if (files.some(it => it.name.length > 1025)) snackbarStore.addSnack({message: "Filenames can't exceed a length of 1024 characters.", type: SnackType.Information});
+        if (files.some(it => it.size === 0)) snackbarStore.addSnack({
+            message: "It is not possible to upload empty files.",
+            type: SnackType.Information
+        });
+        if (files.some(it => it.name.length > 1025)) snackbarStore.addSnack({
+            message: "Filenames can't exceed a length of 1024 characters.",
+            type: SnackType.Information
+        });
         const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it, this.props.path));
         if (filteredFiles.length === 0) return;
 
         this.props.setLoading(true);
-        const promises: ({request: XMLHttpRequest, response: SDUCloudFile} | {status: number, response: string})[] = await Promise.all(filteredFiles.map(file =>
+        const promises: ({ request: XMLHttpRequest, response: SDUCloudFile } | { status: number, response: string })[] = await Promise.all(filteredFiles.map(file =>
             Cloud.get<SDUCloudFile>(statFileQuery(`${this.props.path}/${file.file.name}`)).then(it => it).catch(it => it)
         ));
 
@@ -227,7 +266,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         this.props.setLoading(false);
     }
 
-    private beforeUnload = (e: {returnValue: string;}) => {
+    private beforeUnload = (e: { returnValue: string; }) => {
         e.returnValue = "foo";
         const finished = finishedUploads(this.props.uploads);
         const total = this.props.uploads.length;
@@ -281,7 +320,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
             policy: upload.resolution,
             onProgress: (e: ProgressEvent) => {
                 addProgressEvent(upload, e);
-                this.props.setUploads(this.props.uploads);
+                this.props.setUploads(this.props.uploads.slice());
             },
             onError: (err: string) => setError(err),
         };
@@ -301,9 +340,11 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         }
     }
 
-    private startAllUploads = (event: {preventDefault: () => void}) => {
+    private startAllUploads = (event: { preventDefault: () => void }) => {
         event.preventDefault();
-        this.props.uploads.forEach(it => {if (!it.uploadXHR) it.isPending = true;});
+        this.props.uploads.forEach(it => {
+            if (!it.uploadXHR) it.isPending = true;
+        });
         this.startPending();
     }
 
@@ -399,7 +440,7 @@ const UploaderRow = (p: {
 }) => {
 
     const fileInfo = p.location !== p.upload.parentPath ? (<Dropdown>
-        <Icon style={{pointer: "cursor"}} ml="10px" name="info" color="white" color2="black" />
+        <Icon style={{pointer: "cursor"}} ml="10px" name="info" color="white" color2="black"/>
         <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
             Will be uploaded to: {addTrailingSlash(replaceHomeFolder(p.location, Cloud.homeFolder))}{p.upload.file.name}
         </DropdownContent>
@@ -407,7 +448,7 @@ const UploaderRow = (p: {
 
     const fileTitle = <span>
         <b>{p.upload.file.name} </b>
-        ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} />
+        ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile}/>
     </span>;
     let body: React.ReactNode;
     if (!!p.upload.error) {
@@ -416,10 +457,11 @@ const UploaderRow = (p: {
                 {fileTitle}
             </Box>
             <Spacer pr="4px" width={0.5}
-                left={<Text color="red">{p.upload.error}</Text>}
-                right={<Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
-                    <Icon name="close" />
-                </Button>}
+                    left={<Text color="red">{p.upload.error}</Text>}
+                    right={<Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))}
+                                   data-tag={"removeUpload"}>
+                        <Icon name="close"/>
+                    </Button>}
             />
         </>;
     } else if (!p.upload.isUploading) {
@@ -427,13 +469,13 @@ const UploaderRow = (p: {
             <Box width={0.7}>
                 <Spacer
                     left={fileTitle}
-                    right={p.upload.conflictFile ? <PolicySelect setRewritePolicy={p.setRewritePolicy!} /> : null}
+                    right={p.upload.conflictFile ? <PolicySelect setRewritePolicy={p.setRewritePolicy!}/> : null}
                 />
-                <br />
+                <br/>
                 {isArchiveExtension(p.upload.file.name) ?
                     <Flex data-tag="extractArchive">
                         <label>Extract archive?</label>
-                        <Box ml="0.5em" />
+                        <Box ml="0.5em"/>
                         <Toggle
                             scale={1.3}
                             checked={p.upload.extractArchive}
@@ -441,7 +483,7 @@ const UploaderRow = (p: {
                         />
                     </Flex> : null}
             </Box>
-            <Error error={p.upload.error} />
+            <Error error={p.upload.error}/>
             <Box width={0.3}>
                 <ButtonGroup width="100%">
                     {!p.upload.isPending ?
@@ -451,13 +493,13 @@ const UploaderRow = (p: {
                             disabled={!!p.upload.error}
                             onClick={e => ifPresent(p.onUpload, c => c(e))}
                         >
-                            <Icon name="cloud upload" />Upload
+                            <Icon name="cloud upload"/>Upload
                         </Button>
                         :
                         <Button color="blue" disabled>Pending</Button>
                     }
                     <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
-                        <Icon name="close" />
+                        <Icon name="close"/>
                     </Button>
                 </ButtonGroup>
                 <Flex justifyContent="center" pt="0.3em">
@@ -474,14 +516,14 @@ const UploaderRow = (p: {
         body = <>
             <Box width={0.25}>
                 {fileTitle}
-                <br />
+                <br/>
                 {isArchiveExtension(p.upload.file.name) ?
                     (p.upload.extractArchive ?
-                        <span><Icon name="checkmark" color="green" />Extracting archive</span> :
-                        <span><Icon name="close" color="red" /> <i>Not</i> extracting archive</span>)
+                        <span><Icon name="checkmark" color="green"/>Extracting archive</span> :
+                        <span><Icon name="close" color="red"/> <i>Not</i> extracting archive</span>)
                     : null}
             </Box>
-            <ProgressBar upload={p.upload} />
+            <ProgressBar upload={p.upload}/>
             <Box width={0.22}>
                 {!isFinishedUploading(p.upload.uploadXHR) ?
                     <Button
@@ -499,7 +541,7 @@ const UploaderRow = (p: {
                         onClick={e => ifPresent(p.onClear, c => c(e))}
                         data-tag={"removeUpload"}
                     >
-                        <Icon name="close" />
+                        <Icon name="close"/>
                     </Button>}
             </Box>
         </>;
@@ -508,14 +550,14 @@ const UploaderRow = (p: {
     return (
         <Flex flexDirection="row" data-tag={"uploadRow"}>
             <Box width={0.04} textAlign="center">
-                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
+                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)}/>
             </Box>
             <Flex width={0.96}>{body}</Flex>
         </Flex>
     );
 };
 
-const ProgressBar = ({upload}: {upload: Upload}) => (
+const ProgressBar = ({upload}: { upload: Upload }) => (
     <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
         <Progress
             active={upload.progressPercentage !== 100}
@@ -526,7 +568,10 @@ const ProgressBar = ({upload}: {upload: Upload}) => (
     </Box>
 );
 
-interface PolicySelect {setRewritePolicy: (policy: UploadPolicy) => void;}
+interface PolicySelect {
+    setRewritePolicy: (policy: UploadPolicy) => void;
+}
+
 const PolicySelect = ({setRewritePolicy}: PolicySelect) =>
     <Flex mt="-12px" width="200px" mr="0.5em">
         <Select
@@ -539,7 +584,10 @@ const PolicySelect = ({setRewritePolicy}: PolicySelect) =>
         </Select>
     </Flex>;
 
-interface ConflictFile {file?: SDUCloudFile;}
+interface ConflictFile {
+    file?: SDUCloudFile;
+}
+
 const ConflictFile = ({file}: ConflictFile) => !!file ?
     <Box>File already exists in folder, {sizeToString(file.size!)}</Box> : null;
 

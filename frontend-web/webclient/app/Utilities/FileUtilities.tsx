@@ -457,11 +457,23 @@ export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<R
     );
 };
 
+function isInt(value: number) {
+    if (isNaN(value)) {
+        return false;
+    }
+    return (value | 0) === value;
+}
+
 export const sizeToString = (bytes: number | null): string => {
     if (bytes === null) return "";
     if (bytes < 0) return "Invalid size";
     const {size, unit} = sizeToHumanReadableWithUnit(bytes);
-    return `${size.toFixed(2)}${unit}`;
+
+    if (isInt(size)) {
+        return `${size} ${unit}`;
+    } else {
+        return `${size.toFixed(2)} ${unit}`;
+    }
 };
 
 export function sizeToHumanReadableWithUnit(bytes: number): { size: number, unit: string } {

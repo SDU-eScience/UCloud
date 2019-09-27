@@ -10,7 +10,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import styled from "styled-components";
 import {Dictionary, Page} from "Types";
-import {Button, Icon} from "ui-components";
+import {Icon} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Flex from "ui-components/Flex";
@@ -32,10 +32,6 @@ interface BackgroundTaskProps {
 }
 
 const BackgroundTasks = (props: BackgroundTaskProps) => {
-    let speedSum = 0;
-    let uploadedSize = 0;
-    let targetUploadSize = 0;
-
     const [taskInFocus, setTaskInFocus] = useState<string | null>(null);
 
     useEffect(() => {
@@ -65,12 +61,16 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
         setTaskInFocus(null);
     }, []);
 
+    let speedSum = 0;
+    let uploadedSize = 0;
+    let targetUploadSize = 0;
+
     props.uploads.forEach(upload => {
         if (upload.isUploading) {
             speedSum += calculateUploadSpeed(upload);
-            uploadedSize += upload.uploadSize;
+            targetUploadSize += upload.uploadSize;
             if (upload.uploadEvents.length > 0) {
-                targetUploadSize += upload.uploadEvents[upload.uploadEvents.length - 1].progressInBytes;
+                uploadedSize += upload.uploadEvents[upload.uploadEvents.length - 1].progressInBytes;
             }
         }
     });
