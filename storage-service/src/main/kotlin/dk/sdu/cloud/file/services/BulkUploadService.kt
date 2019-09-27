@@ -1,25 +1,15 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.bytesToString
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.notification.api.CreateNotification
-import dk.sdu.cloud.notification.api.Notification
-import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import dk.sdu.cloud.task.api.runTask
-import kotlinx.coroutines.launch
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import org.slf4j.Logger

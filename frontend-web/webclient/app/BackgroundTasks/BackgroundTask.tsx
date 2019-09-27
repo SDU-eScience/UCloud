@@ -99,9 +99,9 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
     return (
         <>
             <ClickableDropdown
-                width="600px"
-                left="-400px"
-                top="37px"
+                width={"600px"}
+                left={"-400px"}
+                top={"37px"}
                 trigger={<TasksIcon/>}
             >
                 {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}

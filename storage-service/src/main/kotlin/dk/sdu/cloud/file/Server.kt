@@ -87,9 +87,6 @@ class Server(
         // High level FS
         val coreFileSystem = CoreFileSystemService(fs, storageEventProducer, sensitivityService, wsClient)
 
-        // Bulk operations
-        val bulkDownloadService = BulkDownloadService(coreFileSystem)
-
         // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
         val indexingService = IndexingService(
@@ -155,7 +152,6 @@ class Server(
                     client,
                     processRunner,
                     coreFileSystem,
-                    bulkDownloadService,
                     tokenValidation,
                     fileLookupService
                 ),

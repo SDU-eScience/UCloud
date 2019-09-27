@@ -8,5 +8,4 @@ namespaces:
   - files.jobs
 
 dependencies:
-  - notifications
   - task

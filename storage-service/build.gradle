@@ -14,7 +14,6 @@ dependencies {
     implementation group: 'org.kamranzafar', name: 'jtar', version: '2.3'
     implementation "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     implementation "dk.sdu.cloud:auth-api:1.21.0"
-    implementation "dk.sdu.cloud:notification-api:1.1.4"
     implementation "dk.sdu.cloud:task-api:0.1.2"
 
     implementation 'net.java.dev.jna:jna:5.2.0'

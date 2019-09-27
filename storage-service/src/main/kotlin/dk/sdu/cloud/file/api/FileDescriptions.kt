@@ -458,25 +458,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val bulkDownload = call<BulkDownloadRequest, BinaryStream, CommonErrorMessage>("bulkDownload") {
-        audit<BulkFileAudit<BulkDownloadRequest>>()
-
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"bulk"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
     val verifyFileKnowledge = call<
             VerifyFileKnowledgeRequest,
             VerifyFileKnowledgeResponse,
