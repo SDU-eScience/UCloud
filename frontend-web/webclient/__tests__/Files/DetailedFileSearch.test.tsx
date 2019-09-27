@@ -21,9 +21,7 @@ describe("Detailed File Search", () => {
         expect(create(<Provider store={store}>
             <ThemeProvider theme={theme}>
                 <MemoryRouter>
-                    <DetailedFileSearch
-
-                    />
+                    <DetailedFileSearch onSearch={() => undefined} />
                 </MemoryRouter>
             </ThemeProvider>
         </Provider>).toJSON()).toMatchSnapshot()

@@ -2,6 +2,7 @@ import {KeyCode, ReduxObject} from "DefaultObjects";
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import * as React from "react";
 import {connect} from "react-redux";
+import {useHistory} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Checkbox, Flex, Input, InputGroup, Label, OutlineButton, Stamp} from "ui-components";
@@ -24,7 +25,6 @@ import {
     DETAILED_FILES_REMOVE_SENSITIVITIES,
     DETAILED_FILES_REMOVE_TAGS
 } from "./Redux/DetailedFileSearchReducer";
-import {useHistory} from "react-router";
 
 interface DetailedFileSearchGivenProps {
     defaultFilename?: string;
