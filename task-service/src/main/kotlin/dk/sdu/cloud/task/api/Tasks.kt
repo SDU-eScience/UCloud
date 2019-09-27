@@ -34,7 +34,7 @@ typealias MarkAsCompleteRequest = FindByStringId
 typealias MarkAsCompleteResponse = Unit
 
 object Tasks : CallDescriptionContainer("task") {
-    val baseContext = "/api/tasks"
+    private val baseContext = "/api/tasks"
 
     val list = call<ListRequest, ListResponse, CommonErrorMessage>("list") {
         auth {
