@@ -19,7 +19,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: "God",
             fileId: "NotG0D",
-            ownSensitivityLevel: SensitivityLevelMap.SENSITIVE
+            ownSensitivityLevel: SensitivityLevelMap.SENSITIVE,
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/AABA",
