@@ -2,8 +2,8 @@ import FileSelector from "Files/FileSelector";
 import {defaultVirtualFolders, VirtualFileTable, VirtualFileTableProps} from "Files/VirtualFileTable";
 import * as React from "react";
 import {useCallback, useMemo, useState} from "react";
-import {RouteComponentProps, withRouter} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
+import {useHistory} from "react-router";
 
 interface ResolveHolder<T> {
     resolve: (arg: T) => void;
@@ -47,14 +47,13 @@ export const FileTable: React.FunctionComponent<VirtualFileTableProps> = props =
     </>;
 };
 
-const EmbeddedFileTable_: React.FunctionComponent<Omit<VirtualFileTableProps, "onFileNavigation"> & RouteComponentProps & { includeVirtualFolders?: boolean }> = props => {
+export const EmbeddedFileTable: React.FunctionComponent<Omit<VirtualFileTableProps, "onFileNavigation"> & { includeVirtualFolders?: boolean }> = props => {
+    const history = useHistory();
     const mergedProps: VirtualFileTableProps = {
         ...props,
         ...(props.includeVirtualFolders !== false ? defaultVirtualFolders() : {}),
-        onFileNavigation: path => props.history.push(fileTablePage(path)),
+        onFileNavigation: path => history.push(fileTablePage(path)),
         embedded: true
     };
     return <FileTable {...mergedProps}/>;
 };
-
-export const EmbeddedFileTable = withRouter(EmbeddedFileTable_);

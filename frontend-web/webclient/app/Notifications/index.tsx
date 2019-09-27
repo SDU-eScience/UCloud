@@ -1,10 +1,9 @@
 import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
 import {formatDistance} from "date-fns/esm";
 import {NotificationsReduxObject, ReduxObject} from "DefaultObjects";
-import {History} from "history";
 import * as React from "react";
 import {connect} from "react-redux";
-import {Redirect, RouteComponentProps, withRouter} from "react-router";
+import {Redirect, useHistory} from "react-router";
 import {Dispatch} from "redux";
 import {Snack} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -28,13 +27,15 @@ interface NotificationProps {
     redirectTo: string;
     fetchNotifications: Function;
     notificationRead: (id: number | string) => void;
-    history: History;
     error?: string;
 }
 
-type Notifications = NotificationProps & NotificationsOperations & RouteComponentProps;
+type Notifications = NotificationProps & NotificationsOperations;
 
 function Notifications(props: Notifications) {
+
+    const history = useHistory();
+
     React.useEffect(() => {
         reload();
         const conn = WSFactory.open("/notifications", {
@@ -76,11 +77,11 @@ function Notifications(props: Notifications) {
             case "APP_COMPLETE":
                 // TODO This is buggy! Doesn't update if already present on analyses page
                 // TODO Should refactor these URLs somewhere else
-                props.history.push(`/applications/results/${notification.meta.jobId}`);
+                history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
             case "SHARE_REQUEST":
                 reload();
-                props.history.push("/shares");
+                history.push("/shares");
                 break;
         }
     }
@@ -224,5 +225,4 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
 
-export default connect<NotificationsReduxObject, NotificationsOperations>(mapStateToProps, mapDispatchToProps)
-    (withRouter(Notifications));
+export default connect<NotificationsReduxObject, NotificationsOperations>(mapStateToProps, mapDispatchToProps)(Notifications);
