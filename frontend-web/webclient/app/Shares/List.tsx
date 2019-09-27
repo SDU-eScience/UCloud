@@ -37,7 +37,7 @@ import {PaginationButtons} from "Pagination";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
 
-const List: React.FunctionComponent<ListProps & ListOperations> = props => {
+export const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
         listShares({sharedByMe: false, itemsPerPage: 25, page: 0}) : findShare(props.byPath);
 
@@ -313,11 +313,11 @@ export const ShareRow: React.FunctionComponent<{
     let permissionsBlock: JSX.Element | string | null = null;
 
     if (share.state === ShareState.FAILURE) {
-        permissionsBlock = <Button
+        permissionsBlock = (<Button
             color={"red"}
             disabled={isLoading}
             onClick={() => doRevoke()}
-        ><Icon name="close" size="1em" mr=".7em" />Remove</Button>;
+        ><Icon name="close" size="1em" mr=".7em" />Remove</Button>);
     } else if (share.state === ShareState.UPDATING || isLoading) {
         permissionsBlock = null;
     } else if (!sharedByMe) {

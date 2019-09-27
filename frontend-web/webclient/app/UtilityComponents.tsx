@@ -227,7 +227,8 @@ function Rows({path}: {path: string}): JSX.Element {
     return sharesByPath == null ? <Heading.h5 textAlign="center">No shares</Heading.h5> : <SharesByPathRow/>;
 
     function SharesByPathRow() {
-        return <>{sharesByPath.shares.map(share =>
+        return (
+        <>{sharesByPath.shares.map(share => (
             <ShareRow
                 revokeAsIcon
                 share={share}
@@ -238,7 +239,8 @@ function Rows({path}: {path: string}): JSX.Element {
             >
                 <AvatarComponent avatars={avatars} username={share.sharedWith} />
             </ShareRow>
-        )}</>;
+        ))}</>
+        );
     }
 }
 
@@ -309,7 +311,7 @@ interface FileIconProps {
 }
 
 export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps) =>
-    shared ?
+    shared ? (
         <RelativeFlex>
             <FtIcon size={size} fileIcon={fileIcon}/>
             <Absolute bottom={"-6px"} right={"-2px"}>
@@ -320,7 +322,7 @@ export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps) =
                     </DropdownContent>
                 </Dropdown>
             </Absolute>
-        </RelativeFlex> : <FtIcon size={size} fileIcon={fileIcon}/>;
+    </RelativeFlex>) : <FtIcon size={size} fileIcon={fileIcon}/>;
 
 const RelativeFlex = styled(Flex)`
     position: relative;
@@ -385,20 +387,24 @@ export class PP extends React.Component<{ visible: boolean }, { duration: number
                     "/>
                     </path>
                     <path id="beak" fill="#7b8c68">
-                        <animate attributeName="d" dur={`${this.state.duration}ms`} repeatCount="indefinite"
-                                 keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1" values="
-                        M78.29,70c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S78.29,85.5,78.29,70Z;
-                        M62.29,64c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S62.29,79.5,62.29,64Z;
-                        M48.29,67c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S48.29,82.5,48.29,67Z;
-                        M36.29,73c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S36.29,88.5,36.29,73Z;
-                        M35.29,75c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S35.29,90.5,35.29,75Z;
-                        M41.29,81c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S41.29,96.5,41.29,81Z;
-                        M59.29,84c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S59.29,99.5,59.29,84Z;
-                        M72.29,89c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S72.29,104.5,72.29,89Z;
-                        M80.29,82c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S80.29,97.5,80.29,82Z;
-                        M87.29,78c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S87.29,93.5,87.29,78Z;
-                        M78.29,70c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S78.29,85.5,78.29,70Z
-                    "/>
+                        <animate
+                            attributeName="d"
+                            dur={`${this.state.duration}ms`}
+                            repeatCount="indefinite"
+                            keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1"
+                            values="
+                                M78.29,70c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S78.29,85.5,78.29,70Z;
+                                M62.29,64c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S62.29,79.5,62.29,64Z;
+                                M48.29,67c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S48.29,82.5,48.29,67Z;
+                                M36.29,73c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S36.29,88.5,36.29,73Z;
+                                M35.29,75c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S35.29,90.5,35.29,75Z;
+                                M41.29,81c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S41.29,96.5,41.29,81Z;
+                                M59.29,84c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S59.29,99.5,59.29,84Z;
+                                M72.29,89c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S72.29,104.5,72.29,89Z;
+                                M80.29,82c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S80.29,97.5,80.29,82Z;
+                                M87.29,78c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S87.29,93.5,87.29,78Z;
+                                M78.29,70c0-9.92,2.5-14,8-14s8,2.17,8,10.67c0,15.92-7,26.33-7,26.33S78.29,85.5,78.29,70Z"
+                            />
                     </path>
                     <ellipse id="eye-right" rx="3" ry="4">
                         <animate attributeName="cx" dur={`${this.state.duration}ms`} repeatCount="indefinite"
@@ -409,12 +415,19 @@ export class PP extends React.Component<{ visible: boolean }, { duration: number
                                  values="62;56;59;65;67;73;76;81;74;70;62"/>
                     </ellipse>
                     <ellipse id="eye-left" rx="3" ry="4">
-                        <animate attributeName="cx" dur={`${this.state.duration}ms`} repeatCount="indefinite"
-                                 keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1"
-                                 values="67.5;51.5;37.5;25.5;24.5;30.5;48.5;61.5;69.5;76.5;67.5"/>
-                        <animate attributeName="cy" dur={`${this.state.duration}ms`} repeatCount="indefinite"
-                                 keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1"
-                                 values="62;56;59;65;67;73;76;81;74;70;62"/>
+                        <animate
+                            attributeName="cx"
+                            dur={`${this.state.duration}ms`}
+                            repeatCount="indefinite"
+                            keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1"
+                            values="67.5;51.5;37.5;25.5;24.5;30.5;48.5;61.5;69.5;76.5;67.5"/>
+                        <animate 
+                            attributeName="cy"
+                            dur={`${this.state.duration}ms`}
+                            repeatCount="indefinite"
+                            keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1"
+                            values="62;56;59;65;67;73;76;81;74;70;62"
+                        />
                     </ellipse>
                 </svg>
                 <RTLInput type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration"
