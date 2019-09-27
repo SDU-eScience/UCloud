@@ -25,7 +25,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
 .c3 {
   cursor: inherit;
   font-size: 14px;
-  color: red;
+  color: #c00;
 }
 
 .c5 {
@@ -117,7 +117,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
 .c3 {
   cursor: inherit;
   font-size: 14px;
-  color: red;
+  color: #c00;
 }
 
 .c0 {

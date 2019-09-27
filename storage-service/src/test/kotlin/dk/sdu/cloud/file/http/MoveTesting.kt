@@ -1,16 +1,18 @@
 package dk.sdu.cloud.file.http
 
+import dk.sdu.cloud.file.services.WithBackgroundScope
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.*
 
-class MoveTesting {
-
+class MoveTesting : WithBackgroundScope() {
     @Test
     fun `moving a file to a new directory`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val fileToMove = "/home/user1/folder/a"
@@ -34,7 +36,7 @@ class MoveTesting {
     @Test
     fun `moving a file to its current position`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val fileToMove = "/home/user1/folder/a"
@@ -52,7 +54,7 @@ class MoveTesting {
     @Test
     fun `moving a file to a directory that does not exist`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val fileToMove = "/home/user1/folder/a"
@@ -71,7 +73,7 @@ class MoveTesting {
     @Test
     fun `move file then rename`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val fileToMove = "/home/user1/folder/a"
@@ -95,7 +97,7 @@ class MoveTesting {
     @Test
     fun `move file that does not exist`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val fileToMove = "/home/user1/folder/k"
@@ -113,7 +115,7 @@ class MoveTesting {
     @Test
     fun `move file with unsupported path`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val fileToMove = "/home/user1/folder/a"

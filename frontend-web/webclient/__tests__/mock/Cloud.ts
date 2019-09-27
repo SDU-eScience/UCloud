@@ -9,7 +9,7 @@ interface JWT {
     iss: string
     firstNames: string
     exp: number
-    extendedByChain: any[]
+    extendedByChain: string[]
     iat: number
     principalType: string
     publicSessionReference: string

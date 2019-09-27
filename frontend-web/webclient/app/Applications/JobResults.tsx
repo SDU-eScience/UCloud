@@ -123,8 +123,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                             <Box><Label>
                                 <Checkbox
                                     checked={a.checked}
-                                    onClick={(e: {target: {checked: boolean}}) =>
-                                        props.checkAnalysis(a.jobId, e.target.checked)}
+                                    onChange={e => props.checkAnalysis(a.jobId, e.target.checked)}
                                 />
                             </Label></Box>
                         </Row>)}

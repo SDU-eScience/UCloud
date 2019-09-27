@@ -1,7 +1,7 @@
 ---
-# These are all up for debate. Create an issue with the discussion tag if you find a rule you don't agree with, 
+# These are all up for debate. Create an issue with the discussion tag if you find a rule you don't agree with,
 # or think that it is missing, and make a case for the change.
-extends: 
+extends:
     - "tslint:recommended"
     - "tslint-react"
 rules:
@@ -22,6 +22,7 @@ rules:
     jsx-wrap-multiline: true
     jsx-self-close: true
     arrow-parens: false
+    jsx-no-multiline-js: false
     no-console:
         severity: warning
         options:

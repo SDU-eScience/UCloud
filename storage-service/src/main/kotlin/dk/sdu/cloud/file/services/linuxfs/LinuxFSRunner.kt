@@ -5,8 +5,12 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.runBlocking
+import dk.sdu.cloud.service.Loggable
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.withContext
+import org.slf4j.Logger
 import java.io.File
 import java.io.OutputStream
 import java.nio.channels.FileChannel
@@ -17,83 +21,52 @@ import java.nio.file.FileSystemException
 import java.nio.file.NoSuchFileException
 import java.nio.file.NotDirectoryException
 import java.nio.file.NotLinkException
-import java.util.*
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.TimeUnit
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import kotlin.coroutines.CoroutineContext
 
 class LinuxFSRunner(
     private val uid: Int,
     override val user: String
-) : CommandRunner {
-    private val queue = ArrayBlockingQueue<Pair<Continuation<*>, () -> Any?>>(64)
-    private var thread: NativeThread? = null
-    private var isRunning: Boolean = false
-
+) : CommandRunner, CoroutineScope, Loggable {
     internal var inputStream: FileChannel? = null
     internal var inputSystemFile: File? = null
 
     internal var outputStream: OutputStream? = null
     internal var outputSystemFile: File? = null
 
-    var lastJobNotSafe: Any? = null
+    override val log: Logger = logger()
 
-    private fun init() {
-        synchronized(this) {
-            if (thread == null) {
-                isRunning = true
-                thread = NativeThread(THREAD_PREFIX + user + "-" + UUID.randomUUID().toString()) {
-                    if (user != SERVICE_USER) {
-                        StandardCLib.setfsgid(uid)
-                        StandardCLib.setfsuid(uid)
-                    }
-
-                    while (isRunning) {
-                        val (_, nextJob) = queue.poll(1, TimeUnit.SECONDS) ?: continue
-                        nextJob()
-                    }
-
-                    queue.forEach { (cont, _) ->
-                        cont.resumeWithException(CancellationException())
-                    }
-                }.also {
-                    it.start()
+    private val executor: ExecutorService by lazy {
+        Executors.newSingleThreadExecutor().also {
+            it.submit {
+                if (user != SERVICE_USER) {
+                    StandardCLib.setfsgid(uid)
+                    StandardCLib.setfsuid(uid)
                 }
+
+                Thread.currentThread().name = THREAD_PREFIX + user
             }
         }
     }
 
-    suspend fun <T> submit(job: suspend () -> T): T = suspendCoroutine { cont ->
-        init()
-        if (!isRunning) throw IllegalStateException("Runner has already been closed")
-
-        val futureTask: () -> Unit = {
-            runBlocking {
-                try {
-                    runAndRethrowNIOExceptions {
-                        cont.resume(job())
-                    }
-                } catch (ex: Throwable) {
-                    cont.resumeWithException(ex)
-                }
-            }
-        }
-
-        lastJobNotSafe = job
-        queue.put(Pair(cont, futureTask))
+    private val dispatcher: CoroutineDispatcher by lazy {
+        executor.asCoroutineDispatcher()
     }
 
-    fun requireContext() {
-        if (!Thread.currentThread().name.startsWith("$THREAD_PREFIX$user-")) {
-            throw IllegalStateException("Code is running in an invalid context!")
-        }
-    }
+    override val coroutineContext: CoroutineContext
+        get() = dispatcher
 
     override fun close() {
-        isRunning = false
+        executor.shutdown()
+    }
+
+    suspend fun <T> submit(job: suspend () -> T): T {
+        return withContext(dispatcher) {
+            runAndRethrowNIOExceptions {
+                job()
+            }
+        }
     }
 
     companion object {

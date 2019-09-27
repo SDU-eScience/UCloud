@@ -1,15 +1,10 @@
 package dk.sdu.cloud.file.services
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.background.BackgroundExecutor
-import dk.sdu.cloud.file.services.background.BackgroundResponse
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.runBlocking
 
 class ACLWorker(private val aclService: AclService<*>) {
     suspend fun updateAcl(request: UpdateAclRequest, user: String) {

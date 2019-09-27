@@ -1,15 +1,18 @@
 package dk.sdu.cloud.file.http
 
+import dk.sdu.cloud.file.services.WithBackgroundScope
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.*
 
-class StatTests {
+class StatTests : WithBackgroundScope() {
     @Test
     fun `stat a normal file`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val response = engine.stat("/home/user1/folder/a")
@@ -21,7 +24,7 @@ class StatTests {
     @Test
     fun `stat a non-existing file`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val response = engine.stat("/home/user1/folder/notThere")
@@ -33,7 +36,7 @@ class StatTests {
     @Test
     fun `stat unsupported path`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val response =

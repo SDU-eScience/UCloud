@@ -58,7 +58,8 @@ describe("Uploader", () => {
             extractArchive: false,
             uploadXHR: undefined,
             isPending: false,
-            parentPath: ""
+            parentPath: "",
+            uploadSize: 1
         }]) as AnyAction);
         expect(create(
             <Provider store={store}>

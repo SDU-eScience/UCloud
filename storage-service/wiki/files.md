@@ -3,11 +3,7 @@
 We model file system's structure after a typical unix-like file system. In
 this document we describe what files are in the context of SDUCloud.
 
-The system only supports **files**, **directories**, and **soft symbolic
-links**. There is no support for hard links.
-
-> Users cannot create soft links. We expect that soft links will become
-deprecated at a later time.
+The system only supports **files**, **directories**. There is no support for links.
 
 The file system provides a 'home' folder for every user. In the case of
 [projects](../../project-service) this is a shared folder among all project
@@ -53,7 +49,7 @@ The table below summarize the properties of a file.
 
 | Property                 | Summary                                                                     |
 |--------------------------|-----------------------------------------------------------------------------|
-| `fileType`               | The type of file (`FILE`/`DIRECTORY`/`LINK`)                                |
+| `fileType`               | The type of file (`FILE`/`DIRECTORY`)                                       |
 | `path`/`canonicalPath`   | The path to reach the file starting from the root. Uses `/` as a separator. |
 | `owner`                  | The username of the file owner                                              |
 | `fileId`                 | A unique identifier for this file                                           |

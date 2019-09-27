@@ -6,17 +6,26 @@ import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.file.util.createDummyFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
+import dk.sdu.cloud.micro.BackgroundScope
 import io.mockk.mockk
 import org.junit.Assert
 import org.junit.Test
 import java.io.File
+import kotlin.test.*
 
-class MakeDirectoryTest {
+class MakeDirectoryTest : WithBackgroundScope() {
     private fun createService(root: String): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root)
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
-        return Pair(runner,
-            CoreFileSystemService(fs, mockk(relaxed = true), fileSensitivityService, ClientMock.authenticatedClient)
+        return Pair(
+            runner,
+            CoreFileSystemService(
+                fs,
+                mockk(relaxed = true),
+                fileSensitivityService,
+                ClientMock.authenticatedClient,
+                backgroundScope
+            )
         )
     }
 

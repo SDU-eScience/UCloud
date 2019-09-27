@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '2.2.6-WITHOUTMETAEXTRACTION'
+version '3.0.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
@@ -14,7 +14,7 @@ dependencies {
     implementation group: 'org.kamranzafar', name: 'jtar', version: '2.3'
     implementation "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     implementation "dk.sdu.cloud:auth-api:1.21.0"
-    implementation "dk.sdu.cloud:notification-api:1.1.4"
+    implementation "dk.sdu.cloud:task-api:0.2.0"
 
     implementation 'net.java.dev.jna:jna:5.2.0'
     implementation group: 'com.h2database', name: 'h2', version: '1.4.196'
