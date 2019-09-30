@@ -4,6 +4,7 @@ import dk.sdu.cloud.alerting.services.Alert
 import dk.sdu.cloud.alerting.services.AlertingService
 import dk.sdu.cloud.alerting.services.ElasticAlerting
 import dk.sdu.cloud.alerting.services.KubernetesAlerting
+import dk.sdu.cloud.alerting.services.NetworkTrafficAlerts
 import dk.sdu.cloud.alerting.services.SlackNotifier
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.elasticHighLevelClient
@@ -41,7 +42,7 @@ class Server(
         GlobalScope.launch {
             try {
                 log.info("Alert on 500 statuscodes - starting up")
-                ElasticAlerting(elasticHighLevelClient, alertService).alertOnStatusCode(config)
+                NetworkTrafficAlerts(elasticHighLevelClient, alertService).alertOnStatusCode(config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on StatusCode caught exception: ${ex.message}.")
                 alertService.createAlert(Alert("WARNING: Alert on 500 status' caught exception: ${ex.message}."))
@@ -83,6 +84,19 @@ class Server(
                 log.warn("WARNING: Alert on elastic indices count caught exception: ${ex}.")
                 alertService.createAlert(Alert("WARNING: Alert on cluster storage caught exception: ${ex.message}."))
                 elasticLowLevelClient.close()
+            }
+        }
+
+        GlobalScope.launch {
+            try {
+                log.info("Alert on many 4xx through ambassador - starting up")
+                NetworkTrafficAlerts(elasticHighLevelClient, alertService)
+                    .ambassador4xxAlert(elasticHighLevelClient, config)
+            } catch (ex: Exception) {
+                log.warn("WARNING: Alert on many 4xx through ambassador caught exception: ${ex}.")
+                alertService.createAlert(
+                    Alert("WARNING: Alert on many 4xx through ambassador caught exception: ${ex.message}.")
+                )
             }
         }
     }

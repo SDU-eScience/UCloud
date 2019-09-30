@@ -12,7 +12,8 @@ import java.net.UnknownHostException
 
 data class Configuration (
     val notifiers: Notifiers = Notifiers(),
-    val limits: Limits? = null
+    val limits: Limits? = null,
+    val omissions: Omission? = null
 )
 
 data class Limits(
@@ -20,7 +21,12 @@ data class Limits(
     val storageInfoLimit: Double,
     val storageWarnLimit: Double,
     val storageCriticalLimit: Double,
-    val alertWhenNumberOfShardsAvailableIsLessThan: Int?
+    val alertWhenNumberOfShardsAvailableIsLessThan: Int?,
+    val limitFor4xx: Int?
+)
+
+data class Omission(
+    val whiteListedIPs: List<String>?
 )
 
 data class Notifiers(
