@@ -18,14 +18,14 @@ const store = configureStore({detailedFileSearch: initFilesDetailedSearch()}, {d
 
 describe("Detailed File Search", () => {
     it("Mount file search", () => {
-        expect(create(<Provider store={store}>
-            <ThemeProvider theme={theme}>
-                <MemoryRouter>
-                    <DetailedFileSearch
-
-                    />
-                </MemoryRouter>
-            </ThemeProvider>
-        </Provider>).toJSON()).toMatchSnapshot()
+        expect(create(
+            <Provider store={store}>
+                <ThemeProvider theme={theme}>
+                    <MemoryRouter>
+                        <DetailedFileSearch onSearch={() => undefined} />
+                    </MemoryRouter>
+                </ThemeProvider>
+            </Provider>
+        ).toJSON()).toMatchSnapshot();
     });
-})
+});

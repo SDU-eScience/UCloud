@@ -9,33 +9,33 @@ import {
 import {Cloud} from "Authentication/SDUCloudObject";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {emptyPage} from "DefaultObjects";
+import {loadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
-import * as React from "react";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
+import * as Pagination from "Pagination";
+import {PaginationButtons} from "Pagination";
 import {useEffect, useRef, useState} from "react";
+import * as React from "react";
 import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {Box, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text} from "ui-components";
+import Button from "ui-components/Button";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
+import Input, {InputLabel} from "ui-components/Input";
+import Link from "ui-components/Link";
+import {SidebarPages} from "ui-components/Sidebar";
+import {TextSpan} from "ui-components/Text";
+import {colors} from "ui-components/theme";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {fileTablePage, getFilenameFromPath} from "Utilities/FileUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
-import Button from "ui-components/Button";
-import Input, {InputLabel} from "ui-components/Input";
-import {TextSpan} from "ui-components/Text";
-import {colors} from "ui-components/theme";
-import {Dispatch} from "redux";
-import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {SidebarPages} from "ui-components/Sidebar";
-import {listShares, findShare, createShare, acceptShare, revokeShare, updateShare} from "./index";
-import {loadingAction} from "Loading";
-import * as Pagination from "Pagination";
-import Link from "ui-components/Link";
-import {PaginationButtons} from "Pagination";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
+import {acceptShare, createShare, findShare, listShares, revokeShare, updateShare} from "./index";
 
 export const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
@@ -103,7 +103,8 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
 
     const AvatarComponent = (props: {username: string}) => {
         let avatar = defaultAvatar;
-        const loadedAvatar = !!avatars.data && !!avatars.data.avatars ? avatars.data.avatars[props.username] : undefined;
+        const loadedAvatar =
+            !!avatars.data && !!avatars.data.avatars ? avatars.data.avatars[props.username] : undefined;
         if (!!loadedAvatar) avatar = loadedAvatar;
         return <UserAvatar avatar={avatar} mr={"10px"} />;
     };
@@ -111,24 +112,25 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     const GroupedShareCardWrapper = (props: {shareByPath: SharesByPath}) => {
         const [page, setPage] = useState(0);
         const pageSize = 5;
-        return (<GroupedShareCard onUpdate={refresh} groupedShare={props.shareByPath} key={props.shareByPath.path}>
-            {props.shareByPath.shares.slice(pageSize * page, pageSize * page + pageSize).map(share =>
-                <ShareRow
-                    key={share.id}
-                    sharedBy={props.shareByPath.sharedBy}
-                    onUpdate={refresh}
-                    share={share}
-                    sharedByMe={sharedByMe}
-                >
-                    <AvatarComponent username={sharedByMe ? share.sharedWith : props.shareByPath.sharedBy} />
-                </ShareRow>
-            )}
-            <PaginationButtons
-                totalPages={Math.floor(props.shareByPath.shares.length / pageSize)}
-                currentPage={page}
-                toPage={page => setPage(page)}
-            />
-        </GroupedShareCard>);
+        return (
+            <GroupedShareCard onUpdate={refresh} groupedShare={props.shareByPath} key={props.shareByPath.path}>
+                {props.shareByPath.shares.slice(pageSize * page, pageSize * page + pageSize).map(share => (
+                    <ShareRow
+                        key={share.id}
+                        sharedBy={props.shareByPath.sharedBy}
+                        onUpdate={refresh}
+                        share={share}
+                        sharedByMe={sharedByMe}
+                    >
+                        <AvatarComponent username={sharedByMe ? share.sharedWith : props.shareByPath.sharedBy} />
+                    </ShareRow>
+                ))}
+                <PaginationButtons
+                    totalPages={Math.floor(props.shareByPath.shares.length / pageSize)}
+                    currentPage={page}
+                    toPage={page => setPage(page)}
+                />
+            </GroupedShareCard>);
     };
 
     const header = props.byPath !== undefined ? null : (
@@ -156,27 +158,28 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     );
 
     const shares = page.data.items.filter(it => it.sharedByMe === sharedByMe || props.byPath !== undefined);
-    const main = <Pagination.List
-        loading={page.loading}
-        page={page.data}
-        customEmptyPage={<NoShares sharedByMe={sharedByMe} />}
-        onPageChanged={(pageNumber, page) => setFetchParams(listShares({
-            sharedByMe,
-            page: pageNumber,
-            itemsPerPage: page.itemsPerPage
-        }))}
-        pageRenderer={() => <>
-            {props.innerComponent ? header : null}
-            {
-                shares.length === 0 ?
+    const main = (
+        <Pagination.List
+            loading={page.loading}
+            page={page.data}
+            customEmptyPage={<NoShares sharedByMe={sharedByMe} />}
+            onPageChanged={(pageNumber, page) => setFetchParams(listShares({
+                sharedByMe,
+                page: pageNumber,
+                itemsPerPage: page.itemsPerPage
+            }))}
+            pageRenderer={() => <>
+                {props.innerComponent ? header : null}
+                {shares.length === 0 ?
                     <NoShares sharedByMe={sharedByMe} /> :
                     shares.map(it =>
                         <GroupedShareCardWrapper key={it.path} shareByPath={it} />
                     )
+                }
+            </>
             }
-        </>
-        }
-    />;
+        />
+    );
 
     return (
         <MainContainer
@@ -188,7 +191,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     );
 };
 
-const NoShares = ({sharedByMe}: {sharedByMe: boolean}) =>
+const NoShares = ({sharedByMe}: {sharedByMe: boolean}) => (
     <Heading.h3 textAlign="center">
         No shares
         <br />
@@ -196,7 +199,8 @@ const NoShares = ({sharedByMe}: {sharedByMe: boolean}) =>
             <small>You can create a new share by clicking 'Share' on one of your files.</small> :
             <small>Files shared will appear here.</small>
         }
-    </Heading.h3>;
+    </Heading.h3>
+);
 
 
 interface ListEntryProperties {

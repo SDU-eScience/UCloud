@@ -25,15 +25,21 @@ const Files: React.FunctionComponent<FilesOperations> = props => {
     const urlPath = getQueryParamOrElse({history, location}, "path", Cloud.homeFolder);
     useEffect(() => props.onInit(), []);
 
-    return <FileTable
-        {...defaultVirtualFolders()}
-        fileOperations={defaultFileOperations.filter(it => it.text !== "View Parent")}
-        embedded={false}
-        onFileNavigation={path => history.push(fileTablePage(path))}
-        path={urlPath}
-        onLoadingState={props.setLoading}
-        refreshHook={props.refreshHook}
-    />;
+    return (
+        <FileTable
+            {...defaultVirtualFolders()}
+            fileOperations={defaultFileOperations.filter(it => it.text !== "View Parent")}
+            embedded={false}
+            onFileNavigation={navigation}
+            path={urlPath}
+            onLoadingState={props.setLoading}
+            refreshHook={props.refreshHook}
+        />
+    );
+
+    function navigation(path: string): void {
+        history.push(fileTablePage(path));
+    }
 };
 
 const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
