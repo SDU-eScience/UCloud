@@ -4,14 +4,14 @@ version '1.2.4'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.support.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.22/sdu-cloud.gradle"
 
 repositories {
     jcenter()
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.8.3"
+    ext.serviceCommonVersion = "1.9.0"
 }
 
 dependencies {
