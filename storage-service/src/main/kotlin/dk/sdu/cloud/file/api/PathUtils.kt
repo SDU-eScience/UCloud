@@ -28,10 +28,48 @@ fun String.parent(): String {
 
 fun String.components(): List<String> = removePrefix("/").removeSuffix("/").split("/")
 
-fun String.fileName(): String = File(this).name
+fun String.fileName(): String = substringAfterLast('/')
 
-fun String.normalize(): String = File(this).normalize().path
+fun String.normalize(): String {
+    val inputComponents = components()
+    val reconstructedComponents = ArrayList<String>()
 
-fun relativize(rootPath: String, absolutePath: String): String {
-    return File(rootPath).toURI().relativize(File(absolutePath).toURI()).normalize().path
+    for (component in inputComponents) {
+        when (component) {
+            ".", "" -> {
+                // Do nothing
+            }
+
+            ".." -> {
+                if (reconstructedComponents.isNotEmpty()) {
+                    reconstructedComponents.removeAt(reconstructedComponents.lastIndex)
+                }
+            }
+
+            else -> reconstructedComponents.add(component)
+        }
+    }
+
+    return "/" + reconstructedComponents.joinToString("/")
+}
+
+fun relativize(parentPath: String, childPath: String): String {
+    val rootNormalized = parentPath.normalize()
+    val rootComponents = rootNormalized.components()
+    val childNormalized = childPath.normalize()
+    val childComponents = childNormalized.components()
+
+    // Throw exception if child is not a child of root
+    require(rootNormalized.length <= childNormalized.length || rootComponents.size < childComponents.size) {
+        "child is not a child of parent ($childPath !in $parentPath)"
+    }
+
+    // Throw exception if child is not a child of root
+    for (i in rootComponents.indices) {
+        require(rootComponents[i] == childComponents[i]) {
+            "child is not a child of parent ($childPath !in $parentPath)"
+        }
+    }
+
+    return "./" + childComponents.takeLast(childComponents.size - rootComponents.size).joinToString("/")
 }

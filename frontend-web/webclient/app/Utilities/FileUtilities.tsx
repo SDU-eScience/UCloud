@@ -11,6 +11,7 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
+import {size} from "styled-system";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -456,25 +457,43 @@ export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<R
     );
 };
 
+function isInt(value: number) {
+    if (isNaN(value)) {
+        return false;
+    }
+    return (value | 0) === value;
+}
+
 export const sizeToString = (bytes: number | null): string => {
     if (bytes === null) return "";
     if (bytes < 0) return "Invalid size";
-    if (bytes < 1000) {
-        return `${bytes} B`;
-    } else if (bytes < 1000 ** 2) {
-        return `${(bytes / 1000).toFixed(2)} KB`;
-    } else if (bytes < 1000 ** 3) {
-        return `${(bytes / 1000 ** 2).toFixed(2)} MB`;
-    } else if (bytes < 1000 ** 4) {
-        return `${(bytes / 1000 ** 3).toFixed(2)} GB`;
-    } else if (bytes < 1000 ** 5) {
-        return `${(bytes / 1000 ** 4).toFixed(2)} TB`;
-    } else if (bytes < 1000 ** 6) {
-        return `${(bytes / 1000 ** 5).toFixed(2)} PB`;
+    const {size, unit} = sizeToHumanReadableWithUnit(bytes);
+
+    if (isInt(size)) {
+        return `${size} ${unit}`;
     } else {
-        return `${(bytes / 1000 ** 6).toFixed(2)} EB`;
+        return `${size.toFixed(2)} ${unit}`;
     }
 };
+
+export function sizeToHumanReadableWithUnit(bytes: number): { size: number, unit: string } {
+    if (bytes < 1000) {
+        return {size: bytes, unit: "B"};
+    } else if (bytes < 1000 ** 2) {
+        return {size: (bytes / 1000), unit: "KB"};
+    } else if (bytes < 1000 ** 3) {
+        return {size: (bytes / 1000 ** 2), unit: "MB"};
+    } else if (bytes < 1000 ** 4) {
+        return {size: (bytes / 1000 ** 3), unit: "GB"};
+    } else if (bytes < 1000 ** 5) {
+        return {size: (bytes / 1000 ** 4), unit: "TB"};
+    } else if (bytes < 1000 ** 6) {
+        return {size: (bytes / 1000 ** 5), unit: "PB"};
+    } else {
+        return {size: (bytes / 1000 ** 6), unit: "EB"};
+    }
+}
+
 
 export const directorySizeQuery = "/files/stats/directory-sizes";
 
@@ -484,28 +503,7 @@ interface ShareFiles {
 }
 
 export const shareFiles = async ({files, cloud}: ShareFiles) => {
-    const input = await shareDialog();
-    if ("cancelled" in input) return;
-    const rights: string[] = [];
-    if (input.access.includes("read")) rights.push("READ");
-    if (input.access.includes("read_edit")) rights.push("WRITE");
-    let iteration = 0;
-    // Replace with Promise.all
-    files.map(f => f.path).forEach((path, _, paths) => {
-        const body = {
-            sharedWith: input.username,
-            path,
-            rights
-        };
-        cloud.put(`/shares/`, body)
-            .then(() => {
-                if (++iteration === paths.length) snackbarStore.addSnack({
-                    message: "Files shared successfully",
-                    type: SnackType.Success
-                });
-            })
-            .catch(({response}) => snackbarStore.addSnack({message: `${response.why}`, type: SnackType.Failure}));
-    });
+    shareDialog(files.map(it => it.path), cloud);
 };
 
 const moveToTrashDialog = ({filePaths, onConfirm}: { onConfirm: () => void, filePaths: string[] }): void => {

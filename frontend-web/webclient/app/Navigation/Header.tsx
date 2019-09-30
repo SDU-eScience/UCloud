@@ -1,25 +1,27 @@
-import {AdvancedSearchRequest as AppSearchRequest, DetailedApplicationSearchReduxState, FullAppInfo} from "Applications";
+import {
+    AdvancedSearchRequest as AppSearchRequest,
+    DetailedApplicationSearchReduxState,
+    FullAppInfo
+} from "Applications";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppName} from "Applications/Redux/DetailedApplicationSearchActions";
 import {Cloud} from "Authentication/SDUCloudObject";
-import Avatar from "AvataaarLib";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import {HeaderSearchType, KeyCode, ReduxObject} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {setFilename} from "Files/Redux/DetailedFileSearchActions";
-import {History} from "history";
 import {HeaderStateToProps} from "Navigation";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
 import Notification from "Notifications";
 import * as React from "react";
 import {connect} from "react-redux";
-import {RouteComponentProps, withRouter} from "react-router";
+import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
 import {searchApplications, searchFiles, setApplicationsLoading, setFilesLoading} from "Search/Redux/SearchActions";
 import {applicationSearchBody, fileSearchBody} from "Search/Search";
 import styled from "styled-components";
-import {SpaceProps} from "styled-system";
 import {Page} from "Types";
 import {
     Absolute,
@@ -43,15 +45,13 @@ import {Dropdown} from "ui-components/Dropdown";
 import Link from "ui-components/Link";
 import {TextSpan} from "ui-components/Text";
 import {ThemeToggler} from "ui-components/ThemeToggle";
-import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString} from "UtilityFunctions";
+import {getQueryParamOrElse} from "Utilities/URIUtilities";
 
-interface HeaderProps extends HeaderStateToProps, HeaderOperations, RouteComponentProps {
-    history: History;
-    toggleTheme: () => void;
+interface HeaderProps extends HeaderStateToProps, HeaderOperations {
+    toggleTheme(): void;
 }
 
 const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
@@ -59,6 +59,7 @@ const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || in
 
 function Header(props: HeaderProps) {
     if (!Cloud.isLoggedIn) return null;
+    const history = useHistory();
 
     React.useEffect(() => {
         props.fetchAvatar();
@@ -71,11 +72,11 @@ function Header(props: HeaderProps) {
             <Logo />
             <Box ml="auto" />
             <Hide xs sm md>
-                <Search history={props.history} match={props.match} location={props.location} />
+                <Search />
             </Hide>
             <Hide lg xxl xl>
                 <Icon name="search" size="32" mr="3px" cursor="pointer"
-                    onClick={() => props.history.push("/search/files")} />
+                    onClick={() => history.push("/search/files")} />
             </Hide>
             <Box mr="auto" />
             <DevelopmentBadge />
@@ -134,7 +135,7 @@ export const Refresh = ({
     headerLoading
 }: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
         <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading}
-            onClick={() => !!onClick ? onClick() : undefined} /> : <Box width="24px" />;
+            onClick={onClick} /> : <Box width="24px" />;
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
@@ -221,9 +222,12 @@ interface SearchOperations {
 
 type SearchProps = SearchOperations & SearchStateProps;
 
-const _Search = (props: SearchProps & RouteComponentProps) => {
-    const [search, setSearch] = React.useState("");
-    const {history, prioritizedSearch, setSearchType} = props;
+// tslint:disable-next-line: variable-name
+const _Search = (props: SearchProps) => {
+    const history = useHistory();
+    const location = useLocation();
+    const [search, setSearch] = React.useState(getQueryParamOrElse({history, location}, "query", ""));
+    const {prioritizedSearch, setSearchType} = props;
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     return (<Relative>
         <SearchInput>
@@ -236,7 +240,7 @@ const _Search = (props: SearchProps & RouteComponentProps) => {
                 value={search}
                 noBorder
                 onKeyDown={e => {
-                    if (e.keyCode === KeyCode.ENTER && search) searchByName(search);
+                    if (e.keyCode === KeyCode.ENTER && search) fetchAll();
                 }}
                 onChange={({target}) => setSearch(target.value)}
             />
@@ -246,6 +250,7 @@ const _Search = (props: SearchProps & RouteComponentProps) => {
                 </Label>
             </Absolute>
             <ClickableDropdown
+                keepOpenOnOutsideClick
                 overflow={"visible"}
                 left={-425}
                 top={15}
@@ -255,7 +260,7 @@ const _Search = (props: SearchProps & RouteComponentProps) => {
                 squareTop
                 trigger={
                     <Absolute top={-12.5} right={12} bottom={0} left={-28}>
-                        <Icon name="chevronDown" size="15px" />
+                        <Icon cursor="pointer" name="chevronDown" size="15px" />
                     </Absolute>
                 }>
                 <SelectableTextWrapper>
@@ -271,13 +276,11 @@ const _Search = (props: SearchProps & RouteComponentProps) => {
                 {prioritizedSearch === "files" ?
                     <DetailedFileSearch
                         onSearch={() => fetchAll()}
-                        controlledSearch={[search, setSearch]}
                         cantHide
                     /> :
                     prioritizedSearch === "applications" ?
                         <DetailedApplicationSearch
                             onSearch={() => fetchAll()}
-                            controlledSearch={[search, setSearch]}
                             defaultAppName={search}
                         /> : null}
             </ClickableDropdown>
@@ -299,21 +302,6 @@ const _Search = (props: SearchProps & RouteComponentProps) => {
                 itemsPerPage || props.applications.itemsPerPage,
                 props.applications.pageNumber
             ), name: search
-        });
-        history.push(searchPage(prioritizedSearch, search));
-    }
-
-    function searchByName(name: string) {
-        props.searchApplications({
-            name,
-            itemsPerPage: props.applications.itemsPerPage,
-            page: props.applications.pageNumber
-        });
-        props.searchFiles({
-            fileName: name,
-            fileTypes: ["DIRECTORY", "FILE"],
-            itemsPerPage: props.files.itemsPerPage,
-            page: props.files.pageNumber
         });
         history.push(searchPage(prioritizedSearch, search));
     }
@@ -348,35 +336,6 @@ const mapSearchDispatchToProps = (dispatch: Dispatch) => ({
 
 const Search = connect<SearchStateProps, SearchOperations>(mapSearchStateToProps, mapSearchDispatchToProps)(_Search);
 
-const ClippedBox = styled(Flex)`
-    align-items: center;
-    overflow: hidden;
-    height: 48px;
-`;
-
-interface UserAvatar extends SpaceProps {
-    avatar: AvatarType;
-}
-
-export const UserAvatar = ({avatar}: UserAvatar) => (
-    <ClippedBox mx="8px" width="60px">
-        <Avatar
-            avatarStyle="Circle"
-            topType={avatar.top}
-            accessoriesType={avatar.topAccessory}
-            hairColor={avatar.hairColor}
-            facialHairType={avatar.facialHair}
-            facialHairColor={avatar.facialHairColor}
-            clotheType={avatar.clothes}
-            clotheColor={avatar.colorFabric}
-            graphicType={avatar.clothesGraphic}
-            eyeType={avatar.eyes}
-            eyebrowType={avatar.eyebrows}
-            mouthType={avatar.mouthTypes}
-            skinColor={avatar.skinColors}
-        />
-    </ClippedBox>);
-
 interface HeaderOperations {
     fetchAvatar: () => void;
 }
@@ -404,4 +363,4 @@ const isAnyLoading = (rO: ReduxObject): boolean =>
     || rO.accounting.resources["compute/timeUsed"].events.loading
     || rO.accounting.resources["storage/bytesUsed"].events.loading;
 
-export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));
+export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(Header);

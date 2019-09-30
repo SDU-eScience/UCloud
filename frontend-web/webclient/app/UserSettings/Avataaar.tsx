@@ -179,12 +179,12 @@ interface AvatarSelect<T1, T2> {
     disabled: boolean
 }
 
-function AvatarSelect<T1, T2>({update, options, title, disabled, defaultValue}: AvatarSelect<T1, T2>) {
+function AvatarSelect<T1 extends string, T2>({update, options, title, disabled, defaultValue}: AvatarSelect<T1, T2>) {
     if (disabled) return null;
     return (
         <Label mt="0.8em">{title}
             <Select defaultValue={defaultValue}
-                onChange={({target: {value}}: {target: {value: T1}}) => update(value)}>
+                onChange={({target: {value}}: {target: {value}}) => update(value as T1)}>
                 {Object.keys(options).map(it => <option key={it}>{it}</option>)}
             </Select>
         </Label>

@@ -212,11 +212,6 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
                         default:
                             return;
                     }
-                case ParameterTypes.Range:
-                    extracted[key] = {
-                        min: 0,
-                        max: 0
-                    };
                 case ParameterTypes.Integer:
                     extracted[key] = parseInt(r.current.value, 10);
                     return;
@@ -232,7 +227,6 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
                 case ParameterTypes.Peer:
                     extracted[key] = {jobId: r.current.value};
                     return;
-
             }
         } else {
             switch (parameter.type) {

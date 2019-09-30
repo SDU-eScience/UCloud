@@ -1,30 +1,30 @@
+import {FullAppInfo, WithAppFavorite, WithAppMetadata} from "Applications";
+import {Cloud} from "Authentication/SDUCloudObject";
+import {ReduxObject} from "DefaultObjects";
+import {loadingEvent} from "LoadableContent";
+import Spinner from "LoadingIcon/LoadingIcon";
+import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
+import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {ReduxObject} from "DefaultObjects";
-import {updatePageTitle, StatusActions} from "Navigation/Redux/StatusActions";
-import {setPrioritizedSearch, HeaderActions, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {WithAppMetadata, WithAppFavorite, WithAllAppTags, FullAppInfo} from "Applications";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
-import * as Pagination from "Pagination";
-import {ApplicationCard} from "./Card";
-import {LoadableMainContainer} from "MainContainer/MainContainer";
+import {Box} from "ui-components";
 import {GridCardGroup} from "ui-components/Grid";
+import * as Heading from "ui-components/Heading";
+import {Spacer} from "ui-components/Spacer";
+import {hpcFavoriteApp} from "Utilities/ApplicationUtilities";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {ApplicationCard} from "./Card";
 import * as Actions from "./Redux/FavoriteActions";
 import {Type as ReduxType} from "./Redux/FavoriteObject";
-import {loadingEvent} from "LoadableContent";
-import {Box} from "ui-components";
-import {Spacer} from "ui-components/Spacer";
-import {Cloud} from "Authentication/SDUCloudObject";
-import {hpcFavoriteApp} from "Utilities/ApplicationUtilities";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
-import {SnackType} from "Snackbar/Snackbars";
 
 interface InstalledOperations {
-    onInit: () => void
-    fetchItems: (pageNumber: number, itemsPerPage: number) => void
-    setRefresh: (refresh?: () => void) => void
+    onInit: () => void;
+    fetchItems: (pageNumber: number, itemsPerPage: number) => void;
+    setRefresh: (refresh?: () => void) => void;
 }
 
 type InstalledStateProps = ReduxType;
@@ -54,24 +54,23 @@ function Installed(props: InstalledProps & {header: any}) {
             const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
             const pageNumber = page.pageNumber < (page.itemsInTotal - 1) / page.itemsPerPage ?
                 page.pageNumber : Math.max(page.pageNumber - 1, 0);
-            props.fetchItems(pageNumber, page.itemsPerPage)
+            props.fetchItems(pageNumber, page.itemsPerPage);
         } catch (e) {
-            snackbarStore.addSnack({
-                message: errorMessageOrDefault(e, "Could not favorite app"),
-                type: SnackType.Failure
-            })
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Could not favorite app"));
         }
     }
 
     const page = props.applications.content as Page<FullAppInfo>;
     const itemsPerPage = !!page ? page.itemsPerPage : 25;
     const main = (
-        <>
-            <Spacer left={null} right={props.applications.loading ? null : <Pagination.EntriesPerPageSelector
-                content="Apps per page"
-                entriesPerPage={itemsPerPage}
-                onChange={itemsPerPage => props.fetchItems(0, itemsPerPage)}
-            />} />
+        <Box maxWidth="98%">
+            <Spacer
+                left={<Heading.h2>Favorites</Heading.h2>}
+                right={props.applications.loading ? null : <Pagination.EntriesPerPageSelector
+                    content="Apps per page"
+                    entriesPerPage={itemsPerPage}
+                    onChange={itemsPerPage => props.fetchItems(0, itemsPerPage)}
+                />} />
             <Pagination.List
                 loading={props.applications.loading}
                 page={page}
@@ -80,27 +79,39 @@ function Installed(props: InstalledProps & {header: any}) {
                     <InstalledPage onFavorite={(name, version) => onFavorite(name, version)} page={page} />
                 </Box>}
             />
-        </>
+        </Box >
     );
-    return (
-        <LoadableMainContainer
-            header={props.header}
-            loadable={props.applications}
-            main={main}
-            sidebar={null}
-        />
-    );
+
+    if (!props.applications.content) {
+        if (props.applications.error) {
+            return (<Heading.h2>
+                {props.applications.error.statusCode} - {props.applications.error.errorMessage}
+            </Heading.h2>);
+        }
+        return (<Spinner />);
+    } else if (props.applications.content.itemsInTotal === 0) {
+        return null;
+    } else {
+        return main;
+    }
 }
 
 interface InstalledPageProps {
-    page: Page<FullAppInfo>
-    onFavorite: (name: string, version: string) => void
+    page: Page<FullAppInfo>;
+    onFavorite: (name: string, version: string) => void;
 }
 
 const InstalledPage: React.FunctionComponent<InstalledPageProps> = props => (
     <GridCardGroup>
         {props.page.items.map((it, idx) => (
-            <ApplicationCard onFavorite={props.onFavorite} app={it} key={idx} isFavorite={it.favorite} linkToRun tags={it.tags} />)
+            <ApplicationCard
+                onFavorite={props.onFavorite}
+                app={it}
+                key={idx}
+                isFavorite={it.favorite}
+                linkToRun
+                tags={it.tags}
+            />)
         )}
     </GridCardGroup>
 );
@@ -108,7 +119,7 @@ const InstalledPage: React.FunctionComponent<InstalledPageProps> = props => (
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>): InstalledOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Applications"));
-        dispatch(setPrioritizedSearch("applications"))
+        dispatch(setPrioritizedSearch("applications"));
     },
 
     fetchItems: async (pageNumber: number, itemsPerPage: number) => {

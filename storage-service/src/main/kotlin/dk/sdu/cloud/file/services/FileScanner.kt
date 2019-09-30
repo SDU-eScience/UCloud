@@ -3,10 +3,10 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.launch
@@ -17,7 +17,8 @@ import kotlinx.coroutines.launch
 class FileScanner<FSCtx : CommandRunner>(
     private val processRunner: FSCommandRunnerFactory<FSCtx>,
     private val fs: CoreFileSystemService<FSCtx>,
-    private val eventProducer: StorageEventProducer
+    private val eventProducer: StorageEventProducer,
+    private val backgroundScope: BackgroundScope
 ) {
     suspend fun scanFilesCreatedExternally(path: String) {
         log.debug("scanFilesCreatedExternally($path)")
@@ -36,7 +37,7 @@ class FileScanner<FSCtx : CommandRunner>(
                 }
             }
 
-            BackgroundScope.launch {
+            backgroundScope.launch {
                 log.info("Producing events: ${events}")
                 eventProducer.produce(events)
                 log.info("Events produced!")

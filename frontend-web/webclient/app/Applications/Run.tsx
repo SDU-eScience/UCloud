@@ -165,7 +165,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             <MainContainer
                 headerSize={48}
                 header={
-                    <Flex ml="12%">
+                    <Flex ml="50px">
                         <AppHeader slim application={application} />
                     </Flex>
                 }
@@ -204,7 +204,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 main={
                     <ContainerForText>
-                        <form onSubmit={this.onSubmit}>
+                        <form onSubmit={this.onSubmit} style={{width: "100%"}}>
                             {
                                 this.state.previousRuns.items.length <= 0 ? null :
                                     <RunSection>

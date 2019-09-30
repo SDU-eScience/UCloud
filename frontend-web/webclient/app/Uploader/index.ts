@@ -8,6 +8,7 @@ export interface Upload {
     file: File;
     isUploading: boolean;
     progressPercentage: number;
+    uploadSize: number;
     extractArchive: boolean;
     sensitivity: Sensitivity;
     uploadXHR?: XMLHttpRequest;

@@ -16,7 +16,6 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import Dashboard from "Dashboard/Dashboard";
 import Dialog from "Dialog/Dialog";
 import {ErrorBoundary} from "ErrorBoundary/ErrorBoundary";
-import Favorites from "Favorites/Favorites";
 import FileInfo from "Files/FileInfo";
 import FilePreview from "Files/FilePreview";
 import Files from "Files/Files";
@@ -62,7 +61,6 @@ const Core = () => {
                 <Route exact path="/files/preview" component={requireAuth(FilePreview)}/>
                 <Route exact path="/files" component={requireAuth(Files)}/>
 
-                <Route exact path="/favorites" component={requireAuth(Favorites)}/>
                 <Route exact path="/activity" component={requireAuth(Activity)}/>
                 <Route exact path="/status" component={requireAuth(Status)}/>
                 <Route exact path="/accounting/:resource/:subResource"
