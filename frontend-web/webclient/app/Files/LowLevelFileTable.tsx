@@ -24,7 +24,7 @@ import Divider from "ui-components/Divider";
 import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import {Spacer} from "ui-components/Spacer";
-import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
@@ -480,7 +480,7 @@ const LowLevelFileTable_: React.FunctionComponent<
             </Box>
         }
 
-        main={
+        main={(
             <Pagination.List
                 loading={pageLoading}
                 customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ? null :
@@ -576,8 +576,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                 </FileTableHeaderCell>
                             </TableRow>
                         </TableHeader>
-
-                        <TableBody>
+                        <tbody>
                             {allFiles.map(file => (
                                 <TableRow highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
                                     key={file.fileId!} data-tag={"fileRow"}>
@@ -647,11 +646,11 @@ const LowLevelFileTable_: React.FunctionComponent<
                                     </TableCell>
                                 </TableRow>)
                             )}
-                        </TableBody>
+                        </tbody>
                     </Table>
                 }
             />
-        }
+        )}
     />;
 };
 

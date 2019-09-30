@@ -1,19 +1,19 @@
 import {APICallParameters} from "Authentication/DataHook";
-
 export {default as List} from "./List";
 import {AccessRight} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export interface ListProps {
-    innerComponent?: boolean
-    byPath?: string
+    innerComponent?: boolean;
+    byPath?: string;
+    simple?: boolean;
 }
 
 export interface Share {
-    id: ShareId,
-    sharedWith: string,
-    rights: AccessRight[],
-    state: ShareState
+    id: ShareId;
+    sharedWith: string;
+    rights: AccessRight[];
+    state: ShareState;
 }
 
 export enum ShareState {
@@ -23,28 +23,32 @@ export enum ShareState {
     UPDATING = "UPDATING"
 }
 
-export type ShareId = string
+export type ShareId = string;
 
 export interface SharesByPath {
-    path: string
-    sharedBy: string
-    sharedByMe: boolean
-    shares: Share[]
+    path: string;
+    sharedBy: string;
+    sharedByMe: boolean;
+    shares: Share[];
 }
 
 export const findShare = (path: string): APICallParameters => ({
     method: "GET",
-    path: buildQueryString("/shares/byPath", {path: path}),
+    path: buildQueryString("/shares/byPath", {path}),
     reloadId: Math.random()
 });
 
 export interface ListSharesParams {
-    sharedByMe: boolean
-    itemsPerPage: number
-    page: number
+    sharedByMe: boolean;
+    itemsPerPage: number;
+    page: number;
 }
 
-export const listShares = ({sharedByMe, itemsPerPage, page}: ListSharesParams): APICallParameters<ListSharesParams> => ({
+export const listShares = ({
+    sharedByMe,
+    itemsPerPage,
+    page
+}: ListSharesParams): APICallParameters<ListSharesParams> => ({
     method: "GET",
     path: buildQueryString("/shares", {itemsPerPage, page, sharedByMe}),
     parameters: {sharedByMe, itemsPerPage, page},

@@ -15,7 +15,7 @@ import Input, {InputLabel} from "ui-components/Input";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
 import {FtIconProps, inDevEnvironment, copyToClipboard} from "UtilityFunctions";
-import {ShareRow} from "Shares/List";
+import List, {ShareRow} from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
@@ -100,14 +100,14 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
     const [sharableLink, setSharableLink] = React.useState("");
 
     return (
-        <Box style={{overflowY: "scroll"}} maxHeight={"80vh"} width="600px">
-            <Box alignItems="center" width="580px">
+        <Box style={{overflowY: "scroll"}} maxHeight={"80vh"} width="620px">
+            <Box alignItems="center" width="605px">
                 <form onSubmit={e => (e.preventDefault(), e.stopPropagation())}>
                     <Heading.h3>Share</Heading.h3>
                     <Divider />
                     Collaborators
-                <Label>
-                        <Flex>
+                    <Label>
+                        <Flex mb="8px">
                             <Input
                                 rightLabel
                                 required
@@ -127,12 +127,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                             <Button onClick={submit} ml="5px">Add</Button>
                         </Flex>
                     </Label>
-                    {paths.map(path => (
-                        <React.Fragment key={path}>
-                            <Text ml="5px" bold mt="4px">{getFilenameFromPath(path)}</Text>
-                            {loading ? <Spinner /> : <Rows path={path} />}
-                        </React.Fragment>
-                    ))}
+                    {loading ? null : paths.map(path => (<List key={path} simple byPath={path} />))}
                 </form>
                 {!inDevEnvironment() || paths.length !== 1 ? null : (
                     <>
@@ -232,51 +227,6 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
         });
     }
 }
-
-function Rows({path}: {path: string}): JSX.Element {
-    const initialFetchParams = findShare(path);
-    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<Dictionary<AvatarType>>(
-        loadAvatars({usernames: new Set([])}), {}
-    );
-
-    const [response, setFetchParams, params] = useCloudAPI<SharesByPath | null>(initialFetchParams, null);
-
-    const refresh = () => setFetchParams({...params, reloadId: Math.random()});
-
-    const page = mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
-
-    React.useEffect(() => {
-        const usernames: Set<string> = new Set(page.data.items.map(group =>
-            group.shares.map(share => group.sharedByMe ? share.sharedWith : group.sharedBy)
-        ).reduce((acc, val) => acc.concat(val), []));
-
-        if (JSON.stringify(Array.from(avatarParams.parameters!.usernames)) !== JSON.stringify(Array.from(usernames))) {
-            setAvatarParams(loadAvatars({usernames}));
-        }
-    }, [page]);
-
-    const sharesByPath = page.data.items[0];
-
-    return sharesByPath == null ? <Heading.h5 textAlign="center">No shares</Heading.h5> : <SharesByPathRow />;
-
-    function SharesByPathRow() {
-        return (
-            <>{sharesByPath.shares.map(share => (
-                <ShareRow
-                    revokeAsIcon
-                    share={share}
-                    key={share.id}
-                    sharedBy={sharesByPath.sharedBy}
-                    onUpdate={refresh}
-                    sharedByMe
-                >
-                    <AvatarComponent avatars={avatars} username={share.sharedWith} />
-                </ShareRow>
-            ))}</>
-        );
-    }
-}
-
 
 export function overwriteDialog(): Promise<{cancelled?: boolean}> {
     return new Promise(resolve => addStandardDialog({
