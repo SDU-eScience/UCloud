@@ -368,17 +368,17 @@ class ApplicationHibernateDAO(
     ): List<ApplicationWithExtension> {
         var query = ""
         query += """
-                    select A.*
-                    from app_store.favorited_by as F, app_store.applications as A
+            select A.*
+            from app_store.favorited_by as F, app_store.applications as A
+            where
+                F.the_user = :user and
+                F.application_name = A.name and
+                F.application_version = A.version and
+                A.name in (
+                    select B.name
+                    from app_store.applications as B
                     where
-                        F.the_user = :user and
-                        F.application_name = A.name and
-                        F.application_version = A.version and
-                        A.name in (
-                            select B.name
-                            from app_store.applications as B
-                            where
-                            """
+        """
 
         for (index in fileExtensions.indices) {
             query += """ B.application -> 'fileExtensions' @> jsonb_build_array(:ext$index) """
@@ -388,9 +388,9 @@ class ApplicationHibernateDAO(
         }
 
         query += """
-                            group by B.name
-                        )
-                """
+                group by B.name
+            )
+        """
 
         return session
             .createNativeQuery<ApplicationEntity>(
@@ -404,6 +404,15 @@ class ApplicationHibernateDAO(
                 }
             }
             .list()
+            .filter { entity ->
+                (entity.application.applicationType == ApplicationType.WEB).or(
+                    entity.application.applicationType == ApplicationType.VNC
+                ).and(
+                    entity.application.parameters.isEmpty().or(
+                        entity.application.parameters.all { it.optional }
+                    )
+                )
+            }
             .map {
                 ApplicationWithExtension(it.toMetadata(), it.application.fileExtensions)
             }
