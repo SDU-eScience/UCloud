@@ -2,7 +2,7 @@ import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authenticat
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
-import {QuickLaunchApp, QuickLaunchCallback} from "Files/QuickLaunch";
+import {QuickLaunchApp, QuickLaunchCallbackParameters, quickLaunchCallback} from "Files/QuickLaunch";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files/index";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
@@ -31,6 +31,7 @@ import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
+import {History} from "history";
 import {
     createFolder, favoriteFile,
     getFilenameFromPath,
@@ -85,14 +86,14 @@ export interface ListDirectoryRequest {
 }
 
 export const listDirectory = ({
-    path,
-    page,
-    itemsPerPage,
-    order,
-    sortBy,
-    attrs,
-    type
-}: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
+                                  path,
+                                  page,
+                                  itemsPerPage,
+                                  order,
+                                  sortBy,
+                                  attrs,
+                                  type
+                              }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/files",
@@ -249,7 +250,7 @@ function apiForComponent(
         };
 
         const sortingIcon = (other: SortBy): React.ReactNode =>
-            <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order} />;
+            <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order}/>;
 
         const reload = () => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
@@ -265,13 +266,11 @@ function apiForComponent(
 }
 
 // tslint:disable-next-line: variable-name
-const LowLevelFileTable_: React.FunctionComponent<
-    LowLevelFileTableProps &
+const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     RouteComponentProps &
-    {responsive: ResponsiveReduxObject} &
-    {showUploader: (path: string) => void} &
-    {setUploaderCallback: (cb?: () => void) => void}
-> = props => {
+    { responsive: ResponsiveReduxObject } &
+    { showUploader: (path: string) => void } &
+    { setUploaderCallback: (cb?: () => void) => void }> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -287,43 +286,47 @@ const LowLevelFileTable_: React.FunctionComponent<
     const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(() => getSortingColumns());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, workError, invokeWork] = useAsyncWork();
-    const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map<string, QuickLaunchApp[]>());
+    const [applications, setApplications] =
+        useState<Map<string, QuickLaunchApp[]>>(new Map<string, QuickLaunchApp[]>());
 
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
 
     useEffect(() => {
-        let fileApps: QuickLaunchApp[] = []
         Cloud.get<QuickLaunchApp[]>(
             buildQueryString(
-                "/hpc/apps/bySupportedFileExtension", { files: page.items.filter(f => f.fileType == "FILE").map( f => f.path ).join(",") }
+                "/hpc/apps/bySupportedFileExtension", {
+                    files: page.items.filter(f => f.fileType === "FILE").map(f => f.path).join(",")
+                }
             )
-        ).then( response => {
-            page.items.filter(f => f.fileType == "FILE").forEach(f => {
-                fileApps = []
+        ).then(response => {
+
+            const newApplications = new Map<string, QuickLaunchApp[]>();
+            page.items.filter(f => f.fileType === "FILE").forEach(f => {
+                const fileApps: QuickLaunchApp[] = [];
+
                 response.response.forEach(item => {
                     item.extensions.forEach(ext => {
                         if (f.path.endsWith(ext)) {
                             fileApps.push(item);
-                            console.log(f.path + " ends with " + ext)
                         }
-                    })
-                })
-                if (!(f.path in applications.keys)) {
-                    setApplications(applications.set(f.path, fileApps))
-                }
-            })
+                    });
+                });
+
+                newApplications.set(f.path, fileApps);
+            });
+            setApplications(newApplications);
         });
     }, [page]);
 
-    useEffect(() => {
+    /*useEffect(() => {
         console.log(applications.size)
-    }, [applications]);
+    }, [applications]);*/
 
     // Figure out quickLaunch callbacks
-    const quickLaunchCallbacks: QuickLaunchCallback = {
-        foo: "bar"
-    };
+    /*const quickLaunchCallbacks: QuickLaunchCallback = {
+        
+    };*/
 
     useEffect(() => {
         if (!props.embedded) {
@@ -353,13 +356,13 @@ const LowLevelFileTable_: React.FunctionComponent<
             if (props.path === undefined) return;
             const fileId = "newFolderId";
             setInjectedViaState([
-                mockFile({
-                    path: `${props.path}/newFolder`,
-                    fileId,
-                    tag: MOCK_RENAME_TAG,
-                    type: "DIRECTORY"
-                })
-            ]
+                    mockFile({
+                        path: `${props.path}/newFolder`,
+                        fileId,
+                        tag: MOCK_RENAME_TAG,
+                        type: "DIRECTORY"
+                    })
+                ]
             );
             setFileBeingRenamed(fileId);
 
@@ -470,7 +473,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                     <BreadCrumbs
                         currentPath={props.path ? props.path : ""}
                         navigate={path => onFileNavigation(path)}
-                        homeFolder={Cloud.homeFolder} />
+                        homeFolder={Cloud.homeFolder}/>
                 }
 
                 right={
@@ -549,7 +552,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                     </Flex>
                                 </FileTableHeaderCell>
                                 <FileTableHeaderCell notSticky={isEmbedded} width={"3em"}>
-                                    <Flex />
+                                    <Flex/>
                                 </FileTableHeaderCell>
 
                                 {/* Sorting columns (in header) */}
@@ -560,7 +563,7 @@ const LowLevelFileTable_: React.FunctionComponent<
 
                                     return <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
                                         <Flex alignItems="center" cursor="pointer"
-                                            justifyContent="left">
+                                              justifyContent="left">
                                             <Box
                                                 onClick={() => setSorting(column, invertSortOrder(order), i)}>
                                                 {sortingIcon(column)}
@@ -572,24 +575,24 @@ const LowLevelFileTable_: React.FunctionComponent<
                                                     trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
                                                     chevron>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
-                                                        hidden={(order === SortOrder.ASCENDING && isSortedBy) ||
-                                                            column === SortBy.ACL}
-                                                        onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
+                                                         hidden={(order === SortOrder.ASCENDING && isSortedBy) ||
+                                                         column === SortBy.ACL}
+                                                         onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
                                                     >
                                                         {UF.prettierString(SortOrder.ASCENDING)}
                                                     </Box>
                                                     <Box ml="-16px" mr="-16px" pl="15px"
-                                                        onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                        hidden={(order === SortOrder.DESCENDING && isSortedBy) ||
-                                                            column === SortBy.ACL}
+                                                         onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
+                                                         hidden={(order === SortOrder.DESCENDING && isSortedBy) ||
+                                                         column === SortBy.ACL}
                                                     >
                                                         {UF.prettierString(SortOrder.DESCENDING)}
                                                     </Box>
-                                                    <Divider ml="-16px" mr="-16px" />
+                                                    <Divider ml="-16px" mr="-16px"/>
                                                     {Object.values(SortBy).map((sortByKey: SortBy, j) => (
                                                         <Box ml="-16px" mr="-16px" pl="15px" key={j}
-                                                            onClick={() => setSorting(sortByKey, order, i)}
-                                                            hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
+                                                             onClick={() => setSorting(sortByKey, order, i)}
+                                                             hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
                                                         >
                                                             {UF.sortByToPrettierString(sortByKey)}
                                                         </Box>
@@ -607,7 +610,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                     // TODO This is not correct. We had some custom code before. This should be ported.
                                     width={"3em"}
                                 >
-                                    <Flex />
+                                    <Flex/>
                                 </FileTableHeaderCell>
 
                                 {/* Options cell (adds a bit of spacing and hosts options in rows) */}
@@ -617,7 +620,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                     // TODO This is not correct. We had some custom code before. This should be ported.
                                     width={"3em"}
                                 >
-                                    <Flex />
+                                    <Flex/>
                                 </FileTableHeaderCell>
                             </TableRow>
                         </TableHeader>
@@ -625,7 +628,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                         <TableBody>
                             {allFiles.map(file => (
                                 <TableRow highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
-                                    key={file.fileId!} data-tag={"fileRow"}>
+                                          key={file.fileId!} data-tag={"fileRow"}>
                                     <TableCell>
                                         {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
                                         <Flex flexDirection="row" alignItems="center" mx="9px">
@@ -635,23 +638,23 @@ const LowLevelFileTable_: React.FunctionComponent<
                                                         <Checkbox
                                                             disabled={file.mockTag !== undefined}
                                                             checked={checkedFiles.has(file.fileId!) &&
-                                                                file.mockTag === undefined}
+                                                            file.mockTag === undefined}
                                                             onChange={e => e.stopPropagation()}
-                                                            onClick={() => setChecked([file])} />
+                                                            onClick={() => setChecked([file])}/>
                                                     </Label>
                                                 </Box>
                                             }
-                                            <Box ml="5px" pr="5px" />
+                                            <Box ml="5px" pr="5px"/>
                                             <NameBox file={file} onRenameFile={onRenameFile}
-                                                onNavigate={onFileNavigation}
-                                                callbacks={callbacks}
-                                                fileBeingRenamed={fileBeingRenamed} />
+                                                     onNavigate={onFileNavigation}
+                                                     callbacks={callbacks}
+                                                     fileBeingRenamed={fileBeingRenamed}/>
                                         </Flex>
                                     </TableCell>
 
                                     <TableCell>
                                         {/* Sensitivity icon */}
-                                        <SensitivityIcon sensitivity={file.sensitivityLevel} />
+                                        <SensitivityIcon sensitivity={file.sensitivityLevel}/>
                                     </TableCell>
 
                                     {sortByColumns.filter(it => it != null).map((sC, i) => {
@@ -667,35 +670,35 @@ const LowLevelFileTable_: React.FunctionComponent<
                                         {
                                             checkedFiles.size > 0 || file.fileType !== "FILE" ||
                                             (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                            (typeof applications.get(file.path) == "undefined") ? null :
-                                                <ClickableDropdown
-                                                    width="175px"
-                                                    left="-160px"
-                                                    trigger={<Icon name="play" size="1em" />}
-                                                >
-                                                    <QuickLaunchApps
-                                                        file={file}
-                                                        applications={applications.get(file.path)}
-                                                        //inDropdown
-                                                        ml="-17px"
-                                                        mr="-17px"
-                                                        pl="15px"
-                                                        callback={quickLaunchCallbacks}
-                                                    />
-                                                </ClickableDropdown>
-                                    }
+                                                (typeof applications.get(file.path) == "undefined") ? null :
+                                                    <ClickableDropdown
+                                                        width="175px"
+                                                        left="-160px"
+                                                        trigger={<Icon name="play" size="1em"/>}
+                                                    >
+                                                        <QuickLaunchApps
+                                                            file={file}
+                                                            applications={applications.get(file.path)}
+                                                            history={props.history}
+                                                            //inDropdown
+                                                            ml="-17px"
+                                                            mr="-17px"
+                                                            pl="15px"
+                                                        />
+                                                    </ClickableDropdown>
+                                        }
                                     </TableCell>
 
                                     <TableCell textAlign="center">
                                         {/* Options cell */}
                                         {
                                             checkedFiles.size > 0 ||
-                                                (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
+                                            (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
                                                 fileOperations.length > 1 ?
                                                     <ClickableDropdown
                                                         width="175px"
                                                         left="-160px"
-                                                        trigger={<Icon name="ellipsis" size="1em" rotation="90" />}
+                                                        trigger={<Icon name="ellipsis" size="1em" rotation="90"/>}
                                                     >
                                                         <FileOperations
                                                             files={[file]}
@@ -869,18 +872,23 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     }
 };
 
-const setNotSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} | null =>
+const setNotSticky = ({notSticky}: { notSticky?: boolean }): { position: "sticky" } | null =>
     notSticky ? null : {position: "sticky"};
 
-const FileTableHeaderCell = styled(TableHeaderCell) <{notSticky?: boolean}>`
+const FileTableHeaderCell = styled(TableHeaderCell) <{ notSticky?: boolean }>`
     background-color: ${({theme}) => theme.colors.white};
     top: 144px; //topmenu + header size
     z-index: 10;
     ${setNotSticky}
 `;
 
-const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
-    interface IconDef {color: string; text: string; shortText: string;}
+const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => {
+    interface IconDef {
+        color: string;
+        text: string;
+        shortText: string;
+    }
+
     let def: IconDef;
 
     switch (props.sensitivity) {
@@ -902,7 +910,7 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
     return <Tooltip right={"0"} top={"1"} mb="50px" trigger={badge}>{def.text}</Tooltip>;
 };
 
-const SensitivityBadge = styled.div<{bg: string}>`
+const SensitivityBadge = styled.div<{ bg: string }>`
     content: '';
     height: 2em;
     width: 2em;
@@ -927,7 +935,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
     const buttons: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode === true);
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
-    const Operation = ({fileOp}: {fileOp: FileOperation}) => {
+    const Operation = ({fileOp}: { fileOp: FileOperation }) => {
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
@@ -957,42 +965,42 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
             onClick={() => fileOp.onClick(filesInCallback, props.callback)}
             {...props}
         >
-            {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon} /> : null}
+            {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon}/> : null}
             <span>{fileOp.text}</span>
         </As>;
     };
     return <>
-        {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`} />)}
+        {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`}/>)}
         {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
             <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
         }
-        {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`} />)}
+        {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`}/>)}
     </>;
 };
 
 interface QuickLaunchApps extends SpaceProps {
     file: File;
     applications: QuickLaunchApp[] | undefined;
-    callback: QuickLaunchCallback;
-    directory?: File;
+    history: History<any>;
 }
 
 const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
     if (typeof applications == "undefined") return null;
     if (applications.length < 1) return null;
 
-    const QLApplication = ({quickLaunchApp}: {quickLaunchApp: QuickLaunchApp}) => {
+    const QLApplication = ({quickLaunchApp}: { quickLaunchApp: QuickLaunchApp }) => {
         return <Flex
             cursor="pointer"
             alignItems="center"
-            //onClick={() => quickLaunchApp.onClick(props.directory!, props.callback)}
+            //onClick={() => quickLaunchApp.onClick(quickLaunchApp.metadata.name, quickLaunchApp.metadata.version)}
+            onClick={() => quickLaunchCallback(quickLaunchApp, props.history)}
             {...props}
         >
             <span>{quickLaunchApp.metadata.title}</span>
         </Flex>;
     };
     return <>
-        {applications.map((ap, i) => <QLApplication quickLaunchApp={ap} key={`opt-${i}`} />)}
+        {applications.map((ap, i) => <QLApplication quickLaunchApp={ap} key={`opt-${i}`}/>)}
     </>;
 };
 
