@@ -56,28 +56,4 @@ export interface QuickLaunchApp {
     extensions: string[];
     metadata: ApplicationMetadata;
     onClick: (name: string, version: string) => Promise<any>;
-    //disabled: (selectedFiles: File[]) => boolean;
-    //icon?: string;
-    //color?: string;
-    //outline?: boolean;
-    //currentDirectoryMode?: boolean;
 }
-
-/*export const defaultFileQuickLaunchApps: FileQuickLaunchApp[] = [
-    {
-        text: "Coder",
-        onClick: files => UF.copyToClipboard({
-            value: files[0].path,
-            message: `${replaceHomeFolder(files[0].path, Cloud.homeFolder)} copied to clipboard`
-        }),
-        disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files) || isAnySharedFs(files),
-        icon: "chat"
-    },
-    {
-        text: "Rename",
-        onClick: (files, cb) => cb.startRenaming(files[0]),
-        disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) ||
-            isAnyMockFile(files) || isAnySharedFs(files),
-        icon: "rename"
-    }
-];*/

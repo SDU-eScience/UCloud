@@ -49,6 +49,7 @@ import {
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
+import { hashF, AppLogo } from "Applications/Card";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -292,6 +293,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
 
+    // Fetch quick launch applications upon page refresh
     useEffect(() => {
         Cloud.get<QuickLaunchApp[]>(
             buildQueryString(
@@ -300,7 +302,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 }
             )
         ).then(response => {
-
             const newApplications = new Map<string, QuickLaunchApp[]>();
             page.items.filter(f => f.fileType === "FILE").forEach(f => {
                 const fileApps: QuickLaunchApp[] = [];
@@ -318,15 +319,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             setApplications(newApplications);
         });
     }, [page]);
-
-    /*useEffect(() => {
-        console.log(applications.size)
-    }, [applications]);*/
-
-    // Figure out quickLaunch callbacks
-    /*const quickLaunchCallbacks: QuickLaunchCallback = {
-        
-    };*/
 
     useEffect(() => {
         if (!props.embedded) {
@@ -985,6 +977,7 @@ interface QuickLaunchApps extends SpaceProps {
 }
 
 const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
+    const [hasLoadedImage, setLoadedImage] = useState(true);
     if (typeof applications == "undefined") return null;
     if (applications.length < 1) return null;
 
@@ -992,10 +985,21 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
         return <Flex
             cursor="pointer"
             alignItems="center"
-            //onClick={() => quickLaunchApp.onClick(quickLaunchApp.metadata.name, quickLaunchApp.metadata.version)}
             onClick={() => quickLaunchCallback(quickLaunchApp, props.history)}
             {...props}
         >
+            <img
+                onErrorCapture={() => {
+                    setLoadedImage(false);
+                    // For some reason the state is not always correctly set. This is the worst possible work around.
+                    setTimeout(() => setLoadedImage(false), 50);
+                }}
+                style={hasLoadedImage ? {width: 20, height: 20, objectFit: "contain"} : {display: "none"}}
+                src={Cloud.computeURL("/api", `/hpc/apps/logo/${quickLaunchApp.metadata.name}?cacheBust=${undefined}`)}
+                alt={quickLaunchApp.metadata.name}/>
+
+            {hasLoadedImage ? null : <AppLogo size={"20"} hash={hashF(quickLaunchApp.metadata.name)}/>}
+
             <span>{quickLaunchApp.metadata.title}</span>
         </Flex>;
     };
