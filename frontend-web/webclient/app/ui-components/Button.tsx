@@ -2,7 +2,7 @@ import styled from "styled-components";
 import {ButtonStyleProps, height, HeightProps, SizeProps, space, SpaceProps, width, WidthProps} from "styled-system";
 import theme, {Theme, ThemeColor} from "./theme";
 
-const size = (p: {size: string, theme: Theme}) => {
+const size = (p: {size: string; theme: Theme;}) => {
   switch (p.size) {
     case "tiny":
       return {
