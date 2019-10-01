@@ -144,8 +144,6 @@ function enumToLabel(value: SidebarPages): string {
             return "Files";
         case SidebarPages.Shares:
             return "Shares";
-        case SidebarPages.Favorites:
-            return "Favorites";
         case SidebarPages.AppStore:
             return "Apps";
         case SidebarPages.Runs:
@@ -190,7 +188,6 @@ export const sideBarMenuElements: {
         items: [
             {icon: "files", label: "Files", to: () => fileTablePage(Cloud.homeFolder)},
             {icon: "shareMenu", label: "Shares", to: "/shares/"},
-            {icon: "starFilled", label: "Favorites", to: "/favorites"},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/applications/results/"}
         ], predicate: () => Cloud.isLoggedIn
@@ -273,7 +270,6 @@ const mapStateToProps = ({status, project}: ReduxObject): SidebarStateProps => (
 export const enum SidebarPages {
     Files,
     Shares,
-    Favorites,
     AppStore,
     Runs,
     Publish,

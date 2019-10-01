@@ -1,5 +1,4 @@
 import {Cloud} from "Authentication/SDUCloudObject";
-import PromiseKeeper from "PromiseKeeper";
 import {useEffect, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
 

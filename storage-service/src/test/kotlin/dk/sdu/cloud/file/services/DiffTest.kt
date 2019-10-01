@@ -15,7 +15,6 @@ import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.processors.ScanProcessor
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
@@ -27,6 +26,7 @@ import dk.sdu.cloud.file.util.inode
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.timestamps
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -46,8 +46,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.*
 
-class DiffTest {
+class DiffTest : WithBackgroundScope() {
     private data class TestingContext<Ctx : FSUserContext>(
         val fsRoot: File,
         val fs: LowLevelFileSystemInterface<Ctx>,
@@ -88,14 +89,19 @@ class DiffTest {
         val homeFolderService = HomeFolderService(ClientMock.authenticatedClient)
         val aclService = AclService(db, AclHibernateDao(), homeFolderService, { it.normalize() })
         val cephFs = LinuxFS(root, aclService)
-        val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
+        val eventProducer =
+            StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope, {})
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         val coreFs =
-            CoreFileSystemService(cephFs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient)
+            CoreFileSystemService(
+                cephFs,
+                eventProducer,
+                fileSensitivityService,
+                ClientMock.authenticatedClient,
+                backgroundScope
+            )
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer, aclService, EventServiceMock)
         ScanProcessor(EventServiceMock, indexingService).init()
-
-        BackgroundScope.reset()
 
         return TestingContext(
             root,

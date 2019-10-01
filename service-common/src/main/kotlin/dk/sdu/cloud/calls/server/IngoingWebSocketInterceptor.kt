@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.CloseReason
@@ -20,6 +21,8 @@ import io.ktor.http.cio.websocket.readText
 import io.ktor.http.cio.websocket.send
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
+import io.ktor.util.cio.ChannelReadException
+import io.ktor.util.cio.ChannelWriteException
 import io.ktor.websocket.WebSocketServerSession
 import io.ktor.websocket.WebSockets
 import io.ktor.websocket.webSocket
@@ -31,7 +34,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
-import java.time.Duration
 import java.util.*
 
 class WSCall internal constructor(
@@ -51,7 +53,7 @@ class WSCall internal constructor(
 
     internal suspend fun sendMessage(message: Any, typeRef: TypeReference<*>) {
         mutex.withLock {
-            if (hasSentResponse) throw IllegalStateException("Cannot send messages after response!")
+            check(!hasSentResponse) { "Cannot send messages after response!" }
 
             session.sendMessage(streamId, message, typeRef)
         }
@@ -117,6 +119,10 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
     }
 
     override fun toString(): String = "WSSession($id)"
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }
 
 class IngoingWebSocketInterceptor(
@@ -203,10 +209,19 @@ class IngoingWebSocketInterceptor(
                                 }
                             }
                         }
-                    } catch (ex: ClosedReceiveChannelException) {
-                        log.debug("Channel was closed")
+                    } catch (ex: Throwable) {
+                        fun isChannelException(throwable: Throwable?) =
+                            throwable is ChannelWriteException || throwable is ChannelReadException ||
+                                    throwable is ClosedReceiveChannelException ||
+                                    throwable is ClosedSendChannelException
+
+                        if (isChannelException(ex) || isChannelException(ex.cause)) {
+                            log.debug("Channel was closed")
+                        } else {
+                            log.info("Caught exception in websocket server handler")
+                            log.info(ex.stackTraceToString())
+                        }
                     } finally {
-                        log.debug("Receive channel is closing down!")
                         session.onCloseHandlers.forEach { it() }
 
                         handlers.flatMap { it.value }.forEach { handler ->
@@ -253,8 +268,6 @@ class IngoingWebSocketInterceptor(
             is OutgoingCallResponse.AlreadyDelivered -> return
         }
 
-        log.debug("payload=$payload")
-
         if (payload != null && typeRef != null) {
             val node = defaultMapper.readerFor(typeRef).readTree(
                 defaultMapper.writerFor(typeRef).writeValueAsString(payload)
@@ -269,14 +282,13 @@ class IngoingWebSocketInterceptor(
                 )
             )
 
-            log.debug(response)
             ctx.responseHasBeenSent()
 
             try {
                 ctx.session.rawSend(response)
             } catch (ex: ClosedSendChannelException) {
                 // TODO For some reason the client won't notice that we are actually closing.
-                ctx.session.close()
+                runCatching { ctx.session.close() }
                 throw ex
             }
         }

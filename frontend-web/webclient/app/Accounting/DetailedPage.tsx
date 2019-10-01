@@ -9,7 +9,7 @@ import {connect} from "react-redux";
 import {match} from "react-router-dom";
 import {Dispatch} from "redux";
 import {ClearRefresh, Page} from "Types";
-import {Box, ContainerForText} from "ui-components";
+import {ContainerForText} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import * as API from "./api";
 import * as Actions from "./Redux/AccountingActions";
@@ -71,7 +71,7 @@ class DetailedPage extends React.Component<DetailedPageProps> {
         const chart = this.props.chart.content;
         if (chart === undefined) return null;
 
-        return <Box m={16}><Chart chart={chart.chart} /></Box>;
+        return <Chart chart={chart.chart} />;
     }
 
     public renderEvents(): React.ReactNode {

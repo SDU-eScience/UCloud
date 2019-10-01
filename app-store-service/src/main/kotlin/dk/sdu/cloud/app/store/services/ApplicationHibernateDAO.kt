@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import org.hibernate.query.Query
 import java.lang.StringBuilder
 import java.util.*
+import javax.persistence.criteria.Predicate
 
 @Suppress("TooManyFunctions") // Does not make sense to split
 class ApplicationHibernateDAO(
@@ -754,9 +755,12 @@ class ApplicationHibernateDAO(
         return preparePageForUser(session, user.username, session.paginatedCriteria<ApplicationEntity>(
             paging,
             predicate = {
-                val namePredicate =
-                    if (name != null) builder.lower(entity[ApplicationEntity::title]) like "%${name}%".toLowerCase()
-                    else literal(true).toPredicate()
+                val namePredicates =
+                    if (name != null) {
+                        val splitNames = name.split(" ")
+                        if (splitNames.size > 1) splitNames.map { n -> builder.lower(entity[ApplicationEntity::title]) like "%${n}%".toLowerCase() }
+                        else listOf(builder.lower(entity[ApplicationEntity::title]) like "%${name}%".toLowerCase())
+                    } else listOf(literal(true).toPredicate())
                 val versionPredicate =
                     if (version != null) entity[ApplicationEntity::id][EmbeddedNameAndVersion::version] like "$version%"
                     else literal(true).toPredicate()
@@ -767,9 +771,9 @@ class ApplicationHibernateDAO(
                     } else literal(true).toPredicate()
                 val descriptionPredicate =
                     // FIXME: `like` description only allows exact matches without wildcard operators
-                    if (description != null) entity[ApplicationEntity::description] like description
+                    if (description != null) entity[ApplicationEntity::description] like "%$description%"
                     else literal(true).toPredicate()
-                allOf(namePredicate, versionPredicate, tagPredicate, descriptionPredicate)
+                allOf(anyOf(*namePredicates.toTypedArray()), versionPredicate, tagPredicate, descriptionPredicate)
             }
         ).mapItems { it.toModelWithInvocation() })
     }

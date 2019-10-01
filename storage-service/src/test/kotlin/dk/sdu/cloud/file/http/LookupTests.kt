@@ -6,10 +6,12 @@ import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.services.WithBackgroundScope
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.micro.BackgroundScope
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationEngine
 import org.junit.Test
@@ -18,8 +20,9 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.*
 
-class LookupTests {
+class LookupTests : WithBackgroundScope() {
     private val mapper = jacksonObjectMapper()
 
     private fun fsForLookup(): File {
@@ -45,7 +48,7 @@ class LookupTests {
     @Test
     fun `look up file in directory`() {
         withKtorTest(
-            setup = { configureServerWithFileController(fsRootInitializer = { fsForLookup() }) },
+            setup = { configureServerWithFileController(backgroundScope, fsRootInitializer = { fsForLookup() }) },
 
             test = {
                 repeat(1) { engine.testLookupOfFile(it) }
@@ -56,7 +59,7 @@ class LookupTests {
     @Test
     fun `look up bad file`() {
         withKtorTest(
-            setup = { configureServerWithFileController(fsRootInitializer = { fsForLookup() }) },
+            setup = { configureServerWithFileController(backgroundScope, fsRootInitializer = { fsForLookup() }) },
 
             test = {
                 val response =

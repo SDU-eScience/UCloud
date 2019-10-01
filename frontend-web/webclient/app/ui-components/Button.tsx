@@ -1,8 +1,8 @@
 import styled from "styled-components";
-import {ButtonStyleProps, height, HeightProps, SizeProps, space, SpaceProps} from "styled-system";
+import {ButtonStyleProps, height, HeightProps, SizeProps, space, SpaceProps, width, WidthProps} from "styled-system";
 import theme, {Theme, ThemeColor} from "./theme";
 
-const size = (p: {size: string, theme: Theme}) => {
+const size = (p: {size: string; theme: Theme;}) => {
   switch (p.size) {
     case "tiny":
       return {
@@ -34,7 +34,7 @@ const size = (p: {size: string, theme: Theme}) => {
 
 export const fullWidth = (props: {fullWidth?: boolean}) => props.fullWidth ? {width: "100%"} : null;
 
-export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps {
+export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps, WidthProps {
   fullWidth?: boolean;
   textColor?: ThemeColor;
   lineHeight?: number | string;
@@ -42,7 +42,7 @@ export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, 
 }
 
 const Button = styled.button<ButtonProps>`
-  -webkit-font-smoothing: antialiased;
+  font-smoothing: antialiased;
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -72,7 +72,7 @@ const Button = styled.button<ButtonProps>`
     transform: scale(1.03);
   }
 
-  ${fullWidth} ${size} ${space} ${height};
+  ${fullWidth} ${size} ${space} ${height} ${width};
 `;
 
 Button.defaultProps = {

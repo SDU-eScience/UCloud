@@ -7,7 +7,7 @@ import {setActivePage, setLoading, updatePageTitle} from "Navigation/Redux/Statu
 import * as React from "react";
 import {useEffect} from "react";
 import {connect} from "react-redux";
-import {RouteComponentProps} from "react-router";
+import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
 import {SidebarPages} from "ui-components/Sidebar";
 import {fileTablePage} from "Utilities/FileUtilities";
@@ -19,21 +19,27 @@ interface FilesOperations {
     setLoading: (loading: boolean) => void;
 }
 
-type FilesProps = RouteComponentProps & FilesOperations;
-
-const Files: React.FunctionComponent<FilesProps> = props => {
-    const urlPath = getQueryParamOrElse(props, "path", Cloud.homeFolder);
+const Files: React.FunctionComponent<FilesOperations> = props => {
+    const history = useHistory();
+    const location = useLocation();
+    const urlPath = getQueryParamOrElse({history, location}, "path", Cloud.homeFolder);
     useEffect(() => props.onInit(), []);
 
-    return <FileTable
-        {...defaultVirtualFolders()}
-        fileOperations={defaultFileOperations.filter(it => it.text !== "View Parent")}
-        embedded={false}
-        onFileNavigation={path => props.history.push(fileTablePage(path))}
-        path={urlPath}
-        onLoadingState={props.setLoading}
-        refreshHook={props.refreshHook}
-    />;
+    return (
+        <FileTable
+            {...defaultVirtualFolders()}
+            fileOperations={defaultFileOperations.filter(it => it.text !== "View Parent")}
+            embedded={false}
+            onFileNavigation={navigation}
+            path={urlPath}
+            onLoadingState={props.setLoading}
+            refreshHook={props.refreshHook}
+        />
+    );
+
+    function navigation(path: string): void {
+        history.push(fileTablePage(path));
+    }
 };
 
 const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({

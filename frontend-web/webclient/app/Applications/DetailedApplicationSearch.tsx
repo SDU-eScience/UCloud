@@ -3,7 +3,6 @@ import {KeyCode, ReduxObject} from "DefaultObjects";
 import {SearchStamps} from "Files/DetailedFileSearch";
 import * as React from "react";
 import {connect} from "react-redux";
-import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
 import {Box, Button, Flex, Input} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -16,10 +15,9 @@ import {
 } from "./Redux/DetailedApplicationSearchActions";
 
 interface DetailedApplicationSearchProps extends
-    DetailedApplicationOperations, DetailedApplicationSearchReduxState, RouteComponentProps {
+    DetailedApplicationOperations, DetailedApplicationSearchReduxState {
     onSearch: () => void;
     defaultAppName?: string;
-    controlledSearch?: [string, (path: string) => void];
 }
 
 function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProps>) {
@@ -29,12 +27,8 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
 
     const ref = React.useRef<HTMLInputElement>(null);
 
-    const localSearch = React.useState(props.appName);
-    const [search, setSearch] = props.controlledSearch ? props.controlledSearch : localSearch;
-
     function onSearch(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        props.setAppName(search);
         props.addTag(ref.current!.value);
         ref.current!.value = "";
         props.onSearch();
@@ -44,17 +38,7 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
         <Flex flexDirection="column" pl="0.5em" pr="0.5em">
             <Box mt="0.5em">
                 <form onSubmit={e => onSearch(e)}>
-                    <Heading.h5 pb="0.3em" pt="0.5em">Application Name</Heading.h5>
-                    <Input
-                        pb="6px"
-                        pt="8px"
-                        mt="-2px"
-                        width="100%"
-                        value={search}
-                        onChange={({target}) => setSearch(target.value)}
-                        placeholder="Search by name..."
-                    />
-                    <Heading.h5 pb="0.3em" pt="0.5em">Version Name</Heading.h5>
+                    <Heading.h5 pb="0.3em" pt="0.5em">Version</Heading.h5>
                     <Input
                         pb="6px"
                         pt="8px"
@@ -83,7 +67,7 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
                                 ref.current!.value = "";
                             }
                         }}
-                        placeholder="Add tag. "
+                        placeholder="Add tag with enter..."
                     />
                     <Button mt="0.5em" type="submit" fullWidth disabled={props.loading} color="blue">Search</Button>
                 </form>
@@ -107,4 +91,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations =
     }
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(withRouter(DetailedApplicationSearch));
+export default connect(mapStateToProps, mapDispatchToProps)(DetailedApplicationSearch);

@@ -7,6 +7,8 @@
         "noImplicitThis": true,
         "noImplicitAny": false,
         "allowUnreachableCode": false,
+        "noFallthroughCasesInSwitch": true,
+        "allowUnusedLabels": true,
         "module": "esnext",
         "lib": [
             "es2018",

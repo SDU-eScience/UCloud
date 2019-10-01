@@ -1,20 +1,22 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.WithBackgroundScope
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.micro.BackgroundScope
 import io.ktor.http.HttpStatusCode
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
+import kotlin.test.*
 
-class ExtractTest {
-
-    private fun fsForTest(): File {
+class ExtractTest : WithBackgroundScope() {
+   private fun fsForTest(): File {
         val fsRoot = Files.createTempDirectory("share-service-test").toFile()
         fsRoot.apply {
             mkdir("home") {
@@ -37,6 +39,7 @@ class ExtractTest {
 
     private fun KtorApplicationTestSetupContext.setupApplication(): List<Controller> {
         return configureServerWithFileController(
+            backgroundScope,
             fsRootInitializer = {
                 fsForTest()
             },
@@ -48,7 +51,8 @@ class ExtractTest {
                         it.coreFs,
                         it.lookupService,
                         it.runner,
-                        FileSensitivityService(it.fs, it.eventProducer)
+                        FileSensitivityService(it.fs, it.eventProducer),
+                        backgroundScope
                     )
                 )
             }

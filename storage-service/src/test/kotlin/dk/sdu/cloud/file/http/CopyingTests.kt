@@ -1,19 +1,21 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.notification.api.FindByNotificationId
-import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.file.services.WithBackgroundScope
+import dk.sdu.cloud.file.services.successfulTaskMock
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
-import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
-class CopyingTests {
+class CopyingTests : WithBackgroundScope() {
     @Test
     fun `test copying of file`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/folder/a"
@@ -40,7 +42,7 @@ class CopyingTests {
     @Test
     fun `attempt to overwrite file via copy - OVERWRITE`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
 
@@ -62,7 +64,7 @@ class CopyingTests {
     @Test
     fun `attempt to overwrite file via copy - RENAME`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/folder/a"
@@ -86,7 +88,7 @@ class CopyingTests {
     @Test
     fun `attempt to overwrite file via copy - REJECT`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/folder/a"
@@ -107,16 +109,13 @@ class CopyingTests {
     @Test
     fun `copy a folder`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/folder"
                 val newPath = "/home/user1/new-folder"
 
-                ClientMock.mockCallSuccess(
-                    NotificationDescriptions.create,
-                    FindByNotificationId(1)
-                )
+                successfulTaskMock()
 
                 val response = engine.stat(path)
                 assertEquals(HttpStatusCode.OK, response.status())
@@ -133,7 +132,7 @@ class CopyingTests {
     @Test
     fun `copy file which does not exist`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/folder/notHere"

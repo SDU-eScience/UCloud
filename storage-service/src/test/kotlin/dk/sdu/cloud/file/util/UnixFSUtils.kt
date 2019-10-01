@@ -43,7 +43,7 @@ fun linuxFSWithRelaxedMocks(
             LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
         )
     }
-    val aclService = AclService(db, AclHibernateDao(), homeFolderService, { it.normalize() })
+    val aclService = AclService(db, AclHibernateDao(), homeFolderService) { it.normalize() }
     return LinuxTestFS(
         commandRunner,
         LinuxFS(

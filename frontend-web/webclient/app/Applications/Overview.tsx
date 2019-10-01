@@ -23,6 +23,8 @@ import {Spacer} from "ui-components/Spacer";
 import theme from "ui-components/theme";
 import {connect} from "react-redux";
 import styled from "styled-components";
+import { EllipsedText } from "ui-components/Text";
+import Installed from "./Installed";
 const bedtoolsImg = require("Assets/Images/APPTools/bedtools.png");
 const cellrangerImg = require("Assets/Images/APPTools/10xGenomics.png");
 const homerImg = require("Assets/Images/APPTools/pic2.gif");
@@ -96,13 +98,14 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         const featured = applications.has("Featured") ? applications.get("Featured") : emptyPage;
         const main = (
             <>
+                <Installed header={null} />
                 <Pagination.List
                     loading={this.props.loading}
                     pageRenderer={(page: Page<FullAppInfo>) =>
                         <>
-                            {<Box>
-                                {<Spacer pt="15px" left={<Heading.h2>Featured</Heading.h2>} right={<ShowAllTagItem tag="Featured"><Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />}
-                            </Box>}
+                            <Box>
+                                <Spacer pt="15px" left={<Heading.h2>Featured</Heading.h2>} right={<ShowAllTagItem tag="Featured"><Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />
+                            </Box>
                             <Box pl="10px" pb="5px" style={{overflow: "none", overflowX: "scroll"}}>
                                 <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{gridAutoFlow: "column"}}>
                                     {page.items.map((app, index) =>
@@ -182,26 +185,24 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
     return (
         <CardToolContainer appImage={tagToImage(props.tag)} mt="30px" >
-            {<Spacer mt="10px" ml="-200px" mr="8px" left={<Heading.h2> {props.tag} </Heading.h2>} right={<ShowAllTagItem tag={props.tag} ><Heading.h4 ><strong> Show All</strong></Heading.h4></ShowAllTagItem>} />}
-            <ScrollBox pb="220px">
-                <Grid pt="20px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="3px" gridAutoFlow="column">
+            {<Spacer alignItems={"center"} left={<Heading.h3> {props.tag} </Heading.h3>} right={<ShowAllTagItem tag={props.tag} ><Heading.h5><strong> Show All</strong></Heading.h5></ShowAllTagItem>} />}
+            <ScrollBox>
+                <Grid py="10px" pl="10px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="8px" gridAutoFlow="column">
                     {props.page.items.map(application => {
+                        const [first, second, third] = getColorFromName(application.metadata.name);
                         const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
-                        const [first, second, third] = getColorFromName(withoutTag);
                         return <div key={application.metadata.name}>
-                            <SmallCard title={withoutTag} ml={2} color1={first} color2={second} color3={third} to={Pages.viewApplication(application.metadata)} color={`white`}>
-                                {withoutTag}
+                            <SmallCard title={withoutTag} color1={first} color2={second} color3={third} to={Pages.viewApplication(application.metadata)} color={`white`}>
+                                <EllipsedText >{withoutTag}</EllipsedText>
                             </SmallCard>
 
                         </div>
                     })}
                 </Grid>
             </ScrollBox>
-            <Box >
-                <Flex ml="9px" flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
-                    {[...tags].filter(it => it !== props.tag).map(tag => (<Tag label={tag} />))}
-                </Flex>
-            </Box>
+            <Flex mt={"5px"} flexDirection={"row"} alignItems={"flex-start"} >
+                {[...tags].filter(it => it !== props.tag).map(tag => (<Tag label={tag} />))}
+            </Flex>
         </CardToolContainer>
 
     )

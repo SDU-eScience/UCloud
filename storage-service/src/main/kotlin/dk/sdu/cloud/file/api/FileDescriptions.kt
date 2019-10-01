@@ -12,7 +12,6 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.RPCException
@@ -31,11 +30,6 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
 
-data class CreateLinkRequest(
-    val linkPath: String,
-    val linkTargetPath: String
-)
-
 data class UpdateAclRequest(
     val path: String,
     val changes: List<ACLEntryRequest>,
@@ -51,14 +45,6 @@ data class ACLEntryRequest(
     val entity: String,
     val rights: Set<FileAccessRight>,
     val revoke: Boolean = false
-)
-
-data class ChmodRequest(
-    val path: String,
-    val owner: Set<FileAccessRight>,
-    val group: Set<FileAccessRight>,
-    val other: Set<FileAccessRight>,
-    val recurse: Boolean
 )
 
 data class StatRequest(
@@ -195,8 +181,6 @@ data class DeleteFileRequest(val path: String)
 data class MoveRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
 
 data class CopyRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
-
-data class BulkDownloadRequest(val prefix: String, val files: List<String>)
 
 data class FindHomeFolderRequest(val username: String)
 data class FindHomeFolderResponse(val path: String)
@@ -464,25 +448,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val bulkDownload = call<BulkDownloadRequest, BinaryStream, CommonErrorMessage>("bulkDownload") {
-        audit<BulkFileAudit<BulkDownloadRequest>>()
-
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"bulk"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
     val verifyFileKnowledge = call<
             VerifyFileKnowledgeRequest,
             VerifyFileKnowledgeResponse,
@@ -521,27 +486,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
             path {
                 using(baseContext)
                 +"deliver-materialized"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    @Deprecated("No longer in use")
-    val chmod = call<ChmodRequest, Unit, CommonErrorMessage>("chmod") {
-        audit<BulkFileAudit<ChmodRequest>>()
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        websocket(wsBaseContext)
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"chmod"
             }
 
             body { bindEntireRequestFromBody() }
@@ -629,6 +573,21 @@ object FileDescriptions : CallDescriptionContainer("files") {
 
             params {
                 +boundTo(FindHomeFolderRequest::username)
+            }
+        }
+    }
+
+    val testTask = call<Unit, LongRunningResponse<Unit>, CommonErrorMessage>("testTask") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"testTask"
             }
         }
     }

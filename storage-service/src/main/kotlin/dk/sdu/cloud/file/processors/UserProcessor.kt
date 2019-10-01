@@ -5,14 +5,8 @@ import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
-import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.services.CommandRunner
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FileScanner
-import dk.sdu.cloud.file.services.withBlockingContext
-import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -20,9 +14,7 @@ import kotlinx.coroutines.launch
 
 class UserProcessor<FSCtx : CommandRunner>(
     private val streams: EventStreamService,
-    private val externalFileService: FileScanner<FSCtx>,
-    private val runnerFactory: FSCommandRunnerFactory<FSCtx>,
-    private val coreFs: CoreFileSystemService<FSCtx>
+    private val externalFileService: FileScanner<FSCtx>
 ) {
     fun init() {
         streams.subscribe(AuthStreams.UserUpdateStream, EventConsumer.Immediate(this::handleEvent))

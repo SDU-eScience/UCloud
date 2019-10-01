@@ -3,11 +3,12 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.services.background.BackgroundScope
+import dk.sdu.cloud.micro.BackgroundScope
 import kotlinx.coroutines.launch
 
 class StorageEventProducer(
     private val delegate: EventProducer<StorageEvent>,
+    private val backgroundScope: BackgroundScope,
     private val exceptionHandler: (Throwable) -> Unit
 ) : EventProducer<StorageEvent> {
     override val stream: EventStream<StorageEvent> get() = delegate.stream
@@ -29,7 +30,7 @@ class StorageEventProducer(
     }
 
     fun produceInBackground(events: List<StorageEvent>) {
-        BackgroundScope.launch {
+        backgroundScope.launch {
             produce(events)
         }
     }

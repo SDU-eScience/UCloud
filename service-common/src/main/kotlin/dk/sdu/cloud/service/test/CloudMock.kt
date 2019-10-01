@@ -31,6 +31,7 @@ object ClientMock {
                 call,
                 any(),
                 any(),
+                any(),
                 any()
             )
         } answers {

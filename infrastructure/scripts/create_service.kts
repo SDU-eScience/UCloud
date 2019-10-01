@@ -6,9 +6,9 @@ import java.nio.file.StandardCopyOption
 import kotlin.system.exitProcess
 
 object Versions {
-    val GradleBootstrap = "v0.2.16"
+    val GradleBootstrap = "v0.2.22"
     val AuthAPI = "1.21.0"
-    val ServiceCommon = "1.5.6"
+    val ServiceCommon = "1.9.0"
 }
 
 if (args.size != 1) {
@@ -193,61 +193,6 @@ run {
                         override val log = logger()
                     }
                 }
-            """.trimIndent()
-        )
-    }
-}
-
-run {
-    println("Generating log4j2 config")
-    val mainResources = File(serviceDirectory, "src/main/resources")
-    val testResources = File(serviceDirectory, "src/test/resources")
-
-    Files.createDirectories(mainResources.toPath())
-    Files.createDirectories(testResources.toPath())
-
-    listOf(File(mainResources, "log4j2.xml"), File(testResources, "log4j2.xml")).forEach {
-        it.writeText(
-            //language=xml
-            """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <Configuration status="WARN">
-                    <Appenders>
-                        <Console name="Console" target="SYSTEM_OUT">
-                            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level (%X{request-id}) %C{1.1} - %msg%n"/>
-                        </Console>
-                    </Appenders>
-                    <Loggers>
-                        <Root level="debug">
-                            <AppenderRef ref="Console"/>
-                        </Root>
-                        <Logger name="org.apache.kafka" level="warn" additivity="false">
-                            <AppenderRef ref="Console"/>
-                        </Logger>
-                        <Logger name="org.apache.zookeeper" level="warn" additivity="false">
-                            <AppenderRef ref="Console"/>
-                        </Logger>
-                        <Logger name="org.asynchttpclient" level="warn" additivity="false">
-                            <AppenderRef ref="Console"/>
-                        </Logger>
-                        <Logger name="io.netty" level="info" additivity="false">
-                            <AppenderRef ref="Console"/>
-                        </Logger>
-                        <Logger name="dk.sdu.cloud.service.EventProducer" level="info" additivity="false">
-                            <AppenderRef ref="Console"/>
-                        </Logger>
-                        <Logger name="org.hibernate" level="info" additivity="false">
-                            <AppenderRef ref="Console"/>
-                        </Logger>
-                        <Logger name="com.zaxxer.hikari" level="info" additivity="false">
-                            <AppenderRef ref="Console"/>
-                        </Logger>
-                        <Logger name="io.mockk.impl" level="info" additivity="false">
-                            <AppenderRef ref="Console"/>
-                        </Logger>
-                    </Loggers>
-                </Configuration>
-
             """.trimIndent()
         )
     }

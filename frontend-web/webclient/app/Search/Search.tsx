@@ -6,7 +6,7 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage, HeaderSearchType, ReduxObject} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, FileType} from "Files";
 import DetailedFileSearch from "Files/DetailedFileSearch";
-import {EmbeddedFileTable} from "Files/FileTable"
+import {EmbeddedFileTable} from "Files/FileTable";
 import {setFilename, toggleFilesSearchHidden} from "Files/Redux/DetailedFileSearchActions";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -35,6 +35,7 @@ function Search(props: SearchProps) {
         props.setSearch(q);
         props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
         props.setRefresh(() => fetchAll());
+        fetchAll();
         return () => {
             props.toggleAdvancedSearch();
             props.clear();
@@ -49,12 +50,12 @@ function Search(props: SearchProps) {
 
     function fetchAll(itemsPerPage?: number) {
         props.searchFiles(fileSearchBody(
-            props.fileSearch,
+            {...props.fileSearch, fileName: query(props)},
             itemsPerPage || props.files.itemsPerPage,
             props.files.pageNumber
         ));
         props.searchApplications(applicationSearchBody(
-            props.applicationSearch,
+            {...props.applicationSearch, appName: query(props)},
             itemsPerPage || props.applications.itemsPerPage,
             props.applications.pageNumber
         ));
@@ -122,7 +123,13 @@ function Search(props: SearchProps) {
                     </GridCardGroup>
                 }
                 page={applications}
-                onPageChanged={pageNumber => props.searchApplications({itemsPerPage: 25, page: pageNumber})}
+                onPageChanged={pageNumber => props.searchApplications(
+                    applicationSearchBody(
+                        props.applicationSearch,
+                        props.applications.itemsPerPage,
+                        pageNumber
+                    ))
+                }
             />
         </>;
     }
@@ -138,7 +145,7 @@ function Search(props: SearchProps) {
                         onChange={itemsPerPage => fetchAll(itemsPerPage)}
                         content={`${prettierString(priority)} per page`}
                         entriesPerPage={
-                            priority === "files" ? props.files.itemsPerPage : (props.applications.itemsPerPage)
+                            priority === "files" ? props.files.itemsPerPage : props.applications.itemsPerPage
                         }
                     />} />
                 </React.Fragment>
@@ -225,7 +232,7 @@ export function applicationSearchBody(
     return {
         name: !!appName ? appName : undefined,
         version: !!appVersion ? appVersion : undefined,
-        tags: [...tags],
+        tags: tags.size > 0 ? [...tags] : undefined,
         itemsPerPage,
         page
     };

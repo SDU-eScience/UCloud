@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.http
 
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.BulkFileAudit
@@ -19,10 +18,6 @@ class FileSecurityController<Ctx : FSUserContext>(
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        implement(FileDescriptions.chmod) {
-            ok(Unit)
-        }
-
         implement(FileDescriptions.updateAcl) {
             // We cannot supply a list of file IDs since this call is async
             audit(BulkFileAudit(emptyList(), request))

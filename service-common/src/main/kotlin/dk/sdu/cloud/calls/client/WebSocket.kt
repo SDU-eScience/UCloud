@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.coroutineScope
@@ -33,7 +34,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
@@ -53,6 +53,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
     override val companion = OutgoingWSCall
     private val connectionPool = WSConnectionPool()
     private val streamId = AtomicInteger()
+    private val sampleCounter = AtomicInteger(0)
 
     override suspend fun <R : Any, S : Any, E : Any> prepareCall(
         call: CallDescription<R, S, E>,
@@ -73,6 +74,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val targetHost = ctx.attributes.outgoingTargetHost
         val host = targetHost.host.removeSuffix("/")
 
+        val ourSampleCount = sampleCounter.incrementAndGet()
+
         // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
         // when redirected from WS to WSS.
         val port = targetHost.takeIf { it.port != 443 }?.port ?: 80
@@ -84,7 +87,13 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
         val streamId = streamId.getAndIncrement().toString()
 
-        log.info("[$callId] -> $url (${call.fullName}, $streamId): $shortRequestMessage")
+        val requestDebug = "[$callId] -> ${call.fullName}: $shortRequestMessage"
+        if (ourSampleCount % SAMPLE_FREQUENCY == 0) {
+            log.info(requestDebug)
+        } else {
+            log.debug(requestDebug)
+        }
+
         val session = connectionPool.retrieveConnection(url)
         val wsRequest = WSRequest(
             call.fullName,
@@ -101,28 +110,35 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         )
         val subscription = session.subscribe(streamId)
         val text = writer.writeValueAsString(wsRequest)
-        log.debug("[$callId] -> $text")
         session.underlyingSession.outgoing.send(Frame.Text(text))
 
         val handler = ctx.attributes.getOrNull(OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY)
 
         val response = coroutineScope {
-            lateinit var response: WSMessage.Response<Any>
+            lateinit var response: WSMessage.Response<Any?>
             val channel = processMessagesFromStream(call, subscription, streamId)
 
-            while (!channel.isClosedForReceive) {
-                val message = channel.receive()
-                if (message is WSMessage.Response) {
-                    log.info("[$callId] <- $url (${call.fullName}, $streamId) " +
-                            "RESPONSE ${System.currentTimeMillis() - start}ms")
-                    response = message
-                    channel.cancel()
-                    session.unsubscribe(streamId)
-                } else if (message is WSMessage.Message && handler != null) {
-                    log.info("[$callId] <- $url (${call.fullName}, $streamId) " +
-                            "MESSAGE ${System.currentTimeMillis() - start}ms")
-                    handler(message.payload)
+            try {
+                while (!channel.isClosedForReceive) {
+                    val message = channel.receive()
+                    if (message is WSMessage.Response) {
+                        val responseDebug =
+                            "[$callId] <- ${call.fullName} RESPONSE ${System.currentTimeMillis() - start}ms"
+                        if (message.status in 400..599 || ourSampleCount % SAMPLE_FREQUENCY == 0) {
+                            log.info(responseDebug)
+                        } else {
+                            log.debug(responseDebug)
+                        }
+
+                        response = message
+                        session.unsubscribe(streamId)
+                    } else if (message is WSMessage.Message && handler != null) {
+                        log.debug("[$callId] <- ${call.fullName} MESSAGE ${System.currentTimeMillis() - start}ms")
+                        handler(message.payload!!)
+                    }
                 }
+            } catch (ex: ClosedReceiveChannelException) {
+                // Do nothing. It is expected that the channel will close down.
             }
 
             response
@@ -131,7 +147,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         @Suppress("UNCHECKED_CAST")
         return when (response.status) {
             in 100..399 -> IngoingCallResponse.Ok(response.payload as S, HttpStatusCode.fromValue(response.status))
-            else -> IngoingCallResponse.Error(response.payload as E, HttpStatusCode.fromValue(response.status))
+            else -> IngoingCallResponse.Error(response.payload as E?, HttpStatusCode.fromValue(response.status))
         }
     }
 
@@ -139,7 +155,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         call: CallDescription<*, *, *>,
         channel: ReceiveChannel<WSRawMessage>,
         streamId: String
-    ): ReceiveChannel<WSMessage<Any>> = produce<WSMessage<Any>> {
+    ): ReceiveChannel<WSMessage<Any?>> = produce {
         val successReader = defaultMapper.readerFor(call.successType)
         val errorReader = defaultMapper.readerFor(call.errorType)
 
@@ -157,18 +173,28 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                         else -> errorReader
                     }
 
-                    val payload = reader.readValue<Any>(message.payload)
-                    WSMessage.Response(streamId, payload, message.status)
+                    val payload = try {
+                        reader.readValue<Any>(message.payload)
+                    } catch (ex: Throwable) {
+                        if (message.status in 100..399) throw ex
+                        null
+                    }
+
+                    WSMessage.Response<Any?>(streamId, payload, message.status)
                 }
                 else -> null
             }
 
-            if (result != null) send(result)
+            if (result != null) {
+                send(result as WSMessage<Any?>)
+            }
         }
     }
 
     companion object : Loggable {
         override val log = logger()
+
+        const val SAMPLE_FREQUENCY = 100
     }
 }
 
@@ -176,16 +202,21 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 internal class WSClientSession constructor(
     val underlyingSession: ClientWebSocketSession
 ) {
-    private val channels = ConcurrentHashMap<String, Channel<WSRawMessage>>()
+    private val channels = HashMap<String, Channel<WSRawMessage>>()
+    private val mutex = Mutex()
 
-    fun subscribe(streamId: String): ReceiveChannel<WSRawMessage> {
-        val channel = Channel<WSRawMessage>()
-        channels[streamId] = channel
-        return channel
+    suspend fun subscribe(streamId: String): ReceiveChannel<WSRawMessage> {
+        mutex.withLock {
+            val channel = Channel<WSRawMessage>(Channel.UNLIMITED)
+            channels[streamId] = channel
+            return channel
+        }
     }
 
-    fun unsubscribe(streamId: String) {
-        channels.remove(streamId)?.cancel()
+    suspend fun unsubscribe(streamId: String) {
+        mutex.withLock {
+            channels.remove(streamId)?.cancel()
+        }
     }
 
     fun startProcessing(scope: CoroutineScope) {
@@ -195,9 +226,11 @@ internal class WSClientSession constructor(
                 var messagesReceived = 0
                 while (true) {
                     val frame = underlyingSession.incoming.receive()
+
                     messagesReceived++
                     if (frame is Frame.Text) {
                         val text = frame.readText()
+
                         @Suppress("BlockingMethodInNonBlockingContext") val frameNode = defaultMapper.readTree(text)
                         val type = frameNode[TYPE_PROPERTY]
                             ?.takeIf { !it.isNull && it.isTextual }
@@ -213,12 +246,36 @@ internal class WSClientSession constructor(
 
                         val payload = frameNode[WSMessage.PAYLOAD_FIELD]
 
-                        val channel = channels[incomingStreamId] ?: continue
-                        channel.send(WSRawMessage(type, status, incomingStreamId, payload))
+                        mutex.withLock {
+                            val channel = channels[incomingStreamId] ?: return@withLock
+
+                            if (!channel.isClosedForSend) {
+                                channel.send(WSRawMessage(type, status, incomingStreamId, payload))
+                            } else {
+                                unsubscribe(incomingStreamId)
+                            }
+                        }
                     }
                 }
-            } catch (ex: Exception) {
-                log.info(ex.stackTraceToString())
+            } catch (ex: Throwable) {
+                if (ex is ClosedReceiveChannelException || ex.cause is ClosedReceiveChannelException) {
+                    mutex.withLock {
+                        val emptyTree = defaultMapper.readTree("{}")
+
+                        channels.forEach { (streamId, channel) ->
+                            if (!channel.isClosedForSend) {
+                                channel.send(WSRawMessage(WSMessage.RESPONSE_TYPE, 499, streamId, emptyTree))
+                            }
+
+                            channel.cancel()
+                        }
+
+                        channels.clear()
+                    }
+                } else {
+                    log.info("Exception while processing client messages!")
+                    log.info(ex.stackTraceToString())
+                }
             }
         }
     }
@@ -286,8 +343,8 @@ suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.subscribe(
     authenticatedClient: AuthenticatedClient,
     handler: suspend (S) -> Unit
 ): IngoingCallResponse<S, E> {
-    if (authenticatedClient.companion != OutgoingWSCall) {
-        throw IllegalArgumentException("subscribe call not supported for backend '${authenticatedClient.companion}'")
+    require(authenticatedClient.companion == OutgoingWSCall) {
+        "subscribe call not supported for backend '${authenticatedClient.companion}'"
     }
 
     @Suppress("UNCHECKED_CAST")

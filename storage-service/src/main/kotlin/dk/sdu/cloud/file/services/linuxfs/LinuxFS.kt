@@ -3,11 +3,29 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.api.AccessEntry
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SortOrder
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.components
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.services.FSResult
+import dk.sdu.cloud.file.services.FileAttribute
+import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.XATTR_BIRTH
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
+import dk.sdu.cloud.file.services.mergeWith
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
@@ -17,17 +35,27 @@ import dk.sdu.cloud.file.util.toMovedEvent
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.task.api.TaskContext
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.file.*
+import java.nio.file.DirectoryNotEmptyException
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.Files
+import java.nio.file.InvalidPathException
+import java.nio.file.LinkOption
+import java.nio.file.NoSuchFileException
+import java.nio.file.OpenOption
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
-import kotlin.io.FileSystemException
 import kotlin.math.min
 import kotlin.streams.toList
 
@@ -46,15 +74,13 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
-        writeConflictPolicy: WriteConflictPolicy
+        writeConflictPolicy: WriteConflictPolicy,
+        task: TaskContext
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
-        val systemFrom = File(translateAndCheckFile(from))
+        translateAndCheckFile(from)
         val systemTo = File(translateAndCheckFile(to))
         aclService.requirePermission(from, ctx.user, AccessRight.READ)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
-
-        val opts =
-            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
         copyPreAuthorized(ctx, from, to, writeConflictPolicy)
 
@@ -87,7 +113,7 @@ class LinuxFS(
             try {
                 Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
             } catch (e: DirectoryNotEmptyException) {
-                systemFrom.listFiles().forEach {
+                systemFrom.listFiles()?.forEach {
                     copyPreAuthorized(
                         ctx,
                         Paths.get(from, it.name).toString(),
@@ -105,7 +131,8 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
-        writeConflictPolicy: WriteConflictPolicy
+        writeConflictPolicy: WriteConflictPolicy,
+        task: TaskContext
     ): FSResult<List<StorageEvent.Moved>> = ctx.submit {
         val systemFrom = File(translateAndCheckFile(from))
         val systemTo = File(translateAndCheckFile(to))
@@ -113,9 +140,6 @@ class LinuxFS(
         // We need write permission on from's parent to avoid being able to steal a file by changing the owner.
         aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
-
-        val opts =
-            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
         // We need to record some information from before the move
         val fromStat = stat(
@@ -195,7 +219,7 @@ class LinuxFS(
 
         if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
             if (systemFrom.isDirectory) {
-                systemFrom.listFiles().forEach {
+                systemFrom.listFiles()?.forEach {
                     movePreAuthorized(
                         ctx,
                         Paths.get(from, it.name).toString(),
@@ -259,7 +283,6 @@ class LinuxFS(
                 FileSortBy.PATH -> FileAttribute.PATH
                 FileSortBy.CREATED_AT, FileSortBy.MODIFIED_AT -> FileAttribute.TIMESTAMPS
                 FileSortBy.SIZE -> FileAttribute.SIZE
-//                FileSortBy.ACL -> FileAttribute.SHARES
                 FileSortBy.SENSITIVITY -> FileAttribute.SENSITIVITY
                 null -> FileAttribute.PATH
             }
@@ -323,8 +346,6 @@ class LinuxFS(
         order: SortOrder
     ): Comparator<FileRow> {
         val naturalComparator: Comparator<FileRow> = when (sortBy) {
-//            FileSortBy.ACL -> Comparator.comparingInt { it.shares.size }
-
             FileSortBy.CREATED_AT -> Comparator.comparingLong { it.timestamps.created }
 
             FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.timestamps.modified }
@@ -534,7 +555,11 @@ class LinuxFS(
         }
     }
 
-    override suspend fun delete(ctx: LinuxFSRunner, path: String): FSResult<List<StorageEvent.Deleted>> =
+    override suspend fun delete(
+        ctx: LinuxFSRunner,
+        path: String,
+        task: TaskContext
+    ): FSResult<List<StorageEvent.Deleted>> =
         ctx.submit {
             aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
             aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
@@ -903,4 +928,3 @@ fun translateAndCheckFile(fsRoot: File, internalPath: String, isDirectory: Boole
 
     return path
 }
-

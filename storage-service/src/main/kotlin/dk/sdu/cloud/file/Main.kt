@@ -1,12 +1,7 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.installDefaultFeatures
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 
 val SERVICE_USER = "_${StorageServiceDescription.name}"
@@ -21,6 +16,7 @@ fun main(args: Array<String>) {
         installDefaultFeatures()
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(BackgroundScopeFeature)
     }
 
     if (micro.runScriptHandler()) return

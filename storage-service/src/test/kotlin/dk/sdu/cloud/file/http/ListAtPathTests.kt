@@ -8,9 +8,10 @@ import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.services.WithBackgroundScope
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.parseSuccessful
 import dk.sdu.cloud.service.test.withKtorTest
@@ -19,14 +20,15 @@ import org.junit.Test
 import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.*
 
-class ListAtPathTests {
+class ListAtPathTests : WithBackgroundScope() {
     private val mapper = jacksonObjectMapper()
 
     @Test
     fun `list files at path`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val response = engine.listDir("/home/user1/folder")
@@ -46,7 +48,7 @@ class ListAtPathTests {
     @Test
     fun `list files at path beyond page limit`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val resp = listDirectory(
@@ -68,7 +70,7 @@ class ListAtPathTests {
     @Test
     fun `list files at path which does not exist`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val path = "/home/user1/notThere"
@@ -81,7 +83,7 @@ class ListAtPathTests {
     @Test
     fun `list with partial attributes and sort by sensitivity`() {
         withKtorTest(
-            setup = { configureServerWithFileController() },
+            setup = { configureServerWithFileController(backgroundScope) },
 
             test = {
                 val status = engine.listDir(

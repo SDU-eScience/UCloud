@@ -4,7 +4,6 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AccessRights
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.background.BackgroundScope
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.createDummyFS
@@ -23,7 +22,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 
-class WorkspaceTest {
+class WorkspaceTest : WithBackgroundScope() {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<*>
     private lateinit var workspaceService: WorkspaceService<LinuxFSRunner>
@@ -34,28 +33,29 @@ class WorkspaceTest {
         micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        BackgroundScope.init()
         aclService = AclService(micro.hibernateDatabase, AclHibernateDao(), MockedHomeFolderService, { it.normalize() })
         fsRoot = createDummyFS()
         val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), { throw it })
+        val eventProducer =
+            StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope, { throw it })
 
         val coreFileSystem = CoreFileSystemService(
             fs,
             eventProducer,
             FileSensitivityService(fs, eventProducer),
-            ClientMock.authenticatedClient
+            ClientMock.authenticatedClient,
+            backgroundScope
         )
 
         val fileScanner = FileScanner(
             runner,
             coreFileSystem,
-            eventProducer
+            eventProducer,
+            backgroundScope
         )
 
         workspaceService = WorkspaceService(fsRoot, fileScanner, aclService, coreFileSystem, runner)
-        BackgroundScope.stop()
     }
 
     @Test

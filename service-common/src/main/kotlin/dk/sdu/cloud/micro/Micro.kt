@@ -3,9 +3,14 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.FrontendOverrides
 import dk.sdu.cloud.service.Loggable
+import org.apache.logging.log4j.core.config.ConfigurationFactory
 import kotlin.system.measureTimeMillis
 
 class Micro : Loggable {
+    init {
+        ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
+    }
+
     override val log = logger()
 
     var initialized: Boolean = false
@@ -108,6 +113,7 @@ fun Micro.installDefaultFeatures() {
     install(ServiceDiscoveryOverrides)
     install(ServiceInstanceFeature)
     install(DevelopmentOverrides)
+    install(LogFeature)
     install(KtorServerProviderFeature)
     install(RedisFeature)
     install(ClientFeature)

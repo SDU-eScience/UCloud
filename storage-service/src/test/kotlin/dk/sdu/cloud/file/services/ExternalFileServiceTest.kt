@@ -13,14 +13,15 @@ import dk.sdu.cloud.file.util.createFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
+import dk.sdu.cloud.micro.BackgroundScope
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.io.File
 import kotlin.test.assertEquals
 
-class ExternalFileServiceTest {
-    data class TestContext<Ctx : CommandRunner>(
+class ExternalFileServiceTest : WithBackgroundScope() {
+   data class TestContext<Ctx : CommandRunner>(
         val runner: FSCommandRunnerFactory<Ctx>,
         val fs: CoreFileSystemService<Ctx>,
         val producer: StorageEventProducer,
@@ -38,14 +39,22 @@ class ExternalFileServiceTest {
         EventServiceMock.reset()
         val (runner, fs) = linuxFSWithRelaxedMocks(root)
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
-        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true), fileSensitivityService, ClientMock.authenticatedClient)
-        val eventProducer = StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), {})
+        val coreFs =
+            CoreFileSystemService(
+                fs,
+                mockk(relaxed = true),
+                fileSensitivityService,
+                ClientMock.authenticatedClient,
+                backgroundScope
+            )
+        val eventProducer =
+            StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope, {})
 
         return TestContext(
             runner = runner,
             fs = coreFs,
             producer = eventProducer,
-            service = FileScanner(runner, coreFs, eventProducer)
+            service = FileScanner(runner, coreFs, eventProducer, backgroundScope)
         )
     }
 

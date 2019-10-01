@@ -1,0 +1,37 @@
+---
+
+elasticsearchHosts: "http://elasticsearch-newmaster:9200"
+
+extraEnvs:
+  - name: 'ELASTICSEARCH_USERNAME'
+    valueFrom:
+      secretKeyRef:
+        name: elasticsearch-kibana-credentials
+        key: username
+  - name: 'ELASTICSEARCH_PASSWORD'
+    valueFrom:
+      secretKeyRef:
+        name: elasticsearch-kibana-credentials
+        key: password
+  #- name: 'KIBANA_ENCRYPTION_KEY'
+  #  valueFrom:
+  #    secretKeyRef:
+  #      name: kibana
+  #      key: encryptionkey
+#    server.ssl:
+#      enabled: true
+#      key: /usr/share/kibana/config/certs/elastic-certificate.pem
+ #     certificate: /usr/share/kibana/config/certs/elastic-certificate.pem
+#    xpack.security.encryptionKey: ${KIBANA_ENCRYPTION_KEY}
+kibanaConfig:
+  kibana.yml: |
+    elasticsearch.ssl:
+      certificateAuthorities: /usr/share/kibana/config/certs/elastic-node.p12
+      verificationMode: certificate
+    
+protocol: http
+
+secretMounts:
+  - name: elastic-certificates
+    secretName: elastic-certificates
+    path: /usr/share/kibana/config/certs

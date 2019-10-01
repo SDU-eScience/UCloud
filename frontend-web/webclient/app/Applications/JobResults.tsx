@@ -1,5 +1,7 @@
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {formatRelative} from "date-fns/esm";
+import {enGB} from "date-fns/locale";
 import {ReduxObject} from "DefaultObjects";
 import {SortOrder} from "Files";
 import {History} from "history";
@@ -24,17 +26,15 @@ import InputGroup from "ui-components/InputGroup";
 import Label from "ui-components/Label";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
-import {Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
 import {cancelJob, cancelJobDialog, inCancelableState} from "Utilities/ApplicationUtilities";
 import {Arrow, MasterCheckbox} from "UtilityComponents";
-import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {prettierString} from "UtilityFunctions";
+import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {AnalysesOperations, AnalysesProps, AnalysesStateProps, JobState, JobWithStatus, RunsSortBy} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
-import {formatRelative} from "date-fns/esm";
-import {enGB} from "date-fns/locale";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -90,50 +90,53 @@ function JobResults(props: AnalysesProps & {history: History}) {
 
     const hide = responsive.lessThan.lg;
     const masterCheckboxChecked = selectedAnalyses.length === page.items.length && page.items.length > 0;
-    const masterCheckbox = <MasterCheckbox
-        checked={masterCheckboxChecked}
-        onClick={checked => props.checkAllAnalyses(checked)}
-    />;
+    const masterCheckbox = (
+        <MasterCheckbox
+            checked={masterCheckboxChecked}
+            onClick={props.checkAllAnalyses}
+        />
+    );
 
-    const content = <List
-        customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
-        loading={loading}
-        pageRenderer={page =>
-            <Table>
-                <Header
-                    hide={hide}
-                    masterCheckbox={masterCheckbox}
-                    sortBy={sortBy}
-                    sortOrder={sortOrder}
-                    fetchJobs={sortBy => fetchJobs({
-                        itemsPerPage,
-                        pageNumber,
-                        sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
-                        sortBy
-                    })}
-                />
-                <TableBody>
-                    {page.items.map((a, i) =>
-                        <Row
-                            hide={hide}
-                            to={() => history.push(`/applications/results/${a.jobId}`)}
-                            analysis={a}
-                            key={i}
-                        >
-                            <Box><Label>
-                                <Checkbox
-                                    checked={a.checked}
-                                    onClick={(e: {target: {checked: boolean}}) =>
-                                        props.checkAnalysis(a.jobId, e.target.checked)}
-                                />
-                            </Label></Box>
-                        </Row>)}
-                </TableBody>
-            </Table>
-        }
-        page={page}
-        onPageChanged={pageNumber => fetchJobs({pageNumber})}
-    />;
+    const content = (
+        <List
+            customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
+            loading={loading}
+            pageRenderer={page => (
+                <Table>
+                    <Header
+                        hide={hide}
+                        masterCheckbox={masterCheckbox}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        fetchJobs={sortBy => fetchJobs({
+                            itemsPerPage,
+                            pageNumber,
+                            sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
+                            sortBy
+                        })}
+                    />
+                    <tbody>
+                        {page.items.map((a, i) =>
+                            <Row
+                                hide={hide}
+                                to={() => history.push(`/applications/results/${a.jobId}`)}
+                                analysis={a}
+                                key={i}
+                            >
+                                <Box><Label>
+                                    <Checkbox
+                                        checked={a.checked}
+                                        onChange={e => props.checkAnalysis(a.jobId, e.target.checked)}
+                                    />
+                                </Label></Box>
+                            </Row>)}
+                    </tbody>
+                </Table>
+            )}
+            page={page}
+            onPageChanged={pageNumber => fetchJobs({pageNumber})}
+        />
+    );
 
     const defaultFilter = {text: "Don't filter", value: "Don't filter"};
     const [filter, setFilter] = React.useState(defaultFilter);

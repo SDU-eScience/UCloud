@@ -20,6 +20,8 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
 
     useEffect(() => setLoadedImage(true), [props.cacheBust]);
 
+    const url = Cloud.computeURL("/api", `/hpc/${context}/logo/${props.name}?cacheBust=${props.cacheBust}`);
+
     return <>
         <img
             onErrorCapture={() => {
@@ -27,11 +29,13 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
                 // For some reason the state is not always correctly set. This is the worst possible work around.
                 setTimeout(() => setLoadedImage(false), 50);
             }}
+            key={url}
             style={hasLoadedImage ? {width: size, height: size, objectFit: "contain"} : {display: "none"}}
-            src={Cloud.computeURL("/api", `/hpc/${context}/logo/${props.name}?cacheBust=${props.cacheBust}`)}
-            alt={props.name}/>
+            src={url}
+            alt={props.name}
+        />
 
-        {hasLoadedImage ? null : <AppLogo size={size} hash={hashF(props.name)}/>}
+        {hasLoadedImage ? null : <AppLogo size={size} hash={hashF(props.name)} />}
     </>;
 };
 

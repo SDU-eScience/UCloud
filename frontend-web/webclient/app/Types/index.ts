@@ -9,13 +9,17 @@ export interface SidebarOption {
     children?: SidebarOption
 }
 
+export interface PaginationRequest {
+    itemsPerPage: number;
+    page: number;
+}
 
 export interface Page<T> {
-    itemsInTotal: number,
-    itemsPerPage: number,
-    pagesInTotal: number
-    pageNumber: number,
-    items: T[]
+    itemsInTotal: number;
+    itemsPerPage: number;
+    pagesInTotal: number;
+    pageNumber: number;
+    items: T[];
 }
 
 export interface TimeRange {
@@ -72,7 +76,7 @@ export type ReceivePage<T1, T2> = PayloadAction<T1, {page: Page<T2>}>
 export interface PayloadAction<T1, T2> extends Action<T1> {payload: T2}
 
 export interface Dictionary<V> {
-    [key: string]: V
+    [key: string]: V;
 }
 
 export interface PredicatedOperation<T> {

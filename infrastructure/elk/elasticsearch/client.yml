@@ -1,0 +1,37 @@
+replicas: 2
+
+clusterName: "elasticsearch"
+nodeGroup: "newclient"
+masterService: "elasticsearch-newmaster"
+
+#esMajorVersion: 6
+#imageTag: "6.8.1"
+imageTag: "7.3.0"
+
+roles:
+  master: "false"
+  ingest: "false"
+  data: "false"
+
+esJavaOpts: "-Xmx6g -Xms6g"
+
+resources:
+  limits: 
+    cpu: "2000m"
+    memory: "8Gi"
+  requests:
+    cpu: "2000m"
+    memory: "8Gi"
+
+volumeClaimTemplate:
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: "rbc"
+  resources:
+    requests:
+      storage: 1Gi # Currently needed till pvcs are made optional
+
+persistence:
+  enabled: false
+
+service:
+  type: NodePort

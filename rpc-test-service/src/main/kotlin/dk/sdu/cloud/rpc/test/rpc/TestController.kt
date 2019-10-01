@@ -1,16 +1,19 @@
 package dk.sdu.cloud.rpc.test.rpc
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.rpc.test.api.*
-import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.sendWSMessage
+import dk.sdu.cloud.rpc.test.api.TestA
 import dk.sdu.cloud.rpc.test.b.api.PingRequest
 import dk.sdu.cloud.rpc.test.b.api.TestB
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.*
 
 class TestController(
@@ -75,6 +78,20 @@ class TestController(
             }
 
             ok(Unit)
+        }
+
+        implement(TestA.pingSelf) {
+            val flagFile = File("/tmp/flag")
+            flagFile.delete()
+            var counter = 0
+
+            while (!flagFile.exists()) {
+                sendWSMessage(FindByStringId(counter.toString()))
+                counter++
+                delay(1000)
+            }
+
+            ok(FindByStringId("Done"))
         }
     }
 

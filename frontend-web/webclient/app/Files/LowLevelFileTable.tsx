@@ -11,7 +11,6 @@ import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {connect} from "react-redux";
-import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
@@ -26,7 +25,7 @@ import Divider from "ui-components/Divider";
 import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import {Spacer} from "ui-components/Spacer";
-import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
@@ -50,6 +49,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import { hashF, AppLogo } from "Applications/Card";
+import {useHistory} from "react-router";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -267,11 +267,12 @@ function apiForComponent(
 }
 
 // tslint:disable-next-line: variable-name
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
-    RouteComponentProps &
-    { responsive: ResponsiveReduxObject } &
-    { showUploader: (path: string) => void } &
-    { setUploaderCallback: (cb?: () => void) => void }> = props => {
+const LowLevelFileTable_: React.FunctionComponent<
+    LowLevelFileTableProps &
+    {responsive: ResponsiveReduxObject} &
+    {showUploader: (path: string) => void} &
+    {setUploaderCallback: (cb?: () => void) => void}
+> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -289,6 +290,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const [workLoading, workError, invokeWork] = useAsyncWork();
     const [applications, setApplications] =
         useState<Map<string, QuickLaunchApp[]>>(new Map<string, QuickLaunchApp[]>());
+    const history = useHistory();
 
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
@@ -365,7 +367,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             if (props.requestFileSelector) return await props.requestFileSelector(allowFolders, canOnlySelectFolders);
             return null;
         },
-        history: props.history
+        history
     };
 
     // Register refresh hook
@@ -492,25 +494,23 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         sidebar={
             <Box pl="5px" pr="5px">
                 <VerticalButtonGroup>
-                    <SidebarContent>
-                        <FileOperations
-                            files={checkedFilesWithInfo}
-                            fileOperations={fileOperations}
-                            callback={callbacks}
-                            // Don't pass a directory if the page is set. This should indicate that the path is fake.
-                            directory={props.page !== undefined ? undefined : mockFile({
-                                path: props.path ? props.path : "",
-                                fileId: "currentDir",
-                                tag: MOCK_RELATIVE,
-                                type: "DIRECTORY"
-                            })}
-                        />
-                    </SidebarContent>
+                    <FileOperations
+                        files={checkedFilesWithInfo}
+                        fileOperations={fileOperations}
+                        callback={callbacks}
+                        // Don't pass a directory if the page is set. This should indicate that the path is fake.
+                        directory={props.page !== undefined ? undefined : mockFile({
+                            path: props.path ? props.path : "",
+                            fileId: "currentDir",
+                            tag: MOCK_RELATIVE,
+                            type: "DIRECTORY"
+                        })}
+                    />
                 </VerticalButtonGroup>
             </Box>
         }
 
-        main={
+        main={(
             <Pagination.List
                 loading={pageLoading}
                 customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ? null :
@@ -616,8 +616,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                 </FileTableHeaderCell>
                             </TableRow>
                         </TableHeader>
-
-                        <TableBody>
+                        <tbody>
                             {allFiles.map(file => (
                                 <TableRow highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
                                           key={file.fileId!} data-tag={"fileRow"}>
@@ -671,7 +670,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                         <QuickLaunchApps
                                                             file={file}
                                                             applications={applications.get(file.path)}
-                                                            history={props.history}
+                                                            history={history}
                                                             //inDropdown
                                                             ml="-17px"
                                                             mr="-17px"
@@ -711,11 +710,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                     </TableCell>
                                 </TableRow>)
                             )}
-                        </TableBody>
+                        </tbody>
                     </Table>
                 }
             />
-        }
+        )}
     />;
 };
 
@@ -728,7 +727,7 @@ const mapDispatchToProps = (dispatch: Dispatch) => ({
     setUploaderCallback: (cb?: () => void) => dispatch(setUploaderCallback(cb))
 });
 
-export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(withRouter(LowLevelFileTable_));
+export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(LowLevelFileTable_);
 
 interface ShellProps {
     embedded: boolean;
@@ -751,16 +750,6 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
         sidebar={props.sidebar}
     />;
 };
-
-const SidebarContent = styled.div`
-    grid: auto-flow;
-    & > * {
-        min-width: 75px;
-        max-width: 225px;
-        margin-left: 5px;
-        margin-right: 5px;
-    }
-`;
 
 interface NameBoxProps {
     file: File;

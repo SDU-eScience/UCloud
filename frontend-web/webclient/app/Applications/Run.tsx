@@ -14,7 +14,6 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
-import {useRef} from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
@@ -62,6 +61,7 @@ import {
 } from ".";
 import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
+import {RangeRef} from "./Widgets/RangeParameters";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -165,7 +165,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             <MainContainer
                 headerSize={48}
                 header={
-                    <Flex ml="12%">
+                    <Flex ml="50px">
                         <AppHeader slim application={application} />
                     </Flex>
                 }
@@ -204,7 +204,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 main={
                     <ContainerForText>
-                        <form onSubmit={this.onSubmit}>
+                        <form onSubmit={this.onSubmit} style={{width: "100%"}}>
                             {
                                 this.state.previousRuns.items.length <= 0 ? null :
                                     <RunSection>
@@ -272,7 +272,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 <Heading.h4>Select additional folders to use</Heading.h4>
                                             </Box>
 
-                                            <Button type="button" ml="5px" lineHeight={"16px"} onClick={() => this.addFolder()}>
+                                            <Button
+                                                type="button"
+                                                ml="5px"
+                                                lineHeight={"16px"}
+                                                onClick={() => this.addFolder()}
+                                            >
                                                 Add folder
                                             </Button>
                                         </Flex>
@@ -439,7 +444,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 sortBy: SortBy.CREATED_AT
             }));
             this.setState(s => ({previousRuns}));
-        } catch (ignored) {
+        } catch {
             // Do nothing
         }
     }
@@ -586,7 +591,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
     }
 
-    private async retrieveApplication(name: string, version: string) {
+    private async retrieveApplication(name: string, version: string): Promise<void> {
         try {
             this.props.setLoading(true);
             const {response} = await this.state.promises.makeCancelable(
@@ -594,13 +599,15 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             ).promise;
             const app = response;
             const toolDescription = app.invocation.tool.tool.description;
-            const parameterValues = new Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement>>();
+            const parameterValues = new Map<string, React.RefObject<HTMLInputElement | HTMLSelectElement | RangeRef>>();
 
             app.invocation.parameters.forEach(it => {
                 if (Object.values(ParameterTypes).includes(it.type)) {
                     parameterValues.set(it.name, React.createRef<HTMLInputElement>());
                 } else if (it.type === "boolean") {
                     parameterValues.set(it.name, React.createRef<HTMLSelectElement>());
+                } else if (it.type === "range") {
+                    parameterValues.set(it.name, React.createRef<RangeRef>());
                 }
             });
             this.setState(() => ({
@@ -638,7 +645,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     maxTime,
                     siteVersion
                 } = JSON.parse(rawInputFile);
-
                 // Verify metadata
                 if (application.name !== thisApp.metadata.name) {
                     snackbarStore.addSnack({
@@ -718,7 +724,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
                         const ref = this.state.parameterValues.get(key);
                         if (ref && ref.current) {
-                            ref.current.value = userInputValues[key];
+                            if ("value" in ref.current) ref.current.value = userInputValues[key];
+                            else (ref.current.setState(() => ({bounds: userInputValues[key] as any})));
                             this.state.parameterValues.set(key, ref);
                         }
                     });

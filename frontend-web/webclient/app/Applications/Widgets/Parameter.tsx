@@ -1,23 +1,27 @@
-import * as React from "react";
-import * as Types from "../index";
-import {Box} from "ui-components";
 import {ParameterProps} from "Applications/Widgets/BaseParameter";
-import {FloatingParameter, IntegerParameter} from "Applications/Widgets/NumberParameter";
 import {BooleanParameter} from "Applications/Widgets/BooleanParameter";
-import {TextParameter} from "Applications/Widgets/TextParameter";
 import {InputDirectoryParameter, InputFileParameter} from "Applications/Widgets/FileParameter";
+import {FloatingParameter, IntegerParameter} from "Applications/Widgets/NumberParameter";
 import {PeerParameter} from "Applications/Widgets/PeerParameter";
 import {SharedFileSystemParameter} from "Applications/Widgets/SharedFileSystemParameter";
+import {TextParameter} from "Applications/Widgets/TextParameter";
+import * as React from "react";
+import * as Types from "../index";
+import RangeParameter, {RangeRef} from "./RangeParameters";
 
 export const Parameter = (props: ParameterProps) => {
-    let component = (<div/>);
+    let component = (<div />);
     switch (props.parameter.type) {
-        case Types.ParameterTypes.InputFile:
-            component = <InputFileParameter {...props} />;
+        case Types.ParameterTypes.InputFile: {
+            const p = {...props, parameterRef: props.parameterRef as React.RefObject<HTMLInputElement>};
+            component = <InputFileParameter {...p} />;
             break;
-        case Types.ParameterTypes.InputDirectory:
-            component = <InputDirectoryParameter {...props} />;
+        }
+        case Types.ParameterTypes.InputDirectory: {
+            const p = {...props, parameterRef: props.parameterRef as React.RefObject<HTMLInputElement>};
+            component = <InputDirectoryParameter {...p} />;
             break;
+        }
         case Types.ParameterTypes.Integer:
             component = <IntegerParameter
                 onParamRemove={props.onParamRemove}
@@ -70,6 +74,15 @@ export const Parameter = (props: ParameterProps) => {
                 application={props.application}
             />;
             break;
+        case Types.ParameterTypes.Range: {
+            component = <RangeParameter
+                parameter={props.parameter}
+                onParamRemove={props.onParamRemove}
+                application={props.application}
+                parameterRef={props.parameterRef as React.RefObject<RangeRef>}
+                initialSubmit={props.initialSubmit}
+            />;
+        }
     }
 
     return component;
