@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.favorite.processors.StorageEventProcessor
 import dk.sdu.cloud.file.favorite.services.FileFavoriteHibernateDAO
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
@@ -26,7 +27,11 @@ class Server(override val micro: Micro) : CommonServer {
         val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao, client)
 
         // Processors
-        StorageEventProcessor(fileFavoriteService, micro.eventStreamService).init()
+        StorageEventProcessor(
+            fileFavoriteService,
+            micro.eventStreamService,
+            if (micro.developmentModeEnabled) "admin@dev" else "_file-favorite"
+        ).init()
 
         // Initialize server
         with(micro.server) {

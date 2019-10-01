@@ -19,7 +19,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile 'dk.sdu.cloud:auth-api:1.21.0'
     compile 'dk.sdu.cloud:file-api:1.8.0-REDIS.0'
-    compile "dk.sdu.cloud:indexing-api:1.13.0"
+    compile "dk.sdu.cloud:indexing-api:1.15.0-SUBS.0"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 
