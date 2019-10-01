@@ -25,7 +25,7 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c8 {
-  -webkit-font-smoothing: antialiased;
+  font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
   display: -ms-inline-flexbox;
@@ -71,7 +71,7 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c13 {
-  -webkit-font-smoothing: antialiased;
+  font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
   display: -ms-inline-flexbox;

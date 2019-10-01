@@ -13,10 +13,10 @@ import {loadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
-import * as Pagination from "Pagination";
 import {PaginationButtons} from "Pagination";
-import {useEffect, useRef, useState} from "react";
+import * as Pagination from "Pagination";
 import * as React from "react";
+import {useEffect, useRef, useState} from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -28,6 +28,7 @@ import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import Link from "ui-components/Link";
 import {SidebarPages} from "ui-components/Sidebar";
+import {Spacer} from "ui-components/Spacer";
 import {TextSpan} from "ui-components/Text";
 import {colors} from "ui-components/theme";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
@@ -56,11 +57,11 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
         mapCallState(response as APICallState<SharesByPath | null>, item => singletonToPage(item));
     // End of real data
 
-    // // Need dummy data? Remove the comments!
+    // Need dummy data? Remove the comments!
     // const [params, setFetchParams] = useState(listShares({sharedByMe, itemsPerPage: 100, page: 0}));
     // const items = receiveDummyShares(params.parameters!.itemsPerPage, params.parameters!.page);
     // const page: APICallState<Page<SharesByPath>> = {loading: false, data: items, error: undefined};
-    // // End of dummy data
+    // End of dummy data
 
     if (props.byPath !== undefined && page.data.items.length > 0) {
         sharedByMe = page.data.items[0].sharedByMe;
@@ -248,6 +249,17 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         }
     };
 
+    const [isLoading, sendCommand] = useAsyncCommand();
+
+    const revokeAll = async () => {
+        addStandardDialog({
+            title: "Revoke?",
+            message: `Remove all shares for ${getFilenameFromPath(groupedShare.path)}?`,
+            onConfirm: () => groupedShare.shares.filter(it => inCancelableState(it.state))
+                .forEach(({id}) => sendCommand(revokeShare(id)))
+        });
+    };
+
     const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ?
         <Link to={fileTablePage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link> :
         <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
@@ -314,9 +326,21 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 )}
                 {props.children}
             </Box>
+            {!(groupedShare.sharedByMe &&
+                groupedShare.shares.some(it => inCancelableState(it.state)) &&
+                groupedShare.shares.length > 1) ? null : (
+                    <Spacer
+                        left={<Box />}
+                        right={<Button onClick={revokeAll} disabled={isLoading} mb="8px" mr="16px">Remove all</Button>}
+                    />
+                )}
         </Card>
     );
 };
+
+function inCancelableState(state: ShareState) {
+    return state !== ShareState.UPDATING;
+}
 
 export const ShareRow: React.FunctionComponent<{
     share: Share,
@@ -440,7 +464,7 @@ export const ShareRow: React.FunctionComponent<{
 };
 
 const OptionItem: React.FunctionComponent<{onClick: () => void, text: string, color?: string}> = (props) => (
-    <Box cursor="pointer" width="auto" ml="-17px" pl="15px" mr="-17px" onClick={() => props.onClick()}>
+    <Box cursor="pointer" width="auto" ml="-17px" pl="15px" mr="-17px" onClick={props.onClick}>
         <TextSpan color={props.color}>{props.text}</TextSpan>
     </Box>
 );
