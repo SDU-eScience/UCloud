@@ -22,23 +22,21 @@ export interface QuickLaunchCallbackParameters {
     name: null;
 }
 
-export async function quickLaunchCallback(app: QuickLaunchApp, history: History<any>): Promise<void> {
+export async function quickLaunchCallback(app: QuickLaunchApp, mount: string, history: History<any>): Promise<void> {
     let job = {
-            application: {
-                name: app.metadata.name,
-                version: app.metadata.version,
-            },
-            mounts: [],
-            numberOfNodes: 0,
-            tasksPerNode: 0,
-            maxTime: {hours: 1, minutes: 0, seconds: 0},
-            peers: [],
-            reservation: null,
-            type: "start",
-            name: null,
+        application: {
+            name: app.metadata.name,
+            version: app.metadata.version,
+        },
+        mounts: [mount],
+        numberOfNodes: 0,
+        tasksPerNode: 0,
+        maxTime: {hours: 1, minutes: 0, seconds: 0},
+        peers: [],
+        reservation: null,
+        type: "start",
+        name: null,
     };
-
-
 
     try {
         setLoading(true);
@@ -49,7 +47,6 @@ export async function quickLaunchCallback(app: QuickLaunchApp, history: History<
     } finally {
         setLoading(false);
     }
-
 }
 
 export interface QuickLaunchApp {

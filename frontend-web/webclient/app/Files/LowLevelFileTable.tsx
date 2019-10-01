@@ -985,7 +985,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
         return <Flex
             cursor="pointer"
             alignItems="center"
-            onClick={() => quickLaunchCallback(quickLaunchApp, props.history)}
+            onClick={() => quickLaunchCallback(quickLaunchApp, getParentPath(file.path), props.history)}
             {...props}
         >
             <img
