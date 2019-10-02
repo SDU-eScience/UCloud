@@ -379,6 +379,24 @@ exports[`PP Visible PP-Component 1`] = `
 `;
 
 exports[`Share prompt 1`] = `
+.c5 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.c16 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: 15px;
+}
+
 .c0 {
   cursor: auto;
   width: 620px;
@@ -410,24 +428,6 @@ exports[`Share prompt 1`] = `
 .c19 {
   cursor: auto;
   margin-left: auto;
-}
-
-.c5 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-bottom: 8px;
-}
-
-.c16 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-top: 15px;
 }
 
 .c2 {

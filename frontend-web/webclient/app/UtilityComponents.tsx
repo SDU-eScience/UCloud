@@ -1,25 +1,23 @@
-import {APICallState, mapCallState, useCloudAPI} from "Authentication/DataHook";
+import {APICallState} from "Authentication/DataHook";
 import SDUCloud from "Authentication/lib";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
 import * as React from "react";
-import {findShare, loadAvatars, SharesByPath} from "Shares";
+import List from "Shares/List";
+import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Dictionary, singletonToPage} from "Types";
-import {Absolute, Box, Button, Checkbox, Divider, Icon, Flex, FtIcon, Label, Select, Text} from "ui-components";
+import {Dictionary} from "Types";
+import {Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
-import {getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
-import {FtIconProps, inDevEnvironment, copyToClipboard} from "UtilityFunctions";
-import List, {ShareRow} from "Shares/List";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {SnackType} from "Snackbar/Snackbars";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import Spinner from "LoadingIcon/LoadingIcon";
+import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {copyToClipboard, FtIconProps, inDevEnvironment} from "UtilityFunctions";
 
 interface StandardDialog {
     title?: string;
@@ -40,6 +38,11 @@ export function addStandardDialog({
     cancelText = "Cancel",
     confirmText = "Confirm"
 }: StandardDialog) {
+    const validate = () => {
+        if (validator()) onConfirm();
+        dialogStore.success();
+    };
+
     dialogStore.addDialog((
         <Box>
             <Box>
@@ -48,12 +51,9 @@ export function addStandardDialog({
                 <Box>{message}</Box>
             </Box>
             <Flex mt="20px">
-                <Button onClick={() => dialogStore.failure()} color="red" mr="5px">{cancelText}</Button>
+                <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
                 <Button
-                    onClick={() => {
-                        if (validator()) onConfirm();
-                        dialogStore.success();
-                    }}
+                    onClick={validate}
                     color="green"
                 >
                     {confirmText}
@@ -270,12 +270,18 @@ export function rewritePolicyDialog({
                         {!allowOverwrite ? null : <option value="OVERWRITE">Overwrite</option>}
                         {allowOverwrite ? null : <option value="MERGE">Merge</option>}
                     </Select>
-                    {filesRemaining > 1 ?
+                    {filesRemaining > 1 ? (
                         <Flex mt="20px">
-                            <Input mr="5px" width="20px" id="applyToAll" type="checkbox"
-                                onChange={e => applyToAll = e.target.checked} /><Label htmlFor="applyToAll">Apply to
-                            all?</Label>
-                        </Flex> : null}
+                            <Input
+                                mr="5px"
+                                width="20px"
+                                id="applyToAll"
+                                type="checkbox"
+                                onChange={e => applyToAll = e.target.checked}
+                            />
+                            <Label htmlFor="applyToAll">Apply to all?</Label>
+                        </Flex>
+                    ) : null}
                 </Box>
             </Box>
             <Box textAlign="right" mt="20px">
@@ -359,7 +365,7 @@ export class PP extends React.Component<{ visible: boolean }, { duration: number
                             attributeName="fill"
                             dur={`${this.state.duration}ms`}
                             repeatCount="indefinite"
-                            keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1" 
+                            keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1"
                             values="
                                 #ff8d8b;
                                 #fed689;
@@ -372,7 +378,8 @@ export class PP extends React.Component<{ visible: boolean }, { duration: number
                                 #fe6cb7;
                                 #ff6968;
                                 #ff8d8b
-                            "/>
+                            "
+                        />
                         <animate
                             attributeName="d"
                             dur={`${this.state.duration}ms`}

@@ -47,8 +47,8 @@ import {TextSpan} from "ui-components/Text";
 import {ThemeToggler} from "ui-components/ThemeToggle";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
-import {inDevEnvironment, isLightThemeStored, prettierString} from "UtilityFunctions";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import {inDevEnvironment, isLightThemeStored, prettierString} from "UtilityFunctions";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -65,6 +65,10 @@ function Header(props: HeaderProps) {
         props.fetchAvatar();
     }, []);
 
+    function toSearch() {
+        history.push("/search/files");
+    }
+
     const {refresh, spin} = props;
 
     return (
@@ -75,8 +79,13 @@ function Header(props: HeaderProps) {
                 <Search />
             </Hide>
             <Hide lg xxl xl>
-                <Icon name="search" size="32" mr="3px" cursor="pointer"
-                    onClick={() => history.push("/search/files")} />
+                <Icon
+                    name="search"
+                    size="32"
+                    mr="3px"
+                    cursor="pointer"
+                    onClick={toSearch}
+                />
             </Hide>
             <Box mr="auto" />
             <DevelopmentBadge />
@@ -86,8 +95,12 @@ function Header(props: HeaderProps) {
             </Flex>
             <Support />
             <Notification />
-            <ClickableDropdown colorOnHover={false} width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ?
-                <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}>
+            <ClickableDropdown
+                colorOnHover={false}
+                width="200px"
+                left="-180%"
+                trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}
+            >
                 <Box ml="-17px" mr="-17px" pl="15px">
                     <ExternalLink color="black" href="https://status.cloud.sdu.dk">
                         <Flex color="black">
@@ -134,8 +147,12 @@ export const Refresh = ({
     spin,
     headerLoading
 }: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
-        <RefreshIcon data-tag="refreshButton" name="refresh" spin={spin || headerLoading}
-            onClick={onClick} /> : <Box width="24px" />;
+        <RefreshIcon
+            data-tag="refreshButton"
+            name="refresh"
+            spin={spin || headerLoading}
+            onClick={onClick}
+        /> : <Box width="24px" />;
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
