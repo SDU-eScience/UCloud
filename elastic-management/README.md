@@ -12,7 +12,7 @@ Elastic-management uses different arguments to handle different jobs:
    * **High:** Elasticsearch tries to reallocate shards to other nodes if the node with low space has 
    `less than 25GB` of available space left.
    * **Flood:** When a node has `less than 10GB` Elasticsearch changes all indices that have a shard on the flooded node into a 
-   read/delete only state. At this point manual interventions is needed. 
+   read/delete only state. At this point manual interventions is needed(see --removeFlod). 
    This requires the owner of the cluster to clean up the node and manually remove the flood limitation.
 - *"--cleanup"*  
    Meant to run as a daily cron job. Goes through all indices to find expired [auditing](../service-common/wiki/auditing.md) 
@@ -28,3 +28,14 @@ Elastic-management uses different arguments to handle different jobs:
 - *"--backup"*  
    Intended to be a cronjob creating a incremental 
    [snapshot](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-snapshots.html).
+- *"--removeFlood"*  
+  Can be used to quickly remove the read/delete only state enforced by the Watermark when reaching flood
+  level once the cluster have been cleaned up or given more storage. 
+- *"--monthlyReduce"*  
+  Meant to run as a monthly cron job. Takes all audit logs for the past month and reindex them 
+  into a single index for the month using the template: http_logs_AUDITNAME-monthly-01.mm.yyyy-LastDayOfMonth.mm.yyyy 
+- *"--reduceLastQuarter"*  
+  Intended to be a cron job run each 3rd month. This has a dependency on the --monthlyReduce, since 
+  it requires the indices it reduces to contain the "monthly" keyword. 
+- *"--deleteEmptyIndices"*  
+  Used for deleting all empty indices in the cluster. 
