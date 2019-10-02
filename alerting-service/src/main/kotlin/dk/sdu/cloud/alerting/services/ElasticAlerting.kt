@@ -179,7 +179,7 @@ class ElasticAlerting(
                 alertSent = false
             }
             if (alertSent)
-                delay(THIRTY_SEC)
+                delay(THIRTY_MIN)
             else
                 delay(HALF_DAY)
         }

@@ -145,7 +145,7 @@ class NetworkTrafficAlerts(
             )
 
             val results = elastic.search(searchRequest, RequestOptions.DEFAULT)
-            println(results.hits.totalHits.value)
+            log.info(results.hits.totalHits.value.toString())
             val numberOfRequestsPerIP = hashMapOf<String, Int>()
             results.hits.hits.forEach {
                 val ambassadorLogSplitted = it.sourceAsMap["log"].toString().split(" ")
@@ -174,7 +174,7 @@ class NetworkTrafficAlerts(
                 val message = "Following IPs have a high amount of 4xx: ${suspectBehaviorIPs.joinToString()}"
                 alertService.createAlert(Alert(message))
             }
-            delay(THIRTY_MIN)
+            delay(FIFTEEN_MIN)
 
         }
     }
