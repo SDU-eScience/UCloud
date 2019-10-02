@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.15.0-SUBS.0'
+version '1.15.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"

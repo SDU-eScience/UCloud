@@ -6,6 +6,7 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.favorite.storageFile
+import dk.sdu.cloud.indexing.api.Subscriptions
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
@@ -42,6 +43,9 @@ class FileFavoriteServiceTest {
             val cloud = ClientMock.authenticatedClient
             val dao = FileFavoriteHibernateDAO()
             val service = FileFavoriteService(db, dao, cloud)
+
+            ClientMock.mockCallSuccess(Subscriptions.addSubscription, Unit)
+            ClientMock.mockCallSuccess(Subscriptions.removeSubscription, Unit)
 
             fileStatMock()
 
@@ -99,6 +103,9 @@ class FileFavoriteServiceTest {
             val cloud = ClientMock.authenticatedClient
             val dao = FileFavoriteHibernateDAO()
             val service = FileFavoriteService(db, dao, cloud)
+
+            ClientMock.mockCallSuccess(Subscriptions.addSubscription, Unit)
+            ClientMock.mockCallSuccess(Subscriptions.removeSubscription, Unit)
 
             fileStatMock()
 
