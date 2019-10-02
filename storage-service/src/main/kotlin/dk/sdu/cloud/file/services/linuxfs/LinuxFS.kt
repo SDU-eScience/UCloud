@@ -869,7 +869,7 @@ class LinuxFS(
 
     companion object : Loggable {
         override val log = logger()
-        const val PATH_MAX = 1024
+        const val PATH_MAX = 4096
 
         val DEFAULT_FILE_MODE = setOf(
             PosixFilePermission.OWNER_READ,
@@ -924,7 +924,7 @@ fun translateAndCheckFile(fsRoot: File, internalPath: String, isDirectory: Boole
     }
 
     if (path.contains("\n")) throw FSException.BadRequest("Path cannot contain new-lines")
-    if (path.length >= PATH_MAX) throw FSException.BadRequest("Path is too long")
+    if (path.length >= PATH_MAX) throw FSException.BadRequest("Path is too long ${path.length} '$path'")
 
     return path
 }

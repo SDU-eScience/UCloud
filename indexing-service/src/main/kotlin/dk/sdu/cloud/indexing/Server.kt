@@ -2,6 +2,7 @@ package dk.sdu.cloud.indexing
 
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.indexing.http.LookupController
 import dk.sdu.cloud.indexing.http.QueryController
 import dk.sdu.cloud.indexing.http.SubscriptionController
@@ -37,6 +38,7 @@ class Server(
 
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val wsClient = micro.authenticator.authenticateClient(OutgoingWSCall)
         val eventService = micro.eventStreamService
 
         elastic = micro.elasticHighLevelClient
@@ -55,7 +57,7 @@ class Server(
         if (micro.commandLineArguments.contains("--scan")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val scanner = FileIndexScanner(client, elastic)
+                val scanner = FileIndexScanner(wsClient, elastic)
                 scanner.scan()
 
                 exitProcess(0)

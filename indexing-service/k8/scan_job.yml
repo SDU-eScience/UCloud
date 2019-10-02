@@ -22,6 +22,8 @@ spec:
             - /etc/token-validation
             - --config-dir
             - /etc/elasticsearch-credentials
+            - --config-dir
+            - /etc/psql
             - --scan
             volumeMounts:
             - mountPath: /etc/refresh-token
@@ -30,6 +32,8 @@ spec:
               name: token-validation
             - mountPath: /etc/elasticsearch-credentials
               name: elasticsearch-credentials
+            - mountPath: /etc/psql
+              name: psql-credentials
 
           volumes:
           - name: refresh-token
@@ -43,6 +47,10 @@ spec:
             secret:
               optional: false
               secretName: elasticsearch-credentials
+          - name: psql-credentials
+            secret:
+              optional: false
+              secretName: indexing-psql
 
           imagePullSecrets:
             - name: esci-docker

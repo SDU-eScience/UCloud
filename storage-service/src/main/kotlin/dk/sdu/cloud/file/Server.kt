@@ -195,4 +195,9 @@ class Server(
             }
         }
     }
+
+    override fun stop() {
+        super.stop()
+        LinuxFSScope.close()
+    }
 }

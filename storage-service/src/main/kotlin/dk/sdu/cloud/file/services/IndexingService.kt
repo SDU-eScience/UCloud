@@ -106,12 +106,15 @@ class IndexingService<Ctx : FSUserContext>(
                     }
 
                     storageEventProducer.produce(diff)
+                    System.gc()
                 }
             } catch (ex: Exception) {
                 // Note: we don't bubble up the exception to anyone else
                 log.warn("Caught exception while diffing directories:")
                 log.warn(rootToReference.toString())
                 log.warn(ex.stackTraceToString())
+            } finally {
+                System.gc()
             }
         }
     }

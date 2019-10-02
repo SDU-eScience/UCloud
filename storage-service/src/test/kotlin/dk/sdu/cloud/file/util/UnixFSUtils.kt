@@ -12,7 +12,6 @@ import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.linuxfs.NativeThread
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -32,7 +31,6 @@ fun linuxFSWithRelaxedMocks(
     fsRoot: String
 ): LinuxTestFS {
     Chown.isDevMode = true
-    NativeThread.disableNativeThreads = true
     val commandRunner = LinuxFSRunnerFactory()
     val micro = initializeMicro()
     micro.install(HibernateFeature)
