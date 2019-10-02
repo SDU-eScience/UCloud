@@ -8,7 +8,9 @@ import dk.sdu.cloud.file.api.StorageEvent
  * This interface is not yet stable. When stable it should be promoted to service-common
  */
 interface Migratable {
-    fun migrate() {}
+    fun migrate() {
+        // Do nothing
+    }
 }
 
 /**

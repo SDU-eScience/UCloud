@@ -23,6 +23,9 @@ import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.ownerName
+import dk.sdu.cloud.indexing.api.AddSubscriptionRequest
+import dk.sdu.cloud.indexing.api.RemoveSubscriptionRequest
+import dk.sdu.cloud.indexing.api.Subscriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -62,7 +65,8 @@ class ShareService<DBSession>(
                 is ShareJob.Deleting -> handleDeleting(share, job)
                 is ShareJob.Failing -> handleFailing(share, job)
 
-                else -> {}
+                else -> {
+                }
             }
         })
     }
@@ -102,9 +106,10 @@ class ShareService<DBSession>(
             lookupJob.join()
             val file = statJob.await() ?: throw ShareException.NotFound()
 
-            // Verify results. We allow invalid shares in dev mode.
-            if (!devMode && file.ownerName != user) {
-                throw ShareException.NotAllowed()
+            // Verify results.
+            if (file.ownerName != user) {
+                // We allow invalid shares in dev mode.
+                if (!devMode) throw ShareException.NotAllowed()
             }
 
             fileId = file.fileId
@@ -117,24 +122,27 @@ class ShareService<DBSession>(
             )
         )
 
-        try {
-            val result = db.withTransaction { session ->
-                shareDao.create(
-                    session,
-                    owner = user,
-                    sharedWith = share.sharedWith,
-                    path = share.path,
-                    initialRights = share.rights,
-                    fileId = fileId,
-                    ownerToken = ownerToken
-                )
-            }
+        return db.withTransaction { session ->
+            try {
+                val result =
+                    shareDao.create(
+                        session,
+                        owner = user,
+                        sharedWith = share.sharedWith,
+                        path = share.path,
+                        initialRights = share.rights,
+                        fileId = fileId,
+                        ownerToken = ownerToken
+                    )
 
-            aSendCreatedNotification(serviceClient, result, user, share)
-            return result
-        } catch (ex: Throwable) {
-            revokeToken(serviceClient, ownerToken)
-            throw ex
+                Subscriptions.addSubscription.call(AddSubscriptionRequest(setOf(fileId)), serviceClient).orThrow()
+                aSendCreatedNotification(serviceClient, result, user, share)
+
+                result
+            } catch (ex: Throwable) {
+                revokeToken(serviceClient, ownerToken)
+                throw ex
+            }
         }
     }
 
@@ -253,6 +261,7 @@ class ShareService<DBSession>(
 
     suspend fun deleteShare(existingShare: InternalShare) {
         log.debug("Deleting share $existingShare")
+
         if (existingShare.state == ShareState.UPDATING) {
             throw ShareException.BadRequest("Cannot delete share while it is updating!")
         }
@@ -286,6 +295,8 @@ class ShareService<DBSession>(
                 // Ignored
             }
         }
+
+        Subscriptions.removeSubscription.call(RemoveSubscriptionRequest(setOf(existingShare.fileId)), serviceClient)
     }
 
     private suspend fun handleDeleting(share: InternalShare, job: ShareJob.Deleting) {

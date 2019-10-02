@@ -16,6 +16,7 @@ import io.lettuce.core.pubsub.api.async.RedisPubSubAsyncCommands
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -129,7 +130,7 @@ class RedisStreamService(
                 }
 
                 var nextClaim = 0L
-                fun setNextClaimTimer() = run { nextClaim = System.currentTimeMillis() + 30_000 }
+                fun setNextClaimTimer() = run { nextClaim = System.currentTimeMillis() + 5_000 }
                 setNextClaimTimer()
 
                 while (true) {
@@ -137,7 +138,7 @@ class RedisStreamService(
                     if (System.currentTimeMillis() >= nextClaim) {
                         // We reschedule messages that weren't acknowledged if they have been idle fore more than
                         // minimumIdleTime. It goes through the normal consumption mechanism.
-                        val pending = redis.xpendingA(stream.name, group)
+                        val pending = redis.xpendingA(stream.name, group, limit = 500)
                         val ids = pending.filter { it.msSinceLastAttempt >= rescheduleIdleJobsAfterMs }.map { it.id }
 
                         if (ids.isNotEmpty()) {
@@ -158,9 +159,11 @@ class RedisStreamService(
                             redis.xreadgroupA(
                                 group, consumerId,
                                 XReadArgs.StreamOffset.lastConsumed(stream.name),
-                                offset = XReadArgs.Builder.block(50).count(50)
+                                offset = XReadArgs.Builder.count(50)
                             )
                         )
+
+                        delay(50)
                     }
                 }
             }

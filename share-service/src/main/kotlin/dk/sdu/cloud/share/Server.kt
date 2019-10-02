@@ -66,7 +66,11 @@ class Server(
         }
 
         // Processors
-        StorageEventProcessor(processingService, micro.eventStreamService).init()
+        StorageEventProcessor(
+            processingService,
+            micro.eventStreamService,
+            if (micro.developmentModeEnabled) "admin@dev" else "_share"
+        ).init()
         shareService.initializeJobQueue()
 
         // Controllers
