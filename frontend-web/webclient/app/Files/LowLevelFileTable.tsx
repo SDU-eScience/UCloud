@@ -48,8 +48,9 @@ import {
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
-import { hashF, AppLogo } from "Applications/Card";
+import {hashF, AppLogo} from "Applications/Card";
 import {useHistory} from "react-router";
+import {files} from "ui-components/icons";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -87,14 +88,14 @@ export interface ListDirectoryRequest {
 }
 
 export const listDirectory = ({
-                                  path,
-                                  page,
-                                  itemsPerPage,
-                                  order,
-                                  sortBy,
-                                  attrs,
-                                  type
-                              }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
+                        path,
+                        page,
+                        itemsPerPage,
+                        order,
+                        sortBy,
+                        attrs,
+                        type
+                    }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/files",
@@ -267,12 +268,10 @@ function apiForComponent(
 }
 
 // tslint:disable-next-line: variable-name
-const LowLevelFileTable_: React.FunctionComponent<
-    LowLevelFileTableProps &
-    {responsive: ResponsiveReduxObject} &
-    {showUploader: (path: string) => void} &
-    {setUploaderCallback: (cb?: () => void) => void}
-> = props => {
+const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
+    { responsive: ResponsiveReduxObject } &
+    { showUploader: (path: string) => void } &
+    { setUploaderCallback: (cb?: () => void) => void }> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -288,8 +287,7 @@ const LowLevelFileTable_: React.FunctionComponent<
     const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(() => getSortingColumns());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, workError, invokeWork] = useAsyncWork();
-    const [applications, setApplications] =
-        useState<Map<string, QuickLaunchApp[]>>(new Map<string, QuickLaunchApp[]>());
+    const [applications, setApplications] = useState(new Map<string, QuickLaunchApp[]>());
     const history = useHistory();
 
     const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
@@ -297,15 +295,16 @@ const LowLevelFileTable_: React.FunctionComponent<
 
     // Fetch quick launch applications upon page refresh
     useEffect(() => {
+        const filesOnly = page.items.filter(f => f.fileType === "FILE");
         Cloud.get<QuickLaunchApp[]>(
             buildQueryString(
                 "/hpc/apps/bySupportedFileExtension", {
-                    files: page.items.filter(f => f.fileType === "FILE").map(f => f.path).join(",")
+                    files: filesOnly.map(f => f.path).join(",")
                 }
             )
         ).then(response => {
             const newApplications = new Map<string, QuickLaunchApp[]>();
-            page.items.filter(f => f.fileType === "FILE").forEach(f => {
+            filesOnly.forEach(f => {
                 const fileApps: QuickLaunchApp[] = [];
 
                 response.response.forEach(item => {
@@ -617,99 +616,98 @@ const LowLevelFileTable_: React.FunctionComponent<
                             </TableRow>
                         </TableHeader>
                         <tbody>
-                            {allFiles.map(file => (
-                                <TableRow highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
-                                          key={file.fileId!} data-tag={"fileRow"}>
-                                    <TableCell>
-                                        {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
-                                        <Flex flexDirection="row" alignItems="center" mx="9px">
-                                            {isEmbedded ? null :
-                                                <Box>
-                                                    <Label>
-                                                        <Checkbox
-                                                            disabled={file.mockTag !== undefined}
-                                                            checked={checkedFiles.has(file.fileId!) &&
-                                                            file.mockTag === undefined}
-                                                            onChange={e => e.stopPropagation()}
-                                                            onClick={() => setChecked([file])}/>
-                                                    </Label>
-                                                </Box>
-                                            }
-                                            <Box ml="5px" pr="5px"/>
-                                            <NameBox file={file} onRenameFile={onRenameFile}
-                                                     onNavigate={onFileNavigation}
-                                                     callbacks={callbacks}
-                                                     fileBeingRenamed={fileBeingRenamed}/>
-                                        </Flex>
-                                    </TableCell>
-
-                                    <TableCell>
-                                        {/* Sensitivity icon */}
-                                        <SensitivityIcon sensitivity={file.sensitivityLevel}/>
-                                    </TableCell>
-
-                                    {sortByColumns.filter(it => it != null).map((sC, i) => {
-                                        if (i >= numberOfColumns) return null;
-                                        // Sorting columns
-                                        return <TableCell key={i}>
-                                            {sC ? UF.sortingColumnToValue(sC, file) : null}
-                                        </TableCell>;
-                                    })}
-
-                                    <TableCell textAlign="center">
-                                        {/* Launch cell */}
-                                        {
-                                            checkedFiles.size > 0 || file.fileType !== "FILE" ||
-                                            (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                                (typeof applications.get(file.path) == "undefined") ? null :
-                                                    <ClickableDropdown
-                                                        width="175px"
-                                                        left="-160px"
-                                                        trigger={<Icon name="play" size="1em"/>}
-                                                    >
-                                                        <QuickLaunchApps
-                                                            file={file}
-                                                            applications={applications.get(file.path)}
-                                                            history={history}
-                                                            //inDropdown
-                                                            ml="-17px"
-                                                            mr="-17px"
-                                                            pl="15px"
-                                                        />
-                                                    </ClickableDropdown>
+                        {allFiles.map(file => (
+                            <TableRow highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
+                                      key={file.fileId!} data-tag={"fileRow"}>
+                                <TableCell>
+                                    {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
+                                    <Flex flexDirection="row" alignItems="center" mx="9px">
+                                        {isEmbedded ? null :
+                                            <Box>
+                                                <Label>
+                                                    <Checkbox
+                                                        disabled={file.mockTag !== undefined}
+                                                        checked={checkedFiles.has(file.fileId!) &&
+                                                        file.mockTag === undefined}
+                                                        onChange={e => e.stopPropagation()}
+                                                        onClick={() => setChecked([file])}/>
+                                                </Label>
+                                            </Box>
                                         }
-                                    </TableCell>
+                                        <Box ml="5px" pr="5px"/>
+                                        <NameBox file={file} onRenameFile={onRenameFile}
+                                                 onNavigate={onFileNavigation}
+                                                 callbacks={callbacks}
+                                                 fileBeingRenamed={fileBeingRenamed}/>
+                                    </Flex>
+                                </TableCell>
 
-                                    <TableCell textAlign="center">
-                                        {/* Options cell */}
-                                        {
-                                            checkedFiles.size > 0 ||
-                                            (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                                fileOperations.length > 1 ?
-                                                    <ClickableDropdown
-                                                        width="175px"
-                                                        left="-160px"
-                                                        trigger={<Icon name="ellipsis" size="1em" rotation="90"/>}
-                                                    >
-                                                        <FileOperations
-                                                            files={[file]}
-                                                            fileOperations={fileOperations}
-                                                            inDropdown
-                                                            ml="-17px"
-                                                            mr="-17px"
-                                                            pl="15px"
-                                                            callback={callbacks}
-                                                        />
-                                                    </ClickableDropdown> :
+                                <TableCell>
+                                    {/* Sensitivity icon */}
+                                    <SensitivityIcon sensitivity={file.sensitivityLevel}/>
+                                </TableCell>
+
+                                {sortByColumns.filter(it => it != null).map((sC, i) => {
+                                    if (i >= numberOfColumns) return null;
+                                    // Sorting columns
+                                    return <TableCell key={i}>
+                                        {sC ? UF.sortingColumnToValue(sC, file) : null}
+                                    </TableCell>;
+                                })}
+
+                                <TableCell textAlign="center">
+                                    {/* Launch cell */}
+                                    {
+                                        checkedFiles.size > 0 || file.fileType !== "FILE" ||
+                                        (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
+                                            (typeof applications.get(file.path) == "undefined") ? null :
+                                                <ClickableDropdown
+                                                    width="175px"
+                                                    left="-160px"
+                                                    trigger={<Icon name="play" size="1em"/>}
+                                                >
+                                                    <QuickLaunchApps
+                                                        file={file}
+                                                        applications={applications.get(file.path)}
+                                                        history={history}
+                                                        ml="-17px"
+                                                        mr="-17px"
+                                                        pl="15px"
+                                                    />
+                                                </ClickableDropdown>
+                                    }
+                                </TableCell>
+
+                                <TableCell textAlign="center">
+                                    {/* Options cell */}
+                                    {
+                                        checkedFiles.size > 0 ||
+                                        (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
+                                            fileOperations.length > 1 ?
+                                                <ClickableDropdown
+                                                    width="175px"
+                                                    left="-160px"
+                                                    trigger={<Icon name="ellipsis" size="1em" rotation="90"/>}
+                                                >
                                                     <FileOperations
                                                         files={[file]}
                                                         fileOperations={fileOperations}
+                                                        inDropdown
+                                                        ml="-17px"
+                                                        mr="-17px"
+                                                        pl="15px"
                                                         callback={callbacks}
                                                     />
-                                        }
-                                    </TableCell>
-                                </TableRow>)
-                            )}
+                                                </ClickableDropdown> :
+                                                <FileOperations
+                                                    files={[file]}
+                                                    fileOperations={fileOperations}
+                                                    callback={callbacks}
+                                                />
+                                    }
+                                </TableCell>
+                            </TableRow>)
+                        )}
                         </tbody>
                     </Table>
                 }
@@ -950,13 +948,15 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
             <span>{fileOp.text}</span>
         </As>;
     };
-    return <>
-        {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`}/>)}
-        {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
-            <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
-        }
-        {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`}/>)}
-    </>;
+    return (
+        <>
+            {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`}/>)}
+            {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
+                <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
+            }
+            {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`}/>)}
+        </>
+    );
 };
 
 interface QuickLaunchApps extends SpaceProps {
@@ -967,10 +967,10 @@ interface QuickLaunchApps extends SpaceProps {
 
 const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
     const [hasLoadedImage, setLoadedImage] = useState(true);
-    if (typeof applications == "undefined") return null;
+    if (typeof applications === "undefined") return null;
     if (applications.length < 1) return null;
 
-    const QLApplication = ({quickLaunchApp}: { quickLaunchApp: QuickLaunchApp }) => {
+    const Operation = ({quickLaunchApp}: { quickLaunchApp: QuickLaunchApp }) => {
         return <Flex
             cursor="pointer"
             alignItems="center"
@@ -993,7 +993,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
         </Flex>;
     };
     return <>
-        {applications.map((ap, i) => <QLApplication quickLaunchApp={ap} key={`opt-${i}`}/>)}
+        {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={`opt-${i}`}/>)}
     </>;
 };
 

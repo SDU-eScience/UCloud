@@ -5,7 +5,7 @@ import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {hpcJobQueryPost} from "Utilities/ApplicationUtilities";
 import { errorMessageOrDefault } from "UtilityFunctions";
 import { snackbarStore } from "Snackbar/SnackbarStore";
-import {History} from "history";
+import { History } from "history";
 
 export interface QuickLaunchCallbackParameters {
     application: {
@@ -23,7 +23,7 @@ export interface QuickLaunchCallbackParameters {
 }
 
 export async function quickLaunchCallback(app: QuickLaunchApp, mount: string, history: History<any>): Promise<void> {
-    let job = {
+    const job = {
         application: {
             name: app.metadata.name,
             version: app.metadata.version,
@@ -40,7 +40,7 @@ export async function quickLaunchCallback(app: QuickLaunchApp, mount: string, hi
 
     try {
         setLoading(true);
-        let req = await Cloud.post(hpcJobQueryPost, job);
+        const req = await Cloud.post(hpcJobQueryPost, job);
         history.push(`/applications/results/${req.response.jobId}`)
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));

@@ -17,7 +17,6 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.call
 import io.ktor.http.ContentType

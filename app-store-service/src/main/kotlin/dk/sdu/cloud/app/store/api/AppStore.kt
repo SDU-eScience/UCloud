@@ -117,7 +117,6 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
         }
 
-
     val searchTags = call<TagSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("searchTags") {
         auth {
             roles = Roles.AUTHENTICATED
@@ -223,7 +222,6 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
     val findBySupportedFileExtension =
         call<FindBySupportedFileExtension, List<ApplicationWithExtension>, CommonErrorMessage>("findBySupportedFileExtension") {
             auth {
-                roles = Roles.AUTHENTICATED
                 access = AccessRight.READ
             }
 

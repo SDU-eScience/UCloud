@@ -378,7 +378,10 @@ class ApplicationHibernateDAO(
                 A.name in (
                     select B.name
                     from app_store.applications as B
-                    where
+                    where (
+                        B.application -> 'applicationType' = '"WEB"' or
+                        B.application -> 'applicationType' = '"VNC"'
+                    ) and (
         """
 
         for (index in fileExtensions.indices) {
@@ -389,30 +392,24 @@ class ApplicationHibernateDAO(
         }
 
         query += """
+                    )
                 group by B.name
             )
         """
 
         return session
             .createNativeQuery<ApplicationEntity>(
-                query.trimIndent(), ApplicationEntity::class.java
+                query, ApplicationEntity::class.java
             )
             .setParameter("user", user.username)
             .apply {
                 fileExtensions.forEachIndexed { index, ext ->
                     setParameter("ext$index", ext)
-                    println("$index $ext")
                 }
             }
             .list()
             .filter { entity ->
-                (entity.application.applicationType == ApplicationType.WEB).or(
-                    entity.application.applicationType == ApplicationType.VNC
-                ).and(
-                    entity.application.parameters.isEmpty().or(
-                        entity.application.parameters.all { it.optional }
-                    )
-                )
+                entity.application.parameters.isEmpty() || entity.application.parameters.all { it.optional }
             }
             .map {
                 ApplicationWithExtension(it.toMetadata(), it.application.fileExtensions)
