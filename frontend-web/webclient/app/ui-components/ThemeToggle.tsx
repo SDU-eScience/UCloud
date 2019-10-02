@@ -32,32 +32,37 @@ export function ThemeToggler({
     isLightTheme,
     onClick
 }: {isLightTheme: boolean, onClick: (e: React.SyntheticEvent<HTMLDivElement>) => void}) {
+
+    function toggleActive() {
+        setActive(!active);
+    }
+
     const [active, setActive] = React.useState<boolean>(isLightTheme);
     return (
         <Relative onClick={onClick} top="10px" left="82px">
-            <Wrapper size={1} onClick={() => setActive(!active)} active={active}>
+            <Wrapper onClick={toggleActive} size={1} active={active}>
                 <Switch size={1} active={active}>
                     <Moon>
-                        <Crater active={active}/>
-                        <Crater active={active}/>
-                        <Crater active={active}/>
+                        <Crater active={active} />
+                        <Crater active={active} />
+                        <Crater active={active} />
                     </Moon>
                 </Switch>
                 <Clouds active={active}>
-                    <Cloud/>
-                    <Cloud/>
-                    <Cloud/>
-                    <Cloud/>
-                    <Cloud/>
-                    <Cloud/>
+                    <Cloud />
+                    <Cloud />
+                    <Cloud />
+                    <Cloud />
+                    <Cloud />
+                    <Cloud />
                 </Clouds>
                 <Stars active={active}>
-                    <Star active={active}/>
-                    <Star active={active}/>
-                    <Star active={active}/>
-                    <Star active={active}/>
-                    <Star active={active}/>
-                    <Star active={active}/>
+                    <Star active={active} />
+                    <Star active={active} />
+                    <Star active={active} />
+                    <Star active={active} />
+                    <Star active={active} />
+                    <Star active={active} />
                 </Stars>
             </Wrapper>
         </Relative>
