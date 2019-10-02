@@ -1,23 +1,18 @@
 ---
-apiVersion: apps/v1beta1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: indexing-service-deployment
-  labels:
-    app: indexing-service
+  name: indexing-service-migration
+
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: indexing-service
   template:
     metadata:
-      labels:
-        app: indexing-service
+      name: indexing-service-migration
+
     spec:
       containers:
       - name: indexing-service
-        image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.15.0
+        image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.15.0-SUBS.0
         command:
         - /opt/service/bin/service
         - --config-dir
@@ -28,6 +23,8 @@ spec:
         - /etc/elasticsearch-credentials
         - --config-dir
         - /etc/psql
+        - --run-script
+        - migrate-db
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
@@ -56,6 +53,8 @@ spec:
         secret:
           optional: false
           secretName: indexing-psql
+
+      restartPolicy: Never
 
       imagePullSecrets:
         - name: esci-docker

@@ -5,11 +5,9 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.bearer
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
@@ -20,7 +18,6 @@ import dk.sdu.cloud.file.favorite.api.ToggleFavoriteResponse
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
 
 class FileFavoriteController<DBSession>(
     private val fileFavoriteService: FileFavoriteService<DBSession>,
@@ -47,21 +44,19 @@ class FileFavoriteController<DBSession>(
         description: CallDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>
     ) {
         implement(description) {
-            with(ctx as HttpCall) {
-                val auditMessage = ToggleFavoriteAudit(listOf(request.path).map { ToggleFavoriteFileAudit(it) })
-                audit(auditMessage)
+            val auditMessage = ToggleFavoriteAudit(listOf(request.path).map { ToggleFavoriteFileAudit(it) })
+            audit(auditMessage)
 
-                ok(
-                    ToggleFavoriteResponse(
-                        fileFavoriteService.toggleFavorite(
-                            listOf(request.path),
-                            ctx.securityToken,
-                            cloudContext.withoutAuthentication().bearerAuth(call.request.bearer!!),
-                            auditMessage
-                        )
+            ok(
+                ToggleFavoriteResponse(
+                    fileFavoriteService.toggleFavorite(
+                        listOf(request.path),
+                        ctx.securityToken,
+                        cloudContext.withoutAuthentication().bearerAuth(ctx.bearer!!),
+                        auditMessage
                     )
                 )
-            }
+            )
         }
     }
 

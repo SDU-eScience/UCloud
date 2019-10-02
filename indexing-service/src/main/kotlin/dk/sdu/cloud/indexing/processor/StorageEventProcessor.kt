@@ -5,6 +5,7 @@ import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.indexing.services.IndexingService
+import dk.sdu.cloud.indexing.services.SubscriptionService
 import dk.sdu.cloud.service.Loggable
 import org.slf4j.Logger
 
@@ -15,7 +16,8 @@ import org.slf4j.Logger
  */
 class StorageEventProcessor(
     private val streamService: EventStreamService,
-    private val indexingService: IndexingService
+    private val indexingService: IndexingService,
+    private val subscriptionService: SubscriptionService<*>
 ) {
     fun init() {
         streamService.subscribe(
@@ -30,6 +32,7 @@ class StorageEventProcessor(
                 )
 
                 indexingService.bulkHandleEvent(batch)
+                subscriptionService.handleEvent(batch)
 
                 log.debug("Batch complete")
             }

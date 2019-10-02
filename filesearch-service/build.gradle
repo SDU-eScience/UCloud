@@ -4,13 +4,13 @@ version '1.1.5'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.filesearch.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.22/sdu-cloud.gradle"
 
 repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.8.3"
+    ext.serviceCommonVersion = "1.9.2"
     ext.fileApiVersion = "2.1.2"
 }
 

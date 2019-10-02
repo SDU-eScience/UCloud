@@ -28,10 +28,6 @@ Table.defaultProps = {
     minWidth: "15em"
 };
 
-export const TableBody = styled.tbody``;
-
-TableBody.displayName = "TableBody";
-
 export const TableCell = styled.td<TextAlignProps>`
     border: 0px;
     border-spacing: 0;

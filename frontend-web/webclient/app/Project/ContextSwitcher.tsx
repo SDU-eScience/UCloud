@@ -7,29 +7,32 @@ import {SidebarTextLabel} from "ui-components/Sidebar";
 import {EllipsedText} from "ui-components/Text";
 import {inDevEnvironment} from "UtilityFunctions";
 
-const _ContextSwitcher: React.FunctionComponent<{ maxSize: number } & ContextSwitcherReduxProps> = props => {
+// tslint:disable-next-line: variable-name
+const _ContextSwitcher: React.FunctionComponent<{maxSize: number} & ContextSwitcherReduxProps> = props => {
     if (!inDevEnvironment()) return null;
 
     const userContext = props.activeProject || "Personal Project";
 
-    return <SidebarTextLabel icon={"projects"} height={"25px"} textSize={1} iconSize="1em" space={".5em"}>
-        <Link to={"/projects"}>
-            <Box cursor={"pointer"}>
-                <EllipsedText
-                    width={props.maxSize - 20}
-                    fontSize={"14px"}
-                    as={"span"}
-                    title={userContext}
-                >
-                    {userContext}
-                </EllipsedText>
-            </Box>
-        </Link>
-    </SidebarTextLabel>
+    return (
+        <SidebarTextLabel icon={"projects"} height={"25px"} textSize={1} iconSize="1em" space={".5em"}>
+            <Link to={"/projects"}>
+                <Box cursor={"pointer"}>
+                    <EllipsedText
+                        width={props.maxSize - 20}
+                        fontSize={"14px"}
+                        as={"span"}
+                        title={userContext}
+                    >
+                        {userContext}
+                    </EllipsedText>
+                </Box>
+            </Link>
+        </SidebarTextLabel>
+    );
 };
 
 interface ContextSwitcherReduxProps {
-    activeProject?: string
+    activeProject?: string;
 }
 
 export const ContextSwitcher = connect(

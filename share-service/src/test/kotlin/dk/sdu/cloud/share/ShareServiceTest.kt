@@ -18,8 +18,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.indexing.api.LookupDescriptions
-import dk.sdu.cloud.indexing.api.ReverseLookupResponse
+import dk.sdu.cloud.indexing.api.*
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.eventStreamService
@@ -92,6 +91,7 @@ class ShareServiceTest {
             initializeTokenMocks()
             initializeVerificationMocks()
             initializeACLMock()
+            initializeIndexingSubscription()
         }
     }
 
@@ -178,6 +178,11 @@ class ShareServiceTest {
                 TestCallResult.Error(null, HttpStatusCode.InternalServerError)
             }
         }
+    }
+
+    fun MockConfiguration.initializeIndexingSubscription() {
+        ClientMock.mockCallSuccess(Subscriptions.addSubscription, AddSubscriptionResponse)
+        ClientMock.mockCallSuccess(Subscriptions.removeSubscription, RemoveSubscriptionResponse)
     }
 
     private suspend fun createShare(

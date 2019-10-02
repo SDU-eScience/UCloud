@@ -5,10 +5,10 @@ apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
 
 buildscript {
-    ext.serviceCommonVersion = "1.8.3"
+    ext.serviceCommonVersion = "1.9.2"
 }
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.22/sdu-cloud.gradle"
 
 dependencies {
     implementation group: 'org.kamranzafar', name: 'jtar', version: '2.3'

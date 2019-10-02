@@ -2,7 +2,7 @@
 
 exports[`Status Mount component 1`] = `
 .c0 {
-  -webkit-font-smoothing: antialiased;
+  font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
   display: -ms-inline-flexbox;

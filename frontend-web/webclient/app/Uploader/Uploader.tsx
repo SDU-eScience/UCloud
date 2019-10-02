@@ -6,6 +6,7 @@ import * as React from "react";
 import Dropzone from "react-dropzone";
 import * as Modal from "react-modal";
 import {connect} from "react-redux";
+import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -50,7 +51,6 @@ import {
 } from "UtilityFunctions";
 import {Upload, UploaderProps, UploaderStateProps, UploadOperations} from ".";
 import {bulkUpload, multipartUpload, UploadPolicy} from "./api";
-import {useHistory, useLocation} from "react-router";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -174,7 +174,7 @@ function Uploader(props: UploaderProps) {
                         <Button fullWidth color="green" onClick={startAllUploads}>
                             <Icon name={"upload"} />{" "}Start all!</Button> : null}
                     <Dropzone onDrop={onFilesAdded}>
-                        {({getRootProps, getInputProps}) =>
+                        {({getRootProps, getInputProps}) => (
                             <DropZoneBox {...getRootProps()}>
                                 <input {...getInputProps()} />
                                 <p>
@@ -185,7 +185,7 @@ function Uploader(props: UploaderProps) {
                                     <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
                                 </p>
                             </DropZoneBox>
-                        }
+                        )}
                     </Dropzone>
                 </Box>
             </div>
@@ -401,7 +401,7 @@ const UploaderRow = (p: {
 }) => {
 
     const fileInfo = p.location !== p.upload.parentPath ? (<Dropdown>
-        <Icon style={{pointer: "cursor"}} ml="10px" name="info" color="white" color2="black"/>
+        <Icon style={{pointer: "cursor"}} ml="10px" name="info" color="white" color2="black" />
         <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
             Will be uploaded to: {addTrailingSlash(replaceHomeFolder(p.location, Cloud.homeFolder))}{p.upload.file.name}
         </DropdownContent>
@@ -409,7 +409,7 @@ const UploaderRow = (p: {
 
     const fileTitle = <span>
         <b>{p.upload.file.name} </b>
-        ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile}/>
+        ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} />
     </span>;
     let body: React.ReactNode;
     if (!!p.upload.error) {
@@ -418,11 +418,11 @@ const UploaderRow = (p: {
                 {fileTitle}
             </Box>
             <Spacer pr="4px" width={0.5}
-                    left={<Text color="red">{p.upload.error}</Text>}
-                    right={<Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))}
-                                   data-tag={"removeUpload"}>
-                        <Icon name="close"/>
-                    </Button>}
+                left={<Text color="red">{p.upload.error}</Text>}
+                right={<Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))}
+                    data-tag={"removeUpload"}>
+                    <Icon name="close" />
+                </Button>}
             />
         </>;
     } else if (!p.upload.isUploading) {
@@ -430,13 +430,13 @@ const UploaderRow = (p: {
             <Box width={0.7}>
                 <Spacer
                     left={fileTitle}
-                    right={p.upload.conflictFile ? <PolicySelect setRewritePolicy={p.setRewritePolicy!}/> : null}
+                    right={p.upload.conflictFile ? <PolicySelect setRewritePolicy={p.setRewritePolicy!} /> : null}
                 />
-                <br/>
+                <br />
                 {isArchiveExtension(p.upload.file.name) ?
                     <Flex data-tag="extractArchive">
                         <label>Extract archive?</label>
-                        <Box ml="0.5em"/>
+                        <Box ml="0.5em" />
                         <Toggle
                             scale={1.3}
                             checked={p.upload.extractArchive}
@@ -444,7 +444,7 @@ const UploaderRow = (p: {
                         />
                     </Flex> : null}
             </Box>
-            <Error error={p.upload.error}/>
+            <Error error={p.upload.error} />
             <Box width={0.3}>
                 <ButtonGroup width="100%">
                     {!p.upload.isPending ?
@@ -454,13 +454,13 @@ const UploaderRow = (p: {
                             disabled={!!p.upload.error}
                             onClick={e => ifPresent(p.onUpload, c => c(e))}
                         >
-                            <Icon name="cloud upload"/>Upload
+                            <Icon name="cloud upload" />Upload
                         </Button>
                         :
                         <Button color="blue" disabled>Pending</Button>
                     }
                     <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
-                        <Icon name="close"/>
+                        <Icon name="close" />
                     </Button>
                 </ButtonGroup>
                 <Flex justifyContent="center" pt="0.3em">
@@ -477,14 +477,14 @@ const UploaderRow = (p: {
         body = <>
             <Box width={0.25}>
                 {fileTitle}
-                <br/>
+                <br />
                 {isArchiveExtension(p.upload.file.name) ?
                     (p.upload.extractArchive ?
-                        <span><Icon name="checkmark" color="green"/>Extracting archive</span> :
-                        <span><Icon name="close" color="red"/> <i>Not</i> extracting archive</span>)
+                        <span><Icon name="checkmark" color="green" />Extracting archive</span> :
+                        <span><Icon name="close" color="red" /> <i>Not</i> extracting archive</span>)
                     : null}
             </Box>
-            <ProgressBar upload={p.upload}/>
+            <ProgressBar upload={p.upload} />
             <Box width={0.22}>
                 {!isFinishedUploading(p.upload.uploadXHR) ?
                     <Button
@@ -502,7 +502,7 @@ const UploaderRow = (p: {
                         onClick={e => ifPresent(p.onClear, c => c(e))}
                         data-tag={"removeUpload"}
                     >
-                        <Icon name="close"/>
+                        <Icon name="close" />
                     </Button>}
             </Box>
         </>;
@@ -511,14 +511,14 @@ const UploaderRow = (p: {
     return (
         <Flex flexDirection="row" data-tag={"uploadRow"}>
             <Box width={0.04} textAlign="center">
-                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)}/>
+                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
             </Box>
             <Flex width={0.96}>{body}</Flex>
         </Flex>
     );
 };
 
-const ProgressBar = ({upload}: { upload: Upload }) => (
+const ProgressBar = ({upload}: {upload: Upload}) => (
     <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
         <Progress
             active={upload.progressPercentage !== 100}

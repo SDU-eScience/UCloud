@@ -88,12 +88,17 @@ Cloud.initializeStore(store);
 function App({children}) {
     const [isLightTheme, setTheme] = React.useState(isLightThemeStored());
     const setAndStoreTheme = (isLight: boolean) => (setSiteTheme(isLight), setTheme(isLight));
+
+    function toggle() {
+        setAndStoreTheme(!isLightTheme);
+    }
+
     return (
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
             <>
-                <GlobalStyle/>
+                <GlobalStyle />
                 <BrowserRouter basename="app">
-                    <Header toggleTheme={() => isLightTheme ? setAndStoreTheme(false) : setAndStoreTheme(true)}/>
+                    <Header toggleTheme={toggle} />
                     {children}
                 </BrowserRouter>
             </>
@@ -102,10 +107,12 @@ function App({children}) {
 }
 
 ReactDOM.render(
-    <Provider store={store}>
-        <App>
-            <Core/>
-        </App>
-    </Provider>,
+    (
+        <Provider store={store}>
+            <App>
+                <Core />
+            </App>
+        </Provider>
+    ),
     document.getElementById("app")
 );

@@ -3,7 +3,7 @@ import {
   AlignItemsProps, color, ColorProps, height, HeightProps,
   maxHeight, MaxHeightProps, maxWidth,
   MaxWidthProps, minHeight, MinHeightProps,
-  minWidth, MinWidthProps, space,
+  minWidth, MinWidthProps, overflow, OverflowProps, space,
   SpaceProps, textAlign, TextAlignProps,
   TopProps, width, WidthProps, zIndex, ZIndexProps
 } from "styled-system";
@@ -25,6 +25,7 @@ export type BoxProps =
   FlexShrinkProps &
   ZIndexProps &
   TextAlignProps &
+  OverflowProps &
   {cursor?: Cursor};
 
 interface FlexGrowProps {
@@ -51,7 +52,8 @@ const Box = styled.div<BoxProps>`
   ${minHeight}
   ${maxHeight}
   ${color}
-  ${textAlign};
+  ${textAlign}
+  ${overflow}
 `;
 
 Box.displayName = "Box";

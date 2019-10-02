@@ -16,7 +16,7 @@ class DialogStore {
         this.subscribers = this.subscribers.filter(it => it !== subscriber);
     }
 
-    public addDialog(dialog: JSX.Element, onCancel: () => void): void {
+    public addDialog = (dialog: JSX.Element, onCancel: () => void): void => {
         const dialogs = [...this.dialogs, {dialog, onCancel}];
         this.dialogs = dialogs;
         this.subscribers.forEach(it => it(dialogs.map(el => el.dialog)));
@@ -26,7 +26,7 @@ class DialogStore {
         this.popDialog();
     }
 
-    public failure() {
+    public failure = () => {
         const [first] = this.dialogs;
         if (!!first) first.onCancel();
         this.popDialog();

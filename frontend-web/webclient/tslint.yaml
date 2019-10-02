@@ -23,6 +23,7 @@ rules:
     jsx-self-close: true
     arrow-parens: false
     jsx-no-multiline-js: false
+    jsx-boolean-value: false
     no-console:
         severity: warning
         options:

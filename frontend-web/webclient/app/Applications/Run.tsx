@@ -135,9 +135,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const optional = parameters.filter(parameter =>
             parameter.optional && parameter.visible !== true && parameterValues.get(parameter.name)!.current == null);
 
-        const onParameterChange = (parameter: ApplicationParameter, visible: boolean) => {
-            parameter.visible = visible;
-            if (!visible) {
+        const onParameterChange = (parameter: ApplicationParameter, isVisible: boolean) => {
+            parameter.visible = isVisible;
+            if (!isVisible) {
                 parameterValues.set(parameter.name, React.createRef<HTMLSelectElement | HTMLInputElement>());
             }
             this.setState(() => ({application: this.state.application}));
@@ -145,14 +145,16 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const mapParamToComponent = (parameter: ApplicationParameter) => {
             const ref = parameterValues.get(parameter.name)!;
-
+            function handleParamChange() {
+                onParameterChange(parameter, false);
+            }
             return (
                 <Parameter
                     key={parameter.name}
                     initialSubmit={this.state.initialSubmit}
                     parameterRef={ref}
                     parameter={parameter}
-                    onParamRemove={() => onParameterChange(parameter, false)}
+                    onParamRemove={handleParamChange}
                     application={application}
                 />
             );
@@ -164,13 +166,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         return (
             <MainContainer
                 headerSize={48}
-                header={
+                header={(
                     <Flex ml="50px">
                         <AppHeader slim application={application} />
                     </Flex>
-                }
+                )}
 
-                sidebar={
+                sidebar={(
                     <VerticalButtonGroup>
                         <OutlineButton
                             onClick={() => importParameterDialog(
@@ -186,12 +188,18 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         <Button fullWidth disabled={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
                             {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
                         </Button>
-                        <Button type={"button"} onClick={this.onSubmit} disabled={jobSubmitted}
-                            color="blue">Submit</Button>
+                        <Button
+                            type="button"
+                            onClick={this.onSubmit}
+                            disabled={jobSubmitted}
+                            color="blue"
+                        >
+                            Submit
+                        </Button>
                     </VerticalButtonGroup>
-                }
+                )}
 
-                additional={
+                additional={(
                     <FileSelector
                         onFileSelect={it => {
                             if (!!it) this.onImportFileSelected(it);
@@ -200,13 +208,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         trigger={null}
                         visible={this.state.fsShown}
                     />
-                }
+                )}
 
-                main={
+                main={(
                     <ContainerForText>
                         <form onSubmit={this.onSubmit} style={{width: "100%"}}>
                             {
-                                this.state.previousRuns.items.length <= 0 ? null :
+                                this.state.previousRuns.items.length <= 0 ? null : (
                                     <RunSection>
                                         <Label>Load parameters from a previous run:</Label>
                                         <Flex flexDirection={"row"} flexWrap={"wrap"}>
@@ -215,7 +223,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     <Box mr={"0.8em"} key={idx}>
                                                         <BaseLink
                                                             href={"#"}
-                                                            onClick={async (e) => {
+                                                            onClick={async e => {
                                                                 e.preventDefault();
 
                                                                 try {
@@ -240,7 +248,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                             }
                                         </Flex>
                                     </RunSection>
-                            }
+                                )}
                             <RunSection>
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
@@ -250,22 +258,22 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 />
                             </RunSection>
 
-                            {mandatoryParams.length === 0 ? null :
+                            {mandatoryParams.length === 0 ? null : (
                                 <RunSection>
                                     <Heading.h4>Mandatory Parameters ({mandatoryParams.length})</Heading.h4>
                                     {mandatoryParams}
                                 </RunSection>
-                            }
+                            )}
 
-                            {visibleParams.length <= 0 ? null :
+                            {visibleParams.length <= 0 ? null : (
                                 <RunSection>
                                     <Heading.h4>Additional Parameters Used</Heading.h4>
                                     {visibleParams}
                                 </RunSection>
-                            }
+                            )}
 
                             {
-                                !application.invocation.shouldAllowAdditionalMounts ? null :
+                                !application.invocation.shouldAllowAdditionalMounts ? null : (
                                     <RunSection>
                                         <Flex alignItems={"center"}>
                                             <Box flexGrow={1}>
@@ -283,37 +291,42 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         </Flex>
 
                                         <Box mb={8} mt={8}>
-                                            {this.state.mountedFolders.length !== 0 ?
+                                            {this.state.mountedFolders.length !== 0 ? (
                                                 <>
                                                     Your files will be available at <code>/work/</code>.
                                                     You can view changes to your {" "}
-                                                    <Link to={fileTablePage(Cloud.homeFolder)}
-                                                        target={"_blank"}>files</Link> {" "}
-                                                    at the end of the job.
-                                                </>
-                                                :
-                                                <>
-                                                    If you need to use your {" "}
                                                     <Link
                                                         to={fileTablePage(Cloud.homeFolder)}
-                                                        target={"_blank"}>
+                                                        target={"_blank"}
+                                                    >
                                                         files
-                                                    </Link>
-                                                    {" "}
-                                                    in this job then click {" "}
-                                                    <BaseLink
-                                                        href={"#"}
-                                                        onClick={e => {
-                                                            e.preventDefault();
-                                                            this.addFolder();
-                                                        }}>
-                                                        "Add folder"
-                                                    </BaseLink>
-                                                    {" "}
-                                                    to select the relevant
-                                                    files.
+                                                    </Link> {" "}
+                                                    at the end of the job.
                                                 </>
-                                            }
+                                            ) : (
+                                                    <>
+                                                        If you need to use your {" "}
+                                                        <Link
+                                                            to={fileTablePage(Cloud.homeFolder)}
+                                                            target={"_blank"}
+                                                        >
+                                                            files
+                                                        </Link>
+                                                        {" "}
+                                                        in this job then click {" "}
+                                                        <BaseLink
+                                                            href={"#"}
+                                                            onClick={e => {
+                                                                e.preventDefault();
+                                                                this.addFolder();
+                                                            }}>
+                                                            "Add folder"
+                                                        </BaseLink>
+                                                        {" "}
+                                                        to select the relevant
+                                                        files.
+                                                </>
+                                                )}
                                         </Box>
 
                                         {this.state.mountedFolders.every(it => it.readOnly) ? "" :
@@ -363,9 +376,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                             </Box>
                                         ))}
                                     </RunSection>
-                            }
+                                )}
 
-                            {!application.invocation.shouldAllowAdditionalPeers ? null :
+                            {!application.invocation.shouldAllowAdditionalPeers ? null : (
                                 <RunSection>
                                     <Flex>
                                         <Box flexGrow={1}>
@@ -380,25 +393,26 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         </Button>
                                     </Flex>
                                     <Box mb={8} mt={8}>
-                                        {this.state.additionalPeers.length !== 0 ?
+                                        {this.state.additionalPeers.length !== 0 ? (
                                             <>
                                                 You will be able contact the <b>job</b> using its <b>hostname</b>.
                                                 File systems used by the <b>job</b> are automatically added to this job.
                                             </>
-                                            :
-                                            <>
-                                                If you need to use the services of another job click{" "}
-                                                <BaseLink href={"#"}
-                                                    onClick={e => {
-                                                        e.preventDefault();
-                                                        this.connectToJob();
-                                                    }}>
-                                                    "Connect to job".
-                                                </BaseLink>
-                                                {" "}
-                                                These services include networking and shared application file systems.
+                                        ) : (
+                                                <>
+                                                    If you need to use the services of another job click{" "}
+                                                    <BaseLink
+                                                        href={"#"}
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            this.connectToJob();
+                                                        }}>
+                                                        "Connect to job".
+                                                    </BaseLink>
+                                                    {" "}
+                                                    These services include networking and shared application file systems.
                                             </>
-                                        }
+                                            )}
                                     </Box>
 
                                     {
@@ -415,19 +429,19 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         ))
                                     }
                                 </RunSection>
-                            }
+                            )}
 
                             <RunSection>
-                                {optional.length <= 0 ? null :
+                                {optional.length <= 0 ? null : (
                                     <OptionalParameters
                                         parameters={optional}
                                         onUse={p => onParameterChange(p, true)}
                                     />
-                                }
+                                )}
                             </RunSection>
                         </form>
                     </ContainerForText>
-                }
+                )}
             />
         );
     }
@@ -879,7 +893,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                 />
             </Flex>
 
-            {!props.app.invocation.allowMultiNode ? null :
+            {!props.app.invocation.allowMultiNode ? null : (
                 <Flex mb="1em">
                     <SchedulingField
                         min={1}
@@ -889,13 +903,14 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                         onChange={props.onChange}
                     />
                 </Flex>
-            }
+            )}
 
             <Box>
                 <Label>Machine type</Label>
                 <MachineTypes inputRef={props.reservationRef} />
             </Box>
-        </>);
+        </>
+    );
 };
 
 function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOptionsForInput {
@@ -922,30 +937,32 @@ const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
 export default connect(null, mapDispatchToProps)(Run);
 
 export function importParameterDialog(importParameters: (file: File) => void, showFileSelector: () => void) {
-    dialogStore.addDialog(<Box>
+    dialogStore.addDialog((
         <Box>
-            <Button fullWidth as="label">
-                Upload file
+            <Box>
+                <Button fullWidth as="label">
+                    Upload file
                 <HiddenInputField
-                    type="file"
-                    onChange={e => {
-                        if (e.target.files) {
-                            const file = e.target.files[0];
-                            if (file.size > 10_000_000) {
-                                snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                            } else {
-                                importParameters(file);
+                        type="file"
+                        onChange={e => {
+                            if (e.target.files) {
+                                const file = e.target.files[0];
+                                if (file.size > 10_000_000) {
+                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                                } else {
+                                    importParameters(file);
+                                }
+                                dialogStore.success();
                             }
-                            dialogStore.success();
-                        }
-                    }} />
+                        }} />
+                </Button>
+                <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
+                    Select file from SDUCloud
             </Button>
-            <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
-                Select file from SDUCloud
-            </Button>
+            </Box>
+            <Flex mt="20px">
+                <Button onClick={() => dialogStore.success()} color="red" mr="5px">Cancel</Button>
+            </Flex>
         </Box>
-        <Flex mt="20px">
-            <Button onClick={() => dialogStore.success()} color="red" mr="5px">Cancel</Button>
-        </Flex>
-    </Box>, () => undefined);
+    ), () => undefined);
 }

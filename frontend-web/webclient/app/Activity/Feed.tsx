@@ -6,23 +6,25 @@ import {Link as ReactRouterLink} from "react-router-dom";
 import styled from "styled-components";
 import {Box, Flex, Text} from "ui-components";
 import Icon, {IconName} from "ui-components/Icon";
-import Table, {TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {colors} from "ui-components/theme";
 import {fileInfoPage, getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
 
 export function ActivityFeedFrame(props: {containerRef?: React.RefObject<any>, children?: JSX.Element[]}) {
-    return <Table>
-        <TableHeader>
-            <TFRow>
-                <TableHeaderCell width="12em" />
-                <TableHeaderCell width="10.5em" />
-                <TableHeaderCell width="99%" />
-            </TFRow>
-        </TableHeader>
-        <TableBody ref={props.containerRef}>
-            {props.children}
-        </TableBody>
-    </Table >;
+    return (
+        <Table>
+            <TableHeader>
+                <TFRow>
+                    <TableHeaderCell width="12em" />
+                    <TableHeaderCell width="10.5em" />
+                    <TableHeaderCell width="99%" />
+                </TFRow>
+            </TableHeader>
+            <tbody ref={props.containerRef}>
+                {props.children}
+            </tbody>
+        </Table >
+    );
 }
 
 export const ActivityFeed = ({activity}: {activity: Module.Activity[]}) => (
@@ -50,19 +52,21 @@ const ActivityEvent: React.FunctionComponent<{event: Module.Activity}> = props =
 const OperationText: React.FunctionComponent<{event: Module.Activity}> = props => {
     switch (props.event.type) {
         case Module.ActivityType.MOVED: {
-            return <span>
-                was moved to
+            return (
+                <span>
+                    was moved to
                 {" "}
-                <b>
-                    <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
-                        <div className="ellipsis">
-                            <Text color="black">
-                                {replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}
-                            </Text>
-                        </div>
-                    </ReactRouterLink>
-                </b>
-            </span>;
+                    <b>
+                        <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
+                            <div className="ellipsis">
+                                <Text color="black">
+                                    {replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}
+                                </Text>
+                            </div>
+                        </ReactRouterLink>
+                    </b>
+                </span>
+            );
         }
 
         case Module.ActivityType.FAVORITE: {
@@ -95,34 +99,36 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
 
     public render() {
         const {activity} = this.props;
-        return <TFRow>
-            <TableCell>
-                <Text fontSize={1} color="text">
-                    {formatDistanceToNow(new Date(activity.newestTimestamp))}
-                    <br />
-                    {format(new Date(activity.newestTimestamp), "d LLL yyyy HH:mm")}
-                </Text>
-            </TableCell>
-            <TableCell>
-                <Flex>
-                    <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
-                    <Text fontSize={2}>{`Files ${operationToPastTense(activity.type)}`}</Text>
-                </Flex>
-            </TableCell>
-            <TableCell>
-                {activity.items.map((item, idx) =>
-                    <ActivityEvent key={idx} event={item} />
-                )}
+        return (
+            <TFRow>
+                <TableCell>
+                    <Text fontSize={1} color="text">
+                        {formatDistanceToNow(new Date(activity.newestTimestamp))}
+                        <br />
+                        {format(new Date(activity.newestTimestamp), "d LLL yyyy HH:mm")}
+                    </Text>
+                </TableCell>
+                <TableCell>
+                    <Flex>
+                        <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
+                        <Text fontSize={2}>{`Files ${operationToPastTense(activity.type)}`}</Text>
+                    </Flex>
+                </TableCell>
+                <TableCell>
+                    {activity.items.map((item, idx) =>
+                        <ActivityEvent key={idx} event={item} />
+                    )}
 
-                {!!activity.numberOfHiddenResults ?
-                    <Box mt={16}>
-                        <Text bold>{activity.numberOfHiddenResults} similar results were hidden</Text>
-                    </Box>
-                    :
-                    null
-                }
-            </TableCell>
-        </TFRow>;
+                    {!!activity.numberOfHiddenResults ?
+                        <Box mt={16}>
+                            <Text bold>{activity.numberOfHiddenResults} similar results were hidden</Text>
+                        </Box>
+                        :
+                        null
+                    }
+                </TableCell>
+            </TFRow>
+        );
     }
 }
 

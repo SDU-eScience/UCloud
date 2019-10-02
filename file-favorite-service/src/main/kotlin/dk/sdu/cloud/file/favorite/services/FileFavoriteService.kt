@@ -11,8 +11,11 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
+import dk.sdu.cloud.indexing.api.AddSubscriptionRequest
 import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.RemoveSubscriptionRequest
 import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
+import dk.sdu.cloud.indexing.api.Subscriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -22,7 +25,7 @@ import dk.sdu.cloud.service.db.withTransaction
 class FileFavoriteService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val dao: FileFavoriteDAO<DBSession>,
-    private val serviceCloud: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient
 ) {
     suspend fun toggleFavorite(
         files: List<String>,
@@ -32,6 +35,8 @@ class FileFavoriteService<DBSession>(
     ): List<String> {
         // Note: This function must ensure that the user has the correct privileges to the file!
         val failures = ArrayList<String>()
+        val newFileIds = HashSet<String>()
+        val removedFileIds = HashSet<String>()
         db.withTransaction { session ->
             files.forEachIndexed { index, path ->
                 try {
@@ -40,6 +45,7 @@ class FileFavoriteService<DBSession>(
                             StatRequest(path, attributes = "${StorageFileAttribute.fileId}"),
                             userCloud
                         ).orThrow().fileId
+
                     val favorite = dao.isFavorite(session, user, fileId)
 
                     val fileAudit = audit?.files?.get(index)
@@ -50,14 +56,31 @@ class FileFavoriteService<DBSession>(
 
                     if (favorite) {
                         dao.delete(session, user, fileId)
+                        removedFileIds.add(fileId)
                     } else {
                         dao.insert(session, user, fileId)
+                        newFileIds.add(fileId)
                     }
                 } catch (e: RPCException) {
                     failures.add(path)
                 }
             }
         }
+
+        if (newFileIds.isNotEmpty()) {
+            Subscriptions.addSubscription.call(
+                AddSubscriptionRequest(newFileIds),
+                serviceClient
+            )
+        }
+
+        if (removedFileIds.isNotEmpty()) {
+            Subscriptions.removeSubscription.call(
+                RemoveSubscriptionRequest(removedFileIds),
+                serviceClient
+            )
+        }
+
         return failures
     }
 
@@ -76,7 +99,7 @@ class FileFavoriteService<DBSession>(
 
         val lookupResponse = LookupDescriptions.reverseLookupFiles.call(
             ReverseLookupFilesRequest(fileIds.items),
-            serviceCloud
+            serviceClient
         ).orThrow()
 
         run {

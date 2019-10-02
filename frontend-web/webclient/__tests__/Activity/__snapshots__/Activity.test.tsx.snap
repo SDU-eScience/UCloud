@@ -70,7 +70,7 @@ exports[`Mount Activity Page 1`] = `
 }
 
 .c21 {
-  -webkit-font-smoothing: antialiased;
+  font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
   display: -ms-inline-flexbox;

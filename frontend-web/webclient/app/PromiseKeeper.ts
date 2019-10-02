@@ -33,13 +33,13 @@ export default class PromiseKeeper {
      *  Cancels all promises stored in the promise keeper.
      *  The held promises are cleared from the keeper as they are cancelled and no longer have any function
      */
-    public cancelPromises(): void {
+    public cancelPromises = (): void => {
         this.canceledKeeper = true;
         this.promises.forEach((it) => it.cancel());
         this.promises = [];
     }
 
-    private cleanup(): void {
+    private cleanup = (): void => {
         this.promises = this.promises.filter(it => !it.isComplete);
     }
 }

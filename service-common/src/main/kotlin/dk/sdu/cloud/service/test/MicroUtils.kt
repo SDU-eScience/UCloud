@@ -6,6 +6,7 @@ import dk.sdu.cloud.micro.ConfigurationFeature
 import dk.sdu.cloud.micro.DeinitFeature
 import dk.sdu.cloud.micro.DevelopmentOverrides
 import dk.sdu.cloud.micro.KtorServerProviderFeature
+import dk.sdu.cloud.micro.LogFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ScriptFeature
 import dk.sdu.cloud.micro.ServerFeature
@@ -71,6 +72,7 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
         install(ConfigurationFeature)
         install(ServiceDiscoveryOverrides)
         install(DevelopmentOverrides) // Always activated
+        install(LogFeature)
 
         attributes[KtorServerProviderFeature.serverProviderKey] = { module ->
             val engine = TestApplicationEngine()
