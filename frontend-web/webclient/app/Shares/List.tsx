@@ -86,6 +86,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
         return () => {
             if (!props.innerComponent) {
                 // Revert reload action
+                props.setGlobalLoading(false);
                 props.setRefresh(undefined);
             }
         };
