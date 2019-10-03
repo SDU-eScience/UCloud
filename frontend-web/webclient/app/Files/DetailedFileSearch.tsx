@@ -41,8 +41,8 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
 
     React.useEffect(() => {
         if (!!props.defaultFilename) props.setFilename(props.defaultFilename);
-        return () => {if (!props.hidden) props.toggleHidden();}
-    });
+        return () => {if (!props.hidden) props.toggleHidden();};
+    }, []);
 
     const {hidden, cantHide, extensions, allowFiles, allowFolders, includeShares} = props;
     if (hidden && !cantHide) {

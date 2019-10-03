@@ -90,11 +90,13 @@ function Search(props: SearchProps) {
         main = (
             <>
                 <Hide xxl xl lg>
-                    <DetailedFileSearch cantHide onSearch={() => fetchAll()} />
+                    <DetailedFileSearch cantHide onSearch={fetchAll} />
                 </Hide>
 
                 <EmbeddedFileTable
-                    onPageChanged={page => console.log(page)}
+                    onPageChanged={page => props.searchFiles(
+                        fileSearchBody(props.fileSearch, props.files.itemsPerPage, page)
+                    )}
                     page={files ? files : emptyPage}
                     onReloadRequested={refreshFiles}
                     includeVirtualFolders={false}
@@ -105,7 +107,7 @@ function Search(props: SearchProps) {
         main = (
             <>
                 <Hide xxl xl lg>
-                    <DetailedApplicationSearch onSearch={() => fetchAll()} />
+                    <DetailedApplicationSearch onSearch={fetchAll} />
                 </Hide>
                 <Pagination.List
                     loading={applicationsLoading}

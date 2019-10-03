@@ -1,8 +1,8 @@
 import * as React from "react";
+import {HairProps} from "UserSettings/AvatarOptions";
 import {generateId as uniqueId} from "UtilityFunctions";
 import FacialHair from "./facialHair";
 import HairColor from "./HairColor";
-import {HairProps} from "UserSettings/AvatarOptions";
 
 export default class ShortHairShortCurly extends React.Component<HairProps> {
   public static optionValue = "ShortHairShortCurly";
