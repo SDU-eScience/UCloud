@@ -74,7 +74,7 @@ class BulkUploadTest : WithBackgroundScope() {
     }
 
     private fun createService(root: String): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
-        val (runner, fs) = linuxFSWithRelaxedMocks(root)
+        val (runner, fs) = linuxFSWithRelaxedMocks(root, backgroundScope)
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         val coreFs =
             CoreFileSystemService(

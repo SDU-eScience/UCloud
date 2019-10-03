@@ -57,7 +57,7 @@ class Server(
             AclService(micro.hibernateDatabase, aclDao, homeFolderService, linuxFSRealPathSupplier(fsRootFile))
 
         // Low level FS
-        val processRunner = LinuxFSRunnerFactory()
+        val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
         val fs = LinuxFS(fsRootFile, newAclService)
 
         // High level FS

@@ -20,14 +20,14 @@ import org.junit.Test
 import java.nio.file.Files
 import kotlin.test.assertEquals
 
-class UnixUploadTest {
+class UnixUploadTest : WithBackgroundScope() {
     @Ignore
     @Test
     fun `test storage events for new file`() {
         Chown.isDevMode = true
 
         val fsRoot = Files.createTempDirectory("ceph-fs").toFile()
-        val factory = LinuxFSRunnerFactory()
+        val factory = LinuxFSRunnerFactory(backgroundScope)
 
         val micro = initializeMicro()
         val db = micro.hibernateDatabase

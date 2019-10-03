@@ -1,18 +1,26 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import com.sun.jna.LastErrorException
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
 import dk.sdu.cloud.service.Loggable
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 import org.slf4j.Logger
 import java.io.File
 import java.io.OutputStream
 import java.nio.channels.FileChannel
-import java.nio.file.*
+import java.nio.file.AccessDeniedException
+import java.nio.file.DirectoryNotEmptyException
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.FileSystemException
+import java.nio.file.NoSuchFileException
+import java.nio.file.NotDirectoryException
+import java.nio.file.NotLinkException
 
-class LinuxFSRunner(override val user: String) : CommandRunner, Loggable {
+class LinuxFSRunner(override val user: String, private val serviceScope: CoroutineScope) : CommandRunner, Loggable {
     internal var inputStream: FileChannel? = null
     internal var inputSystemFile: File? = null
 
@@ -26,7 +34,8 @@ class LinuxFSRunner(override val user: String) : CommandRunner, Loggable {
     }
 
     suspend fun <T> submit(job: suspend () -> T): T {
-        return withContext(LinuxFSScope.coroutineContext) {
+        val context = if (user == SERVICE_USER) serviceScope.coroutineContext else LinuxFSScope.coroutineContext
+        return withContext(context) {
             runAndRethrowNIOExceptions { job() }
         }
     }

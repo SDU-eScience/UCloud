@@ -78,7 +78,7 @@ class DiffTest : WithBackgroundScope() {
 
         EventServiceMock.reset()
         val root = File(createFS(builder))
-        val commandRunnerFactory = LinuxFSRunnerFactory()
+        val commandRunnerFactory = LinuxFSRunnerFactory(backgroundScope)
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
