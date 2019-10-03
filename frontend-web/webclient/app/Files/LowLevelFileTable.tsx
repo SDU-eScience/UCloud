@@ -668,7 +668,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                 {
                                                     checkedFiles.size > 0 || file.fileType !== "FILE" ||
                                                         (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                                        (typeof applications.get(file.path) == "undefined") ? null :
+                                                        (typeof applications.get(file.path) == 'undefined' || applications.get(file.path)!.length < 1) ? null :
                                                             <ClickableDropdown
                                                                 width="175px"
                                                                 left="-160px"
