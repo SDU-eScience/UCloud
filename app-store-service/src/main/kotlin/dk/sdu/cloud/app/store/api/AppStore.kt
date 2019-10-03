@@ -226,13 +226,15 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
 
             http {
+                method = HttpMethod.Post
+
                 path {
                     using(baseContext)
                     + "bySupportedFileExtension"
                 }
 
-                params {
-                    +boundTo(FindBySupportedFileExtension::files)
+                body {
+                    bindEntireRequestFromBody()
                 }
             }
         }

@@ -57,7 +57,7 @@ class AppStoreController<DBSession>(
             ok(
                 appStore.findBySupportedFileExtension(
                     ctx.securityPrincipal,
-                    request.files.split(",")
+                    request.files
                 )
             )
         }

@@ -296,29 +296,28 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     // Fetch quick launch applications upon page refresh
     useEffect(() => {
         const filesOnly = page.items.filter(f => f.fileType === "FILE");
-        Cloud.get<QuickLaunchApp[]>(
-            buildQueryString(
-                "/hpc/apps/bySupportedFileExtension", {
-                files: filesOnly.map(f => f.path).join(",")
-            }
-            )
-        ).then(response => {
-            const newApplications = new Map<string, QuickLaunchApp[]>();
-            filesOnly.forEach(f => {
-                const fileApps: QuickLaunchApp[] = [];
+        if (filesOnly.length > 0) {
+            Cloud.post<QuickLaunchApp[]>(
+                "/hpc/apps/bySupportedFileExtension",
+                { "files": filesOnly.map(f => f.path) }
+            ).then(response => {
+                const newApplications = new Map<string, QuickLaunchApp[]>();
+                filesOnly.forEach(f => {
+                    const fileApps: QuickLaunchApp[] = [];
 
-                response.response.forEach(item => {
-                    item.extensions.forEach(ext => {
-                        if (f.path.endsWith(ext)) {
-                            fileApps.push(item);
-                        }
+                    response.response.forEach(item => {
+                        item.extensions.forEach(ext => {
+                            if (f.path.endsWith(ext)) {
+                                fileApps.push(item);
+                            }
+                        });
                     });
-                });
 
-                newApplications.set(f.path, fileApps);
+                    newApplications.set(f.path, fileApps);
+                });
+                setApplications(newApplications);
             });
-            setApplications(newApplications);
-        });
+        }
     }, [page]);
 
     useEffect(() => {
