@@ -71,7 +71,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     additional: (FileControllerContext) -> List<Controller> = { emptyList() }
 ): List<Controller> {
     val fsRoot = fsRootInitializer()
-    val (runner, fs, aclService) = linuxFSWithRelaxedMocks(fsRoot.absolutePath)
+    val (runner, fs, aclService) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, scope)
     micro.install(HibernateFeature)
     val eventProducer =
         StorageEventProducer(
@@ -375,7 +375,7 @@ fun KtorApplicationTestContext.listDirectory(
             "page" to request.page?.toString(),
             "order" to request.order?.toString(),
             "sortBy" to request.sortBy?.toString(),
-            "attributes" to request.attributes?.toString()
+            "attributes" to request.attributes
         ).removeNullValues(),
         configure = {
             addHeader("X-No-Load", "true")

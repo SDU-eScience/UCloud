@@ -29,7 +29,7 @@ class CopyTest : WithBackgroundScope() {
     )
 
     private fun initTest(root: File): TestContext<FSUserContext> {
-        val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath)
+        val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath, backgroundScope)
         val storageEventProducer =
             StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope) {}
         val sensitivityService =

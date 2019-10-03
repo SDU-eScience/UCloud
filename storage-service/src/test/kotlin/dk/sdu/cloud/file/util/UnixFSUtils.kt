@@ -12,7 +12,7 @@ import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.linuxfs.NativeThread
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -29,11 +29,11 @@ import kotlin.contracts.contract
 data class LinuxTestFS(val runner: LinuxFSRunnerFactory, val fs: LinuxFS, val aclService: AclService<*>)
 
 fun linuxFSWithRelaxedMocks(
-    fsRoot: String
+    fsRoot: String,
+    backgroundScope: BackgroundScope
 ): LinuxTestFS {
     Chown.isDevMode = true
-    NativeThread.disableNativeThreads = true
-    val commandRunner = LinuxFSRunnerFactory()
+    val commandRunner = LinuxFSRunnerFactory(backgroundScope)
     val micro = initializeMicro()
     micro.install(HibernateFeature)
     val db = micro.hibernateDatabase

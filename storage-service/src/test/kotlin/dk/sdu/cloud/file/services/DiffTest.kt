@@ -19,14 +19,12 @@ import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.file.services.linuxfs.NativeThread
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.createFS
 import dk.sdu.cloud.file.util.inode
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.timestamps
 import dk.sdu.cloud.file.util.touch
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -46,7 +44,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.test.*
 
 class DiffTest : WithBackgroundScope() {
     private data class TestingContext<Ctx : FSUserContext>(
@@ -78,11 +75,10 @@ class DiffTest : WithBackgroundScope() {
         builder: File.() -> Unit
     ): TestingContext<LinuxFSRunner> {
         Chown.isDevMode = true
-        NativeThread.disableNativeThreads = true
 
         EventServiceMock.reset()
         val root = File(createFS(builder))
-        val commandRunnerFactory = LinuxFSRunnerFactory()
+        val commandRunnerFactory = LinuxFSRunnerFactory(backgroundScope)
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase

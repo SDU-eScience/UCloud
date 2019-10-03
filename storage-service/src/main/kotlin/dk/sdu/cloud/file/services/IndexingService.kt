@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.api.creator
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileType
@@ -23,6 +24,10 @@ import dk.sdu.cloud.file.util.toCreatedEvent
 import dk.sdu.cloud.file.util.toMovedEvent
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlin.collections.component1
 import kotlin.collections.component2
 

@@ -30,7 +30,7 @@ class SensitivityTest : WithBackgroundScope() {
     )
 
     private fun initTest(root: String): TestContext<FSUserContext> {
-        val (runner, fs) = linuxFSWithRelaxedMocks(root)
+        val (runner, fs) = linuxFSWithRelaxedMocks(root, backgroundScope)
         val storageEventProducer =
             StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope, {})
         val sensitivityService =
