@@ -36,7 +36,7 @@ data class SubscriptionEntityId(var subscriber: String, var fileId: String) : Se
 class SubscriptionHibernateDao : SubscriptionDao<HibernateSession> {
     override fun addSubscription(session: HibernateSession, subscriber: String, fileIds: Collection<String>) {
         fileIds.forEach { fileId ->
-            session.save(SubscriptionEntity(SubscriptionEntityId(subscriber, fileId)))
+            session.saveOrUpdate(SubscriptionEntity(SubscriptionEntityId(subscriber, fileId)))
         }
     }
 
