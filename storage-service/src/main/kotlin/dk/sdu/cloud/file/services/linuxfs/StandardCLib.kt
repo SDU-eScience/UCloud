@@ -5,10 +5,6 @@ import com.sun.jna.Platform
 import kotlinx.io.pool.useInstance
 
 object StandardCLib {
-    fun realPath(path: String): String? {
-        return CLibrary.INSTANCE.realpath(path, null)
-    }
-
     fun getxattr(path: String, name: String, maxSize: Int = 1024 * 64): String {
         return if (Platform.isMac()) {
             DefaultByteArrayPool.useInstance {

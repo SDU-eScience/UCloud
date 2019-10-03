@@ -68,7 +68,7 @@ class LinuxFS(
     // This function exists out of this class to avoid a circular dependency between ACLService and LinuxFS.
     // LinuxFS depends on ACLService for ACLs and ACLService depends on being able to fully normalize paths (this
     // includes removing all symlinks).
-    private val realPathFunction = linuxFSRealPathSupplier(fsRoot)
+    private val realPathFunction = linuxFSRealPathSupplier()
 
     override suspend fun copy(
         ctx: LinuxFSRunner,
@@ -890,16 +890,8 @@ class LinuxFS(
     }
 }
 
-fun linuxFSRealPathSupplier(fsRoot: File): (String) -> String = f@{ path: String ->
-    val systemFile = translateAndCheckFile(fsRoot, path)
-
-    val realPath = if (File(systemFile).exists()) {
-        StandardCLib.realPath(systemFile) ?: StandardCLib.realPath(systemFile.parent()) ?: throw FSException.NotFound()
-    } else {
-        StandardCLib.realPath(systemFile.parent()) ?: throw FSException.NotFound()
-    }
-
-    linuxFSToCloudPath(fsRoot, realPath)
+fun linuxFSRealPathSupplier(): (String) -> String = f@{ path: String ->
+    return@f path.normalize()
 }
 
 private fun linuxFSToCloudPath(fsRoot: File, path: String): String {

@@ -16,14 +16,39 @@ import dk.sdu.cloud.file.http.WorkspaceController
 import dk.sdu.cloud.file.processors.ScanProcessor
 import dk.sdu.cloud.file.processors.StorageProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
-import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.ACLWorker
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileScanner
+import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.StorageEventProducer
+import dk.sdu.cloud.file.services.WSFileSessionService
+import dk.sdu.cloud.file.services.WorkspaceService
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.linuxfs.*
-import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.file.services.linuxfs.Chown
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSScope
+import dk.sdu.cloud.file.services.linuxfs.linuxFSRealPathSupplier
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.backgroundScope
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.eventStreamService
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.TokenValidationJWT
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_DIALECT
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -54,7 +79,7 @@ class Server(
         val homeFolderService = HomeFolderService(client)
         val aclDao = AclHibernateDao()
         val newAclService =
-            AclService(micro.hibernateDatabase, aclDao, homeFolderService, linuxFSRealPathSupplier(fsRootFile))
+            AclService(micro.hibernateDatabase, aclDao, homeFolderService, linuxFSRealPathSupplier())
 
         // Low level FS
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
