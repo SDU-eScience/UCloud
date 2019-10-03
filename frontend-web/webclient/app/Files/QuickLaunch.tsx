@@ -1,34 +1,32 @@
-import {RouteComponentProps, withRouter} from "react-router";
-import { ApplicationMetadata } from "Applications";
+import {ApplicationMetadata} from "Applications";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
+import {setLoading} from "Navigation/Redux/StatusActions";
 import {hpcJobQueryPost} from "Utilities/ApplicationUtilities";
-import { errorMessageOrDefault } from "UtilityFunctions";
-import { snackbarStore } from "Snackbar/SnackbarStore";
-import { History } from "history";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {History} from "history";
 
-export interface QuickLaunchCallbackParameters {
-    application: {
-        name: string;
-        version: string;
-    };
-    mounts: string[];
-    numberOfNodes: number;
-    tasksPerNode: number;
-    maxTime: { hours: number, minutes: number, seconds: number };
-    peers: string[];
-    reservation: null;
-    type: string;
-    name: null;
-}
+export async function quickLaunchCallback(
+    app: QuickLaunchApp,
+    mountPath: string,
+    history: History<any>
+): Promise<void> {
+    const mountPathList = mountPath.split("/");
+    const directory = (mountPath.endsWith("/")) ?
+        mountPathList[mountPathList.length - 2]
+        : mountPathList[mountPathList.length - 1];
 
-export async function quickLaunchCallback(app: QuickLaunchApp, mount: string, history: History<any>): Promise<void> {
+
     const job = {
         application: {
             name: app.metadata.name,
             version: app.metadata.version,
         },
-        mounts: [mount],
+        mounts: [{
+            source: mountPath,
+            destination: directory,
+            readOnly: false
+        }],
         numberOfNodes: 0,
         tasksPerNode: 0,
         maxTime: {hours: 1, minutes: 0, seconds: 0},
@@ -41,7 +39,7 @@ export async function quickLaunchCallback(app: QuickLaunchApp, mount: string, hi
     try {
         setLoading(true);
         const req = await Cloud.post(hpcJobQueryPost, job);
-        history.push(`/applications/results/${req.response.jobId}`)
+        history.push(`/applications/results/${req.response.jobId}`);
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
     } finally {
