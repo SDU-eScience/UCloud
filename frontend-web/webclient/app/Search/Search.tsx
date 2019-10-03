@@ -87,69 +87,79 @@ function Search(props: SearchProps) {
     let main: React.ReactNode = null;
     const {priority} = props.match.params;
     if (priority === "files") {
-        main = <>
-            <Hide xxl xl lg>
-                <DetailedFileSearch cantHide onSearch={() => fetchAll()} />
-            </Hide>
+        main = (
+            <>
+                <Hide xxl xl lg>
+                    <DetailedFileSearch cantHide onSearch={() => fetchAll()} />
+                </Hide>
 
-            <EmbeddedFileTable
-                page={files ? files : emptyPage}
-                onReloadRequested={refreshFiles}
-                includeVirtualFolders={false}
-            />
-        </>;
+                <EmbeddedFileTable
+                    onPageChanged={page => console.log(page)}
+                    page={files ? files : emptyPage}
+                    onReloadRequested={refreshFiles}
+                    includeVirtualFolders={false}
+                />
+            </>
+        );
     } else if (priority === "applications") {
-        main = <>
-            <Hide xxl xl lg>
-                <DetailedApplicationSearch onSearch={() => fetchAll()} />
-            </Hide>
-            <Pagination.List
-                loading={applicationsLoading}
-                pageRenderer={({items}) =>
-                    <GridCardGroup>
-                        {items.map(app =>
-                            <ApplicationCard
-                                onFavorite={async () => props.setApplicationsPage(await favoriteApplicationFromPage({
-                                    name: app.metadata.name,
-                                    version: app.metadata.version,
-                                    page: props.applications,
-                                    cloud: Cloud
-                                }))}
-                                key={`${app.metadata.name}${app.metadata.version}`}
-                                app={app}
-                                isFavorite={app.favorite}
-                                tags={app.tags}
-                            />)}
-                    </GridCardGroup>
-                }
-                page={applications}
-                onPageChanged={pageNumber => props.searchApplications(
-                    applicationSearchBody(
-                        props.applicationSearch,
-                        props.applications.itemsPerPage,
-                        pageNumber
-                    ))
-                }
-            />
-        </>;
+        main = (
+            <>
+                <Hide xxl xl lg>
+                    <DetailedApplicationSearch onSearch={() => fetchAll()} />
+                </Hide>
+                <Pagination.List
+                    loading={applicationsLoading}
+                    pageRenderer={({items}) => (
+                        <GridCardGroup>
+                            {items.map(app =>
+                                <ApplicationCard
+                                    onFavorite={async () => props.setApplicationsPage(await favoriteApplicationFromPage({
+                                        name: app.metadata.name,
+                                        version: app.metadata.version,
+                                        page: props.applications,
+                                        cloud: Cloud
+                                    }))}
+                                    key={`${app.metadata.name}${app.metadata.version}`}
+                                    app={app}
+                                    isFavorite={app.favorite}
+                                    tags={app.tags}
+                                />)}
+                        </GridCardGroup>
+                    )}
+                    page={applications}
+                    onPageChanged={pageNumber => props.searchApplications(
+                        applicationSearchBody(
+                            props.applicationSearch,
+                            props.applications.itemsPerPage,
+                            pageNumber
+                        ))
+                    }
+                />
+            </>
+        );
     }
 
     return (
         <MainContainer
-            header={
+            header={(
                 <React.Fragment>
                     <SelectableTextWrapper>
                         {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
                     </SelectableTextWrapper>
-                    <Spacer left={null} right={<Pagination.EntriesPerPageSelector
-                        onChange={itemsPerPage => fetchAll(itemsPerPage)}
-                        content={`${prettierString(priority)} per page`}
-                        entriesPerPage={
-                            priority === "files" ? props.files.itemsPerPage : props.applications.itemsPerPage
-                        }
-                    />} />
+                    <Spacer
+                        left={null}
+                        right={(
+                            <Pagination.EntriesPerPageSelector
+                                onChange={itemsPerPage => fetchAll(itemsPerPage)}
+                                content={`${prettierString(priority)} per page`}
+                                entriesPerPage={
+                                    priority === "files" ? props.files.itemsPerPage : props.applications.itemsPerPage
+                                }
+                            />
+                        )}
+                    />
                 </React.Fragment>
-            }
+            )}
             main={main}
         />
     );
