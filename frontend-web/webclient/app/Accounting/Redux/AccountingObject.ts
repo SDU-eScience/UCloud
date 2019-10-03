@@ -1,19 +1,19 @@
-import { LoadableContent, emptyLoadableContent } from "LoadableContent";
-import { Dictionary, Page } from "Types";
+import {emptyLoadableContent, LoadableContent} from "LoadableContent";
+import {Dictionary, Page} from "Types";
 import * as API from "../api";
 
 export interface ResourceState {
-    chart: LoadableContent<API.ChartResponse>
-    usage: LoadableContent<API.Usage>
-    events: LoadableContent<Page<API.AccountingEvent>>
+    chart: LoadableContent<API.ChartResponse>;
+    usage: LoadableContent<API.Usage>;
+    events: LoadableContent<Page<API.AccountingEvent>>;
 }
 
 export interface Type {
-    resources: Dictionary<ResourceState>
+    resources: Dictionary<ResourceState>;
 }
 
 export interface Wrapper {
-    accounting: Type
+    accounting: Type;
 }
 
 export const emptyResourceState: () => ResourceState = () => ({

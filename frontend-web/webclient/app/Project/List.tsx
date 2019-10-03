@@ -50,7 +50,7 @@ const ProjectSummary: React.FunctionComponent<{ summary: UserInProject } & Dispa
             <li>{props.summary.id}</li>
             <li>{props.summary.whoami.role}</li>
             <li><Link to={`/projects/view/${props.summary.id}`}>View</Link></li>
-            <li><Link onClick={() => props.setProject(props.summary.id)}>Set as active</Link></li>
+            <li><Link to="#" onClick={() => props.setProject(props.summary.id)}>Set as active</Link></li>
         </ul>
     </Box>;
 };

@@ -8,7 +8,6 @@ import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import styled from "styled-components";
 import {Page} from "Types";
 import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
@@ -16,7 +15,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {getQueryParam, getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
-import {FullAppInfo, WithAppMetadata} from ".";
+import {FullAppInfo} from ".";
 import {ApplicationCard} from "./Card";
 import * as Pages from "./Pages";
 import * as Actions from "./Redux/BrowseActions";
@@ -55,42 +54,54 @@ class Applications extends React.Component<ApplicationsProps> {
         const main = (
             <Pagination.List
                 loading={this.props.applicationsPage.loading}
-                pageRenderer={(page: Page<FullAppInfo>) =>
-                    <GridCardGroup>
-                        {page.items.map((app, index) =>
-                            <ApplicationCard
-                                key={index}
-                                onFavorite={async () =>
-                                    this.props.receiveApplications(await favoriteApplicationFromPage({
-                                        name: app.metadata.name,
-                                        version: app.metadata.version, page, cloud: Cloud,
-                                    }))
-                                }
-                                app={app}
-                                isFavorite={app.favorite}
-                                tags={app.tags}
-                            />
-                        )}
-                    </GridCardGroup>
-                }
-                page={this.props.applicationsPage.content as Page<WithAppMetadata>}
+                pageRenderer={this.renderPage}
+                page={this.props.applicationsPage.content as Page<FullAppInfo>}
                 onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
             />
         );
 
         return (
             <LoadableMainContainer
-                header={<Spacer left={<Heading.h1>{getQueryParam(this.props, "tag")}</Heading.h1>} right={
-                    <Pagination.EntriesPerPageSelector
-                        content="Apps per page"
-                        entriesPerPage={this.itemsPerPage()}
-                        onChange={itemsPerPage => this.props.history.push(this.updateItemsPerPage(itemsPerPage))}
+                header={(
+                    <Spacer
+                        left={(<Heading.h1>{getQueryParam(this.props, "tag")}</Heading.h1>)}
+                        right={(
+                            <Pagination.EntriesPerPageSelector
+                                content="Apps per page"
+                                entriesPerPage={this.itemsPerPage()}
+                                onChange={itemsPerPage => this.props.history.push(this.updateItemsPerPage(itemsPerPage))}
+                            />
+                        )}
                     />
-                } />}
+                )}
                 loadable={this.props.applicationsPage}
                 main={main}
             />
         );
+    }
+
+    private renderPage = (page: Page<FullAppInfo>): JSX.Element => (
+        <GridCardGroup>
+            {page.items.map((app, index) => (
+                <ApplicationCard
+                    key={index}
+                    onFavorite={this.onFavorite}
+                    app={app}
+                    isFavorite={app.favorite}
+                    tags={app.tags}
+                />
+            ))}
+        </GridCardGroup>
+    )
+
+    private onFavorite = async (name: string, version: string) => {
+        const page = this.props.applicationsPage.content as Page<FullAppInfo>;
+        this.props.receiveApplications(await favoriteApplicationFromPage({
+            cloud: Cloud,
+            name,
+            version,
+            page
+        }));
     }
 
     private pageNumber(props: ApplicationsProps = this.props): number {
@@ -162,7 +173,7 @@ const mapDispatchToProps = (
 const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {favCount: number} => ({
     ...applicationsBrowse,
     favCount: applicationsBrowse.applicationsPage.content ?
-        applicationsBrowse.applicationsPage.content.items.filter((it: any) => it.favorite).length : 0
+        applicationsBrowse.applicationsPage.content.items.filter(it => it.favorite).length : 0
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

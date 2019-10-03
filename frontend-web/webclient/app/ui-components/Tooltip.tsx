@@ -80,8 +80,8 @@ const TooltipContent = styled(Box) <TooltipContentProps>`
 `;
 
 interface Tooltip extends SpaceProps {
-  children: any;
-  trigger: any;
+  children: React.ReactNode;
+  trigger: React.ReactNode;
   bg?: string;
   color?: string;
   bottom?: string;

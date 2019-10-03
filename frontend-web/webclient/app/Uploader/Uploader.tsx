@@ -126,10 +126,10 @@ function Uploader(props: UploaderProps) {
             <div data-tag={"uploadModal"}>
                 <Spacer
                     left={<Heading>Upload Files</Heading>}
-                    right={<>
+                    right={(<>
                         {props.loading ? <Refresh onClick={() => undefined} spin /> : null}
                         <Icon name="close" cursor="pointer" data-tag="modalCloseButton" onClick={closeModal} />
-                    </>}
+                    </>)}
                 />
                 <Divider />
                 {finishedUploads(uploads) > 0 ? (
@@ -143,7 +143,7 @@ function Uploader(props: UploaderProps) {
                         Clear finished uploads
                         </OutlineButton>
                 ) : null}
-                {uploads.filter(it => !it.isUploading).length >= 5 ?
+                {uploads.filter(it => !it.isUploading).length < 5 ? null : (
                     <OutlineButton
                         color="blue"
                         fullWidth
@@ -152,7 +152,8 @@ function Uploader(props: UploaderProps) {
                         onClick={() => props.setUploads(uploads.filter(it => it.isUploading))}
                     >
                         Clear unstarted uploads
-                        </OutlineButton> : null}
+                    </OutlineButton>
+                )}
                 <Box>
                     {uploads.map((upload, index) => (
                         <React.Fragment key={index}>
@@ -253,7 +254,7 @@ function Uploader(props: UploaderProps) {
             props.setUploads(props.uploads);
             startPending();
         };
-        (finishedUploadPaths.add(upload.parentPath));
+        finishedUploadPaths.add(upload.parentPath);
         upload.uploadXHR = xhr;
         props.setUploads(props.uploads);
     }
@@ -400,112 +401,129 @@ const UploaderRow = (p: {
     onCheck?: (checked: boolean) => void
 }) => {
 
-    const fileInfo = p.location !== p.upload.parentPath ? (<Dropdown>
-        <Icon style={{pointer: "cursor"}} ml="10px" name="info" color="white" color2="black" />
-        <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
-            Will be uploaded to: {addTrailingSlash(replaceHomeFolder(p.location, Cloud.homeFolder))}{p.upload.file.name}
-        </DropdownContent>
-    </Dropdown>) : null;
+    const fileInfo = p.location === p.upload.parentPath ? null : (
+        <Dropdown>
+            <Icon style={{pointer: "cursor"}} ml="10px" name="info" color="white" color2="black" />
+            <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
+                Will be uploaded to: {addTrailingSlash(replaceHomeFolder(p.location, Cloud.homeFolder))}{p.upload.file.name}
+            </DropdownContent>
+        </Dropdown>
+    );
 
-    const fileTitle = <span>
-        <b>{p.upload.file.name} </b>
-        ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} />
-    </span>;
+    const fileTitle = (
+        <span>
+            <b>{p.upload.file.name} </b>
+            ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} />
+        </span>
+    );
     let body: React.ReactNode;
     if (!!p.upload.error) {
-        body = <>
-            <Box width={0.5}>
-                {fileTitle}
-            </Box>
-            <Spacer pr="4px" width={0.5}
-                left={<Text color="red">{p.upload.error}</Text>}
-                right={<Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))}
-                    data-tag={"removeUpload"}>
-                    <Icon name="close" />
-                </Button>}
-            />
-        </>;
-    } else if (!p.upload.isUploading) {
-        body = <>
-            <Box width={0.7}>
+        body = (
+            <>
+                <Box width={0.5}>
+                    {fileTitle}
+                </Box>
                 <Spacer
-                    left={fileTitle}
-                    right={p.upload.conflictFile ? <PolicySelect setRewritePolicy={p.setRewritePolicy!} /> : null}
-                />
-                <br />
-                {isArchiveExtension(p.upload.file.name) ?
-                    <Flex data-tag="extractArchive">
-                        <label>Extract archive?</label>
-                        <Box ml="0.5em" />
-                        <Toggle
-                            scale={1.3}
-                            checked={p.upload.extractArchive}
-                            onChange={() => ifPresent(p.onExtractChange, c => c(!p.upload.extractArchive))}
-                        />
-                    </Flex> : null}
-            </Box>
-            <Error error={p.upload.error} />
-            <Box width={0.3}>
-                <ButtonGroup width="100%">
-                    {!p.upload.isPending ?
+                    pr="4px"
+                    width={0.5}
+                    left={(<Text color="red">{p.upload.error}</Text>)}
+                    right={(
                         <Button
-                            data-tag={"startUpload"}
-                            color="green"
-                            disabled={!!p.upload.error}
-                            onClick={e => ifPresent(p.onUpload, c => c(e))}
+                            color="red"
+                            onClick={e => ifPresent(p.onDelete, c => c(e))}
+                            data-tag={"removeUpload"}
                         >
-                            <Icon name="cloud upload" />Upload
+                            <Icon name="close" />
                         </Button>
-                        :
-                        <Button color="blue" disabled>Pending</Button>
-                    }
-                    <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
-                        <Icon name="close" />
-                    </Button>
-                </ButtonGroup>
-                <Flex justifyContent="center" pt="0.3em">
-                    <ClickableDropdown
-                        chevron
-                        trigger={prettierString(p.upload.sensitivity)}
-                        onChange={key => p.setSensitivity(key as Sensitivity)}
-                        options={privacyOptions}
+                    )}
+                />
+            </>
+        );
+    } else if (!p.upload.isUploading) {
+        body = (
+            <>
+                <Box width={0.7}>
+                    <Spacer
+                        left={fileTitle}
+                        right={p.upload.conflictFile ? <PolicySelect setRewritePolicy={p.setRewritePolicy!} /> : null}
                     />
-                </Flex>
-            </Box>
-        </>;
+                    <br />
+                    {!isArchiveExtension(p.upload.file.name) ? null : (
+                        <Flex data-tag="extractArchive">
+                            <label>Extract archive?</label>
+                            <Box ml="0.5em" />
+                            <Toggle
+                                scale={1.3}
+                                checked={p.upload.extractArchive}
+                                onChange={() => ifPresent(p.onExtractChange, c => c(!p.upload.extractArchive))}
+                            />
+                        </Flex>
+                    )}
+                </Box>
+                <Error error={p.upload.error} />
+                <Box width={0.3}>
+                    <ButtonGroup width="100%">
+                        {p.upload.isPending ? <Button color="blue" disabled>Pending</Button> : (
+                            <Button
+                                data-tag={"startUpload"}
+                                color="green"
+                                disabled={!!p.upload.error}
+                                onClick={e => ifPresent(p.onUpload, c => c(e))}
+                            >
+                                <Icon name="cloud upload" />Upload
+                            </Button>
+                        )}
+                        <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
+                            <Icon name="close" />
+                        </Button>
+                    </ButtonGroup>
+                    <Flex justifyContent="center" pt="0.3em">
+                        <ClickableDropdown
+                            chevron
+                            trigger={prettierString(p.upload.sensitivity)}
+                            onChange={key => p.setSensitivity(key as Sensitivity)}
+                            options={privacyOptions}
+                        />
+                    </Flex>
+                </Box>
+            </>
+        );
     } else { // Uploading
-        body = <>
-            <Box width={0.25}>
-                {fileTitle}
-                <br />
-                {isArchiveExtension(p.upload.file.name) ?
-                    (p.upload.extractArchive ?
-                        <span><Icon name="checkmark" color="green" />Extracting archive</span> :
-                        <span><Icon name="close" color="red" /> <i>Not</i> extracting archive</span>)
-                    : null}
-            </Box>
-            <ProgressBar upload={p.upload} />
-            <Box width={0.22}>
-                {!isFinishedUploading(p.upload.uploadXHR) ?
-                    <Button
-                        fullWidth
-                        color="red"
-                        onClick={e => ifPresent(p.onAbort, c => c(e))}
-                        data-tag={"cancelUpload"}
-                    >
-                        Cancel
-                    </Button>
-                    :
-                    <Button
-                        fullWidth
-                        color="red"
-                        onClick={e => ifPresent(p.onClear, c => c(e))}
-                        data-tag={"removeUpload"}
-                    >
-                        <Icon name="close" />
-                    </Button>}
-            </Box>
-        </>;
+        body = (
+            <>
+                <Box width={0.25}>
+                    {fileTitle}
+                    <br />
+                    {isArchiveExtension(p.upload.file.name) ?
+                        (p.upload.extractArchive ?
+                            <span><Icon name="checkmark" color="green" />Extracting archive</span> :
+                            <span><Icon name="close" color="red" /> <i>Not</i> extracting archive</span>)
+                        : null}
+                </Box>
+                <ProgressBar upload={p.upload} />
+                <Box width={0.22}>
+                    {!isFinishedUploading(p.upload.uploadXHR) ? (
+                        <Button
+                            fullWidth
+                            color="red"
+                            onClick={e => ifPresent(p.onAbort, c => c(e))}
+                            data-tag={"cancelUpload"}
+                        >
+                            Cancel
+                        </Button>
+                    ) : (
+                            <Button
+                                fullWidth
+                                color="red"
+                                onClick={e => ifPresent(p.onClear, c => c(e))}
+                                data-tag={"removeUpload"}
+                            >
+                                <Icon name="close" />
+                            </Button>
+                        )}
+                </Box>
+            </>
+        );
     }
 
     return (
@@ -533,7 +551,7 @@ interface PolicySelect {
     setRewritePolicy: (policy: UploadPolicy) => void;
 }
 
-const PolicySelect = ({setRewritePolicy}: PolicySelect) =>
+const PolicySelect = ({setRewritePolicy}: PolicySelect) => (
     <Flex mt="-12px" width="200px" mr="0.5em">
         <Select
             width="200px"
@@ -543,7 +561,8 @@ const PolicySelect = ({setRewritePolicy}: PolicySelect) =>
             <option>Rename</option>
             <option>Overwrite</option>
         </Select>
-    </Flex>;
+    </Flex>
+);
 
 interface ConflictFile {
     file?: SDUCloudFile;

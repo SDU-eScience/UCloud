@@ -4,7 +4,7 @@ import {Acl, File, FileType, SortBy} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {dateToString} from "Utilities/DateUtilities";
-import {getFilenameFromPath, replaceHomeFolder, sizeToString, isDirectory} from "Utilities/FileUtilities";
+import {getFilenameFromPath, isDirectory, replaceHomeFolder, sizeToString} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
 /**
@@ -225,9 +225,9 @@ export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperC
 export const is5xxStatusCode = (status: number) => inRange({status, min: 500, max: 599});
 export const blankOrUndefined = (value?: string): boolean => value == null || value.length === 0 || /^\s*$/.test(value);
 
-export const ifPresent = (f: any, handler: (f: any) => void) => {
+export function ifPresent<T>(f: T | undefined, handler: (f: T) => void) {
     if (f) handler(f);
-};
+}
 
 // FIXME The frontend can't handle downloading multiple files currently. When fixed, remove === 1 check.
 export const downloadAllowed = (files: File[]) =>
@@ -338,7 +338,7 @@ export function copyToClipboard({value, message}: CopyToClipboard) {
 }
 
 export function errorMessageOrDefault(
-    err: {request: XMLHttpRequest, response: any} | {status: number, response: string},
+    err: {request: XMLHttpRequest, response: any} | {status: number, response: string} | string,
     defaultMessage: string
 ): string {
     try {

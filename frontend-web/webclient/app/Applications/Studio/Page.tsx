@@ -6,7 +6,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
-import {loadingAction} from "Loading";
+import {loadingAction, LoadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -52,87 +52,87 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
         props.setLoading(tools.loading);
     }, [tools.loading]);
 
-    return <MainContainer
-        header={
-            <Heading.h1>Application Studio</Heading.h1>
-        }
+    return (
+        <MainContainer
+            header={<Heading.h1>Application Studio</Heading.h1>}
 
-        sidebar={
-            <VerticalButtonGroup>
-                <Button fullWidth as="label">
-                    Upload Application
+            sidebar={(
+                <VerticalButtonGroup>
+                    <Button fullWidth as="label">
+                        Upload Application
                     <HiddenInputField
-                        type="file"
-                        onChange={async e => {
-                            const target = e.target;
-                            if (target.files) {
-                                const file = target.files[0];
-                                target.value = "";
-                                if (file.size > 1024 * 512) {
-                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
-                                } else {
-                                    await uploadDocument({document: file, type: "APPLICATION"});
-                                    setToolParameters(listTools({...toolParameters.parameters}));
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                    } else {
+                                        await uploadDocument({document: file, type: "APPLICATION"});
+                                        setToolParameters(listTools({...toolParameters.parameters}));
+                                    }
+                                    dialogStore.success();
                                 }
-                                dialogStore.success();
-                            }
-                        }}/>
-                </Button>
+                            }} />
+                    </Button>
 
-                <Button fullWidth as="label">
-                    Upload Tool
+                    <Button fullWidth as="label">
+                        Upload Tool
                     <HiddenInputField
-                        type="file"
-                        onChange={async e => {
-                            const target = e.target;
-                            if (target.files) {
-                                const file = target.files[0];
-                                target.value = "";
-                                if (file.size > 1024 * 512) {
-                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
-                                } else {
-                                    await uploadDocument({document: file, type: "TOOL"});
-                                    setToolParameters(listTools({...toolParameters.parameters}));
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                    } else {
+                                        await uploadDocument({document: file, type: "TOOL"});
+                                        setToolParameters(listTools({...toolParameters.parameters}));
+                                    }
+                                    dialogStore.success();
                                 }
-                                dialogStore.success();
-                            }
-                        }}/>
-                </Button>
-            </VerticalButtonGroup>
-        }
+                            }} />
+                    </Button>
+                </VerticalButtonGroup>
+            )}
 
-        main={
-            <Pagination.List
-                loading={tools.loading}
-                page={tools.data}
-                onPageChanged={page => {
-                    setToolParameters(listTools({...toolParameters.parameters, page}));
-                }}
-                pageRenderer={page => {
-                    return <Flex flexWrap={"wrap"} justifyContent={"center"}>
-                        {page.items.map(tool =>
-                            <SmallAppToolCard key={tool.description.info.name}
-                                              to={`/applications/studio/t/${tool.description.info.name}`}>
-                                <Flex>
-                                    <AppToolLogo type={"TOOL"} name={tool.description.info.name}/>
-                                    <Box ml={8}>
-                                        <Truncate width={300} cursor={"pointer"}>
-                                            <b>{tool.description.title}</b>
-                                        </Truncate>
-                                        <Box cursor={"pointer"}>{tool.description.info.name}</Box>
-                                    </Box>
-                                </Flex>
-                            </SmallAppToolCard>
-                        )}
-                    </Flex>;
-                }}
-            />
-        }
-    />;
+            main={(
+                <Pagination.List
+                    loading={tools.loading}
+                    page={tools.data}
+                    onPageChanged={page => {
+                        setToolParameters(listTools({...toolParameters.parameters, page}));
+                    }}
+                    pageRenderer={page => {
+                        return <Flex flexWrap={"wrap"} justifyContent={"center"}>
+                            {page.items.map(tool =>
+                                <SmallAppToolCard key={tool.description.info.name}
+                                    to={`/applications/studio/t/${tool.description.info.name}`}>
+                                    <Flex>
+                                        <AppToolLogo type={"TOOL"} name={tool.description.info.name} />
+                                        <Box ml={8}>
+                                            <Truncate width={300} cursor={"pointer"}>
+                                                <b>{tool.description.title}</b>
+                                            </Truncate>
+                                            <Box cursor={"pointer"}>{tool.description.info.name}</Box>
+                                        </Box>
+                                    </Flex>
+                                </SmallAppToolCard>
+                            )}
+                        </Flex>;
+                    }}
+                />
+            )}
+        />
+    );
 };
 
 const mapDispatchToProps = (
-    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
+    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | LoadingAction>
 ): StudioOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Application Studio"));

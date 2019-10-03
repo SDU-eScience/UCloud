@@ -10,7 +10,8 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-compo
 import {colors} from "ui-components/theme";
 import {fileInfoPage, getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
 
-export function ActivityFeedFrame(props: {containerRef?: React.RefObject<any>, children?: JSX.Element[]}) {
+
+export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTableSectionElement>}> = props => {
     return (
         <Table>
             <TableHeader>
@@ -119,13 +120,11 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
                         <ActivityEvent key={idx} event={item} />
                     )}
 
-                    {!!activity.numberOfHiddenResults ?
+                    {!!activity.numberOfHiddenResults ? (
                         <Box mt={16}>
                             <Text bold>{activity.numberOfHiddenResults} similar results were hidden</Text>
                         </Box>
-                        :
-                        null
-                    }
+                    ) : null}
                 </TableCell>
             </TFRow>
         );

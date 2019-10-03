@@ -1,23 +1,22 @@
+import {ReduxObject} from "DefaultObjects";
 import * as jwt from "jsonwebtoken";
+import {Store} from "redux";
+import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import {
-    inDevEnvironment,
     inRange,
     inSuccessRange,
     is5xxStatusCode
 } from "UtilityFunctions";
-import {ReduxObject} from "DefaultObjects";
-import {Store} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 
 export interface Override {
-    path: string,
-    method: { value: string }
+    path: string;
+    method: {value: string;};
     destination: {
-        scheme?: string
-        host?: string
-        port: number
-    }
+        scheme?: string;
+        host?: string;
+        port: number;
+    };
 }
 
 interface CallParameters {
@@ -49,12 +48,12 @@ export default class SDUCloud {
     private projectAccessToken: string | undefined = undefined;
     private projectDecodedToken: any | undefined = undefined;
 
-    overrides: Override[] = [];
+    private overrides: Override[] = [];
 
     constructor() {
-        let context = location.protocol + '//' +
+        const context = location.protocol + "//" +
             location.hostname +
-            (location.port ? ':' + location.port : '');
+            (location.port ? ":" + location.port : "");
 
         let serviceName: string;
         switch (location.hostname) {
@@ -76,8 +75,8 @@ export default class SDUCloud {
         this.decodedToken = null;
         this.redirectOnInvalidTokens = false;
 
-        let accessToken = SDUCloud.storedAccessToken;
-        let csrfToken = SDUCloud.storedCsrfToken;
+        const accessToken = SDUCloud.storedAccessToken;
+        const csrfToken = SDUCloud.storedCsrfToken;
         if (accessToken && csrfToken) {
             this.setTokens(accessToken, csrfToken);
         }
@@ -90,7 +89,7 @@ export default class SDUCloud {
         }
     }
 
-    initializeStore(store: Store<ReduxObject>) {
+    public initializeStore(store: Store<ReduxObject>) {
         store.subscribe(() => {
             const project = store.getState().project.project;
             if (project !== this.projectId) {
@@ -119,7 +118,7 @@ export default class SDUCloud {
      * @param {disallowProjects} disallowProjects - true if this call should not use the project token (Default: false).
      * @return {Promise} promise
      */
-    async call(
+    public async call(
         {
             method,
             path,
@@ -132,15 +131,14 @@ export default class SDUCloud {
         if (this.overridesPromise != null) {
             try {
                 await this.overridesPromise;
-            } catch (ignored) {
-            }
+            } catch { /* ignored */}
             this.overridesPromise = null;
         }
 
         if (path.indexOf("/") !== 0) path = "/" + path;
         return this.receiveAccessTokenOrRefreshIt(disallowProjects).then(token => {
             return new Promise((resolve, reject) => {
-                let req = new XMLHttpRequest();
+                const req = new XMLHttpRequest();
                 req.open(method, this.computeURL(context, path));
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
@@ -153,11 +151,11 @@ export default class SDUCloud {
 
                     if (maxRetries >= 1 && is5xxStatusCode(req.status)) {
                         this.call({
-                            method: method,
-                            path: path,
-                            body: body,
-                            context: context,
-                            maxRetries: maxRetries - 1
+                            maxRetries: maxRetries - 1,
+                            method,
+                            path,
+                            body,
+                            context
                         })
                             .catch(e => reject(e)).then(e => resolve(e));
                     } else {
@@ -167,7 +165,7 @@ export default class SDUCloud {
 
                 req.onload = async () => {
                     try {
-                        let responseContentType = req.getResponseHeader("content-type");
+                        const responseContentType = req.getResponseHeader("content-type");
                         let parsedResponse = req.response.length === 0 ? "{}" : req.response;
 
                         // JSON Parsing
@@ -201,15 +199,15 @@ export default class SDUCloud {
     }
 
     public computeURL(context: string, path: string): string {
-        let absolutePath = context + path;
+        const absolutePath = context + path;
         for (let i = 0; i < this.overrides.length; i++) {
-            let override = this.overrides[i];
+            const override = this.overrides[i];
             if (absolutePath.indexOf(override.path) === 0) {
-                let scheme = override.destination.scheme ?
+                const scheme = override.destination.scheme ?
                     override.destination.scheme : "http";
-                let host = override.destination.host ?
+                const host = override.destination.host ?
                     override.destination.host : "localhost";
-                let port = override.destination.port;
+                const port = override.destination.port;
 
                 return scheme + "://" + host + ":" + port + absolutePath;
             }
@@ -221,8 +219,10 @@ export default class SDUCloud {
     /**
      * Calls with the GET HTTP method. See call(method, path, body)
      */
-    public async get<T = any>(path: string, context = this.apiContext,
-                              disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async get<T = any>(
+        path: string,
+        context = this.apiContext,
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "GET", path, body: undefined, context, disallowProjects});
     }
 
@@ -230,7 +230,7 @@ export default class SDUCloud {
      * Calls with the POST HTTP method. See call(method, path, body)
      */
     public async post<T = any>(path: string, body?: object, context = this.apiContext,
-                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "POST", path, body, context, disallowProjects});
     }
 
@@ -238,7 +238,7 @@ export default class SDUCloud {
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
     public async put<T = any>(path: string, body: object, context = this.apiContext,
-                              disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "PUT", path, body, context, disallowProjects});
     }
 
@@ -246,7 +246,7 @@ export default class SDUCloud {
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
     public async delete<T = void>(path: string, body: object, context = this.apiContext,
-                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "DELETE", path, body, context, disallowProjects});
     }
 
@@ -254,7 +254,7 @@ export default class SDUCloud {
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
     public async patch<T = any>(path: string, body: object, context = this.apiContext,
-                                disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "PATCH", path, body, context, disallowProjects});
     }
 
@@ -262,7 +262,7 @@ export default class SDUCloud {
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
     public async options<T = any>(path: string, body: object, context = this.apiContext,
-                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "OPTIONS", path, body, context, disallowProjects});
     }
 
@@ -270,7 +270,7 @@ export default class SDUCloud {
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
     public async head<T = any>(path: string, context = this.apiContext,
-                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "HEAD", path, body: undefined, context, disallowProjects});
     }
 
@@ -292,7 +292,7 @@ export default class SDUCloud {
      * @returns the username of the authenticated user or null
      */
     public get username(): string | undefined {
-        let info = this.userInfo;
+        const info = this.userInfo;
         if (info) return info.sub;
         else return undefined;
     }
@@ -313,11 +313,11 @@ export default class SDUCloud {
         if (this.projectId !== undefined) {
             username = this.projectId;
         }
-        return `/home/${username}/`
+        return `/home/${username}/`;
     }
 
     public get trashFolder(): string {
-        return `${this.homeFolder}Trash/`
+        return `${this.homeFolder}Trash/`;
     }
 
     public get isLoggedIn(): boolean {
@@ -346,7 +346,7 @@ export default class SDUCloud {
      * verify the token.
      */
     private get userInfo(): undefined | JWT {
-        let token = this.decodedToken;
+        const token = this.decodedToken;
         if (!token) return undefined;
         else return this.decodedToken.payload;
     }
@@ -440,14 +440,14 @@ export default class SDUCloud {
                 throw Error("Unable to refresh token")
             }
         } else {
-            let csrfToken = SDUCloud.storedCsrfToken;
+            const csrfToken = SDUCloud.storedCsrfToken;
             if (!csrfToken) {
                 return new Promise((resolve, reject) => {
                     reject(this.missingAuth());
                 });
             }
 
-            let refreshPath = this.computeURL(this.authContext, "/refresh/web");
+            const refreshPath = this.computeURL(this.authContext, "/refresh/web");
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
                 req.open("POST", refreshPath);
@@ -602,18 +602,18 @@ export default class SDUCloud {
 }
 
 interface JWT {
-    sub: string
-    uid: number
-    lastName?: string
-    aud: string
-    role: string
-    iss: string
-    firstNames?: string
-    exp: number
-    extendedByChain: any[]
-    iat: number
-    principalType: string
-    publicSessionReference?: string
+    sub: string;
+    uid: number;
+    lastName?: string;
+    aud: string;
+    role: string;
+    iss: string;
+    firstNames?: string;
+    exp: number;
+    extendedByChain: any[];
+    iat: number;
+    principalType: string;
+    publicSessionReference?: string;
 }
 
 export class MissingAuthError {

@@ -1,25 +1,46 @@
-import * as React from "react";
-import View from "../../app/Applications/View";
-import {create} from "react-test-renderer";
-import {mount, shallow} from "enzyme";
-import {configure} from "enzyme";
-import {detailedApplication} from "../mock/Applications";
+import {configure, mount} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
-import {MemoryRouter} from "react-router";
 import "jest-styled-components";
+import * as React from "react";
+import {MemoryRouter} from "react-router";
+import {create} from "react-test-renderer";
+import View from "../../app/Applications/View";
+import {detailedApplication} from "../mock/Applications";
 
 configure({adapter: new Adapter()});
 
 describe("Detailed application", () => {
     test.skip("Mount component", () => {
         expect(create(
-            <View match={{params: {appName: "someName", appVersion: "someVersion"}}} />
+            <View
+                match={{
+                    params: {
+                        appName: "someName",
+                        appVersion: "someVersion"
+                    },
+                    isExact: true,
+                    path: "",
+                    url: ""
+                }}
+            />
         ).toJSON()).toMatchSnapshot();
     });
 
     test.skip("Set error message", () => {
         const error = "Error Message!";
-        const detailedApp = mount(<View match={{params: {appName: "someName", appVersion: "someVersion"}}} />);
+        const detailedApp = mount(
+            <View
+                match={{
+                    params: {
+                        appName: "someName",
+                        appVersion: "someVersion"
+                    },
+                    isExact: true,
+                    path: "",
+                    url: ""
+                }}
+            />
+        );
         detailedApp.setState(() => ({error}));
         expect(detailedApp.state("error")).toBe(error);
         expect(detailedApp.find("Message").props().content).toBe(error);
@@ -28,8 +49,26 @@ describe("Detailed application", () => {
     });
 
     test.skip("Component with application", () => {
-        let detailedAppWrapper = mount(<MemoryRouter><View match={{params: {appName: "someName", appVersion: "someVersion"}}} /></MemoryRouter>);
-        detailedAppWrapper.find(View).instance().setState({appInformation: detailedApplication, loading: false, complete: true});
+        let detailedAppWrapper = mount(
+            <MemoryRouter>
+                <View
+                    match={{
+                        params: {
+                            appName: "someName",
+                            appVersion: "someVersion"
+                        },
+                        isExact: true,
+                        path: "",
+                        url: ""
+                    }}
+                />
+            </MemoryRouter>
+        );
+        detailedAppWrapper.find(View).instance().setState({
+            appInformation: detailedApplication,
+            loading: false,
+            complete: true
+        });
         detailedAppWrapper = detailedAppWrapper.update();
         expect(detailedAppWrapper.html()).toMatchSnapshot();
     });

@@ -1,21 +1,68 @@
 import * as jwt from "jsonwebtoken";
 
 interface JWT {
-    sub: string
-    uid: number
-    lastName: string
-    aud: string
-    role: string
-    iss: string
-    firstNames: string
-    exp: number
-    extendedByChain: string[]
-    iat: number
-    principalType: string
-    publicSessionReference: string
+    sub: string;
+    uid: number;
+    lastName: string;
+    aud: string;
+    role: string;
+    iss: string;
+    firstNames: string;
+    exp: number;
+    extendedByChain: string[];
+    iat: number;
+    principalType: string;
+    publicSessionReference: string;
 }
 
 class MockCloud {
+
+    get username() {
+        const info = this.userInfo;
+        if (info) return info.sub;
+        else return null;
+    }
+
+    get homeFolder(): string {
+        const username = this.username;
+        return `/home/${username}/`;
+    }
+
+    get jobFolder(): string {
+        return `${this.homeFolder}Jobs/`;
+    }
+
+    get userRole(): string {
+        const info = this.userInfo;
+        if (info) return info.role;
+        return "";
+    }
+
+    get userIsAdmin(): boolean {
+        return true;
+    }
+
+    get userInfo(): undefined | JWT {
+        const token = this.decodedToken;
+        if (!token) return undefined;
+        else return this.decodedToken.payload;
+    }
+
+    static get storedAccessToken(): string {
+        return window.localStorage.getItem("accessToken") || "";
+    }
+
+    static set storedAccessToken(value: string) {
+        window.localStorage.setItem("accessToken", value);
+    }
+
+    static get storedCsrfToken(): string {
+        return window.localStorage.getItem("csrfToken") || "";
+    }
+
+    static set storedCsrfToken(value) {
+        window.localStorage.setItem("csrfToken", value);
+    }
     private readonly context: string;
     private readonly serviceName: string;
     private readonly authContext: string;
@@ -51,70 +98,26 @@ class MockCloud {
     public head = (path: string, context = this.apiContext) => this.call("HEAD", path, undefined, context);
 
     public openBrowserLoginPage() {
-        window.location.href = this.context + this.authContext + "/login?service=" + encodeURIComponent(this.serviceName);
-    }
-
-    get username() {
-        let info = this.userInfo;
-        if (info) return info.sub;
-        else return null;
-    }
-
-    get homeFolder(): string {
-        let username = this.username;
-        return `/home/${username}/`
-    }
-
-    get jobFolder(): string {
-        return `${this.homeFolder}Jobs/`
-    }
-
-    get userRole(): string {
-        const info = this.userInfo;
-        if (info) return info.role;
-        return "";
-    }
-
-    get userIsAdmin(): boolean {
-        return true;
-    }
-
-    get userInfo(): undefined | JWT {
-        let token = this.decodedToken;
-        if (!token) return undefined;
-        else return this.decodedToken.payload;
+        window.location.href = `${this.context}${this.authContext}/login?service=" + encodeURIComponent(this.serviceName)`;
     }
 
     public receiveAccessTokenOrRefreshIt = (): Promise<any> => new Promise(resolve => resolve("1"));
 
     public createOneTimeTokenWithPermission(permission: string) { }
 
-    private refresh() { }
+    public setTokens(csrfToken: string) { }
 
-    public setTokens(accessToken: string, csrfToken: string) { }
-
+    // tslint:disable-next-line: no-empty
     public logout() { }
 
     public clearTokens() { }
 
-    static get storedAccessToken(): string {
-        return window.localStorage.getItem("accessToken") || "";
-    }
+    // tslint:disable-next-line: no-empty
+    private refresh() { }
 
-    static set storedAccessToken(value: string) {
-        window.localStorage.setItem("accessToken", value);
-    }
+    private isTokenExpired = () => false;
 
-    static get storedCsrfToken(): string {
-        return window.localStorage.getItem("csrfToken") || "";
-    }
-
-    static set storedCsrfToken(value) {
-        window.localStorage.setItem("csrfToken", value);
-    }
-
-    private isTokenExpired = () => false
-
+    // tslint:disable-next-line: no-empty
     private missingAuth() { }
 }
 
