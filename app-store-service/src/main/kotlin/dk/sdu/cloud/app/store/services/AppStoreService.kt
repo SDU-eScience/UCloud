@@ -100,7 +100,7 @@ class AppStoreService<DBSession>(
             if (file.contains(".")) {
                 "." + file.substringAfterLast('.')
             } else {
-                file.substringAfterLast('.')
+                file.substringAfterLast('/')
             }
         }.toSet()
 

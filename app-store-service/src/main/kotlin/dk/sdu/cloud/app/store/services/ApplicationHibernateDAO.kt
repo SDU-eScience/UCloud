@@ -370,31 +370,25 @@ class ApplicationHibernateDAO(
         var query = ""
         query += """
             select A.*
-            from app_store.favorited_by as F, app_store.applications as A
-            where
-                F.the_user = :user and
-                F.application_name = A.name and
-                F.application_version = A.version and
-                A.name in (
-                    select B.name
-                    from app_store.applications as B
-                    where (
-                        B.application -> 'applicationType' = '"WEB"' or
-                        B.application -> 'applicationType' = '"VNC"'
-                    ) and (
+            from app_store.favorited_by as F,
+                app_store.applications as A
+            where F.the_user = :user
+              and F.application_name = A.name
+              and F.application_version = A.version
+              and (A.application -> 'applicationType' = '"WEB"'
+                or A.application -> 'applicationType' = '"VNC"'
+              ) and (
         """
 
         for (index in fileExtensions.indices) {
-            query += """ B.application -> 'fileExtensions' @> jsonb_build_array(:ext$index) """
+            query += """ A.application -> 'fileExtensions' @> jsonb_build_array(:ext$index) """
             if (index != fileExtensions.size - 1) {
                 query += "or "
             }
         }
 
         query += """
-                    )
-                group by B.name
-            )
+              )
         """
 
         return session
@@ -409,11 +403,12 @@ class ApplicationHibernateDAO(
             }
             .list()
             .filter { entity ->
-                entity.application.parameters.isEmpty() || entity.application.parameters.all { it.optional }
+                entity.application.parameters.all { it.optional }
             }
             .map {
                 ApplicationWithExtension(it.toMetadata(), it.application.fileExtensions)
             }
+
     }
 
     override fun findByNameAndVersionForUser(

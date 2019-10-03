@@ -51,6 +51,7 @@ import * as UF from "UtilityFunctions";
 import {hashF, AppLogo} from "Applications/Card";
 import {useHistory} from "react-router";
 import {files} from "ui-components/icons";
+import {AppToolLogo} from "Applications/AppToolLogo";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -991,7 +992,6 @@ interface QuickLaunchApps extends SpaceProps {
 }
 
 const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
-    const [hasLoadedImage, setLoadedImage] = useState(true);
     if (typeof applications === "undefined") return null;
     if (applications.length < 1) return null;
 
@@ -1003,22 +1003,12 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
                 onClick={() => quickLaunchCallback(quickLaunchApp, getParentPath(file.path), props.history)}
                 {...props}
             >
-                <img
-                    onErrorCapture={() => {
-                        setLoadedImage(false);
-                        // For some reason the state is not always correctly set. This is the worst possible work around.
-                        setTimeout(() => setLoadedImage(false), 50);
-                    }}
-                    style={hasLoadedImage ? {width: 20, height: 20, objectFit: "contain"} : {display: "none"}}
-                    src={Cloud.computeURL("/api", `/hpc/apps/logo/${quickLaunchApp.metadata.name}?cacheBust=${undefined}`)}
-                    alt={quickLaunchApp.metadata.name}
-                />
-
-                {hasLoadedImage ? null : <AppLogo size={"20"} hash={hashF(quickLaunchApp.metadata.name)} />}
-
+                <AppToolLogo name={quickLaunchApp.metadata.name} size={"20px"} type={"APPLICATION"} />
                 <span>{quickLaunchApp.metadata.title}</span>
-            </Flex>);
+            </Flex>
+        );
     };
+
     return (
         <>
             {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={`opt-${i}`} />)}
