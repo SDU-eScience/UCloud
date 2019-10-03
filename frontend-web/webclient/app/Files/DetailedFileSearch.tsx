@@ -46,17 +46,33 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
 
     const {hidden, cantHide, extensions, allowFiles, allowFolders, includeShares} = props;
     if (hidden && !cantHide) {
-        return (<OutlineButton fullWidth color="darkGreen" onClick={props.toggleHidden}>Advanced
-                Search</OutlineButton>);
+        return (
+            <OutlineButton fullWidth color="darkGreen" onClick={props.toggleHidden}>
+                Advanced
+                Search
+            </OutlineButton>
+        );
+    }
+
+    function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        onSearch();
     }
 
     return (
         <>
-            {!cantHide ? <OutlineButton fullWidth color="darkGreen" onClick={props.toggleHidden}>Hide Advanced
-                    Search</OutlineButton> : null}
+            {!cantHide ? (
+                <OutlineButton
+                    fullWidth
+                    color="darkGreen"
+                    onClick={props.toggleHidden}
+                >
+                    Hide Advanced Search
+                </OutlineButton>
+            ) : null}
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
-                    <form onSubmit={e => (e.preventDefault(), onSearch())}>
+                    <form onSubmit={onSubmit}>
                         <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
                         <InputGroup>
                             <DatePicker
@@ -132,16 +148,16 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                             <Label fontSize={1} color="black">
                                 <Checkbox
                                     checked={allowFolders}
-                                    onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
-                                    onClick={() => props.toggleFolderAllowed()}
+                                    onChange={e => e.stopPropagation()}
+                                    onClick={props.toggleFolderAllowed}
                                 />
                                 Folders
                                 </Label>
                             <Label fontSize={1} color="black">
                                 <Checkbox
                                     checked={allowFiles}
-                                    onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
-                                    onClick={() => props.toggleFilesAllowed()}
+                                    onChange={e => e.stopPropagation()}
+                                    onClick={props.toggleFilesAllowed}
                                 />
                                 Files
                                 </Label>
@@ -151,7 +167,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                             <Label fontSize={1} color="black">
                                 <Checkbox
                                     checked={(includeShares)}
-                                    onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
+                                    onChange={e => e.stopPropagation()}
                                     onClick={props.toggleIncludeShares}
                                 />
                             </Label>
@@ -180,7 +196,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                             width="100%"
                             chevron
                             trigger={"Extension presets"}
-                            onChange={val => onAddPresets(val)}
+                            onChange={onAddPresets}
                             options={extensionPresets}
                         />
                         <Button
@@ -189,7 +205,9 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                             disabled={props.loading}
                             mt="1em"
                             color="blue"
-                        >Search</Button>
+                        >
+                            Search
+                        </Button>
                     </form>
                 </Box>
             </Flex>
