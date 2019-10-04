@@ -337,6 +337,20 @@ class JobOrchestrator<DBSession>(
                 }
 
                 JobState.SUCCESS, JobState.FAILURE -> {
+
+                    if (job.currentState == JobState.SUCCESS) {
+                        if (job.currentState == JobState.CANCELING && event.newState == JobState.SUCCESS) {
+                            db.withTransaction(autoFlush = true) {
+                                jobDao.updateStateAndStatus(
+                                    it,
+                                    event.systemId,
+                                    event.newState,
+                                    "Job cancelled successfully."
+                                )
+                            }
+                        }
+                    }
+
                     if (jobWithToken.refreshToken != null) {
                         AuthDescriptions.logout.call(
                             Unit,
