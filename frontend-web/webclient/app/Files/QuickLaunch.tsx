@@ -29,7 +29,6 @@ export async function quickLaunchCallback(
         }],
         numberOfNodes: 0,
         tasksPerNode: 0,
-        maxTime: {hours: 1, minutes: 0, seconds: 0},
         peers: [],
         reservation: null,
         type: "start",
