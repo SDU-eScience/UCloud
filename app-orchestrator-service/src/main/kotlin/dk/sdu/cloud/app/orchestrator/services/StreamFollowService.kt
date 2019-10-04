@@ -143,12 +143,8 @@ class StreamFollowService<DBSession>(
                     if (lastState != job.currentState || lastStatus != job.status || lastFailedState != job.failedState) {
                         debug("Sending updated state information")
 
-                        lastStatus = if (lastState == JobState.CANCELING && job.currentState == JobState.SUCCESS) {
-                            "Job cancelled successfully."
-                        } else {
-                            job.status
-                        }
                         lastState = job.currentState
+                        lastStatus = job.status
                         lastFailedState = job.failedState
 
                         callContext.sendWSMessage(
