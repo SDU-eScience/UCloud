@@ -17,13 +17,6 @@ exports[`UserCreation Mount 1`] = `
   padding-right: 14px;
 }
 
-.c2 {
-  cursor: inherit;
-  font-size: 40px;
-  margin: 0;
-  font-weight: 700;
-}
-
 .c8 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
@@ -116,6 +109,13 @@ exports[`UserCreation Mount 1`] = `
   transform: scale(1.03);
 }
 
+.c2 {
+  cursor: inherit;
+  font-size: 40px;
+  margin: 0;
+  font-weight: 700;
+}
+
 .c12 {
   display: block;
   font-family: inherit;
@@ -206,7 +206,7 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c5 .c7,
-.c5 .sc-dnqmqq {
+.c5 .sc-EHOje {
   width: 100%;
   margin-bottom: 8px;
 }

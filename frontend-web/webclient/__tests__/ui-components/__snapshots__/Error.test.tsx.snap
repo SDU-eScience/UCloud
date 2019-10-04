@@ -10,24 +10,6 @@ exports[`Error component Error with error and dismiss button 1`] = `
   margin-left: auto;
 }
 
-.c1 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-}
-
-.c3 {
-  cursor: inherit;
-  font-size: 14px;
-  color: #c00;
-}
-
 .c5 {
   -webkit-flex: none;
   -ms-flex: none;
@@ -46,6 +28,24 @@ exports[`Error component Error with error and dismiss button 1`] = `
   height: auto;
   border: 1px solid #c00;
   border-radius: 0.5em;
+}
+
+.c1 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.c3 {
+  cursor: inherit;
+  font-size: 14px;
+  color: #c00;
 }
 
 <div
@@ -102,6 +102,17 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   cursor: auto;
 }
 
+.c0 {
+  cursor: auto;
+  padding: 1em 1em 1em 1em;
+  height: auto;
+  color: #000;
+  background-color: #fcc;
+  height: auto;
+  border: 1px solid #c00;
+  border-radius: 0.5em;
+}
+
 .c1 {
   cursor: inherit;
   display: -webkit-box;
@@ -118,17 +129,6 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   cursor: inherit;
   font-size: 14px;
   color: #c00;
-}
-
-.c0 {
-  cursor: auto;
-  padding: 1em 1em 1em 1em;
-  height: auto;
-  color: #000;
-  background-color: #fcc;
-  height: auto;
-  border: 1px solid #c00;
-  border-radius: 0.5em;
 }
 
 <div

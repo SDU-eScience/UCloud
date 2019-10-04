@@ -30,45 +30,6 @@ exports[`Mount Activity Page 1`] = `
   padding-right: 340px;
 }
 
-.c19 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-pack: center;
-  -webkit-justify-content: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-}
-
-.c3 {
-  cursor: inherit;
-  font-size: 32px;
-  margin: 0;
-  font-weight: 700;
-}
-
-.c7 {
-  cursor: inherit;
-  font-size: 24px;
-  margin: 0;
-  font-weight: 400;
-}
-
-.c11 {
-  cursor: pointer;
-}
-
-.c12 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-left: .7em;
-}
-
 .c21 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
@@ -113,6 +74,45 @@ exports[`Mount Activity Page 1`] = `
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
+}
+
+.c12 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c19 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+}
+
+.c3 {
+  cursor: inherit;
+  font-size: 32px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.c7 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c11 {
+  cursor: pointer;
 }
 
 .c9 {

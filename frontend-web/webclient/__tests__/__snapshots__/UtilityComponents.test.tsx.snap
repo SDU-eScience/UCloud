@@ -100,11 +100,6 @@ exports[`FileIcon FileIcon, shared 1`] = `
   right: -2px;
 }
 
-.c6 {
-  cursor: inherit;
-  font-size: 14px;
-}
-
 .c1 {
   -webkit-flex: none;
   -ms-flex: none;
@@ -120,6 +115,11 @@ exports[`FileIcon FileIcon, shared 1`] = `
   flex: none;
   vertical-align: middle;
   cursor: inherit;
+}
+
+.c6 {
+  cursor: inherit;
+  font-size: 14px;
 }
 
 .c3 {
@@ -430,26 +430,6 @@ exports[`Share prompt 1`] = `
   margin-left: auto;
 }
 
-.c2 {
-  cursor: inherit;
-  font-size: 24px;
-  margin: 0;
-  font-weight: 400;
-}
-
-.c9 {
-  cursor: pointer;
-}
-
-.c10 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-left: .7em;
-}
-
 .c14 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
@@ -543,6 +523,15 @@ exports[`Share prompt 1`] = `
   transform: scale(1.03);
 }
 
+.c10 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
 .c3 {
   border: 0;
   border-bottom-style: solid;
@@ -550,6 +539,17 @@ exports[`Share prompt 1`] = `
   margin-left: 0;
   margin-right: 0;
   border-color: #c9d3df;
+}
+
+.c2 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c9 {
+  cursor: pointer;
 }
 
 .c6 {

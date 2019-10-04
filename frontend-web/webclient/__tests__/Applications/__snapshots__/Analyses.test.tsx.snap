@@ -54,44 +54,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   cursor: auto;
 }
 
-.c3 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-}
-
-.c6 {
-  cursor: pointer;
-}
-
-.c7 {
-  cursor: inherit;
-}
-
-.c10 {
-  cursor: pointer;
-  margin-left: -17px;
-  padding-left: 17px;
-  margin-right: -17px;
-}
-
-.c14 {
-  cursor: inherit;
-  font-size: 24px;
-  margin: 0;
-  font-weight: 400;
-}
-
-.c16 {
-  cursor: inherit;
-  font-size: 24px;
-  margin: 0;
-  margin-top: 16px;
-  font-weight: 400;
-}
-
 .c8 {
   -webkit-flex: none;
   -ms-flex: none;
@@ -136,6 +98,44 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   cursor: inherit;
   margin-right: 8px;
   color: #00C05A;
+}
+
+.c3 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c6 {
+  cursor: pointer;
+}
+
+.c7 {
+  cursor: inherit;
+}
+
+.c10 {
+  cursor: pointer;
+  margin-left: -17px;
+  padding-left: 17px;
+  margin-right: -17px;
+}
+
+.c14 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c16 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  margin-top: 16px;
+  font-weight: 400;
 }
 
 .c17 {

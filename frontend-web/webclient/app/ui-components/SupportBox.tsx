@@ -2,7 +2,6 @@ import {Cloud} from "Authentication/SDUCloudObject";
 import {KeyCode} from "DefaultObjects";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import {connect} from "react-redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as Heading from "ui-components/Heading";
@@ -22,7 +21,7 @@ const enum SupportType {
     BUG = "BUG"
 }
 
-function Support() {
+export default function Support() {
     const textArea = useRef<HTMLTextAreaElement>(null);
     const supportBox = useRef<HTMLTextAreaElement>(null);
     const [loading, setLoading] = useState(false);
@@ -68,11 +67,14 @@ function Support() {
     }, []);
 
     return (
-        <ClickableDropdown colorOnHover={false} keepOpenOnClick trigger={
-            <Flex width="48px" justifyContent="center">
-                <Icon name={"chat"} size="24px" color="headerIconColor" color2="headerBg" />
-            </Flex>
-        }
+        <ClickableDropdown
+            colorOnHover={false}
+            keepOpenOnClick
+            trigger={(
+                <Flex width="48px" justifyContent="center">
+                    <Icon name={"chat"} size="24px" color="headerIconColor" color2="headerBg" />
+                </Flex>
+            )}
             width="650px"
             height="350px"
             right="10px"
@@ -100,7 +102,7 @@ function Support() {
                 </Flex>
                 {type === SupportType.SUGGESTION ? <p>Describe your suggestion and we will look into it.</p> :
                     <p>Describe your problem below and we will investigate it.</p>}
-                <form onSubmit={e => onSubmit(e)}>
+                <form onSubmit={onSubmit}>
                     <TextArea width="100%" ref={textArea} rows={6} />
                     <Button mt="6px" fullWidth type="submit" disabled={loading}>
                         <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
@@ -108,7 +110,6 @@ function Support() {
                     </Button>
                 </form>
             </Box>
-        </ClickableDropdown>);
+        </ClickableDropdown>
+    );
 }
-
-export default connect(null, null)(Support);
