@@ -7,6 +7,8 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.CopyRequest
@@ -22,6 +24,8 @@ import dk.sdu.cloud.file.api.SimpleUploadRequest
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.service.CommonServer
@@ -32,6 +36,8 @@ import dk.sdu.cloud.webdav.services.convertDocumentToString
 import dk.sdu.cloud.webdav.services.newDocument
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.features.AutoHeadResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -79,6 +85,8 @@ class Server(override val micro: Micro) : CommonServer {
         val fileConverter = CloudToDavConverter()
 
         val http = micro.feature(ServerFeature).ktorApplicationEngine!!.application
+        http.install(AutoHeadResponse)
+
         http.routing {
             route("{...}") {
                 options {
@@ -140,21 +148,26 @@ class Server(override val micro: Micro) : CommonServer {
                                     val files = FileDescriptions.listAtPath.call(
                                         ListDirectoryRequest(request.path, -1, 0, null, null),
                                         client
-                                    ).orThrow().items
+                                    ).orNull()?.items ?: listOf(FileDescriptions.stat.call(
+                                        StatRequest(request.path),
+                                        client
+                                    ).orThrow())
 
                                     call.respondText(
                                         status = HttpStatusCode.MultiStatus,
                                         contentType = ContentType.Application.Xml
                                     ) {
                                         newDocument("d:multistatus") {
-                                            fileConverter.writeFileProps(
-                                                StorageFile(
-                                                    FileType.DIRECTORY,
-                                                    request.path,
-                                                    ownerName = "Unknown"
-                                                ),
-                                                this
-                                            )
+                                            if (!files.any { it.path.normalize() == request.path.normalize() }) {
+                                                fileConverter.writeFileProps(
+                                                    StorageFile(
+                                                        FileType.DIRECTORY,
+                                                        request.path,
+                                                        ownerName = "Unknown"
+                                                    ),
+                                                    this
+                                                )
+                                            }
 
                                             files.forEach { file ->
                                                 fileConverter.writeFileProps(file, this)
@@ -238,19 +251,28 @@ class Server(override val micro: Micro) : CommonServer {
                     handle {
                         try {
                             logCall()
-                            val ingoing = FileDescriptions.download.call(
-                                DownloadByURI(pathPrefix + call.request.path(), null),
+                            val file = FileDescriptions.stat.call(
+                                StatRequest(pathPrefix + call.request.path()),
                                 client
-                            ).orThrow().asIngoing()
+                            ).orThrow()
 
-                            val length = ingoing.length!!
+                            if (file.fileType == FileType.DIRECTORY) {
+                                call.respondText("", status = HttpStatusCode.NoContent)
+                            } else {
+                                val ingoing = FileDescriptions.download.call(
+                                    DownloadByURI(pathPrefix + call.request.path(), null),
+                                    client
+                                ).orThrow().asIngoing()
 
-                            call.respond(object : OutgoingContent.WriteChannelContent() {
-                                override val contentLength: Long? = length
-                                override suspend fun writeTo(channel: ByteWriteChannel) {
-                                    ingoing.channel.copyAndClose(channel)
-                                }
-                            })
+                                val length = ingoing.length!!
+
+                                call.respond(object : OutgoingContent.WriteChannelContent() {
+                                    override val contentLength: Long? = length
+                                    override suspend fun writeTo(channel: ByteWriteChannel) {
+                                        ingoing.channel.copyAndClose(channel)
+                                    }
+                                })
+                            }
                         } catch (ex: RPCException) {
                             call.respondText(status = ex.httpStatusCode) {
                                 newDocument("d:error") {}.convertDocumentToString()
@@ -260,7 +282,6 @@ class Server(override val micro: Micro) : CommonServer {
                 }
 
                 method(HttpMethod.Put) {
-                    // TODO The propfind thing needs to respond something other than 404
                     handle {
                         try {
                             respondWithDavSupport()
@@ -300,7 +321,13 @@ class Server(override val micro: Micro) : CommonServer {
                                     null
                                 ),
                                 client
-                            ).orThrow()
+                            ).orRethrowAs {
+                                if (it.statusCode == HttpStatusCode.NotFound) {
+                                    throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+                                } else {
+                                    throw RPCException.fromStatusCode(it.statusCode)
+                                }
+                            }
 
                             call.respondText(status = HttpStatusCode.NoContent) { "" }
                         } catch (ex: RPCException) {
@@ -365,7 +392,6 @@ class Server(override val micro: Micro) : CommonServer {
                             respondWithDavSupport()
 
                             val destination = URL(call.request.header(HttpHeaders.Destination)!!)
-                            // TODO Handle depth = 0 for folders. This should just create a folder with that name.
 
                             FileDescriptions.move.call(
                                 MoveRequest(
@@ -442,7 +468,6 @@ class Server(override val micro: Micro) : CommonServer {
 
     private fun PipelineContext<Unit, ApplicationCall>.respondWithDavSupport() {
         call.response.header("DAV", "1, 2") // Locking is required for MacOS to mount as R+W
-        call.response.header("Ms-Author-Via", "DAV")
     }
 }
 

@@ -12,6 +12,10 @@ import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.webdav.WebDavProperty
 import org.w3c.dom.Element
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 class CloudToDavConverter() {
@@ -25,7 +29,7 @@ class CloudToDavConverter() {
 
         appendNewElement("d:response") {
             appendNewElement("d:href") {
-                textContent = file.path.split("/").drop(2).joinToString("/")
+                textContent = "/" + file.path.split("/").filter { it.isNotEmpty() }.drop(2).joinToString("/")
             }
 
             appendNewElement("d:propstat") {
@@ -43,11 +47,13 @@ class CloudToDavConverter() {
                     }
 
                     appendNewElement("d:${WebDavProperty.CreationDate.title}") {
-                        textContent = Date(file.createdAt).toGMTString()
+                        textContent =
+                            formatter.format(ZonedDateTime.ofInstant(Date(file.createdAt).toInstant(), zoneId))
                     }
 
                     appendNewElement("d:${WebDavProperty.LastModified.title}") {
-                        textContent = Date(file.modifiedAt).toGMTString()
+                        textContent =
+                            formatter.format(ZonedDateTime.ofInstant(Date(file.modifiedAt).toInstant(), zoneId))
                     }
 
                     appendNewElement("d:${WebDavProperty.DisplayName.title}") {
@@ -61,4 +67,7 @@ class CloudToDavConverter() {
             }
         }
     }
+
+    private val zoneId = ZoneId.of("GMT")
+    private val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O")
 }
