@@ -1,17 +1,21 @@
+import {AppToolLogo} from "Applications/AppToolLogo";
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
+import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
-import {File, FileResource, FileType, SortBy, SortOrder} from "Files/index";
+import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
 import PromiseKeeper from "PromiseKeeper";
-import * as React from "react";
 import {useEffect, useState} from "react";
+import * as React from "react";
 import {connect} from "react-redux";
+import {useHistory} from "react-router";
 import {Dispatch} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
@@ -30,7 +34,6 @@ import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
-import {History} from "history";
 import {
     createFolder, favoriteFile,
     getFilenameFromPath,
@@ -48,10 +51,6 @@ import {
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
-import {hashF, AppLogo} from "Applications/Card";
-import {useHistory} from "react-router";
-import {files} from "ui-components/icons";
-import {AppToolLogo} from "Applications/AppToolLogo";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -300,7 +299,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         if (filesOnly.length > 0) {
             Cloud.post<QuickLaunchApp[]>(
                 "/hpc/apps/bySupportedFileExtension",
-                { "files": filesOnly.map(f => f.path) }
+                {files: filesOnly.map(f => f.path)}
             ).then(response => {
                 const newApplications = new Map<string, QuickLaunchApp[]>();
                 filesOnly.forEach(f => {
@@ -317,7 +316,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                     newApplications.set(f.path, fileApps);
                 });
                 setApplications(newApplications);
-            });
+            }).catch(e =>
+                snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred fetching Quicklaunch Apps")
+            ));
         }
     }, [page]);
 
