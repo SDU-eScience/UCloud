@@ -68,7 +68,7 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
 
     return (
         <>
-            {addHomeFolderLink ?
+            {addHomeFolderLink ? (
                 <>
                     <Box ml="15px">
                         <Icon
@@ -85,7 +85,8 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
                         >Go to home</Text>
                     </Box>
                     <Text ml="8px" mr="8px" fontSize="25px">|</Text>
-                </> : null}
+                </>
+            ) : null}
             <BreadCrumbsBase divider="/">
                 {breadcrumbs}
                 <li title={activePathsMapping.local}>

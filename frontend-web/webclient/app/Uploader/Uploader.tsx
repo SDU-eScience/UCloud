@@ -171,9 +171,11 @@ function Uploader(props: UploaderProps) {
                             <Divider />
                         </React.Fragment>
                     ))}
-                    {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ?
+                    {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ? (
                         <Button fullWidth color="green" onClick={startAllUploads}>
-                            <Icon name={"upload"} />{" "}Start all!</Button> : null}
+                            <Icon name={"upload"} />{" "}Start all!
+                        </Button>
+                    ) : null}
                     <Dropzone onDrop={onFilesAdded}>
                         {({getRootProps, getInputProps}) => (
                             <DropZoneBox {...getRootProps()}>
@@ -331,15 +333,13 @@ function Uploader(props: UploaderProps) {
     }
 
     function onExtractChange(index: number, value: boolean) {
-        const uploads = props.uploads;
-        uploads[index].extractArchive = value;
-        props.setUploads(uploads);
+        props.uploads[index].extractArchive = value;
+        props.setUploads(props.uploads);
     }
 
     function updateSensitivity(index: number, sensitivity: Sensitivity) {
-        const uploads = props.uploads;
-        uploads[index].sensitivity = sensitivity;
-        props.setUploads(uploads);
+        props.uploads[index].sensitivity = sensitivity;
+        props.setUploads(props.uploads);
     }
 
     function clearUpload(index: number) {
@@ -351,15 +351,13 @@ function Uploader(props: UploaderProps) {
     }
 
     function setRewritePolicy(index: number, policy: UploadPolicy) {
-        const {uploads} = props;
-        uploads[index].resolution = policy;
-        props.setUploads(uploads);
+        props.uploads[index].resolution = policy;
+        props.setUploads(props.uploads);
     }
 
     function closeModal() {
         props.setUploaderVisible(false);
-        const {uploads} = props;
-        if (finishedUploads(uploads) !== uploads.length || uploads.length === 0) return;
+        if (finishedUploads(props.uploads) !== props.uploads.length || props.uploads.length === 0) return;
         const path = getQueryParamOrElse({history, location}, "path", "");
         if ([...finishedUploadPaths].includes(path)) {
             if (!!props.parentRefresh) props.parentRefresh();
@@ -381,7 +379,7 @@ const DropZoneBox = styled(Box)`
     }
 `;
 
-const privacyOptions = [
+const privacyOptions: Array<{text: string, value: Sensitivity}> = [
     {text: "Inherit", value: "INHERIT"},
     {text: "Private", value: "PRIVATE"},
     {text: "Confidential", value: "CONFIDENTIAL"},
@@ -403,7 +401,7 @@ const UploaderRow = (p: {
 
     const fileInfo = p.location === p.upload.parentPath ? null : (
         <Dropdown>
-            <Icon style={{pointer: "cursor"}} ml="10px" name="info" color="white" color2="black" />
+            <Icon cursor="pointer" ml="10px" name="info" color="white" color2="black" />
             <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
                 Will be uploaded to: {addTrailingSlash(replaceHomeFolder(p.location, Cloud.homeFolder))}{p.upload.file.name}
             </DropdownContent>
@@ -470,7 +468,7 @@ const UploaderRow = (p: {
                                 disabled={!!p.upload.error}
                                 onClick={e => ifPresent(p.onUpload, c => c(e))}
                             >
-                                <Icon name="cloud upload" />Upload
+                                <Icon name="upload" />Upload
                             </Button>
                         )}
                         <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
@@ -481,7 +479,7 @@ const UploaderRow = (p: {
                         <ClickableDropdown
                             chevron
                             trigger={prettierString(p.upload.sensitivity)}
-                            onChange={key => p.setSensitivity(key as Sensitivity)}
+                            onChange={p.setSensitivity}
                             options={privacyOptions}
                         />
                     </Flex>
@@ -496,7 +494,7 @@ const UploaderRow = (p: {
                     <br />
                     {isArchiveExtension(p.upload.file.name) ?
                         (p.upload.extractArchive ?
-                            <span><Icon name="checkmark" color="green" />Extracting archive</span> :
+                            <span><Icon name="check" color="green" />Extracting archive</span> :
                             <span><Icon name="close" color="red" /> <i>Not</i> extracting archive</span>)
                         : null}
                 </Box>

@@ -6,7 +6,7 @@ import Box from "./Box";
 import {Dropdown, DropdownContent} from "./Dropdown";
 
 interface ClickableDropdownState {open: boolean;}
-interface ClickableDropdownProps {
+interface ClickableDropdownProps<T> {
     children?: any;
     keepOpenOnClick?: boolean;
     trigger: React.ReactNode;
@@ -18,19 +18,19 @@ interface ClickableDropdownProps {
     top?: string | number;
     bottom?: string | number;
     right?: string | number;
-    options?: Array<{text: string; value: string;}>;
+    options?: Array<{text: string; value: T;}>;
     chevron?: boolean;
     overflow?: string;
     colorOnHover?: boolean;
     squareTop?: boolean;
-    keepOpenOnOutsideClick?: boolean
-    onChange?: (value: string) => void;
+    keepOpenOnOutsideClick?: boolean;
+    onChange?: (value: T) => void;
 }
 
-class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {
+class ClickableDropdown<T extends string> extends React.Component<ClickableDropdownProps<T>, ClickableDropdownState> {
     private ref = React.createRef<HTMLDivElement>();
 
-    constructor(props: Readonly<ClickableDropdownProps>) {
+    constructor(props: Readonly<ClickableDropdownProps<T>>) {
         super(props);
         this.state = {open: false};
         let neither = true;

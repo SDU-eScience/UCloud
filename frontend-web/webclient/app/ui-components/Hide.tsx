@@ -15,7 +15,9 @@ const breakpoints = (props: {theme: Theme}) => ({
   xxl: `@media screen and (min-width: ${props.theme.breakpoints[4]})`
 });
 
-export const hidden = (key: any) => (props: any) =>
+type Sizes = "xs" | "sm" | "md" | "lg" | "xl" | "xxl";
+
+export const hidden = (key: Sizes) => (props: any) =>
   props[key]
     ? {
       [breakpoints(props)[key]]: {

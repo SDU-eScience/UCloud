@@ -7,9 +7,10 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
 import PromiseKeeper from "PromiseKeeper";
-import * as React from "react";
 import {useEffect, useState} from "react";
+import * as React from "react";
 import {connect} from "react-redux";
+import {useHistory} from "react-router";
 import {Dispatch} from "redux";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
@@ -23,6 +24,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import Divider from "ui-components/Divider";
 import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
+import {IconName} from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
@@ -46,7 +48,6 @@ import {
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
-import {useHistory} from "react-router";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -609,9 +610,11 @@ const LowLevelFileTable_: React.FunctionComponent<
                                     {sortByColumns.filter(it => it != null).map((sC, i) => {
                                         if (i >= numberOfColumns) return null;
                                         // Sorting columns
-                                        return <TableCell key={i}>
-                                            {sC ? UF.sortingColumnToValue(sC, file) : null}
-                                        </TableCell>;
+                                        return (
+                                            <TableCell key={i}>
+                                                {sC ? UF.sortingColumnToValue(sC, file) : null}
+                                            </TableCell>
+                                        );
                                     })}
 
                                     <TableCell textAlign="center">
@@ -623,7 +626,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                                     <ClickableDropdown
                                                         width="175px"
                                                         left="-160px"
-                                                        trigger={<Icon name="ellipsis" size="1em" rotation="90" />}
+                                                        trigger={<Icon name="ellipsis" size="1em" rotation={90} />}
                                                     >
                                                         <FileOperations
                                                             files={[file]}
@@ -868,24 +871,28 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
             }
         }
 
-        return <As
-            cursor="pointer"
-            color={fileOp.color}
-            alignItems="center"
-            onClick={() => fileOp.onClick(filesInCallback, props.callback)}
-            {...props}
-        >
-            {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon} /> : null}
-            <span>{fileOp.text}</span>
-        </As>;
+        return (
+            <As
+                cursor="pointer"
+                color={fileOp.color}
+                alignItems="center"
+                onClick={() => fileOp.onClick(filesInCallback, props.callback)}
+                {...props}
+            >
+                {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName | "bug"} /> : null}
+                <span>{fileOp.text}</span>
+            </As>
+        );
     };
-    return <>
-        {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`} />)}
-        {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
-            <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
-        }
-        {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`} />)}
-    </>;
+    return (
+        <>
+            {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`} />)}
+            {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
+                <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
+            }
+            {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`} />)}
+        </>
+    );
 };
 
 function getSortingColumnAt(columnIndex: 0 | 1): SortBy {

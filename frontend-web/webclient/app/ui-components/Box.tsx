@@ -36,14 +36,14 @@ interface FlexShrinkProps {
   flexShrink?: number;
 }
 
-const flexGrow = ({flexGrow}: FlexGrowProps) => flexGrow ? {flexGrow} : null;
-const flexShrink = ({flexShrink}: FlexShrinkProps) => flexShrink ? {flexShrink} : null;
+const useFlexGrow = ({flexGrow}: FlexGrowProps) => flexGrow ? {flexGrow} : null;
+const useFlexShrink = ({flexShrink}: FlexShrinkProps) => flexShrink ? {flexShrink} : null;
 
 const Box = styled.div<BoxProps>`
   cursor: ${props => props.cursor};
   ${zIndex};
-  ${flexGrow}
-  ${flexShrink}
+  ${useFlexGrow}
+  ${useFlexShrink}
   ${space}
   ${width}
   ${minWidth}

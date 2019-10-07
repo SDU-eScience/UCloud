@@ -1,6 +1,4 @@
-import {APICallState} from "Authentication/DataHook";
 import SDUCloud from "Authentication/lib";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
@@ -9,13 +7,11 @@ import List from "Shares/List";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Dictionary} from "Types";
 import {Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment} from "UtilityFunctions";
 
@@ -334,7 +330,7 @@ interface Arrow<T> {
 export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
     if (sortBy !== activeSortBy) return null;
     if (order === SortOrder.ASCENDING)
-        return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em" />);
+        return (<Icon cursor="pointer" name="arrowDown" rotation={180} size=".7em" mr=".4em" />);
     return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em" />);
 }
 
@@ -487,12 +483,3 @@ export const MasterCheckbox = ({onClick, checked}: MasterCheckbox) => (
         />
     </Label>
 );
-
-// FIXME: Shouldn't be here
-const AvatarComponent = (props: {username: string, avatars: APICallState<Dictionary<AvatarType>>}) => {
-    let avatar = defaultAvatar;
-    const loadedAvatar =
-        !!props.avatars.data && !!props.avatars.data.avatars ? props.avatars.data.avatars[props.username] : undefined;
-    if (!!loadedAvatar) avatar = loadedAvatar;
-    return <UserAvatar avatar={avatar} />;
-};
