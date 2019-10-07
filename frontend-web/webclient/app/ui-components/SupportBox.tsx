@@ -86,7 +86,7 @@ export default function Support() {
                     <Label>
                         <Radio
                             checked={type === SupportType.SUGGESTION}
-                            onChange={() => setType(SupportType.SUGGESTION)}
+                            onChange={setSuggestion}
                         />
                         Suggestion
                         <Icon name="suggestion" size="1.5em" ml=".5em" />
@@ -94,7 +94,7 @@ export default function Support() {
                     <Label>
                         <Radio
                             checked={type === SupportType.BUG}
-                            onChange={() => setType(SupportType.BUG)}
+                            onChange={setBug}
                         />
                         Bug
                         <Icon name="bug" size="1.5em" ml=".5em" />
@@ -112,4 +112,12 @@ export default function Support() {
             </Box>
         </ClickableDropdown>
     );
+
+    function setBug() {
+        setType(SupportType.BUG);
+    }
+
+    function setSuggestion() {
+        setType(SupportType.SUGGESTION);
+    }
 }

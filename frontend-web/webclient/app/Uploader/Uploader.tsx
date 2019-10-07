@@ -94,7 +94,7 @@ export function calculateUploadSpeed(upload: Upload): number {
 
 function Uploader(props: UploaderProps) {
     const MAX_CONCURRENT_UPLOADS = 5;
-    const [finishedUploadPaths, setFinishedUploadsPaths] = React.useState(new Set<string>());
+    const [finishedUploadPaths] = React.useState(new Set<string>());
     const history = useHistory();
     const location = useLocation();
 
@@ -120,16 +120,22 @@ function Uploader(props: UploaderProps) {
 
     const {uploads} = props;
     return (
-        <Modal isOpen={props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={closeModal}
+        <Modal
+            isOpen={props.visible}
+            shouldCloseOnEsc
+            ariaHideApp={false}
+            onRequestClose={closeModal}
             style={modalStyle}
         >
             <div data-tag={"uploadModal"}>
                 <Spacer
                     left={<Heading>Upload Files</Heading>}
-                    right={(<>
-                        {props.loading ? <Refresh onClick={() => undefined} spin /> : null}
-                        <Icon name="close" cursor="pointer" data-tag="modalCloseButton" onClick={closeModal} />
-                    </>)}
+                    right={(
+                        <>
+                            {props.loading ? <Refresh spin /> : null}
+                            <Icon name="close" cursor="pointer" data-tag="modalCloseButton" onClick={closeModal} />
+                        </>
+                    )}
                 />
                 <Divider />
                 {finishedUploads(uploads) > 0 ? (
@@ -138,7 +144,7 @@ function Uploader(props: UploaderProps) {
                         mb="4px"
                         color="green"
                         fullWidth
-                        onClick={() => clearFinishedUploads()}
+                        onClick={clearFinishedUploads}
                     >
                         Clear finished uploads
                         </OutlineButton>
@@ -171,11 +177,12 @@ function Uploader(props: UploaderProps) {
                             <Divider />
                         </React.Fragment>
                     ))}
-                    {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ? (
-                        <Button fullWidth color="green" onClick={startAllUploads}>
-                            <Icon name={"upload"} />{" "}Start all!
+                    {uploads.filter(it => !it.isUploading).length > 1 &&
+                        uploads.filter(it => !it.conflictFile).length ? (
+                            <Button fullWidth color="green" onClick={startAllUploads}>
+                                <Icon name={"upload"} />{" "}Start all!
                         </Button>
-                    ) : null}
+                        ) : null}
                     <Dropzone onDrop={onFilesAdded}>
                         {({getRootProps, getInputProps}) => (
                             <DropZoneBox {...getRootProps()}>
@@ -347,7 +354,7 @@ function Uploader(props: UploaderProps) {
     }
 
     function clearFinishedUploads() {
-        props.setUploads(props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)))
+        props.setUploads(props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)));
     }
 
     function setRewritePolicy(index: number, policy: UploadPolicy) {

@@ -1,8 +1,8 @@
 const createMinMediaQuery = (n: number) => `@media screen and (min-width:${n}px)`;
 const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n - 1}px)`;
 
-const addAliases = (arr: any, aliases: any[]) =>
-  aliases.forEach((key, i) =>
+const addAliases = (arr: any, al: any[]) =>
+  al.forEach((key, i) =>
     Object.defineProperty(arr, key, {
       enumerable: false,
       get() {

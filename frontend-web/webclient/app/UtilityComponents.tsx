@@ -152,7 +152,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                                         onClick={() => setSharableLink("https://example.com")}
                                     >
                                         Generate Sharable Link
-                                </Button>
+                                    </Button>
                                     <Box ml="12px" mt="6px">
                                         <ClickableDropdown
                                             chevron
@@ -176,7 +176,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                                             cursor="pointer"
                                         >
                                             Copy
-                                    </InputLabel>
+                                        </InputLabel>
                                     </>
                                 )}
                         </Flex>
@@ -474,12 +474,19 @@ interface MasterCheckbox {
     checked: boolean;
 }
 
-export const MasterCheckbox = ({onClick, checked}: MasterCheckbox) => (
-    <Label>
-        <Checkbox
-            data-tag="masterCheckbox"
-            checked={checked}
-            onChange={e => (e.stopPropagation(), onClick(e.target.checked))}
-        />
-    </Label>
-);
+export function MasterCheckbox({onClick, checked}: MasterCheckbox) {
+    function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+        e.stopPropagation();
+        onClick(e.target.checked);
+    }
+
+    return (
+        <Label>
+            <Checkbox
+                data-tag="masterCheckbox"
+                checked={checked}
+                onChange={onChange}
+            />
+        </Label>
+    );
+}
