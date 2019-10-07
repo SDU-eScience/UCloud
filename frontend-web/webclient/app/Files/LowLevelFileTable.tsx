@@ -703,7 +703,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                             <ClickableDropdown
                                                 width="175px"
                                                 left="-160px"
-                                                trigger={<Icon name="ellipsis" size="1em" rotation="90" />}
+                                                trigger={<Icon name="ellipsis" size="1em" rotation={90} />}
                                             >
                                                 <FileOperations
                                                     files={[file]}
@@ -729,7 +729,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         )
     }
 }
-};
 
 const mapStateToProps = ({responsive}: ReduxObject) => {
     return {responsive};
