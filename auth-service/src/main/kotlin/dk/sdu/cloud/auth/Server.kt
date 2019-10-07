@@ -131,9 +131,29 @@ class Server(
         if (micro.developmentModeEnabled) {
             log.info("In development mode. Checking if we need to create a dummy account.")
             val existingDevAdmin = db.withTransaction { userDao.findByIdOrNull(it, "admin@dev") }
+            val adminUser = "admin@dev"
             if (existingDevAdmin == null) {
-                createTestAccount(personService, userCreationService, tokenService, "admin@dev", Role.ADMIN)
+                createTestAccount(personService, userCreationService, tokenService, adminUser, Role.ADMIN)
                 createTestAccount(personService, userCreationService, tokenService, "user@dev", Role.USER)
+            } else {
+                val idx = micro.commandLineArguments.indexOf("--save-config")
+                if (idx != -1) {
+                    val tokens = db.withTransaction { session ->
+                        refreshTokenDao.findTokenForUser(session, adminUser)
+                    }
+                    val refreshToken = tokens?.token
+                    val csrfToken = tokens?.csrf
+                    val configLocation = micro.commandLineArguments.getOrNull(idx + 1)
+                    if (configLocation != null) {
+                        File(configLocation).writeText(
+                            """
+                            ---
+                            refreshToken: "$refreshToken"
+                            devCsrfToken: $csrfToken
+                            """.trimIndent()
+                        )
+                    }
+                }
             }
         }
 

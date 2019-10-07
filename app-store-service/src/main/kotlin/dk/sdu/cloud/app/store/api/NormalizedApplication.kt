@@ -47,7 +47,8 @@ data class ApplicationInvocationDescription(
     val environment: Map<String, InvocationParameter>? = null,
     private val allowAdditionalMounts: Boolean? = null,
     private val allowAdditionalPeers: Boolean? = null,
-    val allowMultiNode: Boolean = false
+    val allowMultiNode: Boolean = false,
+    val fileExtensions: List<String> = emptyList()
 ) {
     val shouldAllowAdditionalMounts: Boolean
         get() {
@@ -88,6 +89,11 @@ data class Application(
 ) : WithAppMetadata, WithAppInvocation {
     fun withoutInvocation(): ApplicationSummary = ApplicationSummary(metadata)
 }
+
+data class ApplicationWithExtension(
+    override val metadata: ApplicationMetadata,
+    val extensions: List<String>
+) : WithAppMetadata
 
 data class ApplicationWithFavoriteAndTags(
     override val metadata: ApplicationMetadata,

@@ -219,6 +219,27 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     }
 
+    val findBySupportedFileExtension =
+        call<FindBySupportedFileExtension, List<ApplicationWithExtension>, CommonErrorMessage>("findBySupportedFileExtension") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    + "bySupportedFileExtension"
+                }
+
+                body {
+                    bindEntireRequestFromBody()
+                }
+            }
+        }
+
+
     val findLatestByTool = call<FindLatestByToolRequest, FindLatestByToolResponse, CommonErrorMessage>(
         "findLatestByTool"
     ) {
