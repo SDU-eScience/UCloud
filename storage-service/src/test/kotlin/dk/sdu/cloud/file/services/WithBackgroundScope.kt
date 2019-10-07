@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.services
 
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSScope
 import dk.sdu.cloud.micro.BackgroundScope
 import kotlin.test.*
 
@@ -15,5 +16,6 @@ abstract class WithBackgroundScope {
     @AfterTest
     fun bgScopeAfter() {
         backgroundScope.stop()
+        LinuxFSScope.close()
     }
 }

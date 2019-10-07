@@ -32,7 +32,7 @@ class CreatedAtTest : WithBackgroundScope() {
     )
 
     private fun initTest(root: File): TestContext {
-        val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath)
+        val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath, backgroundScope)
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         val coreFs =
             CoreFileSystemService(

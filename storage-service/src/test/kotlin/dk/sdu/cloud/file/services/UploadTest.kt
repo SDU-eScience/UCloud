@@ -24,7 +24,7 @@ class UploadTest : WithBackgroundScope() {
 
     @BeforeTest
     fun beforeTest() {
-        val linuxFs = linuxFSWithRelaxedMocks(createDummyFS().absolutePath)
+        val linuxFs = linuxFSWithRelaxedMocks(createDummyFS().absolutePath, backgroundScope)
         runner = linuxFs.runner
         fs = linuxFs.fs
         coreFs = CoreFileSystemService(

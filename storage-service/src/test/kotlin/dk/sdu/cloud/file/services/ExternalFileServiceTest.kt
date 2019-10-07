@@ -37,7 +37,7 @@ class ExternalFileServiceTest : WithBackgroundScope() {
 
     fun createService(root: String): TestContext<LinuxFSRunner> {
         EventServiceMock.reset()
-        val (runner, fs) = linuxFSWithRelaxedMocks(root)
+        val (runner, fs) = linuxFSWithRelaxedMocks(root, backgroundScope)
         val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         val coreFs =
             CoreFileSystemService(

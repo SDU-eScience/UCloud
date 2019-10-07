@@ -21,8 +21,7 @@ fun main() {
     val redis = RedisStreamService(
         RedisConnectionManager(RedisClient.create("redis://localhost")),
         "foo-group",
-        UUID.randomUUID().toString(),
-        1
+        UUID.randomUUID().toString()
     )
 
     var i = 0

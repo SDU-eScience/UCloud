@@ -35,7 +35,7 @@ class WorkspaceTest : WithBackgroundScope() {
 
         aclService = AclService(micro.hibernateDatabase, AclHibernateDao(), MockedHomeFolderService, { it.normalize() })
         fsRoot = createDummyFS()
-        val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath)
+        val (runner, fs) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, backgroundScope)
 
         val eventProducer =
             StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope, { throw it })

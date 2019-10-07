@@ -237,7 +237,9 @@ data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 data class DeliverMaterializedFileSystemAudit(val roots: List<String>)
 data class DeliverMaterializedFileSystemRequest(
     val rootsToMaterialized: Map<String, List<StorageFile>>
-)
+) {
+    override fun toString() = "DeliverMaterializedFileSystemRequest()"
+}
 
 data class DeliverMaterializedFileSystemResponse(
     val shouldContinue: Map<String, Boolean>
@@ -480,6 +482,8 @@ object FileDescriptions : CallDescriptionContainer("files") {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
+
+        websocket(wsBaseContext)
 
         http {
             method = HttpMethod.Post
