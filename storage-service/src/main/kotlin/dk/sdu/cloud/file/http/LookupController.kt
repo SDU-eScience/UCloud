@@ -36,7 +36,7 @@ class LookupController<Ctx : FSUserContext>(
                 val result = fileLookupService.listDirectory(
                     ctx,
                     request.path,
-                    request.normalize(),
+                    if (request.itemsPerPage != -1) request.normalize() else null,
                     request.sortBy ?: FileSortBy.TYPE,
                     request.order ?: SortOrder.ASCENDING,
                     attributes,
