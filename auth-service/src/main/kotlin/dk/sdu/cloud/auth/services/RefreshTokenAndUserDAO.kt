@@ -43,6 +43,7 @@ data class RefreshTokenAndUser(
 )
 
 interface RefreshTokenDAO<Session> {
+    fun findTokenForUser(session: Session, user: String): RefreshTokenAndUser?
     fun findById(session: Session, token: String): RefreshTokenAndUser?
     fun insert(session: Session, tokenAndUser: RefreshTokenAndUser)
     fun updateCsrf(session: Session, token: String, newCsrf: String)
@@ -89,6 +90,12 @@ data class RefreshTokenEntity(
 }
 
 class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
+    override fun findTokenForUser(session: HibernateSession, user: String): RefreshTokenAndUser? {
+        return session.criteria<RefreshTokenEntity> {
+            entity[RefreshTokenEntity::associatedUser][PrincipalEntity::id] equal user
+        }.list().firstOrNull()?.toModel()
+    }
+
     override fun findById(session: HibernateSession, token: String): RefreshTokenAndUser? {
         return session
             .criteria<RefreshTokenEntity> {

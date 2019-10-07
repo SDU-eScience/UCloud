@@ -92,6 +92,27 @@ class AppStoreService<DBSession>(
         }
     }
 
+    fun findBySupportedFileExtension(
+        securityPrincipal: SecurityPrincipal,
+        files: List<String>
+    ): List<ApplicationWithExtension> {
+        val extensions = files.map { file ->
+            if (file.contains(".")) {
+                "." + file.substringAfterLast('.')
+            } else {
+                file.substringAfterLast('/')
+            }
+        }.toSet()
+
+        return db.withTransaction {
+            applicationDAO.findBySupportedFileExtension(
+                it,
+                securityPrincipal,
+                extensions
+            )
+        }
+    }
+
     fun findByName(
         securityPrincipal: SecurityPrincipal,
         name: String,
