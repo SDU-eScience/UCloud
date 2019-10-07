@@ -12,13 +12,13 @@ import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.webdav.WebDavProperty
 import org.w3c.dom.Element
-import java.time.LocalDateTime
+import java.net.URLEncoder
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-class CloudToDavConverter() {
+class CloudToDavConverter {
     fun writeFileProps(file: StorageFile, root: Element) = with(root) {
         if (
             file.sensitivityLevel == SensitivityLevel.SENSITIVE ||
@@ -29,7 +29,8 @@ class CloudToDavConverter() {
 
         appendNewElement("d:response") {
             appendNewElement("d:href") {
-                textContent = "/" + file.path.split("/").filter { it.isNotEmpty() }.drop(2).joinToString("/")
+                textContent =
+                    "/" + file.path.split("/").filter { it.isNotEmpty() }.drop(2).joinToString("/") { it.urlEncode() }
             }
 
             appendNewElement("d:propstat") {
@@ -70,4 +71,6 @@ class CloudToDavConverter() {
 
     private val zoneId = ZoneId.of("GMT")
     private val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O")
+
+    private fun String.urlEncode() = URLEncoder.encode(this, "UTF-8").replace("+", "%20")
 }

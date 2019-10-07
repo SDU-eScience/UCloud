@@ -3,7 +3,7 @@ package dk.sdu.cloud.webdav
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
@@ -28,15 +28,21 @@ import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.webdav.services.CloudToDavConverter
+import dk.sdu.cloud.webdav.services.UserClient
+import dk.sdu.cloud.webdav.services.UserClientFactory
 import dk.sdu.cloud.webdav.services.appendNewElement
 import dk.sdu.cloud.webdav.services.convertDocumentToString
 import dk.sdu.cloud.webdav.services.newDocument
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.auth.basicAuthenticationCredentials
 import io.ktor.features.AutoHeadResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -55,7 +61,6 @@ import io.ktor.routing.method
 import io.ktor.routing.options
 import io.ktor.routing.route
 import io.ktor.routing.routing
-import io.ktor.util.flattenEntries
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.copyAndClose
@@ -78,12 +83,19 @@ private val xmlMapper = XmlMapper().also { it.registerKotlinModule() }
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
-    override fun start() {
-        // TODO This will only work in dev
-        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val pathPrefix = "/home/admin@dev"
-        val fileConverter = CloudToDavConverter()
+    private val tokenValidation = micro.tokenValidation as TokenValidationJWT
+    private val fileConverter = CloudToDavConverter()
 
+    private val userClientFactory = UserClientFactory { token ->
+        RefreshingJWTAuthenticator(
+            micro.client,
+            token,
+            tokenValidation
+        ).authenticateClient(OutgoingHttpCall)
+    }
+
+
+    override fun start() {
         val http = micro.feature(ServerFeature).ktorApplicationEngine!!.application
         http.install(AutoHeadResponse)
 
@@ -109,10 +121,7 @@ class Server(override val micro: Micro) : CommonServer {
 
                 method(WebDavMethods.propfind) {
                     handle {
-                        try {
-                            logCall()
-                            respondWithDavSupport()
-
+                        withDavHandler { (client, pathPrefix) ->
                             val request = run {
                                 // Parse the request
                                 val properties = runCatching {
@@ -126,7 +135,7 @@ class Server(override val micro: Micro) : CommonServer {
                                     }
                                 }.getOrNull() ?: listOf(WebDavProperty.AllProperties)
 
-                                PropfindRequest(pathPrefix + call.request.path(), depth(), properties)
+                                PropfindRequest(pathPrefix + requestPath, depth(), properties)
                             }
 
                             log.info(request.toString())
@@ -148,10 +157,12 @@ class Server(override val micro: Micro) : CommonServer {
                                     val files = FileDescriptions.listAtPath.call(
                                         ListDirectoryRequest(request.path, -1, 0, null, null),
                                         client
-                                    ).orNull()?.items ?: listOf(FileDescriptions.stat.call(
-                                        StatRequest(request.path),
-                                        client
-                                    ).orThrow())
+                                    ).orNull()?.items ?: listOf(
+                                        FileDescriptions.stat.call(
+                                            StatRequest(request.path),
+                                            client
+                                        ).orThrow()
+                                    )
 
                                     call.respondText(
                                         status = HttpStatusCode.MultiStatus,
@@ -180,10 +191,6 @@ class Server(override val micro: Micro) : CommonServer {
                                     call.respondText(status = HttpStatusCode.BadRequest) { "" }
                                 }
                             }
-                        } catch (ex: RPCException) {
-                            call.respondText(status = ex.httpStatusCode) {
-                                newDocument("d:error") {}.convertDocumentToString()
-                            }
                         }
                     }
                 }
@@ -192,8 +199,7 @@ class Server(override val micro: Micro) : CommonServer {
                     // We don't actually support locking but macOS requires this. We simply have a fake
                     // implementation which will allow macOS to believe that we are correctly locking the files.
                     handle {
-                        logCall()
-                        try {
+                        withDavHandler { (_, pathPrefix) ->
                             call.respondText(
                                 status = HttpStatusCode.OK,
                                 contentType = ContentType.Application.Xml
@@ -225,16 +231,12 @@ class Server(override val micro: Micro) : CommonServer {
 
                                             appendNewElement("d:lockroot") {
                                                 appendNewElement("d:href") {
-                                                    textContent = pathPrefix + call.request.path()
+                                                    textContent = pathPrefix + requestPath
                                                 }
                                             }
                                         }
                                     }
                                 }.convertDocumentToString()
-                            }
-                        } catch (ex: RPCException) {
-                            call.respondText(status = ex.httpStatusCode) {
-                                newDocument("d:error") {}.convertDocumentToString()
                             }
                         }
                     }
@@ -249,10 +251,9 @@ class Server(override val micro: Micro) : CommonServer {
 
                 method(HttpMethod.Get) {
                     handle {
-                        try {
-                            logCall()
+                        withDavHandler { (client, pathPrefix) ->
                             val file = FileDescriptions.stat.call(
-                                StatRequest(pathPrefix + call.request.path()),
+                                StatRequest(pathPrefix + requestPath),
                                 client
                             ).orThrow()
 
@@ -260,7 +261,7 @@ class Server(override val micro: Micro) : CommonServer {
                                 call.respondText("", status = HttpStatusCode.NoContent)
                             } else {
                                 val ingoing = FileDescriptions.download.call(
-                                    DownloadByURI(pathPrefix + call.request.path(), null),
+                                    DownloadByURI(pathPrefix + requestPath, null),
                                     client
                                 ).orThrow().asIngoing()
 
@@ -273,24 +274,17 @@ class Server(override val micro: Micro) : CommonServer {
                                     }
                                 })
                             }
-                        } catch (ex: RPCException) {
-                            call.respondText(status = ex.httpStatusCode) {
-                                newDocument("d:error") {}.convertDocumentToString()
-                            }
                         }
                     }
                 }
 
                 method(HttpMethod.Put) {
                     handle {
-                        try {
-                            respondWithDavSupport()
-                            logCall()
-
+                        withDavHandler { (client, pathPrefix) ->
                             val channel = call.receiveChannel()
                             MultiPartUploadDescriptions.simpleUpload.call(
                                 SimpleUploadRequest(
-                                    pathPrefix + call.request.path(),
+                                    pathPrefix + requestPath,
                                     BinaryStream.outgoingFromChannel(
                                         channel,
                                         call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
@@ -300,23 +294,16 @@ class Server(override val micro: Micro) : CommonServer {
                             ).orThrow()
 
                             call.respondText(status = HttpStatusCode.Created) { "" }
-                        } catch (ex: RPCException) {
-                            call.respondText(status = ex.httpStatusCode) {
-                                newDocument("d:error") {}.convertDocumentToString()
-                            }
                         }
                     }
                 }
 
                 method(WebDavMethods.mkcol) {
                     handle {
-                        try {
-                            logCall()
-                            respondWithDavSupport()
-
+                        withDavHandler { (client, pathPrefix) ->
                             FileDescriptions.createDirectory.call(
                                 CreateDirectoryRequest(
-                                    pathPrefix + call.request.path(),
+                                    pathPrefix + requestPath,
                                     null,
                                     null
                                 ),
@@ -330,22 +317,16 @@ class Server(override val micro: Micro) : CommonServer {
                             }
 
                             call.respondText(status = HttpStatusCode.NoContent) { "" }
-                        } catch (ex: RPCException) {
-                            call.respondText(status = ex.httpStatusCode) {
-                                newDocument("d:error") {}.convertDocumentToString()
-                            }
                         }
                     }
                 }
 
                 method(WebDavMethods.copy) {
                     handle {
-                        try {
-                            logCall()
-                            respondWithDavSupport()
+                        withDavHandler { (client, pathPrefix) ->
                             val destination = URL(call.request.header(HttpHeaders.Destination)!!)
-                            val sourcePath = pathPrefix + call.request.path()
-                            val destinationPath = URLDecoder.decode(pathPrefix + destination.path, "UTF-8")
+                            val sourcePath = pathPrefix + requestPath
+                            val destinationPath = (pathPrefix + destination.path).urlDecode()
 
                             if (depth() == Depth.ZERO) {
                                 val type = FileDescriptions.stat.call(
@@ -377,35 +358,24 @@ class Server(override val micro: Micro) : CommonServer {
 
                                 call.respondText(status = HttpStatusCode.NoContent) { "" }
                             }
-                        } catch (ex: RPCException) {
-                            call.respondText(status = ex.httpStatusCode) {
-                                newDocument("d:error") {}.convertDocumentToString()
-                            }
                         }
                     }
                 }
 
                 method(WebDavMethods.move) {
                     handle {
-                        try {
-                            logCall()
-                            respondWithDavSupport()
-
+                        withDavHandler { (client, pathPrefix) ->
                             val destination = URL(call.request.header(HttpHeaders.Destination)!!)
 
                             FileDescriptions.move.call(
                                 MoveRequest(
-                                    pathPrefix + call.request.path(),
-                                    pathPrefix + destination.path
+                                    pathPrefix + requestPath,
+                                    (pathPrefix + destination.path).urlDecode()
                                 ),
                                 client
                             ).orThrow()
 
                             call.respondText(status = HttpStatusCode.NoContent) { "" }
-                        } catch (ex: RPCException) {
-                            call.respondText(status = ex.httpStatusCode) {
-                                newDocument("d:error") {}.convertDocumentToString()
-                            }
                         }
                     }
                 }
@@ -423,20 +393,13 @@ class Server(override val micro: Micro) : CommonServer {
 
                 method(HttpMethod.Delete) {
                     handle {
-                        try {
-                            logCall()
-                            respondWithDavSupport()
-
+                        withDavHandler { (client, pathPrefix) ->
                             FileDescriptions.deleteFile.call(
-                                DeleteFileRequest(pathPrefix + call.request.path()),
+                                DeleteFileRequest(pathPrefix + requestPath),
                                 client
                             ).orThrow()
 
                             call.respondText(status = HttpStatusCode.NoContent) { "" }
-                        } catch (ex: RPCException) {
-                            call.respondText(status = ex.httpStatusCode) {
-                                newDocument("d:error") {}.convertDocumentToString()
-                            }
                         }
                     }
                 }
@@ -452,10 +415,7 @@ class Server(override val micro: Micro) : CommonServer {
     }
 
     private fun PipelineContext<Unit, ApplicationCall>.logCall() {
-        log.info("Handling new call!")
-        log.info(call.request.path())
-        log.info(call.request.httpMethod.toString())
-        log.info(call.request.headers.flattenEntries().toString())
+        log.info("${call.request.httpMethod} ${requestPath}")
     }
 
     private fun PipelineContext<Unit, ApplicationCall>.depth(): Depth {
@@ -469,6 +429,33 @@ class Server(override val micro: Micro) : CommonServer {
     private fun PipelineContext<Unit, ApplicationCall>.respondWithDavSupport() {
         call.response.header("DAV", "1, 2") // Locking is required for MacOS to mount as R+W
     }
+
+    private suspend inline fun PipelineContext<Unit, ApplicationCall>.withDavHandler(
+        block: (client: UserClient) -> Unit
+    ) {
+        respondWithDavSupport()
+        logCall()
+
+        try {
+            val token = call.request.basicAuthenticationCredentials()?.password
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+
+            val client = userClientFactory.retrieveClient(token)
+            block(client)
+        } catch (ex: RPCException) {
+            if (ex.httpStatusCode == HttpStatusCode.Unauthorized) {
+                call.response.header(HttpHeaders.WWWAuthenticate, "Basic realm=\"SDUCloud\"")
+            }
+            call.respondText(status = ex.httpStatusCode) {
+                newDocument("d:error") {}.convertDocumentToString()
+            }
+        }
+    }
+
+    private val PipelineContext<Unit, ApplicationCall>.requestPath: String
+        get() = call.request.path().urlDecode()
+
+    private fun String.urlDecode() = URLDecoder.decode(this, "UTF-8")
 }
 
 enum class Depth {

@@ -1,7 +1,9 @@
 package dk.sdu.cloud.file.http
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
@@ -87,7 +89,13 @@ class LookupController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.findHomeFolder) {
-            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(request.username)))
+            val username = if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.username.isNotBlank()) {
+                request.username
+            } else {
+                ctx.securityPrincipal.username
+            }
+
+            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(username)))
         }
     }
 }

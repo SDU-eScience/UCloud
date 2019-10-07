@@ -1,5 +1,6 @@
 package dk.sdu.cloud.webdav.services
 
+import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import java.io.StringWriter
@@ -22,9 +23,11 @@ fun Document.convertDocumentToString(): String {
     val writer = StringWriter()
     transformer.transform(DOMSource(this), StreamResult(writer))
     return writer.toString().also {
-        println(it)
+        log.debug(it)
     }
 }
+
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.webdav.services.XMLBuilderKt")
 
 fun Document.appendNewElement(tag: String, handler: Element.() -> Unit = {}): Document {
     appendChild(createElement(tag).apply(handler))

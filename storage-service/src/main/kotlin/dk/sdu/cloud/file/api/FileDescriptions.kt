@@ -563,7 +563,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
     val findHomeFolder = call<FindHomeFolderRequest, FindHomeFolderResponse, CommonErrorMessage>("findHomeFolder") {
         auth {
             access = AccessRight.READ
-            roles = Roles.PRIVILEDGED
         }
 
         websocket(wsBaseContext)
