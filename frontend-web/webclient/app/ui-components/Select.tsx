@@ -1,5 +1,5 @@
 import * as React from "react";
-import styled from "styled-components";
+import styled, {css} from "styled-components";
 import {fontSize, space, SpaceProps, WidthProps} from "styled-system";
 import Flex from "./Flex";
 import Icon from "./Icon";
@@ -10,9 +10,9 @@ const ClickableIcon = styled(Icon)`
 `;
 
 const left = ({leftLabel}: {leftLabel?: boolean}) =>
-  leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
+  leftLabel ? css`border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
 const right = ({rightLabel}: {rightLabel?: boolean}) =>
-  rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
+  rightLabel ? css`border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 
 interface SelectProps extends SpaceProps, WidthProps {
@@ -28,6 +28,10 @@ const SelectBase = styled.select<SelectProps>`
   width: 100%;
   font-family: inherit;
   color: inherit;
+
+  & > option {
+    color: black;
+  }
 
   ${p => p.showError ? `&:invalid {
     border-color: ${p.theme.colors.red};
