@@ -13,7 +13,6 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.request.contentType
-import io.ktor.request.receive
 import io.ktor.request.receiveChannel
 import kotlinx.coroutines.io.ByteReadChannel
 
@@ -39,7 +38,8 @@ sealed class BinaryStream {
     class Ingoing(
         val channel: ByteReadChannel,
         val contentType: ContentType? = null,
-        val length: Long? = null
+        val length: Long? = null,
+        val contentRange: String? = null
     ) : BinaryStream()
 
     fun asIngoing(): BinaryStream.Ingoing = this as BinaryStream.Ingoing
@@ -50,7 +50,12 @@ sealed class BinaryStream {
             call: HttpResponse,
             typeReference: TypeReference<BinaryStream>
         ): BinaryStream {
-            return Ingoing(call.content, call.contentType(), call.contentLength())
+            return Ingoing(
+                call.content,
+                call.contentType(),
+                call.contentLength(),
+                call.headers[HttpHeaders.ContentRange]
+            )
         }
 
         override suspend fun serverIngoingBody(description: CallDescription<*, *, *>, call: HttpCall): BinaryStream {
@@ -66,11 +71,11 @@ sealed class BinaryStream {
             contentLength: Long? = null,
             contentType: ContentType = ContentType.Application.OctetStream
         ): Outgoing {
-           return Outgoing(object : OutgoingContent.ReadChannelContent() {
-               override val contentLength = contentLength
-               override val contentType = contentType
-               override fun readFrom(): ByteReadChannel = channel
-           })
+            return Outgoing(object : OutgoingContent.ReadChannelContent() {
+                override val contentLength = contentLength
+                override val contentType = contentType
+                override fun readFrom(): ByteReadChannel = channel
+            })
         }
     }
 }

@@ -44,12 +44,15 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.auth.basicAuthenticationCredentials
+import io.ktor.client.request.header
 import io.ktor.features.AutoHeadResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
+import io.ktor.http.content.files
+import io.ktor.http.content.static
 import io.ktor.request.header
 import io.ktor.request.httpMethod
 import io.ktor.request.path
@@ -262,14 +265,32 @@ class Server(override val micro: Micro) : CommonServer {
                             if (file.fileType == FileType.DIRECTORY) {
                                 call.respondText("", status = HttpStatusCode.NoContent)
                             } else {
-                                val ingoing = FileDescriptions.download.call(
+                                val requestRanges = call.request.header(HttpHeaders.Range)
+
+                                val ingoing = client.client.call(
+                                    FileDescriptions.download,
                                     DownloadByURI(pathPrefix + requestPath, null),
-                                    client
+                                    OutgoingHttpCall,
+                                    beforeFilters = { call ->
+                                        client.authenticator(call)
+                                        call.builder.header(HttpHeaders.Range, requestRanges)
+                                    },
+                                    afterFilters = { call ->
+                                        client.afterFilters?.invoke(call)
+                                    }
                                 ).orThrow().asIngoing()
 
                                 val length = ingoing.length!!
+                                val contentRange = ingoing.contentRange
+                                val statusCode =
+                                    if (contentRange != null) HttpStatusCode.PartialContent
+                                    else HttpStatusCode.OK
 
-                                call.respond(object : OutgoingContent.WriteChannelContent() {
+                                if (contentRange != null) {
+                                    call.response.header(HttpHeaders.ContentRange, contentRange)
+                                }
+
+                                call.respond(statusCode, object : OutgoingContent.WriteChannelContent() {
                                     override val contentLength: Long? = length
                                     override suspend fun writeTo(channel: ByteWriteChannel) {
                                         ingoing.channel.copyAndClose(channel)
@@ -508,7 +529,12 @@ class Server(override val micro: Micro) : CommonServer {
     private val PipelineContext<Unit, ApplicationCall>.requestPath: String
         get() = call.request.path().urlDecode()
 
-    private fun String.urlDecode() = URLDecoder.decode(this, "UTF-8")
+    private fun String.urlDecode() = URLDecoder.decode(
+        // The URLDecoder shouldn't be using '+' as space. We replace '+' with the percent encoded version which will
+        // then get decoded back into a '+'.
+        this.replace("+", "%2B"),
+        "UTF-8"
+    )
 }
 
 enum class Depth {
