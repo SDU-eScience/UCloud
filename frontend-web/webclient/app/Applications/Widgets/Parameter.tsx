@@ -7,7 +7,7 @@ import {SharedFileSystemParameter} from "Applications/Widgets/SharedFileSystemPa
 import {TextParameter} from "Applications/Widgets/TextParameter";
 import * as React from "react";
 import * as Types from "../index";
-import RangeParameter, {RangeRef} from "./RangeParameters";
+// import RangeParameter, {RangeRef} from "./RangeParameters";
 
 export const Parameter = (props: ParameterProps) => {
     let component = (<div />);
@@ -74,7 +74,7 @@ export const Parameter = (props: ParameterProps) => {
                 application={props.application}
             />;
             break;
-        case Types.ParameterTypes.Range: {
+        /* case Types.ParameterTypes.Range: {
             component = <RangeParameter
                 parameter={props.parameter}
                 onParamRemove={props.onParamRemove}
@@ -82,7 +82,7 @@ export const Parameter = (props: ParameterProps) => {
                 parameterRef={props.parameterRef as React.RefObject<RangeRef>}
                 initialSubmit={props.initialSubmit}
             />;
-        }
+        } */
     }
 
     return component;
