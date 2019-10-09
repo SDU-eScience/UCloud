@@ -3,6 +3,7 @@ import {defaultVirtualFolders, VirtualFileTable} from "Files/VirtualFileTable";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
+import {Box} from "ui-components";
 import {
     MOCK_RELATIVE,
     mockFile,
@@ -54,28 +55,32 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                 onRequestClose={() => props.onFileSelect(null)}
                 style={FileSelectorModalStyle}
             >
-                <VirtualFileTable
-                    {...virtualFolders}
-                    numberOfColumns={0}
-                    fileOperations={[{
-                        text: "Select",
-                        onClick: files => props.onFileSelect(files[0]),
-                        disabled: files => {
-                            if (files.some(it => it.mockTag !== undefined && it.mockTag !== MOCK_RELATIVE)) {
-                                return true;
-                            }
+                <Box width="95%">
+                    <VirtualFileTable
+                        {...virtualFolders}
+                        omitQuickLaunch
+                        numberOfColumns={0}
+                        fileOperations={[{
+                            text: "Select",
+                            onClick: files => props.onFileSelect(files[0]),
+                            disabled: files => {
+                                if (files.some(it => it.mockTag !== undefined && it.mockTag !== MOCK_RELATIVE)) {
+                                    return true;
+                                }
 
-                            return !(files.length === 1 && (
-                                (canSelectFolders && files[0].fileType === "DIRECTORY") ||
-                                (!canSelectFolders && files[0].fileType === "FILE")
-                            ));
-                        }
-                    }]}
-                    foldersOnly={props.onlyAllowFolders}
-                    fileFilter={file => !props.onlyAllowFolders || file.fileType === "DIRECTORY"}
-                    onFileNavigation={p => setPath(p)}
-                    injectedFiles={injectedFiles}
-                    path={path}/>
+                                return !(files.length === 1 && (
+                                    (canSelectFolders && files[0].fileType === "DIRECTORY") ||
+                                    (!canSelectFolders && files[0].fileType === "FILE")
+                                ));
+                            }
+                        }]}
+                        foldersOnly={props.onlyAllowFolders}
+                        fileFilter={file => !props.onlyAllowFolders || file.fileType === "DIRECTORY"}
+                        onFileNavigation={p => setPath(p)}
+                        injectedFiles={injectedFiles}
+                        path={path}
+                    />
+                </Box>
             </ReactModal>
         </>
     );

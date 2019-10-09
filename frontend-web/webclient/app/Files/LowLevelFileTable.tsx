@@ -74,6 +74,7 @@ export interface LowLevelFileTableProps {
     foldersOnly?: boolean;
 
     numberOfColumns?: number;
+    omitQuickLaunch?: boolean;
 
     asyncWorker?: AsyncWorker;
 }
@@ -269,10 +270,14 @@ function apiForComponent(
 }
 
 // tslint:disable-next-line: variable-name
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
-{responsive: ResponsiveReduxObject} &
-{showUploader: (path: string) => void} &
-{setUploaderCallback: (cb?: () => void) => void}> = props => {
+const LowLevelFileTable_: React.FunctionComponent<
+    LowLevelFileTableProps &
+    {
+        responsive: ResponsiveReduxObject,
+        showUploader: (path: string) => void,
+        setUploaderCallback: (cb?: () => void) => void
+    }
+> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -287,7 +292,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
     const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(() => getSortingColumns());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
-    const [workLoading, workError, invokeWork] = useAsyncWork();
+    const [workLoading,, invokeWork] = useAsyncWork();
     const [applications, setApplications] = useState(new Map<string, QuickLaunchApp[]>());
     const history = useHistory();
 
@@ -497,26 +502,24 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 )
             }
 
-            sidebar={
-                (
-                    <Box pl="5px" pr="5px">
-                        <VerticalButtonGroup>
-                            <FileOperations
-                                files={checkedFilesWithInfo}
-                                fileOperations={fileOperations}
-                                callback={callbacks}
-                                // Don't pass a directory if the page is set. This should indicate that the path is fake.
-                                directory={props.page !== undefined ? undefined : mockFile({
-                                    path: props.path ? props.path : "",
-                                    fileId: "currentDir",
-                                    tag: MOCK_RELATIVE,
-                                    type: "DIRECTORY"
-                                })}
-                            />
-                        </VerticalButtonGroup>
-                    </Box>
-                )
-            }
+            sidebar={(
+                <Box pl="5px" pr="5px">
+                    <VerticalButtonGroup>
+                        <FileOperations
+                            files={checkedFilesWithInfo}
+                            fileOperations={fileOperations}
+                            callback={callbacks}
+                            // Don't pass a directory if the page is set. This should indicate that the path is fake.
+                            directory={props.page !== undefined ? undefined : mockFile({
+                                path: props.path ? props.path : "",
+                                fileId: "currentDir",
+                                tag: MOCK_RELATIVE,
+                                type: "DIRECTORY"
+                            })}
+                        />
+                    </VerticalButtonGroup>
+                </Box>
+            )}
 
             main={(
                 <Pagination.List
@@ -549,7 +552,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                 onClick={e => setChecked(allFiles, !isMasterChecked)}
                                                 checked={isMasterChecked}
                                                 disabled={isMasterDisabled}
-                                                onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
+                                                onChange={e => e.stopPropagation()}
                                             />
                                         </Label>
                                     )}
@@ -570,42 +573,57 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
                             return (
                                 <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
-                                    <Flex alignItems="center" cursor="pointer"
-                                        justifyContent="left">
+                                    <Flex
+                                        alignItems="center"
+                                        cursor="pointer"
+                                        justifyContent="left"
+                                    >
                                         <Box
                                             onClick={() => setSorting(column, invertSortOrder(order), i)}>
                                             {sortingIcon(column)}
                                         </Box>
                                         {!sortingSupported ?
                                             <>{UF.sortByToPrettierString(column)}</>
-                                            :
-                                            <ClickableDropdown
-                                                trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
-                                                chevron>
-                                                <Box ml="-16px" mr="-16px" pl="15px"
-                                                    hidden={(order === SortOrder.ASCENDING && isSortedBy) ||
-                                                        column === SortBy.ACL}
-                                                    onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
+                                            : (
+                                                <ClickableDropdown
+                                                    trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
+                                                    chevron
                                                 >
-                                                    {UF.prettierString(SortOrder.ASCENDING)}
-                                                </Box>
-                                                <Box ml="-16px" mr="-16px" pl="15px"
-                                                    onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                    hidden={(order === SortOrder.DESCENDING && isSortedBy) ||
-                                                        column === SortBy.ACL}
-                                                >
-                                                    {UF.prettierString(SortOrder.DESCENDING)}
-                                                </Box>
-                                                <Divider ml="-16px" mr="-16px" />
-                                                {Object.values(SortBy).map((sortByKey: SortBy, j) => (
-                                                    <Box ml="-16px" mr="-16px" pl="15px" key={j}
-                                                        onClick={() => setSorting(sortByKey, order, i)}
-                                                        hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
+                                                    <Box
+                                                        ml="-16px"
+                                                        mr="-16px"
+                                                        pl="15px"
+                                                        hidden={(order === SortOrder.ASCENDING && isSortedBy) ||
+                                                            column === SortBy.ACL}
+                                                        onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
                                                     >
-                                                        {UF.sortByToPrettierString(sortByKey)}
+                                                        {UF.prettierString(SortOrder.ASCENDING)}
                                                     </Box>
-                                                ))}
-                                            </ClickableDropdown>
+                                                    <Box
+                                                        ml="-16px"
+                                                        mr="-16px"
+                                                        pl="15px"
+                                                        onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
+                                                        hidden={(order === SortOrder.DESCENDING && isSortedBy) ||
+                                                            column === SortBy.ACL}
+                                                    >
+                                                        {UF.prettierString(SortOrder.DESCENDING)}
+                                                    </Box>
+                                                    <Divider ml="-16px" mr="-16px" />
+                                                    {Object.values(SortBy).map((sortByKey: SortBy, j) => (
+                                                        <Box
+                                                            ml="-16px"
+                                                            mr="-16px"
+                                                            pl="15px"
+                                                            key={j}
+                                                            onClick={() => setSorting(sortByKey, order, i)}
+                                                            hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
+                                                        >
+                                                            {UF.sortByToPrettierString(sortByKey)}
+                                                        </Box>
+                                                    ))}
+                                                </ClickableDropdown>
+                                            )
                                         }
                                     </Flex>
                                 </FileTableHeaderCell>
@@ -613,14 +631,16 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                         })}
 
                         {/* Launch cell (adds a bit of spacing and hosts options in rows) */}
-                        <FileTableHeaderCell
-                            notSticky={isEmbedded}
+                        {props.omitQuickLaunch ? null : (
+                            <FileTableHeaderCell
+                                notSticky={isEmbedded}
 
-                            // TODO This is not correct. We had some custom code before. This should be ported.
-                            width={"3em"}
-                        >
-                            <Flex />
-                        </FileTableHeaderCell>
+                                // TODO This is not correct. We had some custom code before. This should be ported.
+                                width={"3em"}
+                            >
+                                <Flex />
+                            </FileTableHeaderCell>
+                        )}
 
                         {/* Options cell (adds a bit of spacing and hosts options in rows) */}
                         <FileTableHeaderCell
@@ -680,10 +700,10 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                 </TableCell>;
                             })}
 
-                            <TableCell textAlign="center">
-                                {/* Launch cell */}
-                                {
-                                    checkedFiles.size > 0 || file.fileType !== "FILE" ||
+                            {props.omitQuickLaunch ? null :
+                                <TableCell textAlign="center">
+                                    {/* Launch cell */}
+                                    {checkedFiles.size > 0 || file.fileType !== "FILE" ||
                                         (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
                                         (typeof applications.get(file.path) == 'undefined' || applications.get(file.path)!.length < 1) ? null :
                                             <ClickableDropdown
@@ -700,8 +720,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                     pl="15px"
                                                 />
                                             </ClickableDropdown>
-                                }
-                            </TableCell>
+                                    }
+                                </TableCell>}
 
                             <TableCell textAlign="center">
                                 {/* Options cell */}
