@@ -132,7 +132,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                     page={featured}
                     onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
                 />
-                {this.state.defaultTags.map(tag => <ToolGroup tag={tag} />)}
+                {this.state.defaultTags.map(tag => <ToolGroup key={tag} tag={tag} />)}
             </>
         );
         return (
@@ -147,7 +147,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         this.props.receiveAppsByKey(featured.itemsPerPage, featured.pageNumber, "Featured");
         this.state.defaultTags.forEach(tag => {
             const page = this.props.applications.has(tag) ? this.props.applications.get(tag)! : emptyPage;
-            this.props.receiveAppsByKey(page.itemsPerPage, page.pageNumber, tag)
+            this.props.receiveAppsByKey(page.itemsPerPage, page.pageNumber, tag);
         });
 
     }
@@ -197,27 +197,33 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
                         const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
                         return (
                             <div key={application.metadata.name}>
-                                <SmallCard title={withoutTag} color1={first} color2={second} color3={third} to={Pages.viewApplication(application.metadata)} color={`white`}>
-                                    <EllipsedText >{withoutTag}</EllipsedText>
+                                <SmallCard
+                                    title={withoutTag}
+                                    color1={first}
+                                    color2={second}
+                                    color3={third}
+                                    to={Pages.viewApplication(application.metadata)}
+                                    color={`white`}
+                                >
+                                    <EllipsedText>{withoutTag}</EllipsedText>
                                 </SmallCard>
                             </div>
                         );
                     })}
                 </Grid>
             </ScrollBox>
-            <Flex mt={"5px"} flexDirection={"row"} alignItems={"flex-start"} >
-                {[...tags].filter(it => it !== props.tag).map(tag => (<Tag label={tag} />))}
+            <Flex mt="14px" flexDirection={"row"} alignItems={"flex-start"} >
+                {[...tags].filter(it => it !== props.tag).map(tag => (<Tag key={tag} label={tag} />))}
             </Flex>
         </CardToolContainer>
-
-    )
-}
+    );
+};
 
 
 
 function removeTagFromTitle(tag: string, title: string) {
     if (title.startsWith(tag)) {
-        const titlenew = title.replace(/homerTools/g, "")
+        const titlenew = title.replace(/homerTools/g, "");
         if (titlenew.endsWith("pl")) {
             return (
                 titlenew.slice(tag.length + 2, -3)
@@ -262,7 +268,7 @@ const mapToolGroupStateToProps = ({applicationsBrowse}: ReduxObject, ownProps: {
     return {page: emptyPage};
 };
 
-const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_)
+const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_);
 
 const mapDispatchToProps = (
     dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
