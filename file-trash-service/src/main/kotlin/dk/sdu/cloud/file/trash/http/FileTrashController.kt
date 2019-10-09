@@ -39,7 +39,7 @@ class FileTrashController(
                     ctx.securityPrincipal.username,
                     userCloudWs()
                 ),
-                HttpStatusCode.Accepted
+                HttpStatusCode.OK
             )
         }
     }

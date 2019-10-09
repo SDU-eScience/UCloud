@@ -373,6 +373,8 @@ export const clearTrash = ({cloud, callback}: { cloud: SDUCloud, callback: () =>
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
             callback();
+
+            snackbarStore.addSnack({message: "Successfully emptied trash", type: SnackType.Success});
             dialogStore.success();
         }
     });

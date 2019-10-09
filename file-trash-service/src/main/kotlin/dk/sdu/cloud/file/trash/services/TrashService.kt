@@ -16,6 +16,8 @@ import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.task.api.Progress
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.GlobalScope
@@ -24,38 +26,49 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import dk.sdu.cloud.task.api.runTask
+import java.lang.Thread.sleep
 
 class TrashService(
-    private val trashDirectoryService: TrashDirectoryService
+    private val trashDirectoryService: TrashDirectoryService,
+    private val wsServiceClient: AuthenticatedClient,
+    private val backgroundScope: BackgroundScope
 ) {
     suspend fun emptyTrash(username: String, userCloud: AuthenticatedClient) {
         validateTrashDirectory(username, userCloud)
         GlobalScope.launch {
             runCatching {
-                for (attempt in 1..5) {
-                    val filesResp = FileDescriptions.listAtPath.call(
-                        ListDirectoryRequest(
-                            trashDirectoryService.findTrashDirectory(username),
-                            itemsPerPage = 100,
-                            page = 0,
-                            order = null,
-                            sortBy = null
-                        ),
-                        userCloud
-                    )
+                runTask(wsServiceClient, backgroundScope, "Empty trash", username) {
+                    status = "Emptying trash"
+                    for (attempt in 1..5) {
+                        val filesResp = FileDescriptions.listAtPath.call(
+                            ListDirectoryRequest(
+                                trashDirectoryService.findTrashDirectory(username),
+                                itemsPerPage = 100,
+                                page = 0,
+                                order = null,
+                                sortBy = null
+                            ),
+                            userCloud
+                        )
 
-                    if (filesResp.statusCode == HttpStatusCode.NotFound) return@launch
-                    val files = filesResp.orThrow()
-                    if (files.items.isEmpty()) return@launch
+                        val progress = Progress("Number of files", 0, filesResp.orThrow().itemsInTotal)
 
-                    files.items.map {
-                        launch {
-                            FileDescriptions.deleteFile.call(
-                                DeleteFileRequest(it.path),
-                                userCloud
-                            )
-                        }
-                    }.joinAll()
+                        if (filesResp.statusCode == HttpStatusCode.NotFound) return@launch
+                        val files = filesResp.orThrow()
+                        if (files.items.isEmpty()) return@launch
+
+                        files.items.map {
+                            sleep(3000)
+                            launch {
+                                FileDescriptions.deleteFile.call(
+                                    DeleteFileRequest(it.path),
+                                    userCloud
+                                )
+                                progress.current++
+                            }
+                        }.joinAll()
+                    }
                 }
             }
         }
