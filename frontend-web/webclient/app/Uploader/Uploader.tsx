@@ -167,9 +167,9 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
                             onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}
                         >
                             Clear unstarted uploads
-                    </OutlineButton>
+                        </OutlineButton>
                     )}
-                    <Box>
+                    <div>
                         {uploads.map((upload, index) => (
                             <React.Fragment key={index}>
                                 <UploaderRow
@@ -206,7 +206,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
                                 </DropZoneBox>
                             )}
                         </Dropzone>
-                    </Box>
+                    </div>
                 </div>
             </Modal>
         );
@@ -584,7 +584,7 @@ interface ConflictFile {
 }
 
 const ConflictFile = ({file}: ConflictFile) => !!file ?
-    <Box>File already exists in folder, {sizeToString(file.size!)}</Box> : null;
+    <div>File already exists in folder, {sizeToString(file.size!)}</div> : null;
 
 const mapStateToProps = ({uploader}: ReduxObject): UploaderStateProps => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),

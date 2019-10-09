@@ -522,7 +522,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 <Pagination.List
                     loading={pageLoading}
                     customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ? null :
-                        <Box>{error}</Box>}
+                        <div>{error}</div>}
                     page={{...page, items: allFiles}}
                     onPageChanged={(newPage, currentPage) => onPageChanged(newPage, currentPage.itemsPerPage)}
                     pageRenderer={pageRenderer}
@@ -542,7 +542,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                 onClick={() => setSorting(SortBy.PATH, invertSortOrder(order))}
                             >
                                 <Box mx="9px" onClick={e => e.stopPropagation()}>
-                                    {isEmbedded ? null :(
+                                    {isEmbedded ? null : (
                                         <Label>
                                             <Checkbox
                                                 data-tag="masterCheckbox"
@@ -568,46 +568,48 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
                             const isSortedBy = sortBy === column;
 
-                            return <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
-                                <Flex alignItems="center" cursor="pointer"
-                                    justifyContent="left">
-                                    <Box
-                                        onClick={() => setSorting(column, invertSortOrder(order), i)}>
-                                        {sortingIcon(column)}
-                                    </Box>
-                                    {!sortingSupported ?
-                                        <>{UF.sortByToPrettierString(column)}</>
-                                        :
-                                        <ClickableDropdown
-                                            trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
-                                            chevron>
-                                            <Box ml="-16px" mr="-16px" pl="15px"
-                                                hidden={(order === SortOrder.ASCENDING && isSortedBy) ||
-                                                    column === SortBy.ACL}
-                                                onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
-                                            >
-                                                {UF.prettierString(SortOrder.ASCENDING)}
-                                            </Box>
-                                            <Box ml="-16px" mr="-16px" pl="15px"
-                                                onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                hidden={(order === SortOrder.DESCENDING && isSortedBy) ||
-                                                    column === SortBy.ACL}
-                                            >
-                                                {UF.prettierString(SortOrder.DESCENDING)}
-                                            </Box>
-                                            <Divider ml="-16px" mr="-16px" />
-                                            {Object.values(SortBy).map((sortByKey: SortBy, j) => (
-                                                <Box ml="-16px" mr="-16px" pl="15px" key={j}
-                                                    onClick={() => setSorting(sortByKey, order, i)}
-                                                    hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
+                            return (
+                                <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
+                                    <Flex alignItems="center" cursor="pointer"
+                                        justifyContent="left">
+                                        <Box
+                                            onClick={() => setSorting(column, invertSortOrder(order), i)}>
+                                            {sortingIcon(column)}
+                                        </Box>
+                                        {!sortingSupported ?
+                                            <>{UF.sortByToPrettierString(column)}</>
+                                            :
+                                            <ClickableDropdown
+                                                trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
+                                                chevron>
+                                                <Box ml="-16px" mr="-16px" pl="15px"
+                                                    hidden={(order === SortOrder.ASCENDING && isSortedBy) ||
+                                                        column === SortBy.ACL}
+                                                    onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
                                                 >
-                                                    {UF.sortByToPrettierString(sortByKey)}
+                                                    {UF.prettierString(SortOrder.ASCENDING)}
                                                 </Box>
-                                            ))}
-                                        </ClickableDropdown>
-                                    }
-                                </Flex>
-                            </FileTableHeaderCell>;
+                                                <Box ml="-16px" mr="-16px" pl="15px"
+                                                    onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
+                                                    hidden={(order === SortOrder.DESCENDING && isSortedBy) ||
+                                                        column === SortBy.ACL}
+                                                >
+                                                    {UF.prettierString(SortOrder.DESCENDING)}
+                                                </Box>
+                                                <Divider ml="-16px" mr="-16px" />
+                                                {Object.values(SortBy).map((sortByKey: SortBy, j) => (
+                                                    <Box ml="-16px" mr="-16px" pl="15px" key={j}
+                                                        onClick={() => setSorting(sortByKey, order, i)}
+                                                        hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
+                                                    >
+                                                        {UF.sortByToPrettierString(sortByKey)}
+                                                    </Box>
+                                                ))}
+                                            </ClickableDropdown>
+                                        }
+                                    </Flex>
+                                </FileTableHeaderCell>
+                            );
                         })}
 
                         {/* Launch cell (adds a bit of spacing and hosts options in rows) */}
@@ -633,28 +635,35 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 </TableHeader>
                 <tbody>
                     {allFiles.map(file => (
-                        <TableRow highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
-                            key={file.fileId!} data-tag={"fileRow"}>
+                        <TableRow
+                            highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
+                            key={file.fileId!}
+                            data-tag={"fileRow"}
+                        >
                             <TableCell>
                                 {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
                                 <Flex flexDirection="row" alignItems="center" mx="9px">
-                                    {isEmbedded ? null :
-                                        <Box>
+                                    {isEmbedded ? null : (
+                                        <div>
                                             <Label>
                                                 <Checkbox
                                                     disabled={file.mockTag !== undefined}
                                                     checked={checkedFiles.has(file.fileId!) &&
                                                         file.mockTag === undefined}
                                                     onChange={e => e.stopPropagation()}
-                                                    onClick={() => setChecked([file])} />
+                                                    onClick={() => setChecked([file])}
+                                                />
                                             </Label>
-                                        </Box>
-                                    }
+                                        </div>
+                                    )}
                                     <Box ml="5px" pr="5px" />
-                                    <NameBox file={file} onRenameFile={onRenameFile}
+                                    <NameBox
+                                        file={file}
+                                        onRenameFile={onRenameFile}
                                         onNavigate={onFileNavigation}
                                         callbacks={callbacks}
-                                        fileBeingRenamed={fileBeingRenamed} />
+                                        fileBeingRenamed={fileBeingRenamed}
+                                    />
                                 </Flex>
                             </TableCell>
 
@@ -855,7 +864,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                     </Box>
                 </Flex>
 
-                {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? null :
+                {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? null : (
                     <Icon
                         data-tag="fileFavorite"
                         size="1em" ml=".7em"
@@ -874,7 +883,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         }}
                         hoverColor="blue"
                     />
-                }
+                )}
             </>
         );
     }
@@ -983,7 +992,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
         <>
             {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`} />)}
             {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
-                <Box><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></Box>
+                <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>
             }
             {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`} />)}
         </>

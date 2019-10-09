@@ -9,10 +9,10 @@ export const ActionButton: React.FunctionComponent<{
     loadable: LoadableContent
 } & ButtonProps & React.ButtonHTMLAttributes<HTMLButtonElement>> = props => {
     return (
-        <Box>
+        <div>
             <Button m={0} {...props} disabled={props.loadable.loading}>{props.children}</Button>
             {props.loadable.error ? <Text color="red" m={0}>{props.loadable.error.errorMessage}</Text> : null}
-        </Box>
+        </div>
     );
 };
 

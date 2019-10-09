@@ -8,7 +8,6 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {Page} from "Types";
 import {listProjects, ListProjectsRequest, UserInProject} from "Project/index";
 import Link from "ui-components/Link";
-import Box from "ui-components/Box";
 import {Dispatch} from "redux";
 import {connect} from "react-redux";
 import * as Heading from "ui-components/Heading";
@@ -19,32 +18,34 @@ const List: React.FunctionComponent<DispatchProps> = props => {
         emptyPage
     );
 
-    return <MainContainer
-        headerSize={0}
-        header={null}
-        main={
-            <Pagination.List
-                page={response.data}
-                pageRenderer={page => <>
-                    {page.items.map(e =>
-                        <ProjectSummary summary={e} setProject={props.setProject} key={e.id}/>
-                    )}
-                </>}
-                loading={response.loading}
-                onPageChanged={(newPage, page) => setFetchParams(listProjects({page: newPage, itemsPerPage: 50}))}
-            />
-        }
-        sidebar={
-            <VerticalButtonGroup>
-                <Link to={"/projects/create"}><Button>Create</Button></Link>
-                <Button color={"red"} onClick={e => props.setProject(undefined)}>Clear Project</Button>
-            </VerticalButtonGroup>
-        }
-    />;
+    return (
+        <MainContainer
+            headerSize={0}
+            header={null}
+            main={(
+                <Pagination.List
+                    page={response.data}
+                    pageRenderer={page => (<>
+                        {page.items.map(e =>
+                            <ProjectSummary summary={e} setProject={props.setProject} key={e.id} />
+                        )}
+                    </>)}
+                    loading={response.loading}
+                    onPageChanged={(newPage, page) => setFetchParams(listProjects({page: newPage, itemsPerPage: 50}))}
+                />
+            )}
+            sidebar={(
+                <VerticalButtonGroup>
+                    <Link to={"/projects/create"}><Button>Create</Button></Link>
+                    <Button color={"red"} onClick={e => props.setProject(undefined)}>Clear Project</Button>
+                </VerticalButtonGroup>
+            )}
+        />
+    );
 };
 
-const ProjectSummary: React.FunctionComponent<{ summary: UserInProject } & DispatchProps> = props => {
-    return <Box>
+const ProjectSummary: React.FunctionComponent<{summary: UserInProject} & DispatchProps> = props => (
+    <div>
         <Heading.h3>{props.summary.title}</Heading.h3>
         <ul>
             <li>{props.summary.id}</li>
@@ -52,11 +53,11 @@ const ProjectSummary: React.FunctionComponent<{ summary: UserInProject } & Dispa
             <li><Link to={`/projects/view/${props.summary.id}`}>View</Link></li>
             <li><Link to="#" onClick={() => props.setProject(props.summary.id)}>Set as active</Link></li>
         </ul>
-    </Box>;
-};
+    </div>
+);
 
 interface DispatchProps {
-    setProject: (id?: string) => void
+    setProject: (id?: string) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({

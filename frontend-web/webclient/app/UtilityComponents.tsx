@@ -40,12 +40,12 @@ export function addStandardDialog({
     };
 
     dialogStore.addDialog((
-        <Box>
-            <Box>
+        <div>
+            <div>
                 <Heading.h3>{title}</Heading.h3>
                 {!!title ? <Divider /> : null}
-                <Box>{message}</Box>
-            </Box>
+                <div>{message}</div>
+            </div>
             <Flex mt="20px">
                 <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
                 <Button
@@ -55,7 +55,7 @@ export function addStandardDialog({
                     {confirmText}
                 </Button>
             </Flex>
-        </Box>
+        </div>
     ), onCancel);
 }
 
@@ -64,14 +64,14 @@ export function sensitivityDialog(): Promise<{cancelled: true} | {option: Sensit
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
         message: (
-            <Box>
+            <div>
                 <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
                     <option value="INHERIT">Inherit</option>
                     <option value="PRIVATE">Private</option>
                     <option value="CONFIDENTIAL">Confidential</option>
                     <option value="SENSITIVE">Sensitive</option>
                 </Select>
-            </Box>
+            </div>
         ),
         onConfirm: () => resolve({option}),
         onCancel: () => resolve({cancelled: true}),
@@ -253,8 +253,8 @@ export function rewritePolicyDialog({
     let policy = "RENAME";
     let applyToAll = false;
     return new Promise(resolve => dialogStore.addDialog((
-        <Box>
-            <Box>
+        <div>
+            <div>
                 <Heading.h3>File exists</Heading.h3>
                 <Divider />
                 {replaceHomeFolder(path, homeFolder)} already
@@ -279,7 +279,7 @@ export function rewritePolicyDialog({
                         </Flex>
                     ) : null}
                 </Box>
-            </Box>
+            </div>
             <Box textAlign="right" mt="20px">
                 <Button onClick={() => dialogStore.failure()} color="red" mr="5px">No</Button>
                 <Button
@@ -292,7 +292,7 @@ export function rewritePolicyDialog({
                     Yes
                 </Button>
             </Box>
-        </Box>
+        </div>
     ), () => resolve(false)));
 }
 

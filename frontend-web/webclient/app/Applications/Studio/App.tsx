@@ -113,7 +113,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
             )}
 
             main={(
-                <Box>
+                <div>
                     <Heading.h2>Tags</Heading.h2>
                     <Box width={500}>
                         {tags.map(tag => (
@@ -166,7 +166,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                             </Flex>
                         </form>
                     </Box>
-                </Box>
+                </div>
             )}
         />
     );

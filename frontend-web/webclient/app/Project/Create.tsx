@@ -28,29 +28,31 @@ const Create: React.FunctionComponent = () => {
         // TODO We need to know if this was successful
     };
 
-    return <MainContainer
-        headerSize={0}
-        header={null}
-        main={
-            <ContainerForText>
-                <form onSubmit={e => doCreateShare(e)}>
-                    <Box>
-                        <Label htmlFor={"projectName"}>Title</Label>
-                        <Input ref={title} id={"projectName"}/>
-                    </Box>
+    return (
+        <MainContainer
+            headerSize={0}
+            header={null}
+            main={(
+                <ContainerForText>
+                    <form onSubmit={e => doCreateShare(e)}>
+                        <div>
+                            <Label htmlFor={"projectName"}>Title</Label>
+                            <Input ref={title} id={"projectName"} />
+                        </div>
 
-                    <Box mt={16}>
-                        <Button
-                            color={"green"}
-                            type={"submit"}
-                            fullWidth
-                            disabled={loading}
-                        >Submit</Button>
-                    </Box>
-                </form>
-            </ContainerForText>
-        }
-    />;
+                        <Box mt={16}>
+                            <Button
+                                color={"green"}
+                                type={"submit"}
+                                fullWidth
+                                disabled={loading}
+                            >Submit</Button>
+                        </Box>
+                    </form>
+                </ContainerForText>
+            )}
+        />
+    );
 };
 
 export default Create;

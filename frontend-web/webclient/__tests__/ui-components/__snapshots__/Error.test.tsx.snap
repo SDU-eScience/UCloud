@@ -1,16 +1,12 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Error component Error with error and dismiss button 1`] = `
-.c2 {
-  cursor: auto;
-}
-
-.c4 {
+.c3 {
   cursor: auto;
   margin-left: auto;
 }
 
-.c5 {
+.c4 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -42,7 +38,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
   align-items: center;
 }
 
-.c3 {
+.c2 {
   cursor: inherit;
   font-size: 14px;
   color: #c00;
@@ -58,12 +54,9 @@ exports[`Error component Error with error and dismiss button 1`] = `
     className="c1"
     cursor="inherit"
   >
-    <div
-      className="c2"
-      cursor="auto"
-    >
+    <div>
       <div
-        className="c3"
+        className="c2"
         color="red"
         cursor="inherit"
         fontSize={1}
@@ -72,11 +65,11 @@ exports[`Error component Error with error and dismiss button 1`] = `
       </div>
     </div>
     <div
-      className="c4"
+      className="c3"
       cursor="auto"
     >
       <svg
-        className="c5"
+        className="c4"
         clipRule="evenodd"
         color="black"
         cursor="inherit"
@@ -98,10 +91,6 @@ exports[`Error component Error with error and dismiss button 1`] = `
 `;
 
 exports[`Error component Error with error and no dismiss button 1`] = `
-.c2 {
-  cursor: auto;
-}
-
 .c0 {
   cursor: auto;
   padding: 1em 1em 1em 1em;
@@ -125,7 +114,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   align-items: center;
 }
 
-.c3 {
+.c2 {
   cursor: inherit;
   font-size: 14px;
   color: #c00;
@@ -141,12 +130,9 @@ exports[`Error component Error with error and no dismiss button 1`] = `
     className="c1"
     cursor="inherit"
   >
-    <div
-      className="c2"
-      cursor="auto"
-    >
+    <div>
       <div
-        className="c3"
+        className="c2"
         color="red"
         cursor="inherit"
         fontSize={1}

@@ -98,7 +98,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                     loading={this.props.loading}
                     pageRenderer={page => (
                         <>
-                            <Box>
+                            <div>
                                 <Spacer
                                     pt="15px"
                                     left={<Heading.h2>Featured</Heading.h2>}
@@ -108,7 +108,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                         </ShowAllTagItem>)
                                     }
                                 />
-                            </Box>
+                            </div>
                             <Box pl="10px" pb="5px" style={{overflow: "none", overflowX: "scroll"}}>
                                 <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{gridAutoFlow: "column"}}>
                                     {page.items.map((app, index) =>

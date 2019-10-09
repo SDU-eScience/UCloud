@@ -388,7 +388,7 @@ exports[`Share prompt 1`] = `
   margin-bottom: 8px;
 }
 
-.c16 {
+.c15 {
   cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
@@ -416,16 +416,12 @@ exports[`Share prompt 1`] = `
   width: auto;
 }
 
-.c15 {
-  cursor: auto;
-}
-
-.c17 {
+.c16 {
   cursor: auto;
   margin-right: auto;
 }
 
-.c19 {
+.c18 {
   cursor: auto;
   margin-left: auto;
 }
@@ -477,7 +473,7 @@ exports[`Share prompt 1`] = `
   transform: scale(1.03);
 }
 
-.c18 {
+.c17 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -509,15 +505,15 @@ exports[`Share prompt 1`] = `
   padding: 9.5px 18px;
 }
 
-.c18:disabled {
+.c17:disabled {
   opacity: 0.25;
 }
 
-.c18:focus {
+.c17:focus {
   outline: none;
 }
 
-.c18:hover {
+.c17:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
@@ -783,10 +779,7 @@ exports[`Share prompt 1`] = `
           </button>
         </div>
       </label>
-      <div
-        className="c15"
-        cursor="auto"
-      >
+      <div>
         No shares for 
         <b>
           
@@ -794,15 +787,15 @@ exports[`Share prompt 1`] = `
       </div>
     </form>
     <div
-      className="c16"
+      className="c15"
       cursor="inherit"
     >
       <div
-        className="c17"
+        className="c16"
         cursor="auto"
       />
       <button
-        className="c13 c18"
+        className="c13 c17"
         color="blue"
         onClick={[Function]}
         type="button"
@@ -810,7 +803,7 @@ exports[`Share prompt 1`] = `
         Close
       </button>
       <div
-        className="c19"
+        className="c18"
         cursor="auto"
       />
     </div>

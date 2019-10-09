@@ -123,12 +123,14 @@ function JobResults(props: AnalysesProps & {history: History}) {
                                 analysis={a}
                                 key={i}
                             >
-                                <Box><Label>
-                                    <Checkbox
-                                        checked={a.checked}
-                                        onChange={e => props.checkAnalysis(a.jobId, e.target.checked)}
-                                    />
-                                </Label></Box>
+                                <div>
+                                    <Label>
+                                        <Checkbox
+                                            checked={a.checked}
+                                            onChange={e => props.checkAnalysis(a.jobId, e.target.checked)}
+                                        />
+                                    </Label>
+                                </div>
                             </Row>)}
                     </tbody>
                 </Table>

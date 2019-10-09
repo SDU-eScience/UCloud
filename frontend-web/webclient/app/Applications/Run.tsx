@@ -905,10 +905,10 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                 </Flex>
             )}
 
-            <Box>
+            <div>
                 <Label>Machine type</Label>
                 <MachineTypes inputRef={props.reservationRef} />
-            </Box>
+            </div>
         </>
     );
 };
@@ -938,8 +938,8 @@ export default connect(null, mapDispatchToProps)(Run);
 
 export function importParameterDialog(importParameters: (file: File) => void, showFileSelector: () => void) {
     dialogStore.addDialog((
-        <Box>
-            <Box>
+        <div>
+            <div>
                 <Button fullWidth as="label">
                     Upload file
                 <HiddenInputField
@@ -959,10 +959,10 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                     Select file from SDUCloud
             </Button>
-            </Box>
+            </div>
             <Flex mt="20px">
                 <Button onClick={() => dialogStore.success()} color="red" mr="5px">Cancel</Button>
             </Flex>
-        </Box>
+        </div>
     ), () => undefined);
 }
