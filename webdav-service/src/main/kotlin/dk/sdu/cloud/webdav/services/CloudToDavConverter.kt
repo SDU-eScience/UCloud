@@ -72,5 +72,6 @@ class CloudToDavConverter {
     private val zoneId = ZoneId.of("GMT")
     private val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O")
 
-    private fun String.urlEncode() = URLEncoder.encode(this, "UTF-8").replace("+", "%20")
 }
+
+fun String.urlEncode() = URLEncoder.encode(this, "UTF-8").replace("+", "%20")

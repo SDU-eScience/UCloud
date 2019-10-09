@@ -39,6 +39,7 @@ import dk.sdu.cloud.webdav.services.UserClientFactory
 import dk.sdu.cloud.webdav.services.appendNewElement
 import dk.sdu.cloud.webdav.services.convertDocumentToString
 import dk.sdu.cloud.webdav.services.newDocument
+import dk.sdu.cloud.webdav.services.urlEncode
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.application.install
@@ -61,6 +62,7 @@ import io.ktor.routing.method
 import io.ktor.routing.options
 import io.ktor.routing.route
 import io.ktor.routing.routing
+import io.ktor.util.flattenEntries
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.copyAndClose
@@ -385,9 +387,59 @@ class Server(override val micro: Micro) : CommonServer {
                         logCall()
                         respondWithDavSupport()
 
-                        // I am not sure if this is good enough. But this should be the response if we refuse to
-                        // perform the update.
-                        call.respondText(status = HttpStatusCode.Forbidden) { "" }
+                        val properties = runCatching {
+                            val text = call.receiveOrNull<String>() ?: return@runCatching null
+                            val tree = xmlMapper.readTree(text)
+                            require(tree.isObject)
+                            val propsWeDontCareAbout = ArrayList<String>()
+
+                            runCatching {
+                                ((tree["set"] as ObjectNode).get("prop") as ObjectNode).fields().forEach {
+                                    propsWeDontCareAbout.add(it.key)
+                                }
+                            }
+
+                            runCatching {
+                                ((tree["remove"] as ObjectNode).get("prop") as ObjectNode).fields().forEach {
+                                    propsWeDontCareAbout.add(it.key)
+                                }
+                            }
+
+                            propsWeDontCareAbout
+                        }.getOrNull() ?: emptyList<String>()
+
+                        // Some systems, namely Windows, will refuse to perform certain file operations unless it is
+                        // allowed to patch its Windows specific timestamps. Here we simply pretend that these
+                        // operations are successful. Note: Jackson is throwing away the namespace information so we
+                        // are simply guessing that the namespace is correct.
+
+                        call.respondText(
+                            contentType = ContentType.Application.Xml,
+                            status = HttpStatusCode.MultiStatus
+                        ) {
+                            newDocument("d:multistatus") {
+                                appendNewElement("d:response") {
+                                    appendNewElement("d:href") {
+                                        textContent = "/" + requestPath.split("/")
+                                            .filter { it.isNotEmpty() }
+                                            .joinToString("/") { it.urlEncode() }
+                                    }
+
+                                    properties.forEach { prop ->
+                                        appendNewElement("d:propstat") {
+                                            appendNewElement("d:prop") {
+                                                val namespace =
+                                                    if (prop.contains("win32", ignoreCase = true)) "z:" else "d:"
+                                                appendNewElement(namespace + prop)
+                                                appendNewElement("d:status") {
+                                                    textContent = "HTTP/1.1 200 OK"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }.convertDocumentToString()
+                        }
                     }
                 }
 
@@ -416,6 +468,7 @@ class Server(override val micro: Micro) : CommonServer {
 
     private fun PipelineContext<Unit, ApplicationCall>.logCall() {
         log.info("${call.request.httpMethod} ${requestPath}")
+        log.debug(call.request.headers.flattenEntries().toString())
     }
 
     private fun PipelineContext<Unit, ApplicationCall>.depth(): Depth {
@@ -446,7 +499,7 @@ class Server(override val micro: Micro) : CommonServer {
             if (ex.httpStatusCode == HttpStatusCode.Unauthorized) {
                 call.response.header(HttpHeaders.WWWAuthenticate, "Basic realm=\"SDUCloud\"")
             }
-            call.respondText(status = ex.httpStatusCode) {
+            call.respondText(contentType = ContentType.Application.Xml, status = ex.httpStatusCode) {
                 newDocument("d:error") {}.convertDocumentToString()
             }
         }

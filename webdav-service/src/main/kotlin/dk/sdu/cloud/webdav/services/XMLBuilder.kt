@@ -15,6 +15,7 @@ private val transformer = TransformerFactory.newInstance().newTransformer()
 fun newDocument(rootTag: String, handler: Element.() -> Unit): Document {
     return docBuilderFactory.newDocumentBuilder().newDocument().appendNewElement(rootTag) {
         setAttribute("xmlns:d", "DAV:")
+        setAttribute("xmlns:z", "urn:schemas-microsoft-com:")
         handler()
     }
 }

@@ -1,10 +1,12 @@
 package dk.sdu.cloud.webdav.services
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -25,24 +27,28 @@ class UserClientFactory(
     private var nextClean: Long = 0L
 
     suspend fun retrieveClient(refreshToken: String): UserClient {
-        mutex.withLock {
-            val existing = clientCache[refreshToken]
-            if (existing != null) {
-                existing.lastUse = System.currentTimeMillis()
-                return existing
+        try {
+            mutex.withLock {
+                val existing = clientCache[refreshToken]
+                if (existing != null) {
+                    existing.lastUse = System.currentTimeMillis()
+                    return existing
+                }
             }
-        }
 
-        val client = clientFactory(refreshToken)
-        val homePath = FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(""), client).orThrow()
-        val userClient = UserClient(client, homePath.path)
+            val client = clientFactory(refreshToken)
+            val homePath = FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(""), client).orThrow()
+            val userClient = UserClient(client, homePath.path)
 
-        cleanup()
+            cleanup()
 
-        mutex.withLock {
-            return clientCache[refreshToken] ?: userClient.also {
-                clientCache[refreshToken] = it
+            mutex.withLock {
+                return clientCache[refreshToken] ?: userClient.also {
+                    clientCache[refreshToken] = it
+                }
             }
+        } catch (ex: IllegalStateException) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
         }
     }
 
