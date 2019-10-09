@@ -96,7 +96,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
     const [sharableLink, setSharableLink] = React.useState("");
 
     return (
-        <Box style={{overflowY: "scroll"}} maxHeight={"80vh"} width="620px">
+        <Box style={{overflowY: "auto", overflowX: "hidden"}} maxHeight={"80vh"} width="620px">
             <Box alignItems="center" width="605px">
                 <form onSubmit={e => (e.preventDefault(), e.stopPropagation())}>
                     <Heading.h3>Share</Heading.h3>
@@ -111,7 +111,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                                 ref={username}
                                 placeholder="Enter username..."
                             />
-                            <InputLabel width="152px" rightLabel>
+                            <InputLabel width="160px" rightLabel>
                                 <ClickableDropdown
                                     chevron
                                     width="180px"

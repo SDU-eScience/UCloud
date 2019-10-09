@@ -599,13 +599,13 @@ exports[`Share prompt 1`] = `
 
 .c7 {
   cursor: inherit;
-  width: 152px;
+  width: 160px;
   border: #c9d3df solid 2px;
   border-top-right-radius: 5px;
   border-bottom-right-radius: 5px;
   border-left: 0px;
   margin-left: 0;
-  width: 152px;
+  width: 160px;
   padding-left: 1em;
   padding-right: 1em;
   padding-top: 6px;
@@ -671,7 +671,8 @@ exports[`Share prompt 1`] = `
   cursor="auto"
   style={
     Object {
-      "overflowY": "scroll",
+      "overflowX": "hidden",
+      "overflowY": "auto",
     }
   }
   width="620px"
@@ -717,7 +718,7 @@ exports[`Share prompt 1`] = `
           <div
             className="c7"
             cursor="inherit"
-            width="152px"
+            width="160px"
           >
             <div
               className="c8"
