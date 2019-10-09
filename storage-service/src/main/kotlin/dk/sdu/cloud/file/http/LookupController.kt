@@ -15,6 +15,7 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 
 class LookupController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
@@ -97,5 +98,9 @@ class LookupController<Ctx : FSUserContext>(
 
             ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(username)))
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

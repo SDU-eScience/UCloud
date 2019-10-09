@@ -562,6 +562,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
 
     val findHomeFolder = call<FindHomeFolderRequest, FindHomeFolderResponse, CommonErrorMessage>("findHomeFolder") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -576,21 +577,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
 
             params {
                 +boundTo(FindHomeFolderRequest::username)
-            }
-        }
-    }
-
-    val testTask = call<Unit, LongRunningResponse<Unit>, CommonErrorMessage>("testTask") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"testTask"
             }
         }
     }
