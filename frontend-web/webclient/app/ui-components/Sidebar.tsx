@@ -208,6 +208,11 @@ interface SidebarProps extends SidebarStateProps {
 
 const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps) => {
     if (!loggedIn) return null;
+
+    // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
+    // The following is only supposed to work for the initial load.
+    if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
+
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());

@@ -155,6 +155,11 @@ export const LoginPage = (props: RouterLocationProps & { initialState?: any }) =
             <BackgroundImage image={bg2}>
                 <Flex alignItems={"top"} justifyContent={"center"} width={"100vw"} height={"100vh"} pt="20vh">
                     <Box width="315px">
+                        {!isWebDav ? null : (
+                            <Box color={"white"} mb={32}>
+                                You must re-authenticate with SDUCloud to use your files locally.
+                            </Box>
+                        )}
                         {enabledWayf && !challengeId ?
                             (
                                 <a href={`/auth/saml/login?service=${service}`}>

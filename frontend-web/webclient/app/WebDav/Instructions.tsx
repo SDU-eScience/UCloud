@@ -2,6 +2,7 @@ import {useCallback, useState} from "react";
 import * as React from "react";
 import styled from "styled-components";
 import Box from "ui-components/Box";
+import Button from "ui-components/Button";
 import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
@@ -197,6 +198,10 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                     </Box>
                 )}
             />
+
+            <Box m={10} />
+
+            <a href={"/app"}><Button fullWidth>Return to SDUCloud</Button></a>
         </ContentContainer>
     );
 };
