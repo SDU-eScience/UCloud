@@ -1,8 +1,7 @@
 import {Cloud} from "Authentication/SDUCloudObject";
-import {History} from "history";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
@@ -11,7 +10,7 @@ import Absolute from "ui-components/Absolute";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
 import {TextSpan} from "ui-components/Text";
-import {buildQueryString, getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
+import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
 
