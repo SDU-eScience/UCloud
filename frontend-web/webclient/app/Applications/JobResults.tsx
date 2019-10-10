@@ -1,5 +1,7 @@
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {formatRelative} from "date-fns/esm";
+import {enGB} from "date-fns/locale";
 import {ReduxObject} from "DefaultObjects";
 import {SortOrder} from "Files";
 import {History} from "history";
@@ -24,17 +26,15 @@ import InputGroup from "ui-components/InputGroup";
 import Label from "ui-components/Label";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
-import {Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
 import {cancelJob, cancelJobDialog, inCancelableState} from "Utilities/ApplicationUtilities";
 import {Arrow, MasterCheckbox} from "UtilityComponents";
-import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {prettierString} from "UtilityFunctions";
+import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {AnalysesOperations, AnalysesProps, AnalysesStateProps, JobState, JobWithStatus, RunsSortBy} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
-import {formatRelative} from "date-fns/esm";
-import {enGB} from "date-fns/locale";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -90,49 +90,55 @@ function JobResults(props: AnalysesProps & {history: History}) {
 
     const hide = responsive.lessThan.lg;
     const masterCheckboxChecked = selectedAnalyses.length === page.items.length && page.items.length > 0;
-    const masterCheckbox = <MasterCheckbox
-        checked={masterCheckboxChecked}
-        onClick={checked => props.checkAllAnalyses(checked)}
-    />;
+    const masterCheckbox = (
+        <MasterCheckbox
+            checked={masterCheckboxChecked}
+            onClick={props.checkAllAnalyses}
+        />
+    );
 
-    const content = <List
-        customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
-        loading={loading}
-        pageRenderer={page =>
-            <Table>
-                <Header
-                    hide={hide}
-                    masterCheckbox={masterCheckbox}
-                    sortBy={sortBy}
-                    sortOrder={sortOrder}
-                    fetchJobs={sortBy => fetchJobs({
-                        itemsPerPage,
-                        pageNumber,
-                        sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
-                        sortBy
-                    })}
-                />
-                <TableBody>
-                    {page.items.map((a, i) =>
-                        <Row
-                            hide={hide}
-                            to={() => history.push(`/applications/results/${a.jobId}`)}
-                            analysis={a}
-                            key={i}
-                        >
-                            <Box><Label>
-                                <Checkbox
-                                    checked={a.checked}
-                                    onChange={e => props.checkAnalysis(a.jobId, e.target.checked)}
-                                />
-                            </Label></Box>
-                        </Row>)}
-                </TableBody>
-            </Table>
-        }
-        page={page}
-        onPageChanged={pageNumber => fetchJobs({pageNumber})}
-    />;
+    const content = (
+        <List
+            customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
+            loading={loading}
+            pageRenderer={page => (
+                <Table>
+                    <Header
+                        hide={hide}
+                        masterCheckbox={masterCheckbox}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        fetchJobs={sortBy => fetchJobs({
+                            itemsPerPage,
+                            pageNumber,
+                            sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
+                            sortBy
+                        })}
+                    />
+                    <tbody>
+                        {page.items.map((a, i) =>
+                            <Row
+                                hide={hide}
+                                to={() => history.push(`/applications/results/${a.jobId}`)}
+                                analysis={a}
+                                key={i}
+                            >
+                                <div>
+                                    <Label>
+                                        <Checkbox
+                                            checked={a.checked}
+                                            onChange={e => props.checkAnalysis(a.jobId, e.target.checked)}
+                                        />
+                                    </Label>
+                                </div>
+                            </Row>)}
+                    </tbody>
+                </Table>
+            )}
+            page={page}
+            onPageChanged={pageNumber => fetchJobs({pageNumber})}
+        />
+    );
 
     const defaultFilter = {text: "Don't filter", value: "Don't filter"};
     const [filter, setFilter] = React.useState(defaultFilter);
@@ -235,24 +241,26 @@ function JobResults(props: AnalysesProps & {history: History}) {
         <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
     </Box>);
 
-    return (<MainContainer
-        header={
-            <Spacer
-                left={null}
-                right={
-                    <EntriesPerPageSelector
-                        content="Jobs per page"
-                        entriesPerPage={page.itemsPerPage}
-                        onChange={items => fetchJobs({itemsPerPage: items})}
-                    />
-                }
-            />
-        }
-        headerSize={48}
-        sidebarSize={340}
-        main={content}
-        sidebar={sidebar}
-    />);
+    return (
+        <MainContainer
+            header={
+                <Spacer
+                    left={null}
+                    right={
+                        <EntriesPerPageSelector
+                            content="Jobs per page"
+                            entriesPerPage={page.itemsPerPage}
+                            onChange={items => fetchJobs({itemsPerPage: items})}
+                        />
+                    }
+                />
+            }
+            headerSize={48}
+            sidebarSize={340}
+            main={content}
+            sidebar={sidebar}
+        />
+    );
 }
 
 interface AnalysisOperationsProps {
@@ -262,22 +270,27 @@ interface AnalysisOperationsProps {
 
 const AnalysisOperations = ({cancelableAnalyses, onFinished}: AnalysisOperationsProps) =>
     cancelableAnalyses.length === 0 ? null : (
-        <Button fullWidth color="red" onClick={() => cancelJobDialog({
-            jobCount: cancelableAnalyses.length,
-            jobId: cancelableAnalyses[0].jobId,
-            onConfirm: async () => {
-                try {
-                    await Promise.all(cancelableAnalyses.map(a => cancelJob(Cloud, a.jobId)));
-                    snackbarStore.addSnack({type: SnackType.Success, message: "Jobs cancelled"});
-                } catch (e) {
-                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));
-                } finally {
-                    onFinished();
+        <Button
+            fullWidth
+            color="red"
+            onClick={() => cancelJobDialog({
+                jobCount: cancelableAnalyses.length,
+                jobId: cancelableAnalyses[0].jobId,
+                onConfirm: async () => {
+                    try {
+                        await Promise.all(cancelableAnalyses.map(a => cancelJob(Cloud, a.jobId)));
+                        snackbarStore.addSnack({type: SnackType.Success, message: "Jobs cancelled"});
+                    } catch (e) {
+                        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));
+                    } finally {
+                        onFinished();
+                    }
                 }
-            }
-        })}>
+            })}
+        >
             Cancel selected ({cancelableAnalyses.length}) jobs
-    </Button>);
+        </Button>
+    );
 
 interface HeaderProps {
     hide: boolean;
@@ -305,11 +318,12 @@ const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProp
                 <Arrow sortBy={RunsSortBy.application} activeSortBy={sortBy} order={sortOrder} />
                 Application
             </JobResultsHeaderCell>
-            {hide ? null :
+            {hide ? null : (
                 <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.createdAt)}>
                     <Arrow sortBy={RunsSortBy.createdAt} activeSortBy={sortBy} order={sortOrder} />
                     Created at
-                </JobResultsHeaderCell>}
+                </JobResultsHeaderCell>
+            )}
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
                 <Arrow sortBy={RunsSortBy.lastUpdate} activeSortBy={sortBy} order={sortOrder} />
                 Expiration
@@ -335,14 +349,17 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
-            {hide ? null : <TableCell onClick={to}>
-                {capitalized(formatRelative(analysis.createdAt, new Date(), {locale: enGB}))}
-            </TableCell>}
+            {hide ? null : (
+                <TableCell onClick={to}>
+                    {capitalized(formatRelative(analysis.createdAt, new Date(), {locale: enGB}))}
+                </TableCell>
+            )}
             <TableCell onClick={to}>
                 {!!analysis.expiresAt && analysis.state === JobState.RUNNING ?
                     capitalized(formatRelative(analysis.expiresAt, new Date(), {locale: enGB})) : "N/A"}
             </TableCell>
-        </TableRow>);
+        </TableRow>
+    );
 };
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({

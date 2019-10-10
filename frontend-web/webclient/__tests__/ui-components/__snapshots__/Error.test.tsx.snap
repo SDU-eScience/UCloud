@@ -1,17 +1,30 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Error component Error with error and dismiss button 1`] = `
-.c2 {
-  cursor: auto;
-}
-
-.c4 {
-  cursor: auto;
+.c3 {
   margin-left: auto;
 }
 
-.c1 {
+.c4 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
   cursor: inherit;
+  color: #000;
+}
+
+.c0 {
+  padding: 1em 1em 1em 1em;
+  height: auto;
+  color: #000;
+  background-color: #fcc;
+  height: auto;
+  border: 1px solid #c00;
+  border-radius: 0.5em;
+}
+
+.c1 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -22,48 +35,23 @@ exports[`Error component Error with error and dismiss button 1`] = `
   align-items: center;
 }
 
-.c3 {
+.c2 {
   cursor: inherit;
   font-size: 14px;
   color: #c00;
 }
 
-.c5 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  color: #000;
-}
-
-.c0 {
-  cursor: auto;
-  padding: 1em 1em 1em 1em;
-  height: auto;
-  color: #000;
-  background-color: #fcc;
-  height: auto;
-  border: 1px solid #c00;
-  border-radius: 0.5em;
-}
-
 <div
   className="c0"
   color="black"
-  cursor="auto"
   height="auto"
 >
   <div
     className="c1"
-    cursor="inherit"
   >
-    <div
-      className="c2"
-      cursor="auto"
-    >
+    <div>
       <div
-        className="c3"
+        className="c2"
         color="red"
         cursor="inherit"
         fontSize={1}
@@ -72,11 +60,10 @@ exports[`Error component Error with error and dismiss button 1`] = `
       </div>
     </div>
     <div
-      className="c4"
-      cursor="auto"
+      className="c3"
     >
       <svg
-        className="c5"
+        className="c4"
         clipRule="evenodd"
         color="black"
         cursor="inherit"
@@ -98,12 +85,17 @@ exports[`Error component Error with error and dismiss button 1`] = `
 `;
 
 exports[`Error component Error with error and no dismiss button 1`] = `
-.c2 {
-  cursor: auto;
+.c0 {
+  padding: 1em 1em 1em 1em;
+  height: auto;
+  color: #000;
+  background-color: #fcc;
+  height: auto;
+  border: 1px solid #c00;
+  border-radius: 0.5em;
 }
 
 .c1 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -114,39 +106,23 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   align-items: center;
 }
 
-.c3 {
+.c2 {
   cursor: inherit;
   font-size: 14px;
   color: #c00;
 }
 
-.c0 {
-  cursor: auto;
-  padding: 1em 1em 1em 1em;
-  height: auto;
-  color: #000;
-  background-color: #fcc;
-  height: auto;
-  border: 1px solid #c00;
-  border-radius: 0.5em;
-}
-
 <div
   className="c0"
   color="black"
-  cursor="auto"
   height="auto"
 >
   <div
     className="c1"
-    cursor="inherit"
   >
-    <div
-      className="c2"
-      cursor="auto"
-    >
+    <div>
       <div
-        className="c3"
+        className="c2"
         color="red"
         cursor="inherit"
         fontSize={1}

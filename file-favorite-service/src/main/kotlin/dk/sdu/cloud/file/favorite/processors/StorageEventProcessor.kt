@@ -6,14 +6,16 @@ import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
+import dk.sdu.cloud.indexing.api.subscriptionStream
 
 class StorageEventProcessor(
     private val fileFavoriteService: FileFavoriteService<*>,
-    private val eventStreamService: EventStreamService
+    private val eventStreamService: EventStreamService,
+    private val name: String
 ) {
     fun init() {
         eventStreamService.subscribe(
-            StorageEvents.events, EventConsumer.Batched(
+            subscriptionStream(name), EventConsumer.Batched(
                 maxLatency = 500L,
                 maxBatchSize = 250
             ) { batch ->

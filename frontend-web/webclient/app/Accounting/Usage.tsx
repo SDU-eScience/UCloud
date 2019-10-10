@@ -1,29 +1,29 @@
-import * as React from "react";
-import * as API from "./api";
-import * as DataTypes from "./DataTypes";
-import {Box, Link} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {resourceName, emptyResourceState} from "./Redux/AccountingObject";
-import * as Actions from "./Redux/AccountingActions";
-import {connect} from "react-redux";
+import {detailedPage} from "Accounting";
 import {ReduxObject} from "DefaultObjects";
-import {Dispatch} from "redux";
 import {LoadableContent} from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
-import {detailedPage} from "Accounting";
+import * as React from "react";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {Box, Link} from "ui-components";
+import * as Heading from "ui-components/Heading";
+import * as API from "./api";
+import * as DataTypes from "./DataTypes";
+import * as Actions from "./Redux/AccountingActions";
+import {emptyResourceState, resourceName} from "./Redux/AccountingObject";
 
 interface UsageOwnProps {
-    resource: string
-    subResource: string
-    renderTitle?: boolean
+    resource: string;
+    subResource: string;
+    renderTitle?: boolean;
 }
 
 interface UsageOperations {
-    refresh: () => void
+    refresh: () => void;
 }
 
 interface UsageStateProps {
-    usage: LoadableContent<API.Usage>
+    usage: LoadableContent<API.Usage>;
 }
 
 type UsageProps = UsageStateProps & UsageOperations & UsageOwnProps;
@@ -48,46 +48,51 @@ const Usage: React.FunctionComponent<{
 }> = props => {
     const {usage} = props;
     const type = (usage.dataType || DataTypes.NUMBER);
-    return <>
-        <Heading.h2 title={API.formatDataTypeLong(type, usage.usage)}>
-            {API.formatDataType(type, usage.usage)}
-        </Heading.h2>
+    return (
+        <>
+            <Heading.h2 title={API.formatDataTypeLong(type, usage.usage)}>
+                {API.formatDataType(type, usage.usage)}
+            </Heading.h2>
 
-        <Heading.h4>
-            {props.renderTitle ? usage.title : null}
-            {" "}
-            <Quota usage={usage} />
-            <Box><Link to={detailedPage(props.resource, props.subResource)}>View Chart</Link></Box>
-        </Heading.h4>
-    </>;
+            <Heading.h4>
+                {props.renderTitle ? usage.title : null}
+                {" "}
+                <Quota usage={usage} />
+                <div><Link to={detailedPage(props.resource, props.subResource)}>View Chart</Link></div>
+            </Heading.h4>
+        </>
+    );
 };
 
 class UsageContainer extends React.Component<UsageProps> {
-    componentDidMount() {
+    public componentDidMount() {
         if (this.props.usage.content === undefined) {
             this.props.refresh();
         }
     }
 
-    content(): React.ReactNode {
+    public render() {
+        return <Container>{this.content()}</Container>;
+    }
+
+    private content(): React.ReactNode {
         const usage = this.props.usage;
         const content = usage.content;
         if (!!content) {
-            return <Usage
-                resource={this.props.resource}
-                subResource={this.props.subResource}
-                usage={content}
-                renderTitle={this.props.renderTitle}
-            />;
+            return (
+                <Usage
+                    resource={this.props.resource}
+                    subResource={this.props.subResource}
+                    usage={content}
+                    renderTitle={this.props.renderTitle}
+                />
+            );
         } else {
             if (!!usage.error) return usage.error.errorMessage;
             else return <Spinner />;
         }
     }
 
-    render() {
-        return <Container>{this.content()}</Container>;
-    }
 }
 
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type>, ownProps: UsageOwnProps): UsageOperations => ({

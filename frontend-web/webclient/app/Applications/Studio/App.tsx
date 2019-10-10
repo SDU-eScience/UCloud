@@ -13,7 +13,7 @@ import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
-import {loadingAction} from "Loading";
+import {loadingAction, LoadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -37,9 +37,8 @@ interface AppOperations {
     setLoading: (loading: boolean) => void;
 }
 
-const App: React.FunctionComponent<RouteComponentProps & AppOperations> = props => {
-    // tslint:disable-next-line
-    const name = props.match.params["name"];
+const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOperations> = props => {
+    const name = props.match.params.name;
     if (Cloud.userRole !== "ADMIN") return null;
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
@@ -66,111 +65,116 @@ const App: React.FunctionComponent<RouteComponentProps & AppOperations> = props 
 
     const newTagField = useRef<HTMLInputElement>(null);
 
-    return <MainContainer
-        header={
-            <Heading.h1>
-                <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} cacheBust={logoCacheBust}/>
-                {" "}
-                {appTitle}
-            </Heading.h1>
-        }
+    return (
+        <MainContainer
+            header={(
+                <Heading.h1>
+                    <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} cacheBust={logoCacheBust} />
+                    {" "}
+                    {appTitle}
+                </Heading.h1>
+            )}
 
-        sidebar={
-            <VerticalButtonGroup>
-                <Button fullWidth as="label">
-                    Upload Logo
+            sidebar={(
+                <VerticalButtonGroup>
+                    <Button fullWidth as="label">
+                        Upload Logo
                     <HiddenInputField
-                        type="file"
-                        onChange={async e => {
-                            const target = e.target;
-                            if (target.files) {
-                                const file = target.files[0];
-                                target.value = "";
-                                if (file.size > 1024 * 512) {
-                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
-                                } else {
-                                    if (await uploadLogo({name, file, type: "APPLICATION"})) {
-                                        setLogoCacheBust("" + Date.now());
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                    } else {
+                                        if (await uploadLogo({name, file, type: "APPLICATION"})) {
+                                            setLogoCacheBust("" + Date.now());
+                                        }
                                     }
+                                    dialogStore.success();
                                 }
-                                dialogStore.success();
-                            }
-                        }}/>
-                </Button>
+                            }}
+                    />
+                    </Button>
 
-                <Button
-                    type={"button"}
-                    color={"red"}
-                    disabled={commandLoading}
-                    onClick={async () => {
-                        await invokeCommand(clearLogo({type: "APPLICATION", name}));
-                        setLogoCacheBust("" + Date.now());
-                    }}
-                >
-                    Remove Logo
-                </Button>
-            </VerticalButtonGroup>
-        }
+                    <Button
+                        type={"button"}
+                        color={"red"}
+                        disabled={commandLoading}
+                        onClick={async () => {
+                            await invokeCommand(clearLogo({type: "APPLICATION", name}));
+                            setLogoCacheBust("" + Date.now());
+                        }}
+                    >
+                        Remove Logo
+                    </Button>
+                </VerticalButtonGroup>
+            )}
 
-        main={
-            <Box>
-                <Heading.h2>Tags</Heading.h2>
-                <Box width={500}>
-                    {tags.map(tag =>
-                        <Flex mb={16}>
-                            <Box width={400}>
-                                <TagStyle key={tag}>{tag}</TagStyle>
-                            </Box>
-                            <Box width={100}>
-                                <Button
-                                    fullWidth
-                                    color={"red"}
-                                    type={"button"}
+            main={(
+                <div>
+                    <Heading.h2>Tags</Heading.h2>
+                    <Box width={500}>
+                        {tags.map(tag => (
+                            <Flex key={tag} mb={16}>
+                                <Box width={400}>
+                                    <TagStyle to="#" key={tag}>{tag}</TagStyle>
+                                </Box>
+                                <Box width={100}>
+                                    <Button
+                                        fullWidth
+                                        color={"red"}
+                                        type={"button"}
 
-                                    disabled={commandLoading}
-                                    onClick={async () => {
-                                        await invokeCommand(deleteApplicationTag({applicationName: name, tags: [tag]}));
-                                        setAppParameters(listByName({...appParameters.parameters}));
-                                    }}
-                                >
-                                    Delete
-                                </Button>
-                            </Box>
-                        </Flex>
-                    )}
+                                        disabled={commandLoading}
+                                        onClick={async () => {
+                                            await invokeCommand(deleteApplicationTag({applicationName: name, tags: [tag]}));
+                                            setAppParameters(listByName({...appParameters.parameters}));
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                </Box>
+                            </Flex>
+                        ))}
 
-                    <form onSubmit={async e => {
-                        e.preventDefault();
-                        if (commandLoading) return;
+                        <form
+                            onSubmit={async e => {
+                                e.preventDefault();
+                                if (commandLoading) return;
 
-                        const tagField = newTagField.current;
-                        if (tagField === null) return;
+                                const tagField = newTagField.current;
+                                if (tagField === null) return;
 
-                        const tagValue = tagField.value;
-                        if (tagValue === "") return;
+                                const tagValue = tagField.value;
+                                if (tagValue === "") return;
 
-                        await invokeCommand(createApplicationTag({applicationName: name, tags: [tagValue]}));
-                        setAppParameters(listByName({...appParameters.parameters}));
+                                await invokeCommand(createApplicationTag({applicationName: name, tags: [tagValue]}));
+                                setAppParameters(listByName({...appParameters.parameters}));
 
-                        tagField.value = "";
-                    }}>
-                        <Flex>
-                            <Box flexGrow={1}>
-                                <Input ref={newTagField}/>
-                            </Box>
-                            <Box ml={8} width={100}>
-                                <Button disabled={commandLoading} type={"submit"} fullWidth>Add tag</Button>
-                            </Box>
-                        </Flex>
-                    </form>
-                </Box>
-            </Box>
-        }
-    />;
+                                tagField.value = "";
+                            }}
+                        >
+                            <Flex>
+                                <Box flexGrow={1}>
+                                    <Input ref={newTagField} />
+                                </Box>
+                                <Box ml={8} width={100}>
+                                    <Button disabled={commandLoading} type={"submit"} fullWidth>Add tag</Button>
+                                </Box>
+                            </Flex>
+                        </form>
+                    </Box>
+                </div>
+            )}
+        />
+    );
 };
 
 const mapDispatchToProps = (
-    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
+    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | LoadingAction>
 ): AppOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Application Studio/Apps"));

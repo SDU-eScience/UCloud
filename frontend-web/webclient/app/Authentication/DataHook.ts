@@ -21,7 +21,7 @@ function dataFetchReducer(state, action) {
             return {
                 ...state,
                 loading: false,
-                error: action.error,
+                error: action.error
             };
         default:
             throw new Error();

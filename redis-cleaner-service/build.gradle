@@ -4,10 +4,10 @@ version '0.1.4'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.redis.cleaner.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.20/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.22/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.8.3"
+    ext.serviceCommonVersion = "1.9.2"
     ext.authApiVersion = "1.21.0"
 }
 

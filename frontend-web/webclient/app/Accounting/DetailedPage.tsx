@@ -47,11 +47,13 @@ class DetailedPage extends React.Component<DetailedPageProps> {
     }
 
     public render() {
-        return <LoadableMainContainer
-            loadable={this.props.chart}
-            main={this.renderMain()}
-            header={this.renderHeader()}
-        />;
+        return (
+            <LoadableMainContainer
+                loadable={this.props.chart}
+                main={this.renderMain()}
+                header={this.renderHeader()}
+            />
+        );
     }
 
     public renderHeader(): React.ReactNode {
@@ -61,10 +63,12 @@ class DetailedPage extends React.Component<DetailedPageProps> {
     }
 
     public renderMain(): React.ReactNode {
-        return <ContainerForText>
-            {this.renderChart()}
-            {this.renderEvents()}
-        </ContainerForText>;
+        return (
+            <ContainerForText>
+                {this.renderChart()}
+                {this.renderEvents()}
+            </ContainerForText>
+        );
     }
 
     public renderChart(): React.ReactNode {
@@ -77,12 +81,14 @@ class DetailedPage extends React.Component<DetailedPageProps> {
     public renderEvents(): React.ReactNode {
         const events = this.props.events;
 
-        return <Pagination.List
-            pageRenderer={p => <Breakdown events={p.items} />}
-            page={events.content || emptyPage}
-            loading={events.loading}
-            onPageChanged={(newPage, page) => this.props.fetchEvents(page.itemsPerPage, newPage)}
-        />;
+        return (
+            <Pagination.List
+                pageRenderer={p => <Breakdown events={p.items} />}
+                page={events.content || emptyPage}
+                loading={events.loading}
+                onPageChanged={(newPage, page) => this.props.fetchEvents(page.itemsPerPage, newPage)}
+            />
+        );
     }
 }
 

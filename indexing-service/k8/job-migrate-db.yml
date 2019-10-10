@@ -1,0 +1,60 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: indexing-service-migration
+
+spec:
+  template:
+    metadata:
+      name: indexing-service-migration
+
+    spec:
+      containers:
+      - name: indexing-service
+        image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.15.0-SUBS.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/elasticsearch-credentials
+        - --config-dir
+        - /etc/psql
+        - --run-script
+        - migrate-db
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/elasticsearch-credentials
+          name: elasticsearch-credentials
+        - mountPath: /etc/psql
+          name: psql-credentials
+
+      volumes:
+      - name: refresh-token
+        secret:
+          defaultMode: 420
+          optional: false
+          secretName: indexing-refresh-token
+      - name: token-validation
+        configMap:
+          defaultMode: 420
+          name: token-validation
+      - name: elasticsearch-credentials
+        secret:
+          optional: false
+          secretName: elasticsearch-credentials
+      - name: psql-credentials
+        secret:
+          optional: false
+          secretName: indexing-psql
+
+      restartPolicy: Never
+
+      imagePullSecrets:
+        - name: esci-docker

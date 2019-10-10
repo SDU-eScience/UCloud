@@ -17,19 +17,19 @@ import {
   width,
   WidthProps
 } from "styled-system";
-import { Theme } from "./theme";
-import { Cursor } from "./Types";
+import {Theme} from "./theme";
+import {Cursor} from "./Types";
 
-export const caps = (props: { caps?: boolean }): { textTransform: "uppercase" } | null =>
-  props.caps ? { textTransform: "uppercase" } : null;
+export const caps = (props: {caps?: boolean}): {textTransform: "uppercase"} | null =>
+  props.caps ? {textTransform: "uppercase"} : null;
 
-export const regular = (props: { regular?: boolean, theme: Theme }) =>
-  props.regular ? { fontWeight: props.theme.regular } : null;
+export const regular = (props: {regular?: boolean, theme: Theme}) =>
+  props.regular ? {fontWeight: props.theme.regular} : null;
 
-export const bold = (props: { bold?: boolean, theme: Theme }) =>
-  props.bold ? { fontWeight: props.theme.bold } : null;
+export const bold = (props: {bold?: boolean, theme: Theme}) =>
+  props.bold ? {fontWeight: props.theme.bold} : null;
 
-export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null);
+export const italic = (props: {italic?: boolean}) => (props.italic ? {fontStyle: "italic"} : null);
 
 export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps {
   align?: "left" | "right";
@@ -61,7 +61,7 @@ export const TextSpan = (props: any) => <Text as="span" {...props} />;
 export const TextP = (props: any) => <Text as="p" {...props} />;
 export const TextS = (props: any) => <Text as="s" {...props} />;
 
-interface EllipsedTextProps extends TextProps, WidthProps, MaxWidthProps { }
+interface EllipsedTextProps extends TextProps, WidthProps, MaxWidthProps {}
 export const EllipsedText = styled(Text) <EllipsedTextProps>`
   white-space: nowrap;
   overflow: hidden;

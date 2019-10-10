@@ -38,7 +38,7 @@ class FileScanner<FSCtx : CommandRunner>(
             }
 
             backgroundScope.launch {
-                log.info("Producing events: ${events}")
+                log.info("Producing events: ${events.toString().take(120)}")
                 eventProducer.produce(events)
                 log.info("Events produced!")
             }.join()

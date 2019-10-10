@@ -28,6 +28,7 @@ import {ApplicationCardContainer, SlimApplicationCard} from "./Card";
 import * as Pages from "./Pages";
 import * as Actions from "./Redux/ViewActions";
 import * as ViewObject from "./Redux/ViewObject";
+import {match} from "react-router";
 
 interface MainContentProps {
     onFavorite?: () => void;
@@ -43,7 +44,7 @@ interface OperationProps {
 type StateProps = ViewObject.Type;
 
 interface OwnProps {
-    match: any;
+    match: match<{appName: string; appVersion: string}>;
 }
 
 type ViewProps = OperationProps & StateProps & OwnProps;
@@ -79,22 +80,24 @@ function View(props: ViewProps) {
     return (
         <LoadableMainContainer
             loadable={props.application}
-            main={
+            main={(
                 <ContainerForText left>
-                    <Box m={16}/>
+                    <Box m={16} />
                     <AppHeader application={application!} />
                     <Content
                         application={application!}
-                        previousVersions={props.previous.content} />
+                        previousVersions={props.previous.content}
+                    />
                 </ContainerForText>
-            }
+            )}
 
-            sidebar={
+            sidebar={(
                 <Sidebar
                     application={application!}
                     onFavorite={() => props.onFavorite(appName, appVersion)}
-                    favorite={props.favorite} />
-            }
+                    favorite={props.favorite}
+                />
+            )}
         />
     );
 }
@@ -130,19 +133,20 @@ export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boole
                 <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size} />
             </Box>
             <AppHeaderDetails>
-                {isSlim ?
+                {isSlim ? (
                     <Heading.h3>
                         {props.application.metadata.title} <small>({props.application.metadata.version})</small>
-                    </Heading.h3> :
-                    <>
-                        <Heading.h2>{props.application.metadata.title}</Heading.h2>
-                        <Heading.h3>v{props.application.metadata.version}</Heading.h3>
-                        <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
-                        <Heading.h6>
-                            <Tags tags={props.application.tags} />
-                        </Heading.h6>
-                    </>
-                }
+                    </Heading.h3>
+                ) : (
+                        <>
+                            <Heading.h2>{props.application.metadata.title}</Heading.h2>
+                            <Heading.h3>v{props.application.metadata.version}</Heading.h3>
+                            <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
+                            <Heading.h6>
+                                <Tags tags={props.application.tags} />
+                            </Heading.h6>
+                        </>
+                    )}
             </AppHeaderDetails>
         </AppHeaderBase>
     );
@@ -154,18 +158,19 @@ const Sidebar: React.FunctionComponent<MainContentProps> = props => (
             fullWidth
             onClick={() => {if (!!props.onFavorite) props.onFavorite();}}
             loadable={props.favorite as LoadableContent}
-            color="blue">
+            color="blue"
+        >
             {props.application.favorite ? "Remove from favorites" : "Add to favorites"}
         </ActionButton>
 
         <Link to={Pages.runApplication(props.application.metadata)}>
             <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
         </Link>
-        {!props.application.metadata.website ? null :
+        {!props.application.metadata.website ? null : (
             <ExternalLink href={props.application.metadata.website}>
                 <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
             </ExternalLink>
-        }
+        )}
     </VerticalButtonGroup>
 );
 
@@ -201,7 +206,7 @@ function Content(props: MainContentProps & {previousVersions?: Page<FullAppInfo>
 const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullAppInfo>}> = props => (
     <>
         {!props.previousVersions ? null :
-            (!props.previousVersions.items.length ? null :
+            (!props.previousVersions.items.length ? null : (
                 <div>
                     <Heading.h4>Other Versions</Heading.h4>
                     <ApplicationCardContainer>
@@ -210,7 +215,7 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullApp
                         ))}
                     </ApplicationCardContainer>
                 </div>
-            )
+            ))
         }
     </>
 );
@@ -235,15 +240,17 @@ const TagBase = styled.div`
 function Tags({tags}: {tags: string[]}) {
     if (!tags) return null;
 
-    return <div>
-        <TagBase>
-            {
-                tags.map(tag => (
-                    <TagStyle to={Pages.browseByTag(tag)}>{tag}</TagStyle>
-                ))
-            }
-        </TagBase>
-    </div>;
+    return (
+        <div>
+            <TagBase>
+                {
+                    tags.map(tag => (
+                        <TagStyle key={tag} to={Pages.browseByTag(tag)}>{tag}</TagStyle>
+                    ))
+                }
+            </TagBase>
+        </div>
+    );
 }
 
 function InfoAttribute(props: {
@@ -251,11 +258,13 @@ function InfoAttribute(props: {
     value?: string,
     children?: JSX.Element
 }) {
-    return <Box mb={8} mr={32}>
-        <Heading.h5>{props.name}</Heading.h5>
-        {props.value}
-        {props.children}
-    </Box>;
+    return (
+        <Box mb={8} mr={32}>
+            <Heading.h5>{props.name}</Heading.h5>
+            {props.value}
+            {props.children}
+        </Box>
+    );
 }
 
 export const pad = (value: string | number, length: number) =>
@@ -271,31 +280,38 @@ function Information({application}: {application: WithAppMetadata & WithAppInvoc
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
     const backend = application.invocation.tool.tool.description.backend;
     const license = application.invocation.tool.tool.description.license;
-    return <>
-        <Heading.h4>Information</Heading.h4>
+    return (
+        <>
+            <Heading.h4>Information</Heading.h4>
 
-        <InfoAttributes>
-            <InfoAttribute
-                name="Release Date"
-                value={dateToString(application.invocation.tool.tool.createdAt)} />
+            <InfoAttributes>
+                <InfoAttribute
+                    name="Release Date"
+                    value={dateToString(application.invocation.tool.tool.createdAt)}
+                />
 
-            <InfoAttribute
-                name="Default Time Allocation"
-                value={timeString} />
+                <InfoAttribute
+                    name="Default Time Allocation"
+                    value={timeString}
+                />
 
-            <InfoAttribute
-                name="Default Nodes"
-                value={`${application.invocation.tool.tool.description.defaultNumberOfNodes}`} />
+                <InfoAttribute
+                    name="Default Nodes"
+                    value={`${application.invocation.tool.tool.description.defaultNumberOfNodes}`}
+                />
 
-            <InfoAttribute
-                name="Container Type"
-                value={capitalized(backend)} />
+                <InfoAttribute
+                    name="Container Type"
+                    value={capitalized(backend)}
+                />
 
-            <InfoAttribute
-                name="License"
-                value={license} />
-        </InfoAttributes>
-    </>;
+                <InfoAttribute
+                    name="License"
+                    value={license}
+                />
+            </InfoAttributes>
+        </>
+    );
 }
 
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAction>): OperationProps => ({

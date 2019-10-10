@@ -25,7 +25,7 @@ export const getQueryParamOrElse = (
     return result ? result : defaultValue;
 };
 
-export const buildQueryString = (path: string, params: any): string => {
+export const buildQueryString = <T>(path: string, params: T): string => {
     const builtParams = Object.entries(params).map(
         pair => {
             const [key, val] = pair;

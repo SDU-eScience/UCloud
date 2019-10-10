@@ -28,10 +28,6 @@ Table.defaultProps = {
     minWidth: "15em"
 };
 
-export const TableBody = styled.tbody``;
-
-TableBody.displayName = "TableBody";
-
 export const TableCell = styled.td<TextAlignProps>`
     border: 0px;
     border-spacing: 0;
@@ -40,11 +36,11 @@ export const TableCell = styled.td<TextAlignProps>`
 
 TableCell.displayName = "TableCell";
 
-const highlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) =>
+const isHighlighted = ({highlighted, theme}: {highlighted?: boolean, theme: Theme}) =>
     highlighted ? {backgroundColor: theme.colors.tableRowHighlight} : null;
 
 export const TableRow = styled.tr<{highlighted?: boolean, contentAlign?: string, cursor?: Cursor} & ColorProps>`
-    ${highlighted};
+    ${isHighlighted};
     cursor: ${props => props.cursor};
 
     & > ${TableCell} {

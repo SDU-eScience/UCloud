@@ -20,6 +20,7 @@ import {Upload} from "Uploader";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {calculateUploadSpeed} from "Uploader/Uploader";
 import {sizeToHumanReadableWithUnit} from "Utilities/FileUtilities";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 interface BackgroundTaskProps {
@@ -102,7 +103,7 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                 width={"600px"}
                 left={"-400px"}
                 top={"37px"}
-                trigger={<TasksIcon/>}
+                trigger={<TasksIcon />}
             >
                 {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
                 {!props.tasks ? null :
@@ -121,8 +122,13 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                 }
             </ClickableDropdown>
 
-            <ReactModal isOpen={!!hasTaskInFocus} onRequestClose={onDetailedClose} ariaHideApp={false}>
-                {!hasTaskInFocus ? null : <DetailedTask taskId={taskInFocus!}/>}
+            <ReactModal
+                style={defaultModalStyle}
+                isOpen={!!hasTaskInFocus}
+                onRequestClose={onDetailedClose}
+                ariaHideApp={false}
+            >
+                {!hasTaskInFocus ? null : <DetailedTask taskId={taskInFocus!} />}
             </ReactModal>
         </>
     );
@@ -155,7 +161,7 @@ const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
 
             <Box flexGrow={1}>
                 {!props.progress ?
-                    <IndeterminateProgressBar color={"green"} label={label}/> :
+                    <IndeterminateProgressBar color={"green"} label={label} /> :
 
                     (
                         <ProgressBar
@@ -206,6 +212,6 @@ const mapDispatchToProps = (dispatch: Dispatch) => ({
     }
 });
 
-const TasksIcon = () => <TasksIconBase name="notchedCircle"/>;
+const TasksIcon = () => <TasksIconBase name="notchedCircle" />;
 
 export default connect(mapStateToProps, mapDispatchToProps)(BackgroundTasks);

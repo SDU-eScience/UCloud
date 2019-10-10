@@ -3,6 +3,7 @@ package dk.sdu.cloud.indexing
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.indexing.api.IndexingServiceDescription
 import dk.sdu.cloud.micro.ElasticFeature
+import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.initWithDefaultFeatures
@@ -16,6 +17,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(IndexingServiceDescription, args)
         install(RefreshingJWTCloudFeature)
         install(ElasticFeature)
+        install(HibernateFeature)
     }
 
     if (micro.runScriptHandler()) return

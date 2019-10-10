@@ -103,7 +103,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
                 <DashboardFavoriteFiles
                     files={favoriteFiles}
                     isLoading={favoriteLoading}
-                    favorite={file => favoriteOrUnfavorite(file)}
+                    favorite={favoriteOrUnfavorite}
                 />
 
                 <DashboardRecentFiles

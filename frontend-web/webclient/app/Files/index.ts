@@ -9,7 +9,14 @@ export enum SortOrder {
     DESCENDING = "DESCENDING"
 }
 
-export type FileType = "FILE" | "DIRECTORY" | "FAVFOLDER" | "SHARESFOLDER" | "TRASHFOLDER" | "FSFOLDER" | "RESULTFOLDER" |
+export type FileType = |
+    "FILE" |
+    "DIRECTORY" |
+    "FAVFOLDER" |
+    "SHARESFOLDER" |
+    "TRASHFOLDER" |
+    "FSFOLDER" |
+    "RESULTFOLDER" |
     "SHARED_FS";
 
 export interface File {
@@ -204,7 +211,7 @@ export interface SortByDropdownProps {
     isSortedBy: boolean;
 }
 
-export type FileOperation = Operation<File> | PredicatedOperation<File>
+export type FileOperation = Operation<File> | PredicatedOperation<File>;
 
 export interface ContextButtonsProps {
     createFolder: () => void;
@@ -251,7 +258,7 @@ export interface DetailedFileSearchReduxState {
     loading: boolean;
 }
 
-export type ContextBarProps = ContextButtonsProps & FileOptionsProps & {invalidPath: boolean}
+export type ContextBarProps = ContextButtonsProps & FileOptionsProps & {invalidPath: boolean};
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 

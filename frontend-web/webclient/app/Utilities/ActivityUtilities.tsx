@@ -1,9 +1,14 @@
-import { buildQueryString } from "./URIUtilities";
-import { ScrollRequest } from "Scroll";
-import { ActivityFilter } from "Activity";
+import {ActivityFilter} from "Activity";
+import {ScrollRequest} from "Scroll";
+import {buildQueryString} from "./URIUtilities";
+
+interface ParamsType extends Omit<ActivityFilter, "maxTimestamp" | "minTimestamp">, Partial<ScrollRequest<number>> {
+    maxTimestamp?: number;
+    minTimestamp?: number;
+}
 
 export const activityQuery = (scroll: ScrollRequest<number>, filter?: ActivityFilter) => {
-    let params: any = {};
+    const params: ParamsType = {};
     if (!!scroll.offset) params.offset = scroll.offset;
     params.scrollSize = scroll.scrollSize;
 

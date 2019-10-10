@@ -1,17 +1,16 @@
-import * as React from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {loadingEvent} from "LoadableContent";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import {Page} from "Types";
-import {WithAppMetadata, FullAppInfo} from ".";
+import * as React from "react";
 import {Dispatch} from "redux";
 import {ReduxObject, emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
-import {ApplicationCard, CardToolContainer, SmallCard, hashF, Tag} from "./Card";
-import * as Heading from "ui-components/Heading";
+import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import {Link, Box, Flex} from "ui-components";
+import * as Heading from "ui-components/Heading";
 import Grid from "ui-components/Grid";
 import {getQueryParam, RouterLocationProps, getQueryParamOrElse} from "Utilities/URIUtilities";
 import * as Pages from "./Pages";
@@ -23,9 +22,10 @@ import {Spacer} from "ui-components/Spacer";
 import theme from "ui-components/theme";
 import {connect} from "react-redux";
 import styled from "styled-components";
-import { EllipsedText } from "ui-components/Text";
+import {EllipsedText} from "ui-components/Text";
+import {FullAppInfo, WithAppMetadata} from ".";
 import Installed from "./Installed";
-import { useState, useEffect } from "react";
+import {useState, useEffect} from "react";
 
 
 const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
@@ -67,13 +67,8 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
     public async componentDidMount() {
         const {props} = this;
         props.onInit();
-
-        this.props.receiveAppsByKey(25, 0, "Featured");
-        this.state.defaultTags.forEach(tag => this.props.receiveAppsByKey(25, 0, tag));
-
         this.fetch();
         props.setRefresh(() => this.fetch());
-
     }
 
     public componentDidUpdate(prevProps: ApplicationsProps) {
@@ -88,17 +83,25 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
 
     public render() {
         const {applications} = this.props;
-        const featured = applications.has("Featured") ? applications.get("Featured") : emptyPage;
+        const featured = applications.has("Featured") ? applications.get("Featured")! : emptyPage;
         const main = (
             <>
                 <Installed header={null} />
                 <Pagination.List
                     loading={this.props.loading}
-                    pageRenderer={(page: Page<FullAppInfo>) =>
+                    pageRenderer={page => (
                         <>
-                            <Box>
-                                <Spacer pt="15px" left={<Heading.h2>Featured</Heading.h2>} right={<ShowAllTagItem tag="Featured"><Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4></ShowAllTagItem>} />
-                            </Box>
+                            <div>
+                                <Spacer
+                                    pt="15px"
+                                    left={<Heading.h2>Featured</Heading.h2>}
+                                    right={(
+                                        <ShowAllTagItem tag="Featured">
+                                            <Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4>
+                                        </ShowAllTagItem>)
+                                    }
+                                />
+                            </div>
                             <Box pl="10px" pb="5px" style={{overflow: "none", overflowX: "scroll"}}>
                                 <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{gridAutoFlow: "column"}}>
                                     {page.items.map((app, index) =>
@@ -117,13 +120,12 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                     )}
                                 </Grid>
                             </Box>
-
                         </>
-                    }
-                    page={featured!}
+                    )}
+                    page={featured}
                     onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
                 />
-                {this.state.defaultTags.map(tag => <ToolGroup tag={tag} />)}
+                {this.state.defaultTags.map(tag => <ToolGroup key={tag} tag={tag} />)}
             </>
         );
         return (
@@ -133,8 +135,14 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         );
     }
 
-    private pageNumber(props: ApplicationsProps = this.props): number {
-        return parseInt(getQueryParamOrElse(props, "page", "0"), 10);
+    private fetch() {
+        const featured = this.props.applications.has("Featured") ? this.props.applications.get("Featured")! : emptyPage;
+        this.props.receiveAppsByKey(featured.itemsPerPage, featured.pageNumber, "Featured");
+        this.state.defaultTags.forEach(tag => {
+            const page = this.props.applications.has(tag) ? this.props.applications.get(tag)! : emptyPage;
+            this.props.receiveAppsByKey(page.itemsPerPage, page.pageNumber, tag);
+        });
+
     }
 
     private itemsPerPage(props: ApplicationsProps = this.props): number {
@@ -145,25 +153,12 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         return getQueryParam(props, "tag");
     }
 
-
     private updatePage(newPage: number): string {
         const tag = this.tag();
         if (tag === null) {
             return Pages.browse(this.itemsPerPage(), newPage);
         } else {
             return Pages.browseByTag(tag, this.itemsPerPage(), newPage);
-        }
-    }
-
-    private fetch() {
-        const itemsPerPage = this.itemsPerPage(this.props);
-        const pageNumber = this.pageNumber(this.props);
-        const tag = this.tag(this.props);
-
-        if (tag === null) {
-            this.props.fetchDefault(itemsPerPage, pageNumber);
-        } else {
-            this.props.fetchByTag(tag, itemsPerPage, pageNumber);
         }
     }
 }
@@ -181,34 +176,53 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
     useEffect(() => setLoadedImage(true));
     return (
         <CardToolContainer appImage={url} mt="30px">
-            {<Spacer alignItems={"center"} left={<Heading.h3> {props.tag} </Heading.h3>} right={<ShowAllTagItem tag={props.tag} ><Heading.h5><strong> Show All</strong></Heading.h5></ShowAllTagItem>} />}
+            <Spacer
+                alignItems={"center"}
+                left={<Heading.h3> {props.tag} </Heading.h3>}
+                right={<ShowAllTagItem tag={props.tag} ><Heading.h5><strong> Show All</strong></Heading.h5></ShowAllTagItem>}
+            />
             <ScrollBox>
-                <Grid py="10px" pl="10px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="8px" gridAutoFlow="column">
+                <Grid
+                    py="10px"
+                    pl="10px"
+                    gridTemplateRows="repeat(2, 1fr)"
+                    gridTemplateColumns="repeat(9, 1fr)"
+                    gridGap="8px"
+                    gridAutoFlow="column"
+                >
                     {props.page.items.map(application => {
                         const [first, second, third] = getColorFromName(application.metadata.name);
                         const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
-                        return <div key={application.metadata.name}>
-                            <SmallCard title={withoutTag} color1={first} color2={second} color3={third} to={Pages.viewApplication(application.metadata)} color={`white`}>
-                                <EllipsedText >{withoutTag}</EllipsedText>
-                            </SmallCard>
-
-                        </div>
+                        return (
+                            <div key={application.metadata.name}>
+                                <SmallCard
+                                    title={withoutTag}
+                                    color1={first}
+                                    color2={second}
+                                    color3={third}
+                                    to={Pages.viewApplication(application.metadata)}
+                                    color={`white`}
+                                >
+                                    <EllipsedText>{withoutTag}</EllipsedText>
+                                </SmallCard>
+                            </div>
+                        );
                     })}
                 </Grid>
             </ScrollBox>
-            <Flex mt={"5px"} flexDirection={"row"} alignItems={"flex-start"} >
-                {[...tags].filter(it => it !== props.tag).map(tag => (<Tag label={tag} />))}
+            <Flex mt="14px" flexDirection={"row"} alignItems={"flex-start"} >
+                {[...tags].filter(it => it !== props.tag).map(tag => (<Tag key={tag} label={tag} />))}
             </Flex>
         </CardToolContainer>
-    )
-}
+    );
+};
 
 
 
 function removeTagFromTitle(tag: string, title: string) {
     if (title.startsWith(tag)) {
-        const titlenew = title.replace(/homerTools/g, '')
-        if (titlenew.endsWith('pl')) {
+        const titlenew = title.replace(/homerTools/g, "");
+        if (titlenew.endsWith("pl")) {
             return (
                 titlenew.slice(tag.length + 2, -3)
             );
@@ -218,7 +232,7 @@ function removeTagFromTitle(tag: string, title: string) {
             );
         }
     } else {
-        return title
+        return title;
     }
 }
 
@@ -227,9 +241,9 @@ const mapToolGroupStateToProps = ({applicationsBrowse}: ReduxObject, ownProps: {
     const page = applications.get(ownProps.tag);
     if (page != null) return {page};
     return {page: emptyPage};
-}
+};
 
-const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_)
+const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_);
 
 const mapDispatchToProps = (
     dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>

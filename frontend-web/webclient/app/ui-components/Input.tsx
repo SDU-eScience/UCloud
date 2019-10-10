@@ -12,7 +12,7 @@ export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, 
   const borderColor = color ? theme.colors[color] : theme.colors.borderGray;
   const focusColor = color ? borderColor : theme.colors.blue;
   return {
-    "border-width": theme.borderWidth, 
+    "border-width": theme.borderWidth,
     "border-color": borderColor,
     "border-style": "solid",
     ":focus": {

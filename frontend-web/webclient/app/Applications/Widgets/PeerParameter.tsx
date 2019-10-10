@@ -48,28 +48,30 @@ interface AdditionalPeerParameterProps {
 }
 
 export const AdditionalPeerParameter: React.FunctionComponent<AdditionalPeerParameterProps> = props => {
-    return <Flex mb={8}>
-        <Box>
-            <Label>
-                {props.hideLabels ? null : <>Hostname <MandatoryField/></>}
-            </Label>
-            <Input placeholder={"Example: spark-cluster"} ref={props.nameRef}/>
-        </Box>
+    return (
+        <Flex mb={8}>
+            <div>
+                <Label>
+                    {props.hideLabels ? null : <>Hostname <MandatoryField /></>}
+                </Label>
+                <Input placeholder={"Example: spark-cluster"} ref={props.nameRef} />
+            </div>
 
-        <Box flexGrow={1} ml={2}>
-            <Label>
-                {props.hideLabels ? null : <>Job <MandatoryField/></>}
-            </Label>
-            <JobSelector parameterRef={props.jobIdRef} suggestedApplication={null}/>
-        </Box>
+            <Box flexGrow={1} ml={2}>
+                <Label>
+                    {props.hideLabels ? null : <>Job <MandatoryField /></>}
+                </Label>
+                <JobSelector parameterRef={props.jobIdRef} suggestedApplication={null} />
+            </Box>
 
-        <Box ml={2}>
-            <Label>
-                {props.hideLabels ? null : <br/>}
-            </Label>
-            <Button color={"red"} height={"42px"} onClick={() => props.onRemove()}><Icon name="close" size="1em"/></Button>
-        </Box>
-    </Flex>;
+            <Box ml={2}>
+                <Label>
+                    {props.hideLabels ? null : <br />}
+                </Label>
+                <Button color={"red"} height={"42px"} onClick={() => props.onRemove()}><Icon name="close" size="1em" /></Button>
+            </Box>
+        </Flex>
+    );
 };
 
 interface JobSelectorProps {
@@ -156,12 +158,12 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             ariaHideApp={false}
             style={defaultModalStyle}
         >
-            <Box>
+            <div>
                 <Flex alignItems={"center"}>
                     <Box flexGrow={1}>
                         <Heading.h3>Jobs</Heading.h3>
                     </Box>
-                    <Box>
+                    <div>
                         {!(peerParams.parameters && peerParams.parameters.application) ? null :
                             <OutlineButton
                                 type={"button"}
@@ -181,9 +183,9 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                             spin={availablePeers.loading}
                             onClick={() => fetchAvailablePeers(listJobs(peerParams.parameters!))}
                         />
-                    </Box>
+                    </div>
                 </Flex>
-                <Divider/>
+                <Divider />
 
                 <Pagination.List
                     page={availablePeers.data}
@@ -204,7 +206,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                                     {item.metadata.title}
                                     {" "}
                                     ({item.name ? item.name : shortUUID(item.jobId)})
-                                    <br/>
+                                    <br />
                                     {dateToString(item.createdAt)}
                                 </Box>
                                 <Button
@@ -220,7 +222,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                         ));
                     }}
                 />
-            </Box>
+            </div>
         </ReactModal>
     </>;
 };

@@ -1,9 +1,8 @@
 import * as React from "react";
 import styled from "styled-components";
-import {color, ColorProps, space, SpaceProps, width, WidthProps} from "styled-system";
+import {color, ColorProps, space, SpaceProps} from "styled-system";
 import {extensionType, FtIconProps as UFFtIconProps} from "UtilityFunctions";
 import Icon from "./Icon";
-import Text from "./Text";
 import theme from "./theme";
 import {Cursor} from "./Types";
 
@@ -47,7 +46,11 @@ const SvgFtLabel = ({hasExt, ext, type}: {hasExt: boolean, ext: string, type: st
         fill={color3}
       // fillRule="nonzero"
       />
-      <text textAnchor="middle" x="21.5" y="53" fill="#fff"
+      <text
+        textAnchor="middle"
+        x="21.5"
+        y="53"
+        fill="#fff"
         style={{
           fontSize: "15px",
           textTransform: "uppercase",
@@ -71,22 +74,34 @@ const SvgFtType = ({type}: {type: string}) => {
           <circle cx={639} cy={571} r={6} transform="translate(-629 -561)" fill="#ffd900" />
           {/* Cloud */}
           <ellipse
-            cx={646.5} cy={569} rx={3.5} ry={3}
+            cx={646.5}
+            cy={569}
+            rx={3.5}
+            ry={3}
             transform="translate(-624.5 -551.143)"
             fill="#87c7ff"
           />
           <ellipse
-            cx={648.5} cy={566.429} rx={3.5} ry={2.571}
+            cx={648.5}
+            cy={566.429}
+            rx={3.5}
+            ry={2.571}
             transform="translate(-623 -551.286)"
             fill="#87c7ff"
           />
           <ellipse
-            cx={650} cy={570.429} rx={3} ry={2.571}
+            cx={650}
+            cy={570.429}
+            rx={3}
+            ry={2.571}
             transform="translate(-623 -551)"
             fill="#87c7ff"
           />
           <ellipse
-            cx={654} cy={568.571} rx={3} ry={2.571}
+            cx={654}
+            cy={568.571}
+            rx={3}
+            ry={2.571}
             transform="translate(-624 -551.286)"
             fill="#87c7ff"
           />
@@ -192,15 +207,6 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
   </svg>
 );
 
-type FtLabelProps = WidthProps;
-const FtLabel = styled(Text) <FtLabelProps>`
-    position: absolute;
-    bottom: 1px;
-    text-align:center;
-    vertical-align: middle;
-    ${width}
-`;
-
 const FtIconBase = ({fileIcon, size, theme, ...props}): JSX.Element => {
   const hasExt = fileIcon.ext ? true : false;
   const ext4 = hasExt ? fileIcon.ext.substring(0, 4) : undefined;
@@ -218,16 +224,23 @@ const FtIconBase = ({fileIcon, size, theme, ...props}): JSX.Element => {
     case "FSFOLDER":
       return (<Icon name={"ftFsFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
     case "SHARED_FS":
-        return (<Icon name={"ftFileSystem"} size={size} color={"FtFolderColor"} color2={"white"} />);
+      return (<Icon name={"ftFileSystem"} size={size} color={"FtFolderColor"} color2={"white"} />);
     case "DIRECTORY":
       return (<Icon name={"ftFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
   }
 
   /* fileIcon.type should be "FILE" at this point */
   return (
-    <SvgFt width={size} height={size}
-      color={theme.colors["FtIconColor"]} color2={theme.colors["FtIconColor2"]}
-      hasExt={hasExt} ext={ext4} type={type} {...props} />
+    <SvgFt
+      width={size}
+      height={size}
+      color={theme.colors.FtIconColor}
+      color2={theme.colors.FtIconColor2}
+      hasExt={hasExt}
+      ext={ext4}
+      type={type}
+      {...props}
+    />
   );
 };
 

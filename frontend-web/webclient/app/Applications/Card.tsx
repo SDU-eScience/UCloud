@@ -228,7 +228,8 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLog
 
     return (
         <svg
-            width={size} height={size}
+            width={size}
+            height={size}
             viewBox={`-1 -${s32} 2 ${2 * s32}`}
             fillRule="evenodd"
             clipRule="evenodd"
@@ -307,11 +308,11 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     const {metadata} = app;
     const appC = appColor(hash);
     return (
-        <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)} hoverColor={null}>
+        <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <AbsoluteNoPointerEvents right={0} top={0} cursor="inherit">
                 <AppBg_triangle {...bgGradients[appC]} />
             </AbsoluteNoPointerEvents>
-            {(!onFavorite && !isFavorite) ? null :
+            {(!onFavorite && !isFavorite) ? null : (
                 <AppRibbonContainer
                     cursor="inherit"
                     right={0}
@@ -321,7 +322,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 >
                     <Icon name={"starRibbon"} color="red" size={48} />
                 </AppRibbonContainer>
-            }
+            )}
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
                 <AppToolLogo name={app.metadata.name} type={"APPLICATION"} size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">

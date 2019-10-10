@@ -6,7 +6,7 @@ import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
-import {loadingAction} from "Loading";
+import {loadingAction, LoadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -32,9 +32,8 @@ interface ToolOperations {
     setLoading: (loading: boolean) => void;
 }
 
-const Tool: React.FunctionComponent<RouteComponentProps & ToolOperations> = props => {
-    // tslint:disable-next-line
-    const name = props.match.params["name"];
+const Tool: React.FunctionComponent<RouteComponentProps<{name: string}> & ToolOperations> = props => {
+    const name = props.match.params.name;
     if (Cloud.userRole !== "ADMIN") return null;
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
@@ -63,92 +62,95 @@ const Tool: React.FunctionComponent<RouteComponentProps & ToolOperations> = prop
         props.setLoading(commandLoading || tool.loading || apps.loading);
     }, [commandLoading, tool.loading, apps.loading]);
 
-    return <MainContainer
-        header={
-            <Heading.h1>
-                <AppToolLogo type={"TOOL"} name={name} cacheBust={logoCacheBust} size={"64px"}/>
-                {" "}
-                {toolTitle}
-            </Heading.h1>
-        }
+    return (
+        <MainContainer
+            header={(
+                <Heading.h1>
+                    <AppToolLogo type={"TOOL"} name={name} cacheBust={logoCacheBust} size={"64px"} />
+                    {" "}
+                    {toolTitle}
+                </Heading.h1>
+            )}
 
-        sidebar={
-            <VerticalButtonGroup>
-                <Button fullWidth as="label">
-                    Upload Logo
+            sidebar={(
+                <VerticalButtonGroup>
+                    <Button fullWidth as="label">
+                        Upload Logo
                     <HiddenInputField
-                        type="file"
-                        onChange={async e => {
-                            const target = e.target;
-                            if (target.files) {
-                                const file = target.files[0];
-                                target.value = "";
-                                if (file.size > 1024 * 512) {
-                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
-                                } else {
-                                    if (await uploadLogo({name, file, type: "TOOL"})) {
-                                        setLogoCacheBust("" + Date.now());
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                    } else {
+                                        if (await uploadLogo({name, file, type: "TOOL"})) {
+                                            setLogoCacheBust("" + Date.now());
+                                        }
                                     }
+                                    dialogStore.success();
                                 }
-                                dialogStore.success();
-                            }
-                        }}/>
-                </Button>
+                            }} />
+                    </Button>
 
-                <Button
-                    type={"button"}
-                    color={"red"}
-                    disabled={commandLoading}
-                    onClick={async () => {
-                        await invokeCommand(clearLogo({type: "TOOL", name}));
-                        setLogoCacheBust("" + Date.now());
-                    }}
-                >
-                    Remove Logo
-                </Button>
-            </VerticalButtonGroup>
-        }
+                    <Button
+                        type={"button"}
+                        color={"red"}
+                        disabled={commandLoading}
+                        onClick={async () => {
+                            await invokeCommand(clearLogo({type: "TOOL", name}));
+                            setLogoCacheBust("" + Date.now());
+                        }}
+                    >
+                        Remove Logo
+                    </Button>
+                </VerticalButtonGroup>
+            )}
 
-        main={
-            <>
-                The following applications are currently using this tool, click on any to configure them further:
+            main={(
+                <>
+                    The following applications are currently using this tool, click on any to configure them further:
 
-                <Pagination.List
-                    loading={apps.loading}
-                    page={apps.data}
-                    onPageChanged={newPage =>
-                        setAppParameters(listApplicationsByTool({...appParameters.parameters, page: newPage}))
-                    }
+                    <Pagination.List
+                        loading={apps.loading}
+                        page={apps.data}
+                        onPageChanged={newPage =>
+                            setAppParameters(listApplicationsByTool({...appParameters.parameters, page: newPage}))
+                        }
 
-                    pageRenderer={page => {
-                        return <Flex justifyContent={"center"} flexWrap={"wrap"}>
-                            {
-                                page.items.map(app => (
-                                    <SmallAppToolCard to={`/applications/studio/a/${app.metadata.name}`}>
+                        pageRenderer={page => (
+                            <Flex justifyContent={"center"} flexWrap={"wrap"}>
+                                {page.items.map(({metadata}) => (
+                                    <SmallAppToolCard
+                                        key={`${metadata.name}/${metadata.version}`}
+                                        to={`/applications/studio/a/${metadata.name}`}
+                                    >
                                         <Flex>
-                                            <AppToolLogo name={app.metadata.name} type={"APPLICATION"}
-                                                         cacheBust={logoCacheBust}/>
+                                            <AppToolLogo name={metadata.name} type={"APPLICATION"}
+                                                cacheBust={logoCacheBust} />
                                             <Box ml={8}>
                                                 <Truncate width={300} cursor={"pointer"}>
                                                     <b>
-                                                        {app.metadata.title}
+                                                        {metadata.title}
                                                     </b>
                                                 </Truncate>
                                             </Box>
                                         </Flex>
                                     </SmallAppToolCard>
-                                ))
-                            }
-                        </Flex>;
-                    }}
-                />
-            </>
-        }
-    />;
+                                ))}
+                            </Flex>
+                        )}
+                    />
+                </>
+            )}
+        />
+    );
 };
 
 const mapDispatchToProps = (
-    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
+    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | LoadingAction>
 ): ToolOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Application Studio/Tools"));

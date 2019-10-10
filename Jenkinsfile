@@ -1,3 +1,7 @@
+properties([
+    buildDiscarder(logRotator(numToKeepStr: '30')),
+])
+
 def label = "worker-${UUID.randomUUID().toString()}"
 
 podTemplate(label: label, containers: [
