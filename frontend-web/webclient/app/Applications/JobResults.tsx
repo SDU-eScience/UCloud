@@ -241,24 +241,26 @@ function JobResults(props: AnalysesProps & {history: History}) {
         <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
     </Box>);
 
-    return (<MainContainer
-        header={
-            <Spacer
-                left={null}
-                right={
-                    <EntriesPerPageSelector
-                        content="Jobs per page"
-                        entriesPerPage={page.itemsPerPage}
-                        onChange={items => fetchJobs({itemsPerPage: items})}
-                    />
-                }
-            />
-        }
-        headerSize={48}
-        sidebarSize={340}
-        main={content}
-        sidebar={sidebar}
-    />);
+    return (
+        <MainContainer
+            header={
+                <Spacer
+                    left={null}
+                    right={
+                        <EntriesPerPageSelector
+                            content="Jobs per page"
+                            entriesPerPage={page.itemsPerPage}
+                            onChange={items => fetchJobs({itemsPerPage: items})}
+                        />
+                    }
+                />
+            }
+            headerSize={48}
+            sidebarSize={340}
+            main={content}
+            sidebar={sidebar}
+        />
+    );
 }
 
 interface AnalysisOperationsProps {
@@ -268,22 +270,27 @@ interface AnalysisOperationsProps {
 
 const AnalysisOperations = ({cancelableAnalyses, onFinished}: AnalysisOperationsProps) =>
     cancelableAnalyses.length === 0 ? null : (
-        <Button fullWidth color="red" onClick={() => cancelJobDialog({
-            jobCount: cancelableAnalyses.length,
-            jobId: cancelableAnalyses[0].jobId,
-            onConfirm: async () => {
-                try {
-                    await Promise.all(cancelableAnalyses.map(a => cancelJob(Cloud, a.jobId)));
-                    snackbarStore.addSnack({type: SnackType.Success, message: "Jobs cancelled"});
-                } catch (e) {
-                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));
-                } finally {
-                    onFinished();
+        <Button
+            fullWidth
+            color="red"
+            onClick={() => cancelJobDialog({
+                jobCount: cancelableAnalyses.length,
+                jobId: cancelableAnalyses[0].jobId,
+                onConfirm: async () => {
+                    try {
+                        await Promise.all(cancelableAnalyses.map(a => cancelJob(Cloud, a.jobId)));
+                        snackbarStore.addSnack({type: SnackType.Success, message: "Jobs cancelled"});
+                    } catch (e) {
+                        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));
+                    } finally {
+                        onFinished();
+                    }
                 }
-            }
-        })}>
+            })}
+        >
             Cancel selected ({cancelableAnalyses.length}) jobs
-    </Button>);
+        </Button>
+    );
 
 interface HeaderProps {
     hide: boolean;
@@ -311,11 +318,12 @@ const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProp
                 <Arrow sortBy={RunsSortBy.application} activeSortBy={sortBy} order={sortOrder} />
                 Application
             </JobResultsHeaderCell>
-            {hide ? null :
+            {hide ? null : (
                 <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.createdAt)}>
                     <Arrow sortBy={RunsSortBy.createdAt} activeSortBy={sortBy} order={sortOrder} />
                     Created at
-                </JobResultsHeaderCell>}
+                </JobResultsHeaderCell>
+            )}
             <JobResultsHeaderCell pointer textAlign="left" onClick={() => fetchJobs(RunsSortBy.lastUpdate)}>
                 <Arrow sortBy={RunsSortBy.lastUpdate} activeSortBy={sortBy} order={sortOrder} />
                 Expiration
@@ -341,14 +349,17 @@ const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) 
             <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
-            {hide ? null : <TableCell onClick={to}>
-                {capitalized(formatRelative(analysis.createdAt, new Date(), {locale: enGB}))}
-            </TableCell>}
+            {hide ? null : (
+                <TableCell onClick={to}>
+                    {capitalized(formatRelative(analysis.createdAt, new Date(), {locale: enGB}))}
+                </TableCell>
+            )}
             <TableCell onClick={to}>
                 {!!analysis.expiresAt && analysis.state === JobState.RUNNING ?
                     capitalized(formatRelative(analysis.expiresAt, new Date(), {locale: enGB})) : "N/A"}
             </TableCell>
-        </TableRow>);
+        </TableRow>
+    );
 };
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({

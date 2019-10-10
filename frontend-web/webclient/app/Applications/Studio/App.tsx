@@ -95,7 +95,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     }
                                     dialogStore.success();
                                 }
-                            }} />
+                            }}
+                    />
                     </Button>
 
                     <Button

@@ -1,21 +1,14 @@
 import * as CSS from "csstype";
 import * as React from "react";
 import styled from "styled-components";
-import {color, ColorProps, ResponsiveValue, space, SpaceProps, style} from "styled-system";
+import {color, ResponsiveValue, space, SpaceProps, style} from "styled-system";
 import Bug from "./Bug";
 import * as icons from "./icons";
-import theme, {Theme, ThemeColor} from "./theme";
+import theme, {Theme} from "./theme";
 import {Cursor} from "./Types";
 
-export interface IconBaseProps extends React.SVGAttributes<HTMLDivElement> {
-  size?: string | number;
-  theme: Theme;
-  color2?: ThemeColor;
-  spin?: boolean;
-  name: string;
-}
 
-const IconBase = ({name, size, theme, color2, ...props}: IconBaseProps): JSX.Element => {
+const IconBase = ({name, size, theme, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
   const key = 0;
   let Component = icons[name];
   if (!Component) {
@@ -39,14 +32,17 @@ const IconBase = ({name, size, theme, color2, ...props}: IconBaseProps): JSX.Ele
 const hoverColor = style({
   prop: "hoverColor",
   cssProperty: "color",
-  key: "colors"
+  key: "colors",
 });
-export interface IconProps extends SpaceProps, ColorProps {
+
+export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivElement> {
   name: IconName | "bug";
   color?: string;
   color2?: string;
   rotation?: number;
+  theme: Theme;
   cursor?: Cursor;
+  size?: string | number;
   spin?: boolean;
   hoverColor?: ResponsiveValue<CSS.ColorProperty>;
   title?: string;
@@ -60,7 +56,7 @@ const spin = (props: {spin?: boolean}) => props.spin ? `
   }
 ` : null;
 
-const Icon = styled(IconBase) <IconProps>`
+const Icon = styled(IconBase) <IconBaseProps>`
   flex: none;
   vertical-align: middle;
   cursor: ${props => props.cursor};
