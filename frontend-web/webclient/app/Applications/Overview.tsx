@@ -1,31 +1,31 @@
 import {Cloud} from "Authentication/SDUCloudObject";
+import {emptyPage, ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
+import {MainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
-import {Page} from "Types";
+import {useEffect, useState} from "react";
 import * as React from "react";
+import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {ReduxObject, emptyPage} from "DefaultObjects";
-import {MainContainer} from "MainContainer/MainContainer";
-import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
-import {Link, Box, Flex} from "ui-components";
-import * as Heading from "ui-components/Heading";
+import styled from "styled-components";
+import {Page} from "Types";
+import {Box, Flex, Link} from "ui-components";
 import Grid from "ui-components/Grid";
-import {getQueryParam, RouterLocationProps, getQueryParamOrElse} from "Utilities/URIUtilities";
-import * as Pages from "./Pages";
-import {Type as ReduxType} from "./Redux/BrowseObject";
-import * as Actions from "./Redux/BrowseActions";
-import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
+import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
-import theme from "ui-components/theme";
-import {connect} from "react-redux";
-import styled from "styled-components";
 import {EllipsedText} from "ui-components/Text";
+import theme from "ui-components/theme";
+import {favoriteApplicationFromPage, toolImageQuery} from "Utilities/ApplicationUtilities";
+import {getQueryParam, getQueryParamOrElse, RouterLocationProps, } from "Utilities/URIUtilities";
 import {FullAppInfo, WithAppMetadata} from ".";
+import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import Installed from "./Installed";
-import {useState, useEffect} from "react";
+import * as Pages from "./Pages";
+import * as Actions from "./Redux/BrowseActions";
+import {Type as ReduxType} from "./Redux/BrowseObject";
 
 
 const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
@@ -167,19 +167,24 @@ const ScrollBox = styled(Box)`
     overflow-x: scroll;
 `;
 
+// tslint:disable-next-line: variable-name
 const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
-    const url = Cloud.computeURL("/api", `/hpc/tools/logo/${props.tag.toLowerCase().replace(/\s+/g, '')}?cacheBust=${props.cacheBust}`);
+    const url = Cloud.computeURL("/api", toolImageQuery(props.tag.toLowerCase().replace(/\s+/g, ""), props.cacheBust));
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
-    const [hasLoadedImage, setLoadedImage] = useState(true);
+    const [, setLoadedImage] = useState(true);
     useEffect(() => setLoadedImage(true));
     return (
         <CardToolContainer appImage={url} mt="30px">
             <Spacer
                 alignItems={"center"}
                 left={<Heading.h3> {props.tag} </Heading.h3>}
-                right={<ShowAllTagItem tag={props.tag} ><Heading.h5><strong> Show All</strong></Heading.h5></ShowAllTagItem>}
+                right={(
+                    <ShowAllTagItem tag={props.tag}>
+                        <Heading.h5><strong> Show All</strong></Heading.h5>
+                    </ShowAllTagItem>
+                )}
             />
             <ScrollBox>
                 <Grid
@@ -223,9 +228,7 @@ function removeTagFromTitle(tag: string, title: string) {
     if (title.startsWith(tag)) {
         const titlenew = title.replace(/homerTools/g, "");
         if (titlenew.endsWith("pl")) {
-            return (
-                titlenew.slice(tag.length + 2, -3)
-            );
+            return titlenew.slice(tag.length + 2, -3);
         } else {
             return (
                 titlenew.slice(tag.length + 2)
@@ -236,7 +239,11 @@ function removeTagFromTitle(tag: string, title: string) {
     }
 }
 
-const mapToolGroupStateToProps = ({applicationsBrowse}: ReduxObject, ownProps: {tag: string}): {page: Page<WithAppMetadata>} => {
+// tslint:disable-next-line: max-line-length
+const mapToolGroupStateToProps = (
+    {applicationsBrowse}: ReduxObject,
+    ownProps: {tag: string}
+): {page: Page<WithAppMetadata>} => {
     const {applications} = applicationsBrowse;
     const page = applications.get(ownProps.tag);
     if (page != null) return {page};
