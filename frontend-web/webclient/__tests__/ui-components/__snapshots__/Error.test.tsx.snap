@@ -2,7 +2,6 @@
 
 exports[`Error component Error with error and dismiss button 1`] = `
 .c3 {
-  cursor: auto;
   margin-left: auto;
 }
 
@@ -16,7 +15,6 @@ exports[`Error component Error with error and dismiss button 1`] = `
 }
 
 .c0 {
-  cursor: auto;
   padding: 1em 1em 1em 1em;
   height: auto;
   color: #000;
@@ -27,7 +25,6 @@ exports[`Error component Error with error and dismiss button 1`] = `
 }
 
 .c1 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -47,12 +44,10 @@ exports[`Error component Error with error and dismiss button 1`] = `
 <div
   className="c0"
   color="black"
-  cursor="auto"
   height="auto"
 >
   <div
     className="c1"
-    cursor="inherit"
   >
     <div>
       <div
@@ -66,7 +61,6 @@ exports[`Error component Error with error and dismiss button 1`] = `
     </div>
     <div
       className="c3"
-      cursor="auto"
     >
       <svg
         className="c4"
@@ -92,7 +86,6 @@ exports[`Error component Error with error and dismiss button 1`] = `
 
 exports[`Error component Error with error and no dismiss button 1`] = `
 .c0 {
-  cursor: auto;
   padding: 1em 1em 1em 1em;
   height: auto;
   color: #000;
@@ -103,7 +96,6 @@ exports[`Error component Error with error and no dismiss button 1`] = `
 }
 
 .c1 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -123,12 +115,10 @@ exports[`Error component Error with error and no dismiss button 1`] = `
 <div
   className="c0"
   color="black"
-  cursor="auto"
   height="auto"
 >
   <div
     className="c1"
-    cursor="inherit"
   >
     <div>
       <div

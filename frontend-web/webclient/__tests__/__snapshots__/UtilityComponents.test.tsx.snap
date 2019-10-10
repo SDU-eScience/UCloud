@@ -94,7 +94,6 @@ exports[`FileIcon FileIcon, not shared 1`] = `
 
 exports[`FileIcon FileIcon, shared 1`] = `
 .c2 {
-  cursor: auto;
   position: absolute;
   bottom: -6px;
   right: -2px;
@@ -162,7 +161,6 @@ exports[`FileIcon FileIcon, shared 1`] = `
 }
 
 .c0 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -172,7 +170,6 @@ exports[`FileIcon FileIcon, shared 1`] = `
 
 <div
   className="c0"
-  cursor="inherit"
 >
   <svg
     className="c1"
@@ -196,7 +193,6 @@ exports[`FileIcon FileIcon, shared 1`] = `
   </svg>
   <div
     className="c2"
-    cursor="auto"
   >
     <div
       className="c3"
@@ -380,7 +376,6 @@ exports[`PP Visible PP-Component 1`] = `
 
 exports[`Share prompt 1`] = `
 .c5 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -389,7 +384,6 @@ exports[`Share prompt 1`] = `
 }
 
 .c15 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -398,13 +392,11 @@ exports[`Share prompt 1`] = `
 }
 
 .c0 {
-  cursor: auto;
   width: 620px;
   max-height: 80vh;
 }
 
 .c1 {
-  cursor: auto;
   width: 605px;
 }
 
@@ -417,12 +409,10 @@ exports[`Share prompt 1`] = `
 }
 
 .c16 {
-  cursor: auto;
   margin-right: auto;
 }
 
 .c18 {
-  cursor: auto;
   margin-left: auto;
 }
 
@@ -664,7 +654,6 @@ exports[`Share prompt 1`] = `
 
 <div
   className="c0"
-  cursor="auto"
   style={
     Object {
       "overflowX": "hidden",
@@ -675,7 +664,6 @@ exports[`Share prompt 1`] = `
 >
   <div
     className="c1"
-    cursor="auto"
     width="605px"
   >
     <form
@@ -701,7 +689,6 @@ exports[`Share prompt 1`] = `
       >
         <div
           className="c5"
-          cursor="inherit"
         >
           <input
             className="c6"
@@ -788,11 +775,9 @@ exports[`Share prompt 1`] = `
     </form>
     <div
       className="c15"
-      cursor="inherit"
     >
       <div
         className="c16"
-        cursor="auto"
       />
       <button
         className="c13 c17"
@@ -804,7 +789,6 @@ exports[`Share prompt 1`] = `
       </button>
       <div
         className="c18"
-        cursor="auto"
       />
     </div>
   </div>
