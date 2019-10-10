@@ -11,7 +11,21 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.CreateDirectoryRequest
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.ExtractRequest
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SimpleUploadRequest
+import dk.sdu.cloud.file.api.WorkspaceDescriptions
+import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.api.Workspaces
+import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
@@ -48,6 +62,12 @@ class JobFileService(
         val sensitivityLevel =
             jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
                 ?: SensitivityLevel.PRIVATE
+
+        val jobsFolder = jobsFolder(job.owner)
+        FileDescriptions.createDirectory.call(
+            CreateDirectoryRequest(jobsFolder, null),
+            userCloud
+        )
 
         val path = jobFolder(job)
         FileDescriptions.createDirectory.call(
@@ -158,30 +178,37 @@ class JobFileService(
     private val jobFolderCache = HashMap<String, String>()
     private val jobFolderLock = Mutex()
 
-    suspend fun jobFolder(job: VerifiedJob): String {
+    suspend fun jobsFolder(ownerUsername: String): String {
         jobFolderLock.withLock {
-            val homeFolder = jobFolderCache[job.owner] ?: FileDescriptions.findHomeFolder.call(
-                FindHomeFolderRequest(job.owner),
+            val homeFolder = jobFolderCache[ownerUsername] ?: FileDescriptions.findHomeFolder.call(
+                FindHomeFolderRequest(ownerUsername),
                 serviceClient
             ).orThrow().path
 
-            jobFolderCache[job.owner] = homeFolder
-
-            val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
-
-            val folderName: String = if (job.name == null) {
-                timestamp
-            } else {
-                job.name + "-" + timestamp
-            }
+            jobFolderCache[ownerUsername] = homeFolder
 
             return joinPath(
                 homeFolder,
-                "Jobs",
-                job.archiveInCollection,
-                folderName
+                "Jobs"
             )
         }
+    }
+
+    suspend fun jobFolder(job: VerifiedJob): String {
+        val jobsFolder = jobsFolder(job.owner)
+        val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+
+        val folderName: String = if (job.name == null) {
+            timestamp
+        } else {
+            job.name + "-" + timestamp
+        }
+
+        return joinPath(
+            jobsFolder,
+            job.archiveInCollection,
+            folderName
+        )
     }
 
     suspend fun transferFilesToBackend(jobWithToken: VerifiedJobWithAccessToken, backend: ComputationDescriptions) {
@@ -269,7 +296,7 @@ class JobFileService(
         override val log = logger()
 
         private val zoneId = ZoneId.of("Europe/Copenhagen")
-        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS")
+        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss.SSS")
         private const val WORKSPACE_PATH = "/workspace/"
     }
 }
