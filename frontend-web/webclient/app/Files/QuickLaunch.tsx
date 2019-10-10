@@ -27,12 +27,13 @@ export async function quickLaunchCallback(
             destination: directory,
             readOnly: false
         }],
-        numberOfNodes: 0,
+        numberOfNodes: 1,
         tasksPerNode: 0,
         peers: [],
         reservation: null,
         type: "start",
         name: null,
+        parameters: {}
     };
 
     try {
