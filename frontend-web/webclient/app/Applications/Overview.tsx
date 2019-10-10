@@ -25,15 +25,8 @@ import {connect} from "react-redux";
 import styled from "styled-components";
 import { EllipsedText } from "ui-components/Text";
 import Installed from "./Installed";
-const bedtoolsImg = require("Assets/Images/APPTools/bedtools.png");
-const cellrangerImg = require("Assets/Images/APPTools/10xGenomics.png");
-const homerImg = require("Assets/Images/APPTools/pic2.gif");
-//const kallistoImg = require("Assets/Images/APPTools/bird.png");
-const kallistoImg = require("Assets/Images/APPTools/bear-kallistologo.jpg");
-const macs2Img = require("Assets/Images/APPTools/macslogo.png");
-//const salmonImg = require("Assets/Images/APPTools/salmon-logo-6.png");
-const salmonImg = require("Assets/Images/APPTools/salmonlogo2.png");
-const samtoolsImg = require("Assets/Images/APPTools/gene-samtools.png");
+import { useState, useEffect } from "react";
+
 
 const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
@@ -179,12 +172,15 @@ const ScrollBox = styled(Box)`
     overflow-x: scroll;
 `;
 
-const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
+const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
+    const url = Cloud.computeURL("/api", `/hpc/tools/logo/${props.tag.toLowerCase().replace(/\s+/g, '')}?cacheBust=${props.cacheBust}`);
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
+    const [hasLoadedImage, setLoadedImage] = useState(true);
+    useEffect(() => setLoadedImage(true));
     return (
-        <CardToolContainer appImage={tagToImage(props.tag)} mt="30px" >
+        <CardToolContainer appImage={url} mt="30px">
             {<Spacer alignItems={"center"} left={<Heading.h3> {props.tag} </Heading.h3>} right={<ShowAllTagItem tag={props.tag} ><Heading.h5><strong> Show All</strong></Heading.h5></ShowAllTagItem>} />}
             <ScrollBox>
                 <Grid py="10px" pl="10px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="8px" gridAutoFlow="column">
@@ -204,7 +200,6 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
                 {[...tags].filter(it => it !== props.tag).map(tag => (<Tag label={tag} />))}
             </Flex>
         </CardToolContainer>
-
     )
 }
 
@@ -226,29 +221,6 @@ function removeTagFromTitle(tag: string, title: string) {
         return title
     }
 }
-
-function tagToImage(tag: string): string {
-    switch (tag.toLocaleLowerCase()) {
-        case "bedtools":
-            return bedtoolsImg;
-        case "cell ranger":
-            return cellrangerImg;
-        case "homer":
-            return homerImg;
-        case "kallisto":
-            return kallistoImg;
-        case "macs2":
-            return macs2Img;
-        case "salmon":
-            return salmonImg;
-        case "samtools":
-            return samtoolsImg;
-        default:
-            return "";
-
-    }
-}
-
 
 const mapToolGroupStateToProps = ({applicationsBrowse}: ReduxObject, ownProps: {tag: string}): {page: Page<WithAppMetadata>} => {
     const {applications} = applicationsBrowse;
