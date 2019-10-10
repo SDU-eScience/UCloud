@@ -1,39 +1,32 @@
 import {Cloud} from "Authentication/SDUCloudObject";
+import {emptyPage, ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
+import {MainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
-import {Page} from "Types";
+import {useEffect, useState} from "react";
 import * as React from "react";
+import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {ReduxObject, emptyPage} from "DefaultObjects";
-import {MainContainer} from "MainContainer/MainContainer";
-import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
-import {Link, Box, Flex} from "ui-components";
-import * as Heading from "ui-components/Heading";
+import styled from "styled-components";
+import {Page} from "Types";
+import {Box, Flex, Link} from "ui-components";
 import Grid from "ui-components/Grid";
-import {getQueryParam, RouterLocationProps, getQueryParamOrElse} from "Utilities/URIUtilities";
-import * as Pages from "./Pages";
-import {Type as ReduxType} from "./Redux/BrowseObject";
-import * as Actions from "./Redux/BrowseActions";
-import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
+import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
-import theme from "ui-components/theme";
-import {connect} from "react-redux";
-import styled from "styled-components";
 import {EllipsedText} from "ui-components/Text";
+import theme from "ui-components/theme";
+import {favoriteApplicationFromPage, toolImageQuery} from "Utilities/ApplicationUtilities";
+import {getQueryParam, getQueryParamOrElse, RouterLocationProps, } from "Utilities/URIUtilities";
 import {FullAppInfo, WithAppMetadata} from ".";
+import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import Installed from "./Installed";
-const bedtoolsImg = require("Assets/Images/APPTools/bedtools.png");
-const cellrangerImg = require("Assets/Images/APPTools/10xGenomics.png");
-const homerImg = require("Assets/Images/APPTools/pic2.gif");
-//const kallistoImg = require("Assets/Images/APPTools/bird.png");
-const kallistoImg = require("Assets/Images/APPTools/bear-kallistologo.jpg");
-const macs2Img = require("Assets/Images/APPTools/macslogo.png");
-//const salmonImg = require("Assets/Images/APPTools/salmon-logo-6.png");
-const salmonImg = require("Assets/Images/APPTools/salmonlogo2.png");
-const samtoolsImg = require("Assets/Images/APPTools/gene-samtools.png");
+import * as Pages from "./Pages";
+import * as Actions from "./Redux/BrowseActions";
+import {Type as ReduxType} from "./Redux/BrowseObject";
+
 
 const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
@@ -175,14 +168,17 @@ const ScrollBox = styled(Box)`
 `;
 
 // tslint:disable-next-line: variable-name
-const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
+const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
+    const url = Cloud.computeURL("/api", toolImageQuery(props.tag.toLowerCase().replace(/\s+/g, ""), props.cacheBust));
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
+    const [, setLoadedImage] = useState(true);
+    useEffect(() => setLoadedImage(true));
     return (
-        <CardToolContainer appImage={tagToImage(props.tag)} mt="30px" >
+        <CardToolContainer appImage={url} mt="30px">
             <Spacer
-                alignItems="center"
+                alignItems={"center"}
                 left={<Heading.h3> {props.tag} </Heading.h3>}
                 right={(
                     <ShowAllTagItem tag={props.tag}>
@@ -191,7 +187,14 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>}) => {
                 )}
             />
             <ScrollBox>
-                <Grid py="10px" pl="10px" gridTemplateRows={`repeat(2, 1fr)`} gridTemplateColumns={`repeat(9, 1fr)`} gridGap="8px" gridAutoFlow="column">
+                <Grid
+                    py="10px"
+                    pl="10px"
+                    gridTemplateRows="repeat(2, 1fr)"
+                    gridTemplateColumns="repeat(9, 1fr)"
+                    gridGap="8px"
+                    gridAutoFlow="column"
+                >
                     {props.page.items.map(application => {
                         const [first, second, third] = getColorFromName(application.metadata.name);
                         const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
@@ -225,9 +228,7 @@ function removeTagFromTitle(tag: string, title: string) {
     if (title.startsWith(tag)) {
         const titlenew = title.replace(/homerTools/g, "");
         if (titlenew.endsWith("pl")) {
-            return (
-                titlenew.slice(tag.length + 2, -3)
-            );
+            return titlenew.slice(tag.length + 2, -3);
         } else {
             return (
                 titlenew.slice(tag.length + 2)
@@ -238,30 +239,11 @@ function removeTagFromTitle(tag: string, title: string) {
     }
 }
 
-function tagToImage(tag: string): string {
-    switch (tag.toLocaleLowerCase()) {
-        case "bedtools":
-            return bedtoolsImg;
-        case "cell ranger":
-            return cellrangerImg;
-        case "homer":
-            return homerImg;
-        case "kallisto":
-            return kallistoImg;
-        case "macs2":
-            return macs2Img;
-        case "salmon":
-            return salmonImg;
-        case "samtools":
-            return samtoolsImg;
-        default:
-            return "";
-
-    }
-}
-
-
-const mapToolGroupStateToProps = ({applicationsBrowse}: ReduxObject, ownProps: {tag: string}): {page: Page<WithAppMetadata>} => {
+// tslint:disable-next-line: max-line-length
+const mapToolGroupStateToProps = (
+    {applicationsBrowse}: ReduxObject,
+    ownProps: {tag: string}
+): {page: Page<WithAppMetadata>} => {
     const {applications} = applicationsBrowse;
     const page = applications.get(ownProps.tag);
     if (page != null) return {page};
