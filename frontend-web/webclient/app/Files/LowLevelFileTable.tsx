@@ -311,9 +311,16 @@ const LowLevelFileTable_: React.FunctionComponent<
                 filesOnly.forEach(f => {
                     const fileApps: QuickLaunchApp[] = [];
 
+                    const fileName = f.path.split("/").slice(-1)[0];
+                    let fileExtension = fileName.split(".").slice(-1)[0];
+
+                    if (fileName !== fileExtension) {
+                        fileExtension = `.${fileExtension}`;
+                    }
+
                     response.response.forEach(item => {
                         item.extensions.forEach(ext => {
-                            if (f.path.endsWith(ext)) {
+                            if (fileExtension === ext) {
                                 fileApps.push(item);
                             }
                         });
