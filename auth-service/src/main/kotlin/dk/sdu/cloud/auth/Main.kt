@@ -9,9 +9,17 @@ import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.installAuth
 import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
+import dk.sdu.cloud.auth.services.ServiceMode
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
-import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.initWithDefaultFeatures
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
@@ -89,7 +97,23 @@ fun main(args: Array<String>) {
     KtorUtils.runningInProduction = configuration.production
     configuration.services.forEach { ServiceDAO.insert(it) }
     if (micro.developmentModeEnabled) {
-        ServiceDAO.insert(Service("dev-web", "http://localhost:9000/app/login/wayf", 1000 * 60 * 60 * 24 * 365L))
+        ServiceDAO.insert(
+            Service(
+                "dev-web",
+                "http://localhost:9000/app/login/wayf",
+                ServiceMode.WEB,
+                1000 * 60 * 60 * 24 * 365L
+            )
+        )
+
+        ServiceDAO.insert(
+            Service(
+                "dav",
+                "http://localhost:9000/app/login/wayf?dav=true",
+                ServiceMode.APPLICATION,
+                1000 * 60 * 60 * 24 * 365L
+            )
+        )
     }
 
     val samlProperties = Properties().apply {

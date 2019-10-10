@@ -116,7 +116,7 @@ const Switch = styled.div<ThemeToggleProps>`
     ${activeSwitch}
 `;
 
-const activeCrater = ({active}) => active ? ({
+const activeCrater = ({active}: {active: boolean}) => active ? ({
     display: "none"
 }) : null;
 
@@ -188,7 +188,7 @@ const Clouds = styled(StarsAndsCloudsBase) <{active: boolean}>`
 
 
 
-const activeStar = ({active}) => active ? ({
+const activeStar = ({active}: {active: boolean}) => active ? ({
     transform: "scale(0) !important",
     transition: "all 0.7s ease"
 }) : null;

@@ -1,8 +1,9 @@
+import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {LoadingMainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import {match, useRouteMatch, useParams} from "react-router";
-import {LoadingMainContainer} from "MainContainer/MainContainer";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useParams} from "react-router";
 import {
     addMemberInProject, changeRoleInProject, deleteMemberInProject,
     emptyProject,
@@ -14,12 +15,8 @@ import {
 } from "Project/index";
 import Box from "ui-components/Box";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import Flex from "ui-components/Flex";
-import Button from "ui-components/Button";
-import Input from "ui-components/Input";
-import Label from "ui-components/Label";
+import {Button, Flex, Input, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
 
 const View: React.FunctionComponent = () => {
     const {id} = useParams<{id: string}>();
@@ -50,34 +47,40 @@ const View: React.FunctionComponent = () => {
         reload();
     };
 
-    return <LoadingMainContainer
-        headerSize={0}
-        header={null}
-        sidebar={null}
-        loading={project.loading && project.data.members.length === 0}
-        error={project.error ? project.error.why : undefined}
-        main={
-            <>
-                <Box>
-                    <form onSubmit={onSubmit}>
-                        <Label htmlFor={"new-project-member"}>Add new member</Label>
-                        <Input id={"new-project-member"} placeholder={"Username"} ref={newMemberRef}
-                               disabled={isCreatingNewMember}/>
-                    </form>
-                </Box>
+    return (
+        <LoadingMainContainer
+            headerSize={0}
+            header={null}
+            sidebar={null}
+            loading={project.loading && project.data.members.length === 0}
+            error={project.error ? project.error.why : undefined}
+            main={(
+                <>
+                    <div>
+                        <form onSubmit={onSubmit}>
+                            <Label htmlFor={"new-project-member"}>Add new member</Label>
+                            <Input
+                                id="new-project-member"
+                                placeholder="Username"
+                                ref={newMemberRef}
+                                disabled={isCreatingNewMember}
+                            />
+                        </form>
+                    </div>
 
-                {project.data.members.map((e, idx) => (
-                    <ViewMember
-                        key={idx}
-                        project={project.data}
-                        member={e}
-                        allowManagement={allowManagement}
-                        onActionComplete={() => reload()}/>
-                ))
-                }
-            </>
-        }
-    />
+                    {project.data.members.map((e, idx) => (
+                        <ViewMember
+                            key={idx}
+                            project={project.data}
+                            member={e}
+                            allowManagement={allowManagement}
+                            onActionComplete={() => reload()} />
+                    ))
+                    }
+                </>
+            )}
+        />
+    );
 };
 
 const ViewMember: React.FunctionComponent<{
@@ -98,48 +101,50 @@ const ViewMember: React.FunctionComponent<{
         props.onActionComplete();
     };
 
-    return <Box mt={16}>
-        <Flex>
-            <UserAvatar avatar={defaultAvatar}/>
-            <Box flexGrow={1}>
-                {props.member.username} <br/>
-                {!props.allowManagement ? role :
-                    <ClickableDropdown
-                        chevron
-                        trigger={role}
-                        onChange={async (value: ProjectRole) => {
-                            setRole(value);
+    return (
+        <Box mt={16}>
+            <Flex>
+                <UserAvatar avatar={defaultAvatar} />
+                <Box flexGrow={1}>
+                    {props.member.username} <br />
+                    {!props.allowManagement ? role : (
+                        <ClickableDropdown
+                            chevron
+                            trigger={role}
+                            onChange={async (value: ProjectRole) => {
+                                setRole(value);
 
-                            await runCommand(changeRoleInProject({
-                                projectId: props.project.id,
-                                member: props.member.username,
-                                newRole: value
-                            }));
+                                await runCommand(changeRoleInProject({
+                                    projectId: props.project.id,
+                                    member: props.member.username,
+                                    newRole: value
+                                }));
 
-                            props.onActionComplete();
-                        }}
-                        options={[
-                            {text: "User", value: ProjectRole.USER},
-                            {text: "Data Steward", value: ProjectRole.DATA_STEWARD},
-                            {text: "Admin", value: ProjectRole.ADMIN}
-                        ]}
-                    />
-                }
-            </Box>
-            {!props.allowManagement ? null :
-                <Box flexShrink={0}>
-                    <Button
-                        color={"red"}
-                        mr={8}
-                        disabled={isLoading}
-                        onClick={deleteMember}
-                    >
-                        Remove
-                    </Button>
+                                props.onActionComplete();
+                            }}
+                            options={[
+                                {text: "User", value: ProjectRole.USER},
+                                {text: "Data Steward", value: ProjectRole.DATA_STEWARD},
+                                {text: "Admin", value: ProjectRole.ADMIN}
+                            ]}
+                        />
+                    )}
                 </Box>
-            }
-        </Flex>
-    </Box>;
+                {!props.allowManagement ? null : (
+                    <Box flexShrink={0}>
+                        <Button
+                            color={"red"}
+                            mr={8}
+                            disabled={isLoading}
+                            onClick={deleteMember}
+                        >
+                            Remove
+                        </Button>
+                    </Box>
+                )}
+            </Flex>
+        </Box>
+    );
 };
 
 export default View;

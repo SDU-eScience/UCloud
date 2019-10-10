@@ -1,0 +1,13 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: webdav
+  namespace: default
+spec:
+  rules:
+  - host: 'webdav.dev.cloud.sdu.dk'
+    http:
+      paths:
+      - backend:
+          serviceName: webdav
+          servicePort: 8080

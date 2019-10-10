@@ -5,7 +5,7 @@ import {Icon, Text} from ".";
 import {IconName} from "./Icon";
 import theme, {Theme, ThemeColor} from "./theme";
 
-const fullWidth = ({fullWidth}: {fullWidth?: boolean}) => fullWidth ? {width: "100%"} : null;
+const useFullWidth = ({fullWidth}: {fullWidth?: boolean}) => fullWidth ? {width: "100%"} : null;
 
 export const colorScheme = (props: {theme: Theme, color: ThemeColor}) => {
   const badgeColors = {
@@ -61,7 +61,7 @@ export const colorScheme = (props: {theme: Theme, color: ThemeColor}) => {
     }
   };
   const color = badgeColors[props.color];
-  return color || badgeColors["white"];
+  return color || badgeColors.white;
 };
 
 const StampBase = styled.div<StampProps>`
@@ -69,7 +69,7 @@ const StampBase = styled.div<StampProps>`
   align-items: center;
   vertical-align: top;
   min-height: 24px;
-  ${fullWidth}
+  ${useFullWidth}
   font-weight: 600;
   letter-spacing: ${theme.letterSpacings.caps};
   border-radius: 4px;
@@ -83,7 +83,7 @@ StampBase.displayName = "Stamp";
 
 interface StampProps extends SpaceProps {
   color?: ThemeColor;
-  theme?: any;
+  theme?: Theme;
   fontSize?: number | string;
   fullWidth?: boolean;
 }
@@ -106,5 +106,4 @@ const Stamp = (props: StampProps & {icon?: IconName, onClick?: () => void, text:
   </StampBase>
 );
 
-export {StampBase as OldStamp};
 export default Stamp;

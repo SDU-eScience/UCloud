@@ -6,7 +6,7 @@ import Box from "./Box";
 import {Dropdown, DropdownContent} from "./Dropdown";
 
 interface ClickableDropdownState {open: boolean;}
-interface ClickableDropdownProps {
+interface ClickableDropdownProps<T> {
     children?: any;
     keepOpenOnClick?: boolean;
     trigger: React.ReactNode;
@@ -18,19 +18,19 @@ interface ClickableDropdownProps {
     top?: string | number;
     bottom?: string | number;
     right?: string | number;
-    options?: Array<{text: string; value: string;}>;
+    options?: Array<{text: string; value: T;}>;
     chevron?: boolean;
     overflow?: string;
     colorOnHover?: boolean;
     squareTop?: boolean;
-    keepOpenOnOutsideClick?: boolean
-    onChange?: (value: string) => void;
+    keepOpenOnOutsideClick?: boolean;
+    onChange?: (value: T) => void;
 }
 
-class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {
+class ClickableDropdown<T extends string> extends React.Component<ClickableDropdownProps<T>, ClickableDropdownState> {
     private ref = React.createRef<HTMLDivElement>();
 
-    constructor(props: Readonly<ClickableDropdownProps>) {
+    constructor(props: Readonly<ClickableDropdownProps<T>>) {
         super(props);
         this.state = {open: false};
         let neither = true;
@@ -50,7 +50,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
         const {keepOpenOnClick, onChange, ...props} = this.props;
         let children: React.ReactNode[] = [];
         if (props.options !== undefined && onChange) {
-            children = props.options.map((opt, i) =>
+            children = props.options.map((opt, i) => (
                 <Box
                     cursor="pointer"
                     width="auto"
@@ -59,8 +59,10 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                     pl="15px"
                     mr="-17px"
                     onClick={() => onChange!(opt.value)}
-                >{opt.text}</Box>
-            );
+                >
+                    {opt.text}
+                </Box>
+            ));
         } else if (props.children) {
             children = props.children;
         }
@@ -71,7 +73,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                 <Text.TextSpan cursor="pointer" onClick={() => this.setState(() => ({open: !this.state.open}))}>
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em" /> : null}
                 </Text.TextSpan>
-                {!emptyChildren ?
+                {emptyChildren ? null : (
                     <DropdownContent
                         overflow={"visible"}
                         squareTop={this.props.squareTop}
@@ -82,7 +84,8 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                         visible={this.state.open}
                         onClick={() => !keepOpenOnClick ? this.setState(() => ({open: false})) : null}>
                         {children}
-                    </DropdownContent> : null}
+                    </DropdownContent>
+                )}
             </Dropdown>
         );
     }

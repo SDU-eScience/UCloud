@@ -205,8 +205,8 @@ data class AuthenticationTokens(
 
 data class OptionalAuthenticationTokens(
     override val accessToken: String,
-    override val csrfToken: String?,
-    override val refreshToken: String?
+    override val csrfToken: String? = null,
+    override val refreshToken: String? = null
 ) : WithAccessToken, WithOptionalCsrfToken, WithOptionalRefreshToken {
     override fun toString() = "OptionalAuthenticationTokens()"
 }

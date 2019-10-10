@@ -1,19 +1,19 @@
-import UserCreation from "Admin/UserCreation";
-import {initResponsive, initStatus} from "DefaultObjects";
 import {configure, mount} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import "jest-styled-components";
-import status from "Navigation/Redux/StatusReducer";
-import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
 import {create} from "react-test-renderer";
 import {createResponsiveStateReducer} from "redux-responsive";
-import {responsiveBP} from "ui-components/theme";
-import {configureStore} from "Utilities/ReduxUtilities";
 import {ThemeProvider} from "styled-components";
+import UserCreation from "../../app/Admin/UserCreation";
+import {initResponsive, initStatus} from "../../app/DefaultObjects";
+import status from "../../app/Navigation/Redux/StatusReducer";
+import PromiseKeeper from "../../app/PromiseKeeper";
+import {responsiveBP} from "../../app/ui-components/theme";
 import theme from "../../app/ui-components/theme";
+import {configureStore} from "../../app/Utilities/ReduxUtilities";
 
 configure({adapter: new Adapter()});
 

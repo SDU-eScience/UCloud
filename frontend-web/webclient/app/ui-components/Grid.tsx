@@ -2,11 +2,11 @@ import * as React from "react";
 import styled from "styled-components";
 import {
     alignItems, AlignItemsProps, color, ColorProps,
-    gridGap, GridGapProps, gridTemplateColumns,
-    GridTemplateColumnsProps, gridTemplateRows,
-    GridTemplateRowsProps, height, HeightProps,
-    justifyItems, JustifyItemsProps, space,
-    SpaceProps, width, WidthProps, gridAutoFlow, GridAutoFlowProps
+    gridAutoFlow, GridAutoFlowProps, gridGap,
+    GridGapProps, gridTemplateColumns,
+    GridTemplateColumnsProps, gridTemplateRows, GridTemplateRowsProps,
+    height, HeightProps, justifyItems,
+    JustifyItemsProps, space, SpaceProps, width, WidthProps
 } from "styled-system";
 
 export type GridProps =

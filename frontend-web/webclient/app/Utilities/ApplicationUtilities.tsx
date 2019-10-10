@@ -20,6 +20,9 @@ export const hpcJobQueryPost = "/hpc/jobs";
 
 export const hpcJobQuery = (id: string) => `/hpc/jobs/${encodeURIComponent(id)}`;
 
+export const toolImageQuery = (toolName: string, cacheBust?: string) =>
+    `/hpc/tools/logo/${toolName}?cacheBust=${cacheBust}`;
+
 export function hpcJobsQuery(
     itemsPerPage: number,
     page: number,
@@ -92,14 +95,12 @@ interface FavoriteApplicationFromPage<T> {
  * @param {Application} Application the application to be favorited
  * @param {Cloud} cloud The cloud instance for requests
  */
-export async function favoriteApplicationFromPage<T>(
-    {
-        name,
-        version,
-        page,
-        cloud
-    }: FavoriteApplicationFromPage<T>
-): Promise<Page<T>> {
+export async function favoriteApplicationFromPage<T>({
+    name,
+    version,
+    page,
+    cloud
+}: FavoriteApplicationFromPage<T>): Promise<Page<T>> {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     try {
         await cloud.post(hpcFavoriteApp(name, version));

@@ -1,0 +1,29 @@
+group 'dk.sdu.cloud'
+version '0.1.8'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.webdav.MainKt"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.22/sdu-cloud.gradle"
+
+buildscript {
+    ext.serviceCommonVersion = "1.9.4"
+    ext.authApiVersion = "1.21.0"
+    ext.miltonVersion = "2.7.4.9"
+}
+
+repositories {
+    jcenter()
+    maven { url("https://dl.bintray.com/milton/Milton/") }
+}
+
+dependencies {
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:auth-api:$authApiVersion"
+    compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
+
+    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.10.0.pr3"
+    compile "dk.sdu.cloud:file-api:3.0.1"
+}
+
+sduCloud.createTasksForApiJar("webdav", [])

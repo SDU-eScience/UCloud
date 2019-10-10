@@ -2,7 +2,10 @@ import styled, {keyframes} from "styled-components";
 import {color, space, SpaceProps} from "styled-system";
 import theme, {Theme, ThemeColor} from "./theme";
 
-export const colorScheme = (props: {theme: Theme, bg?: ThemeColor, color?: ThemeColor}) => {
+// This should be possible by omitting fields in ThemeColors, but doesn't seem to work.
+type BGColors = "blue" | "lightBlue" | "green" | "lightGreen" | "red" | "lightRed" | "orange" | "gray" | "lightGray";
+
+export const colorScheme = (props: {theme: Theme, bg: BGColors}) => {
   const badgeColors = {
     blue: {
       backgroundColor: props.theme.colors.blue,
@@ -41,7 +44,7 @@ export const colorScheme = (props: {theme: Theme, bg?: ThemeColor, color?: Theme
       color: props.theme.colors.text
     }
   };
-  return props.bg && props.color && (badgeColors[props.bg] || badgeColors.lightGray);
+  return props.bg && badgeColors[props.bg] || badgeColors.lightGray;
 };
 
 const fadeIn = keyframes`
@@ -54,7 +57,7 @@ const fadeIn = keyframes`
   }
 `;
 
-const Badge = styled.div<SpaceProps & {color?: ThemeColor, bg?: ThemeColor}>`
+const Badge = styled.div<SpaceProps & {color?: ThemeColor, bg?: BGColors}>`
   border-radius: 99999px;
   display: inline-block;
   font-size: ${props => props.theme.fontSizes[0]}px;

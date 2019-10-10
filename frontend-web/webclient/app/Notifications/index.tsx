@@ -25,7 +25,7 @@ import {
 interface NotificationProps {
     items: Notification[];
     redirectTo: string;
-    fetchNotifications: Function;
+    fetchNotifications: () => void;
     notificationRead: (id: number | string) => void;
     error?: string;
 }
@@ -39,8 +39,8 @@ function Notifications(props: Notifications) {
     React.useEffect(() => {
         reload();
         const conn = WSFactory.open("/notifications", {
-            init: conn => {
-                conn.subscribe({
+            init: c => {
+                c.subscribe({
                     call: "notifications.subscription",
                     payload: {},
                     disallowProjects: true,
@@ -86,14 +86,14 @@ function Notifications(props: Notifications) {
         }
     }
 
-    const entries: JSX.Element[] = props.items.map((notification, index) =>
+    const entries: JSX.Element[] = props.items.map((notification, index) => (
         <NotificationEntry
             key={index}
             notification={notification}
             onMarkAsRead={it => props.notificationRead(it.id)}
-            onAction={it => onNotificationAction(it)}
+            onAction={onNotificationAction}
         />
-    );
+    ));
 
     if (props.redirectTo) {
         return <Redirect to={props.redirectTo} />;
@@ -102,23 +102,36 @@ function Notifications(props: Notifications) {
     const unreadLength = props.items.filter(e => !e.read).length;
     const readAllButton = unreadLength ? (
         <>
-            <Button onClick={() => props.readAll()} fullWidth>Mark all as read</Button>
+            <Button onClick={props.readAll} fullWidth>Mark all as read</Button>
             <Divider />
-        </>) : null;
+        </>
+    ) : null;
     return (
-        <ClickableDropdown colorOnHover={false} top="37px" width={"380px"} left={"-270px"} trigger={
-            <Flex>
-                <Relative top="0" left="0">
-                    <Flex justifyContent="center" width="48px">
-                        <Icon cursor="pointer" name="notification" color="headerIconColor"
-                            color2="headerIconColor2" />
-                    </Flex>
-                    {unreadLength > 0 ? <Absolute top="-12px" left="28px">
-                        <Badge bg="red">{unreadLength}</Badge>
-                    </Absolute> : null}
-                </Relative>
-            </Flex>
-        }>
+        <ClickableDropdown
+            colorOnHover={false}
+            top="37px"
+            width="380px"
+            left="-270px"
+            trigger={(
+                <Flex>
+                    <Relative top="0" left="0">
+                        <Flex justifyContent="center" width="48px">
+                            <Icon
+                                cursor="pointer"
+                                name="notification"
+                                color="headerIconColor"
+                                color2="headerIconColor2"
+                            />
+                        </Flex>
+                        {unreadLength > 0 ? (
+                            <Absolute top="-12px" left="28px">
+                                <Badge bg="red">{unreadLength}</Badge>
+                            </Absolute>
+                        ) : null}
+                    </Relative>
+                </Flex>
+            )}
+        >
             <ContentWrapper>
                 {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
             </ContentWrapper>
@@ -150,9 +163,35 @@ interface NotificationEntryProps {
     onAction?: (notification: Notification) => void;
 }
 
-export class NotificationEntry extends React.Component<NotificationEntryProps> {
+export function NotificationEntry(props: NotificationEntryProps) {
+    const {notification} = props;
+    return (
+        <NotificationWrapper
+            alignItems="center"
+            read={notification.read}
+            flexDirection="row"
+            onClick={handleAction}
+        >
+            <Box mr="0.4em" width="10%"><Icon name={resolveEventIcon(notification.type)} /></Box>
+            <Flex width="90%" flexDirection="column">
+                <TextSpan color="grey" fontSize={1}>
+                    {formatDistance(notification.ts, new Date(), {addSuffix: true})}
+                </TextSpan>
+                <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Cloud.homeFolder)}</TextSpan>
+            </Flex>
+        </NotificationWrapper>
+    );
 
-    private static resolveEventIcon(eventType: string): IconName {
+    function handleRead() {
+        if (props.onMarkAsRead) props.onMarkAsRead(props.notification);
+    }
+
+    function handleAction() {
+        handleRead();
+        if (props.onAction) props.onAction(props.notification);
+    }
+
+    function resolveEventIcon(eventType: string): IconName {
         switch (eventType) {
             case "APP_COMPLETE":
                 return "info";
@@ -162,38 +201,10 @@ export class NotificationEntry extends React.Component<NotificationEntryProps> {
                 return "warning";
         }
     }
-
-    public render() {
-        const {notification} = this.props;
-        return (
-            <NotificationWrapper alignItems="center" read={notification.read} flexDirection="row"
-                onClick={() => this.handleAction()}>
-                <Box mr="0.4em" width="10%"><Icon name={NotificationEntry.resolveEventIcon(notification.type)} /></Box>
-                <Flex width="90%" flexDirection="column">
-                    <TextSpan color="grey" fontSize={1}>
-                        {formatDistance(notification.ts, new Date(), {addSuffix: true})}
-                    </TextSpan>
-                    <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Cloud.homeFolder)}</TextSpan>
-                </Flex>
-            </NotificationWrapper>
-        );
-    }
-
-    private handleRead() {
-        if (this.props.onMarkAsRead) this.props.onMarkAsRead(this.props.notification);
-    }
-
-    private handleAction() {
-        this.handleRead();
-        if (this.props.onAction) this.props.onAction(this.props.notification);
-    }
 }
 
-const read = (p: {read: boolean, theme: Theme}) => p.read ? {
-    backgroundColor: p.theme.colors.white
-} : {
-        backgroundColor: p.theme.colors.lightGray
-    };
+const read = (p: {read: boolean, theme: Theme}) => p.read ?
+    {backgroundColor: p.theme.colors.white} : {backgroundColor: p.theme.colors.lightGray};
 
 const NotificationWrapper = styled(Flex) <{read: boolean}>`
     ${read};
@@ -225,4 +236,5 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
 
-export default connect<NotificationsReduxObject, NotificationsOperations>(mapStateToProps, mapDispatchToProps)(Notifications);
+export default connect<NotificationsReduxObject, NotificationsOperations>(mapStateToProps, mapDispatchToProps)
+    (Notifications);

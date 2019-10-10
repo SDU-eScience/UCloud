@@ -31,7 +31,7 @@ import ProjectCreate from "Project/Create";
 import ProjectList from "Project/List";
 import ProjectView from "Project/View";
 import * as React from "react";
-import {Route, Switch} from "react-router-dom";
+import {Route, RouteComponentProps, Switch} from "react-router-dom";
 import Search from "Search/Search";
 import * as Share from "Shares";
 import Snackbars from "Snackbar/Snackbars";
@@ -100,9 +100,7 @@ const Core = () => {
                     <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)} />
                     <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
 
-                    {!inDevEnvironment() ? null :
-                        <Route exact path={"/playground"} component={Playground} />
-                    }
+                    {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
 
                     <Route exact path="/shares" component={requireAuth(Share.List)} />
 
@@ -124,13 +122,15 @@ const Core = () => {
     );
 };
 
-const requireAuth = Delegate => props => {
-    if (!Cloud.isLoggedIn) {
-        props.history.push("/login");
-        return null;
-    }
-    return <Delegate {...props} />;
-};
+function requireAuth<T>(Delegate: React.FunctionComponent<T>) {
+    return (props: T & RouteComponentProps) => {
+        if (!Cloud.isLoggedIn) {
+            props.history.push("/login");
+            return null;
+        }
+        return <Delegate {...props} />;
+    };
+}
 
 const LoginSuccess = (props: {history: History}) => {
     dispatchUserAction(USER_LOGIN);

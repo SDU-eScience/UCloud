@@ -2,7 +2,6 @@
 
 exports[`Mount Activity Page 1`] = `
 .c1 {
-  cursor: auto;
   margin-left: 190px;
   padding-top: 48px;
   padding-bottom: 14px;
@@ -12,7 +11,6 @@ exports[`Mount Activity Page 1`] = `
 }
 
 .c6 {
-  cursor: auto;
   margin-bottom: 16px;
 }
 
@@ -25,48 +23,8 @@ exports[`Mount Activity Page 1`] = `
 }
 
 .c17 {
-  cursor: auto;
   padding-top: 96px;
   padding-right: 340px;
-}
-
-.c19 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-pack: center;
-  -webkit-justify-content: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-}
-
-.c3 {
-  cursor: inherit;
-  font-size: 32px;
-  margin: 0;
-  font-weight: 700;
-}
-
-.c7 {
-  cursor: inherit;
-  font-size: 24px;
-  margin: 0;
-  font-weight: 400;
-}
-
-.c11 {
-  cursor: pointer;
-}
-
-.c12 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-left: .7em;
 }
 
 .c21 {
@@ -113,6 +71,44 @@ exports[`Mount Activity Page 1`] = `
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
+}
+
+.c12 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c19 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+}
+
+.c3 {
+  cursor: inherit;
+  font-size: 32px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.c7 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c11 {
+  cursor: pointer;
 }
 
 .c9 {
@@ -181,14 +177,6 @@ exports[`Mount Activity Page 1`] = `
   color: #006aff;
 }
 
-.c4 {
-  cursor: auto;
-}
-
-.c18 {
-  cursor: auto;
-}
-
 .c15 {
   display: -webkit-box;
   display: -webkit-flex;
@@ -217,7 +205,6 @@ exports[`Mount Activity Page 1`] = `
 }
 
 .c2 {
-  cursor: auto;
   padding-top: 14px;
   padding-bottom: 14px;
   padding-left: 204px;
@@ -233,7 +220,6 @@ exports[`Mount Activity Page 1`] = `
 }
 
 .c5 {
-  cursor: auto;
   padding-top: 144px;
   padding-left: 14px;
   padding-right: 14px;
@@ -326,11 +312,9 @@ exports[`Mount Activity Page 1`] = `
 
 <div
   className="c0 c1"
-  cursor="auto"
 >
   <div
     className="c0 c2"
-    cursor="auto"
     height={96}
     width={1}
   >
@@ -344,17 +328,14 @@ exports[`Mount Activity Page 1`] = `
   </div>
   <div
     className="c0 c4"
-    cursor="auto"
   >
     <div
       className="c0 c5"
-      cursor="auto"
       height="100%"
       width={340}
     >
       <div
         className="c0 c6"
-        cursor="auto"
       >
         <h3
           className="c7"
@@ -365,7 +346,6 @@ exports[`Mount Activity Page 1`] = `
         </h3>
         <div
           className="c0 c6"
-          cursor="auto"
         >
           <a
             className="c8"
@@ -430,7 +410,6 @@ exports[`Mount Activity Page 1`] = `
       </h3>
       <div
         className="c0 c6"
-        cursor="auto"
       >
         <label
           className="c9"
@@ -537,7 +516,6 @@ exports[`Mount Activity Page 1`] = `
       </div>
       <div
         className="c0 c6"
-        cursor="auto"
       >
         <label
           className="c9"
@@ -576,7 +554,6 @@ exports[`Mount Activity Page 1`] = `
       </div>
       <div
         className="c0 c6"
-        cursor="auto"
       >
         <label
           className="c9"
@@ -617,15 +594,12 @@ exports[`Mount Activity Page 1`] = `
   </div>
   <div
     className="c0 c17"
-    cursor="auto"
   >
     <div
       className="c0 c18"
-      cursor="auto"
     >
       <div
         className="c0 c6"
-        cursor="auto"
       >
         <h3
           className="c7"
@@ -636,7 +610,6 @@ exports[`Mount Activity Page 1`] = `
         </h3>
         <div
           className="c0 c6"
-          cursor="auto"
         >
           <a
             className="c8"
@@ -701,7 +674,6 @@ exports[`Mount Activity Page 1`] = `
       </h3>
       <div
         className="c0 c6"
-        cursor="auto"
       >
         <label
           className="c9"
@@ -808,7 +780,6 @@ exports[`Mount Activity Page 1`] = `
       </div>
       <div
         className="c0 c6"
-        cursor="auto"
       >
         <label
           className="c9"
@@ -847,7 +818,6 @@ exports[`Mount Activity Page 1`] = `
       </div>
       <div
         className="c0 c6"
-        cursor="auto"
       >
         <label
           className="c9"
@@ -896,7 +866,6 @@ exports[`Mount Activity Page 1`] = `
     </div>
     <div
       className="c19"
-      cursor="inherit"
     >
       <button
         className="c20 c21"

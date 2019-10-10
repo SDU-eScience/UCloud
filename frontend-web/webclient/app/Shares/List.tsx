@@ -172,9 +172,9 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
             loading={page.loading}
             page={page.data}
             customEmptyPage={simple ? (
-                <Box>
+                <div>
                     No shares for <b>{getFilenameFromPath(props.byPath!)}</b>
-                </Box>
+                </div>
             ) : <NoShares sharedByMe={sharedByMe} />}
             onPageChanged={(pageNumber, page) => setFetchParams(listShares({
                 sharedByMe,
@@ -452,10 +452,10 @@ export const ShareRow: React.FunctionComponent<{
         <Flex alignItems={"center"} mb={"16px"}>
             {props.children}
 
-            <Box>
+            <div>
                 <Text bold>{sharedByMe ? share.sharedWith : sharedBy}</Text>
                 <ShareStateRow state={share.state} />
-            </Box>
+            </div>
 
             <Box flexGrow={1} />
 

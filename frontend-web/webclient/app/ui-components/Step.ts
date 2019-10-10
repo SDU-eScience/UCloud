@@ -1,6 +1,6 @@
-import styled, { css } from "styled-components";
+import styled, {css} from "styled-components";
 import Flex from "./Flex";
-import { properties } from "./icons";
+import {properties} from "./icons";
 
 export interface StepProps {
     numbered?: boolean;
@@ -8,13 +8,14 @@ export interface StepProps {
     active?: boolean;
     size?: number;
     pad?: number;
-  }
+}
 
-const numbered = (props: {numbered?: boolean, 
-                          numberSize?: number, 
-                          size?: number, 
-                          pad?: number}
-                 ) => props.numbered ? css`
+const numbered = (props: {
+    numbered?: boolean,
+    numberSize?: number,
+    size?: number,
+    pad?: number
+}) => props.numbered ? css`
     &::before {
         content: counter(stepcounter);
         counter-increment: stepcounter;
@@ -22,14 +23,14 @@ const numbered = (props: {numbered?: boolean,
         width: ${props.numberSize}px;
         height: ${props.numberSize}px;
         line-height: ${props.numberSize}px;
-        margin: ${(props.size!-props.numberSize!)/2}px 0;
+        margin: ${(props.size! - props.numberSize!) / 2}px 0;
         position: absolute;
         top: 0;
-        left: ${(props.size!/2)+props.pad!}px;
+        left: ${(props.size! / 2) + props.pad!}px;
         font-weight: bold;
-        color: ${({ theme }) => theme.colors.blue }
-        background: ${({ theme }) => theme.colors.white};
-        box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.blue};
+        color: ${({theme}) => theme.colors.blue}
+        background: ${({theme}) => theme.colors.white};
+        box-shadow: 0 0 0 2px ${({theme}) => theme.colors.blue};
     }
 
     &:first-child::before {
@@ -44,14 +45,14 @@ export const Step = styled(Flex) <StepProps>`
     align-items: center;
     float: left;
     height: ${({size}) => size}px;
-    padding: 0 ${({pad}) => pad}px 0 ${({ numbered, numberSize, size, pad }) => numbered ? size!/2+pad!*2+numberSize! : size!/2+pad!}px;
+    padding: 0 ${({pad}) => pad}px 0 ${({numbered, numberSize, size, pad}) => numbered ? size! / 2 + pad! * 2 + numberSize! : size! / 2 + pad!}px;
     position: relative;
-    background: ${({ active, theme }) => active ? theme.colors.blue : theme.colors.white};
-    color: ${({ active, theme }) => active ? theme.colors.white : theme.colors.blue};
+    background: ${({active, theme}) => active ? theme.colors.blue : theme.colors.white};
+    color: ${({active, theme}) => active ? theme.colors.white : theme.colors.blue};
     transition: background 0.5s;
 
     &:first-child {
-        padding-left: ${({ numbered, numberSize, pad }) => numbered ? numberSize!+pad!*2 : pad! }px;
+        padding-left: ${({numbered, numberSize, pad}) => numbered ? numberSize! + pad! * 2 : pad!}px;
         border-radius: 5px 0 0 5px;
     }
     &:last-child {
@@ -67,15 +68,15 @@ export const Step = styled(Flex) <StepProps>`
         content: '';
         position: absolute;
         top: 0;
-        right: -${({size}) => size!/2}px;
+        right: -${({size}) => size! / 2}px;
         width: ${({size}) => size}px;
         height: ${({size}) => size}px;
         transform: scale(0.707) rotate(45deg);
         z-index: 1;
         border-radius: 0 5px 0 ${({size}) => size}px;
-        background: ${({ active, theme }) => active ? theme.colors.blue : theme.colors.white};
+        background: ${({active, theme}) => active ? theme.colors.blue : theme.colors.white};
         transition: background 0.5s;
-        box-shadow: 2px -2px 0 2px ${({ theme }) => theme.colors.lightBlue2};
+        box-shadow: 2px -2px 0 2px ${({theme}) => theme.colors.lightBlue2};
     }
 
     ${numbered}
@@ -93,7 +94,7 @@ Step.defaultProps = {
 export const StepGroup = styled.div`
     text-align: center;
     display: inline-block;
-    box-shadow: ${p => p.theme.shadows["sm"]};
+    box-shadow: ${p => p.theme.shadows.sm};
     overflow: hidden;
     border-radius: 5px;
     counter-reset: stepcounter;

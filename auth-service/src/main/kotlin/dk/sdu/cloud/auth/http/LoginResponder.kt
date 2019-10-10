@@ -1,8 +1,10 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
+import dk.sdu.cloud.auth.api.OptionalAuthenticationTokens
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.services.ServiceDAO
+import dk.sdu.cloud.auth.services.ServiceMode
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.calls.RPCException
@@ -82,19 +84,32 @@ class LoginResponder<DBSession>(
         val expiry = resolvedService.refreshTokenExpiresAfter?.let { System.currentTimeMillis() + it }
         val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(user, refreshTokenExpiry = expiry)
 
+        val tokens = when (resolvedService.serviceMode) {
+            ServiceMode.WEB -> OptionalAuthenticationTokens(
+                accessToken = token,
+                csrfToken = csrfToken
+            )
+
+            ServiceMode.APPLICATION -> OptionalAuthenticationTokens(
+                accessToken = token,
+                csrfToken = csrfToken,
+                refreshToken = refreshToken
+            )
+        }
+
         if (shouldRespondWithJson(call)) {
             call.response.header(HttpHeaders.AccessControlAllowCredentials, "true")
             appendRefreshToken(call, refreshToken, expiry)
 
             call.respond(
                 TextContent(
-                    defaultMapper.writeValueAsString(AccessTokenAndCsrf(token, csrfToken)),
+                    defaultMapper.writeValueAsString(tokens),
                     ContentType.Application.Json
                 )
             )
         } else {
             // This will happen if we get a redirect from SAML (WAYF)
-            appendAuthStateInCookie(call, AccessTokenAndCsrf(token, csrfToken))
+            appendAuthStateInCookie(call, tokens)
             appendRefreshToken(call, refreshToken, expiry)
             call.respondRedirect(resolvedService.endpoint)
         }

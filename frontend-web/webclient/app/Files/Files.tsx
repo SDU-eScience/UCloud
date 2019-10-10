@@ -1,7 +1,7 @@
 import {Cloud} from "Authentication/SDUCloudObject";
 import {defaultFileOperations} from "Files/FileOperations";
 import {FileTable} from "Files/FileTable";
-import {defaultVirtualFolders} from "Files/VirtualFileTable"
+import {defaultVirtualFolders} from "Files/VirtualFileTable";
 import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";

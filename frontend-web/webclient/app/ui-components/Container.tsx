@@ -6,7 +6,7 @@ const maxWidth = (props: {maxWidth?: number | string, theme: Theme}) =>
     ? {maxWidth: `${props.maxWidth}px`}
     : {maxWidth: props.theme.maxContainerWidth};
 
-const Container = styled("div") <{maxWidth?: number}> `
+const Container = styled.div<{maxWidth?: number}> `
   margin-left: auto;
   margin-right: auto;
 

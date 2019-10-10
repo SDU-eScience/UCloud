@@ -48,7 +48,7 @@ exports[`Arrow arrowUp 1`] = `
   fillRule="evenodd"
   height=".7em"
   mr=".4em"
-  rotation="180"
+  rotation={180}
   viewBox="0 0 18 24"
   width=".7em"
 >
@@ -94,15 +94,9 @@ exports[`FileIcon FileIcon, not shared 1`] = `
 
 exports[`FileIcon FileIcon, shared 1`] = `
 .c2 {
-  cursor: auto;
   position: absolute;
   bottom: -6px;
   right: -2px;
-}
-
-.c6 {
-  cursor: inherit;
-  font-size: 14px;
 }
 
 .c1 {
@@ -120,6 +114,11 @@ exports[`FileIcon FileIcon, shared 1`] = `
   flex: none;
   vertical-align: middle;
   cursor: inherit;
+}
+
+.c6 {
+  cursor: inherit;
+  font-size: 14px;
 }
 
 .c3 {
@@ -162,7 +161,6 @@ exports[`FileIcon FileIcon, shared 1`] = `
 }
 
 .c0 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -172,7 +170,6 @@ exports[`FileIcon FileIcon, shared 1`] = `
 
 <div
   className="c0"
-  cursor="inherit"
 >
   <svg
     className="c1"
@@ -196,7 +193,6 @@ exports[`FileIcon FileIcon, shared 1`] = `
   </svg>
   <div
     className="c2"
-    cursor="auto"
   >
     <div
       className="c3"
@@ -380,7 +376,6 @@ exports[`PP Visible PP-Component 1`] = `
 
 exports[`Share prompt 1`] = `
 .c5 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -388,8 +383,7 @@ exports[`Share prompt 1`] = `
   margin-bottom: 8px;
 }
 
-.c16 {
-  cursor: inherit;
+.c15 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -398,13 +392,11 @@ exports[`Share prompt 1`] = `
 }
 
 .c0 {
-  cursor: auto;
   width: 620px;
   max-height: 80vh;
 }
 
 .c1 {
-  cursor: auto;
   width: 605px;
 }
 
@@ -416,38 +408,12 @@ exports[`Share prompt 1`] = `
   width: auto;
 }
 
-.c15 {
-  cursor: auto;
-}
-
-.c17 {
-  cursor: auto;
+.c16 {
   margin-right: auto;
 }
 
-.c19 {
-  cursor: auto;
+.c18 {
   margin-left: auto;
-}
-
-.c2 {
-  cursor: inherit;
-  font-size: 24px;
-  margin: 0;
-  font-weight: 400;
-}
-
-.c9 {
-  cursor: pointer;
-}
-
-.c10 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-left: .7em;
 }
 
 .c14 {
@@ -497,7 +463,7 @@ exports[`Share prompt 1`] = `
   transform: scale(1.03);
 }
 
-.c18 {
+.c17 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -529,18 +495,27 @@ exports[`Share prompt 1`] = `
   padding: 9.5px 18px;
 }
 
-.c18:disabled {
+.c17:disabled {
   opacity: 0.25;
 }
 
-.c18:focus {
+.c17:focus {
   outline: none;
 }
 
-.c18:hover {
+.c17:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
+}
+
+.c10 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
 }
 
 .c3 {
@@ -550,6 +525,17 @@ exports[`Share prompt 1`] = `
   margin-left: 0;
   margin-right: 0;
   border-color: #c9d3df;
+}
+
+.c2 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c9 {
+  cursor: pointer;
 }
 
 .c6 {
@@ -599,13 +585,13 @@ exports[`Share prompt 1`] = `
 
 .c7 {
   cursor: inherit;
-  width: 152px;
+  width: 160px;
   border: #c9d3df solid 2px;
   border-top-right-radius: 5px;
   border-bottom-right-radius: 5px;
   border-left: 0px;
   margin-left: 0;
-  width: 152px;
+  width: 160px;
   padding-left: 1em;
   padding-right: 1em;
   padding-top: 6px;
@@ -668,17 +654,16 @@ exports[`Share prompt 1`] = `
 
 <div
   className="c0"
-  cursor="auto"
   style={
     Object {
-      "overflowY": "scroll",
+      "overflowX": "hidden",
+      "overflowY": "auto",
     }
   }
   width="620px"
 >
   <div
     className="c1"
-    cursor="auto"
     width="605px"
   >
     <form
@@ -704,7 +689,6 @@ exports[`Share prompt 1`] = `
       >
         <div
           className="c5"
-          cursor="inherit"
         >
           <input
             className="c6"
@@ -717,7 +701,7 @@ exports[`Share prompt 1`] = `
           <div
             className="c7"
             cursor="inherit"
-            width="152px"
+            width="160px"
           >
             <div
               className="c8"
@@ -782,10 +766,7 @@ exports[`Share prompt 1`] = `
           </button>
         </div>
       </label>
-      <div
-        className="c15"
-        cursor="auto"
-      >
+      <div>
         No shares for 
         <b>
           
@@ -793,15 +774,13 @@ exports[`Share prompt 1`] = `
       </div>
     </form>
     <div
-      className="c16"
-      cursor="inherit"
+      className="c15"
     >
       <div
-        className="c17"
-        cursor="auto"
+        className="c16"
       />
       <button
-        className="c13 c18"
+        className="c13 c17"
         color="blue"
         onClick={[Function]}
         type="button"
@@ -809,8 +788,7 @@ exports[`Share prompt 1`] = `
         Close
       </button>
       <div
-        className="c19"
-        cursor="auto"
+        className="c18"
       />
     </div>
   </div>

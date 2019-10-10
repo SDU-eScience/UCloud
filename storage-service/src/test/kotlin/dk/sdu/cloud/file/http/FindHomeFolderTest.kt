@@ -26,16 +26,4 @@ class FindHomeFolderTest : WithBackgroundScope() {
             }
         )
     }
-
-    @Test
-    fun `find home folder test - not admin`() {
-        withKtorTest(
-            setup = { configureServerWithFileController(backgroundScope) },
-
-            test = {
-                val response = engine.findHome("user@name.dk", role = Role.USER)
-                assertEquals(HttpStatusCode.Unauthorized, response.status())
-            }
-        )
-    }
 }
