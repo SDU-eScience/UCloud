@@ -15,7 +15,7 @@ import {Link} from "react-router-dom";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Card, ContainerForText, ExternalLink, Flex, List} from "ui-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Flex, List, Hide} from "ui-components";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
@@ -382,12 +382,10 @@ const StepTrackerItem: React.FunctionComponent<{
 
     return (
         <Step active={active}>
-            {complete ?
-                <Icon name={thisFailed ? "close" : "check"} color={thisFailed ? "red" : "green"} mr="0.7em"
-                    size="30px" /> :
-                <JobStateIcon state={stateToDisplay} mr="0.7em" size="30px" />
-            }
-            <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
+            <JobStateIcon state={stateToDisplay} color={complete && thisFailed ? "red" : undefined } mr="0.7em" size="30px" />
+            <Hide sm xs md lg>
+                <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
+            </Hide>
         </Step>
     );
 };
