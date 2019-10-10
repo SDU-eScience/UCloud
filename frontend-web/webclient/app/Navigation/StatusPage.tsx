@@ -1,18 +1,19 @@
+import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {connect} from "react-redux";
-import {updatePageTitle} from "./Redux/StatusActions";
 import {Dispatch} from "redux";
-import {Box} from "ui-components";
-import {MainContainer} from "MainContainer/MainContainer";
+import {updatePageTitle} from "./Redux/StatusActions";
 
 const Status = ({status, updatePageTitle}) => {
     updatePageTitle();
     return (
         <MainContainer
-            main={<>
-                <Box>{status.title}</Box>
-                <Box>{status.body}</Box>
-            </>}
+            main={(
+                <>
+                    <div>{status.title}</div>
+                    <div>{status.body}</div>
+                </>
+            )}
         />
     );
 };

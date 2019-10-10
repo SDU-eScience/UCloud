@@ -7,7 +7,6 @@ import styled, {css} from "styled-components";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {copyToClipboard, inDevEnvironment} from "UtilityFunctions";
 import Box from "./Box";
-import Divider from "./Divider";
 import ExternalLink from "./ExternalLink";
 import Flex, {FlexCProps} from "./Flex";
 import Icon, {IconName} from "./Icon";
@@ -30,7 +29,7 @@ const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean
 
 // This is applied to SidebarContainer on small screens
 const HideText = css`
-${({theme}) => theme.mediaQueryLT["xl"]} {
+${({theme}) => theme.mediaQueryLT.xl} {
 
     will-change: transform;
     transition: transform ${({theme}) => theme.timingFunctions.easeOut} ${({theme}) => theme.duration.fastest} ${({theme}) => theme.transitionDelays.xsmall};
@@ -218,42 +217,55 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
         .filter(it => it.predicate());
     return (
         <SidebarContainer color="sidebar" flexDirection="column" width={190}>
-            {sidebar.map((category, categoryIdx) =>
+            {sidebar.map((category, categoryIdx) => (
                 <React.Fragment key={categoryIdx}>
                     {category.items.map(({icon, label, to}: MenuElement) => (
                         <React.Fragment key={label}>
                             <SidebarSpacer />
-                            <SidebarElement icon={icon} activePage={page} label={label}
-                                to={typeof to === "function" ? to() : to} />
-                        </React.Fragment>))}
+                            <SidebarElement
+                                icon={icon}
+                                activePage={page}
+                                label={label}
+                                to={typeof to === "function" ? to() : to}
+                            />
+                        </React.Fragment>
+                    ))}
                 </React.Fragment>
-            )}
+            ))}
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
             {Cloud.userRole === "ADMIN" ? <ContextSwitcher maxSize={140} /> : null}
-            {Cloud.isLoggedIn ?
-                <SidebarTextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em"
-                    title={Cloud.username || ""}>
+            {!Cloud.isLoggedIn ? null : (
+                <SidebarTextLabel
+                    height="25px"
+                    hover={false}
+                    icon="id"
+                    iconSize="1em"
+                    textSize={1}
+                    space=".5em"
+                    title={Cloud.username || ""}
+                >
                     <Tooltip
                         left="-50%"
                         top={"1"}
                         mb="35px"
-                        trigger={
+                        trigger={(
                             <EllipsedText
                                 cursor="pointer"
-                                onClick={() => copyToClipboard({
-                                    value: Cloud.username,
-                                    message: "Username copied to clipboard"
-                                })}
-                                width={"140px"}>{Cloud.username}</EllipsedText>
-                        }>
-                        {`Click to copy "${Cloud.username}" to clipboard`}
+                                onClick={copyUserName}
+                                width="140px"
+                            >
+                                {Cloud.username}
+                            </EllipsedText>
+                        )}
+                    >
+                        Click to copy {Cloud.username} to clipboard
                     </Tooltip>
-                </SidebarTextLabel> : null}
+                </SidebarTextLabel>
+            )}
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                <SidebarTextLabel height="25px" icon="verified" iconSize="1em" textSize={1}
-                    space=".5em">
+                <SidebarTextLabel height="25px" icon="verified" iconSize="1em" textSize={1} space=".5em">
                     SDU Data Protection
                 </SidebarTextLabel>
             </ExternalLink>
@@ -261,6 +273,13 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
         </SidebarContainer>
     );
 };
+
+function copyUserName() {
+    copyToClipboard({
+        value: Cloud.username,
+        message: "Username copied to clipboard"
+    });
+}
 
 const mapStateToProps = ({status, project}: ReduxObject): SidebarStateProps => ({
     page: status.page,

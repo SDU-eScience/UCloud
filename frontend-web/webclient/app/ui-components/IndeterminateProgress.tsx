@@ -13,7 +13,7 @@ interface ProgressBaseProps {
 
 const ProgressBase = styled(Box)<ProgressBaseProps>`
     border-radius: 5px;
-    background-color: ${props => props.theme.colors["lightGray"]};
+    background-color: ${props => props.theme.colors.lightGray};
     height: ${props => props.height};
     position: relative;
     overflow: hidden;

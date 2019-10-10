@@ -1,10 +1,10 @@
 import * as React from "react";
-import {IconName} from "ui-components/Icon";
-import {Flex, Icon} from "ui-components";
-import {ThemeColor} from "ui-components/theme";
 import {useEffect, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Flex, Icon} from "ui-components";
+import {IconName} from "ui-components/Icon";
 import {Snackbar} from "ui-components/Snackbar";
+import {ThemeColor} from "ui-components/theme";
 
 interface IconColorAndName {
     name: IconName,
@@ -35,7 +35,7 @@ const Snackbars: React.FunctionComponent = props => {
     const [activeSnack, setActiveSnack] = useState<Snack | undefined>(undefined);
 
     useEffect(() => {
-        let subscriber = snack => setActiveSnack(snack);
+        const subscriber = (snack: Snack) => setActiveSnack(snack);
         snackbarStore.subscribe(subscriber);
         return () => snackbarStore.unsubscribe(subscriber);
     }, []);
@@ -45,13 +45,17 @@ const Snackbars: React.FunctionComponent = props => {
     }
 
     let snackElement: JSX.Element;
-    if (activeSnack.type == SnackType.Custom) {
+    if (activeSnack.type === SnackType.Custom) {
         snackElement = <CustomSnack snack={activeSnack}/>;
     } else {
         snackElement = <DefaultSnack snack={activeSnack}/>;
     }
 
-    return <Snackbar onClick={() => snackbarStore.requestCancellation()} visible={true}>{snackElement}</Snackbar>;
+    return <Snackbar onClick={onCancellation} visible={true}>{snackElement}</Snackbar>;
+
+    function onCancellation() {
+        snackbarStore.requestCancellation();
+    }
 };
 
 export const enum SnackType {
@@ -62,18 +66,18 @@ export const enum SnackType {
 }
 
 interface DefaultSnack {
-    message: string
-    type: SnackType.Success | SnackType.Information | SnackType.Failure
-    id?: number
-    lifetime?: number
+    message: string;
+    type: SnackType.Success | SnackType.Information | SnackType.Failure;
+    id?: number;
+    lifetime?: number;
 }
 
 interface CustomSnack {
-    message: string
-    type: SnackType.Custom
-    id?: number
-    lifetime?: number
-    icon: IconName
+    message: string;
+    type: SnackType.Custom;
+    id?: number;
+    lifetime?: number;
+    icon: IconName;
 }
 
 export type Snack = CustomSnack | DefaultSnack;

@@ -79,9 +79,9 @@ const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskS
                         <>
                             <Flex key={lastElement.title}>
                                 <Box flexGrow={1}>{lastElement.title}</Box>
-                                <Box>
+                                <div>
                                     {lastElement.asText}
-                                </Box>
+                                </div>
                             </Flex>
                             <Container aspect={16 / 9} maxHeight={200}>
                                 <AreaChart data={speeds}>

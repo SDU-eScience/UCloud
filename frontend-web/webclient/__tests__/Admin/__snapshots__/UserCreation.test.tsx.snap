@@ -2,7 +2,6 @@
 
 exports[`UserCreation Mount 1`] = `
 .c0 {
-  cursor: auto;
   margin-left: 68px;
   padding-top: 48px;
   padding-bottom: 14px;
@@ -12,16 +11,8 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c9 {
-  cursor: auto;
   padding-top: 64px;
   padding-right: 14px;
-}
-
-.c2 {
-  cursor: inherit;
-  font-size: 40px;
-  margin: 0;
-  font-weight: 700;
 }
 
 .c8 {
@@ -116,6 +107,13 @@ exports[`UserCreation Mount 1`] = `
   transform: scale(1.03);
 }
 
+.c2 {
+  cursor: inherit;
+  font-size: 40px;
+  margin: 0;
+  font-weight: 700;
+}
+
 .c12 {
   display: block;
   font-family: inherit;
@@ -185,16 +183,7 @@ exports[`UserCreation Mount 1`] = `
   color: #006aff;
 }
 
-.c3 {
-  cursor: auto;
-}
-
-.c10 {
-  cursor: auto;
-}
-
 .c5 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -206,13 +195,12 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c5 .c7,
-.c5 .sc-dnqmqq {
+.c5 .sc-EHOje {
   width: 100%;
   margin-bottom: 8px;
 }
 
 .c1 {
-  cursor: auto;
   padding-top: 14px;
   padding-bottom: 14px;
   padding-left: 82px;
@@ -228,7 +216,6 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c4 {
-  cursor: auto;
   padding-top: 112px;
   padding-left: 14px;
   padding-right: 14px;
@@ -280,11 +267,9 @@ exports[`UserCreation Mount 1`] = `
 
 <div
   className="c0"
-  cursor="auto"
 >
   <div
     className="c1"
-    cursor="auto"
     height={64}
     width={1}
   >
@@ -298,17 +283,14 @@ exports[`UserCreation Mount 1`] = `
   </div>
   <div
     className="c3"
-    cursor="auto"
   >
     <div
       className="c4"
-      cursor="auto"
       height="100%"
       width={240}
     >
       <div
         className="c5"
-        cursor="inherit"
       >
         <a
           className="c6"
@@ -330,15 +312,12 @@ exports[`UserCreation Mount 1`] = `
   </div>
   <div
     className="c9"
-    cursor="auto"
   >
     <div
       className="c10"
-      cursor="auto"
     >
       <div
         className="c5"
-        cursor="inherit"
       >
         <a
           className="c6"

@@ -36,15 +36,15 @@ function Installed(props: InstalledProps & {header: any}) {
     React.useEffect(() => {
         props.onInit();
         props.fetchItems(0, 25);
-        props.setRefresh(() => refresh());
-        return () => props.setRefresh();
+        if (props.header !== null) props.setRefresh(() => refresh());
+        return () => {if (props.header !== null) props.setRefresh();};
     }, []);
 
     function refresh() {
         const {content} = props.applications;
         const pageNumber = !!content ? content.pageNumber : 0;
         const itemsPerPage = !!content ? content.itemsPerPage : 25;
-        props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage));
+        if (props.header !== null) props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage));
     }
 
 
@@ -60,33 +60,52 @@ function Installed(props: InstalledProps & {header: any}) {
         }
     }
 
+    function onItemsPerPageChange(items: number) {
+        props.fetchItems(0, items);
+    }
+
+    function pageRenderer(page: Page<FullAppInfo>) {
+        return (
+            <Box mt="5px">
+                <InstalledPage onFavorite={onFavoriteApp} page={page} />
+            </Box>
+        );
+    }
+
+    function onFavoriteApp(name: string, version: string) {
+        onFavorite(name, version);
+    }
+
     const page = props.applications.content as Page<FullAppInfo>;
     const itemsPerPage = !!page ? page.itemsPerPage : 25;
     const main = (
         <Box maxWidth="98%">
             <Spacer
                 left={<Heading.h2>Favorites</Heading.h2>}
-                right={props.applications.loading ? null : <Pagination.EntriesPerPageSelector
-                    content="Apps per page"
-                    entriesPerPage={itemsPerPage}
-                    onChange={itemsPerPage => props.fetchItems(0, itemsPerPage)}
-                />} />
+                right={props.applications.loading ? null : (
+                    <Pagination.EntriesPerPageSelector
+                        content="Apps per page"
+                        entriesPerPage={itemsPerPage}
+                        onChange={onItemsPerPageChange}
+                    />
+                )}
+            />
             <Pagination.List
                 loading={props.applications.loading}
                 page={page}
                 onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
-                pageRenderer={page => <Box mt="5px">
-                    <InstalledPage onFavorite={(name, version) => onFavorite(name, version)} page={page} />
-                </Box>}
+                pageRenderer={pageRenderer}
             />
         </Box >
     );
 
     if (!props.applications.content) {
         if (props.applications.error) {
-            return (<Heading.h2>
-                {props.applications.error.statusCode} - {props.applications.error.errorMessage}
-            </Heading.h2>);
+            return (
+                <Heading.h2>
+                    {props.applications.error.statusCode} - {props.applications.error.errorMessage}
+                </Heading.h2>
+            );
         }
         return (<Spinner />);
     } else if (props.applications.content.itemsInTotal === 0) {
@@ -111,8 +130,8 @@ const InstalledPage: React.FunctionComponent<InstalledPageProps> = props => (
                 isFavorite={it.favorite}
                 linkToRun
                 tags={it.tags}
-            />)
-        )}
+            />
+        ))}
     </GridCardGroup>
 );
 

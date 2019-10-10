@@ -1,28 +1,26 @@
-import {Cloud} from "Authentication/SDUCloudObject";
-import {
-    SET_ALL_LOADING,
-    RECEIVE_DASHBOARD_FAVORITES,
-    RECEIVE_RECENT_JOBS,
-    RECEIVE_RECENT_FILES,
-    DASHBOARD_FAVORITE_ERROR,
-    DASHBOARD_RECENT_JOBS_ERROR,
-    DASHBOARD_RECENT_FILES_ERROR
-} from "./DashboardReducer";
-import {SetLoadingAction} from "Types";
 import {Analysis} from "Applications";
+import {Cloud} from "Authentication/SDUCloudObject";
 import {File} from "Files";
-import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
-import {PayloadAction} from "Types";
-import {recentFilesQuery, favoritesQuery} from "Utilities/FileUtilities";
 import {Action} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
-
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {PayloadAction, SetLoadingAction} from "Types";
+import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
+import {favoritesQuery, recentFilesQuery} from "Utilities/FileUtilities";
+import {
+    DASHBOARD_FAVORITE_ERROR,
+    DASHBOARD_RECENT_FILES_ERROR,
+    DASHBOARD_RECENT_JOBS_ERROR,
+    RECEIVE_DASHBOARD_FAVORITES,
+    RECEIVE_RECENT_FILES,
+    RECEIVE_RECENT_JOBS,
+    SET_ALL_LOADING,
+} from "./DashboardReducer";
 
 export type DashboardActions = Action<DashboardError> | ReceiveFavoritesProps | ReceiveRecentFilesProps |
     SetLoadingAction<typeof SET_ALL_LOADING> | ReceiveRecentAnalyses;
 
-type DashboardError = 
+type DashboardError =
     typeof DASHBOARD_FAVORITE_ERROR |
     typeof DASHBOARD_RECENT_JOBS_ERROR |
     typeof DASHBOARD_RECENT_FILES_ERROR;
@@ -46,7 +44,7 @@ export const setErrorMessage = (type: DashboardError): Action<typeof type> => ({
 export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<DashboardError>> => {
     try {
         const {response} = await Cloud.get(favoritesQuery());
-        return receiveFavorites(response.items.slice(0, 10))
+        return receiveFavorites(response.items.slice(0, 10));
     } catch {
         snackbarStore.addSnack({
             message: "Failed to fetch favorites. Please try again later.",
@@ -85,9 +83,9 @@ export const fetchRecentFiles = async (): Promise<ReceiveRecentFilesProps | Acti
 };
 
 /**
-* Returns an action containing recently used files
-* @param {File[]} content The list of recently used files retrieved
-*/
+ * Returns an action containing recently used files
+ * @param {File[]} content The list of recently used files retrieved
+ */
 export const receiveRecentFiles = (content: File[]): ReceiveRecentFilesProps => ({
     type: RECEIVE_RECENT_FILES,
     payload: {content}
@@ -110,9 +108,9 @@ export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Act
 };
 type ReceiveRecentAnalyses = PayloadAction<typeof RECEIVE_RECENT_JOBS, {content: Analysis[]}>
 /**
-* Returns an action containing most recently updated analyses
-* @param {Analyses[]} content The list of recently updated analyses
-*/
+ * Returns an action containing most recently updated analyses
+ * @param {Analyses[]} content The list of recently updated analyses
+ */
 export const receiveRecentAnalyses = (content: Analysis[]): ReceiveRecentAnalyses => ({
     type: RECEIVE_RECENT_JOBS,
     payload: {content}

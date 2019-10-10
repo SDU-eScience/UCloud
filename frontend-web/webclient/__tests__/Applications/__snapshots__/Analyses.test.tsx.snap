@@ -2,7 +2,6 @@
 
 exports[`Analyses component Mount component with non-empty page 1`] = `
 .c1 {
-  cursor: auto;
   margin-left: 190px;
   padding-top: 48px;
   padding-bottom: 14px;
@@ -12,12 +11,10 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c4 {
-  cursor: auto;
   margin-left: auto;
 }
 
 .c13 {
-  cursor: auto;
   padding-top: 48px;
 }
 
@@ -34,28 +31,66 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c20 {
-  cursor: auto;
   margin-bottom: 16px;
   margin-top: 16px;
 }
 
 .c23 {
-  cursor: auto;
   margin-bottom: 16px;
 }
 
 .c24 {
-  cursor: auto;
   padding-top: 48px;
   padding-right: 340px;
 }
 
-.c38 {
-  cursor: auto;
+.c8 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c32 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+.c34 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: pointer;
+  margin-right: .4em;
+}
+
+.c39 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-right: 8px;
+  color: #c00;
+}
+
+.c40 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-right: 8px;
+  color: #00C05A;
 }
 
 .c3 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -90,52 +125,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   margin: 0;
   margin-top: 16px;
   font-weight: 400;
-}
-
-.c8 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-left: .7em;
-}
-
-.c32 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-}
-
-.c34 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: pointer;
-  margin-right: .4em;
-}
-
-.c40 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-right: 8px;
-  color: #c00;
-}
-
-.c41 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-right: 8px;
-  color: #00C05A;
 }
 
 .c17 {
@@ -182,7 +171,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   left: 85px;
 }
 
-.c9 > *:hover:not(.c42) {
+.c9 > *:hover:not(.c41) {
   background-color: rgba(0,0,0,0.05);
 }
 
@@ -214,7 +203,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   pointer-events: none;
 }
 
-.c18 > *:hover:not(.c42) {
+.c18 > *:hover:not(.c41) {
   background-color: rgba(0,0,0,0.05);
 }
 
@@ -224,14 +213,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 
 .c18 > svg ~ span {
   margin-right: 1em;
-}
-
-.c11 {
-  cursor: auto;
-}
-
-.c25 {
-  cursor: auto;
 }
 
 .c21 {
@@ -256,13 +237,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   flex: 1 1 auto;
 }
 
-.c21 .c43 {
+.c21 .c42 {
   border: 0;
   box-shadow: none;
 }
 
 .c30 {
-  cursor: auto;
   display: inline-block;
   position: relative;
   vertical-align: middle;
@@ -292,7 +272,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c2 {
-  cursor: auto;
   padding-top: 14px;
   padding-bottom: 14px;
   padding-left: 204px;
@@ -308,7 +287,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c12 {
-  cursor: auto;
   padding-top: 96px;
   padding-left: 14px;
   padding-right: 14px;
@@ -379,7 +357,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   text-align: center;
 }
 
-.c39 {
+.c38 {
   border: 0px;
   border-spacing: 0;
 }
@@ -474,21 +452,17 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 
 <div
   className="c0 c1"
-  cursor="auto"
 >
   <div
     className="c0 c2"
-    cursor="auto"
     height={48}
     width={1}
   >
     <div
       className="c3"
-      cursor="inherit"
     >
       <div
         className="c0 c4"
-        cursor="auto"
       />
       <div
         className="c5"
@@ -565,17 +539,14 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   </div>
   <div
     className="c0 c11"
-    cursor="auto"
   >
     <div
       className="c0 c12"
-      cursor="auto"
       height="100%"
       width={340}
     >
       <div
         className="c0 c13"
-        cursor="auto"
       >
         <h3
           className="c14"
@@ -751,7 +722,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c20"
-          cursor="auto"
         >
           <label
             className="c17"
@@ -790,7 +760,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c23"
-          cursor="auto"
         >
           <label
             className="c17"
@@ -832,15 +801,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   </div>
   <div
     className="c0 c24"
-    cursor="auto"
   >
     <div
       className="c0 c25"
-      cursor="auto"
     >
       <div
         className="c0 c13"
-        cursor="auto"
       >
         <h3
           className="c14"
@@ -1016,7 +982,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c20"
-          cursor="auto"
         >
           <label
             className="c17"
@@ -1055,7 +1020,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c23"
-          cursor="auto"
         >
           <label
             className="c17"
@@ -1118,7 +1082,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             >
               <div
                 className="c0 c30"
-                cursor="auto"
                 disabled={false}
               >
                 <input
@@ -1214,10 +1177,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           <td
             className="c36 c37"
           >
-            <div
-              className="c0 c38"
-              cursor="auto"
-            >
+            <div>
               <label
                 className="c17"
                 color="black"
@@ -1227,7 +1187,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               >
                 <div
                   className="c0 c30"
-                  cursor="auto"
                   disabled={false}
                 >
                   <input
@@ -1269,17 +1228,17 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             </div>
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             Thomas
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1300,7 +1259,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             Failure
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             
@@ -1308,13 +1267,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             28/08/2018
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             N/A
@@ -1327,10 +1286,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           <td
             className="c36 c37"
           >
-            <div
-              className="c0 c38"
-              cursor="auto"
-            >
+            <div>
               <label
                 className="c17"
                 color="black"
@@ -1340,7 +1296,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               >
                 <div
                   className="c0 c30"
-                  cursor="auto"
                   disabled={false}
                 >
                   <input
@@ -1382,17 +1337,17 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             </div>
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             Johnny
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1413,7 +1368,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             Failure
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             
@@ -1421,13 +1376,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             29/08/2018
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             N/A
@@ -1440,10 +1395,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           <td
             className="c36 c37"
           >
-            <div
-              className="c0 c38"
-              cursor="auto"
-            >
+            <div>
               <label
                 className="c17"
                 color="black"
@@ -1453,7 +1405,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               >
                 <div
                   className="c0 c30"
-                  cursor="auto"
                   disabled={false}
                 >
                   <input
@@ -1495,17 +1446,17 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             </div>
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             Fred
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1526,7 +1477,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             Failure
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             
@@ -1534,13 +1485,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             30/08/2018
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             N/A
@@ -1553,10 +1504,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           <td
             className="c36 c37"
           >
-            <div
-              className="c0 c38"
-              cursor="auto"
-            >
+            <div>
               <label
                 className="c17"
                 color="black"
@@ -1566,7 +1514,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               >
                 <div
                   className="c0 c30"
-                  cursor="auto"
                   disabled={false}
                 >
                   <input
@@ -1608,17 +1555,17 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             </div>
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             Nathan
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             <svg
-              className="c41"
+              className="c40"
               clipRule="evenodd"
               color="#00C05A"
               cursor="inherit"
@@ -1639,7 +1586,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             Success
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             
@@ -1647,13 +1594,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             03/09/2018
           </td>
           <td
-            className="c36 c39"
+            className="c36 c38"
             onClick={[Function]}
           >
             N/A

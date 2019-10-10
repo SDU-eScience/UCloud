@@ -150,13 +150,14 @@ export const Refresh = ({
     onClick,
     spin,
     headerLoading
-}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ?
-        <RefreshIcon
-            data-tag="refreshButton"
-            name="refresh"
-            spin={spin || headerLoading}
-            onClick={onClick}
-        /> : <Box width="24px" />;
+}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ? (
+    <RefreshIcon
+        data-tag="refreshButton"
+        name="refresh"
+        spin={spin || headerLoading}
+        onClick={onClick}
+    />
+) : <Box width="24px" />;
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
@@ -177,8 +178,15 @@ const Logo = () => (
         <Flex alignItems={"center"} ml="15px">
             <Icon name={"logoEsc"} size={"38px"} />
             <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
-            <Text ml={"4px"} mt={-7} style={{verticalAlign: "top", fontWeight: 700}} color="red"
-                fontSize={17}>BETA</Text>
+            <Text
+                ml="4px"
+                mt={-7}
+                style={{verticalAlign: "top", fontWeight: 700}}
+                color="red"
+                fontSize={17}
+            >
+                BETA
+            </Text>
         </Flex>
     </Link>
 );
@@ -250,64 +258,67 @@ const _Search = (props: SearchProps) => {
     const [search, setSearch] = React.useState(getQueryParamOrElse({history, location}, "query", ""));
     const {prioritizedSearch, setSearchType} = props;
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
-    return (<Relative>
-        <SearchInput>
-            <Input
-                pl="30px"
-                pt="6px"
-                pb="6px"
-                id="search_input"
-                type="text"
-                value={search}
-                noBorder
-                onKeyDown={e => {
-                    if (e.keyCode === KeyCode.ENTER && search) fetchAll();
-                }}
-                onChange={({target}) => setSearch(target.value)}
-            />
-            <Absolute left="6px" top="7px">
-                <Label htmlFor="search_input">
-                    <Icon name="search" size="20" />
-                </Label>
-            </Absolute>
-            <ClickableDropdown
-                keepOpenOnOutsideClick
-                overflow={"visible"}
-                left={-425}
-                top={15}
-                width="425px"
-                colorOnHover={false}
-                keepOpenOnClick
-                squareTop
-                trigger={
-                    <Absolute top={-12.5} right={12} bottom={0} left={-28}>
-                        <Icon cursor="pointer" name="chevronDown" size="15px" />
-                    </Absolute>
-                }>
-                <SelectableTextWrapper>
-                    <Box ml="auto" />
-                    {allowedSearchTypes.map(it =>
-                        <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
-                            selected={it === prioritizedSearch}>
-                            {prettierString(it)}
-                        </SelectableText>
-                    )}
-                    <Box mr="auto" />
-                </SelectableTextWrapper>
-                {prioritizedSearch === "files" ?
-                    <DetailedFileSearch
-                        onSearch={() => fetchAll()}
-                        cantHide
-                    /> :
-                    prioritizedSearch === "applications" ?
+    return (
+        <Relative>
+            <SearchInput>
+                <Input
+                    pl="30px"
+                    pt="6px"
+                    pb="6px"
+                    id="search_input"
+                    type="text"
+                    value={search}
+                    noBorder
+                    onKeyDown={e => {
+                        if (e.keyCode === KeyCode.ENTER && search) fetchAll();
+                    }}
+                    onChange={({target}) => setSearch(target.value)}
+                />
+                <Absolute left="6px" top="7px">
+                    <Label htmlFor="search_input">
+                        <Icon name="search" size="20" />
+                    </Label>
+                </Absolute>
+                <ClickableDropdown
+                    keepOpenOnOutsideClick
+                    overflow={"visible"}
+                    left={-425}
+                    top={15}
+                    width="425px"
+                    colorOnHover={false}
+                    keepOpenOnClick
+                    squareTop
+                    trigger={(
+                        <Absolute top={-12.5} right={12} bottom={0} left={-28}>
+                            <Icon cursor="pointer" name="chevronDown" size="15px" />
+                        </Absolute>
+                    )}>
+                    <SelectableTextWrapper>
+                        <Box ml="auto" />
+                        {allowedSearchTypes.map(it => (
+                            <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
+                                selected={it === prioritizedSearch}>
+                                {prettierString(it)}
+                            </SelectableText>
+                        ))}
+                        <Box mr="auto" />
+                    </SelectableTextWrapper>
+                    {prioritizedSearch === "files" ? (
+                        <DetailedFileSearch
+                            onSearch={() => fetchAll()}
+                            cantHide
+                        />
+                    ) : prioritizedSearch === "applications" ? (
                         <DetailedApplicationSearch
                             onSearch={() => fetchAll()}
                             defaultAppName={search}
-                        /> : null}
-            </ClickableDropdown>
-            {!Cloud.isLoggedIn ? <Login /> : null}
-        </SearchInput>
-    </Relative>);
+                        />
+                    ) : null}
+                </ClickableDropdown>
+                {!Cloud.isLoggedIn ? <Login /> : null}
+            </SearchInput>
+        </Relative>
+    );
 
     function fetchAll(itemsPerPage?: number) {
         props.searchFiles({

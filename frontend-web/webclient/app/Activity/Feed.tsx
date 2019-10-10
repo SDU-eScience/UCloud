@@ -10,7 +10,6 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-compo
 import {colors} from "ui-components/theme";
 import {fileInfoPage, getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
 
-
 export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTableSectionElement>}> = props => {
     return (
         <Table>
@@ -26,7 +25,7 @@ export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTab
             </tbody>
         </Table >
     );
-}
+};
 
 export const ActivityFeed = ({activity}: {activity: Module.Activity[]}) => (
     <ActivityFeedFrame>
@@ -211,11 +210,11 @@ const TFRow = styled(TableRow)`
     vertical-align: top;
 
     & a {
-        color: ${colors["text"]}
+        color: ${colors.text}
     }
 
     & a:hover {
-        color: ${colors["textHighlight"]}
+        color: ${colors.textHighlight}
     }
 
     & div.ellipsis {

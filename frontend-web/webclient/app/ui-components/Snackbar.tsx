@@ -12,7 +12,7 @@ const fadeIn = keyframes`
     from {
         bottom: 0; opacity: 0;
     }
-    to { 
+    to {
         bottom: 30px; opacity: 1;
     }
 `;

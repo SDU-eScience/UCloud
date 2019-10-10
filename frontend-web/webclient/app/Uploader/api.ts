@@ -9,27 +9,25 @@ import {inSuccessRange} from "UtilityFunctions";
 const timeBetweenUpdates = 150;
 
 interface UploadArgs {
-    location: string
-    file: File
-    sensitivity: Sensitivity
-    policy: UploadPolicy
-    onProgress?: (e: ProgressEvent) => void,
-    onError?: (error: string) => void
+    location: string;
+    file: File;
+    sensitivity: Sensitivity;
+    policy: UploadPolicy;
+    onProgress?: (e: ProgressEvent) => void;
+    onError?: (error: string) => void;
 }
 
-export const multipartUpload = async (
-    {
-        location,
-        file,
-        sensitivity,
-        policy,
-        onProgress,
-        onError
-    }: UploadArgs
-): Promise<XMLHttpRequest> => {
+export const multipartUpload = async ({
+    location,
+    file,
+    sensitivity,
+    policy,
+    onProgress,
+    onError
+}: UploadArgs): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
 
-    let request = new XMLHttpRequest();
+    const request = new XMLHttpRequest();
     request.open("POST", Cloud.computeURL("/api", "/files/upload/file"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
@@ -70,7 +68,7 @@ export const bulkUpload = async (
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = formatFromFileName(file.name);
 
-    let request = new XMLHttpRequest();
+    const request = new XMLHttpRequest();
     request.open("POST", Cloud.computeURL("/api", "/files/upload/archive"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
