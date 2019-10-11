@@ -1,6 +1,4 @@
-import * as React from "react"
-import {HatColorOption} from "../../options"
-import Selector from "AvataaarLib/options/Selector";
+import * as React from "react";
 import {HatColor} from "UserSettings/AvatarOptions";
 
 
@@ -10,23 +8,21 @@ export interface Props {
 }
 
 function makeColor(name: string, color: string) {
-  class ColorComponent extends React.Component<Props> {
-    render() {
-      return (
-        <g
-          id="Color/Palette/Gray-01"
-          mask={`url(#${this.props.maskID})`}
-          fillRule="evenodd"
-          fill={color}>
-          <rect id="🖍Color" x="0" y="0" width="264" height="280" />
-        </g>
-      )
-    }
+  function ColorComponent(props: Props) {
+    return (
+      <g
+        id="Color/Palette/Gray-01"
+        mask={`url(#${props.maskID})`}
+        fillRule="evenodd"
+        fill={color}>
+        <rect id="🖍Color" x="0" y="0" width="264" height="280" />
+      </g>
+    );
   }
   const anyComponent = ColorComponent as any;
   anyComponent.displayName = name;
   anyComponent.optionValue = name;
-  return anyComponent
+  return anyComponent;
 }
 
 const Black = makeColor("Black", "#262E33");

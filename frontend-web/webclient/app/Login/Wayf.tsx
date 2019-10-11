@@ -1,8 +1,7 @@
-import { History } from "history";
 import * as React from "react";
 import {RouterLocationProps} from "Utilities/URIUtilities";
-import { inDevEnvironment } from "UtilityFunctions";
-import { LoginPage } from "./Login";
+import {inDevEnvironment} from "UtilityFunctions";
+import {LoginPage} from "./Login";
 
 // https://stackoverflow.com/a/2138471
 function setCookie(name: string, value: string, days: number) {
@@ -65,6 +64,7 @@ function Wayf(props: RouterLocationProps) {
 
     const authStateCookie = getCookie(authCookieName);
     if (authStateCookie === null) {
+        // tslint:disable-next-line: no-console
         console.log("Found no auth state!");
     } else {
         const authState = JSON.parse(decodeURIComponent(authStateCookie));

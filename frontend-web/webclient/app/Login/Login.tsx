@@ -33,7 +33,7 @@ const inDevEnvironment = process.env.NODE_ENV === "development";
 const enabledWayf = true;
 const wayfService = inDevEnvironment ? "dev-web" : "web";
 
-export const LoginPage = (props: RouterLocationProps & { initialState?: any }) => {
+export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => {
     const [challengeId, setChallengeID] = useState("");
     const [webDavInstructionToken, setWebDavToken] = useState<string | null>(null);
     const verificationInput = useRef<HTMLInputElement>(null);
@@ -48,12 +48,12 @@ export const LoginPage = (props: RouterLocationProps & { initialState?: any }) =
     const service = isWebDav ? "dav" : (inDevEnvironment ? "dev-web" : "web");
 
     if (webDavInstructionToken !== null) {
-        return <Instructions token={webDavInstructionToken}/>;
+        return <Instructions token={webDavInstructionToken} />;
     }
 
     if (Cloud.isLoggedIn && !isWebDav) {
         props.history.push("/");
-        return <div/>;
+        return <div />;
     }
 
     if (props.initialState !== undefined) {
@@ -145,19 +145,19 @@ export const LoginPage = (props: RouterLocationProps & { initialState?: any }) =
 
     return (
         <>
-            <Absolute top={"-3vw"} left={"8vw"}>
-                <Box width={"20vw"}>
-                    <Icon color={"white"} name={"logoSdu"} size={"20vw"}/>
+            <Absolute top="-3vw" left="8vw">
+                <Box width="20vw">
+                    <Icon color="white" name="logoSdu" size="20vw" />
                 </Box>
             </Absolute>
 
-            <BGLogo image={bg1} bottom={"0px"} height={"50%"} width={"100%"}/>
+            <BGLogo image={bg1} bottom="0px" height="50%" width="100%" />
 
             <BackgroundImage image={bg2}>
-                <Flex alignItems={"top"} justifyContent={"center"} width={"100vw"} height={"100vh"} pt="20vh">
+                <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
                     <Box width="315px">
                         {!isWebDav ? null : (
-                            <Box color={"white"} mb={32}>
+                            <Box color="white" mb={32}>
                                 You must re-authenticate with SDUCloud to use your files locally.
                             </Box>
                         )}
@@ -165,7 +165,7 @@ export const LoginPage = (props: RouterLocationProps & { initialState?: any }) =
                             (
                                 <a href={`/auth/saml/login?service=${service}`}>
                                     <Button disabled={loading} fullWidth color="wayfGreen">
-                                        <Image width="100px" src={wayfLogo}/>
+                                        <Image width="100px" src={wayfLogo} />
                                         <TextSpan fontSize={3} ml="2.5em">Login</TextSpan>
                                     </Button>
                                 </a>
@@ -176,8 +176,8 @@ export const LoginPage = (props: RouterLocationProps & { initialState?: any }) =
                                     colorOnHover={false}
                                     keepOpenOnClick
                                     top="30px"
-                                    width={"315px"}
-                                    left={"0px"}
+                                    width="315px"
+                                    left="0px"
                                     trigger={
                                         (
                                             <Text
@@ -197,7 +197,7 @@ export const LoginPage = (props: RouterLocationProps & { initialState?: any }) =
                                                 usernameRef={usernameInput}
                                                 passwordRef={passwordInput}
                                             />
-                                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput}/>
+                                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
 
                                             <Button
                                                 fullWidth
@@ -223,7 +223,7 @@ export const LoginPage = (props: RouterLocationProps & { initialState?: any }) =
                                     >
                                         <Box width="100%">
                                             <form onSubmit={e => e.preventDefault()}>
-                                                <TwoFactor enabled2fa={challengeId} inputRef={verificationInput}/>
+                                                <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
                                                 <Button
                                                     fullWidth
                                                     disabled={loading}
