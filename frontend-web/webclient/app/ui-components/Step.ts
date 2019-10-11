@@ -43,7 +43,7 @@ export const Step = styled(Flex) <StepProps>`
     // display: inline-block;
     align-items: center;
     float: left;
-    line-height: ${({size}) => size}px;
+    height: ${({size}) => size}px;
     padding: 0 ${({pad}) => pad}px 0 ${({numbered, numberSize, size, pad}) => numbered ? size! / 2 + pad! * 2 + numberSize! : size! / 2 + pad!}px;
     position: relative;
     background: ${({active, theme}) => active ? theme.colors.blue : theme.colors.white};

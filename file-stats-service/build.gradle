@@ -1,8 +1,5 @@
-import java.nio.channels.*
-import java.nio.file.Files
-
 group 'dk.sdu.cloud'
-version '1.2.4'
+version '1.2.5'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.stats.MainKt"
@@ -21,8 +18,8 @@ dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile "dk.sdu.cloud:auth-api:1.21.0"
-    compile "dk.sdu.cloud:indexing-api:1.13.0"
-    compile "dk.sdu.cloud:file-api:2.1.0"
+    compile "dk.sdu.cloud:indexing-api:1.15.1"
+    compile "dk.sdu.cloud:file-api:3.0.4"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 

@@ -2,18 +2,14 @@ import * as React from "react";
 
 const SvgPlay = (props: any) => (
   <svg
-    viewBox="0 0 24 26"
+    viewBox="0 0 26 24"
     fillRule="evenodd"
     clipRule="evenodd"
     fill="currentcolor"
     {...props}
   >
     <path
-      d="M13.206 6.203l10.023 5.534c.492.27.77.725.77 1.267 0 .53-.278.996-.77 1.267L5.228 24.202l7.978-18z"
-      fill={props.color2 ? props.color2 : null}
-    />
-    <path
-      d="M5.229 24.202l-2.884 1.592a1.602 1.602 0 01-1.562.006C.284 25.531 0 25.069 0 24.527V1.474C0 .932.284.47.783.201a1.597 1.597 0 011.562.007l10.861 5.994-7.977 18z"
+      d="M0 3.126A2.002 2.002 0 012.838 1.31l19.228 8.874a2 2 0 010 3.632L2.838 22.69A2.001 2.001 0 010 20.874V3.126z"
       fill={undefined}
     />
   </svg>

@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webdav
+  labels:
+    app: webdav
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webdav
+  template:
+    metadata:
+      labels:
+        app: webdav
+    spec:
+      containers:
+      - name: webdav
+        image: registry.cloud.sdu.dk/sdu-cloud/webdav-service:0.1.8
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/psql
+          name: webdav-psql
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: webdav-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+      - name: webdav-psql
+        secret:
+          optional: false
+          secretName: webdav-psql
+
+      imagePullSecrets:
+        - name: esci-docker
