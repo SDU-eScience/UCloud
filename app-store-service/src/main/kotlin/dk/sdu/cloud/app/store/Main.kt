@@ -9,6 +9,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(AppStoreServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(ElasticFeature)
     }
 
     if (micro.runScriptHandler()) return

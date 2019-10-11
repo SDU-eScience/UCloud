@@ -1,7 +1,9 @@
 package dk.sdu.cloud.app.store.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -12,7 +14,8 @@ import dk.sdu.cloud.service.db.withTransaction
 class AppStoreService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val applicationDAO: ApplicationDAO<DBSession>,
-    private val toolDao: ToolDAO<DBSession>
+    private val toolDao: ToolDAO<DBSession>,
+    private val elasticDAO: ElasticDAO
 ) {
     fun toggleFavorite(securityPrincipal: SecurityPrincipal, name: String, version: String) {
         db.withTransaction { session ->
@@ -123,6 +126,12 @@ class AppStoreService<DBSession>(
         db.withTransaction { session ->
             applicationDAO.create(session, securityPrincipal, application, content)
         }
+        elasticDAO.createApplicationInElastic(
+            application.metadata.name,
+            application.metadata.version,
+            application.metadata.description,
+            application.metadata.title
+        )
     }
 
     fun createTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
@@ -154,9 +163,25 @@ class AppStoreService<DBSession>(
         tags: List<String>?,
         description: String?,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationWithFavoriteAndTags> {
-        return db.withTransaction { session ->
-            applicationDAO.advancedSearch(session, user, name, version, tags, description, paging)
+    ): Page<ApplicationSummaryWithFavorite> {
+        return if (description == null) {
+            db.withTransaction { session ->
+                applicationDAO.advancedSearch(session, user, name, version, tags, paging)
+            }
+        } else {
+            val descriptionQueryTerms = description.split(" ").filter { it.isNotBlank() }
+            val nameQueryTerms = name?.split(" ")?.filter { it.isNotBlank() } ?: emptyList()
+
+            val results = elasticDAO.search(nameQueryTerms, version ,descriptionQueryTerms)
+
+            val embeddedNameAndVersionList = results.hits.map {
+                val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)
+                EmbeddedNameAndVersion(result.name, result.version)
+            }
+
+            db.withTransaction { session ->
+                applicationDAO.findAllByID(session, user, embeddedNameAndVersionList, paging)
+            }
         }
     }
 

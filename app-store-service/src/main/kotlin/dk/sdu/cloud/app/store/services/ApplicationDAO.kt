@@ -109,15 +109,21 @@ interface ApplicationDAO<Session> {
 
     fun fetchLogo(session: Session, name: String): ByteArray?
 
+    fun findAllByID(
+        session: Session,
+        user: SecurityPrincipal,
+        list: List<EmbeddedNameAndVersion>,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite>
+
     fun advancedSearch(
         session: Session,
         user: SecurityPrincipal,
         name: String?,
         version: String?,
         tags: List<String>?,
-        description: String?,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationWithFavoriteAndTags>
+    ): Page<ApplicationSummaryWithFavorite>
 
     fun findLatestByTool(
         session: Session,

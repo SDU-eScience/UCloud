@@ -201,7 +201,7 @@ class ApplicationHibernateDAO(
             return Page(0, paging.itemsPerPage, 0, emptyList())
         }
         val trimmedNormalizedQuery = normalizeQuery(query).trim()
-        val keywords = trimmedNormalizedQuery.split(" ")
+        val keywords = trimmedNormalizedQuery.split(" ").filter { it.isNotBlank() }
         if (keywords.size == 1) {
             return doSearch(session, user.username, trimmedNormalizedQuery, paging)
         }
@@ -685,24 +685,56 @@ class ApplicationHibernateDAO(
         return Page(count, paging.itemsPerPage, paging.page, items)
     }
 
+    override fun findAllByID(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        embeddedNameAndVersion: List<EmbeddedNameAndVersion>,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite> {
+        return preparePageForUser(session, user.username, session.paginatedCriteria<ApplicationEntity>(
+            paging,
+            predicate = {
+                val idPredicate =
+                    if (embeddedNameAndVersion.isNotEmpty()) {
+                        if (embeddedNameAndVersion.size > 1) {
+                            embeddedNameAndVersion.map { n ->
+                                (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) equal n.name) and
+                                        (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::version]) equal n.version)
+                            }
+                        } else {
+                            val id = embeddedNameAndVersion.first()
+                            listOf(
+                                (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) equal id.name) and
+                                        (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::version]) equal id.version)
+                            )
+                        }
+                    } else listOf(literal(false).toPredicate())
+                allOf(anyOf(*idPredicate.toTypedArray()))
+            }
+        ).mapItems { it.toModelWithInvocation() }
+        ).mapItems { it.withoutInvocation() }
+    }
+
     override fun advancedSearch(
         session: HibernateSession,
         user: SecurityPrincipal,
         name: String?,
         version: String?,
         tags: List<String>?,
-        description: String?,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationWithFavoriteAndTags> {
-        if (name == null && version == null && tags == null && description == null)
+    ): Page<ApplicationSummaryWithFavorite> {
+        if (name == null && version == null && tags == null)
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Must provide any argument")
+
+        if (name != null && version == null && tags == null)
+            return search(session, user, name, paging)
 
         return preparePageForUser(session, user.username, session.paginatedCriteria<ApplicationEntity>(
             paging,
             predicate = {
                 val namePredicates =
                     if (name != null) {
-                        val splitNames = name.split(" ")
+                        val splitNames = name.split(" ").filter { it.isNotBlank() }
                         if (splitNames.size > 1) splitNames.map { n -> builder.lower(entity[ApplicationEntity::title]) like "%${n}%".toLowerCase() }
                         else listOf(builder.lower(entity[ApplicationEntity::title]) like "%${name}%".toLowerCase())
                     } else listOf(literal(true).toPredicate())
@@ -714,13 +746,10 @@ class ApplicationHibernateDAO(
                         val applications = findAppNamesFromTagsInsensitive(session, tags)
                         entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] isInCollection applications
                     } else literal(true).toPredicate()
-                val descriptionPredicate =
-                    // FIXME: `like` description only allows exact matches without wildcard operators
-                    if (description != null) entity[ApplicationEntity::description] like "%$description%"
-                    else literal(true).toPredicate()
-                allOf(anyOf(*namePredicates.toTypedArray()), versionPredicate, tagPredicate, descriptionPredicate)
+                allOf(anyOf(*namePredicates.toTypedArray()), versionPredicate, tagPredicate)
             }
-        ).mapItems { it.toModelWithInvocation() })
+        ).mapItems { it.toModelWithInvocation() }
+        ).mapItems { it.withoutInvocation() }
     }
 
     private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {

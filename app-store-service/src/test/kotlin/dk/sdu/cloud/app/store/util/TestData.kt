@@ -20,7 +20,7 @@ val normAppDesc = Application(
     )
 )
 
-val normAppDesc2 = normAppDesc.withNameAndVersion("app", "1.2")
+val normAppDesc2 = normAppDesc.withNameAndVersionAndTitle("app", "1.2", "application")
 
 val normAppDesc3 = normAppDesc
     .withInvocation(

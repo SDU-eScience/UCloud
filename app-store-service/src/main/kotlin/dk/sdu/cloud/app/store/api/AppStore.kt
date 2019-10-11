@@ -181,7 +181,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
         }
 
-    val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationWithFavoriteAndTags>,CommonErrorMessage>("advancedSearch") {
+    val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationSummaryWithFavorite>,CommonErrorMessage>("advancedSearch") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
