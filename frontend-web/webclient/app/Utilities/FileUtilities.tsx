@@ -82,7 +82,7 @@ interface MoveCopySetup {
     cloud: SDUCloud;
 }
 
-async function moveCopySetup({targetPath, path, cloud}: MoveCopySetup) {
+async function moveCopySetup({targetPath, path}: MoveCopySetup) {
     const newPathForFile = getNewPath(targetPath, path);
     const stat = await statFileOrNull(newPathForFile);
     return {exists: stat !== null, newPathForFile, allowOverwrite: stat ? stat.fileType !== "DIRECTORY" : true};

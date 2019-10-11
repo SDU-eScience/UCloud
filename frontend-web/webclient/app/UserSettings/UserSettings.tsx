@@ -18,65 +18,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 class UserSettings extends React.Component<UserSettingsOperations & {headerLoading: boolean}, UserSettingsState> {
     public state = this.initialState();
 
-    private initialState(): UserSettingsState {
-        return ({
-            promiseKeeper: new PromiseKeeper(),
-            currentPassword: "",
-            newPassword: "",
-            repeatedPassword: "",
-            error: false,
-            repeatPasswordError: false
-        });
-    }
-
-    private updateField(field: UserSettingsFields, value: string | boolean): void {
-        const state = {...this.state};
-        state.error = false;
-        state.repeatPasswordError = false;
-        this.setState({...state, [field]: value});
-    }
-
-    private async validateAndSubmit(e: React.SyntheticEvent): Promise<void> {
-        e.preventDefault();
-
-        let error = false;
-        let repeatPasswordError = false;
-
-        const {
-            currentPassword,
-            newPassword,
-            repeatedPassword,
-        } = this.state;
-
-        if (!currentPassword || !newPassword || !repeatedPassword) {
-            error = true;
-        }
-
-        if (newPassword !== repeatedPassword) {
-            error = true;
-            repeatPasswordError = true;
-        }
-
-        this.setState(() => ({error, repeatPasswordError}));
-
-        if (!error) {
-            try {
-                await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/password", {
-                    currentPassword,
-                    newPassword
-                }, "", true)).promise;
-
-                snackbarStore.addSnack({message: "Password successfully changed", type: SnackType.Success});
-                this.setState(() => this.initialState());
-
-            } catch (e) {
-                let status = defaultErrorHandler(e);
-                this.setState(() => ({error: true}));
-            }
-        }
-    }
-
-    render() {
+    public render() {
         const {
             error,
             currentPassword,
@@ -147,6 +89,64 @@ class UserSettings extends React.Component<UserSettingsOperations & {headerLoadi
                 </Box>
             </Flex>
         );
+    }
+
+    private initialState(): UserSettingsState {
+        return ({
+            promiseKeeper: new PromiseKeeper(),
+            currentPassword: "",
+            newPassword: "",
+            repeatedPassword: "",
+            error: false,
+            repeatPasswordError: false
+        });
+    }
+
+    private updateField(field: UserSettingsFields, value: string | boolean): void {
+        const state = {...this.state};
+        state.error = false;
+        state.repeatPasswordError = false;
+        this.setState({...state, [field]: value});
+    }
+
+    private async validateAndSubmit(e: React.SyntheticEvent): Promise<void> {
+        e.preventDefault();
+
+        let error = false;
+        let repeatPasswordError = false;
+
+        const {
+            currentPassword,
+            newPassword,
+            repeatedPassword,
+        } = this.state;
+
+        if (!currentPassword || !newPassword || !repeatedPassword) {
+            error = true;
+        }
+
+        if (newPassword !== repeatedPassword) {
+            error = true;
+            repeatPasswordError = true;
+        }
+
+        this.setState(() => ({error, repeatPasswordError}));
+
+        if (!error) {
+            try {
+                await this.state.promiseKeeper.makeCancelable(Cloud.post("/auth/users/password", {
+                    currentPassword,
+                    newPassword
+                }, "", true)).promise;
+
+                snackbarStore.addSnack({message: "Password successfully changed", type: SnackType.Success});
+                this.setState(() => this.initialState());
+
+            } catch (e) {
+                let status = defaultErrorHandler(e);
+                this.setState(() => ({error: true}));
+            }
+        }
     }
 }
 

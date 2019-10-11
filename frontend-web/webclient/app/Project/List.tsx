@@ -13,7 +13,7 @@ import {connect} from "react-redux";
 import * as Heading from "ui-components/Heading";
 
 const List: React.FunctionComponent<DispatchProps> = props => {
-    const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
+    const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
     );

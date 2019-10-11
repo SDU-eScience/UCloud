@@ -1,10 +1,10 @@
 import * as React from "react";
-import {FacialHair as FaceHair, FacialHairColor} from "UserSettings/AvatarOptions";
+import {HairProps} from "UserSettings/AvatarOptions";
 import {generateId as uniqueId} from "UtilityFunctions";
 import FacialHair from "./facialHair";
 import HatColor from "./HatColor";
 
-export default class WinterHat3 extends React.Component<{facialHair: FaceHair, facialHairColor: FacialHairColor}> {
+export default class WinterHat3 extends React.Component<HairProps> {
   public static optionValue = "WinterHat3";
   private filter1 = uniqueId("react-filter-");
   private mask1 = uniqueId("react-mask-");
@@ -67,7 +67,7 @@ export default class WinterHat3 extends React.Component<{facialHair: FaceHair, f
               <use xlinkHref={"#" + path1} />
             </mask>
             <use id="hat-mask" fill="#D8D8D8" xlinkHref={"#" + path1} />
-            <HatColor maskID={mask2} defaultColor="Red" />
+            <HatColor maskID={mask2} optionValue={this.props.hatColor} />
           </g>
           <g id="hat-front">
             <use

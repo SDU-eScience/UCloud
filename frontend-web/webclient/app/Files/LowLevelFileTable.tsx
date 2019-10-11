@@ -556,7 +556,7 @@ const LowLevelFileTable_: React.FunctionComponent<
                                         <Label>
                                             <Checkbox
                                                 data-tag="masterCheckbox"
-                                                onClick={e => setChecked(allFiles, !isMasterChecked)}
+                                                onClick={() => setChecked(allFiles, !isMasterChecked)}
                                                 checked={isMasterChecked}
                                                 disabled={isMasterDisabled}
                                                 onChange={e => e.stopPropagation()}

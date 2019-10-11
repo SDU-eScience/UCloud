@@ -44,6 +44,7 @@ function Modification(props: AvataaarModificationOperations) {
                             style={{height: "150px"}}
                             avatarStyle="circle"
                             topType={avatar.top}
+                            hatColor={avatar.hatColor}
                             accessoriesType={avatar.topAccessory}
                             hairColor={avatar.hairColor}
                             facialHairType={avatar.facialHair}
@@ -82,6 +83,13 @@ function Modification(props: AvataaarModificationOperations) {
                             options={Options.Top}
                             title="Top"
                             disabled={false}
+                        />
+                        <AvatarSelect
+                            defaultValue={avatar.hatColor}
+                            update={value => setAvatar({...avatar, hatColor: value})}
+                            options={Options.HatColor}
+                            title="Hat color"
+                            disabled={!["Turban", "Hijab", "WinterHat1", "WinterHat2", "WinterHat3", "WinterHat4"].includes(avatar.hatColor)}
                         />
                         <AvatarSelect
                             defaultValue={avatar.topAccessory}
@@ -197,7 +205,7 @@ function AvatarSelect<T1 extends string, T2>({update, options, title, disabled, 
                 {Object.keys(options).map(it => <option key={it}>{it}</option>)}
             </Select>
         </Label>
-    )
+    );
 }
 
 const mapStateToProps = ({avatar}: ReduxObject): AvataaarModificationStateProps => avatar;
@@ -209,6 +217,7 @@ const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations 
 const defaultAvatar = ({
     top: Options.Top.NoHair,
     topAccessory: Options.TopAccessory.Blank,
+    hatColor: Options.HatColor.Black,
     hairColor: Options.HairColor.Auburn,
     facialHair: Options.FacialHair.Blank,
     facialHairColor: Options.FacialHairColor.Auburn,

@@ -512,7 +512,7 @@ const receiveDummyShares = (itemsPerPage: number, page: number) => {
         const sharedBy = "user";
         const sharedByMe = Math.floor(Math.random() * 2) === 0;
 
-        const shares: Share[] = [...Array(1 + Math.floor(Math.random() * 6))].map(j => {
+        const shares: Share[] = [...Array(1 + Math.floor(Math.random() * 6))].map(() => {
             const states = Object.keys(ShareState);
             const state = ShareState[states[(Math.floor(Math.random() * states.length))]];
             return {

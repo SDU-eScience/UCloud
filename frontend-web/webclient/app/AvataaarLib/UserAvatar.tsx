@@ -21,6 +21,7 @@ export const UserAvatar = ({avatar, width = "60px"}: UserAvatar) => (
             topType={avatar.top}
             accessoriesType={avatar.topAccessory}
             hairColor={avatar.hairColor}
+            hatColor={avatar.hatColor}
             facialHairType={avatar.facialHair}
             facialHairColor={avatar.facialHairColor}
             clotheType={avatar.clothes}

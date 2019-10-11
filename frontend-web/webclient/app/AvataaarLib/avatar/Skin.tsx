@@ -1,6 +1,4 @@
 import * as React from "react";
-import {SkinOption} from "../options";
-import Selector from "AvataaarLib/options/Selector";
 import {SkinColors} from "UserSettings/AvatarOptions";
 
 export interface Props {

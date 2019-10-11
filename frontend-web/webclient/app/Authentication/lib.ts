@@ -419,7 +419,7 @@ export default class SDUCloud {
                     };
                     req.send();
                 });
-            }).then((data: any) => new Promise((resolve, reject) => resolve(data.response.accessToken)));
+            }).then((data: any) => new Promise(resolve => resolve(data.response.accessToken)));
     }
 
     private async refresh(disallowProjects: boolean): Promise<string> {
@@ -473,7 +473,7 @@ export default class SDUCloud {
                 };
                 req.send();
             }).then((data: any) => {
-                return new Promise((resolve, reject) => {
+                return new Promise(resolve => {
                     this.setTokens(data.accessToken, data.csrfToken);
                     resolve(data.accessToken);
                 });

@@ -1,6 +1,5 @@
 import styled, {css} from "styled-components";
 import Flex from "./Flex";
-import {properties} from "./icons";
 
 export interface StepProps {
     numbered?: boolean;

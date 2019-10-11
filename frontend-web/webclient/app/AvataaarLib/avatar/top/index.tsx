@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Top as TopOption, HairColor, FacialHair, FacialHairColor} from "UserSettings/AvatarOptions";
+import {FacialHair, FacialHairColor, HairColor, HatColor, Top as TopOption} from "UserSettings/AvatarOptions";
 import Eyepatch from "./Eyepatch";
 import Hat from "./Hat";
 import Hijab from "./Hijab";
@@ -41,6 +41,7 @@ interface TopProps {
   hairColor: HairColor;
   facialHairColor: FacialHairColor;
   facialHair: FacialHair;
+  hatColor: HatColor;
   children: JSX.Element;
 }
 
@@ -55,7 +56,7 @@ export default function Top(props: TopProps) {
     case TopOption.Hat:
       return <Hat {...props}>{children}</Hat>;
     case TopOption.Hijab:
-      return <Hijab>{children}</Hijab>;
+      return <Hijab {...props}>{children}</Hijab>;
     case TopOption.Turban:
       return <Turban {...props}>{children}</Turban>;
     case TopOption.WinterHat1:

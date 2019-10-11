@@ -7,9 +7,9 @@ import {Snackbar} from "ui-components/Snackbar";
 import {ThemeColor} from "ui-components/theme";
 
 interface IconColorAndName {
-    name: IconName,
-    color: ThemeColor,
-    color2: ThemeColor
+    name: IconName;
+    color: ThemeColor;
+    color2: ThemeColor;
 }
 
 const iconNameAndColorFromSnack = (type: Exclude<SnackType, SnackType.Custom>): IconColorAndName => {
@@ -23,15 +23,15 @@ const iconNameAndColorFromSnack = (type: Exclude<SnackType, SnackType.Custom>): 
     }
 };
 
-const CustomSnack: React.FunctionComponent<{ snack: CustomSnack }> = ({snack}) =>
-    <Flex><Icon color="white" color2="white" name={snack.icon} pr="10px"/>{snack.message}</Flex>;
+const CustomSnack: React.FunctionComponent<{snack: CustomSnack}> = ({snack}) =>
+    <Flex><Icon color="white" color2="white" name={snack.icon} pr="10px" />{snack.message}</Flex>;
 
-const DefaultSnack: React.FunctionComponent<{ snack: DefaultSnack }> = ({snack}) => {
+const DefaultSnack: React.FunctionComponent<{snack: DefaultSnack}> = ({snack}) => {
     const icon = iconNameAndColorFromSnack(snack.type);
-    return <Flex><Icon pr="10px" {...icon} />{snack.message}</Flex>
+    return <Flex><Icon pr="10px" {...icon} />{snack.message}</Flex>;
 };
 
-const Snackbars: React.FunctionComponent = props => {
+const Snackbars: React.FunctionComponent = () => {
     const [activeSnack, setActiveSnack] = useState<Snack | undefined>(undefined);
 
     useEffect(() => {
@@ -46,9 +46,9 @@ const Snackbars: React.FunctionComponent = props => {
 
     let snackElement: JSX.Element;
     if (activeSnack.type === SnackType.Custom) {
-        snackElement = <CustomSnack snack={activeSnack}/>;
+        snackElement = <CustomSnack snack={activeSnack} />;
     } else {
-        snackElement = <DefaultSnack snack={activeSnack}/>;
+        snackElement = <DefaultSnack snack={activeSnack} />;
     }
 
     return <Snackbar onClick={onCancellation} visible={true}>{snackElement}</Snackbar>;

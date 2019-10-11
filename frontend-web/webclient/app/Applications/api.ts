@@ -124,7 +124,7 @@ export interface UploadLogoProps {
 export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const request = new XMLHttpRequest();
         const context = props.type === "APPLICATION" ? "apps" : "tools";
         request.open("POST", Cloud.computeURL("/api", `/hpc/${context}/uploadLogo`));
@@ -138,6 +138,7 @@ export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
                     try {
                         message = JSON.parse(request.responseText).why;
                     } catch (e) {
+                        // tslint:disable-next-line: no-console
                         console.log(e);
                         // Do nothing
                     }

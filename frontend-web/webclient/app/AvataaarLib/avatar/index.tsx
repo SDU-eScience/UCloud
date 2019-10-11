@@ -93,7 +93,8 @@ export default function Avatar(props: AvatarComponentProps) {
                                 />
                             </g>
                             <Clothe
-                                optionValue={props.clotheType} color={props.clotheColor} graphic={props.graphicType} />
+                                optionValue={props.clotheType}
+                                color={props.clotheColor} graphic={props.graphicType} />
                             <Face eyebrow={props.eyebrowType} eyes={props.eyeType} mouth={props.mouthType} />
                             <Top optionValue={props.topType} facialHair={props.facialHairType} {...props}>
                                 <Accessories optionValue={props.accessoriesType} />

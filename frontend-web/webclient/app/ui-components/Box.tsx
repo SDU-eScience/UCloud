@@ -3,7 +3,7 @@ import {
   AlignItemsProps, color, ColorProps, height, HeightProps,
   maxHeight, MaxHeightProps, maxWidth, MaxWidthProps,
   minHeight, MinHeightProps, minWidth, MinWidthProps,
-  overflow, OverflowProps, space, SpaceProps, style,
+  overflow, OverflowProps, space, SpaceProps,
   textAlign, TextAlignProps, TopProps, width, WidthProps,
   zIndex, ZIndexProps
 } from "styled-system";
