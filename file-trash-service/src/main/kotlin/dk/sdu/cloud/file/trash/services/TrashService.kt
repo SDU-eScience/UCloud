@@ -20,14 +20,8 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.task.api.Progress
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import dk.sdu.cloud.task.api.runTask
-import java.lang.Thread.sleep
+import kotlinx.coroutines.*
 
 class TrashService(
     private val trashDirectoryService: TrashDirectoryService,
@@ -36,9 +30,9 @@ class TrashService(
 ) {
     suspend fun emptyTrash(username: String, userCloud: AuthenticatedClient) {
         validateTrashDirectory(username, userCloud)
-        GlobalScope.launch {
-            runCatching {
-                runTask(wsServiceClient, backgroundScope, "Empty trash", username) {
+        backgroundScope.launch {
+            runTask(wsServiceClient, backgroundScope, "Emptying trash", username) {
+                runCatching {
                     status = "Emptying trash"
                     for (attempt in 1..5) {
                         val filesResp = FileDescriptions.listAtPath.call(
@@ -59,7 +53,6 @@ class TrashService(
                         if (files.items.isEmpty()) return@launch
 
                         files.items.map {
-                            sleep(3000)
                             launch {
                                 FileDescriptions.deleteFile.call(
                                     DeleteFileRequest(it.path),
