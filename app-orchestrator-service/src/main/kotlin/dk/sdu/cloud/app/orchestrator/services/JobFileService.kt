@@ -196,12 +196,12 @@ class JobFileService(
 
     suspend fun jobFolder(job: VerifiedJob): String {
         val jobsFolder = jobsFolder(job.owner)
-        val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+        val shortUUID = job.id.substring(0, 8)
 
         val folderName: String = if (job.name == null) {
-            timestamp
+            shortUUID
         } else {
-            job.name + "-" + timestamp
+            job.name + "-" + shortUUID
         }
 
         return joinPath(
