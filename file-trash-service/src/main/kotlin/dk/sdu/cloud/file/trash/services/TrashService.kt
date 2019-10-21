@@ -33,7 +33,7 @@ class TrashService(
         backgroundScope.launch {
             runTask(wsServiceClient, backgroundScope, "Emptying trash", username) {
                 runCatching {
-                    status = "Emptying trash"
+                    this.status = "Emptying trash"
                     for (attempt in 1..5) {
                         val filesResp = FileDescriptions.listAtPath.call(
                             ListDirectoryRequest(
@@ -47,6 +47,7 @@ class TrashService(
                         )
 
                         val progress = Progress("Number of files", 0, filesResp.orThrow().itemsInTotal)
+                        this.progress = progress
 
                         if (filesResp.statusCode == HttpStatusCode.NotFound) return@launch
                         val files = filesResp.orThrow()
