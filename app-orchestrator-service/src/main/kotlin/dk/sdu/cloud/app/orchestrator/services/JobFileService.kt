@@ -26,6 +26,8 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
@@ -69,7 +71,7 @@ class JobFileService(
             userCloud
         )
 
-        val path = jobFolder(job)
+        val path = jobFolder(job, true)
         FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path.parent(), null, sensitivity = sensitivityLevel),
             userCloud
@@ -194,14 +196,42 @@ class JobFileService(
         }
     }
 
-    suspend fun jobFolder(job: VerifiedJob): String {
+    suspend fun jobFolder(job: VerifiedJob, new: Boolean = false): String {
         val jobsFolder = jobsFolder(job.owner)
-        val shortUUID = job.id.substring(0, 8)
+        var folderName = "foobar"
 
-        val folderName: String = if (job.name == null) {
-            shortUUID
+        if (job.folderId == null) {
+            if (new) {
+                // Create new folder using the job ID
+                val shortJobId = job.id.substring(0, 8)
+
+                folderName = if (job.name == null) {
+                    shortJobId
+                } else {
+                    job.name + "-" + shortJobId
+                }
+
+                return joinPath(
+                    jobsFolder,
+                    job.archiveInCollection,
+                    folderName
+                )
+            } else {
+                // No file id was found, nor is this `new`. Assume old format (timestamp)
+                val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+
+                folderName = if (job.name == null) {
+                    timestamp
+                } else {
+                    job.name + "-" + timestamp
+                }
+            }
         } else {
-            job.name + "-" + shortUUID
+            // Reverse lookup of path from file id
+            val folderName = LookupDescriptions.reverseLookupFiles.call(
+                ReverseLookupRequest(job.folderId),
+                serviceClient
+            ).orThrow()
         }
 
         return joinPath(
@@ -296,7 +326,7 @@ class JobFileService(
         override val log = logger()
 
         private val zoneId = ZoneId.of("Europe/Copenhagen")
-        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss.SSS")
+        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS")
         private const val WORKSPACE_PATH = "/workspace/"
     }
 }
