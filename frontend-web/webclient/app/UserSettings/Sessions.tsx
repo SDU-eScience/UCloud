@@ -15,7 +15,6 @@ import {invalidateAllSessions, listUserSessions, UserSession} from "UserSettings
 import {dateToString} from "Utilities/DateUtilities";
 import {addStandardDialog} from "UtilityComponents";
 
-
 export interface SessionsProps {
     setLoading: (loading: boolean) => void;
     setRefresh: (fn?: () => void) => void;

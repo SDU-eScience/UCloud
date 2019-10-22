@@ -13,23 +13,7 @@ import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.http.SessionsController
 import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
-import dk.sdu.cloud.auth.services.AccessTokenContents
-import dk.sdu.cloud.auth.services.CursorStateHibernateDao
-import dk.sdu.cloud.auth.services.JWTFactory
-import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
-import dk.sdu.cloud.auth.services.PasswordHashingService
-import dk.sdu.cloud.auth.services.PersonService
-import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
-import dk.sdu.cloud.auth.services.SessionService
-import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.TwoFactorChallengeService
-import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
-import dk.sdu.cloud.auth.services.UniqueUsernameService
-import dk.sdu.cloud.auth.services.UserCreationService
-import dk.sdu.cloud.auth.services.UserHibernateDAO
-import dk.sdu.cloud.auth.services.UserIterationService
-import dk.sdu.cloud.auth.services.WSTOTPService
-import dk.sdu.cloud.auth.services.ZXingQRService
+import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
@@ -139,24 +123,6 @@ class Server(
             if (existingDevAdmin == null) {
                 createTestAccount(personService, userCreationService, tokenService, adminUser, Role.ADMIN)
                 createTestAccount(personService, userCreationService, tokenService, "user@dev", Role.USER)
-
-                repeat(100) {
-                    val user = db.withTransaction { session ->
-                        userDao.findById(session, "admin@dev")
-                    }
-
-                    tokenService.createAndRegisterTokenFor(
-                        user,
-                        AccessTokenContents(
-                            user,
-                            listOf(SecurityScope.ALL_WRITE),
-                            createdAt = System.currentTimeMillis(),
-                            expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
-                        ),
-                        userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36",
-                        ip = "10.135.0.200"
-                    )
-                }
             } else {
                 val idx = micro.commandLineArguments.indexOf("--save-config")
                 if (idx != -1) {
@@ -192,7 +158,9 @@ class Server(
                 loginResponder
             )
 
-            val passwordController = PasswordController(db, passwordHashingService, userDao, loginResponder)
+            val loginService =
+                LoginService(db, passwordHashingService, userDao, LoginAttemptHibernateDao(), loginResponder)
+            val passwordController = PasswordController(loginService)
             log.info("HTTP controllers configured!")
 
             if (config.enableWayf) {

@@ -41,6 +41,13 @@ class LoginResponder<DBSession>(
         throw RPCException("Incorrect username or password", HttpStatusCode.Unauthorized)
     }
 
+    fun handleTooManyAttempts(): Nothing {
+        throw RPCException(
+            "Too many requests. Please wait a few minutes and try again.",
+            HttpStatusCode.TooManyRequests
+        )
+    }
+
     private fun twoFactorJsonChallenge(loginChallenge: String): Map<String, Any> = mapOf("2fa" to loginChallenge)
 
     suspend fun handleSuccessfulLogin(call: ApplicationCall, service: String, user: Principal) {
