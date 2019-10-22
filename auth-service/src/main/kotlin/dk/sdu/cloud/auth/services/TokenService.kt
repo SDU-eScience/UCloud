@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
@@ -15,6 +16,7 @@ import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -69,7 +71,9 @@ class TokenService<DBSession>(
             System.currentTimeMillis(),
             System.currentTimeMillis() + TEN_MIN_IN_MILLS
         ),
-        refreshTokenExpiry: Long? = null
+        refreshTokenExpiry: Long? = null,
+        userAgent: String? = null,
+        ip: String? = null
     ): AuthenticationTokens {
         fun generateCsrfToken(): String {
             val array = ByteArray(CSRF_TOKEN_SIZE)
@@ -90,7 +94,9 @@ class TokenService<DBSession>(
             scopes = tokenTemplate.scopes,
             extendedBy = tokenTemplate.extendedBy,
             extendedByChain = tokenTemplate.extendedByChain,
-            refreshTokenExpiry = refreshTokenExpiry
+            refreshTokenExpiry = refreshTokenExpiry,
+            ip = ip,
+            userAgent = userAgent
         )
 
         db.withTransaction {
@@ -188,7 +194,9 @@ class TokenService<DBSession>(
             log.debug("Creating token (with refreshes)")
             val result = createAndRegisterTokenFor(
                 user,
-                tokenTemplate
+                tokenTemplate,
+                ip = null,
+                userAgent = null
             )
 
             OptionalAuthenticationTokens(result.accessToken, result.csrfToken, result.refreshToken)

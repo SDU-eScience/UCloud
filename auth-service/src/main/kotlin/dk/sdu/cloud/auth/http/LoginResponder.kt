@@ -17,6 +17,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.accept
+import io.ktor.request.userAgent
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
@@ -82,7 +83,12 @@ class LoginResponder<DBSession>(
         }
 
         val expiry = resolvedService.refreshTokenExpiresAfter?.let { System.currentTimeMillis() + it }
-        val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(user, refreshTokenExpiry = expiry)
+        val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(
+            user,
+            refreshTokenExpiry = expiry,
+            userAgent = call.request.userAgent(),
+            ip = call.request.origin.remoteHost
+        )
 
         val tokens = when (resolvedService.serviceMode) {
             ServiceMode.WEB -> OptionalAuthenticationTokens(

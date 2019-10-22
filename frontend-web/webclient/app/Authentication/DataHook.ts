@@ -75,7 +75,8 @@ export async function callAPIWithErrorHandler<T>(
     parameters: APICallParameters
 ): Promise<T | null> {
     try {
-        return await callAPI(parameters);
+        const res = await callAPI<T>(parameters);
+        return res;
     } catch (e) {
         defaultErrorHandler(e);
         return null;
@@ -139,12 +140,32 @@ export function useCloudAPI<T, Parameters = any>(
 
 export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
     const [isLoading, setIsLoading] = useState(false);
-    const sendCommand = async <T>(call: APICallParameters) => {
-        setIsLoading(true);
-        const result = await callAPIWithErrorHandler<T>(call);
-        setIsLoading(false);
-        return result;
+    let didCancel = false;
+    const sendCommand = <T>(call: APICallParameters) => {
+        return new Promise<T | null>(async (resolve, reject) => {
+            if (didCancel) return;
+
+            setIsLoading(true);
+            try {
+                const result = await callAPIWithErrorHandler<T>(call);
+                if (!didCancel) {
+                    resolve(result);
+                }
+            } catch (e) {
+                if (!didCancel) {
+                    reject(e);
+                }
+            }
+
+            setIsLoading(false);
+        });
     };
+
+    useEffect(() => {
+        return () => {
+            didCancel = true;
+        };
+    }, []);
 
     return [isLoading, sendCommand];
 }
@@ -181,7 +202,6 @@ export function useAsyncWork(): AsyncWorker {
                 setError(e.message);
             } else {
                 setError("Internal error");
-                console.warn(e);
             }
         }
         if (!didCancel) setIsLoading(false);

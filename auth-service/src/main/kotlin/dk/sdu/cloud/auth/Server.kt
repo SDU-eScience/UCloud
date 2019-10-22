@@ -10,6 +10,7 @@ import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.LoginResponder
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
+import dk.sdu.cloud.auth.http.SessionsController
 import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.services.AccessTokenContents
@@ -19,6 +20,7 @@ import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
+import dk.sdu.cloud.auth.services.SessionService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
@@ -126,6 +128,8 @@ class Server(
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
 
+        val sessionService = SessionService(db, refreshTokenDao)
+
         log.info("Core services constructed!")
 
         if (micro.developmentModeEnabled) {
@@ -206,7 +210,9 @@ class Server(
                         developmentMode = micro.developmentModeEnabled
                     ),
 
-                    TwoFactorAuthController(twoFactorChallengeService, loginResponder)
+                    TwoFactorAuthController(twoFactorChallengeService, loginResponder),
+
+                    SessionsController(sessionService)
                 )
             }
 
@@ -245,12 +251,15 @@ class Server(
                 listOf(SecurityScope.ALL_WRITE),
                 createdAt = System.currentTimeMillis(),
                 expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
-            )
+            ),
+            userAgent = null,
+            ip = null
         )
 
         log.info("Username: $username")
         log.info("accessToken = ${token.accessToken}")
         log.info("refreshToken = ${token.refreshToken}")
+        log.info("csrfToken = ${token.csrfToken}")
         log.info("Access token expires in one year.")
         log.info("Password is: '$password'")
         log.info("---------------")
