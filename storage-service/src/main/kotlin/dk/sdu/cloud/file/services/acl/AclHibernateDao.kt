@@ -115,7 +115,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         // I am not good with sql queries, but this will correctly update the parent property
         session.createNativeQuery(
             """
-            update permissions
+            update {h-schema}permissions
             set 
                 path = concat(:newPath, substr(path, :startIdx)),
                 parent = substring(
