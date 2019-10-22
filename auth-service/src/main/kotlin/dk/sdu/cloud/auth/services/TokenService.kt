@@ -2,7 +2,6 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
@@ -16,7 +15,6 @@ import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -96,7 +94,8 @@ class TokenService<DBSession>(
             extendedByChain = tokenTemplate.extendedByChain,
             refreshTokenExpiry = refreshTokenExpiry,
             ip = ip,
-            userAgent = userAgent
+            userAgent = userAgent,
+            createdAt = tokenTemplate.createdAt
         )
 
         db.withTransaction {

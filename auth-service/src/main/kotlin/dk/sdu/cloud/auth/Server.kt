@@ -139,6 +139,24 @@ class Server(
             if (existingDevAdmin == null) {
                 createTestAccount(personService, userCreationService, tokenService, adminUser, Role.ADMIN)
                 createTestAccount(personService, userCreationService, tokenService, "user@dev", Role.USER)
+
+                repeat(100) {
+                    val user = db.withTransaction { session ->
+                        userDao.findById(session, "admin@dev")
+                    }
+
+                    tokenService.createAndRegisterTokenFor(
+                        user,
+                        AccessTokenContents(
+                            user,
+                            listOf(SecurityScope.ALL_WRITE),
+                            createdAt = System.currentTimeMillis(),
+                            expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
+                        ),
+                        userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36",
+                        ip = "10.135.0.200"
+                    )
+                }
             } else {
                 val idx = micro.commandLineArguments.indexOf("--save-config")
                 if (idx != -1) {

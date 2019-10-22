@@ -16,6 +16,7 @@
   "dependencies": {
     "@novnc/novnc": "^1.1.0",
     "@svgr/cli": "^4.3.3",
+    "@types/ua-parser-js": "^0.7.33",
     "date-fns": "^2.4.1",
     "fuse.js": "^3.4.5",
     "jsonwebtoken": "8.5.1",
@@ -35,6 +36,7 @@
     "styled-components": "^4.4.0",
     "styled-system": "^5.1.2",
     "svgi": "^1.1.0",
+    "ua-parser-js": "^0.7.20",
     "xterm": "^4.1.0",
     "xterm-addon-fit": "^0.2.1"
   },

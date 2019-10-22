@@ -26,7 +26,7 @@ class SessionService<DBSession>(
             Session(
                 it.ip ?: "Unknown location",
                 it.userAgent ?: "Unknown device",
-                (it.refreshTokenExpiry ?: DEFAULT_EXPIRY) - it.expiresAfter
+                it.createdAt
             )
         }
     }

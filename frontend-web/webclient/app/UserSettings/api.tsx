@@ -27,6 +27,7 @@ export function invalidateAllSessions(): APICallParameters {
         reloadId: Math.random(),
         method: "DELETE",
         path: "/auth/sessions",
-        context: ""
+        context: "",
+        withCredentials: true
     };
 }
