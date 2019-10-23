@@ -1,15 +1,7 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.auth.services.JWTFactory
-import dk.sdu.cloud.auth.services.PasswordHashingService
-import dk.sdu.cloud.auth.services.PersonService
-import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
-import dk.sdu.cloud.auth.services.Service
-import dk.sdu.cloud.auth.services.ServiceDAO
-import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.TwoFactorChallengeService
-import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -71,14 +63,16 @@ class PasswordTest {
         every { twoFactorChallengeService.createLoginChallengeOrNull(any(), any()) } returns null
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
+        val loginService = LoginService(
+            micro.hibernateDatabase,
+            passwordHashingService,
+            userDao,
+            LoginAttemptHibernateDao(),
+            loginResponder
+        )
 
         val controllers = listOf(
-            PasswordController(
-                micro.hibernateDatabase,
-                passwordHashingService,
-                userDao,
-                loginResponder
-            )
+            PasswordController(loginService)
         )
 
         return TestContext(userDao, refreshTokenDao, jwtFactory, tokenService, micro.hibernateDatabase, controllers)

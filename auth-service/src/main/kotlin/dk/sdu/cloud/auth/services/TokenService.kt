@@ -69,7 +69,9 @@ class TokenService<DBSession>(
             System.currentTimeMillis(),
             System.currentTimeMillis() + TEN_MIN_IN_MILLS
         ),
-        refreshTokenExpiry: Long? = null
+        refreshTokenExpiry: Long? = null,
+        userAgent: String? = null,
+        ip: String? = null
     ): AuthenticationTokens {
         fun generateCsrfToken(): String {
             val array = ByteArray(CSRF_TOKEN_SIZE)
@@ -90,7 +92,10 @@ class TokenService<DBSession>(
             scopes = tokenTemplate.scopes,
             extendedBy = tokenTemplate.extendedBy,
             extendedByChain = tokenTemplate.extendedByChain,
-            refreshTokenExpiry = refreshTokenExpiry
+            refreshTokenExpiry = refreshTokenExpiry,
+            ip = ip,
+            userAgent = userAgent,
+            createdAt = tokenTemplate.createdAt
         )
 
         db.withTransaction {
@@ -188,7 +193,9 @@ class TokenService<DBSession>(
             log.debug("Creating token (with refreshes)")
             val result = createAndRegisterTokenFor(
                 user,
-                tokenTemplate
+                tokenTemplate,
+                ip = null,
+                userAgent = null
             )
 
             OptionalAuthenticationTokens(result.accessToken, result.csrfToken, result.refreshToken)

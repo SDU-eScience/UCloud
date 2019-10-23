@@ -35,8 +35,7 @@ class SharedMountVerificationService {
                 verify(
                     fileSystemId = value.fileSystemId,
 
-                    mountedAt = parameter.mountLocation
-                    ?: throw JobException.VerificationError("${parameter.name} is missing a mount location"),
+                    mountedAt = parameter.mountLocation,
 
                     userClient = userClient,
 
