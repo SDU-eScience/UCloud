@@ -1,0 +1,7 @@
+---
+name: webdav
+
+namespaces:
+- webdav
+
+dependencies: []

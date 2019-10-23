@@ -18,7 +18,7 @@ rules:
     curly: false
     whitespace: false
     max-classes-per-file: false
-    jsx-space-before-trailing-slash: false
+    jsx-space-before-trailing-slash: true
     jsx-wrap-multiline: true
     jsx-self-close: true
     arrow-parens: false

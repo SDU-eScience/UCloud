@@ -46,4 +46,4 @@ interface RangeParameterProps extends ParameterProps {
     initialSubmit: boolean;
 }
 
-export default RangeParameter;
+// export default RangeParameter;

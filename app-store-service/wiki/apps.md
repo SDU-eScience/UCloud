@@ -495,6 +495,43 @@ parameters:
     exportToPeers: false
 ```
 
+### `fileExtensions`
+
+A list of file extensions supported by this application.
+
+An application is capable of opening a file if it meets the following requirements:
+
+  1. The application only has optional parameters
+  2. The application is interactive (web or VNC)
+  3. The extension of the file is in the list of `fileExtensions` of the application
+  4. The application is in the user's favorite list
+
+The list of file extensions are represented as strings. A file extension which
+starts with "." will match any file which ends with the extension. A file
+extension which does not start with "." will only match files with names
+that are equal to the extension.
+
+Upon quick launch of a application on a file, the application will be mounted
+with default settings, with the parent directory of the file mounted.
+
+#### Examples:
+
+- "Dockerfile": Matches files called "Dockerfile" and nothing else
+- ".zip": Matches any file ending in ".zip"
+- ".tar.gz": Matches any file ending in ".tar.gz"
+- "hello.txt": Matches files called "hello.txt" and nothing else
+
+
+```yaml
+fileExtensions:
+  - ".txt"
+  - "Makefile"
+```
+
+Matches all files that ends on `.txt` and all files named `Makefile`, but not
+files that ends on `Makefile` (i.e. `hello.Makefile`).
+
+
 ### `outputFileGlobs`
 
 A list of [globs](https://en.wikipedia.org/wiki/Glob_%28programming%29) to

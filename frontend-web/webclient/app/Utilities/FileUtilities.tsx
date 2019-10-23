@@ -1,7 +1,6 @@
 import SDUCloud from "Authentication/lib";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {dialogStore} from "Dialog/DialogStore";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -11,7 +10,6 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
-import {size} from "styled-system";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -82,7 +80,7 @@ interface MoveCopySetup {
     cloud: SDUCloud;
 }
 
-async function moveCopySetup({targetPath, path, cloud}: MoveCopySetup) {
+async function moveCopySetup({targetPath, path}: MoveCopySetup) {
     const newPathForFile = getNewPath(targetPath, path);
     const stat = await statFileOrNull(newPathForFile);
     return {exists: stat !== null, newPathForFile, allowOverwrite: stat ? stat.fileType !== "DIRECTORY" : true};
@@ -373,7 +371,7 @@ export const clearTrash = ({cloud, callback}: { cloud: SDUCloud, callback: () =>
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
             callback();
-            dialogStore.success();
+            snackbarStore.addSnack({message: "Emptying trash", type: SnackType.Information});
         }
     });
 

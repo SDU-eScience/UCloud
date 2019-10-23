@@ -2,9 +2,15 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.service.Loggable
 
+enum class ServiceMode {
+    WEB,
+    APPLICATION
+}
+
 data class Service(
     val name: String,
     val endpoint: String,
+    val serviceMode: ServiceMode = ServiceMode.WEB,
     val refreshTokenExpiresAfter: Long? = null
 )
 

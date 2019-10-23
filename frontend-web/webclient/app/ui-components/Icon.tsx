@@ -1,14 +1,15 @@
 import * as CSS from "csstype";
 import * as React from "react";
 import styled from "styled-components";
-import {color, ColorProps, ResponsiveValue, space, SpaceProps, style} from "styled-system";
-import * as icons from "./icons";
+import {color, ResponsiveValue, space, SpaceProps, style} from "styled-system";
 import Bug from "./Bug";
-import theme from "./theme";
+import * as icons from "./icons";
+import theme, {Theme} from "./theme";
 import {Cursor} from "./Types";
 
-const IconBase = ({name, size, theme, color2,...props}): JSX.Element => {
-  let key = 0;
+
+const IconBase = ({name, size, theme, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
+  const key = 0;
   let Component = icons[name];
   if (!Component) {
     if (name === "bug") {
@@ -17,20 +18,31 @@ const IconBase = ({name, size, theme, color2,...props}): JSX.Element => {
       return (<></>);
     }
   }
-  return <Component key={key.toString()} width={size} height={size} color2={color2 ? theme.colors[color2] : undefined} {...props} />;
+  return (
+    <Component
+      key={key.toString()}
+      width={size}
+      height={size}
+      color2={color2 ? theme.colors[color2] : undefined}
+      {...props}
+    />
+  );
 };
 
 const hoverColor = style({
   prop: "hoverColor",
   cssProperty: "color",
-  key: "colors"
+  key: "colors",
 });
-export interface IconProps extends SpaceProps, ColorProps {
-  name: IconName;
+
+export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivElement> {
+  name: IconName | "bug";
   color?: string;
   color2?: string;
   rotation?: number;
+  theme: Theme;
   cursor?: Cursor;
+  size?: string | number;
   spin?: boolean;
   hoverColor?: ResponsiveValue<CSS.ColorProperty>;
   title?: string;
@@ -44,7 +56,7 @@ const spin = (props: {spin?: boolean}) => props.spin ? `
   }
 ` : null;
 
-const Icon = styled(IconBase) <IconProps>`
+const Icon = styled(IconBase) <IconBaseProps>`
   flex: none;
   vertical-align: middle;
   cursor: ${props => props.cursor};

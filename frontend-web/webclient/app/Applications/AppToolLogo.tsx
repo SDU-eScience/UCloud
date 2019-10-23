@@ -22,24 +22,21 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
 
     const url = Cloud.computeURL("/api", `/hpc/${context}/logo/${props.name}?cacheBust=${props.cacheBust}`);
 
-    return <>
-        <img
-            onErrorCapture={() => {
-                setLoadedImage(false);
-                // For some reason the state is not always correctly set. This is the worst possible work around.
-                setTimeout(() => setLoadedImage(false), 50);
-            }}
-            key={url}
-            style={hasLoadedImage ? {width: size, height: size, objectFit: "contain"} : {display: "none"}}
-            src={url}
-            alt={props.name}
-        />
+    return (
+        <>
+            <img
+                onErrorCapture={() => {
+                    setLoadedImage(false);
+                    // For some reason the state is not always correctly set. This is the worst possible work around.
+                    setTimeout(() => setLoadedImage(false), 50);
+                }}
+                key={url}
+                style={hasLoadedImage ? {width: size, height: size, objectFit: "contain"} : {display: "none"}}
+                src={url}
+                alt={props.name}
+            />
 
-        {hasLoadedImage ? null : <AppLogo size={size} hash={hashF(props.name)} />}
-    </>;
+            {hasLoadedImage ? null : <AppLogo size={size} hash={hashF(props.name)} />}
+        </>
+    );
 };
-
-const AppToolImage = styled(Image)`
-    object-fit: contain;
-    max-width: unset;
-`;

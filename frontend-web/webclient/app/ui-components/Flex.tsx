@@ -7,7 +7,7 @@ import {
   MinWidthProps, space, SpaceProps, width, WidthProps,
   zIndex, ZIndexProps
 } from "styled-system";
-import theme from "./theme";
+import {cursor} from "Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
 
 
@@ -27,17 +27,12 @@ export type FlexCProps =
 
 
 const Flex = styled.div<FlexCProps>`
-  cursor: ${props => props.cursor};
+  ${cursor}
   display: flex;
   ${space} ${width} ${minWidth} ${height} ${zIndex}
   ${color} ${alignItems} ${justifyContent}
   ${flexDirection} ${flexWrap} ${flex}
 `;
-
-Flex.defaultProps = {
-  theme,
-  cursor: "inherit"
-};
 
 
 Flex.displayName = "Flex";

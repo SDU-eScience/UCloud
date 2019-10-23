@@ -905,10 +905,10 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
                 </Flex>
             )}
 
-            <Box>
+            <div>
                 <Label>Machine type</Label>
                 <MachineTypes inputRef={props.reservationRef} />
-            </Box>
+            </div>
         </>
     );
 };
@@ -938,31 +938,32 @@ export default connect(null, mapDispatchToProps)(Run);
 
 export function importParameterDialog(importParameters: (file: File) => void, showFileSelector: () => void) {
     dialogStore.addDialog((
-        <Box>
-            <Box>
+        <div>
+            <div>
                 <Button fullWidth as="label">
                     Upload file
                 <HiddenInputField
-                        type="file"
-                        onChange={e => {
-                            if (e.target.files) {
-                                const file = e.target.files[0];
-                                if (file.size > 10_000_000) {
-                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                                } else {
-                                    importParameters(file);
-                                }
-                                dialogStore.success();
+                    type="file"
+                    onChange={e => {
+                        if (e.target.files) {
+                            const file = e.target.files[0];
+                            if (file.size > 10_000_000) {
+                                snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                            } else {
+                                importParameters(file);
                             }
-                        }} />
+                            dialogStore.success();
+                        }
+                    }}
+                />
                 </Button>
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                     Select file from SDUCloud
             </Button>
-            </Box>
+            </div>
             <Flex mt="20px">
                 <Button onClick={() => dialogStore.success()} color="red" mr="5px">Cancel</Button>
             </Flex>
-        </Box>
+        </div>
     ), () => undefined);
 }

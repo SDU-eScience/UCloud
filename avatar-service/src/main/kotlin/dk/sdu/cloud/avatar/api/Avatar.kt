@@ -12,7 +12,8 @@ data class Avatar(
     val eyebrows: Eyebrows,
     val mouthTypes: MouthTypes,
     val skinColors: SkinColors,
-    val clothesGraphic: ClothesGraphic
+    val clothesGraphic: ClothesGraphic,
+    val hatColor: HatColor
 )
 
 enum class Top(val string: String) {
@@ -88,6 +89,29 @@ enum class HairColor(val string: String) {
     companion object {
         private val map = HairColor.values().associateBy(HairColor::string)
         fun fromString(type: String): HairColor = map[type] ?: throw IllegalArgumentException()
+    }
+}
+
+enum class HatColor(val string: String) {
+    BLACK("Black"),
+    BLUE01("Blue01"),
+    BLUE02("Blue02"),
+    BLUE03("Blue03"),
+    GRAY01("Gray01"),
+    GRAY02("Gray02"),
+    HEATHER("Heather"),
+    PASTELBLUE("PastelBlue"),
+    PASTELGREEN("PastelGreen"),
+    PASTELORANGE("PastelOrange"),
+    PASTELRED("PastelRed"),
+    PASTELYELLOW("PastelYellow"),
+    PINK("Pink"),
+    RED("Red"),
+    WHITE("White");
+
+    companion object {
+        private val map = values().associateBy(HatColor::string)
+        fun fromString(type: String): HatColor = map[type] ?: throw IllegalArgumentException()
     }
 }
 

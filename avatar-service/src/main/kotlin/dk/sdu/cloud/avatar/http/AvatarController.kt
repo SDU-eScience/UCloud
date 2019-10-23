@@ -1,22 +1,7 @@
 package dk.sdu.cloud.avatar.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.avatar.api.Avatar
-import dk.sdu.cloud.avatar.api.AvatarDescriptions
-import dk.sdu.cloud.avatar.api.Clothes
-import dk.sdu.cloud.avatar.api.ClothesGraphic
-import dk.sdu.cloud.avatar.api.ColorFabric
-import dk.sdu.cloud.avatar.api.Eyebrows
-import dk.sdu.cloud.avatar.api.Eyes
-import dk.sdu.cloud.avatar.api.FacialHair
-import dk.sdu.cloud.avatar.api.FacialHairColor
-import dk.sdu.cloud.avatar.api.FindBulkResponse
-import dk.sdu.cloud.avatar.api.FindResponse
-import dk.sdu.cloud.avatar.api.HairColor
-import dk.sdu.cloud.avatar.api.MouthTypes
-import dk.sdu.cloud.avatar.api.SkinColors
-import dk.sdu.cloud.avatar.api.Top
-import dk.sdu.cloud.avatar.api.TopAccessory
+import dk.sdu.cloud.avatar.api.*
 import dk.sdu.cloud.avatar.services.AvatarService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
@@ -43,7 +28,8 @@ class AvatarController<DBSession>(
                 request.eyebrows,
                 request.mouthTypes,
                 request.skinColors,
-                request.clothesGraphic
+                request.clothesGraphic,
+                request.hatColor
             )
             if (avatar != null) {
                 avatarService.upsert(user, avatar)
@@ -68,7 +54,8 @@ class AvatarController<DBSession>(
                     avatar.eyebrows.string,
                     avatar.mouthTypes.string,
                     avatar.skinColors.string,
-                    avatar.clothesGraphic.string
+                    avatar.clothesGraphic.string,
+                    avatar.hatColor.string
                 )
             )
         }
@@ -90,7 +77,8 @@ class AvatarController<DBSession>(
         eyebrows: String,
         mouthTypes: String,
         skinColors: String,
-        clothesGraphic: String
+        clothesGraphic: String,
+        hatColor: String
     ): Avatar? {
         return try {
             Avatar(
@@ -105,7 +93,8 @@ class AvatarController<DBSession>(
                 Eyebrows.fromString(eyebrows),
                 MouthTypes.fromString(mouthTypes),
                 SkinColors.fromString(skinColors),
-                ClothesGraphic.fromString(clothesGraphic)
+                ClothesGraphic.fromString(clothesGraphic),
+                HatColor.fromString(hatColor)
             )
         } catch (e: IllegalArgumentException) {
             return null

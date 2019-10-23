@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.task.api.Tasks
 import dk.sdu.cloud.task.services.SubscriptionService
 import dk.sdu.cloud.task.services.TaskService
@@ -17,14 +18,18 @@ class TaskController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(Tasks.listen) {
-            val username = ctx.securityPrincipal.username
-            withContext<WSCall> {
-                ctx.session.addOnCloseHandler {
-                    subscriptionService.onDisconnect(ctx.session)
+            try {
+                val username = ctx.securityPrincipal.username
+                withContext<WSCall> {
+                    ctx.session.addOnCloseHandler {
+                        subscriptionService.onDisconnect(ctx.session)
+                    }
                 }
-            }
 
-            subscriptionService.onConnection(username, this@implement)
+                subscriptionService.onConnection(username, this@implement)
+            } catch (ex: Throwable) {
+                log.warn(ex.stackTraceToString())
+            }
 
             while (true) {
                 delay(1000)

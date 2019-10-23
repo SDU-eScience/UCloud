@@ -1,11 +1,10 @@
-import * as React from "react"
+import * as React from "react";
+import {HairProps} from "UserSettings/AvatarOptions";
 import {generateId as uniqueId} from "UtilityFunctions";
+import FacialHair from "./facialHair";
+import HatColor from "./HatColor";
 
-import FacialHair from "./facialHair"
-import HatColor from "./HatColor"
-import {FacialHair as FaceHair, FacialHairColor} from "UserSettings/AvatarOptions";
-
-export default class Turban extends React.Component<{facialHair: FaceHair, facialHairColor: FacialHairColor}> {
+export default class Turban extends React.Component<HairProps> {
   public static optionValue = "Turban";
 
   private filter1 = uniqueId("react-filter-");
@@ -87,7 +86,7 @@ export default class Turban extends React.Component<{facialHair: FaceHair, facia
                   <use xlinkHref={"#" + path3} />
                 </mask>
                 <use id="Turban-Mask" fill="#124C74" xlinkHref={"#" + path3} />
-                <HatColor maskID={mask3} defaultColor="Blue03" />
+                <HatColor maskID={mask3} optionValue={this.props.hatColor} />
               </g>
               <path
                 d="M48.0110963,96.0123559 C48.3807929,121.112082 58.0438337,136.107963 77.0002187,141 C57.6224465,136.289117 47.9557798,121.632254 48.0002187,97.0294118 C48.0008313,96.6902213 48.0044682,96.351197 48.0110963,96.0123559 Z M152.645822,30.4681115 C153.39011,36.1953086 152.126202,42.8891982 148.000219,50.135763 C136.847465,71.5667661 76.561434,72.0039826 76.3339794,129.679698 C76.1051437,67.7612631 136.805324,67.3799133 148.000219,44.5441176 C150.669864,39.5668152 152.141299,34.8351296 152.645822,30.4681115 Z"

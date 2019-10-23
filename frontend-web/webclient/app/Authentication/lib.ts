@@ -26,6 +26,7 @@ interface CallParameters {
     context?: string;
     maxRetries?: number;
     disallowProjects?: boolean;
+    withCredentials?: boolean;
 }
 
 /**
@@ -125,7 +126,8 @@ export default class SDUCloud {
             body,
             context = this.apiContext,
             maxRetries = 5,
-            disallowProjects = false
+            disallowProjects = false,
+            withCredentials = false
         }: CallParameters
     ): Promise<any> {
         if (this.overridesPromise != null) {
@@ -143,6 +145,9 @@ export default class SDUCloud {
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
+                if (withCredentials) {
+                    req.withCredentials = true;
+                }
 
                 const rejectOrRetry = (parsedResponse?) => {
                     if (req.status === 401) {
@@ -419,7 +424,7 @@ export default class SDUCloud {
                     };
                     req.send();
                 });
-            }).then((data: any) => new Promise((resolve, reject) => resolve(data.response.accessToken)));
+            }).then((data: any) => new Promise(resolve => resolve(data.response.accessToken)));
     }
 
     private async refresh(disallowProjects: boolean): Promise<string> {
@@ -473,7 +478,7 @@ export default class SDUCloud {
                 };
                 req.send();
             }).then((data: any) => {
-                return new Promise((resolve, reject) => {
+                return new Promise(resolve => {
                     this.setTokens(data.accessToken, data.csrfToken);
                     resolve(data.accessToken);
                 });
@@ -562,7 +567,7 @@ export default class SDUCloud {
         }
     }
 
-    private static clearTokens() {
+    static clearTokens() {
         SDUCloud.storedAccessToken = "";
         SDUCloud.storedCsrfToken = "";
     }

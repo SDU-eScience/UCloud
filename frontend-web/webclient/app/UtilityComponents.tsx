@@ -1,6 +1,4 @@
-import {APICallState} from "Authentication/DataHook";
 import SDUCloud from "Authentication/lib";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
@@ -9,13 +7,11 @@ import List from "Shares/List";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Dictionary} from "Types";
 import {Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment} from "UtilityFunctions";
 
@@ -44,12 +40,12 @@ export function addStandardDialog({
     };
 
     dialogStore.addDialog((
-        <Box>
-            <Box>
+        <div>
+            <div>
                 <Heading.h3>{title}</Heading.h3>
                 {!!title ? <Divider /> : null}
-                <Box>{message}</Box>
-            </Box>
+                <div>{message}</div>
+            </div>
             <Flex mt="20px">
                 <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
                 <Button
@@ -59,7 +55,7 @@ export function addStandardDialog({
                     {confirmText}
                 </Button>
             </Flex>
-        </Box>
+        </div>
     ), onCancel);
 }
 
@@ -68,14 +64,14 @@ export function sensitivityDialog(): Promise<{cancelled: true} | {option: Sensit
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
         message: (
-            <Box>
+            <div>
                 <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
                     <option value="INHERIT">Inherit</option>
                     <option value="PRIVATE">Private</option>
                     <option value="CONFIDENTIAL">Confidential</option>
                     <option value="SENSITIVE">Sensitive</option>
                 </Select>
-            </Box>
+            </div>
         ),
         onConfirm: () => resolve({option}),
         onCancel: () => resolve({cancelled: true}),
@@ -100,7 +96,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
     const [sharableLink, setSharableLink] = React.useState("");
 
     return (
-        <Box style={{overflowY: "scroll"}} maxHeight={"80vh"} width="620px">
+        <Box style={{overflowY: "auto", overflowX: "hidden"}} maxHeight={"80vh"} width="620px">
             <Box alignItems="center" width="605px">
                 <form onSubmit={e => (e.preventDefault(), e.stopPropagation())}>
                     <Heading.h3>Share</Heading.h3>
@@ -115,7 +111,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                                 ref={username}
                                 placeholder="Enter username..."
                             />
-                            <InputLabel width="152px" rightLabel>
+                            <InputLabel width="160px" rightLabel>
                                 <ClickableDropdown
                                     chevron
                                     width="180px"
@@ -156,7 +152,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                                         onClick={() => setSharableLink("https://example.com")}
                                     >
                                         Generate Sharable Link
-                                </Button>
+                                    </Button>
                                     <Box ml="12px" mt="6px">
                                         <ClickableDropdown
                                             chevron
@@ -180,7 +176,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                                             cursor="pointer"
                                         >
                                             Copy
-                                    </InputLabel>
+                                        </InputLabel>
                                     </>
                                 )}
                         </Flex>
@@ -257,8 +253,8 @@ export function rewritePolicyDialog({
     let policy = "RENAME";
     let applyToAll = false;
     return new Promise(resolve => dialogStore.addDialog((
-        <Box>
-            <Box>
+        <div>
+            <div>
                 <Heading.h3>File exists</Heading.h3>
                 <Divider />
                 {replaceHomeFolder(path, homeFolder)} already
@@ -283,7 +279,7 @@ export function rewritePolicyDialog({
                         </Flex>
                     ) : null}
                 </Box>
-            </Box>
+            </div>
             <Box textAlign="right" mt="20px">
                 <Button onClick={() => dialogStore.failure()} color="red" mr="5px">No</Button>
                 <Button
@@ -296,7 +292,7 @@ export function rewritePolicyDialog({
                     Yes
                 </Button>
             </Box>
-        </Box>
+        </div>
     ), () => resolve(false)));
 }
 
@@ -334,7 +330,7 @@ interface Arrow<T> {
 export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
     if (sortBy !== activeSortBy) return null;
     if (order === SortOrder.ASCENDING)
-        return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em" />);
+        return (<Icon cursor="pointer" name="arrowDown" rotation={180} size=".7em" mr=".4em" />);
     return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em" />);
 }
 
@@ -478,21 +474,19 @@ interface MasterCheckbox {
     checked: boolean;
 }
 
-export const MasterCheckbox = ({onClick, checked}: MasterCheckbox) => (
-    <Label>
-        <Checkbox
-            data-tag="masterCheckbox"
-            checked={checked}
-            onChange={e => (e.stopPropagation(), onClick(e.target.checked))}
-        />
-    </Label>
-);
+export function MasterCheckbox({onClick, checked}: MasterCheckbox) {
+    function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+        e.stopPropagation();
+        onClick(e.target.checked);
+    }
 
-// FIXME: Shouldn't be here
-const AvatarComponent = (props: {username: string, avatars: APICallState<Dictionary<AvatarType>>}) => {
-    let avatar = defaultAvatar;
-    const loadedAvatar =
-        !!props.avatars.data && !!props.avatars.data.avatars ? props.avatars.data.avatars[props.username] : undefined;
-    if (!!loadedAvatar) avatar = loadedAvatar;
-    return <UserAvatar avatar={avatar} />;
-};
+    return (
+        <Label>
+            <Checkbox
+                data-tag="masterCheckbox"
+                checked={checked}
+                onChange={onChange}
+            />
+        </Label>
+    );
+}

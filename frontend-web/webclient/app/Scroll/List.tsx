@@ -7,7 +7,7 @@ interface ListProps<Item, OffsetType> {
     scroll?: ScrollResult<Item, OffsetType>;
     scrollSize?: ScrollSize;
 
-    frame?: (containerRef: React.RefObject<any>, children) => React.ReactNode;
+    frame?: (containerRef, children: React.ReactNode) => React.ReactNode;
     renderer: (props: {item: Item}) => JSX.Element | null;
     onNextScrollRequested: (request: ScrollRequest<OffsetType>) => void;
     spacer?: (height: number) => React.ReactNode;
@@ -17,10 +17,10 @@ interface ListProps<Item, OffsetType> {
 }
 
 interface ListState {
-    firstVisibleElement?: number
-    lastVisibleElement?: number
-    spacingRequired?: number
-    postSpacingRequired?: number
+    firstVisibleElement?: number;
+    lastVisibleElement?: number;
+    spacingRequired?: number;
+    postSpacingRequired?: number;
 }
 
 export class List<Item, OffsetType> extends React.Component<ListProps<Item, OffsetType>, ListState> {
@@ -140,14 +140,14 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
             }
         };
 
-        window.addEventListener('scroll', this.eventListener);
+        window.addEventListener("scroll", this.eventListener);
     }
 
-    componentWillUnmount() {
-        window.removeEventListener('scroll', this.eventListener);
+    public componentWillUnmount() {
+        window.removeEventListener("scroll", this.eventListener);
     }
 
-    componentDidUpdate() {
+    public componentDidUpdate() {
         const container = this.container.current;
         if (container !== null) {
             const offset = this.state.firstVisibleElement || 0;
@@ -178,11 +178,13 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         }
     }
 
-    render() {
-        return <>
-            {this.renderBody()}
-            {this.renderLoadingButton()}
-        </>;
+    public render() {
+        return (
+            <>
+                {this.renderBody()}
+                {this.renderLoadingButton()}
+            </>
+        );
     }
 
     private renderBody(): React.ReactNode {
@@ -192,11 +194,13 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         } else {
             if (props.scroll === undefined || props.scroll.items.length === 0) {
                 if (!props.customEmptyPage) {
-                    return <div>
-                        <Heading.h2>No results.</Heading.h2>
-                    </div>;
+                    return (
+                        <div>
+                            <Heading.h2>No results.</Heading.h2>
+                        </div>
+                    );
                 } else {
-                    return props.customEmptyPage
+                    return props.customEmptyPage;
                 }
             } else {
                 const children = this.renderEntries();
@@ -216,27 +220,31 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         const {renderer, spacer} = this.props;
         const {postSpacingRequired, spacingRequired, firstVisibleElement, lastVisibleElement} = this.state;
 
-        return <ListBody
-            containerRef={containerRef}
-            items={items}
-            firstVisibleElement={firstVisibleElement}
-            lastVisibleElement={lastVisibleElement}
-            spacingRequired={spacingRequired}
-            postSpacingRequired={postSpacingRequired}
-            renderer={renderer}
-            spacer={spacer}
-        />;
+        return (
+            <ListBody
+                containerRef={containerRef}
+                items={items}
+                firstVisibleElement={firstVisibleElement}
+                lastVisibleElement={lastVisibleElement}
+                spacingRequired={spacingRequired}
+                postSpacingRequired={postSpacingRequired}
+                renderer={renderer}
+                spacer={spacer}
+            />
+        );
     }
 
     private renderLoadingButton(): React.ReactNode {
         const {loading} = this.props;
 
-        return <Flex justifyContent={"center"}>
-            <Button
-                onClick={() => this.requestMore(true)}
-                disabled={loading}
-            >Load more</Button>
-        </Flex>;
+        return (
+            <Flex justifyContent={"center"}>
+                <Button
+                    onClick={() => this.requestMore(true)}
+                    disabled={loading}
+                >Load more</Button>
+            </Flex>
+        );
     }
 
     private requestMore(alwaysLoadMore: boolean) {
@@ -248,7 +256,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
             onNextScrollRequested({
                 offset: scroll.nextOffset,
                 scrollSize: size
-            })
+            });
         }
     }
 }

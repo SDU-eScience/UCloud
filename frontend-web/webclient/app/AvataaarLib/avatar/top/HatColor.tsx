@@ -1,31 +1,28 @@
-import * as React from "react"
-import {HatColorOption} from "../../options"
-import Selector from "AvataaarLib/options/Selector";
+import * as React from "react";
+import {HatColor} from "UserSettings/AvatarOptions";
 
 
 export interface Props {
-  maskID: string
-  defaultColor?: string
+  maskID: string;
+  optionValue: HatColor;
 }
 
 function makeColor(name: string, color: string) {
-  class ColorComponent extends React.Component<Props> {
-    render() {
-      return (
-        <g
-          id="Color/Palette/Gray-01"
-          mask={`url(#${this.props.maskID})`}
-          fillRule="evenodd"
-          fill={color}>
-          <rect id="🖍Color" x="0" y="0" width="264" height="280" />
-        </g>
-      )
-    }
+  function ColorComponent(props: Props) {
+    return (
+      <g
+        id="Color/Palette/Gray-01"
+        mask={`url(#${props.maskID})`}
+        fillRule="evenodd"
+        fill={color}>
+        <rect id="🖍Color" x="0" y="0" width="264" height="280" />
+      </g>
+    );
   }
   const anyComponent = ColorComponent as any;
   anyComponent.displayName = name;
   anyComponent.optionValue = name;
-  return anyComponent
+  return anyComponent;
 }
 
 const Black = makeColor("Black", "#262E33");
@@ -45,25 +42,38 @@ const Red = makeColor("Red", "#FF5C5C");
 const White = makeColor("White", "#FFFFFF");
 
 export default function Colors(props: Props) {
-  return (
-    <Selector
-      option={HatColorOption}
-      defaultOption={props.defaultColor || Gray01} >
-      <Black maskID={props.maskID} />
-      <Blue01 maskID={props.maskID} />
-      <Blue02 maskID={props.maskID} />
-      <Blue03 maskID={props.maskID} />
-      <Gray01 maskID={props.maskID} />
-      <Gray02 maskID={props.maskID} />
-      <Heather maskID={props.maskID} />
-      <PastelBlue maskID={props.maskID} />
-      <PastelGreen maskID={props.maskID} />
-      <PastelOrange maskID={props.maskID} />
-      <PastelRed maskID={props.maskID} />
-      <PastelYellow maskID={props.maskID} />
-      <Pink maskID={props.maskID} />
-      <Red maskID={props.maskID} />
-      <White maskID={props.maskID} />
-    </Selector>
-  );
+  switch (props.optionValue) {
+    case HatColor.Black:
+      return <Black maskID={props.maskID} />;
+    case HatColor.Blue01:
+      return <Blue01 maskID={props.maskID} />;
+    case HatColor.Blue02:
+      return <Blue02 maskID={props.maskID} />;
+    case HatColor.Blue03:
+      return <Blue03 maskID={props.maskID} />;
+    case HatColor.Gray01:
+      return <Gray01 maskID={props.maskID} />;
+    case HatColor.Gray02:
+      return <Gray02 maskID={props.maskID} />;
+    case HatColor.Heather:
+      return <Heather maskID={props.maskID} />;
+    case HatColor.PastelBlue:
+      return <PastelBlue maskID={props.maskID} />;
+    case HatColor.PastelGreen:
+      return <PastelGreen maskID={props.maskID} />;
+    case HatColor.PastelOrange:
+      return <PastelOrange maskID={props.maskID} />;
+    case HatColor.PastelRed:
+      return <PastelRed maskID={props.maskID} />;
+    case HatColor.PastelYellow:
+      return <PastelYellow maskID={props.maskID} />;
+    case HatColor.Pink:
+      return <Pink maskID={props.maskID} />;
+    case HatColor.Red:
+      return <Red maskID={props.maskID} />;
+    case HatColor.White:
+      return <White maskID={props.maskID} />;
+  }
+  /* FIXME: Remove after avatar-service runs at least 1.3.0 */
+  return <Blue01 maskID={props.maskID} />;
 }

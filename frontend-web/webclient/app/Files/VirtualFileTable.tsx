@@ -9,9 +9,7 @@ import {Page} from "Types";
 import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 
-export interface VirtualFileTableProps extends LowLevelFileTableProps, VirtualFolderDefinition {
-    // Empty
-}
+export type VirtualFileTableProps = LowLevelFileTableProps & VirtualFolderDefinition; 
 
 export interface VirtualFolderDefinition {
     fakeFolders?: string[];
@@ -88,7 +86,7 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
         return base;
     }, [props.fakeFolders, props.loadFolder, props.injectedFiles, props.path]);
 
-    return <LowLevelFileTable {...mergedProperties}/>;
+    return <LowLevelFileTable {...mergedProperties} />;
 };
 
 const SHARES_FOLDER = "Shares";

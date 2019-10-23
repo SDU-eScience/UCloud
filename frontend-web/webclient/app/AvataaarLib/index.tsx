@@ -34,6 +34,7 @@ import {
   FacialHair,
   FacialHairColor,
   HairColor,
+  HatColor,
   MouthTypes,
   SkinColors,
   Top,
@@ -51,6 +52,7 @@ export interface AvatarComponentProps {
   facialHairType: FacialHair;
   facialHairColor: FacialHairColor;
   clotheType: Clothes;
+  hatColor: HatColor;
   clotheColor: ColorFabric;
   graphicType: ClothesGraphic;
   eyeType: Eyes;

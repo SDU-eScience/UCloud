@@ -2,7 +2,6 @@
 
 exports[`Shares List Shares component 1`] = `
 .c0 {
-  cursor: auto;
   margin-left: 68px;
   padding-top: 48px;
   padding-bottom: 14px;
@@ -12,7 +11,6 @@ exports[`Shares List Shares component 1`] = `
 }
 
 .c5 {
-  cursor: auto;
   padding-top: 55px;
   padding-right: 14px;
 }
@@ -25,12 +23,7 @@ exports[`Shares List Shares component 1`] = `
   font-weight: 400;
 }
 
-.c6 {
-  cursor: auto;
-}
-
 .c2 {
-  cursor: inherit;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -53,7 +46,6 @@ exports[`Shares List Shares component 1`] = `
 }
 
 .c1 {
-  cursor: auto;
   padding-top: 14px;
   padding-bottom: 14px;
   padding-left: 82px;
@@ -88,17 +80,14 @@ exports[`Shares List Shares component 1`] = `
 
 <div
   className="c0"
-  cursor="auto"
 >
   <div
     className="c1"
-    cursor="auto"
     height={55}
     width={1}
   >
     <div
       className="c2"
-      cursor="inherit"
     >
       <div
         className="c3"
@@ -122,11 +111,9 @@ exports[`Shares List Shares component 1`] = `
   </div>
   <div
     className="c5"
-    cursor="auto"
   >
     <div
       className="c6"
-      cursor="auto"
     />
     <h3
       className="c7"

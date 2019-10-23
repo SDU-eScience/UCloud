@@ -1,21 +1,6 @@
 package dk.sdu.cloud.avatar
 
-import dk.sdu.cloud.avatar.api.Avatar
-import dk.sdu.cloud.avatar.api.Clothes
-import dk.sdu.cloud.avatar.api.ClothesGraphic
-import dk.sdu.cloud.avatar.api.ColorFabric
-import dk.sdu.cloud.avatar.api.Eyebrows
-import dk.sdu.cloud.avatar.api.Eyes
-import dk.sdu.cloud.avatar.api.FacialHair
-import dk.sdu.cloud.avatar.api.FacialHairColor
-import dk.sdu.cloud.avatar.api.FindResponse
-import dk.sdu.cloud.avatar.api.HairColor
-import dk.sdu.cloud.avatar.api.MouthTypes
-import dk.sdu.cloud.avatar.api.SerializedAvatar
-import dk.sdu.cloud.avatar.api.SkinColors
-import dk.sdu.cloud.avatar.api.Top
-import dk.sdu.cloud.avatar.api.TopAccessory
-import dk.sdu.cloud.avatar.api.UpdateRequest
+import dk.sdu.cloud.avatar.api.*
 
 val avatar = Avatar(
     Top.HAT,
@@ -29,7 +14,8 @@ val avatar = Avatar(
     Eyebrows.RAISED_EXCITED,
     MouthTypes.CONCERNED,
     SkinColors.LIGHT,
-    ClothesGraphic.BEAR
+    ClothesGraphic.BEAR,
+    HatColor.BLUE01
 )
 
 val serializedAvatar = SerializedAvatar(
@@ -44,7 +30,8 @@ val serializedAvatar = SerializedAvatar(
     Eyebrows.RAISED_EXCITED.string,
     MouthTypes.CONCERNED.string,
     SkinColors.LIGHT.string,
-    ClothesGraphic.BEAR.string
+    ClothesGraphic.BEAR.string,
+    HatColor.BLUE01.string
 )
 
 val updateRequest = UpdateRequest(
@@ -59,7 +46,8 @@ val updateRequest = UpdateRequest(
     Eyebrows.FLAT_NATURAL.string,
     MouthTypes.EATING.string,
     SkinColors.BLACK.string,
-    ClothesGraphic.DEER.string
+    ClothesGraphic.DEER.string,
+    HatColor.BLUE01.string
 )
 
 val findResponse = FindResponse(
@@ -74,5 +62,6 @@ val findResponse = FindResponse(
     Eyebrows.FLAT_NATURAL.string,
     MouthTypes.EATING.string,
     SkinColors.BLACK.string,
-    ClothesGraphic.DEER.string
+    ClothesGraphic.DEER.string,
+    HatColor.BLUE01.string
 )

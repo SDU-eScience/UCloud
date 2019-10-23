@@ -53,6 +53,15 @@ class AppStoreController<DBSession>(
             ok(appStore.findByNameAndVersion(ctx.securityPrincipal, request.name, request.version))
         }
 
+        implement(AppStore.findBySupportedFileExtension) {
+            ok(
+                appStore.findBySupportedFileExtension(
+                    ctx.securityPrincipal,
+                    request.files
+                )
+            )
+        }
+
         implement(AppStore.findByName) {
             ok(appStore.findByName(ctx.securityPrincipal, request.name, request.normalize()))
         }

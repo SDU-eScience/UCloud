@@ -28,7 +28,7 @@ class FileLookupService<Ctx : FSUserContext>(
     suspend fun listDirectory(
         ctx: Ctx,
         path: String,
-        pagination: NormalizedPaginationRequest,
+        pagination: NormalizedPaginationRequest?,
         sortBy: FileSortBy = FileSortBy.TYPE,
         order: SortOrder = SortOrder.ASCENDING,
         attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList(),

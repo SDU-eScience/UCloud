@@ -4,13 +4,11 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
-import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import org.hibernate.query.Query
+import java.lang.StringBuilder
 import java.util.*
 import javax.persistence.criteria.Predicate
 
@@ -372,6 +370,55 @@ class ApplicationHibernateDAO(
 
         byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
         return result
+    }
+
+    override fun findBySupportedFileExtension(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        fileExtensions: Set<String>
+    ): List<ApplicationWithExtension> {
+        var query = ""
+        query += """
+            select A.*
+            from app_store.favorited_by as F,
+                app_store.applications as A
+            where F.the_user = :user
+              and F.application_name = A.name
+              and F.application_version = A.version
+              and (A.application -> 'applicationType' = '"WEB"'
+                or A.application -> 'applicationType' = '"VNC"'
+              ) and (
+        """
+
+        for (index in fileExtensions.indices) {
+            query += """ A.application -> 'fileExtensions' @> jsonb_build_array(:ext$index) """
+            if (index != fileExtensions.size - 1) {
+                query += "or "
+            }
+        }
+
+        query += """
+              )
+        """
+
+        return session
+            .createNativeQuery<ApplicationEntity>(
+                query, ApplicationEntity::class.java
+            )
+            .setParameter("user", user.username)
+            .apply {
+                fileExtensions.forEachIndexed { index, ext ->
+                    setParameter("ext$index", ext)
+                }
+            }
+            .list()
+            .filter { entity ->
+                entity.application.parameters.all { it.optional }
+            }
+            .map {
+                ApplicationWithExtension(it.toMetadata(), it.application.fileExtensions)
+            }
+
     }
 
     override fun findByNameAndVersionForUser(

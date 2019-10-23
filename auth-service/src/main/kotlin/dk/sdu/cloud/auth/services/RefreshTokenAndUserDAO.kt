@@ -1,12 +1,17 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.deleteCriteria
 import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.mapItems
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Type
 import java.util.*
@@ -14,6 +19,8 @@ import javax.persistence.Entity
 import javax.persistence.Id
 import javax.persistence.ManyToOne
 import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 
 data class RefreshTokenAndUser(
     val associatedUser: String,
@@ -39,14 +46,42 @@ data class RefreshTokenAndUser(
 
     val extendedBy: String? = null,
 
-    val extendedByChain: List<String> = emptyList()
+    val extendedByChain: List<String> = emptyList(),
+
+    val userAgent: String? = null,
+
+    val ip: String? = null,
+
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 interface RefreshTokenDAO<Session> {
+    fun findTokenForUser(session: Session, user: String): RefreshTokenAndUser?
     fun findById(session: Session, token: String): RefreshTokenAndUser?
     fun insert(session: Session, tokenAndUser: RefreshTokenAndUser)
     fun updateCsrf(session: Session, token: String, newCsrf: String)
     fun delete(session: Session, token: String): Boolean
+
+    /**
+     * Finds and lists all user sessions for a user.
+     *
+     * A user session is any session not used by a service. We define this as a session without any extenders.
+     */
+    fun findUserSessions(
+        session: Session,
+        username: String,
+        pagination: NormalizedPaginationRequest
+    ): Page<RefreshTokenAndUser>
+
+    /**
+     * Invalidates all user sessions.
+     *
+     * A user session is any session not used by a service. We define this as a session without any extenders.
+     */
+    fun invalidateUserSessions(
+        session: Session,
+        username: String
+    )
 }
 
 /**
@@ -83,12 +118,25 @@ data class RefreshTokenEntity(
     var extendedBy: String?,
 
     @Type(type = JSONB_TYPE)
-    var extendedByChain: List<String>
+    var extendedByChain: List<String>,
+
+    var userAgent: String?,
+
+    var ip: String?,
+
+    @Temporal(TemporalType.TIMESTAMP)
+    var createdAt: Date?
 ) {
     companion object : HibernateEntity<RefreshTokenEntity>, WithId<String>
 }
 
 class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
+    override fun findTokenForUser(session: HibernateSession, user: String): RefreshTokenAndUser? {
+        return session.criteria<RefreshTokenEntity> {
+            entity[RefreshTokenEntity::associatedUser][PrincipalEntity::id] equal user
+        }.list().firstOrNull()?.toModel()
+    }
+
     override fun findById(session: HibernateSession, token: String): RefreshTokenAndUser? {
         return session
             .criteria<RefreshTokenEntity> {
@@ -116,7 +164,10 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
                 expiresAfter = tokenAndUser.expiresAfter,
                 scopes = tokenAndUser.scopes.map { it.toString() },
                 extendedBy = tokenAndUser.extendedBy,
-                extendedByChain = tokenAndUser.extendedByChain
+                extendedByChain = tokenAndUser.extendedByChain,
+                ip = tokenAndUser.ip,
+                userAgent = tokenAndUser.userAgent,
+                createdAt = Date(tokenAndUser.createdAt)
             )
         )
     }
@@ -131,6 +182,24 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
         session.delete(RefreshTokenEntity[session, token] ?: return false)
         return true
     }
+
+    override fun findUserSessions(
+        session: HibernateSession,
+        username: String,
+        pagination: NormalizedPaginationRequest
+    ): Page<RefreshTokenAndUser> {
+        return session.paginatedCriteria<RefreshTokenEntity>(pagination) {
+            (entity[RefreshTokenEntity::associatedUser][PrincipalEntity::id] equal username) and
+                    (entity[RefreshTokenEntity::extendedBy] equal nullLiteral())
+        }.mapItems { it.toModel() }
+    }
+
+    override fun invalidateUserSessions(session: HibernateSession, username: String) {
+        session.deleteCriteria<RefreshTokenEntity> {
+            (entity[RefreshTokenEntity::associatedUser][PrincipalEntity::id] equal username) and
+                    (entity[RefreshTokenEntity::extendedBy] equal nullLiteral())
+        }.executeUpdate()
+    }
 }
 
 fun RefreshTokenEntity.toModel(): RefreshTokenAndUser {
@@ -143,6 +212,9 @@ fun RefreshTokenEntity.toModel(): RefreshTokenAndUser {
         expiresAfter = expiresAfter,
         scopes = scopes.map { SecurityScope.parseFromString(it) },
         extendedBy = extendedBy,
-        extendedByChain = extendedByChain
+        extendedByChain = extendedByChain,
+        ip = ip,
+        userAgent = userAgent,
+        createdAt = createdAt?.time ?: 0L
     )
 }

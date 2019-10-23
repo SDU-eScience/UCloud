@@ -68,24 +68,27 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
 
     return (
         <>
-            {addHomeFolderLink ?
+            {addHomeFolderLink ? (
                 <>
                     <Box ml="15px">
                         <Icon
                             size="30px"
                             cursor="pointer"
                             name="home"
-                            onClick={() => navigate(homeFolder)}
+                            onClick={toHome}
                         />
                         <Text
                             cursor="pointer"
                             ml="-15px"
                             fontSize="11px"
-                            onClick={() => navigate(homeFolder)}
-                        >Go to home</Text>
+                            onClick={toHome}
+                        >
+                            Go to home
+                        </Text>
                     </Box>
                     <Text ml="8px" mr="8px" fontSize="25px">|</Text>
-                </> : null}
+                </>
+            ) : null}
             <BreadCrumbsBase divider="/">
                 {breadcrumbs}
                 <li title={activePathsMapping.local}>
@@ -94,6 +97,10 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
             </BreadCrumbsBase>
         </>
     );
+
+    function toHome() {
+        navigate(homeFolder);
+    }
 };
 
 function buildBreadCrumbs(path: string, homeFolder: string): BreadCrumbMapping[] {

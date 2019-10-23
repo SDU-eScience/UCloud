@@ -1,8 +1,10 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
+import dk.sdu.cloud.auth.api.OptionalAuthenticationTokens
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.services.ServiceDAO
+import dk.sdu.cloud.auth.services.ServiceMode
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.calls.RPCException
@@ -15,6 +17,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.accept
+import io.ktor.request.userAgent
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
@@ -36,6 +39,13 @@ class LoginResponder<DBSession>(
 
     fun handleUnsuccessfulLogin(): Nothing {
         throw RPCException("Incorrect username or password", HttpStatusCode.Unauthorized)
+    }
+
+    fun handleTooManyAttempts(): Nothing {
+        throw RPCException(
+            "Too many requests. Please wait a few minutes and try again.",
+            HttpStatusCode.TooManyRequests
+        )
     }
 
     private fun twoFactorJsonChallenge(loginChallenge: String): Map<String, Any> = mapOf("2fa" to loginChallenge)
@@ -80,7 +90,25 @@ class LoginResponder<DBSession>(
         }
 
         val expiry = resolvedService.refreshTokenExpiresAfter?.let { System.currentTimeMillis() + it }
-        val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(user, refreshTokenExpiry = expiry)
+        val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(
+            user,
+            refreshTokenExpiry = expiry,
+            userAgent = call.request.userAgent(),
+            ip = call.request.origin.remoteHost
+        )
+
+        val tokens = when (resolvedService.serviceMode) {
+            ServiceMode.WEB -> OptionalAuthenticationTokens(
+                accessToken = token,
+                csrfToken = csrfToken
+            )
+
+            ServiceMode.APPLICATION -> OptionalAuthenticationTokens(
+                accessToken = token,
+                csrfToken = csrfToken,
+                refreshToken = refreshToken
+            )
+        }
 
         if (shouldRespondWithJson(call)) {
             call.response.header(HttpHeaders.AccessControlAllowCredentials, "true")
@@ -88,13 +116,13 @@ class LoginResponder<DBSession>(
 
             call.respond(
                 TextContent(
-                    defaultMapper.writeValueAsString(AccessTokenAndCsrf(token, csrfToken)),
+                    defaultMapper.writeValueAsString(tokens),
                     ContentType.Application.Json
                 )
             )
         } else {
             // This will happen if we get a redirect from SAML (WAYF)
-            appendAuthStateInCookie(call, AccessTokenAndCsrf(token, csrfToken))
+            appendAuthStateInCookie(call, tokens)
             appendRefreshToken(call, refreshToken, expiry)
             call.respondRedirect(resolvedService.endpoint)
         }

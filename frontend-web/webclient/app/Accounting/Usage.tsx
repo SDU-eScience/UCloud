@@ -58,7 +58,7 @@ const Usage: React.FunctionComponent<{
                 {props.renderTitle ? usage.title : null}
                 {" "}
                 <Quota usage={usage} />
-                <Box><Link to={detailedPage(props.resource, props.subResource)}>View Chart</Link></Box>
+                <div><Link to={detailedPage(props.resource, props.subResource)}>View Chart</Link></div>
             </Heading.h4>
         </>
     );

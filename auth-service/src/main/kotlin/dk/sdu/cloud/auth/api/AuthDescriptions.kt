@@ -11,6 +11,8 @@ import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 internal data class LoginRequest(
@@ -21,6 +23,15 @@ internal data class LoginRequest(
 data class OneTimeAccessToken(val accessToken: String, val jti: String)
 data class RequestOneTimeToken(val audience: String)
 data class ClaimOneTimeToken(val jti: String)
+
+data class Session(
+    val ipAddress: String,
+    val userAgent: String,
+    val createdAt: Long
+)
+
+data class ListUserSessionsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+typealias ListUserSessionsResponse = Page<Session>
 
 data class TokenExtensionRequest(
     /**
@@ -175,24 +186,25 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val requestOneTimeTokenWithAudience = call<RequestOneTimeToken, OneTimeAccessToken, Unit>("requestOneTimeTokenWithAudience") {
-        auth {
-            roles = Roles.PUBLIC
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"request"
+    val requestOneTimeTokenWithAudience =
+        call<RequestOneTimeToken, OneTimeAccessToken, Unit>("requestOneTimeTokenWithAudience") {
+            auth {
+                roles = Roles.PUBLIC
+                access = AccessRight.READ_WRITE
             }
 
-            params {
-                +boundTo(RequestOneTimeToken::audience)
+            http {
+                method = HttpMethod.Post
+                path {
+                    using(baseContext)
+                    +"request"
+                }
+
+                params {
+                    +boundTo(RequestOneTimeToken::audience)
+                }
             }
         }
-    }
 
     val tokenExtension = call<TokenExtensionRequest, TokenExtensionResponse, CommonErrorMessage>("tokenExtension") {
         audit<TokenExtensionAudit>()
@@ -228,6 +240,42 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val listUserSessions =
+        call<ListUserSessionsRequest, ListUserSessionsResponse, CommonErrorMessage>("listUserSessions") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                method = HttpMethod.Get
+
+                path {
+                    using(baseContext)
+                    +"sessions"
+                }
+
+                params {
+                    +boundTo(ListUserSessionsRequest::itemsPerPage)
+                    +boundTo(ListUserSessionsRequest::page)
+                }
+            }
+        }
+
+    val invalidateSessions = call<Unit, Unit, CommonErrorMessage>("invalidateSessions") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+                +"sessions"
+            }
         }
     }
 }

@@ -1,19 +1,6 @@
 package dk.sdu.cloud.avatar.services
 
-import dk.sdu.cloud.avatar.api.Avatar
-import dk.sdu.cloud.avatar.api.Clothes
-import dk.sdu.cloud.avatar.api.ClothesGraphic
-import dk.sdu.cloud.avatar.api.ColorFabric
-import dk.sdu.cloud.avatar.api.Eyebrows
-import dk.sdu.cloud.avatar.api.Eyes
-import dk.sdu.cloud.avatar.api.FacialHair
-import dk.sdu.cloud.avatar.api.FacialHairColor
-import dk.sdu.cloud.avatar.api.HairColor
-import dk.sdu.cloud.avatar.api.MouthTypes
-import dk.sdu.cloud.avatar.api.SerializedAvatar
-import dk.sdu.cloud.avatar.api.SkinColors
-import dk.sdu.cloud.avatar.api.Top
-import dk.sdu.cloud.avatar.api.TopAccessory
+import dk.sdu.cloud.avatar.api.*
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
@@ -67,7 +54,10 @@ class AvatarEntity(
     var skinColors: SkinColors,
 
     @Enumerated(EnumType.STRING)
-    var clothesGraphic: ClothesGraphic
+    var clothesGraphic: ClothesGraphic,
+
+    @Enumerated(EnumType.STRING)
+    var hatColor: HatColor
 ) {
     companion object : HibernateEntity<AvatarEntity>, WithId<String>
 }
@@ -85,7 +75,8 @@ private fun defaultAvatar(): Avatar =
         Eyebrows.DEFAULT,
         MouthTypes.SMILE,
         SkinColors.LIGHT,
-        ClothesGraphic.BEAR
+        ClothesGraphic.BEAR,
+        HatColor.BLUE01
     )
 
 
@@ -101,7 +92,8 @@ fun AvatarEntity.toModel(): Avatar = Avatar(
     eyebrows,
     mouthTypes,
     skinColors,
-    clothesGraphic
+    clothesGraphic,
+    hatColor
 )
 
 fun Avatar.toEntity(user: String): AvatarEntity = AvatarEntity(
@@ -117,7 +109,8 @@ fun Avatar.toEntity(user: String): AvatarEntity = AvatarEntity(
     eyebrows,
     mouthTypes,
     skinColors,
-    clothesGraphic
+    clothesGraphic,
+    hatColor
 )
 
 class AvatarHibernateDAO : AvatarDAO<HibernateSession> {
@@ -184,7 +177,8 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession> {
                 avatar.eyebrows.string,
                 avatar.mouthTypes.string,
                 avatar.skinColors.string,
-                avatar.clothesGraphic.string
+                avatar.clothesGraphic.string,
+                avatar.hatColor.string
             )
         }.toMap()
     }

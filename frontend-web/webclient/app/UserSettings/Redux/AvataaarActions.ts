@@ -18,7 +18,7 @@ const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
 
 export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {
     try {
-        await Cloud.post(saveAvatarQuery, avatar, undefined, true).then(it => saveAvataaar(avatar));
+        await Cloud.post(saveAvatarQuery, avatar, undefined, true);
         return saveAvataaar(avatar);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred saving the avatar"));

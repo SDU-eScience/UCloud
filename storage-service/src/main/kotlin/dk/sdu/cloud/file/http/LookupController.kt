@@ -1,7 +1,9 @@
 package dk.sdu.cloud.file.http
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
@@ -13,6 +15,7 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 
 class LookupController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
@@ -36,7 +39,7 @@ class LookupController<Ctx : FSUserContext>(
                 val result = fileLookupService.listDirectory(
                     ctx,
                     request.path,
-                    request.normalize(),
+                    if (request.itemsPerPage != -1) request.normalize() else null,
                     request.sortBy ?: FileSortBy.TYPE,
                     request.order ?: SortOrder.ASCENDING,
                     attributes,
@@ -87,7 +90,17 @@ class LookupController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.findHomeFolder) {
-            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(request.username)))
+            val username = if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.username.isNotBlank()) {
+                request.username
+            } else {
+                ctx.securityPrincipal.username
+            }
+
+            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(username)))
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

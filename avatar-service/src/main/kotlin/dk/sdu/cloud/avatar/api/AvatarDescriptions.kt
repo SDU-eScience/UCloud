@@ -24,7 +24,8 @@ data class SerializedAvatar(
     val eyebrows: String,
     val mouthTypes: String,
     val skinColors: String,
-    val clothesGraphic: String
+    val clothesGraphic: String,
+    val hatColor: String
 )
 
 typealias UpdateRequest = SerializedAvatar
