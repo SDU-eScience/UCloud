@@ -11,9 +11,13 @@ import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.client.indices.GetIndexRequest
+import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.common.xcontent.XContentFactory
 import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.search.aggregations.AggregationBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.Logger
 
@@ -26,6 +30,31 @@ class ElasticDAO(
     private fun findApplicationInElasticOrNull(appName: String, appVersion: String): SearchResponse? {
         val indexExists = elasticClient.indices().exists(GetIndexRequest(APPLICATION_INDEX), RequestOptions.DEFAULT)
         if (!indexExists) {
+            //If index does not exist then create with special whitspace mapping (makes terms on whitespace only,
+            // not on  special chars)
+            val request = CreateIndexRequest(APPLICATION_INDEX)
+            request.settings(Settings.builder()
+                .put("index.number_of_shards",1)
+                .put("index.number_of_replicas", 2)
+                .put("analysis.analyzer", "whitespace" )
+            )
+
+            request.mapping("""
+                {
+                    "properties" : {
+                        "version" : {
+                            "type" : "text",
+                            "analyzer": "whitespace",
+                            "fields" : {
+                                "keyword" : { 
+                                    "type" : "text",
+                                    "analyzer" : "whitespace"
+                                }
+                            }
+                        }
+                    }
+                }""".trimIndent(),XContentType.JSON)
+            elasticClient.indices().create(request, RequestOptions.DEFAULT)
             return null
         }
 
@@ -101,59 +130,37 @@ class ElasticDAO(
 
     }
 
-    fun search(appTitleQuery: List<String>, appVersion: String?, descriptionQuery: List<String>): SearchResponse {
-        var titleRegex = ""
-        if (appTitleQuery.isEmpty()) {
-            titleRegex = ".*"
-        } else {
-            titleRegex += "("
-            appTitleQuery.forEachIndexed { index, s ->
-                val lowerCasedString = s.toLowerCase()
-                if (index == appTitleQuery.lastIndex) {
-                    titleRegex += ".*$lowerCasedString.*"
-                    return@forEachIndexed
-                }
-                titleRegex += ".*$lowerCasedString.*|"
-            }
-            titleRegex += ")"
-        }
-
-        // descriptions have a buffer of one char on each side. Reduces search window.
-        var descriptionRegex = "("
-        descriptionQuery.forEachIndexed { index, s ->
-            val lowerCasedString = s.toLowerCase()
-            if (index == descriptionQuery.lastIndex ) {
-                descriptionRegex += ".?$lowerCasedString.?"
-                return@forEachIndexed
-            }
-            descriptionRegex += ".?$lowerCasedString.?|"
-        }
-        descriptionRegex += ")"
-
-        val version = appVersion ?: ""
+    fun search(queryTerms: List<String>): SearchResponse {
         val request = SearchRequest(APPLICATION_INDEX)
 
-        val source = SearchSourceBuilder().query(
-            QueryBuilders.boolQuery()
-                .must(
-                    QueryBuilders.regexpQuery(
-                        "description",//FIELD
-                        descriptionRegex//REGEXP
+        val qb = QueryBuilders.boolQuery()
+
+        for (i in 0 until queryTerms.size) {
+            val term = ".*${queryTerms[i]}.*"
+            qb.should(
+                QueryBuilders.boolQuery()
+                    .should(
+                        QueryBuilders.regexpQuery(
+                            "description",//FIELD
+                            term//REGEXP
+                        ).boost(0.5f)
                     )
-                )
-                .must(
-                    QueryBuilders.regexpQuery(
-                        "title",
-                        titleRegex
+                    .should(
+                        QueryBuilders.regexpQuery(
+                            "title",
+                            term
+                        ).boost(2.0f)
                     )
-                )
-                .must(
-                    QueryBuilders.wildcardQuery(
-                        "version",
-                        "$version*"
-                    )
+                    .should(
+                        QueryBuilders.regexpQuery(
+                            "version",
+                            term
+                        ).boost(5.0f)
+                    ).minimumShouldMatch(1)
             )
-        ).size(SEARCH_RESPONSE_SIZE)
+        }
+
+        val source = SearchSourceBuilder().query(qb).size(SEARCH_RESPONSE_SIZE)
 
         request.source(source)
         log.debug(source.toString())

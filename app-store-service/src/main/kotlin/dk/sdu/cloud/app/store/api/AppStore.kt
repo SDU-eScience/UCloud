@@ -52,10 +52,7 @@ data class UploadApplicationLogoRequest(
 )
 
 data class AdvancedSearchRequest(
-    val name: String?,
-    val version: String?,
-    val description: String?,
-    val tags: List<String>?,
+    val query: String?,
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest

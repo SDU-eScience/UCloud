@@ -2,14 +2,24 @@ package dk.sdu.cloud.app.store.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.Application
+import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
+import dk.sdu.cloud.app.store.api.ToolReference
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.paginate
+import io.ktor.http.HttpStatusCode
 
 class AppStoreService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -158,30 +168,41 @@ class AppStoreService<DBSession>(
 
     fun advancedSearch(
         user: SecurityPrincipal,
-        name: String?,
-        version: String?,
-        tags: List<String>?,
-        description: String?,
+        query: String?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        return if (description == null) {
-            db.withTransaction { session ->
-                applicationDAO.advancedSearch(session, user, name, version, tags, paging)
-            }
-        } else {
-            val descriptionQueryTerms = description.split(" ").filter { it.isNotBlank() }
-            val nameQueryTerms = name?.split(" ")?.filter { it.isNotBlank() } ?: emptyList()
+        if (query == null) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        }
+        val queryTerms = query.split(" ").filter { it.isNotBlank() }
 
-            val results = elasticDAO.search(nameQueryTerms, version ,descriptionQueryTerms)
+        val results = elasticDAO.search(queryTerms)
 
-            val embeddedNameAndVersionList = results.hits.map {
-                val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)
-                EmbeddedNameAndVersion(result.name, result.version)
-            }
+        val embeddedNameAndVersionList = results.hits.map {
+            val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)
+            EmbeddedNameAndVersion(result.name, result.version)
+        }
 
-            db.withTransaction { session ->
-                applicationDAO.findAllByID(session, user, embeddedNameAndVersionList, paging)
-            }
+        val dbResultList = db.withTransaction { session ->
+            applicationDAO.findAllByID(session, user, embeddedNameAndVersionList, paging)
+        }
+
+        val map = dbResultList.associateBy (
+            {EmbeddedNameAndVersion(it.id.name.toLowerCase(),it.id.version.toLowerCase())}, {it}
+        )
+
+        val sortedList = mutableListOf<ApplicationEntity>()
+
+        results.hits.hits.forEach {
+            val foundEntity = map[EmbeddedNameAndVersion(it.sourceAsMap["name"].toString(),it.sourceAsMap["version"].toString())]
+            sortedList.add(foundEntity!!)
+        }
+
+        val sortedResultsPage = sortedList.map { it.toModelWithInvocation() }.paginate(paging)
+
+        return db.withTransaction { session ->
+            applicationDAO.preparePageForUser(session, user.username, sortedResultsPage)
+                .mapItems { it.withoutInvocation() }
         }
     }
 

@@ -25,6 +25,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import java.io.File
+import kotlin.system.exitProcess
 
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
@@ -80,6 +81,28 @@ class Server(override val micro: Micro) : CommonServer {
             }
         }
 
+        if (micro.commandLineArguments.contains("--migrate-apps-to-elastic")) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                micro.hibernateDatabase.withTransaction { session ->
+                    val apps = applicationDAO.getAllApps(session)
+                    apps.forEach {  app ->
+                        val name = app.id.name.toLowerCase()
+                        val version = app.id.version.toLowerCase()
+                        val description = app.description.toLowerCase()
+                        val title = app.title.toLowerCase()
+
+                        elasticDAO.createApplicationInElastic(name, version, description, title)
+                        log.info("created: ${app.id.name}:${app.id.version}")
+                    }
+                    log.info("DONE Migrating")
+                    exitProcess(0)
+                }
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+                exitProcess(1)
+            }
+        }
         startServices()
     }
 }

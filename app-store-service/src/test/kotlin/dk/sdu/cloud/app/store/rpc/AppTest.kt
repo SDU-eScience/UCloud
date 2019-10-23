@@ -485,7 +485,7 @@ class AppTest {
             }
         )
     }
-
+/*
     @Test
     fun advancedSearch() {
         withKtorTest(
@@ -515,7 +515,7 @@ class AppTest {
             }
         )
     }
-
+*/
     @Test
     fun `update Logo test`() {
         withKtorTest(

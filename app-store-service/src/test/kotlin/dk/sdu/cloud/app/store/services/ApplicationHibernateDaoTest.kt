@@ -524,7 +524,7 @@ class ApplicationHibernateDaoTest {
             }
         }
     }
-
+/*
     @Test
     fun `Advanced search`() {
         val toolDao = ToolHibernateDAO()
@@ -656,5 +656,5 @@ class ApplicationHibernateDaoTest {
                 )
             }
         }
-    }
+    }*/
 }

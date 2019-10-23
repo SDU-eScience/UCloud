@@ -317,6 +317,16 @@ class ApplicationHibernateDAO(
         ).mapItems { it.withoutInvocation() }
     }
 
+    fun getAllApps(session: HibernateSession): List<ApplicationEntity>{
+        return session.typedQuery<ApplicationEntity>(
+            """
+            from ApplicationEntity as A
+            where lower(A.title) like '%' || :query || '%'
+            order by A.title
+        """.trimIndent()
+        ).setParameter("query", "").resultList
+    }
+
     override fun findAllByName(
         session: HibernateSession,
         user: SecurityPrincipal?,
@@ -561,7 +571,7 @@ class ApplicationHibernateDAO(
         }.uniqueResult()?.owner
     }
 
-    private fun preparePageForUser(
+    override fun preparePageForUser(
         session: HibernateSession,
         user: String?,
         page: Page<Application>
@@ -688,21 +698,20 @@ class ApplicationHibernateDAO(
     override fun findAllByID(
         session: HibernateSession,
         user: SecurityPrincipal,
-        embeddedNameAndVersion: List<EmbeddedNameAndVersion>,
+        embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> {
-        return preparePageForUser(session, user.username, session.paginatedCriteria<ApplicationEntity>(
-            paging,
+    ): List<ApplicationEntity> {
+        val results = session.criteria<ApplicationEntity>(
             predicate = {
                 val idPredicate =
-                    if (embeddedNameAndVersion.isNotEmpty()) {
-                        if (embeddedNameAndVersion.size > 1) {
-                            embeddedNameAndVersion.map { n ->
+                    if (embeddedNameAndVersionList.isNotEmpty()) {
+                        if (embeddedNameAndVersionList.size > 1) {
+                            embeddedNameAndVersionList.map { n ->
                                 (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) equal n.name) and
                                         (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::version]) equal n.version)
                             }
                         } else {
-                            val id = embeddedNameAndVersion.first()
+                            val id = embeddedNameAndVersionList.first()
                             listOf(
                                 (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) equal id.name) and
                                         (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::version]) equal id.version)
@@ -711,45 +720,8 @@ class ApplicationHibernateDAO(
                     } else listOf(literal(false).toPredicate())
                 allOf(anyOf(*idPredicate.toTypedArray()))
             }
-        ).mapItems { it.toModelWithInvocation() }
-        ).mapItems { it.withoutInvocation() }
-    }
-
-    override fun advancedSearch(
-        session: HibernateSession,
-        user: SecurityPrincipal,
-        name: String?,
-        version: String?,
-        tags: List<String>?,
-        paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> {
-        if (name == null && version == null && tags == null)
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Must provide any argument")
-
-        if (name != null && version == null && tags == null)
-            return search(session, user, name, paging)
-
-        return preparePageForUser(session, user.username, session.paginatedCriteria<ApplicationEntity>(
-            paging,
-            predicate = {
-                val namePredicates =
-                    if (name != null) {
-                        val splitNames = name.split(" ").filter { it.isNotBlank() }
-                        if (splitNames.size > 1) splitNames.map { n -> builder.lower(entity[ApplicationEntity::title]) like "%${n}%".toLowerCase() }
-                        else listOf(builder.lower(entity[ApplicationEntity::title]) like "%${name}%".toLowerCase())
-                    } else listOf(literal(true).toPredicate())
-                val versionPredicate =
-                    if (version != null) entity[ApplicationEntity::id][EmbeddedNameAndVersion::version] like "$version%"
-                    else literal(true).toPredicate()
-                val tagPredicate =
-                    if (tags != null) {
-                        val applications = findAppNamesFromTagsInsensitive(session, tags)
-                        entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] isInCollection applications
-                    } else literal(true).toPredicate()
-                allOf(anyOf(*namePredicates.toTypedArray()), versionPredicate, tagPredicate)
-            }
-        ).mapItems { it.toModelWithInvocation() }
-        ).mapItems { it.withoutInvocation() }
+        ).resultList.toList()
+        return results
     }
 
     private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {

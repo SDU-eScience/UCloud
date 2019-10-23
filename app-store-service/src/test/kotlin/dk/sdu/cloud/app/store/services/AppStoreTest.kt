@@ -11,10 +11,10 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.mockk
-import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -113,7 +113,7 @@ class AppStoreTest{
 
         assertEquals(2, allApps.itemsInTotal)
     }
-
+/*
     @Test
     fun `advanced search CC Test - no description`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
@@ -251,5 +251,5 @@ class AppStoreTest{
         }
 
     }
-
+*/
 }

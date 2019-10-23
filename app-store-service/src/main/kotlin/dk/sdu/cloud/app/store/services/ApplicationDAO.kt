@@ -112,18 +112,9 @@ interface ApplicationDAO<Session> {
     fun findAllByID(
         session: Session,
         user: SecurityPrincipal,
-        list: List<EmbeddedNameAndVersion>,
+        embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite>
-
-    fun advancedSearch(
-        session: Session,
-        user: SecurityPrincipal,
-        name: String?,
-        version: String?,
-        tags: List<String>?,
-        paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite>
+    ): List<ApplicationEntity>
 
     fun findLatestByTool(
         session: Session,
@@ -131,4 +122,10 @@ interface ApplicationDAO<Session> {
         tool: String,
         paging: NormalizedPaginationRequest
     ): Page<Application>
+
+    fun preparePageForUser(
+        session: Session,
+        user: String?,
+        page: Page<Application>
+    ): Page<ApplicationWithFavoriteAndTags>
 }
