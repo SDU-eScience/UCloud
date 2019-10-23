@@ -148,7 +148,7 @@ class JobFileTest{
         runBlocking {
             assertNull(verifiedJobWithAccessToken.job.folderId)
             assertEquals("/home/Jobs/title/01-01-1970 04:25:45.678", service.jobFolder(verifiedJobWithAccessToken.job))
-            assertEquals("/home/Jobs/title/verified", service.jobFolder(verifiedJobWithAccessToken.job, true))
+            assertEquals("/home/Jobs/title/verifiedI", service.jobFolder(verifiedJobWithAccessToken.job, true))
         }
 
         runBlocking {

@@ -28,6 +28,7 @@ import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.io.core.ExperimentalIoApi
+import org.apache.http.HttpStatus
 import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -189,24 +190,36 @@ class JobFileService(
 
     suspend fun jobFolder(job: VerifiedJob, new: Boolean = false): String {
         val jobsFolder = jobsFolder(job.owner)
-        var folderName = "foobar"
+        var folderName = job.id
 
         if (job.folderId == null) {
             if (new) {
-                // Create new folder using the job ID
-                val shortJobId = job.id.substring(0, 8)
+                // Find a name for a new folder using the job ID
+                var shortJobId: String
+                var folderNameLength = 8
 
-                folderName = if (job.name == null) {
-                    shortJobId
-                } else {
-                    job.name + "-" + shortJobId
+                while(folderNameLength < job.id.length) {
+                    shortJobId = job.id.take(folderNameLength)
+
+                    folderName = if (job.name == null) {
+                        shortJobId
+                    } else {
+                        job.name + "-" + shortJobId
+                    }
+
+                    if (FileDescriptions.stat.call(
+                        StatRequest(joinPath(
+                            jobsFolder,
+                            job.archiveInCollection,
+                            folderName
+                        ), StorageFileAttribute.fileId.name),
+                        serviceClient
+                    ).statusCode == HttpStatusCode.NotFound) {
+                       break
+                    }
+
+                    folderNameLength++
                 }
-
-                return joinPath(
-                    jobsFolder,
-                    job.archiveInCollection,
-                    folderName
-                )
             } else {
                 // No file id was found, nor is this `new`. Assume old format (timestamp)
                 val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
