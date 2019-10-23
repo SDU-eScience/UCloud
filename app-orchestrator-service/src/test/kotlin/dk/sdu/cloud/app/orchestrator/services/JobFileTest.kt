@@ -2,9 +2,9 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
+import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken2
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.indexing.api.LookupDescriptions
-import dk.sdu.cloud.indexing.api.ReverseLookupFilesResponse
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse
 import dk.sdu.cloud.service.test.ClientMock
 import kotlinx.coroutines.io.ByteReadChannel
@@ -20,6 +20,22 @@ class JobFileTest{
     fun `initialize Result folder test`() {
         val authClient = ClientMock.authenticatedClient
         val service = JobFileService(authClient,  { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.stat,
+            StorageFile(
+                FileType.DIRECTORY,
+                "/home/Jobs/title/somefolder",
+                12345678,
+                1234567,
+                "user",
+                7891234,
+                emptyList(),
+                SensitivityLevel.PRIVATE,
+                emptySet(), "123",
+                "user",
+                SensitivityLevel.PRIVATE)
+        )
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -140,24 +156,25 @@ class JobFileTest{
                 "user",
                 SensitivityLevel.PRIVATE)
         )
+
         ClientMock.mockCallSuccess(
             LookupDescriptions.reverseLookup,
             ReverseLookupResponse(listOf("/home/Jobs/title/testfolder"))
         )
 
         runBlocking {
-            assertNull(verifiedJobWithAccessToken.job.folderId)
-            assertEquals("/home/Jobs/title/01-01-1970 04:25:45.678", service.jobFolder(verifiedJobWithAccessToken.job))
-            assertEquals("/home/Jobs/title/verifiedI", service.jobFolder(verifiedJobWithAccessToken.job, true))
+            assertNull(verifiedJobWithAccessToken2.job.folderId)
+            assertEquals("/home/Jobs/title/01-01-1970 04:25:45.678", service.jobFolder(verifiedJobWithAccessToken2.job))
+            assertEquals("/home/Jobs/title/verifiedId", service.jobFolder(verifiedJobWithAccessToken2.job, true))
         }
 
         runBlocking {
-            service.initializeResultFolder(verifiedJobWithAccessToken)
+            service.initializeResultFolder(verifiedJobWithAccessToken2)
         }
 
         runBlocking {
-            assertEquals("1234", verifiedJobWithAccessToken.job.folderId)
-            assertEquals("/home/Jobs/title/testfolder", service.jobFolder(verifiedJobWithAccessToken.job))
+            assertEquals("1234", verifiedJobWithAccessToken2.job.folderId)
+            assertEquals("/home/Jobs/title/testfolder", service.jobFolder(verifiedJobWithAccessToken2.job))
         }
     }
 }

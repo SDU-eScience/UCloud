@@ -13,9 +13,9 @@ import dk.sdu.cloud.app.orchestrator.utils.normToolDesc
 import dk.sdu.cloud.app.orchestrator.utils.startJobRequest
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderResponse
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupResponse
 import dk.sdu.cloud.micro.BackgroundScopeFeature
 import dk.sdu.cloud.micro.DeinitFeature
 import dk.sdu.cloud.micro.HibernateFeature
@@ -60,6 +60,37 @@ class JobOrchestratorTest {
         micro.install(BackgroundScopeFeature)
         val db = micro.hibernateDatabase
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.stat,
+            StorageFile(
+                FileType.DIRECTORY,
+                "/home/Jobs/title/somefolder",
+                12345678,
+                1234567,
+                "user",
+                7891234,
+                emptyList(),
+                SensitivityLevel.PRIVATE,
+                emptySet(), "123",
+                "user",
+                SensitivityLevel.PRIVATE)
+        )
+
+        ClientMock.mockCallSuccess(
+            MultiPartUploadDescriptions.simpleUpload,
+            Unit
+        )
+
+        ClientMock.mockCallSuccess(
+            LookupDescriptions.reverseLookup,
+            ReverseLookupResponse(listOf("/home/Jobs/title/testfolder"))
+        )
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.createDirectory,
+            LongRunningResponse.Result(item = Unit)
+        )
 
         val toolDao = mockk<ToolStoreService>()
         val appDao = mockk<AppStoreService>()
@@ -109,6 +140,12 @@ class JobOrchestratorTest {
             AuthDescriptions.logout,
             Unit
         )
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.findHomeFolder,
+            FindHomeFolderResponse("home")
+        )
+
 
         this.orchestrator = orchestrator
         this.streamFollowService =
@@ -323,6 +360,8 @@ class JobOrchestratorTest {
 
     @Test
     fun `Handle cancel of successful job test`() = runBlocking {
+
+
         val orchestrator = setup()
         val returnedID = orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
 
