@@ -11,21 +11,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.ExtractRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SimpleUploadRequest
-import dk.sdu.cloud.file.api.WorkspaceDescriptions
-import dk.sdu.cloud.file.api.WorkspaceMount
-import dk.sdu.cloud.file.api.Workspaces
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupRequest
 import dk.sdu.cloud.service.Loggable
@@ -76,6 +62,11 @@ class JobFileService(
             CreateDirectoryRequest(path.parent(), null, sensitivity = sensitivityLevel),
             userCloud
         )
+
+        job.folderId = FileDescriptions.stat.call(
+            StatRequest(path, StorageFileAttribute.fileId.name),
+            serviceClient
+        ).orThrow().fileId
 
         val dirResp = FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path, null),
@@ -228,10 +219,10 @@ class JobFileService(
             }
         } else {
             // Reverse lookup of path from file id
-            val folderName = LookupDescriptions.reverseLookupFiles.call(
-                ReverseLookupRequest(job.folderId),
+            return LookupDescriptions.reverseLookup.call(
+                ReverseLookupRequest(job.folderId.toString()),
                 serviceClient
-            ).orThrow()
+            ).orThrow().canonicalPath.first() ?: ""
         }
 
         return joinPath(
