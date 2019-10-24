@@ -73,7 +73,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
                 <Text.TextSpan cursor="pointer" onClick={() => this.setState(() => ({open: !this.state.open}))}>
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em" /> : null}
                 </Text.TextSpan>
-                {emptyChildren ? null : (
+                {emptyChildren || !this.state.open ? null : (
                     <DropdownContent
                         overflow={"visible"}
                         squareTop={this.props.squareTop}
@@ -82,7 +82,8 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
                         width={width}
                         hover={false}
                         visible={this.state.open}
-                        onClick={() => !keepOpenOnClick ? this.setState(() => ({open: false})) : null}>
+                        onClick={() => !keepOpenOnClick ? this.setState(() => ({open: false})) : null}
+                    >
                         {children}
                     </DropdownContent>
                 )}

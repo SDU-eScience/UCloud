@@ -87,7 +87,7 @@ function UserCreation(props: UserCreationOperations) {
         <MainContainer
             header={<Heading.h1>User Creation</Heading.h1>}
             headerSize={64}
-            sidebar={
+            sidebar={(
                 <VerticalButtonGroup>
                     <Link to={"/applications/studio"}>
                         <Button type={"button"}>
@@ -95,8 +95,8 @@ function UserCreation(props: UserCreationOperations) {
                         </Button>
                     </Link>
                 </VerticalButtonGroup>
-            }
-            main={
+            )}
+            main={(
                 <>
                     <p>Admins can create new users on this page.</p>
                     <form onSubmit={e => submit(e)}>
@@ -105,7 +105,7 @@ function UserCreation(props: UserCreationOperations) {
                             <Input
                                 value={username}
                                 color={usernameError ? "red" : "gray"}
-                                onChange={({target: {value}}) => updateFields("username", value)}
+                                onChange={e => updateFields("username", e.target.value)}
                                 placeholder="Username..."
                             />
                         </Label>
@@ -115,7 +115,7 @@ function UserCreation(props: UserCreationOperations) {
                                 value={password}
                                 type="password"
                                 color={passwordError ? "red" : "gray"}
-                                onChange={({target: {value}}) => updateFields("password", value)}
+                                onChange={e => updateFields("password", e.target.value)}
                                 placeholder="Password..."
                             />
                         </Label>
@@ -125,7 +125,7 @@ function UserCreation(props: UserCreationOperations) {
                                 value={repeatedPassword}
                                 type="password"
                                 color={passwordError ? "red" : "gray"}
-                                onChange={({target: {value}}) => updateFields("repeatedPassword", value)}
+                                onChange={e => updateFields("repeatedPassword", e.target.value)}
                                 placeholder="Repeat password..."
                             />
                         </Label>
@@ -133,10 +133,12 @@ function UserCreation(props: UserCreationOperations) {
                             type="submit"
                             color="green"
                             disabled={submitted}
-                        >Create user</Button>
+                        >
+                            Create user
+                        </Button>
                     </form>
                 </>
-            }
+            )}
         />
     );
 }
