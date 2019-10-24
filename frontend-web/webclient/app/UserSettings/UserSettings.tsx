@@ -12,33 +12,37 @@ import {ChangePassword} from "UserSettings/ChangePassword";
 import {Sessions} from "UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
 
-const UserSettings: React.FunctionComponent<UserSettingsOperations & { headerLoading: boolean }> = props => {
-    props.setActivePage();
+interface UserSettingsState {
+    headerLoading: boolean;
+}
+
+const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSettingsState> = props => {
+    React.useEffect(() => {
+        props.setActivePage();
+    }, []);
 
     return (
         <Flex alignItems="center" flexDirection="column">
             <Box width={0.7}>
                 <MainContainer
                     header={<Heading.h1>User Settings</Heading.h1>}
-                    main={
-                        (
-                            <>
-                                <ChangePassword
-                                    setLoading={props.setLoading}
-                                />
+                    main={(
+                        <>
+                            <ChangePassword
+                                setLoading={props.setLoading}
+                            />
 
-                                <TwoFactorSetup
-                                    loading={props.headerLoading}
-                                    setLoading={props.setLoading}
-                                />
+                            <TwoFactorSetup
+                                loading={props.headerLoading}
+                                setLoading={props.setLoading}
+                            />
 
-                                <Sessions
-                                    setLoading={props.setLoading}
-                                    setRefresh={props.setRefresh}
-                                />
-                            </>
-                        )
-                    }
+                            <Sessions
+                                setLoading={props.setLoading}
+                                setRefresh={props.setRefresh}
+                            />
+                        </>
+                    )}
                 />
             </Box>
         </Flex>
@@ -56,7 +60,7 @@ const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
     setRefresh: fn => dispatch(setRefreshFunction(fn))
 });
 
-const mapStateToProps = ({status}: ReduxObject): { headerLoading: boolean } => ({
+const mapStateToProps = ({status}: ReduxObject): UserSettingsState => ({
     headerLoading: status.loading
 });
 

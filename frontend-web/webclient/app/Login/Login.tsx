@@ -4,8 +4,8 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled from "styled-components";
-import {Box, Button, Flex, Icon, Image, Input, Text} from "ui-components";
+import styled, {ThemeProvider} from "styled-components";
+import {Box, Button, Flex, Icon, Image, Input, Text, theme} from "ui-components";
 import Absolute from "ui-components/Absolute";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
@@ -161,56 +161,51 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                 You must re-authenticate with SDUCloud to use your files locally.
                             </Box>
                         )}
-                        {enabledWayf && !challengeId ?
-                            (
-                                <a href={`/auth/saml/login?service=${service}`}>
-                                    <Button disabled={loading} fullWidth color="wayfGreen">
-                                        <Image width="100px" src={wayfLogo} />
-                                        <TextSpan fontSize={3} ml="2.5em">Login</TextSpan>
-                                    </Button>
-                                </a>
-                            ) : null}
-                        {!challengeId ?
-                            (
-                                <ClickableDropdown
-                                    colorOnHover={false}
-                                    keepOpenOnClick
-                                    top="30px"
-                                    width="315px"
-                                    left="0px"
-                                    trigger={
-                                        (
-                                            <Text
-                                                fontSize={1}
-                                                color="white"
-                                                mt="5px"
-                                            >
-                                                More login options
-                                            </Text>
-                                        )
-                                    }
-                                >
-                                    <Box width="100%">
-                                        <form onSubmit={e => e.preventDefault()}>
-                                            <Login
-                                                enabled2fa={!!challengeId}
-                                                usernameRef={usernameInput}
-                                                passwordRef={passwordInput}
-                                            />
-                                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                        {enabledWayf && !challengeId ? (
+                            <a href={`/auth/saml/login?service=${service}`}>
+                                <Button disabled={loading} fullWidth color="wayfGreen">
+                                    <Image width="100px" src={wayfLogo} />
+                                    <TextSpan fontSize={3} ml="2.5em">Login</TextSpan>
+                                </Button>
+                            </a>
+                        ) : null}
+                        {!challengeId ? (
+                            <ClickableDropdown
+                                colorOnHover={false}
+                                keepOpenOnClick
+                                top="30px"
+                                width="315px"
+                                left="0px"
+                                trigger={(
+                                    <Text
+                                        fontSize={1}
+                                        color="white"
+                                        mt="5px"
+                                    >
+                                        More login options
+                                    </Text>
+                                )}
+                            >
+                                <Box width="100%">
+                                    <form onSubmit={e => e.preventDefault()}>
+                                        <Login
+                                            enabled2fa={!!challengeId}
+                                            usernameRef={usernameInput}
+                                            passwordRef={passwordInput}
+                                        />
+                                        <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
 
-                                            <Button
-                                                fullWidth
-                                                disabled={loading}
-                                                onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                            >
-                                                Login
-                                            </Button>
-                                        </form>
-                                    </Box>
-                                </ClickableDropdown>
-                            ) :
-                            (
+                                        <Button
+                                            fullWidth
+                                            disabled={loading}
+                                            onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                        >
+                                            Login
+                                        </Button>
+                                    </form>
+                                </Box>
+                            </ClickableDropdown>
+                        ) : (
                                 <>
                                     <Text fontSize={1} color="white" mt="5px">Enter 2-factor authentication code</Text>
                                     <DropdownContent
