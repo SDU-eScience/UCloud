@@ -97,6 +97,7 @@ sealed class PersonEntity : PrincipalEntity() {
     abstract var lastName: String
     abstract var phoneNumber: String?
     abstract var orcId: String?
+    abstract var email: String?
 }
 
 @Entity
@@ -111,6 +112,7 @@ data class PersonEntityByPassword(
     override var phoneNumber: String?,
     override var orcId: String?,
     override var uid: Long = 0,
+    override var email: String? = null,
 
     var hashedPassword: ByteArray,
     var salt: ByteArray
@@ -124,8 +126,7 @@ data class PersonEntityByPassword(
             lastName,
             phoneNumber,
             orcId,
-            emptyList(),
-            null,
+            email,
             uid,
             hashedPassword,
             salt
@@ -147,8 +148,7 @@ data class PersonEntityByPassword(
         if (lastName != other.lastName) return false
         if (phoneNumber != other.phoneNumber) return false
         if (orcId != other.orcId) return false
-        if (!Arrays.equals(hashedPassword, other.hashedPassword)) return false
-        if (!Arrays.equals(salt, other.salt)) return false
+        if (email != other.email) return false
 
         return true
     }
@@ -163,8 +163,7 @@ data class PersonEntityByPassword(
         result = 31 * result + lastName.hashCode()
         result = 31 * result + (phoneNumber?.hashCode() ?: 0)
         result = 31 * result + (orcId?.hashCode() ?: 0)
-        result = 31 * result + Arrays.hashCode(hashedPassword)
-        result = 31 * result + Arrays.hashCode(salt)
+        result = 31 * result + (email?.hashCode() ?: 0)
         return result
     }
 }
@@ -181,6 +180,7 @@ data class PersonEntityByWAYF(
     override var phoneNumber: String?,
     override var orcId: String?,
     override var uid: Long = 0,
+    override var email: String? = null,
     var orgId: String,
     var wayfId: String
 ) : PersonEntity() {
@@ -193,8 +193,7 @@ data class PersonEntityByWAYF(
             lastName,
             phoneNumber,
             orcId,
-            emptyList(),
-            null,
+            email,
             uid,
             orgId,
             wayfId
@@ -252,6 +251,19 @@ class UserHibernateDAO(
             ?.toModel() as? Person.ByWAYF ?: throw UserException.NotFound()
     }
 
+    override fun findByWayfIdAndUpdateEmail(session: HibernateSession, wayfId: String, email: String?): Person.ByWAYF {
+        val entity = (session
+            .createQuery("from PrincipalEntity where wayfId = :wayfId")
+            .setParameter("wayfId", wayfId).list().firstOrNull() as? PersonEntityByWAYF)
+
+        if (entity != null && email != null) {
+            entity.email = email
+            session.save(entity)
+        }
+
+        return entity?.toModel() as? Person.ByWAYF ?: throw UserException.NotFound()
+    }
+
     override fun insert(session: HibernateSession, principal: Principal) {
         session.save(principal.toEntity())
     }
@@ -302,6 +314,7 @@ fun Principal.toEntity(): PrincipalEntity {
             phoneNumber,
             orcId,
             uid,
+            email,
             organizationId,
             wayfId
         )
@@ -317,6 +330,7 @@ fun Principal.toEntity(): PrincipalEntity {
             phoneNumber,
             orcId,
             uid,
+            email,
             password,
             salt
         )

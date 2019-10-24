@@ -55,7 +55,7 @@ class UserController<DBSession>(
                             personService.createUserByPassword(
                                 firstNames = user.username,
                                 lastName = "N/A",
-                                email = user.username,
+                                username = user.username,
                                 role = user.role ?: Role.USER,
                                 password = user.password ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                             )

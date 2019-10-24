@@ -19,7 +19,8 @@ class UserDAOTest {
             "Lastname",
             email,
             Role.ADMIN,
-            "ThisIsMyPassword"
+            "ThisIsMyPassword",
+            email = email
         )
         assertEquals("FirstName Middle", person.firstNames)
         assertEquals("Lastname", person.lastName)

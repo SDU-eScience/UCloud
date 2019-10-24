@@ -308,10 +308,12 @@ class TokenService<DBSession>(
                     samlRequestProcessor.attributes["eduPersonTargetedID"]?.firstOrNull()
                         ?: throw IllegalArgumentException("Missing EduPersonTargetedId")
 
+                val email = samlRequestProcessor.attributes["mail"]?.firstOrNull()
+
                 log.debug("User is authenticated with id $id")
 
                 try {
-                    return db.withTransaction { userDao.findByWayfId(it, id) }
+                    return db.withTransaction { userDao.findByWayfIdAndUpdateEmail(it, id, email) }
                 } catch (ex: UserException.NotFound) {
                     log.debug("User not found. Creating new user...")
 
