@@ -11,7 +11,7 @@ import {
 
 export interface Override {
     path: string;
-    method: {value: string;};
+    method: { value: string; };
     destination: {
         scheme?: string;
         host?: string;
@@ -90,6 +90,18 @@ export default class SDUCloud {
         }
     }
 
+    public async waitForCloudReady() {
+        if (this.overridesPromise !== null) {
+            try {
+                await this.overridesPromise;
+            } catch {
+                // Ignored
+            }
+
+            this.overridesPromise = null;
+        }
+    }
+
     public initializeStore(store: Store<ReduxObject>) {
         store.subscribe(() => {
             const project = store.getState().project.project;
@@ -130,12 +142,7 @@ export default class SDUCloud {
             withCredentials = false
         }: CallParameters
     ): Promise<any> {
-        if (this.overridesPromise != null) {
-            try {
-                await this.overridesPromise;
-            } catch { /* ignored */}
-            this.overridesPromise = null;
-        }
+        await this.waitForCloudReady();
 
         if (path.indexOf("/") !== 0) path = "/" + path;
         return this.receiveAccessTokenOrRefreshIt(disallowProjects).then(token => {
@@ -227,7 +234,7 @@ export default class SDUCloud {
     public async get<T = any>(
         path: string,
         context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
+        disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "GET", path, body: undefined, context, disallowProjects});
     }
 
@@ -235,7 +242,7 @@ export default class SDUCloud {
      * Calls with the POST HTTP method. See call(method, path, body)
      */
     public async post<T = any>(path: string, body?: object, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
+                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "POST", path, body, context, disallowProjects});
     }
 
@@ -243,7 +250,7 @@ export default class SDUCloud {
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
     public async put<T = any>(path: string, body: object, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
+                              disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "PUT", path, body, context, disallowProjects});
     }
 
@@ -251,7 +258,7 @@ export default class SDUCloud {
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
     public async delete<T = void>(path: string, body: object, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
+                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "DELETE", path, body, context, disallowProjects});
     }
 
@@ -259,7 +266,7 @@ export default class SDUCloud {
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
     public async patch<T = any>(path: string, body: object, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
+                                disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "PATCH", path, body, context, disallowProjects});
     }
 
@@ -267,7 +274,7 @@ export default class SDUCloud {
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
     public async options<T = any>(path: string, body: object, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
+                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "OPTIONS", path, body, context, disallowProjects});
     }
 
@@ -275,7 +282,7 @@ export default class SDUCloud {
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
     public async head<T = any>(path: string, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
+                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call({method: "HEAD", path, body: undefined, context, disallowProjects});
     }
 
@@ -383,13 +390,7 @@ export default class SDUCloud {
      * @return {Promise} a promise of an access token
      */
     async receiveAccessTokenOrRefreshIt(disallowProjects: boolean = false): Promise<any> {
-        if (this.overridesPromise != null) {
-            try {
-                await this.overridesPromise;
-            } catch (ignored) {
-            }
-            this.overridesPromise = null;
-        }
+        await this.waitForCloudReady();
 
         let tokenPromise: Promise<any> | null = null;
         if (this.isTokenExpired(disallowProjects) || this.forceRefresh) {
@@ -419,7 +420,7 @@ export default class SDUCloud {
                                 reject(req.response);
                             }
                         } catch (e) {
-                            reject(e.response)
+                            reject(e.response);
                         }
                     };
                     req.send();
@@ -442,7 +443,7 @@ export default class SDUCloud {
                     this.openBrowserLoginPage();
                 }
 
-                throw Error("Unable to refresh token")
+                throw Error("Unable to refresh token");
             }
         } else {
             const csrfToken = SDUCloud.storedCsrfToken;
@@ -561,7 +562,7 @@ export default class SDUCloud {
                 this.openBrowserLoginPage();
                 return;
             }
-            throw Error("The server was unreachable, please try again later.")
+            throw Error("The server was unreachable, please try again later.");
         } catch (err) {
             snackbarStore.addSnack({message: err.message, type: SnackType.Failure});
         }
