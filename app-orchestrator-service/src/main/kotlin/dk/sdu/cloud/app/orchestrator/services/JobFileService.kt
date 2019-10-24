@@ -11,21 +11,9 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.ExtractRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SimpleUploadRequest
-import dk.sdu.cloud.file.api.WorkspaceDescriptions
-import dk.sdu.cloud.file.api.WorkspaceMount
-import dk.sdu.cloud.file.api.Workspaces
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
@@ -40,6 +28,7 @@ import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.io.core.ExperimentalIoApi
+import org.apache.http.HttpStatus
 import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -69,11 +58,16 @@ class JobFileService(
             userCloud
         )
 
-        val path = jobFolder(job)
+        val path = jobFolder(job, true)
         FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path.parent(), null, sensitivity = sensitivityLevel),
             userCloud
         )
+
+        job.folderId = FileDescriptions.stat.call(
+            StatRequest(path, StorageFileAttribute.fileId.name),
+            serviceClient
+        ).orThrow().fileId
 
         val dirResp = FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path, null),
@@ -194,14 +188,54 @@ class JobFileService(
         }
     }
 
-    suspend fun jobFolder(job: VerifiedJob): String {
+    suspend fun jobFolder(job: VerifiedJob, new: Boolean = false): String {
         val jobsFolder = jobsFolder(job.owner)
-        val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+        var folderName = job.id
 
-        val folderName: String = if (job.name == null) {
-            timestamp
+        if (job.folderId == null) {
+            if (new) {
+                // Find a name for a new folder using the job ID
+                var shortJobId: String
+                var folderNameLength = 8
+
+                while(folderNameLength < job.id.length) {
+                    shortJobId = job.id.take(folderNameLength)
+
+                    folderName = if (job.name == null) {
+                        shortJobId
+                    } else {
+                        job.name + "-" + shortJobId
+                    }
+
+                    if (FileDescriptions.stat.call(
+                        StatRequest(joinPath(
+                            jobsFolder,
+                            job.archiveInCollection,
+                            folderName
+                        ), StorageFileAttribute.fileId.name),
+                        serviceClient
+                    ).statusCode == HttpStatusCode.NotFound) {
+                       break
+                    }
+
+                    folderNameLength++
+                }
+            } else {
+                // No file id was found, nor is this `new`. Assume old format (timestamp)
+                val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+
+                folderName = if (job.name == null) {
+                    timestamp
+                } else {
+                    job.name + "-" + timestamp
+                }
+            }
         } else {
-            job.name + "-" + timestamp
+            // Reverse lookup of path from file id
+            return LookupDescriptions.reverseLookup.call(
+                ReverseLookupRequest(job.folderId.toString()),
+                serviceClient
+            ).orThrow().canonicalPath.first() ?: ""
         }
 
         return joinPath(
@@ -296,7 +330,7 @@ class JobFileService(
         override val log = logger()
 
         private val zoneId = ZoneId.of("Europe/Copenhagen")
-        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss.SSS")
+        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS")
         private const val WORKSPACE_PATH = "/workspace/"
     }
 }

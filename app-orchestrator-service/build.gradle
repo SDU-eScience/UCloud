@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.8.3'
+version '0.8.4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
@@ -24,6 +24,7 @@ dependencies {
     compile "dk.sdu.cloud:app-store-api:$appStoreApiVersion"
     compile "dk.sdu.cloud:file-api:${fileApiVersion}"
     compile "dk.sdu.cloud:app-fs-api:$appFsVersion"
+    compile "dk.sdu.cloud:indexing-api:1.15.1"
     compile 'com.vladmihalcea:hibernate-types-52:2.4.1'
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
 
