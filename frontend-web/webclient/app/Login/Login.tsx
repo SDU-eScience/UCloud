@@ -98,16 +98,20 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         }
     }
 
+    function handleCompleteLogin(result: any) {
+        if (isWebDav) {
+            setWebDavToken(result.refreshToken);
+        } else {
+            Cloud.setTokens(result.accessToken, result.csrfToken);
+            props.history.push("/loginSuccess");
+        }
+    }
+
     function handleAuthState(result: any) {
         if ("2fa" in result) {
             setChallengeID(result["2fa"]);
         } else {
-            if (isWebDav) {
-                setWebDavToken(result.refreshToken);
-            } else {
-                Cloud.setTokens(result.accessToken, result.csrfToken);
-                props.history.push("/loginSuccess");
-            }
+            handleCompleteLogin(result);
         }
     }
 
@@ -129,8 +133,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
             });
             if (!response.ok) throw response;
             const result = await response.json();
-            Cloud.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/loginSuccess");
+            handleCompleteLogin(result);
         } catch (e) {
             setLoading(false);
             snackbarStore.addSnack({
