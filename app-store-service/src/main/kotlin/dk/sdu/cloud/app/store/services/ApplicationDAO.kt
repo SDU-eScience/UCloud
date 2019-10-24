@@ -90,6 +90,11 @@ interface ApplicationDAO<Session> {
         tags: List<String>
     )
 
+    fun findTagsForApp(
+        session: Session,
+        applicationName: String
+    ) : List<TagEntity>
+
     fun updateDescription(
         session: Session,
         user: SecurityPrincipal,

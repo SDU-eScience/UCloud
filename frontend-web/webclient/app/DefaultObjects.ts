@@ -295,7 +295,6 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     error: undefined,
     loading: false,
     hidden: true,
-    appName: "",
-    appVersion: "",
+    appQuery: "",
     tags: new Set()
 });

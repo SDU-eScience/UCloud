@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.app.store.api.ApplicationWithExtension
 import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.calls.RPCException
@@ -169,12 +170,15 @@ class AppStoreService<DBSession>(
         db.withTransaction { session ->
             applicationDAO.createTags(session, user, applicationName, tags)
         }
+        elasticDAO.addTagToElastic(applicationName, tags)
+
     }
 
     fun deleteTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
         db.withTransaction { session ->
             applicationDAO.deleteTags(session, user, applicationName, tags)
         }
+        elasticDAO.removeTagFromElastic(applicationName, tags)
     }
 
     fun findLatestByTool(
@@ -190,14 +194,20 @@ class AppStoreService<DBSession>(
     fun advancedSearch(
         user: SecurityPrincipal,
         query: String?,
+        tagFilter: List<String>?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        if (query == null) {
+        if (query.isNullOrBlank() && tagFilter == null) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
-        val queryTerms = query.split(" ").filter { it.isNotBlank() }
 
-        val results = elasticDAO.search(queryTerms)
+        val normalizedQuery = query?.toLowerCase() ?: ""
+
+        val normalizedTags = tagFilter?.map { it.toLowerCase() }
+
+        val queryTerms = normalizedQuery.split(" ").filter { it.isNotBlank() }
+
+        val results = elasticDAO.search(queryTerms, normalizedTags ?: emptyList())
 
         val embeddedNameAndVersionList = results.hits.map {
             val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)

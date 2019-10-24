@@ -36,7 +36,7 @@ class ElasticDAOTest {
             response
         }
 
-        val results = elasticDAO.search(listOf("String1", "app", "another"))
+        val results = elasticDAO.search(listOf("String1", "app", "another"), listOf("tag1", "tag2"))
         assertEquals(2, results.hits.hits.size)
     }
 
@@ -60,7 +60,7 @@ class ElasticDAOTest {
             response
         }
 
-        val results = elasticDAO.search(listOf("String1", "app", "another"))
+        val results = elasticDAO.search(listOf("String1", "app", "another"), listOf("tag1", "tag2"))
         assertEquals(2, results.hits.hits.size)
     }
 

@@ -577,6 +577,17 @@ class ApplicationHibernateDAO(
             }.uniqueResult()
     }
 
+    override fun findTagsForApp(
+        session: HibernateSession,
+        applicationName: String
+    ): List<TagEntity> {
+        return session.criteria<TagEntity>{
+            allOf(
+                entity[TagEntity::applicationName] equal applicationName
+            )
+        }.resultList
+    }
+
     override fun updateDescription(
         session: HibernateSession,
         user: SecurityPrincipal,

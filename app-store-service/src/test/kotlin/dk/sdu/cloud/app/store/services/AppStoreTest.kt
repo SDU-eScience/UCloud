@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normAppDesc2
+import dk.sdu.cloud.app.store.util.withNameAndVersion
 import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
 import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.HibernateFeature
@@ -15,10 +16,124 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
+import org.elasticsearch.action.admin.indices.flush.FlushRequest
+import org.elasticsearch.client.RequestOptions
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
 class AppStoreTest{
+
+    //Requires running Elastic with empty application index
+    @Ignore
+    @Test
+    fun realTestOfCreateAndDeleteTag() {
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+        micro.install(ElasticFeature)
+
+        val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
+        val appDao = ApplicationHibernateDAO(toolHibernateDAO)
+        val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
+        val applicationService = AppStoreService(micro.hibernateDatabase, appDao, toolHibernateDAO, elasticDAO)
+
+        applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.1"), "content")
+        applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.2"), "content")
+        applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.3"), "content")
+
+        Thread.sleep(1000)
+
+        runBlocking {
+            val advancedSearchResultForTest1 = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test1"),
+                NormalizedPaginationRequest(10, 0)
+            )
+
+            val advancedSearchResultForTest2 = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test2"),
+                NormalizedPaginationRequest(10,0)
+            )
+
+            val advancedSearchResultForAll = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test1", "test2"),
+                NormalizedPaginationRequest(10,0)
+            )
+
+            assertEquals(0, advancedSearchResultForTest1.itemsInTotal)
+            assertEquals(0, advancedSearchResultForTest2.itemsInTotal)
+            assertEquals(0, advancedSearchResultForAll.itemsInTotal)
+        }
+
+        applicationService.createTags(listOf("test1", "test2"), "ansys", TestUsers.admin)
+
+        Thread.sleep(1000)
+
+        runBlocking {
+            val advancedSearchResultForTest1 = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test1"),
+                NormalizedPaginationRequest(10, 0)
+            )
+
+            val advancedSearchResultForTest2 = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test2"),
+                NormalizedPaginationRequest(10,0)
+            )
+
+            val advancedSearchResultForAll = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test1", "test2"),
+                NormalizedPaginationRequest(10,0)
+            )
+
+            assertEquals(3, advancedSearchResultForTest1.itemsInTotal)
+            assertEquals(3, advancedSearchResultForTest2.itemsInTotal)
+            assertEquals(3, advancedSearchResultForAll.itemsInTotal)
+        }
+
+        applicationService.deleteTags(listOf("test2"), "ansys", TestUsers.admin)
+
+        Thread.sleep(1000)
+
+        runBlocking {
+            val advancedSearchResultForTest1 = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test1"),
+                NormalizedPaginationRequest(10, 0)
+            )
+
+            val advancedSearchResultForTest2 = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test2"),
+                NormalizedPaginationRequest(10,0)
+            )
+
+            val advancedSearchResultForAll = applicationService.advancedSearch(
+                TestUsers.admin,
+                "",
+                listOf("test1", "test2"),
+                NormalizedPaginationRequest(10,0)
+            )
+
+            assertEquals(3, advancedSearchResultForTest1.itemsInTotal)
+            assertEquals(0, advancedSearchResultForTest2.itemsInTotal)
+            assertEquals(3, advancedSearchResultForAll.itemsInTotal)
+
+        }
+    }
 
     private fun initAppStoreWithMockedElasticAndTool (): AppStoreService<HibernateSession> {
         val micro = initializeMicro()

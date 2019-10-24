@@ -74,6 +74,7 @@ class AppStoreController<DBSession>(
             ok(appStore.advancedSearch(
                 ctx.securityPrincipal,
                 request.query,
+                request.tags,
                 request.normalize()
             ))
         }

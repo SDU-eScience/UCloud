@@ -91,8 +91,9 @@ class Server(override val micro: Micro) : CommonServer {
                         val version = app.id.version.toLowerCase()
                         val description = app.description.toLowerCase()
                         val title = app.title.toLowerCase()
+                        val tags = applicationDAO.findTagsForApp(session, app.id.name).map { it.tag }
 
-                        elasticDAO.createApplicationInElastic(name, version, description, title)
+                        elasticDAO.createApplicationInElastic(name, version, description, title, tags)
                         log.info("created: ${app.id.name}:${app.id.version}")
                     }
                     log.info("DONE Migrating")

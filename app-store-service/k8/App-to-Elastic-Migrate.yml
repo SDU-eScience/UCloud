@@ -1,24 +1,20 @@
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
+
 metadata:
-  name: app-store
-  labels:
-    app: app-store
+  name: app-to-elastic-migration
+
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: app-store
   template:
     metadata:
-      labels:
-        app: app-store
+      name: app-to-elastic-migration
+
     spec:
       containers:
-      - name: app-store
+      - name: app-store-service
         image: registry.cloud.sdu.dk/sdu-cloud/app-store-service:0.9.0
-        command:
+        args:
         - /opt/service/bin/service
         - --config-dir
         - /etc/refresh-token
@@ -28,6 +24,8 @@ spec:
         - /etc/psql
         - --config-dir
         - /etc/elasticsearch-credentials
+        - --run-script
+        - --migrate-apps-to-elastic
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
@@ -37,11 +35,6 @@ spec:
           name: app-store-psql
         - mountPath: /etc/elasticsearch-credentials
           name: elasticsearch-credentials
-        env:
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
 
       volumes:
       - name: refresh-token
@@ -51,6 +44,7 @@ spec:
       - name: token-validation
         configMap:
           name: token-validation
+          defaultMode: 420
       - name: app-store-psql
         secret:
           optional: false
@@ -60,5 +54,6 @@ spec:
           optional: false
           secretName: elasticsearch-credentials
 
+      restartPolicy: Never
       imagePullSecrets:
-        - name: esci-docker
+      - name: esci-docker
