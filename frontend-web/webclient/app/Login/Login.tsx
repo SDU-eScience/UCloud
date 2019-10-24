@@ -144,98 +144,102 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
     }
 
     return (
-        <>
-            <Absolute top="-3vw" left="8vw">
-                <Box width="20vw">
-                    <Icon color="white" name="logoSdu" size="20vw" />
-                </Box>
-            </Absolute>
-
-            <BGLogo image={bg1} bottom="0px" height="50%" width="100%" />
-
-            <BackgroundImage image={bg2}>
-                <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
-                    <Box width="315px">
-                        {!isWebDav ? null : (
-                            <Box color="white" mb={32}>
-                                You must re-authenticate with SDUCloud to use your files locally.
-                            </Box>
-                        )}
-                        {enabledWayf && !challengeId ? (
-                            <a href={`/auth/saml/login?service=${service}`}>
-                                <Button disabled={loading} fullWidth color="wayfGreen">
-                                    <Image width="100px" src={wayfLogo} />
-                                    <TextSpan fontSize={3} ml="2.5em">Login</TextSpan>
-                                </Button>
-                            </a>
-                        ) : null}
-                        {!challengeId ? (
-                            <ClickableDropdown
-                                colorOnHover={false}
-                                keepOpenOnClick
-                                top="30px"
-                                width="315px"
-                                left="0px"
-                                trigger={(
-                                    <Text
-                                        fontSize={1}
-                                        color="white"
-                                        mt="5px"
-                                    >
-                                        More login options
-                                    </Text>
-                                )}
-                            >
-                                <Box width="100%">
-                                    <form onSubmit={e => e.preventDefault()}>
-                                        <Login
-                                            enabled2fa={!!challengeId}
-                                            usernameRef={usernameInput}
-                                            passwordRef={passwordInput}
-                                        />
-                                        <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-
-                                        <Button
-                                            fullWidth
-                                            disabled={loading}
-                                            onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                        >
-                                            Login
-                                        </Button>
-                                    </form>
-                                </Box>
-                            </ClickableDropdown>
-                        ) : (
-                                <>
-                                    <Text fontSize={1} color="white" mt="5px">Enter 2-factor authentication code</Text>
-                                    <DropdownContent
-                                        overflow={"visible"}
-                                        squareTop={false}
-                                        cursor="pointer"
-                                        width={"315px"}
-                                        hover={false}
-                                        visible={true}
-                                    >
-                                        <Box width="100%">
-                                            <form onSubmit={e => e.preventDefault()}>
-                                                <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                                                <Button
-                                                    fullWidth
-                                                    disabled={loading}
-                                                    onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                                >
-                                                    Submit
-                                                </Button>
-                                            </form>
-                                        </Box>
-                                    </DropdownContent>
-                                </>
-                            )
-                        }
+        <ThemeProvider theme={theme}>
+            <>
+                <Absolute top="-3vw" left="8vw">
+                    <Box width="20vw">
+                        <Icon color="white" name="logoSdu" size="20vw" />
                     </Box>
-                </Flex>
-            </BackgroundImage>
-        </>
+                </Absolute>
+
+                <BGLogo image={bg1} bottom="0px" height="50%" width="100%" />
+
+                <BackgroundImage image={bg2}>
+                    <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
+                        <Box width="315px">
+                            {!isWebDav ? null : (
+                                <Box color="white" mb={32}>
+                                    You must re-authenticate with SDUCloud to use your files locally.
+                            </Box>
+                            )}
+                            {enabledWayf && !challengeId ? (
+                                <a href={`/auth/saml/login?service=${service}`}>
+                                    <Button disabled={loading} fullWidth color="wayfGreen">
+                                        <Image width="100px" src={wayfLogo} />
+                                        <TextSpan fontSize={3} ml="2.5em">Login</TextSpan>
+                                    </Button>
+                                </a>
+                            ) : null}
+                            {!challengeId ? (
+                                <ClickableDropdown
+                                    colorOnHover={false}
+                                    keepOpenOnClick
+                                    top="30px"
+                                    width="315px"
+                                    left="0px"
+                                    trigger={(
+                                        <Text
+                                            fontSize={1}
+                                            color="white"
+                                            mt="5px"
+                                        >
+                                            More login options
+                                        </Text>
+                                    )}
+                                >
+                                    <Box width="100%">
+                                        <form onSubmit={e => e.preventDefault()}>
+                                            <Login
+                                                enabled2fa={!!challengeId}
+                                                usernameRef={usernameInput}
+                                                passwordRef={passwordInput}
+                                            />
+                                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+
+                                            <Button
+                                                fullWidth
+                                                disabled={loading}
+                                                onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                            >
+                                                Login
+                                            </Button>
+                                        </form>
+                                    </Box>
+                                </ClickableDropdown>
+                            ) : (
+                                    <>
+                                        <Text fontSize={1} color="white" mt="5px">
+                                            Enter 2-factor authentication code
+                                        </Text>
+                                        <DropdownContent
+                                            overflow={"visible"}
+                                            squareTop={false}
+                                            cursor="pointer"
+                                            width={"315px"}
+                                            hover={false}
+                                            visible={true}
+                                        >
+                                            <Box width="100%">
+                                                <form onSubmit={e => e.preventDefault()}>
+                                                    <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                                                    <Button
+                                                        fullWidth
+                                                        disabled={loading}
+                                                        onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                                    >
+                                                        Submit
+                                                    </Button>
+                                                </form>
+                                            </Box>
+                                        </DropdownContent>
+                                    </>
+                                )
+                            }
+                        </Box>
+                    </Flex>
+                </BackgroundImage>
+            </>
+        </ThemeProvider>
     );
 };
 
