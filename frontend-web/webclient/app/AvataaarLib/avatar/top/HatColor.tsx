@@ -14,7 +14,8 @@ function makeColor(name: string, color: string) {
         id="Color/Palette/Gray-01"
         mask={`url(#${props.maskID})`}
         fillRule="evenodd"
-        fill={color}>
+        fill={color}
+      >
         <rect id="🖍Color" x="0" y="0" width="264" height="280" />
       </g>
     );
@@ -75,5 +76,5 @@ export default function Colors(props: Props) {
       return <White maskID={props.maskID} />;
   }
   /* FIXME: Remove after avatar-service runs at least 1.3.0 */
-  return <Blue01 maskID={props.maskID} />;
+  return <Black maskID={props.maskID} />;
 }
