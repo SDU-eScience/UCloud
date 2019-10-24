@@ -34,7 +34,8 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-compo
 import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
+import {Upload} from "Uploader";
+import {appendUpload, setUploaderCallback, setUploaderVisible, setUploads} from "Uploader/Redux/UploaderActions";
 import {
     createFolder, favoriteFile,
     getFilenameFromPath,
@@ -89,15 +90,17 @@ export interface ListDirectoryRequest {
     type?: FileType;
 }
 
-export const listDirectory = ({
-                                  path,
-                                  page,
-                                  itemsPerPage,
-                                  order,
-                                  sortBy,
-                                  attrs,
-                                  type
-                              }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
+export const listDirectory = (
+    {
+        path,
+        page,
+        itemsPerPage,
+        order,
+        sortBy,
+        attrs,
+        type
+    }: ListDirectoryRequest
+): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/files",
@@ -274,7 +277,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     {
         responsive: ResponsiveReduxObject,
         showUploader: (path: string) => void,
-        setUploaderCallback: (cb?: () => void) => void
+        setUploaderCallback: (cb?: () => void) => void,
+        appendUpload: (uploads: Upload) => void
     }> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
@@ -377,6 +381,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         requestFileSelector: async (allowFolders: boolean, canOnlySelectFolders: boolean) => {
             if (props.requestFileSelector) return await props.requestFileSelector(allowFolders, canOnlySelectFolders);
             return null;
+        },
+        createNewUpload: upload => {
+            props.appendUpload(upload);
+
+            const path = props.path ? props.path : Cloud.homeFolder;
+            props.showUploader(path);
         },
         history
     };
@@ -779,7 +789,8 @@ const mapStateToProps = ({responsive}: ReduxObject) => {
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
     showUploader: (path: string) => dispatch(setUploaderVisible(true, path)),
-    setUploaderCallback: (cb?: () => void) => dispatch(setUploaderCallback(cb))
+    setUploaderCallback: (cb?: () => void) => dispatch(setUploaderCallback(cb)),
+    appendUpload: upload => dispatch(appendUpload(upload)),
 });
 
 export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(LowLevelFileTable_);
