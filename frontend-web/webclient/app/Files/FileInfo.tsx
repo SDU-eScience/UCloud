@@ -71,7 +71,7 @@ function FileInfo(props: Readonly<FileInfo>) {
     if (!file) return null;
     return (
         <MainContainer
-            header={
+            header={(
                 <>
                     <Heading.h2><BreadCrumbs
                         currentPath={file.path}
@@ -79,8 +79,9 @@ function FileInfo(props: Readonly<FileInfo>) {
                         homeFolder={Cloud.homeFolder}
                     /></Heading.h2>
                     <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
-                </>}
-            main={
+                </>
+            )}
+            main={(
                 <>
                     <FileView
                         file={{...file, size}}
@@ -94,10 +95,12 @@ function FileInfo(props: Readonly<FileInfo>) {
                             <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
                                 <ActivityFeed activity={activity.items} />
                             </Card>
-                        </Flex>) : null}
+                        </Flex>
+                    ) : null}
                     <Box width={0.88}><ShareList innerComponent byPath={file.path} /></Box>
                     {loading ? <LoadingIcon size={18} /> : null}
-                </>}
+                </>
+            )}
         />
     );
 
@@ -139,7 +142,8 @@ const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
                 <Attribute name="Created at" value={dateToString(file.createdAt!)} />
                 <Attribute name="Modified at" value={dateToString(file.modifiedAt!)} />
                 <Attribute name="Favorite">
-                    <Icon name={file.favorited ? "starFilled" : "starEmpty"}
+                    <Icon
+                        name={file.favorited ? "starFilled" : "starEmpty"}
                         onClick={() => onFavorite()}
                         color="blue"
                     />
@@ -158,7 +162,8 @@ const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
                                 text: SensitivityLevel[key],
                                 value: key
                             }))
-                        } />
+                        }
+                    />
                 </Attribute>
                 <Attribute name="Computed sensitivity" value={SensitivityLevel[file.sensitivityLevel!]} />
                 <Attribute name="Size" value={sizeToString(file.size!)} />

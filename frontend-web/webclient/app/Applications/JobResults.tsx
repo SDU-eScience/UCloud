@@ -243,18 +243,18 @@ function JobResults(props: AnalysesProps & {history: History}) {
 
     return (
         <MainContainer
-            header={
+            header={(
                 <Spacer
                     left={null}
-                    right={
+                    right={(
                         <EntriesPerPageSelector
                             content="Jobs per page"
                             entriesPerPage={page.itemsPerPage}
                             onChange={items => fetchJobs({itemsPerPage: items})}
                         />
-                    }
+                    )}
                 />
-            }
+            )}
             headerSize={48}
             sidebarSize={340}
             main={content}
