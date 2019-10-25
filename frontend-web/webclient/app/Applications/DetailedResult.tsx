@@ -7,15 +7,15 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
-import {useEffect, useState} from "react";
 import * as React from "react";
+import {useEffect, useState} from "react";
 import {connect} from "react-redux";
 import {match} from "react-router";
 import {Link} from "react-router-dom";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Card, ContainerForText, ExternalLink, Flex, List, Hide} from "ui-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Hide, List} from "ui-components";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
@@ -50,7 +50,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const [timeLeft, setTimeLeft] = useState<number>(-1);
     const [xtermRef, appendToXterm, resetXterm] = useXTerm();
     const [promises] = useState(new PromiseKeeper());
-    
+
     const jobId = props.match.params.jobId;
     const outputFolder = jobWithStatus && jobWithStatus.outputFolder ? jobWithStatus.outputFolder : "";
 
@@ -183,23 +183,28 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                             <StepTrackerItem
                                 stateToDisplay={JobState.VALIDATED}
                                 currentState={appState}
-                                failedState={failedState} />
+                                failedState={failedState}
+                            />
                             <StepTrackerItem
                                 stateToDisplay={JobState.PREPARED}
                                 currentState={appState}
-                                failedState={failedState} />
+                                failedState={failedState}
+                            />
                             <StepTrackerItem
                                 stateToDisplay={JobState.SCHEDULED}
                                 currentState={appState}
-                                failedState={failedState} />
+                                failedState={failedState}
+                            />
                             <StepTrackerItem
                                 stateToDisplay={JobState.RUNNING}
                                 currentState={appState}
-                                failedState={failedState} />
+                                failedState={failedState}
+                            />
                             <StepTrackerItem
                                 stateToDisplay={JobState.TRANSFER_SUCCESS}
                                 currentState={appState}
-                                failedState={failedState} />
+                                failedState={failedState}
+                            />
                         </StepGroup>
                     </Panel>
 
@@ -387,7 +392,7 @@ const StepTrackerItem: React.FunctionComponent<{
 
     return (
         <Step active={active}>
-            <JobStateIcon state={stateToDisplay} color={complete && thisFailed ? "red" : undefined } mr="0.7em" size="30px" />
+            <JobStateIcon state={stateToDisplay} color={complete && thisFailed ? "red" : undefined} mr="0.7em" size="30px" />
             <Hide sm xs md lg>
                 <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
             </Hide>

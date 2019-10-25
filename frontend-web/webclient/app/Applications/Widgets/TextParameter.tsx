@@ -1,14 +1,14 @@
-import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
 import * as Types from "Applications";
-import Input, {InputLabel} from "ui-components/Input";
+import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
 import * as React from "react";
+import Input, {InputLabel} from "ui-components/Input";
 
 interface TextParameterProps extends ParameterProps {
-    parameter: Types.TextParameter
+    parameter: Types.TextParameter;
 }
 
 export const TextParameter = (props: TextParameterProps) => {
-    let placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
+    const placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
     const hasUnitName = !!props.parameter.unitName;
     return (
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>

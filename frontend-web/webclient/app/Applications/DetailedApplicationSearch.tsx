@@ -45,7 +45,7 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
                         mt="-2px"
                         width="100%"
                         value={props.appVersion}
-                        onChange={({target}) => props.setVersionName(target.value)}
+                        onChange={e => props.setVersionName(e.target.value)}
                         placeholder="Search by version..."
                     />
                     <Heading.h5 pb="0.3em" pt="0.5em">Tags</Heading.h5>

@@ -107,8 +107,8 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                     onPageChanged={page => {
                         setToolParameters(listTools({...toolParameters.parameters, page}));
                     }}
-                    pageRenderer={page => {
-                        return <Flex flexWrap={"wrap"} justifyContent={"center"}>
+                    pageRenderer={page => (
+                        <Flex flexWrap={"wrap"} justifyContent={"center"}>
                             {page.items.map(tool =>
                                 <SmallAppToolCard key={tool.description.info.name}
                                     to={`/applications/studio/t/${tool.description.info.name}`}>
@@ -123,8 +123,8 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                                     </Flex>
                                 </SmallAppToolCard>
                             )}
-                        </Flex>;
-                    }}
+                        </Flex>
+                    )}
                 />
             )}
         />

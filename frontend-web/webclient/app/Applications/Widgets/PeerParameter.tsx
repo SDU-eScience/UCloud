@@ -18,9 +18,9 @@ import Button from "ui-components/Button";
 import Divider from "ui-components/Divider";
 import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
+import Icon from "ui-components/Icon";
 import Input from "ui-components/Input";
 import Label from "ui-components/Label";
-import Icon from "ui-components/Icon";
 import OutlineButton from "ui-components/OutlineButton";
 import Text from "ui-components/Text";
 import {dateToString} from "Utilities/DateUtilities";
@@ -32,12 +32,14 @@ interface PeerParameterProps extends ParameterProps {
 }
 
 export const PeerParameter: React.FunctionComponent<PeerParameterProps> = props => {
-    return <BaseParameter parameter={props.parameter}>
-        <JobSelector
-            parameterRef={props.parameterRef as RefObject<HTMLInputElement>}
-            suggestedApplication={props.parameter.suggestedApplication}
-        />
-    </BaseParameter>;
+    return (
+        <BaseParameter parameter={props.parameter}>
+            <JobSelector
+                parameterRef={props.parameterRef as RefObject<HTMLInputElement>}
+                suggestedApplication={props.parameter.suggestedApplication}
+            />
+        </BaseParameter>
+    );
 };
 
 interface AdditionalPeerParameterProps {
@@ -68,7 +70,9 @@ export const AdditionalPeerParameter: React.FunctionComponent<AdditionalPeerPara
                 <Label>
                     {props.hideLabels ? null : <br />}
                 </Label>
-                <Button color={"red"} height={"42px"} onClick={() => props.onRemove()}><Icon name="close" size="1em" /></Button>
+                <Button color="red" height="42px" onClick={() => props.onRemove()}>
+                    <Icon name="close" size="1em" />
+                </Button>
             </Box>
         </Flex>
     );
@@ -123,108 +127,112 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         setAllowAutoConfigure(false);
     }
 
-    return <>
-        <Flex>
-            <PointerInput
-                readOnly
-                placeholder={"No selected job"}
-                ref={props.parameterRef as RefObject<HTMLInputElement>}
-                value={selectedPeer ? selectedPeer : ""}
-                onClick={() => {
-                    setAllowAutoConfigure(false);
-                    setSelectorOpen(true);
-                }}
-            />
-        </Flex>
-
-        {suggestedApplication === null ? null :
-            <Text>
-                This application requires you to run {" "}
-                <Link to={viewApplication(suggestedApplication.metadata)} target={"_blank"}>
-                    {suggestedApplication.metadata.title}.
-                </Link>
-                {" "}
-                Would you like to start {" "}
-                <Link to={runApplication(suggestedApplication.metadata)} target={"_blank"}>
-                    a new one?
-                </Link>
-            </Text>
-        }
-
-        <ReactModal
-            isOpen={isSelectorOpen}
-            onRequestClose={() => setSelectorOpen(false)}
-            shouldCloseOnEsc={true}
-            ariaHideApp={false}
-            style={defaultModalStyle}
-        >
-            <div>
-                <Flex alignItems={"center"}>
-                    <Box flexGrow={1}>
-                        <Heading.h3>Jobs</Heading.h3>
-                    </Box>
-                    <div>
-                        {!(peerParams.parameters && peerParams.parameters.application) ? null :
-                            <OutlineButton
-                                type={"button"}
-                                mr={8}
-                                onClick={() => {
-                                    fetchAvailablePeers(listJobs({
-                                        ...(peerParams.parameters!),
-                                        application: undefined,
-                                        version: undefined
-                                    }));
-                                }}
-                            >
-                                Show all
-                            </OutlineButton>
-                        }
-                        <Refresh
-                            spin={availablePeers.loading}
-                            onClick={() => fetchAvailablePeers(listJobs(peerParams.parameters!))}
-                        />
-                    </div>
-                </Flex>
-                <Divider />
-
-                <Pagination.List
-                    page={availablePeers.data}
-                    customEmptyPage={<Box width={500}>
-                        You don't currently have any running jobs. You can start a new job by selecting an application
-                        (in "Apps") and submitting it to be run.
-                    </Box>}
-                    onPageChanged={newPage => {
-                        const params = peerParams.parameters;
-                        if (!params) return;
-                        fetchAvailablePeers(listJobs({...params, page: newPage}));
-                    }}
-                    loading={availablePeers.loading}
-                    pageRenderer={page => {
-                        return page.items.map(item => (
-                            <Flex mb={8}>
-                                <Box flexGrow={1}>
-                                    {item.metadata.title}
-                                    {" "}
-                                    ({item.name ? item.name : shortUUID(item.jobId)})
-                                    <br />
-                                    {dateToString(item.createdAt)}
-                                </Box>
-                                <Button
-                                    type={"button"}
-                                    onClick={() => {
-                                        setSelectedPeer(item.jobId);
-                                        setSelectorOpen(false);
-                                    }}
-                                >
-                                    Select
-                                </Button>
-                            </Flex>
-                        ));
+    return (
+        <>
+            <Flex>
+                <PointerInput
+                    readOnly
+                    placeholder={"No selected job"}
+                    ref={props.parameterRef as RefObject<HTMLInputElement>}
+                    value={selectedPeer ? selectedPeer : ""}
+                    onClick={() => {
+                        setAllowAutoConfigure(false);
+                        setSelectorOpen(true);
                     }}
                 />
-            </div>
-        </ReactModal>
-    </>;
+            </Flex>
+
+            {suggestedApplication === null ? null : (
+                <Text>
+                    This application requires you to run {" "}
+                    <Link to={viewApplication(suggestedApplication.metadata)} target={"_blank"}>
+                        {suggestedApplication.metadata.title}.
+                    </Link>
+                    {" "}
+                    Would you like to start {" "}
+                    <Link to={runApplication(suggestedApplication.metadata)} target={"_blank"}>
+                        a new one?
+                    </Link>
+                </Text>
+            )}
+
+            <ReactModal
+                isOpen={isSelectorOpen}
+                onRequestClose={() => setSelectorOpen(false)}
+                shouldCloseOnEsc={true}
+                ariaHideApp={false}
+                style={defaultModalStyle}
+            >
+                <div>
+                    <Flex alignItems={"center"}>
+                        <Box flexGrow={1}>
+                            <Heading.h3>Jobs</Heading.h3>
+                        </Box>
+                        <div>
+                            {!(peerParams.parameters && peerParams.parameters.application) ? null : (
+                                <OutlineButton
+                                    type={"button"}
+                                    mr={8}
+                                    onClick={() => {
+                                        fetchAvailablePeers(listJobs({
+                                            ...(peerParams.parameters!),
+                                            application: undefined,
+                                            version: undefined
+                                        }));
+                                    }}
+                                >
+                                    Show all
+                                </OutlineButton>
+                            )}
+                            <Refresh
+                                spin={availablePeers.loading}
+                                onClick={() => fetchAvailablePeers(listJobs(peerParams.parameters!))}
+                            />
+                        </div>
+                    </Flex>
+                    <Divider />
+
+                    <Pagination.List
+                        page={availablePeers.data}
+                        customEmptyPage={(
+                            <Box width={500}>
+                                You don't currently have any running jobs. You can start a new job by selecting an application
+                                (in "Apps") and submitting it to be run.
+                            </Box>
+                        )}
+                        onPageChanged={newPage => {
+                            const params = peerParams.parameters;
+                            if (!params) return;
+                            fetchAvailablePeers(listJobs({...params, page: newPage}));
+                        }}
+                        loading={availablePeers.loading}
+                        pageRenderer={page => {
+                            return page.items.map((item, index) => (
+                                <Flex key={index} mb={8}>
+                                    <Box flexGrow={1}>
+                                        {item.metadata.title}
+                                        {" "}
+                                        ({item.name ? item.name : shortUUID(item.jobId)})
+                                    <br />
+                                        {dateToString(item.createdAt)}
+                                    </Box>
+                                    <Button
+                                        type={"button"}
+                                        onClick={() => {
+                                            setSelectedPeer(item.jobId);
+                                            setSelectorOpen(false);
+                                        }}
+                                    >
+                                        Select
+                                </Button>
+                                </Flex>
+                            ));
+                        }}
+                    />
+                </div>
+            </ReactModal>
+        </>
+    );
 };
 
 export const PointerInput = styled(Input)`
