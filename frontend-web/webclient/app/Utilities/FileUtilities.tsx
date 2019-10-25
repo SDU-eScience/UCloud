@@ -571,8 +571,8 @@ export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) =
         filePaths: paths, onConfirm: async () => {
             try {
                 setLoading();
-                const {response} = await cloud.post<Failures>("/files/trash/", {files: paths});
-                resultToNotification({failures: response.failures, paths, homeFolder: cloud.homeFolder});
+                await cloud.post("/files/trash/", {files: paths});
+                snackbarStore.addSnack({message: "Moving files to trash", type: SnackType.Information});
                 callback();
             } catch (e) {
                 snackbarStore.addSnack({message: e.why, type: SnackType.Failure});
