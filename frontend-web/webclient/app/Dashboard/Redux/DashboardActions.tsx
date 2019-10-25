@@ -54,7 +54,7 @@ export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<D
     }
 };
 
-type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_DASHBOARD_FAVORITES, {content: File[]}>
+type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_DASHBOARD_FAVORITES, {content: File[]}>;
 /**
  * Returns an action containing favorites
  * @param {File[]} content The list of favorites retrieved
@@ -65,7 +65,7 @@ export const receiveFavorites = (content: File[]): ReceiveFavoritesProps => ({
 });
 
 
-type ReceiveRecentFilesProps = PayloadAction<typeof RECEIVE_RECENT_FILES, {content: File[]}>
+type ReceiveRecentFilesProps = PayloadAction<typeof RECEIVE_RECENT_FILES, {content: File[]}>;
 /**
  * Fetches the contents of the users homefolder and returns 10 of them.
  */
@@ -97,7 +97,7 @@ export const receiveRecentFiles = (content: File[]): ReceiveRecentFilesProps => 
 export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Action<DashboardError>> => {
     try {
         const {response} = await Cloud.get(hpcJobsQuery(10, 0));
-        return receiveRecentAnalyses(response.items)
+        return receiveRecentAnalyses(response.items);
     } catch {
         snackbarStore.addSnack({
             message: "Could not retrieve recent jobs.",
@@ -106,7 +106,7 @@ export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Act
         return setErrorMessage(DASHBOARD_RECENT_JOBS_ERROR);
     }
 };
-type ReceiveRecentAnalyses = PayloadAction<typeof RECEIVE_RECENT_JOBS, {content: Analysis[]}>
+type ReceiveRecentAnalyses = PayloadAction<typeof RECEIVE_RECENT_JOBS, {content: Analysis[]}>;
 /**
  * Returns an action containing most recently updated analyses
  * @param {Analyses[]} content The list of recently updated analyses

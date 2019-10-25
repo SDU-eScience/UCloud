@@ -10,7 +10,7 @@ import * as Types from "../index";
 // import RangeParameter, {RangeRef} from "./RangeParameters";
 
 export const Parameter = (props: ParameterProps) => {
-    let component = (<div />);
+    let component = <div />;
     switch (props.parameter.type) {
         case Types.ParameterTypes.InputFile: {
             const p = {...props, parameterRef: props.parameterRef as React.RefObject<HTMLInputElement>};
@@ -23,56 +23,68 @@ export const Parameter = (props: ParameterProps) => {
             break;
         }
         case Types.ParameterTypes.Integer:
-            component = <IntegerParameter
-                onParamRemove={props.onParamRemove}
-                initialSubmit={props.initialSubmit}
-                parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
-                parameter={props.parameter}
-                application={props.application}
-            />;
+            component = (
+                <IntegerParameter
+                    onParamRemove={props.onParamRemove}
+                    initialSubmit={props.initialSubmit}
+                    parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
+                    parameter={props.parameter}
+                    application={props.application}
+                />
+            );
             break;
         case Types.ParameterTypes.FloatingPoint:
-            component = <FloatingParameter
-                onParamRemove={props.onParamRemove}
-                initialSubmit={props.initialSubmit}
-                parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
-                parameter={props.parameter}
-                application={props.application}
-            />;
+            component = (
+                <FloatingParameter
+                    onParamRemove={props.onParamRemove}
+                    initialSubmit={props.initialSubmit}
+                    parameterRef={props.parameterRef as React.RefObject<HTMLInputElement>}
+                    parameter={props.parameter}
+                    application={props.application}
+                />
+            );
             break;
         case Types.ParameterTypes.Text:
-            component = <TextParameter
-                onParamRemove={props.onParamRemove}
-                initialSubmit={props.initialSubmit}
-                parameterRef={props.parameterRef}
-                parameter={props.parameter}
-                application={props.application}
-            />;
+            component = (
+                <TextParameter
+                    onParamRemove={props.onParamRemove}
+                    initialSubmit={props.initialSubmit}
+                    parameterRef={props.parameterRef}
+                    parameter={props.parameter}
+                    application={props.application}
+                />
+            );
             break;
         case Types.ParameterTypes.Boolean:
-            component = <BooleanParameter
-                onParamRemove={props.onParamRemove}
-                initialSubmit={props.initialSubmit}
-                parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>}
-                parameter={props.parameter}
-                application={props.application}
-            />;
+            component = (
+                <BooleanParameter
+                    onParamRemove={props.onParamRemove}
+                    initialSubmit={props.initialSubmit}
+                    parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>}
+                    parameter={props.parameter}
+                    application={props.application}
+                />
+            );
             break;
         case Types.ParameterTypes.Peer:
-            component = <PeerParameter
-                parameter={props.parameter}
-                initialSubmit={props.initialSubmit}
-                parameterRef={props.parameterRef}
-                application={props.application}
-            />;
+            component = (
+                <PeerParameter
+                    parameter={props.parameter}
+                    initialSubmit={props.initialSubmit}
+                    parameterRef={props.parameterRef}
+                    application={props.application}
+                />
+            );
             break;
         case Types.ParameterTypes.SharedFileSystem:
-            component = <SharedFileSystemParameter
-                parameter={props.parameter}
-                initialSubmit={props.initialSubmit}
-                parameterRef={props.parameterRef}
-                application={props.application}
-            />;
+            component = (
+                <SharedFileSystemParameter
+                    parameter={props.parameter}
+                    initialSubmit={props.initialSubmit}
+                    parameterRef={props.parameterRef}
+                    application={props.application}
+                />
+            );
             break;
         /* case Types.ParameterTypes.Range: {
             component = <RangeParameter

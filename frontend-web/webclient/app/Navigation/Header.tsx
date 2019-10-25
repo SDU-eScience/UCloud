@@ -286,12 +286,17 @@ const _Search = (props: SearchProps) => {
                         <Absolute top={-12.5} right={12} bottom={0} left={-28}>
                             <Icon cursor="pointer" name="chevronDown" size="15px" />
                         </Absolute>
-                    )}>
+                    )}
+                >
                     <SelectableTextWrapper>
                         <Box ml="auto" />
                         {allowedSearchTypes.map(it => (
-                            <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
-                                            selected={it === prioritizedSearch}>
+                            <SelectableText
+                                key={it}
+                                onClick={() => setSearchType(it)}
+                                mr="1em"
+                                selected={it === prioritizedSearch}
+                            >
                                 {prettierString(it)}
                             </SelectableText>
                         ))}

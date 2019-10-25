@@ -58,13 +58,13 @@ module.exports = {
     },
 
     plugins: [
-        // Simplifies creation of HTML files to serve your webpack bundles. 
-        // Useful for webpack bundles including a hash in the filename which changes every compilation. 
+        // Simplifies creation of HTML files to serve your webpack bundles.
+        // Useful for webpack bundles including a hash in the filename which changes every compilation.
         new HtmlWebpackPlugin({
             template: 'app/index.html',
             baseUrl: baseHref,
             hash: true,
-            favicon: "app/Assets/Images/favicon.png"
+            favicon: "app/Assets/Images/favicon.ico"
         }),
         new MiniCSSExtractPlugin("[name].[hash:6].css"),
     ]

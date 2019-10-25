@@ -63,8 +63,6 @@ class TwoFactorAuthControllerTest {
             "user",
             null,
             null,
-            emptyList(),
-            null,
             password = ByteArray(64),
             salt = ByteArray(64)
         )

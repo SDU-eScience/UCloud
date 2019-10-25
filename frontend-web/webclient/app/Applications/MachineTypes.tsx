@@ -8,7 +8,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
 import {HiddenInputField} from "ui-components/Input";
 
-export const MachineTypes: React.FunctionComponent<{ inputRef: React.RefObject<HTMLInputElement> }> = props => {
+export const MachineTypes: React.FunctionComponent<{inputRef: React.RefObject<HTMLInputElement>}> = props => {
     const [machines] = useCloudAPI<MachineReservation[]>(machineTypes(), []);
     const [selected, setSelected] = useState<string>("");
 
@@ -28,40 +28,45 @@ export const MachineTypes: React.FunctionComponent<{ inputRef: React.RefObject<H
         current.value = selected;
     }, [props.inputRef, selected]);
 
-    return <ClickableDropdown
-        fullWidth
-        trigger={
-            <MachineDropdown>
-                <MachineBox machine={selectedMachine}/>
+    return (
+        <ClickableDropdown
+            fullWidth
+            trigger={(
+                <MachineDropdown>
+                    <MachineBox machine={selectedMachine} />
 
-                <Icon name={"chevronDown"}/>
-                <HiddenInputField ref={props.inputRef}/>
-            </MachineDropdown>
-        }
-    >
-        {machines.data.map(machine => {
-            return <Box key={machine.name} onClick={() => setSelected(machine.name)}>
-                <MachineBox machine={machine}/>
-            </Box>;
-        })}
-    </ClickableDropdown>;
+                    <Icon name={"chevronDown"} />
+                    <HiddenInputField ref={props.inputRef} />
+                </MachineDropdown>
+            )}
+        >
+            {machines.data.map(machine => {
+                return (
+                    <Box key={machine.name} onClick={() => setSelected(machine.name)}>
+                        <MachineBox machine={machine} />
+                    </Box>
+                );
+            })}
+        </ClickableDropdown>
+    );
 };
 
-const MachineBox: React.FunctionComponent<{ machine: MachineReservation }> = ({machine}) => {
-    return <p style={{cursor: "pointer"}}>
-        <b>{machine.name}</b><br/>
-        {!machine.cpu || !machine.memoryInGigs ?
-            "Uses leftover CPU and memory. Recommended for most applications."
-            : null
-        }
-        {machine.cpu && machine.memoryInGigs ?
-            <>
-                CPU: {machine.cpu}<br/>
-                Memory: {machine.memoryInGigs} GB memory
-            </>
-            : null
-        }
-    </p>;
+const MachineBox: React.FunctionComponent<{machine: MachineReservation}> = ({machine}) => {
+    return (
+        <p style={{cursor: "pointer"}}>
+            <b>{machine.name}</b><br />
+            {!machine.cpu || !machine.memoryInGigs ?
+                "Uses leftover CPU and memory. Recommended for most applications."
+                : null
+            }
+            {machine.cpu && machine.memoryInGigs ? (
+                <>
+                    CPU: {machine.cpu}<br />
+                    Memory: {machine.memoryInGigs} GB memory
+                </>
+            ) : null}
+        </p>
+    );
 };
 
 const MachineDropdown = styled(Box)`

@@ -86,7 +86,7 @@ async function moveCopySetup({targetPath, path}: MoveCopySetup) {
     return {exists: stat !== null, newPathForFile, allowOverwrite: stat ? stat.fileType !== "DIRECTORY" : true};
 }
 
-function onOnlySuccess({operation, fileCount}: { operation: string, fileCount: number }): void {
+function onOnlySuccess({operation, fileCount}: {operation: string, fileCount: number}): void {
     snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
 }
 
@@ -204,10 +204,23 @@ export function resolvePath(path: string) {
 const toAttributesString = (attrs: FileResource[]) =>
     attrs.length > 0 ? `&attributes=${encodeURIComponent(attrs.join(","))}` : "";
 
-export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH, attrs: FileResource[] = []): string =>
+export const filepathQuery = (
+    path: string,
+    page: number,
+    itemsPerPage: number,
+    order: SortOrder = SortOrder.ASCENDING,
+    sortBy: SortBy = SortBy.PATH,
+    attrs: FileResource[] = []
+): string =>
     `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
 
-export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH, attrs: FileResource[]): string =>
+export const fileLookupQuery = (
+    path: string,
+    itemsPerPage: number = 25,
+    order: SortOrder = SortOrder.DESCENDING,
+    sortBy: SortBy = SortBy.PATH,
+    attrs: FileResource[]
+): string =>
     `files/lookup?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
 
 export const advancedFileSearch = "/file-search/advanced";
@@ -234,7 +247,7 @@ export const MOCK_RENAME_TAG = "rename";
 export const MOCK_VIRTUAL = "virtual";
 export const MOCK_RELATIVE = "relative";
 
-export function mockFile(props: { path: string, type: FileType, fileId?: string, tag?: string }): File {
+export function mockFile(props: {path: string, type: FileType, fileId?: string, tag?: string}): File {
     const username = Cloud.activeUsername ? Cloud.activeUsername : "";
     return {
         fileType: props.type,
@@ -302,7 +315,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
  */
 export const favoriteFile = async (file: File, cloud: SDUCloud): Promise<File> => {
     try {
-        await cloud.post(favoriteFileQuery(file.path), {})
+        await cloud.post(favoriteFileQuery(file.path), {});
     } catch (e) {
         UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
         throw e;
@@ -314,9 +327,9 @@ export const favoriteFile = async (file: File, cloud: SDUCloud): Promise<File> =
 const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
 interface ReclassifyFile {
-    file: File
-    sensitivity: SensitivityLevelMap
-    cloud: SDUCloud
+    file: File;
+    sensitivity: SensitivityLevelMap;
+    cloud: SDUCloud;
 }
 
 export const reclassifyFile = async ({file, sensitivity, cloud}: ReclassifyFile): Promise<File> => {
@@ -335,7 +348,7 @@ export const reclassifyFile = async ({file, sensitivity, cloud}: ReclassifyFile)
 export const toFileText = (selectedFiles: File[]): string =>
     `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`;
 
-export const isDirectory = (file: { fileType: FileType }): boolean => file.fileType === "DIRECTORY";
+export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
 export const expandHomeFolder = (path: string, homeFolder: string): string => {
     if (path.startsWith("/Home/"))
@@ -366,7 +379,7 @@ export const extractArchive = async ({files, cloud, onFinished}: ExtractArchive)
     onFinished();
 };
 
-export const clearTrash = ({cloud, callback}: { cloud: SDUCloud, callback: () => void }) =>
+export const clearTrash = ({cloud, callback}: {cloud: SDUCloud, callback: () => void}) =>
     clearTrashDialog({
         onConfirm: async () => {
             await cloud.post("/files/trash/clear", {});
@@ -474,7 +487,7 @@ export const sizeToString = (bytes: number | null): string => {
     }
 };
 
-export function sizeToHumanReadableWithUnit(bytes: number): { size: number, unit: string } {
+export function sizeToHumanReadableWithUnit(bytes: number): {size: number, unit: string} {
     if (bytes < 1000) {
         return {size: bytes, unit: "B"};
     } else if (bytes < 1000 ** 2) {
@@ -504,7 +517,7 @@ export const shareFiles = async ({files, cloud}: ShareFiles) => {
     shareDialog(files.map(it => it.path), cloud);
 };
 
-const moveToTrashDialog = ({filePaths, onConfirm}: { onConfirm: () => void, filePaths: string[] }): void => {
+const moveToTrashDialog = ({filePaths, onConfirm}: {onConfirm: () => void, filePaths: string[]}): void => {
     const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
 
@@ -516,7 +529,7 @@ const moveToTrashDialog = ({filePaths, onConfirm}: { onConfirm: () => void, file
     });
 };
 
-export function clearTrashDialog({onConfirm}: { onConfirm: () => void }): void {
+export function clearTrashDialog({onConfirm}: {onConfirm: () => void}): void {
     addStandardDialog({
         title: "Empty trash?",
         message: "",
@@ -571,8 +584,8 @@ export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) =
         filePaths: paths, onConfirm: async () => {
             try {
                 setLoading();
-                const {response} = await cloud.post<Failures>("/files/trash/", {files: paths});
-                resultToNotification({failures: response.failures, paths, homeFolder: cloud.homeFolder});
+                await cloud.post("/files/trash/", {files: paths});
+                snackbarStore.addSnack({message: "Moving files to trash", type: SnackType.Information});
                 callback();
             } catch (e) {
                 snackbarStore.addSnack({message: e.why, type: SnackType.Failure});

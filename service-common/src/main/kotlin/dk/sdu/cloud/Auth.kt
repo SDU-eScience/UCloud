@@ -100,7 +100,9 @@ data class SecurityPrincipal(
     /**
      * A numeric unique identifier for this principal. The username is the preferred unique identifier.
      */
-    val uid: Long
+    val uid: Long,
+
+    val email: String? = null
 )
 
 /**

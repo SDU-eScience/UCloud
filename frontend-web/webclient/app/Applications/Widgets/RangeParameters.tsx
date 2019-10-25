@@ -26,18 +26,20 @@ function RangeParameter(props: RangeParameterProps) {
 
     const [first, second] = values;
 
-    return <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
-        {first} to {second}
-        <Range
-            max={parameter.max}
-            min={parameter.min}
-            included
-            ref={props.parameterRef}
-            defaultValue={!parameter.defaultValue ? undefined :
-                [parameter.defaultValue.min, parameter.defaultValue.max]}
-            onChange={setValues}
-        />
-    </BaseParameter>;
+    return (
+        <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
+            {first} to {second}
+            <Range
+                max={parameter.max}
+                min={parameter.min}
+                included
+                ref={props.parameterRef}
+                defaultValue={!parameter.defaultValue ? undefined :
+                    [parameter.defaultValue.min, parameter.defaultValue.max]}
+                onChange={setValues}
+            />
+        </BaseParameter>
+    );
 }
 
 interface RangeParameterProps extends ParameterProps {

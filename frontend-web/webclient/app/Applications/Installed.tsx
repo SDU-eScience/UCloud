@@ -143,7 +143,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
 
     fetchItems: async (pageNumber: number, itemsPerPage: number) => {
         dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
-        dispatch(await Actions.fetch(itemsPerPage, pageNumber))
+        dispatch(await Actions.fetch(itemsPerPage, pageNumber));
     },
 
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))

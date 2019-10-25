@@ -106,11 +106,37 @@ val verifiedJob = VerifiedJob(
     modifiedAt = 123456789
 )
 
+val verifiedJob2 = VerifiedJob(
+    normAppDesc,
+    null,
+    emptyList(),
+    "verifiedId2",
+    "owner",
+    1,
+    1,
+    SimpleDuration(0, 1, 0),
+    VerifiedJobInput(emptyMap()),
+    "backend",
+    JobState.SCHEDULED,
+    "scheduled",
+    null,
+    archiveInCollection = normAppDesc.metadata.title,
+    createdAt = 12345678,
+    modifiedAt = 123456789
+)
+
 val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(
     verifiedJob,
     "token",
     "token"
 )
+
+val verifiedJobWithAccessToken2 = VerifiedJobWithAccessToken(
+    verifiedJob2,
+    "token",
+    "token"
+)
+
 
 val startJobRequest = StartJobRequest(
     NameAndVersion("name", "2.2"),

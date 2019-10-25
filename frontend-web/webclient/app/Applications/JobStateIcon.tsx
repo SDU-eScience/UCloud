@@ -44,10 +44,12 @@ export const JobStateIcon: React.FunctionComponent<{
 
     const color = props.color !== undefined ? props.color : defaultColor;
 
-    return <Icon
-        name={iconName}
-        color={color ? colors[color] : undefined}
-        size={props.size}
-        {...props}
-    />;
+    return (
+        <Icon
+            name={iconName}
+            color={color ? colors[color] : undefined}
+            size={props.size}
+            {...props}
+        />
+    );
 };

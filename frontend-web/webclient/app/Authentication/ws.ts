@@ -4,11 +4,9 @@ export interface WebSocketOpenSettings {
     /**
      * Will be called whenever a new socket is initialized
      */
-    init?: (conn: WebSocketConnection) => void
-
-    reconnect?: boolean
-
-    onClose?: (conn: WebSocketConnection) => void
+    init?: (conn: WebSocketConnection) => void;
+    reconnect?: boolean;
+    onClose?: (conn: WebSocketConnection) => void;
 }
 
 export class WebSocketFactory {
@@ -18,42 +16,45 @@ export class WebSocketFactory {
         this.cloud = cloud;
     }
 
-    open(path: string, settings?: WebSocketOpenSettings): WebSocketConnection {
+    public open(path: string, settings?: WebSocketOpenSettings): WebSocketConnection {
         const settingsOrDefault = settings || {};
-        return new WebSocketConnection(this.cloud, () => {
+        return new WebSocketConnection(this.cloud, async () => {
+            await this.cloud.waitForCloudReady();
+
             const url = this.cloud.computeURL("/api", path)
                 .replace("http://", "ws://")
                 .replace("https://", "wss://");
+
             return new WebSocket(url);
         }, settingsOrDefault);
     }
 }
 
 export interface WebsocketResponse<T = any> {
-    type: "message" | "response"
-    streamId: string
-    payload?: T
-    status?: number
+    type: "message" | "response";
+    streamId: string;
+    payload?: T;
+    status?: number;
 }
 
 interface WebsocketRequest<T = any> {
-    call: string
-    streamId: string
-    bearer: string
-    payload: T | null
+    call: string;
+    streamId: string;
+    bearer: string;
+    payload: T | null;
 }
 
 interface SubscribeParameters<T = any> {
     call: string;
     payload: T | null;
     handler: (message: WebsocketResponse) => void;
-    disallowProjects?: boolean
+    disallowProjects?: boolean;
 }
 
 interface CallParameters<T = any> {
     call: string;
     payload: T | null;
-    disallowProjects?: boolean
+    disallowProjects?: boolean;
 }
 
 export class WebSocketConnection {
@@ -61,29 +62,65 @@ export class WebSocketConnection {
     private socket: WebSocket;
     private nextStreamId: number = 0;
     private handlers: Map<string, (message: WebsocketResponse) => void> = new Map();
-    private _closed: boolean = false;
+    private internalClosed: boolean = false;
     private settings: WebSocketOpenSettings;
 
-    constructor(cloud: Cloud, socketFactory: () => WebSocket, settings: WebSocketOpenSettings) {
+    constructor(cloud: Cloud, socketFactory: () => Promise<WebSocket>, settings: WebSocketOpenSettings) {
         this.cloud = cloud;
         this.settings = settings;
         this.resetSocket(socketFactory);
     }
 
     get closed() {
-        return this._closed;
+        return this.internalClosed;
     }
 
-    close() {
-        this._closed = true;
+    public close() {
+        this.internalClosed = true;
         this.socket.close();
         const closeScript = this.settings.onClose || (() => {
+            // Empty
         });
         closeScript(this);
     }
 
-    private resetSocket(socketFactory: () => WebSocket) {
-        const socket = socketFactory();
+    public async subscribe<T>({call, payload, handler, disallowProjects = false}: SubscribeParameters<T>) {
+        const streamId = (this.nextStreamId++).toString();
+        this.handlers.set(streamId, (message) => {
+            handler(message);
+            if (message.type === "response") {
+                this.handlers.delete(streamId);
+            }
+        });
+
+        this.sendMessage({
+            call,
+            streamId,
+            payload,
+            bearer: await this.cloud.receiveAccessTokenOrRefreshIt(disallowProjects)
+        });
+    }
+
+    public async call<T>({call, payload, disallowProjects = false}: CallParameters<T>): Promise<WebsocketResponse> {
+        return new Promise(async (resolve, reject) => {
+            this.subscribe({
+                call,
+                payload,
+                disallowProjects,
+                handler: async (message) => {
+                    if (message.type === "response") {
+                        const success = message.status !== undefined && message.status <= 399;
+
+                        if (success) resolve(message);
+                        else reject(message);
+                    }
+                }
+            });
+        });
+    }
+
+    private async resetSocket(socketFactory: () => Promise<WebSocket>) {
+        const socket = await socketFactory();
         const initScript = this.settings.init || (() => {
             // Do nothing
         });
@@ -96,7 +133,7 @@ export class WebSocketConnection {
             if (this.settings.reconnect !== false && !this.closed) {
                 // We will reconnect by default.
                 this.handlers.forEach(e => {
-                    e({type: "response", status: 503, streamId: "unknown"})
+                    e({type: "response", status: 503, streamId: "unknown"});
                 });
                 this.handlers.clear();
                 this.resetSocket(socketFactory);
@@ -123,38 +160,4 @@ export class WebSocketConnection {
         this.socket.send(JSON.stringify(message));
     }
 
-    async subscribe<T>({call, payload, handler, disallowProjects = false}: SubscribeParameters<T>) {
-        const streamId = (this.nextStreamId++).toString();
-        this.handlers.set(streamId, (message) => {
-            handler(message);
-            if (message.type === "response") {
-                this.handlers.delete(streamId);
-            }
-        });
-
-        this.sendMessage({
-            call,
-            streamId,
-            payload,
-            bearer: await this.cloud.receiveAccessTokenOrRefreshIt(disallowProjects)
-        });
-    }
-
-    async call<T>({call, payload, disallowProjects = false}: CallParameters<T>): Promise<WebsocketResponse> {
-        return new Promise(async (resolve, reject) => {
-            this.subscribe({
-                call,
-                payload,
-                disallowProjects,
-                handler: async (message) => {
-                    if (message.type === "response") {
-                        const success = message.status !== undefined && message.status <= 399;
-
-                        if (success) resolve(message);
-                        else reject(message);
-                    }
-                }
-            });
-        });
-    }
 }

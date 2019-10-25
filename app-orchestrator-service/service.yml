@@ -11,3 +11,4 @@ dependencies:
   - files
   - files.upload
   - app.fs
+  - indexing

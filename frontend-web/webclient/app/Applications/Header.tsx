@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import * as Heading from "ui-components/Heading"
+import * as Heading from "ui-components/Heading";
 
 const HeaderStyle = styled(Heading.h1)`
     > small {

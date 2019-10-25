@@ -41,9 +41,15 @@ sealed class Principal {
      */
     abstract val uid: Long
 
+    @Deprecated("No longer in use")
+    open val emailAddresses: List<String> = emptyList()
+
+    @Deprecated("No longer in use")
+    open val preferredEmailAddress: String? = null
+
     protected open fun validate() {
-        if (id.isEmpty()) throw IllegalArgumentException("ID cannot be empty!")
-        if (id.startsWith("__")) throw IllegalArgumentException("A principal's ID cannot start with '__'")
+        require(id.isNotEmpty()) { "ID cannot be empty!" }
+        require(!id.startsWith("__")) { "A principal's ID cannot start with '__'" }
     }
 }
 
@@ -53,22 +59,20 @@ sealed class Person : Principal() {
     abstract val lastName: String
     abstract val phoneNumber: String?
     abstract val orcId: String?
-    abstract val emailAddresses: List<String>
-    abstract val preferredEmailAddress: String?
+    abstract val email: String?
+
+    override val emailAddresses: List<String> get() = listOfNotNull(email)
+    override val preferredEmailAddress: String? get() = email
 
     abstract val displayName: String
 
     override fun validate() {
         super.validate()
-        if (id.startsWith("_")) throw IllegalArgumentException("A person's ID cannot start with '_'")
-        if (firstNames.isEmpty()) throw IllegalArgumentException("First name cannot be empty")
-        if (lastName.isEmpty()) throw IllegalArgumentException("Last name cannot be empty")
-        if (phoneNumber?.isEmpty() == true) throw IllegalArgumentException("Phone number cannot be empty if != null")
-        if (title?.isEmpty() == true) throw IllegalArgumentException("Title cannot be empty if != null")
-
-        if (preferredEmailAddress != null && preferredEmailAddress!! !in emailAddresses) {
-            throw IllegalArgumentException("Preferred email address is not in primary list of addresses")
-        }
+        require(!id.startsWith("_")) { "A person's ID cannot start with '_'" }
+        require(firstNames.isNotEmpty()) { "First name cannot be empty" }
+        require(lastName.isNotEmpty()) { "Last name cannot be empty" }
+        require(phoneNumber?.isEmpty() != true) { "Phone number cannot be empty if != null" }
+        require(title?.isEmpty() != true) { "Title cannot be empty if != null" }
     }
 
     /**
@@ -82,8 +86,7 @@ sealed class Person : Principal() {
         override val lastName: String,
         override val phoneNumber: String?,
         override val orcId: String?,
-        override val emailAddresses: List<String>,
-        override val preferredEmailAddress: String?,
+        override val email: String? = null,
         override val uid: Long = 0,
 
         /**
@@ -116,8 +119,7 @@ sealed class Person : Principal() {
         override val lastName: String,
         override val phoneNumber: String?,
         override val orcId: String?,
-        override val emailAddresses: List<String>,
-        override val preferredEmailAddress: String?,
+        override val email: String? = null,
         override val uid: Long = 0,
 
         @JsonIgnore
@@ -135,7 +137,7 @@ sealed class Person : Principal() {
         override fun toString(): String {
             return "ByPassword(id='$id', role=$role, title=$title, firstNames='$firstNames', " +
                     "lastName='$lastName', phoneNumber=$phoneNumber, orcId=$orcId, " +
-                    "emailAddresses=$emailAddresses, preferredEmailAddress=$preferredEmailAddress)"
+                    "email='$email')"
         }
     }
 }
@@ -147,7 +149,7 @@ data class ProjectProxy(
 ) : Principal() {
     init {
         validate()
-        if (role != Role.PROJECT_PROXY) throw IllegalArgumentException("Invalid role")
+        require(role == Role.PROJECT_PROXY) { "Invalid role" }
     }
 }
 
@@ -161,7 +163,7 @@ data class ServicePrincipal(
 ) : Principal() {
     init {
         validate()
-        if (!id.startsWith("_")) throw IllegalArgumentException("A service's ID should start with a single underscore")
+        require(id.startsWith("_")) { "A service's ID should start with a single underscore" }
     }
 }
 

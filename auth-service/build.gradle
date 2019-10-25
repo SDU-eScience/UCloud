@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.25.6'
+version '1.26.2'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.9.2"
+    ext.serviceCommonVersion = "1.10.2"
 }
 
 dependencies {
@@ -20,7 +20,7 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
 
     // SAML
-    compile group: "com.onelogin", name: "java-saml-core", version: "2.3.0"
+    compile group: "com.onelogin", name: "java-saml-core", version: "2.5.0"
 
     // 2FA
     compile('com.warrenstrange:googleauth:1.1.2') {
