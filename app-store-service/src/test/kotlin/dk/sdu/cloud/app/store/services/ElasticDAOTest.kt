@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.calls.RPCException
 import io.mockk.every
 import io.mockk.mockk
+import org.elasticsearch.action.admin.indices.flush.FlushResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.action.update.UpdateResponse
 import org.elasticsearch.client.IndicesClient
@@ -155,6 +156,13 @@ class ElasticDAOTest {
             val response = mockk<UpdateResponse>()
             response
         }
+
+        every { elasticHighLevelClient.indices().flush(any(),any()) } answers {
+            val response = mockk<FlushResponse>()
+            response
+        }
+
+        every { elasticHighLevelClient.indices().exists(any<GetIndexRequest>(),any())} returns true
 
         elasticDAO.updateApplicationDescriptionInElastic(
             normAppDesc.metadata.name,

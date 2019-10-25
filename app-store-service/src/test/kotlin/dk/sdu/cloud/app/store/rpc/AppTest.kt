@@ -454,6 +454,8 @@ class AppTest {
 
                 every { appDao.createTags(any(), any(), any(), any()) } just runs
                 every { appDao.deleteTags(any(), any(), any(), any()) } just runs
+                every { elasticDAO.addTagToElastic(any(), any())} just runs
+                every { elasticDAO.removeTagFromElastic(any(), any()) } just runs
                 micro.install(HibernateFeature)
                 configureAppServer(appDao, elasticDAO)
             },
