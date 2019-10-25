@@ -20,15 +20,12 @@ class FileTrashController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileTrashDescriptions.trash) {
-            ok(
-                TrashResponse(
-                    trashService.moveFilesToTrash(
-                        request.files,
-                        ctx.securityPrincipal.username,
-                        userCloudWs()
-                    )
-                )
+            trashService.moveFilesToTrash(
+                request.files,
+                ctx.securityPrincipal.username,
+                userCloudWs()
             )
+            ok(Unit)
         }
 
         implement(FileTrashDescriptions.clear) {

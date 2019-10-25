@@ -68,12 +68,22 @@ class TrashService(
         }
     }
 
-    suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedClient): List<String> {
-        return coroutineScope {
-            validateTrashDirectory(username, userCloud)
+    suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedClient) {
+        validateTrashDirectory(username, userCloud)
+        backgroundScope.launch {
+            runTask(wsServiceClient, backgroundScope, "Moving files to trash", username) {
 
-            val results = files.map { async { it to moveFileToTrash(it, username, userCloud) } }.awaitAll()
-            results.mapNotNull { if (!it.second) it.first else null }
+                this.status =  "Moving files to trash"
+                val progress = Progress("Number of files", 0, files.size)
+                this.progress = progress
+
+                files.forEach {
+                    launch {
+                        moveFileToTrash(it, username, userCloud)
+                        progress.current++
+                    }
+                }
+            }
         }
     }
 
