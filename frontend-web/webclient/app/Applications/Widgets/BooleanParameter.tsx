@@ -24,7 +24,7 @@ export const BooleanParameter = (props: BooleanParameter) => {
                     rightLabel={hasUnitName}
                     required={!props.parameter.optional}
                 >
-                    <option/>
+                    <option />
                     <option selected={defaultValue === true}>Yes</option>
                     <option selected={defaultValue === false}>No</option>
                 </Select>

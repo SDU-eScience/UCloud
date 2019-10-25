@@ -100,8 +100,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                     </Button>
 
                     <Button
-                        type={"button"}
-                        color={"red"}
+                        type="button"
+                        color="red"
                         disabled={commandLoading}
                         onClick={async () => {
                             await invokeCommand(clearLogo({type: "APPLICATION", name}));

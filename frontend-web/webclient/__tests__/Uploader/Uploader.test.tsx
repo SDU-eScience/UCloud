@@ -58,7 +58,7 @@ describe("Uploader", () => {
             extractArchive: false,
             uploadXHR: undefined,
             isPending: false,
-            parentPath: "",
+            path: "",
             uploadSize: 1
         }]) as AnyAction);
         expect(create(
