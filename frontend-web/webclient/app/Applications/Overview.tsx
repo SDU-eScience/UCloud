@@ -98,13 +98,13 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                     right={(
                                         <ShowAllTagItem tag="Featured">
                                             <Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4>
-                                        </ShowAllTagItem>)
-                                    }
+                                        </ShowAllTagItem>
+                                    )}
                                 />
                             </div>
-                            <Box pl="10px" pb="5px" style={{overflow: "none", overflowX: "scroll"}}>
+                            <Box pl="10px" overflow="none" overflowX="scroll" pb="5px">
                                 <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{gridAutoFlow: "column"}}>
-                                    {page.items.map((app, index) =>
+                                    {page.items.map((app, index) => (
                                         <ApplicationCard
                                             key={index}
                                             onFavorite={async () =>
@@ -117,7 +117,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                             isFavorite={app.favorite}
                                             tags={app.tags}
                                         />
-                                    )}
+                                    ))}
                                 </Grid>
                             </Box>
                         </>
@@ -230,16 +230,13 @@ function removeTagFromTitle(tag: string, title: string) {
         if (titlenew.endsWith("pl")) {
             return titlenew.slice(tag.length + 2, -3);
         } else {
-            return (
-                titlenew.slice(tag.length + 2)
-            );
+            return titlenew.slice(tag.length + 2);
         }
     } else {
         return title;
     }
 }
 
-// tslint:disable-next-line: max-line-length
 const mapToolGroupStateToProps = (
     {applicationsBrowse}: ReduxObject,
     ownProps: {tag: string}
@@ -274,7 +271,8 @@ const mapDispatchToProps = (
     receiveApplications: page => dispatch(Actions.receivePage(page)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 
-    receiveAppsByKey: async (itemsPerPage, page, tag) => dispatch(await Actions.receiveAppsByKey(itemsPerPage, page, tag))
+    receiveAppsByKey: async (itemsPerPage, page, tag) =>
+        dispatch(await Actions.receiveAppsByKey(itemsPerPage, page, tag))
 });
 
 function getColorFromName(name: string): [string, string, string] {
@@ -283,6 +281,7 @@ function getColorFromName(name: string): [string, string, string] {
     return theme.appColors[num] as [string, string, string];
 }
 
-const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {mapSize} => ({...applicationsBrowse, mapSize: applicationsBrowse.applications.size});
+const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {mapSize: number} =>
+    ({...applicationsBrowse, mapSize: applicationsBrowse.applications.size});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

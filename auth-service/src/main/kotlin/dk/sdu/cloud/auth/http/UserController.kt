@@ -22,11 +22,15 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.application.call
+import io.ktor.features.origin
 import io.ktor.http.HttpStatusCode
+import io.ktor.request.userAgent
 
 class UserController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -39,7 +43,7 @@ class UserController<DBSession>(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(UserDescriptions.createNewUser) {
-            with(ctx as HttpCall) {
+            withContext<HttpCall> {
                 audit(request.map { CreateSingleUserAudit(it.username, it.role) })
 
                 val principals: List<Principal> = request.map { user ->
@@ -51,7 +55,7 @@ class UserController<DBSession>(
                             personService.createUserByPassword(
                                 firstNames = user.username,
                                 lastName = "N/A",
-                                email = user.username,
+                                username = user.username,
                                 role = user.role ?: Role.USER,
                                 password = user.password ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                             )
@@ -64,7 +68,13 @@ class UserController<DBSession>(
                 }
 
                 userCreationService.createUsers(principals)
-                ok(principals.map { user -> tokenService.createAndRegisterTokenFor(user) })
+                ok(principals.map { user ->
+                    tokenService.createAndRegisterTokenFor(
+                        user,
+                        ip = ctx.call.request.origin.remoteHost,
+                        userAgent = ctx.call.request.userAgent()
+                    )
+                })
             }
         }
 

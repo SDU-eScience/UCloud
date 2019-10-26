@@ -145,10 +145,11 @@ class JobOrchestrator<DBSession>(
         backend.jobVerified.call(jobWithToken.job, serviceClient).orThrow()
 
         log.debug("Switching state and preparing job...")
+        jobFileService.exportParameterFile(jobWithToken, req.parameters)
+
         db.withTransaction { session -> jobDao.create(session, jobWithToken) }
         handleStateChange(jobWithToken, initialState)
 
-        jobFileService.exportParameterFile(jobWithToken, req.parameters)
         return initialState.systemId
     }
 

@@ -59,3 +59,17 @@ tags:
 
 outputFileGlobs:
   - "*"
+
+fileExtensions:
+  - ".txt"
+  - ".md"
+  - ".yml"
+  - ".json"
+  - ".xml"
+  - ".ts"
+  - ".kt"
+  - ".c"
+  - ".py"
+  - ".rs"
+  - "Makefile"
+  - "Dockerfile"

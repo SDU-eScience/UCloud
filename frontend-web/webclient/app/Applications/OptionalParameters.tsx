@@ -1,20 +1,20 @@
+import * as Types from "Applications/index";
+import * as Fuse from "fuse.js";
 import * as React from "react";
 import {SyntheticEvent} from "react";
-import * as Fuse from "fuse.js";
-import * as Types from "Applications/index";
+import styled from "styled-components";
 import {Box, Button, Flex, Markdown} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import Input from "ui-components/Input";
-import styled from "styled-components";
 import {EllipsedText} from "ui-components/Text";
 
-interface OptionalParameterProps {
-    parameters: Types.ApplicationParameter[]
-    onUse: (aP: Types.ApplicationParameter) => void
+interface OptionalParametersProps {
+    parameters: Types.ApplicationParameter[];
+    onUse: (aP: Types.ApplicationParameter) => void;
 }
 
 interface OptionalParametersState {
-    results: Types.ApplicationParameter[]
+    results: Types.ApplicationParameter[];
 }
 
 const OptionalParamsBox = styled(Box)`
@@ -25,51 +25,22 @@ const OptionalParamsBox = styled(Box)`
     overflow-y: auto;
 `;
 
-export class OptionalParameters extends React.Component<OptionalParameterProps, OptionalParametersState> {
+export class OptionalParameters extends React.Component<OptionalParametersProps, OptionalParametersState> {
     private fuse: Fuse<Types.ApplicationParameter>;
     private currentTimeout: number = -1;
     private searchField = React.createRef<HTMLInputElement>();
 
-    constructor(props: OptionalParameterProps) {
+    constructor(props: OptionalParametersProps) {
         super(props);
         this.state = {results: props.parameters};
         this.initFuse();
     }
 
-    private initFuse() {
-        this.fuse = new Fuse(this.props.parameters, {
-            shouldSort: true,
-            threshold: 0.6,
-            location: 0,
-            distance: 100,
-            maxPatternLength: 32,
-            minMatchCharLength: 1,
-            keys: [
-                "title",
-                "description"
-            ]
-        });
-
-    }
-
-    public componentDidUpdate(prevProps: OptionalParameterProps) {
+    public componentDidUpdate(prevProps: OptionalParametersProps) {
         if (this.props.parameters !== prevProps.parameters) {
             this.initFuse();
             const current = this.searchField.current;
             if (current != null) this.search(current.value);
-        }
-    }
-
-    private search(searchTerm: string) {
-        if (this.currentTimeout !== -1) clearTimeout(this.currentTimeout);
-
-        if (searchTerm === "") {
-            this.setState({results: this.props.parameters});
-        } else {
-            this.currentTimeout = setTimeout(() => {
-                const results = this.fuse.search(searchTerm);
-                this.setState({results});
-            }, 300);
         }
     }
 
@@ -85,18 +56,53 @@ export class OptionalParameters extends React.Component<OptionalParameterProps, 
                         <Heading.h4>Optional Parameters ({results.length})</Heading.h4>
                     </Box>
                     <Box flexShrink={0}>
-                        <Input placeholder={"Search..."} ref={this.searchField}
-                            onChange={e => this.search(e.target.value)} />
+                        <Input
+                            placeholder={"Search..."}
+                            ref={this.searchField}
+                            onChange={e => this.search(e.target.value)}
+                        />
                     </Box>
                 </Flex>
                 <OptionalParamsBox>{components}</OptionalParamsBox>
             </>
         );
+    }
 
+    private initFuse() {
+        this.fuse = new Fuse(this.props.parameters, {
+            shouldSort: true,
+            threshold: 0.6,
+            location: 0,
+            distance: 100,
+            maxPatternLength: 32,
+            minMatchCharLength: 1,
+            keys: [
+                "title",
+                "description"
+            ]
+        });
+    }
+
+    private search(searchTerm: string) {
+        if (this.currentTimeout !== -1) clearTimeout(this.currentTimeout);
+
+        if (searchTerm === "") {
+            this.setState({results: this.props.parameters});
+        } else {
+            this.currentTimeout = setTimeout(() => {
+                const results = this.fuse.search(searchTerm);
+                this.setState({results});
+            }, 300);
+        }
     }
 }
 
-class OptionalParameter extends React.Component<{parameter: Types.ApplicationParameter, onUse: () => void}, {open: boolean}> {
+interface OptionalParameterProps {
+    parameter: Types.ApplicationParameter;
+    onUse: () => void;
+}
+
+class OptionalParameter extends React.Component<OptionalParameterProps, {open: boolean}> {
 
     private static Base = styled(Flex)`
         align-items: center;
@@ -129,7 +135,7 @@ class OptionalParameter extends React.Component<{parameter: Types.ApplicationPar
             flex-shrink: 0;
         }
     `;
-    
+
     public state = {open: false};
 
     public render() {
@@ -151,18 +157,17 @@ class OptionalParameter extends React.Component<{parameter: Types.ApplicationPar
             <Box mb={8}>
                 <OptionalParameter.Base onClick={toggleOpen}>
                     <strong>{parameter.title}</strong>
-                    {!open ?
+                    {!open ? (
                         <EllipsedText>
-                            <Markdown
-                                source={parameter.description}
-                                allowedTypes={["text", "root", "paragraph"]} />
+                            <Markdown source={parameter.description} allowedTypes={["text", "root", "paragraph"]} />
                         </EllipsedText>
-                        : <Box flexGrow={1} />}
+                    ) : <Box flexGrow={1} />}
 
                     <Button
                         type="button"
                         lineHeight={"16px"}
-                        onClick={use}>
+                        onClick={use}
+                    >
                         Use
                     </Button>
                 </OptionalParameter.Base>

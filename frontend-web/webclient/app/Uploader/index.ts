@@ -16,7 +16,7 @@ export interface Upload {
     resolution: UploadPolicy;
     uploadEvents: Array<{progressInBytes: number, timestamp: number}>;
     isPending: boolean;
-    parentPath: string;
+    path: string;
     error?: string;
 }
 

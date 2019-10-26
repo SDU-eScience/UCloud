@@ -52,9 +52,7 @@ data class UploadApplicationLogoRequest(
 )
 
 data class AdvancedSearchRequest(
-    val name: String?,
-    val version: String?,
-    val description: String?,
+    val query: String?,
     val tags: List<String>?,
     override val itemsPerPage: Int?,
     override val page: Int?
@@ -181,7 +179,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
         }
 
-    val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationWithFavoriteAndTags>,CommonErrorMessage>("advancedSearch") {
+    val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationSummaryWithFavorite>,CommonErrorMessage>("advancedSearch") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ

@@ -7,12 +7,12 @@ import {Redirect, useHistory} from "react-router";
 import {Dispatch} from "redux";
 import {Snack} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled from "styled-components";
+import styled, {ThemeProvider} from "styled-components";
 import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
-import {Theme} from "ui-components/theme";
+import theme, {Theme} from "ui-components/theme";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {
@@ -124,9 +124,11 @@ function Notifications(props: Notifications) {
                             />
                         </Flex>
                         {unreadLength > 0 ? (
-                            <Absolute top="-12px" left="28px">
-                                <Badge bg="red">{unreadLength}</Badge>
-                            </Absolute>
+                            <ThemeProvider theme={theme}>
+                                <Absolute top="-12px" left="28px">
+                                    <Badge bg="red">{unreadLength}</Badge>
+                                </Absolute>
+                            </ThemeProvider>
                         ) : null}
                     </Relative>
                 </Flex>

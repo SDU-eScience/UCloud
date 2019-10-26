@@ -1,11 +1,12 @@
-import * as React from "react";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {TwoFactorSetupState} from ".";
-import * as Heading from "ui-components/Heading";
-import {Image, Flex, Divider, Input, Button, ExternalLink} from "ui-components";
-import {SnackType} from "Snackbar/Snackbars";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
+import * as React from "react";
+import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Button, Divider, ExternalLink, Flex, Image, Input} from "ui-components";
+import Box from "ui-components/Box";
+import * as Heading from "ui-components/Heading";
+import {TwoFactorSetupState} from ".";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
@@ -34,15 +35,15 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
         return {
             verificationCode: "",
             isConnectedToAccount: false
-        }
+        };
     }
 
     render() {
         return (
             <React.StrictMode>
-                <Heading.h1>Two Factor Authentication</Heading.h1>
+                <Heading.h2>Two Factor Authentication</Heading.h2>
                 <b>{this.displayConnectedStatus()}</b>
-                <Divider/>
+                <Divider />
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
             </React.StrictMode>
         );
@@ -60,8 +61,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
 
     private setupPage() {
         return (
-            <div>
-                <Heading.h3>2FA Setup</Heading.h3>
+            <Box mb={16}>
                 <p>
                     In order to activate 2FA on your account you must have a
                     device capable of issuing time-based one time passwords
@@ -72,11 +72,11 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                 <Flex>
                     <ExternalLink
                         href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
-                        <Image width="150px" src={googlePlay}/>
+                        <img height={"50px"} src={googlePlay} alt={"Get it on Google Play"} />
                     </ExternalLink>
 
                     <ExternalLink href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
-                        <Image width="150px" src={appStore}/>
+                        <img height={"50px"} src={appStore}  alt={"Download on the App Store"} />
                     </ExternalLink>
                 </Flex>
 
@@ -93,7 +93,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                     :
                     this.displayQRCode()
                 }
-            </div>
+            </Box>
         );
     }
 
@@ -142,6 +142,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                     />
 
                     <Button
+                        mt={8}
                         color="blue"
                         type="submit"
                         disabled={this.props.loading}

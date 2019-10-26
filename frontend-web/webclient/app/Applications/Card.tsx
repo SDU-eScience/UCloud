@@ -1,3 +1,4 @@
+import {AppToolLogo} from "Applications/AppToolLogo";
 import * as React from "react";
 import styled, {css} from "styled-components";
 import {Absolute, Flex, Icon, RatingBadge, Text} from "ui-components";
@@ -9,7 +10,6 @@ import {EllipsedText} from "ui-components/Text";
 import theme from "ui-components/theme";
 import {WithAllAppTags, WithAppMetadata} from ".";
 import * as Pages from "./Pages";
-import {AppToolLogo} from "Applications/AppToolLogo";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
@@ -128,7 +128,7 @@ export const AppCard = styled(Link)`
     border-radius: ${props => props.theme.radius};
     position: relative;
     overflow: hidden;
-    box-shadow: ${p => p.theme.shadows["sm"]};
+    box-shadow: ${p => p.theme.shadows.sm};
     //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
     transition: transform ${p => `${p.theme.timingFunctions.easeIn} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
@@ -137,7 +137,7 @@ export const AppCard = styled(Link)`
     &:hover {
         transition: transform ${p => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
         transform: scale(1.02);
-        box-shadow: ${p => p.theme.shadows["md"]};
+        box-shadow: ${p => p.theme.shadowsmd};
     }
 
     // Background
@@ -187,14 +187,17 @@ const nColors = appColors.length;
 
 const bgGradients = appColors.map(x => ({color1: x[0], color2: x[2]}));
 
+// tslint:disable-next-line: variable-name
 const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}) => (
     <svg height="128px" viewBox="0 0 72 128">
         <path d="M0,128h72v-72z" fill={`url(#appbg_svg___${color1}_${color2}`} />
         <defs>
             <linearGradient
                 id={`appbg_svg___${color1}_${color2}`}
-                x1={72} x2={0} y1={128 - 72} y2={128}
-                // x1={21} x2={72} y1={77} y2={128}
+                x1={72}
+                x2={0}
+                y1={128 - 72}
+                y2={128}
                 gradientUnits="userSpaceOnUse"
             >
                 <stop offset={0} stopColor={color1} />
@@ -363,7 +366,7 @@ export const CardToolContainer = styled(Box) <{appImage: string}>`
     align-items: flex-start;
     border-radius: 5px;//${props => props.theme.radius};
     overflow: hidden;
-    box-shadow: ${p => p.theme.shadows["sm"]};
+    box-shadow: ${p => p.theme.shadows.sm};
 
     will-change: transform;
 
@@ -416,7 +419,7 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     // background: radial-gradient(ellipse at bottom left, ${p => `${p.color3}, ${p.color1}`});
     border-radius: 5px
 
-    box-shadow: ${p => p.theme.shadows["sm"]};
+    box-shadow: ${p => p.theme.shadows.sm};
 
     transition: transform ${p => `${p.theme.timingFunctions.easeIn} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
     will-change: transform;
@@ -424,7 +427,7 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     &:hover {
         transition: transform ${p => `${p.theme.timingFunctions.easeOut} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
         transform: scale(1.02);
-        box-shadow: ${p => p.theme.shadows["md"]};
+        box-shadow: ${p => p.theme.shadows.md};
         color: ${p => p.theme.colors.white};
     }
 `;

@@ -15,7 +15,7 @@ data class TrashResponse(val failures: List<String>)
 object FileTrashDescriptions : CallDescriptionContainer("files.trash") {
     val baseContext = "/api/files/trash"
 
-    val trash = call<TrashRequest, TrashResponse, CommonErrorMessage>("trash") {
+    val trash = call<TrashRequest, Unit, CommonErrorMessage>("trash") {
         auth {
             access = AccessRight.READ_WRITE
         }

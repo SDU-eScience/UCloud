@@ -18,7 +18,8 @@ const macos2 = require("Assets/Images/webdav/macos_dav_2.png");
 const nautilus1 = require("Assets/Images/webdav/nautilus_dav_1.png");
 
 export const Instructions: React.FunctionComponent<{ token: string }> = props => {
-    const server = inDevEnvironment() ?  "https://webdav.dev.cloud.sdu.dk/" : "https://dav.cloud.sdu.dk/";
+    const server = inDevEnvironment() || window.location.host === "dev.cloud.sdu.dk" ?
+        "https://webdav.dev.cloud.sdu.dk/" : "https://dav.cloud.sdu.dk/";
 
     return (
         <ContentContainer>
@@ -199,7 +200,7 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                 )}
             />
 
-            <Box m={10} />
+            <Box m={10}/>
 
             <a href={"/app"}><Button fullWidth>Return to SDUCloud</Button></a>
         </ContentContainer>

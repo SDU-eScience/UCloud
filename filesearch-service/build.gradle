@@ -10,7 +10,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.9.2"
+    ext.serviceCommonVersion = "1.10.2"
     ext.fileApiVersion = "2.1.2"
 }
 

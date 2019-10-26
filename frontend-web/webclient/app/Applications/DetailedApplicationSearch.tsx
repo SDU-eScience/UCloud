@@ -9,20 +9,19 @@ import * as Heading from "ui-components/Heading";
 import {
     clearTags,
     fetchApplications,
-    setAppName,
-    setVersion,
+    setAppQuery,
     tagAction
 } from "./Redux/DetailedApplicationSearchActions";
 
 interface DetailedApplicationSearchProps extends
     DetailedApplicationOperations, DetailedApplicationSearchReduxState {
     onSearch: () => void;
-    defaultAppName?: string;
+    defaultAppQuery?: string;
 }
 
 function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProps>) {
     React.useEffect(() => {
-        if (!!props.defaultAppName) props.setAppName(props.defaultAppName);
+        if (!!props.defaultAppQuery) props.setAppQuery(props.defaultAppQuery);
     }, []);
 
     const ref = React.useRef<HTMLInputElement>(null);
@@ -38,16 +37,6 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
         <Flex flexDirection="column" pl="0.5em" pr="0.5em">
             <Box mt="0.5em">
                 <form onSubmit={e => onSearch(e)}>
-                    <Heading.h5 pb="0.3em" pt="0.5em">Version</Heading.h5>
-                    <Input
-                        pb="6px"
-                        pt="8px"
-                        mt="-2px"
-                        width="100%"
-                        value={props.appVersion}
-                        onChange={({target}) => props.setVersionName(target.value)}
-                        placeholder="Search by version..."
-                    />
                     <Heading.h5 pb="0.3em" pt="0.5em">Tags</Heading.h5>
                     <SearchStamps
                         clearAll={() => props.clearTags()}
@@ -80,8 +69,7 @@ const mapStateToProps = ({detailedApplicationSearch}: ReduxObject) => ({
     sizeCount: detailedApplicationSearch.tags.size
 });
 const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
-    setAppName: appName => dispatch(setAppName(appName)),
-    setVersionName: version => dispatch(setVersion(version)),
+    setAppQuery: appQuery => dispatch(setAppQuery(appQuery)),
     addTag: tags => dispatch(tagAction("DETAILED_APPS_ADD_TAG", tags)),
     removeTag: tag => dispatch(tagAction("DETAILED_APPS_REMOVE_TAG", tag)),
     clearTags: () => dispatch(clearTags()),

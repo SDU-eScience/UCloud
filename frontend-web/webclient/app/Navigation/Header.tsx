@@ -4,7 +4,7 @@ import {
     FullAppInfo
 } from "Applications";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import {setAppName} from "Applications/Redux/DetailedApplicationSearchActions";
+import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
@@ -147,10 +147,10 @@ function Header(props: HeaderProps) {
 }
 
 export const Refresh = ({
-    onClick,
-    spin,
-    headerLoading
-}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ? (
+                            onClick,
+                            spin,
+                            headerLoading
+                        }: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ? (
     <RefreshIcon
         data-tag="refreshButton"
         name="refresh"
@@ -204,28 +204,22 @@ const SearchInput = styled(Flex)`
     color: white;
     background-color: rgba(236, 239, 244, 0.25);
     border-radius: 5px;
-
     input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
         color: white;
     }
-
     input:focus::-webkit-input-placeholder, input:focus::-moz-placeholder, input:focus::-ms-input-placeholder, input:focus::-moz-placeholder {
         color: black;
     }
-
     input:focus ~ div > span > div > svg, input:focus + div > label > svg {
         color: black;
     }
-
     input ~ div > span > div > svg, input + div > label > svg {
         color: white;
     }
-
     & > input:focus {
         color: black;
         background-color: white;
     }
-
     & > ${Dropdown} > ${Text} > input {
         width: 350px;
         height: 36px;
@@ -292,12 +286,17 @@ const _Search = (props: SearchProps) => {
                         <Absolute top={-12.5} right={12} bottom={0} left={-28}>
                             <Icon cursor="pointer" name="chevronDown" size="15px" />
                         </Absolute>
-                    )}>
+                    )}
+                >
                     <SelectableTextWrapper>
                         <Box ml="auto" />
                         {allowedSearchTypes.map(it => (
-                            <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em"
-                                selected={it === prioritizedSearch}>
+                            <SelectableText
+                                key={it}
+                                onClick={() => setSearchType(it)}
+                                mr="1em"
+                                selected={it === prioritizedSearch}
+                            >
                                 {prettierString(it)}
                             </SelectableText>
                         ))}
@@ -311,7 +310,7 @@ const _Search = (props: SearchProps) => {
                     ) : prioritizedSearch === "applications" ? (
                         <DetailedApplicationSearch
                             onSearch={() => fetchAll()}
-                            defaultAppName={search}
+                            defaultAppQuery={search}
                         />
                     ) : null}
                 </ClickableDropdown>
@@ -333,18 +332,18 @@ const _Search = (props: SearchProps) => {
                 props.appSearch,
                 itemsPerPage || props.applications.itemsPerPage,
                 props.applications.pageNumber
-            ), name: search
+            ), query: search
         });
         history.push(searchPage(prioritizedSearch, search));
     }
 };
 
 const mapSearchStateToProps = ({
-    header,
-    detailedFileSearch,
-    detailedApplicationSearch,
-    simpleSearch
-}: ReduxObject): SearchStateProps => ({
+                                   header,
+                                   detailedFileSearch,
+                                   detailedApplicationSearch,
+                                   simpleSearch
+                               }: ReduxObject): SearchStateProps => ({
     prioritizedSearch: header.prioritizedSearch,
     fileSearch: detailedFileSearch,
     appSearch: detailedApplicationSearch,
@@ -362,7 +361,7 @@ const mapSearchDispatchToProps = (dispatch: Dispatch) => ({
     searchApplications: async (body: AppSearchRequest) => {
         dispatch(setApplicationsLoading(true));
         dispatch(await searchApplications(body));
-        dispatch(setAppName(body.name || ""));
+        dispatch(setAppQuery(body.query || ""));
     },
 });
 

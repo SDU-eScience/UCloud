@@ -1,7 +1,7 @@
 import {AdvancedSearchRequest as AppSearchRequest, DetailedApplicationSearchReduxState} from "Applications";
 import {ApplicationCard} from "Applications/Card";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import {setAppName} from "Applications/Redux/DetailedApplicationSearchActions";
+import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {emptyPage, HeaderSearchType, ReduxObject} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, FileType} from "Files";
@@ -55,7 +55,7 @@ function Search(props: SearchProps) {
             props.files.pageNumber
         ));
         props.searchApplications(applicationSearchBody(
-            {...props.applicationSearch, appName: query(props)},
+            {...props.applicationSearch, appQuery: query(props)},
             itemsPerPage || props.applications.itemsPerPage,
             props.applications.pageNumber
         ));
@@ -179,7 +179,7 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     searchApplications: async body => {
         dispatch(SSActions.setApplicationsLoading(true));
         dispatch(await SSActions.searchApplications(body));
-        dispatch(setAppName(body.name || ""));
+        dispatch(setAppQuery(body.query || ""));
     },
     setFilesPage: page => dispatch(SSActions.receiveFiles(page)),
     setApplicationsPage: page => dispatch(SSActions.receiveApplications(page)),
@@ -191,10 +191,10 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
 });
 
 const mapStateToProps = ({
-    simpleSearch,
-    detailedFileSearch,
-    detailedApplicationSearch
-}: ReduxObject): SimpleSearchStateProps & {favFilesCount: number, favAppCount: number} => ({
+                             simpleSearch,
+                             detailedFileSearch,
+                             detailedApplicationSearch
+                         }: ReduxObject): SimpleSearchStateProps & {favFilesCount: number, favAppCount: number} => ({
     ...simpleSearch,
     favFilesCount: simpleSearch.files.items.filter(it => it.favorited).length,
     favAppCount: simpleSearch.applications.items.filter(it => it.favorite).length,
@@ -226,9 +226,9 @@ export function fileSearchBody(
         extensions: [...fileSearch.extensions],
         fileTypes,
         createdAt: typeof createdAt.after === "number" ||
-            typeof createdAt.before === "number" ? createdAt : undefined,
+        typeof createdAt.before === "number" ? createdAt : undefined,
         modifiedAt: typeof modifiedAt.after === "number" ||
-            typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+        typeof modifiedAt.before === "number" ? modifiedAt : undefined,
         includeShares: fileSearch.includeShares,
         itemsPerPage,
         page
@@ -240,10 +240,9 @@ export function applicationSearchBody(
     itemsPerPage: number,
     page: number
 ): AppSearchRequest {
-    const {appName, appVersion, tags} = body;
+    const {appQuery, tags} = body;
     return {
-        name: !!appName ? appName : undefined,
-        version: !!appVersion ? appVersion : undefined,
+        query: !!appQuery ? appQuery : undefined,
         tags: tags.size > 0 ? [...tags] : undefined,
         itemsPerPage,
         page

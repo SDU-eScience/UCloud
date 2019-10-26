@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.9.2"
+    ext.serviceCommonVersion = "1.10.2"
 }
 
 dependencies {
@@ -20,6 +20,7 @@ dependencies {
     compile 'dk.sdu.cloud:auth-api:1.21.0'
     compile "dk.sdu.cloud:file-api:1.8.0-REDIS.0"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
+    implementation "dk.sdu.cloud:task-api:0.2.0"
 }
 
 sduCloud.createTasksForApiJar("file.trash", [])

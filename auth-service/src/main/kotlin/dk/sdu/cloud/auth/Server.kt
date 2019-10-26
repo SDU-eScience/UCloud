@@ -10,24 +10,10 @@ import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.LoginResponder
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
+import dk.sdu.cloud.auth.http.SessionsController
 import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
-import dk.sdu.cloud.auth.services.AccessTokenContents
-import dk.sdu.cloud.auth.services.CursorStateHibernateDao
-import dk.sdu.cloud.auth.services.JWTFactory
-import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
-import dk.sdu.cloud.auth.services.PasswordHashingService
-import dk.sdu.cloud.auth.services.PersonService
-import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
-import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.TwoFactorChallengeService
-import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
-import dk.sdu.cloud.auth.services.UniqueUsernameService
-import dk.sdu.cloud.auth.services.UserCreationService
-import dk.sdu.cloud.auth.services.UserHibernateDAO
-import dk.sdu.cloud.auth.services.UserIterationService
-import dk.sdu.cloud.auth.services.WSTOTPService
-import dk.sdu.cloud.auth.services.ZXingQRService
+import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
@@ -126,6 +112,8 @@ class Server(
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
 
+        val sessionService = SessionService(db, refreshTokenDao)
+
         log.info("Core services constructed!")
 
         if (micro.developmentModeEnabled) {
@@ -170,7 +158,9 @@ class Server(
                 loginResponder
             )
 
-            val passwordController = PasswordController(db, passwordHashingService, userDao, loginResponder)
+            val loginService =
+                LoginService(db, passwordHashingService, userDao, LoginAttemptHibernateDao(), loginResponder)
+            val passwordController = PasswordController(loginService)
             log.info("HTTP controllers configured!")
 
             if (config.enableWayf) {
@@ -206,7 +196,9 @@ class Server(
                         developmentMode = micro.developmentModeEnabled
                     ),
 
-                    TwoFactorAuthController(twoFactorChallengeService, loginResponder)
+                    TwoFactorAuthController(twoFactorChallengeService, loginResponder),
+
+                    SessionsController(sessionService)
                 )
             }
 
@@ -245,12 +237,15 @@ class Server(
                 listOf(SecurityScope.ALL_WRITE),
                 createdAt = System.currentTimeMillis(),
                 expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
-            )
+            ),
+            userAgent = null,
+            ip = null
         )
 
         log.info("Username: $username")
         log.info("accessToken = ${token.accessToken}")
         log.info("refreshToken = ${token.refreshToken}")
+        log.info("csrfToken = ${token.csrfToken}")
         log.info("Access token expires in one year.")
         log.info("Password is: '$password'")
         log.info("---------------")

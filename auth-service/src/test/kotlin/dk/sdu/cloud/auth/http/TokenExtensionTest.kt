@@ -83,7 +83,7 @@ class TokenExtensionTest {
 
     private fun createUser(securityPrincipal: SecurityPrincipal): Person.ByPassword {
         val principal = personService.createUserByPassword(
-            email = securityPrincipal.username,
+            username = securityPrincipal.username,
             firstNames = securityPrincipal.firstName,
             lastName = securityPrincipal.lastName,
             role = securityPrincipal.role,

@@ -132,7 +132,12 @@ data class VerifiedJob(
     val project: String? = null,
 
     /**
-     * A list of shared file systems to be mounted inside of the container.
+     * The file id of the job folder
+     */
+    var folderId: String? = null,
+
+        /**
+         * A list of shared file systems to be mounted inside of the container.
      *
      * A backend is allowed to reject a shared file system mount if it does not support mounting it. This should
      * happen early, for example, by comparing the backend against a whitelist of supported backends.

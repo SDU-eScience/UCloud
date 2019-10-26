@@ -4,18 +4,28 @@ import * as H from "history";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {AccessRight} from "Types";
+import {Upload} from "Uploader";
+import {UploadPolicy} from "Uploader/api";
+import {newUpload} from "Uploader/Uploader";
 import {
-    allFilesHasAccessRight, clearTrash,
+    allFilesHasAccessRight,
+    clearTrash,
     CopyOrMove,
     copyOrMoveFilesNew,
     downloadFiles,
-    extractArchive, fileInfoPage, fileTablePage,
+    extractArchive,
+    fileInfoPage,
+    fileTablePage,
     getFilenameFromPath,
     getParentPath,
-    inTrashDir, isAnyMockFile, isAnySharedFs, isArchiveExtension,
+    inTrashDir,
+    isAnyMockFile,
+    isAnySharedFs,
+    isArchiveExtension,
     isFixedFolder,
     moveToTrash,
-    replaceHomeFolder, resolvePath,
+    replaceHomeFolder,
+    resolvePath,
     shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
@@ -28,6 +38,7 @@ export interface FileOperationCallback {
     requestReload: () => void;
     requestFileUpload: () => void;
     startRenaming: (file: File) => void;
+    createNewUpload: (newUpload: Upload) => void;
     requestFileSelector: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>;
     history: H.History;
 }
@@ -82,6 +93,30 @@ export const defaultFileOperations: FileOperation[] = [
         icon: "rename"
     },
     {
+        text: "Upload",
+        onClick: (files, cb) => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.onchange = () => {
+                const inputFiles = input.files;
+                if (!inputFiles) return;
+
+                const file = inputFiles.item(0);
+                if (!file) return;
+
+                const upload = newUpload(file, files[0].path);
+                upload.resolution = UploadPolicy.OVERWRITE;
+                upload.sensitivity = files[0].ownSensitivityLevel || "INHERIT";
+                cb.createNewUpload(upload);
+            };
+
+            input.click();
+        },
+        disabled: (files) => files.length !== 1 || !allFilesHasAccessRight("WRITE", files) ||
+            files[0].fileType !== "FILE" || isAnyMockFile(files) || isAnySharedFs(files),
+        icon: "upload"
+    },
+    {
         text: "Download",
         onClick: files => downloadFiles(files, () => 42, Cloud),
         disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) ||
@@ -92,7 +127,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Share",
         onClick: (files) => shareFiles({files, cloud: Cloud}),
         disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files) || files.some(it => it.fileType !== "DIRECTORY") || isAnySharedFs(files),
+            isAnyMockFile(files) || isAnySharedFs(files),
         icon: "share"
     },
     {

@@ -4,8 +4,8 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled from "styled-components";
-import {Box, Button, Flex, Icon, Image, Input, Text} from "ui-components";
+import styled, {ThemeProvider} from "styled-components";
+import {Box, Button, Flex, Icon, Image, Input, Text, theme} from "ui-components";
 import Absolute from "ui-components/Absolute";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
@@ -98,16 +98,20 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         }
     }
 
+    function handleCompleteLogin(result: any) {
+        if (isWebDav) {
+            setWebDavToken(result.refreshToken);
+        } else {
+            Cloud.setTokens(result.accessToken, result.csrfToken);
+            props.history.push("/loginSuccess");
+        }
+    }
+
     function handleAuthState(result: any) {
         if ("2fa" in result) {
             setChallengeID(result["2fa"]);
         } else {
-            if (isWebDav) {
-                setWebDavToken(result.refreshToken);
-            } else {
-                Cloud.setTokens(result.accessToken, result.csrfToken);
-                props.history.push("/loginSuccess");
-            }
+            handleCompleteLogin(result);
         }
     }
 
@@ -129,8 +133,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
             });
             if (!response.ok) throw response;
             const result = await response.json();
-            Cloud.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/loginSuccess");
+            handleCompleteLogin(result);
         } catch (e) {
             setLoading(false);
             snackbarStore.addSnack({
@@ -144,25 +147,25 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
     }
 
     return (
-        <>
-            <Absolute top="-3vw" left="8vw">
-                <Box width="20vw">
-                    <Icon color="white" name="logoSdu" size="20vw" />
-                </Box>
-            </Absolute>
+        <ThemeProvider theme={theme}>
+            <>
+                <Absolute top="-3vw" left="8vw">
+                    <Box width="20vw">
+                        <Icon color="white" name="logoSdu" size="20vw" />
+                    </Box>
+                </Absolute>
 
-            <BGLogo image={bg1} bottom="0px" height="50%" width="100%" />
+                <BGLogo image={bg1} bottom="0px" height="50%" width="100%" />
 
-            <BackgroundImage image={bg2}>
-                <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
-                    <Box width="315px">
-                        {!isWebDav ? null : (
-                            <Box color="white" mb={32}>
-                                You must re-authenticate with SDUCloud to use your files locally.
+                <BackgroundImage image={bg2}>
+                    <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
+                        <Box width="315px">
+                            {!isWebDav ? null : (
+                                <Box color="white" mb={32}>
+                                    You must re-authenticate with SDUCloud to use your files locally.
                             </Box>
-                        )}
-                        {enabledWayf && !challengeId ?
-                            (
+                            )}
+                            {enabledWayf && !challengeId ? (
                                 <a href={`/auth/saml/login?service=${service}`}>
                                     <Button disabled={loading} fullWidth color="wayfGreen">
                                         <Image width="100px" src={wayfLogo} />
@@ -170,25 +173,22 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                     </Button>
                                 </a>
                             ) : null}
-                        {!challengeId ?
-                            (
+                            {!challengeId ? (
                                 <ClickableDropdown
                                     colorOnHover={false}
                                     keepOpenOnClick
                                     top="30px"
                                     width="315px"
                                     left="0px"
-                                    trigger={
-                                        (
-                                            <Text
-                                                fontSize={1}
-                                                color="white"
-                                                mt="5px"
-                                            >
-                                                More login options
-                                            </Text>
-                                        )
-                                    }
+                                    trigger={(
+                                        <Text
+                                            fontSize={1}
+                                            color="white"
+                                            mt="5px"
+                                        >
+                                            More login options
+                                        </Text>
+                                    )}
                                 >
                                     <Box width="100%">
                                         <form onSubmit={e => e.preventDefault()}>
@@ -209,38 +209,40 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                         </form>
                                     </Box>
                                 </ClickableDropdown>
-                            ) :
-                            (
-                                <>
-                                    <Text fontSize={1} color="white" mt="5px">Enter 2-factor authentication code</Text>
-                                    <DropdownContent
-                                        overflow={"visible"}
-                                        squareTop={false}
-                                        cursor="pointer"
-                                        width={"315px"}
-                                        hover={false}
-                                        visible={true}
-                                    >
-                                        <Box width="100%">
-                                            <form onSubmit={e => e.preventDefault()}>
-                                                <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                                                <Button
-                                                    fullWidth
-                                                    disabled={loading}
-                                                    onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                                >
-                                                    Submit
-                                                </Button>
-                                            </form>
-                                        </Box>
-                                    </DropdownContent>
-                                </>
-                            )
-                        }
-                    </Box>
-                </Flex>
-            </BackgroundImage>
-        </>
+                            ) : (
+                                    <>
+                                        <Text fontSize={1} color="white" mt="5px">
+                                            Enter 2-factor authentication code
+                                        </Text>
+                                        <DropdownContent
+                                            overflow={"visible"}
+                                            squareTop={false}
+                                            cursor="pointer"
+                                            width={"315px"}
+                                            hover={false}
+                                            visible={true}
+                                        >
+                                            <Box width="100%">
+                                                <form onSubmit={e => e.preventDefault()}>
+                                                    <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                                                    <Button
+                                                        fullWidth
+                                                        disabled={loading}
+                                                        onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                                    >
+                                                        Submit
+                                                    </Button>
+                                                </form>
+                                            </Box>
+                                        </DropdownContent>
+                                    </>
+                                )
+                            }
+                        </Box>
+                    </Flex>
+                </BackgroundImage>
+            </>
+        </ThemeProvider>
     );
 };
 

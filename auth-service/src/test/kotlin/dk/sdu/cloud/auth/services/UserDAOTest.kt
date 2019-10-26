@@ -3,7 +3,6 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.Role
 import io.mockk.mockk
 import org.junit.Test
-import sun.security.util.Password
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -20,7 +19,8 @@ class UserDAOTest {
             "Lastname",
             email,
             Role.ADMIN,
-            "ThisIsMyPassword"
+            "ThisIsMyPassword",
+            email = email
         )
         assertEquals("FirstName Middle", person.firstNames)
         assertEquals("Lastname", person.lastName)

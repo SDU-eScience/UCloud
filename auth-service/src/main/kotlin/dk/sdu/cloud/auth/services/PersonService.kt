@@ -15,21 +15,21 @@ class PersonService(
     fun createUserByPassword(
         firstNames: String,
         lastName: String,
-        email: String,
+        username: String,
         role: Role,
-        password: String
+        password: String,
+        email: String? = null
     ): Person.ByPassword {
         val (hashed, salt) = passwordHashingService.hashPassword(password)
         return Person.ByPassword(
-            id = email,
+            id = username,
             role = role,
             title = null,
             firstNames = firstNames,
             lastName = lastName,
             phoneNumber = null,
             orcId = null,
-            emailAddresses = listOf(email),
-            preferredEmailAddress = email,
+            email = email,
             password = hashed,
             salt = salt
         )
@@ -46,6 +46,8 @@ class PersonService(
         val organization = authenticatedUser.attributes["schacHomeOrganization"]?.firstOrNull()
             ?: throw IllegalArgumentException("Missing schacHomeOrganization")
 
+        val email = authenticatedUser.attributes["mail"]?.firstOrNull()
+
 //        if (organization != "sdu.dk") throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val role = Role.USER
@@ -59,8 +61,7 @@ class PersonService(
             title = null,
             phoneNumber = null,
             orcId = null,
-            emailAddresses = emptyList(),
-            preferredEmailAddress = null,
+            email = email,
             organizationId = organization
         )
     }

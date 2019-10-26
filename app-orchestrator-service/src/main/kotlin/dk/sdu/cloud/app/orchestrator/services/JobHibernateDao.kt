@@ -144,6 +144,8 @@ data class JobInformationEntity(
     @Column(length = 1024)
     var project: String?,
 
+    var folderId: String?,
+
     @Type(
         type = JSONB_LIST_TYPE,
         parameters = [
@@ -209,6 +211,7 @@ class JobHibernateDao(
             Date(job.createdAt),
             job.user,
             job.project,
+            job.folderId,
             job.sharedFileSystemMounts,
             job.peers,
             refreshToken,

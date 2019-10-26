@@ -27,10 +27,7 @@ export enum JobState {
 }
 
 export interface AdvancedSearchRequest {
-    name?: string;
-    version?: string;
-    versionRange?: [string, string];
-    description?: string;
+    query?: string;
     tags?: string[];
 
     // FIXME: replace with PaginationRequest
@@ -291,16 +288,14 @@ export enum ParameterTypes {
 
 export interface DetailedApplicationSearchReduxState {
     hidden: boolean;
-    appName: string;
-    appVersion: string;
+    appQuery: string;
     tags: Set<string>;
     error?: string;
     loading: boolean;
 }
 
 export interface DetailedApplicationOperations {
-    setAppName: (n: string) => void;
-    setVersionName: (v: string) => void;
+    setAppQuery: (n: string) => void;
     addTag: (tag: string) => void;
     removeTag: (tag: string) => void;
     clearTags: () => void;

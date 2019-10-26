@@ -29,6 +29,7 @@ class SlackNotifier(
               - *Username:* ${ticket.principal.username}
               - *Role:* ${ticket.principal.role}
               - *Real name:* ${ticket.principal.firstName} ${ticket.principal.lastName}
+              - *Email:* ${ticket.principal.email}
 
             *Technical info:*
               - *Request ID (Audit):* ${ticket.requestId}

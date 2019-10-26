@@ -12,6 +12,9 @@ esConfig:
     xpack.security.http.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
     xpack.security.http.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
 
+    http.max_content_length: 500mb
+
+
 extraEnvs:
   - name: ELASTIC_PASSWORD
     valueFrom:
