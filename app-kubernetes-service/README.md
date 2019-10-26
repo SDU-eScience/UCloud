@@ -1,10 +1,10 @@
 # app/kubernetes
 
-A [compute backend](../app-service) using Kubernetes for scheduling jobs.
+A [compute backend](../app-orchestrator-service) using Kubernetes for scheduling jobs.
 
 Kubernetes is the scheduler/orchestrator already used for all SDUCloud
-services. `app-kuberneteres` works by running user jobs as Kubernetes
-[Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/).
+services. `app-kuberneteres` works by running user jobs as 
+[Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/).
 This means that one of the biggest challenges of this service is to map an
 SDUCloud job to the corresponding Kubernetes job.
 
@@ -18,8 +18,8 @@ permissions.
 ## Mapping from SDUCloud Jobs to K8 Jobs
 
 In this section we will briefly describe the overall mapping between the two.
-For all the details we refer directly to the source code available
-[here](./src/main/kotlin/dk/sdu/cloud/app/kubernetes/services/PodService.kt).
+<!-- For all the details we refer directly to the source code available
+[here](./src/main/kotlin/dk/sdu/cloud/app/kubernetes/services/PodService.kt). -->
 
 The microservice is configured to place all jobs in a specific namespace.
 This makes it easier to control the [security model](#security-model). The
@@ -36,7 +36,7 @@ The deadline of the job is enforced via `activeDeadlineSeconds`. The job will
 never restart and it will never attempt to run two copies at the same time.
 
 Environment variables are set as specified by the
-[app-service](../app-service).
+[app-service](../app-orchestrator-service).
 
 Volumes are setup to make [transferring of files](#transferring-files)
 possible.
@@ -72,7 +72,7 @@ cannot change settings which would affect the physical host.
 
 We don't put any special restrictions on the UID a user's container can run
 as. We do support the UID changing behavior as specified in
-[app-service](../app-service/wiki/apps.md). As a result we can force a
+[app-service](../app-store-service/wiki/apps.md). As a result we can force a
 container to run as root or run as the real SDUCloud UID.
 
 This means that we must assume that all jobs can run as root within the

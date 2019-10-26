@@ -6,6 +6,7 @@
     * [Accounting service](accounting-service/README.md)
     * [Accounting/storage service](accounting-storage-service/README.md)
 * [Alerting service](alerting-service/README.md)
+    * [Elastic management service](elastic-management/README.md)
 * [App services](app-orchestrator-service/README.md)
     * [Kubernetes backend](app-kubernetes-service/README.md)
     * [Dummy backend](app-dummy-service/README.md)
@@ -18,6 +19,7 @@
     * [Files](storage-service/wiki/files.md)
     * [Events](storage-service/wiki/events.md)
     * [Sensitivity](storage-service/wiki/sensitivity.md)
+    * [Workspaces](storage-service/wiki/workspaces.md) 
     * [LinuxFS backend](storage-service/wiki/linuxfs/README.md)
     * [File activity service](activity-service/README.md)
     * [File favorite service](file-favorite-service/README.md)
@@ -32,8 +34,14 @@
 * [Common service library](service-common/README.md)
     * [Microservice framework](service-common/wiki/micro.md)
     * [Getting started with Microservice development](service-common/wiki/getting_started.md)
+    * [Writing service interfaces](service-common/wiki/writing_service_interfaces.md)
     * [Auditing](service-common/wiki/auditing.md)
     * [Command line interface](service-common/wiki/REST-CLI.md)
+    * [Testing services locally](service-common/wiki/testing_services_locally.md)
+    * [Deployment procedure](service-common/wiki/deployment.md)
+    * [Using Stolon](service-common/wiki/stolon.md)
+    * [Kubernetes Recovery](service-common/wiki/kubernetes_recovery.md)
+ 
 
 ## Frontend application
 

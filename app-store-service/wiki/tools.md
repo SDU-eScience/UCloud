@@ -4,7 +4,7 @@ A __tool__ is a resource defined by a YAML document. This document describes
 which container should be used by the _application_. The same tool can be
 used by multiple different applications.
 
-Examples can be found [here](../yaml/tools).
+Examples can be found [here](../yaml/tools/).
 
 ```yaml
 ---
