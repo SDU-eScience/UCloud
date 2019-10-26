@@ -6,7 +6,7 @@ application has an associated tool.
 
 TODO Application environment variables, working directory, ...
 
-Examples can be found [here](../yaml/apps/).
+<!-- Examples can be found [here](../yaml/apps/). -->
 
 ## Reference
 
