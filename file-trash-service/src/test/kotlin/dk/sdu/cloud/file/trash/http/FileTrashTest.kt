@@ -29,7 +29,7 @@ class FileTrashTest {
         val trashService = mockk<TrashService>()
 
         coEvery { trashService.moveFilesToTrash(any(), any(), any()) } answers {
-            emptyList()
+            null
         }
         coEvery { trashService.emptyTrash(any(), any()) } just Runs
 
@@ -48,8 +48,6 @@ class FileTrashTest {
                     request = TrashRequest(listOf("file1", "file2"))
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<TrashResponse>(request.response.content!!)
-                assertTrue(response.failures.isEmpty())
             }
         )
     }
