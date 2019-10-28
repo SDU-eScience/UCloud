@@ -11,7 +11,7 @@ import {
 } from "styled-system";
 import Box, {BoxProps} from "./Box";
 import Icon from "./Icon";
-import theme, {Theme} from "./theme";
+import {Theme} from "./theme";
 
 const boxBorder = (props: {theme: Theme, borderWidth: number | string, borderColor: string}) => ({
   border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
@@ -34,8 +34,7 @@ export const Card = styled(Box) <CardProps>`
 Card.defaultProps = {
   borderColor: "borderGray",
   borderRadius: 1,
-  borderWidth: 1,
-  theme
+  borderWidth: 1
 };
 
 export const PlayIconBase = styled(Icon)`

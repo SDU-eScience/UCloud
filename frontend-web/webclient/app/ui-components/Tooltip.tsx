@@ -96,7 +96,6 @@ const defaultProps = {
   position: "bottom",
   color: "text",
   bg: "white",
-  theme,
   zIndex: 9999
 };
 

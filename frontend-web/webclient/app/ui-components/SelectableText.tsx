@@ -16,10 +16,6 @@ const SelectableText = styled(Text) <{selected: boolean}>`
     border-bottom: ${props => props.selected ? `3px solid ${theme.colors.blue}` : ""};
 `;
 
-SelectableText.defaultProps = {
-    theme
-};
-
 SelectableText.displayName = "SelectableText";
 
 export {SelectableTextWrapper, SelectableText};

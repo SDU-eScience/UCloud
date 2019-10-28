@@ -35,8 +35,7 @@ const ProgressBase = styled(Box)<ProgressBaseProps>`
 ProgressBase.defaultProps = {
     color: "green",
     height: "30px",
-    active: false,
-    theme
+    active: false
 };
 
 interface Progress {

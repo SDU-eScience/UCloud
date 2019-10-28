@@ -30,7 +30,6 @@ interface ToggleBadge extends SpaceProps, FontSizeProps, ColorProps, BackgroundC
 ToggleBadge.defaultProps = {
   selected: false,
   fontSize: 0,
-  theme,
   color: "blue",
   bg: "lightBlue",
   unSelectedBg: "transparent"

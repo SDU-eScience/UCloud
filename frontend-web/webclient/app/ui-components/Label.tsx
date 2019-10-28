@@ -44,8 +44,7 @@ Label.defaultProps = {
   width: "100%",
   fontSize: 1,
   fontWeight: "bold",
-  color: "black",
-  theme
+  color: "black"
 };
 
 Label.displayName = "Label";

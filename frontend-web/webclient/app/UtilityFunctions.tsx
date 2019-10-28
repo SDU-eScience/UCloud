@@ -29,7 +29,7 @@ export const isLightThemeStored = (): boolean => {
 
 /**
  * Capitalizes the input string
- * @param str string to be lowercased and capitalized
+ * @param str string to be capitalized
  * @return {string}
  */
 export const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();

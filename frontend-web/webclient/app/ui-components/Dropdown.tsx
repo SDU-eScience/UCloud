@@ -35,9 +35,9 @@ Dropdown.defaultProps = {
 };
 
 interface DropdownProps {
-    hover?: boolean, 
-    fullWidth?: boolean
-};
+    hover?: boolean;
+    fullWidth?: boolean;
+}
 
 export const DropdownContent = styled.div<DropdownContentProps>`
     ${props => props.overflow ?

@@ -207,7 +207,7 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
   </svg>
 );
 
-const FtIconBase = ({fileIcon, size, theme, ...props}): JSX.Element => {
+const FtIconBase = ({fileIcon, size, ...props}): JSX.Element => {
   const hasExt = fileIcon.ext ? true : false;
   const ext4 = hasExt ? fileIcon.ext.substring(0, 4) : undefined;
   const type = hasExt ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
@@ -259,7 +259,6 @@ const FtIcon = styled(FtIconBase) <FtIconProps>`
 FtIcon.displayName = "FtIcon";
 
 FtIcon.defaultProps = {
-  theme,
   cursor: "inherit",
   size: 24
 };

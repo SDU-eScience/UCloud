@@ -6,7 +6,7 @@ import {Provider} from "react-redux";
 import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
 import {Cloud} from "../app/Authentication/SDUCloudObject";
-import dashboard from "../app/Dashboard/Redux/DashboardReducer"
+import dashboard from "../app/Dashboard/Redux/DashboardReducer";
 import {initDashboard} from "../app/DefaultObjects";
 import {dialogStore} from "../app/Dialog/DialogStore";
 import {SortBy, SortOrder} from "../app/Files";
@@ -50,9 +50,11 @@ describe("FileIcon", () => {
     test("FileIcon, not shared", () => {
         const mFile = mockFile({path: "path", type: "DIRECTORY"});
         const iconType = iconFromFilePath(mFile.path, mFile.fileType, "/home/mail@mailhost.dk");
-        expect(create(<FileIcon
-            fileIcon={iconType}
-        />)).toMatchSnapshot();
+        expect(create(
+            <ThemeProvider theme={theme}>
+                <FileIcon fileIcon={iconType} />
+            </ThemeProvider>
+        )).toMatchSnapshot();
     });
     test("FileIcon, shared", () => {
         const mFile = mockFile({path: "path", type: "DIRECTORY"});
@@ -63,7 +65,8 @@ describe("FileIcon", () => {
                     fileIcon={iconType}
                     shared
                 />
-            </ThemeProvider>)).toMatchSnapshot();
+            </ThemeProvider>
+        )).toMatchSnapshot();
     });
 });
 

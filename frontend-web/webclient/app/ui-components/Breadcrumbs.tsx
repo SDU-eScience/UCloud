@@ -4,7 +4,7 @@ import {Box, Icon, Text} from "ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
-const BreadCrumbsBase = styled.ul<{divider?: string}>`
+const BreadCrumbsBase = styled.ul`
     padding: 0;
     padding-right: 10px;
     margin: 0;
@@ -21,7 +21,7 @@ const BreadCrumbsBase = styled.ul<{divider?: string}>`
     & li + li:before {
         padding: 8px;
         color: ${p => p.theme.colors.text};
-        content: "${p => p.divider}";
+        content: "/";
     }
 
     & li span {
@@ -35,10 +35,6 @@ const BreadCrumbsBase = styled.ul<{divider?: string}>`
         text-decoration: none;
     }
 `;
-
-BreadCrumbsBase.defaultProps = {
-    divider: "/"
-};
 
 export interface BreadcrumbsList {
     currentPath: string;
@@ -71,25 +67,15 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
             {addHomeFolderLink ? (
                 <>
                     <Box ml="15px">
-                        <Icon
-                            size="30px"
-                            cursor="pointer"
-                            name="home"
-                            onClick={toHome}
-                        />
-                        <Text
-                            cursor="pointer"
-                            ml="-15px"
-                            fontSize="11px"
-                            onClick={toHome}
-                        >
+                        <Icon size="30px" cursor="pointer" name="home" onClick={toHome} />
+                        <Text cursor="pointer" ml="-15px" fontSize="11px" onClick={toHome}>
                             Go to home
                         </Text>
                     </Box>
                     <Text ml="8px" mr="8px" fontSize="25px">|</Text>
                 </>
             ) : null}
-            <BreadCrumbsBase divider="/">
+            <BreadCrumbsBase>
                 {breadcrumbs}
                 <li title={activePathsMapping.local}>
                     {activePathsMapping.local.slice(0, 20).trim()}{activePathsMapping.local.length > 20 ? "..." : ""}

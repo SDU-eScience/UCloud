@@ -53,7 +53,6 @@ const SelectBase = styled.select<SelectProps>`
 `;
 
 SelectBase.defaultProps = {
-  theme,
   m: 0,
   pl: 12,
   pr: 32,

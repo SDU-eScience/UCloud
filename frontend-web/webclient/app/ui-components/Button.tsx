@@ -2,31 +2,31 @@ import styled from "styled-components";
 import {ButtonStyleProps, height, HeightProps, SizeProps, space, SpaceProps, width, WidthProps} from "styled-system";
 import theme, {Theme, ThemeColor} from "./theme";
 
-const size = (p: {size: string; theme: Theme;}) => {
+const size = (p: {size: string, theme: Theme}) => {
   switch (p.size) {
     case "tiny":
       return {
-        fontSize: `${p.theme.fontSizes[0]}px`,
+        fontSize: `${theme.fontSizes[0]}px`,
         padding: "5px 10px"
       };
     case "small":
       return {
-        fontSize: `${p.theme.fontSizes[0]}px`,
+        fontSize: `${theme.fontSizes[0]}px`,
         padding: "7px 12px"
       };
     case "medium":
       return {
-        fontSize: `${p.theme.fontSizes[1]}px`,
+        fontSize: `${theme.fontSizes[1]}px`,
         padding: "9.5px 18px"
       };
     case "large":
       return {
-        fontSize: `${p.theme.fontSizes[2]}px`,
+        fontSize: `${theme.fontSizes[2]}px`,
         padding: "12px 22px"
       };
     default:
       return {
-        fontSize: `${p.theme.fontSizes[1]}px`,
+        fontSize: `${theme.fontSizes[1]}px`,
         padding: "9.5px 18px"
       };
   }
@@ -76,7 +76,6 @@ const Button = styled.button<ButtonProps>`
 `;
 
 Button.defaultProps = {
-  theme,
   textColor: "white",
   color: "blue",
   lineHeight: 1.5

@@ -2,7 +2,6 @@ import * as React from "react";
 import styled from "styled-components";
 import {Box, Icon} from ".";
 import {BoxProps} from "./Box";
-import theme from "./theme";
 
 interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   disabled?: boolean;
@@ -56,8 +55,7 @@ Checkbox.displayName = "Checkbox";
 Checkbox.defaultProps = {
   size: 20,
   checked: false,
-  disabled: false,
-  theme
+  disabled: false
 };
 
 export default Checkbox;

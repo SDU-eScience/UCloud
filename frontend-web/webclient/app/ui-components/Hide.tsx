@@ -44,10 +44,6 @@ const Hide = styled(Box) <HideProps>`
   ${hidden("xxl")}
 `;
 
-Hide.defaultProps = {
-  theme
-};
-
 Hide.displayName = "Hide";
 
 export default Hide;

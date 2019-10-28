@@ -52,10 +52,6 @@ const OutlineButton = styled(Button) <OutlineButtonProps>`
   ${size}
 `;
 
-OutlineButton.defaultProps = {
-  theme
-};
-
 OutlineButton.displayName = "OutlineButton";
 
 export default OutlineButton;

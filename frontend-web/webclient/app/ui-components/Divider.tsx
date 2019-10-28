@@ -15,7 +15,6 @@ Divider.displayName = "Divider";
 
 Divider.defaultProps = {
   borderColor: "borderGray",
-  theme,
   ml: 0,
   mr: 0
 };

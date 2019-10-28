@@ -60,10 +60,10 @@ const fadeIn = keyframes`
 const Badge = styled.div<SpaceProps & {color?: ThemeColor, bg?: BGColors}>`
   border-radius: 99999px;
   display: inline-block;
-  font-size: ${props => props.theme.fontSizes[0]}px;
+  font-size: ${theme.fontSizes[0]}px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: ${p => p.theme.letterSpacings.caps};
+  letter-spacing: ${theme.letterSpacings.caps};
   ${space} ${colorScheme} ${color};
 `;
 
@@ -71,8 +71,7 @@ Badge.displayName = "Badge";
 
 Badge.defaultProps = {
   px: 2,
-  py: 1,
-  theme
+  py: 1
 };
 
 const DevelopmentBadgeBase = styled(Badge)`

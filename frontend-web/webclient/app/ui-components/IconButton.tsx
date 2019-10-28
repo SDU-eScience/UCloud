@@ -30,8 +30,4 @@ const IconButton = ({name, size, ...props}: IconButtonProps) => (
 
 IconButton.displayName = "IconButton";
 
-IconButton.defaultProps = {
-  theme
-};
-
 export default IconButton;

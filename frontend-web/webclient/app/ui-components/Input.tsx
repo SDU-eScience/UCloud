@@ -5,7 +5,6 @@ import {
   width, WidthProps
 } from "styled-system";
 import Text from "./Text";
-import defaultTheme from "./theme";
 
 export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, noBorder?: boolean}) => {
   if (noBorder) return {"border-width": "0px"};
@@ -66,7 +65,6 @@ Input.displayName = "Input";
 
 Input.defaultProps = {
   id: "default",
-  theme: defaultTheme,
   width: "100%",
   noBorder: false,
   borderRadius: "5px",

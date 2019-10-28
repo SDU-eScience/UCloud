@@ -27,7 +27,6 @@ const InputGroup = styled.div<InputGroupProps>`
 `;
 
 InputGroup.defaultProps = {
-  theme,
   borderColor: "borderGray"
 };
 

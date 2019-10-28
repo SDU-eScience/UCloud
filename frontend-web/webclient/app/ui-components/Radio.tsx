@@ -49,8 +49,4 @@ const RadioIcon = styled(Icon)`
     vertical-align: middle;
 `;
 
-Radio.defaultProps = {
-  theme
-};
-
 export default Radio;
