@@ -14,7 +14,6 @@ const detailedApplicationSearch = (
     action: DetailedAppActions
 ): DetailedApplicationSearchReduxState => {
     switch (action.type) {
-        case DETAILED_APPS_SET_VERSION:
         case DETAILED_APPS_SET_NAME: {
             return {...state, ...action.payload};
         }

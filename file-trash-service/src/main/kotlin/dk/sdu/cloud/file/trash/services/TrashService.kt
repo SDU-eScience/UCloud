@@ -73,7 +73,7 @@ class TrashService(
         backgroundScope.launch {
             runTask(wsServiceClient, backgroundScope, "Moving files to trash", username) {
 
-                this.status =  "Moving files to trash"
+                this.status = "Moving files to trash"
                 val progress = Progress("Number of files", 0, files.size)
                 this.progress = progress
 
@@ -88,10 +88,23 @@ class TrashService(
     }
 
     private suspend fun moveFileToTrash(file: String, username: String, userCloud: AuthenticatedClient): Boolean {
+        val statResult = FileDescriptions.stat.call(
+            StatRequest(
+                path = file
+            ),
+            userCloud
+        )
+
+        val ownerName = if (statResult.statusCode.isSuccess()) {
+            statResult.orThrow().ownerNameOrNull ?: username
+        } else {
+            username
+        }
+
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
-                newPath = joinPath(trashDirectoryService.findTrashDirectory(username), file.fileName()),
+                newPath = joinPath(trashDirectoryService.findTrashDirectory(ownerName), file.fileName()),
                 policy = WriteConflictPolicy.RENAME
             ),
             userCloud

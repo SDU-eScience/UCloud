@@ -71,16 +71,12 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.advancedSearch) {
-            ok(
-                appStore.advancedSearch(
-                    ctx.securityPrincipal,
-                    request.name,
-                    request.version,
-                    request.tags,
-                    request.description,
-                    request.normalize()
-                )
-            )
+            ok(appStore.advancedSearch(
+                ctx.securityPrincipal,
+                request.query,
+                request.tags,
+                request.normalize()
+            ))
         }
 
         implement(AppStore.create) {

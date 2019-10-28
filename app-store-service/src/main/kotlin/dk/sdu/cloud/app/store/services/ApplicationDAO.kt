@@ -90,6 +90,11 @@ interface ApplicationDAO<Session> {
         tags: List<String>
     )
 
+    fun findTagsForApp(
+        session: Session,
+        applicationName: String
+    ) : List<TagEntity>
+
     fun updateDescription(
         session: Session,
         user: SecurityPrincipal,
@@ -113,15 +118,12 @@ interface ApplicationDAO<Session> {
 
     fun fetchLogo(session: Session, name: String): ByteArray?
 
-    fun advancedSearch(
+    fun findAllByID(
         session: Session,
         user: SecurityPrincipal,
-        name: String?,
-        version: String?,
-        tags: List<String>?,
-        description: String?,
+        embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationWithFavoriteAndTags>
+    ): List<ApplicationEntity>
 
     fun findLatestByTool(
         session: Session,
@@ -129,4 +131,10 @@ interface ApplicationDAO<Session> {
         tool: String,
         paging: NormalizedPaginationRequest
     ): Page<Application>
+
+    fun preparePageForUser(
+        session: Session,
+        user: String?,
+        page: Page<Application>
+    ): Page<ApplicationWithFavoriteAndTags>
 }

@@ -83,10 +83,10 @@ Some applications require changes to be visible immediately on other node.
 This is, for example, common with multi node applications. Because of this we
 support provisioning of file systems on demand. These file systems can be
 mounted by one or more jobs. The files stored in these file systems are not
-managed by SDUCloud at all. The only way to import and export files to and
-from them is through applications.
+managed by SDUCloud. Files in shared file systems can be imported and exported 
+through applications.
 
-You can read more about this feature [here](../app-fs-service).
+<!-- You can read more about this feature [here](../app-fs-service). -->
 
 ## Networking and Peering with Other Applications
 

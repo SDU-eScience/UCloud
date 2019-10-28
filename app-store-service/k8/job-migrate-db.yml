@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: app-store-service
-          image: registry.cloud.sdu.dk/sdu-cloud/app-store-service:0.7.0
+          image: registry.cloud.sdu.dk/sdu-cloud/app-store-service:0.10.1
           args:
           - /opt/service/bin/service
           - --config-dir
@@ -22,6 +22,8 @@ spec:
           - /etc/token-validation
           - --config-dir
           - /etc/psql
+          - --config-dir
+          - /etc/elasticsearch-credentials
           - --run-script
           - migrate-db
           volumeMounts:
@@ -31,6 +33,8 @@ spec:
             name: token-validation
           - mountPath: /etc/psql
             name: app-store-psql
+          - mountPath: /etc/elasticsearch-credentials
+            name: elasticsearch-credentials
 
       volumes:
       - name: refresh-token
@@ -45,6 +49,10 @@ spec:
         secret:
           optional: false
           secretName: app-store-psql
+      - name: elasticsearch-credentials
+        secret:
+          optional: false
+          secretName: elasticsearch-credentials
 
       restartPolicy: Never
       imagePullSecrets:
