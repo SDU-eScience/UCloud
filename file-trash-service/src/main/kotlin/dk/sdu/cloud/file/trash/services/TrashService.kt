@@ -79,7 +79,7 @@ class TrashService(
 
                 files.forEach {
                     launch {
-                        moveFileToTrash(it, username, userCloud)
+                         moveFileToTrash(it, username, userCloud)
                         progress.current++
                     }
                 }
@@ -88,10 +88,23 @@ class TrashService(
     }
 
     private suspend fun moveFileToTrash(file: String, username: String, userCloud: AuthenticatedClient): Boolean {
+        val statResult = FileDescriptions.stat.call(
+            StatRequest(
+                path = file
+            ),
+            userCloud
+        )
+
+        val ownerName = if (statResult.statusCode.isSuccess()) {
+            statResult.orThrow().ownerNameOrNull ?: username
+        } else {
+            username
+        }
+
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
-                newPath = joinPath(trashDirectoryService.findTrashDirectory(username), file.fileName()),
+                newPath = joinPath(trashDirectoryService.findTrashDirectory(ownerName), file.fileName()),
                 policy = WriteConflictPolicy.RENAME
             ),
             userCloud
