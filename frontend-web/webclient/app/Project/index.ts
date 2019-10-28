@@ -1,16 +1,16 @@
 import {APICallParameters} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 export interface ProjectMember {
-    username: string,
-    role: ProjectRole
+    username: string;
+    role: ProjectRole;
 }
 
 export interface Project {
-    id: string,
-    title: string,
-    members: ProjectMember[]
+    id: string;
+    title: string;
+    members: ProjectMember[];
 }
 
 export const emptyProject = (id: string): Project => ({
@@ -27,21 +27,21 @@ export enum ProjectRole {
 }
 
 export interface UserInProject {
-    id: string,
-    title: string,
-    whoami: ProjectMember
+    id: string;
+    title: string;
+    whoami: ProjectMember;
 }
 
 // TODO This is a service only API. We need a gateway API which is responsible for also creating a data management plan
-export const createProject = (payload: { title: string, principalInvestigator: string }): APICallParameters => ({
+export const createProject = (payload: {title: string, principalInvestigator: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
-    payload: payload,
+    payload,
     reloadId: Math.random(),
     disallowProjects: true
 });
 
-export const viewProject = (payload: { id: string }): APICallParameters => ({
+export const viewProject = (payload: {id: string}): APICallParameters => ({
     method: "GET",
     path: buildQueryString("/projects", payload),
     parameters: {
@@ -51,7 +51,7 @@ export const viewProject = (payload: { id: string }): APICallParameters => ({
     disallowProjects: true
 });
 
-export const addMemberInProject = (payload: { projectId: string, member: ProjectMember }): APICallParameters => ({
+export const addMemberInProject = (payload: {projectId: string, member: ProjectMember}): APICallParameters => ({
     method: "POST",
     path: "/projects/members",
     payload,
@@ -59,7 +59,7 @@ export const addMemberInProject = (payload: { projectId: string, member: Project
     disallowProjects: true
 });
 
-export const deleteMemberInProject = (payload: { projectId: string, member: string }): APICallParameters => ({
+export const deleteMemberInProject = (payload: {projectId: string, member: string}): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members",
     payload,
@@ -67,7 +67,9 @@ export const deleteMemberInProject = (payload: { projectId: string, member: stri
     disallowProjects: true
 });
 
-export const changeRoleInProject = (payload: { projectId: string, member: string, newRole: ProjectRole }): APICallParameters => ({
+export const changeRoleInProject = (
+    payload: {projectId: string, member: string, newRole: ProjectRole}
+): APICallParameters => ({
     method: "POST",
     path: "/projects/members/change-role",
     payload,
@@ -76,8 +78,8 @@ export const changeRoleInProject = (payload: { projectId: string, member: string
 });
 
 export interface ListProjectsRequest {
-    page: number,
-    itemsPerPage: number
+    page: number;
+    itemsPerPage: number;
 }
 
 export const listProjects = (parameters: ListProjectsRequest): APICallParameters<ListProjectsRequest> => ({
@@ -92,8 +94,8 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
 });
 
 export const roleInProject = (project: Project): ProjectRole | undefined => {
-    const member = project.members.find(member => {
-        return member.username == Cloud.username;
+    const member = project.members.find(m => {
+        return m.username === Cloud.username;
     });
 
     if (member === undefined) return undefined;

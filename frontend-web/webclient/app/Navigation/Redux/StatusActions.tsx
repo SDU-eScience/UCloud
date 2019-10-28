@@ -1,9 +1,8 @@
-import {UPDATE_PAGE_TITLE, UPDATE_STATUS, SET_ACTIVE_PAGE, SET_STATUS_LOADING} from "./StatusReducer";
-import {Status} from "..";
 import {PayloadAction, SetLoadingAction} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
-export type StatusActions = UpdatePageTitleAction | UpdateStatusAction | SetActivePage | SetLoading;
+import {SET_ACTIVE_PAGE, SET_STATUS_LOADING, UPDATE_PAGE_TITLE} from "./StatusReducer";
 
+export type StatusActions = UpdatePageTitleAction | SetActivePage | SetLoading;
 
 export type UpdatePageTitleAction = PayloadAction<typeof UPDATE_PAGE_TITLE, {title: string}>
 /**
@@ -15,28 +14,18 @@ export const updatePageTitle = (title: string): UpdatePageTitleAction => ({
     payload: {title}
 });
 
-type UpdateStatusAction = PayloadAction<typeof UPDATE_STATUS, {status: Status}>
-/**
- * Sets the sitewide status, concerning the health of the back end.
- * @param {Status} status the status to be set
- */
-export const updateStatus = (status: Status): UpdateStatusAction => ({
-    type: UPDATE_STATUS,
-    payload: {status}
-});
-
-type SetActivePage = PayloadAction<typeof SET_ACTIVE_PAGE, {page: SidebarPages}>
+type SetActivePage = PayloadAction<typeof SET_ACTIVE_PAGE, {page: SidebarPages}>;
 export const setActivePage = (page: SidebarPages): SetActivePage => ({
     type: SET_ACTIVE_PAGE,
     payload: {page}
 });
 
-type SetLoading = SetLoadingAction<typeof SET_STATUS_LOADING>
+type SetLoading = SetLoadingAction<typeof SET_STATUS_LOADING>;
 export const setLoading = (loading: boolean): SetLoading => ({
     type: SET_STATUS_LOADING,
     payload: {loading}
 });
 
 export interface SetStatusLoading {
-    setLoading: (loading: boolean) => void
+    setLoading: (loading: boolean) => void;
 }

@@ -191,10 +191,10 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
 });
 
 const mapStateToProps = ({
-                             simpleSearch,
-                             detailedFileSearch,
-                             detailedApplicationSearch
-                         }: ReduxObject): SimpleSearchStateProps & {favFilesCount: number, favAppCount: number} => ({
+    simpleSearch,
+    detailedFileSearch,
+    detailedApplicationSearch
+}: ReduxObject): SimpleSearchStateProps & {favFilesCount: number, favAppCount: number} => ({
     ...simpleSearch,
     favFilesCount: simpleSearch.files.items.filter(it => it.favorited).length,
     favAppCount: simpleSearch.applications.items.filter(it => it.favorite).length,
@@ -226,9 +226,9 @@ export function fileSearchBody(
         extensions: [...fileSearch.extensions],
         fileTypes,
         createdAt: typeof createdAt.after === "number" ||
-        typeof createdAt.before === "number" ? createdAt : undefined,
+            typeof createdAt.before === "number" ? createdAt : undefined,
         modifiedAt: typeof modifiedAt.after === "number" ||
-        typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            typeof modifiedAt.before === "number" ? modifiedAt : undefined,
         includeShares: fileSearch.includeShares,
         itemsPerPage,
         page

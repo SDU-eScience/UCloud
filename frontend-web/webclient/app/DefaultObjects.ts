@@ -5,7 +5,6 @@ import * as ApplicationRedux from "Applications/Redux";
 import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
 import {DetailedFileSearchReduxState, File, SortOrder} from "Files";
-import {Status} from "Navigation";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
@@ -15,12 +14,6 @@ import {Page, SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
 import {defaultAvatar} from "UserSettings/Avataaar";
-
-export const DefaultStatus: Status = {
-    title: "No Issues",
-    level: "NO ISSUES",
-    body: "The system is running as intended."
-};
 
 export enum KeyCode {
     ENTER = 13,
@@ -99,7 +92,6 @@ export interface NotificationsReduxObject {
 }
 
 export interface StatusReduxObject {
-    status: Status;
     title: string;
     page: SidebarPages;
     loading: boolean;
@@ -186,7 +178,6 @@ export const initHeader = (): HeaderSearchReduxObject => ({
 });
 
 export const initStatus = (): StatusReduxObject => ({
-    status: DefaultStatus,
     title: "",
     page: SidebarPages.None,
     loading: false

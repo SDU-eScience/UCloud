@@ -1,7 +1,4 @@
-import {
-    DetailedApplicationSearchReduxState,
-    FullAppInfo
-} from "Applications";
+import {DetailedApplicationSearchReduxState, FullAppInfo} from "Applications";
 import {HeaderSearchType} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
 import {AdvancedSearchRequest as AppSearchRequest} from "Applications";

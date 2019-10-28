@@ -1,13 +1,5 @@
-import { HeaderSearchType } from "DefaultObjects";
-import { defaultAvatar } from "UserSettings/Avataaar";
-
-export type StatusLevel = "NO ISSUES" | "MAINTENANCE" | "UPCOMING MAINTENANCE" | "ERROR";
-
-export interface Status {
-    title: string
-    level: StatusLevel
-    body: string
-}
+import {HeaderSearchType} from "DefaultObjects";
+import {defaultAvatar} from "UserSettings/Avataaar";
 
 interface HeaderStateToProps {
     prioritizedSearch: HeaderSearchType

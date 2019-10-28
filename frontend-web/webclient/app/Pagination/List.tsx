@@ -49,16 +49,18 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
         } else {
             if (props.page == null || props.page.items.length == 0) {
                 if (!props.customEmptyPage) {
-                    return <div>
-                        <Heading.h2>
-                            No results.
+                    return (
+                        <div>
+                            <Heading.h2>
+                                No results.
                         </Heading.h2>
-                    </div>;
+                        </div>
+                    );
                 } else {
-                    return props.customEmptyPage
+                    return props.customEmptyPage;
                 }
             } else {
-                return props.pageRenderer(props.page)
+                return props.pageRenderer(props.page);
             }
         }
     }

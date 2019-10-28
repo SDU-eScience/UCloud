@@ -33,8 +33,8 @@ export const receiveSingleNotification = (notification: Notification): ReceiveSi
 });
 
 interface ReceiveNotificationAction {
-    type: typeof RECEIVE_NOTIFICATIONS,
-    payload: {items: Notification[]}
+    type: typeof RECEIVE_NOTIFICATIONS;
+    payload: {items: Notification[]};
 }
 /**
  * Returns the action for receiving the notifications
@@ -90,7 +90,9 @@ export const readAllNotifications = async (): Promise<ReadAllAction | SetNotific
         await Cloud.post(readAllNotificationsQuery);
         return {type: READ_ALL};
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to mark notifications as read, please try again later"));
+        snackbarStore.addFailure(
+            errorMessageOrDefault(e, "Failed to mark notifications as read, please try again later")
+        );
         return notificationError();
     }
 

@@ -215,9 +215,9 @@ const NotificationWrapper = styled(Flex) <{read: boolean}>`
     border-radius: 3px;
     cursor: pointer;
     width: 100%;
-    background-color: ${({theme}) => theme.colors.white}
+    background-color: ${p => p.theme.colors.white}
     &:hover {
-        background-color: ${({theme}) => theme.colors.lightGray};
+        background-color: ${p => p.theme.colors.lightGray};
     }
 `;
 

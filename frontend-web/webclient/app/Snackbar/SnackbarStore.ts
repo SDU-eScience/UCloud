@@ -19,7 +19,7 @@ class SnackbarStore {
     public addSnack(snack: Snack) {
         this.snackQueue.push(snack);
 
-        if (this.activeExpiresAt == -1) {
+        if (this.activeExpiresAt === -1) {
             this.process();
         }
     }
@@ -29,10 +29,10 @@ class SnackbarStore {
             message,
             type: SnackType.Failure,
             lifetime
-        })
+        });
     }
 
-    requestCancellation() {
+    public requestCancellation() {
         if (this.activeExpiresAt !== -1) {
             // Setting this to 0 will cause the invariant (-1 means no active) to still be true while still cancelling
             // in next loop.
@@ -40,7 +40,7 @@ class SnackbarStore {
         }
     }
 
-    process() {
+    private process() {
         setTimeout(() => {
             const now = timestampUnixMs();
             const deadline = this.activeExpiresAt;

@@ -1,16 +1,16 @@
-import * as React from "react";
-import {MainContainer} from "MainContainer/MainContainer";
-import Button from "ui-components/Button";
-import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import * as Pagination from "Pagination";
-import {emptyPage} from "DefaultObjects";
 import {useCloudAPI} from "Authentication/DataHook";
-import {Page} from "Types";
+import {emptyPage} from "DefaultObjects";
+import {MainContainer} from "MainContainer/MainContainer";
+import * as Pagination from "Pagination";
 import {listProjects, ListProjectsRequest, UserInProject} from "Project/index";
-import Link from "ui-components/Link";
-import {Dispatch} from "redux";
+import * as React from "react";
 import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {Page} from "Types";
+import Button from "ui-components/Button";
 import * as Heading from "ui-components/Heading";
+import Link from "ui-components/Link";
+import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 
 const List: React.FunctionComponent<DispatchProps> = props => {
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
@@ -25,11 +25,13 @@ const List: React.FunctionComponent<DispatchProps> = props => {
             main={(
                 <Pagination.List
                     page={response.data}
-                    pageRenderer={page => (<>
-                        {page.items.map(e =>
-                            <ProjectSummary summary={e} setProject={props.setProject} key={e.id} />
-                        )}
-                    </>)}
+                    pageRenderer={page => (
+                        <>
+                            {page.items.map(e =>
+                                <ProjectSummary summary={e} setProject={props.setProject} key={e.id} />
+                            )}
+                        </>
+                    )}
                     loading={response.loading}
                     onPageChanged={(newPage, page) => setFetchParams(listProjects({page: newPage, itemsPerPage: 50}))}
                 />

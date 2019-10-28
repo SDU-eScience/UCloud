@@ -14,13 +14,13 @@ const _ContextSwitcher: React.FunctionComponent<{maxSize: number} & ContextSwitc
     const userContext = props.activeProject || "Personal Project";
 
     return (
-        <SidebarTextLabel icon={"projects"} height={"25px"} textSize={1} iconSize="1em" space={".5em"}>
-            <Link to={"/projects"}>
-                <Box cursor={"pointer"}>
+        <SidebarTextLabel icon="projects" height="25px" textSize={1} iconSize="1em" space=".5em">
+            <Link to="/projects">
+                <Box cursor="pointer">
                     <EllipsedText
                         width={props.maxSize - 20}
-                        fontSize={"14px"}
-                        as={"span"}
+                        fontSize="14px"
+                        as="span"
                         title={userContext}
                     >
                         {userContext}
@@ -35,8 +35,6 @@ interface ContextSwitcherReduxProps {
     activeProject?: string;
 }
 
-export const ContextSwitcher = connect(
-    (state: ReduxObject) => ({
-        activeProject: state.project.project
-    })
-)(_ContextSwitcher);
+const mapStateToProps = (state: ReduxObject) => ({activeProject: state.project.project});
+
+export const ContextSwitcher = connect(mapStateToProps)(_ContextSwitcher);

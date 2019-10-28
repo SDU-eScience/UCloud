@@ -28,7 +28,7 @@ const Notifications = (
                     if (n.id === action.payload.id) n.read = true;
                     return n;
                 })
-            }
+            };
         }
         case READ_ALL: {
             return {
@@ -37,7 +37,7 @@ const Notifications = (
                     n.read = true;
                     return n;
                 })
-            }
+            };
         }
         case NOTIFICATIONS_ERROR:
         default: {

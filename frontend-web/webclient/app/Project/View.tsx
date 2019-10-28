@@ -1,11 +1,10 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {LoadingMainContainer} from "MainContainer/MainContainer";
-import * as React from "react";
-import {useEffect, useRef, useState} from "react";
-import {useParams} from "react-router";
 import {
-    addMemberInProject, changeRoleInProject, deleteMemberInProject,
+    addMemberInProject,
+    changeRoleInProject,
+    deleteMemberInProject,
     emptyProject,
     Project,
     ProjectMember,
@@ -13,10 +12,13 @@ import {
     roleInProject,
     viewProject
 } from "Project/index";
-import Box from "ui-components/Box";
-import {defaultAvatar} from "UserSettings/Avataaar";
+import * as React from "react";
+import {useEffect, useRef, useState} from "react";
+import {useParams} from "react-router";
 import {Button, Flex, Input, Label} from "ui-components";
+import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import {defaultAvatar} from "UserSettings/Avataaar";
 
 const View: React.FunctionComponent = () => {
     const {id} = useParams<{id: string}>();
@@ -74,7 +76,8 @@ const View: React.FunctionComponent = () => {
                             project={project.data}
                             member={e}
                             allowManagement={allowManagement}
-                            onActionComplete={() => reload()} />
+                            onActionComplete={() => reload()}
+                        />
                     ))
                     }
                 </>

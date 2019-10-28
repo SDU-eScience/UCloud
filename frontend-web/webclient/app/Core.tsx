@@ -24,7 +24,6 @@ import {LoginPage} from "Login/Login";
 import Wayf from "Login/Wayf";
 import {MainContainer} from "MainContainer/MainContainer";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
-import Status from "Navigation/StatusPage";
 import NoVNCClient from "NoVNC/NoVNCClient";
 import {Playground} from "Playground/Playground";
 import ProjectCreate from "Project/Create";
@@ -62,16 +61,7 @@ const Core = () => {
                     <Route exact path="/files/preview" component={requireAuth(FilePreview)} />
                     <Route exact path="/files" component={requireAuth(Files)} />
 
-                    <Route
-                        exact
-                        path="/activity"
-                        component={requireAuth(Activity)}
-                    />
-                    <Route
-                        exact
-                        path="/status"
-                        component={requireAuth(Status)}
-                    />
+                    <Route exact path="/activity" component={requireAuth(Activity)} />
                     <Route
                         exact
                         path="/accounting/:resource/:subResource"

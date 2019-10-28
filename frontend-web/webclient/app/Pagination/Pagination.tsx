@@ -1,7 +1,7 @@
 import * as React from "react";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {Button, Flex, Input, OutlineButton, Text} from "ui-components";
 import styled from "styled-components";
+import {Button, Flex, Input, OutlineButton, Text} from "ui-components";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 import {TextSpan} from "ui-components/Text";
 
 const EntriesPerPageSelectorOptions = [

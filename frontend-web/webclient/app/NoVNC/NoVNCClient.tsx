@@ -1,71 +1,71 @@
-import * as React from "react";
 import RFB from "@novnc/novnc/core/rfb";
-import {MainContainer} from "MainContainer/MainContainer";
-import {Button, Heading, OutlineButton} from "ui-components";
-import {SnackType} from "Snackbar/Snackbars";
-import {connect} from "react-redux";
-import {errorMessageOrDefault, requestFullScreen} from "UtilityFunctions";
-import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {cancelJobQuery, cancelJobDialog} from "Utilities/ApplicationUtilities";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {MainContainer} from "MainContainer/MainContainer";
 import PromiseKeeper from "PromiseKeeper";
+import * as React from "react";
+import {connect} from "react-redux";
+import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Button, Heading, OutlineButton} from "ui-components";
+import {cancelJobDialog, cancelJobQuery} from "Utilities/ApplicationUtilities";
+import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
+import {errorMessageOrDefault, requestFullScreen} from "UtilityFunctions";
 
 interface RFB {
-    constructor(): RFB
+    constructor: () => RFB;
 
     // Properties
-    viewOnly: boolean
-    focusOnClick: boolean
-    touchButton: number
-    clipViewPort: boolean
-    dragViewPort: boolean
-    scaleViewPort: boolean
-    resizeSession: boolean
-    showDotCursor: boolean
-    background: string
-    readonly capabilities: {}
+    viewOnly: boolean;
+    focusOnClick: boolean;
+    touchButton: number;
+    clipViewPort: boolean;
+    dragViewPort: boolean;
+    scaleViewPort: boolean;
+    resizeSession: boolean;
+    showDotCursor: boolean;
+    background: string;
+    readonly capabilities: {};
     // Methods
     /**
      * Disconnect from the server.
      */
-    disconnect: () => void
+    disconnect: () => void;
     /**
      * Send credentials to server. Should be called after the credentialsrequired event has fired.
      */
-    sendCredentials: (credentials: any) => void
+    sendCredentials: (credentials: any) => void;
     /**
      * Send a key event.
      */
-    sendKey: (keysym: number, code: number, down?: boolean) => void
+    sendKey: (keysym: number, code: number, down?: boolean) => void;
     /**
      * Send Ctrl-Alt-Del key sequence.
      */
-    sendCtrlAltDel: () => void
+    sendCtrlAltDel: () => void;
     /**
      * Move keyboard focus to the remote session.
      */
-    focus: () => void
+    focus: () => void;
     /**
      * Remove keyboard focus from the remote session.
      */
-    blur: () => void
+    blur: () => void;
     /**
      * Request a shutdown of the remote machine.
      */
-    machineShutdown: () => void
+    machineShutdown: () => void;
     /**
      * Request a reboot of the remote machine.
      */
-    machineReboot: () => void
+    machineReboot: () => void;
     /**
      * Request a reset of the remote machine.
      */
-    machineReset: () => void
+    machineReset: () => void;
     /**
      * Send clipboard contents to server.
      */
-    clipboardPasteFrom: (text: string) => void
+    clipboardPasteFrom: (text: string) => void;
 }
 
 function NoVNCClient(props: RouterLocationProps) {
@@ -86,20 +86,20 @@ function NoVNCClient(props: RouterLocationProps) {
         return () => {
             if (isConnected) rfb!.disconnect();
             promiseKeeper.cancelPromises();
-        }
+        };
     }, []);
 
     function connect() {
         try {
             const protocol = window.location.protocol === "http:" ? "ws:" : "wss:";
-            const rfb = new RFB(document.getElementsByClassName("noVNC")[0], `${protocol}//${window.location.host}${path}`, {
+            const rfbClient = new RFB(document.getElementsByClassName("noVNC")[0], `${protocol}//${window.location.host}${path}`, {
                 credentials: {password}
             });
 
             /* FIXME: Doesn't seem to work properly, e.g. if connection fails */
-            rfb.addEventListener("disconnect", () => setConnected(false));
+            rfbClient.addEventListener("disconnect", () => setConnected(false));
             /* FIXME END */
-            setRFB(rfb);
+            setRFB(rfbClient);
             setConnected(true);
         } catch (e) {
             snackbarStore.addSnack({
@@ -140,31 +140,36 @@ function NoVNCClient(props: RouterLocationProps) {
                     });
                 }
             }
-        })
+        });
     }
 
-    const mountNode = <div className="noVNC"/>;
-    const main = <>
-        <Heading mb="5px">
-            {isConnected ? <OutlineButton ml="15px" mr="10px" onClick={() => disconnect()}>
-                    Disconnect
-                </OutlineButton> :
-                <div><Button ml="15px" onClick={() => connect()}>
-                    Connect
-                </Button>
-                    {!isCancelled ? <Button ml="8px" color="red" onClick={() => cancelJob()}>
-                        Cancel Job
-                    </Button> : null}
-                </div>
-            }
-            {isConnected ? <OutlineButton onClick={() => toFullScreen()}>Fullscreen</OutlineButton> : null}
-        </Heading>
-        {mountNode}
-    </>;
+    const mountNode = <div className="noVNC" />;
+    const main = (
+        <>
+            <Heading mb="5px">
+                {isConnected ? (
+                    <OutlineButton ml="15px" mr="10px" onClick={() => disconnect()}>
+                        Disconnect
+                    </OutlineButton>
+                ) : (
+                        <div>
+                            <Button ml="15px" onClick={() => connect()}>
+                                Connect
+                        </Button>
+                            {isCancelled ? null : (
+                                <Button ml="8px" color="red" onClick={() => cancelJob()}>
+                                    Cancel Job
+                            </Button>
+                            )}
+                        </div>
+                    )}
+                {isConnected ? <OutlineButton onClick={() => toFullScreen()}>Fullscreen</OutlineButton> : null}
+            </Heading>
+            {mountNode}
+        </>
+    );
 
-    return <MainContainer
-        main={main}
-    />;
+    return <MainContainer main={main} />;
 }
 
 export default connect(null, null)(NoVNCClient);
