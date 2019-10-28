@@ -6,7 +6,7 @@ import * as DataTypes from "./DataTypes";
 import * as MockedChart from "./mock/chart.json";
 
 interface ChartProps {
-    chart?: API.Chart<API.DataPoint2D>
+    chart?: API.Chart<API.DataPoint2D>;
 }
 
 function getOrElse<T>(idx: number, otherwise: T, array?: Array<T | null>): T {

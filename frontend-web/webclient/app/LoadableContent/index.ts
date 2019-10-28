@@ -1,10 +1,10 @@
-import {ErrorMessage, unwrap, isError} from "Utilities/XHRUtils";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {ErrorMessage, isError, unwrap} from "Utilities/XHRUtils";
 
 export interface LoadableContent<Content = any> {
-    loading: boolean
-    error?: ErrorMessage
-    content?: Content
+    loading: boolean;
+    error?: ErrorMessage;
+    content?: Content;
 }
 
 export const emptyLoadableContent = <T = any>(): LoadableContent<T> => ({
@@ -20,17 +20,17 @@ export enum LoadableEventTag {
 export type LoadableEvent<Content> = LoadableEventLoading | LoadableEventError | LoadableEventContent<Content>;
 
 interface LoadableEventLoading {
-    type: typeof LoadableEventTag.LOADING
-    loading: boolean
+    type: typeof LoadableEventTag.LOADING;
+    loading: boolean;
 }
 
 interface LoadableEventError {
-    type: typeof LoadableEventTag.ERROR
+    type: typeof LoadableEventTag.ERROR;
 }
 
 interface LoadableEventContent<Content> {
-    type: typeof LoadableEventTag.CONTENT
-    content: Content
+    type: typeof LoadableEventTag.CONTENT;
+    content: Content;
 }
 
 export function loadableEventToContent<T>(event: LoadableEvent<T>): LoadableContent<T> {
@@ -48,7 +48,9 @@ export const loadingEvent = (loading: boolean): LoadableEventLoading => ({
     type: LoadableEventTag.LOADING, loading
 });
 
-export async function unwrapCall<T>(httpResponse: Promise<{request: XMLHttpRequest, response: T}>): Promise<LoadableEvent<T>> {
+export async function unwrapCall<T>(
+    httpResponse: Promise<{request: XMLHttpRequest, response: T}>
+): Promise<LoadableEvent<T>> {
     const message = await unwrap(httpResponse);
     if (isError(message)) {
         snackbarStore.addFailure(`${message.statusCode}, ${message.errorMessage}`);

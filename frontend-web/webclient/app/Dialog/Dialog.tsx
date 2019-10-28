@@ -1,7 +1,7 @@
-import * as React from "react";
-import * as ReactModal from "react-modal";
-import {useEffect, useState} from "react";
 import {dialogStore} from "Dialog/DialogStore";
+import * as React from "react";
+import {useEffect, useState} from "react";
+import * as ReactModal from "react-modal";
 
 const Dialog: React.FunctionComponent = () => {
     const [dialogs, setDialogs] = useState<JSX.Element[]>([]);

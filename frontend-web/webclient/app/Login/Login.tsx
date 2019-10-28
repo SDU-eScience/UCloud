@@ -273,7 +273,15 @@ interface LoginProps {
 const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps) => !enabled2fa ? (
     <>
         <Input type="hidden" value="web-csrf" name="service" />
-        <Input ref={usernameRef} autoFocus mb="0.5em" type="text" name="username" id="username" placeholder="Username" />
+        <Input
+            ref={usernameRef}
+            autoFocus
+            mb="0.5em"
+            type="text"
+            name="username"
+            id="username"
+            placeholder="Username"
+        />
         <Input ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
     </>
 ) : null;

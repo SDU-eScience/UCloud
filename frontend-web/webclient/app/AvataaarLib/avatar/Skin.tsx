@@ -12,7 +12,8 @@ function makeColor(name: string, color: string) {
       <g
         id="Skin/👶🏽-03-Brown"
         mask={`url(#${props.maskID})`}
-        fill={color}>
+        fill={color}
+      >
         <g transform="translate(0.000000, 0.000000)" id="Color">
           <rect x="0" y="0" width="264" height="280" />
         </g>
