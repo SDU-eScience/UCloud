@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.trash.storageFile
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
@@ -22,6 +23,7 @@ class TrashTest {
     private lateinit var service: TrashService
     private lateinit var micro: Micro
     private lateinit var cloud: AuthenticatedClient
+    private lateinit var backgroundScope: BackgroundScope
 
     private fun mockStat(returnDirectory: Boolean = false) {
         ClientMock.mockCallSuccess(
@@ -72,8 +74,15 @@ class TrashTest {
 
     @BeforeTest
     fun initTest() {
+        backgroundScope = BackgroundScope()
+        backgroundScope.init()
+
         micro = initializeMicro()
-        service = TrashService(TrashDirectoryService(ClientMock.authenticatedClient))
+        service = TrashService(
+            TrashDirectoryService(ClientMock.authenticatedClient),
+            ClientMock.authenticatedClient,
+            backgroundScope
+        )
         cloud = ClientMock.authenticatedClient
     }
 
