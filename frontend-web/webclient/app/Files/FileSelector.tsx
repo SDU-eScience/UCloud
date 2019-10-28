@@ -4,16 +4,9 @@ import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 import {Box} from "ui-components";
-import {
-    MOCK_RELATIVE,
-    mockFile,
-    resolvePath
-} from "Utilities/FileUtilities";
+import {MOCK_RELATIVE, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {addTrailingSlash} from "UtilityFunctions";
-import {
-    File,
-    FileSelectorProps,
-} from ".";
+import {File, FileSelectorProps} from ".";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const [path, setPath] = useState<string>(Cloud.homeFolder);

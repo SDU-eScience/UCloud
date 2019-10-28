@@ -1,10 +1,10 @@
 import {ApplicationMetadata} from "Applications";
 import {Cloud} from "Authentication/SDUCloudObject";
+import {History} from "history";
 import {setLoading} from "Navigation/Redux/StatusActions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import {hpcJobQueryPost} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {History} from "history";
 
 export async function quickLaunchCallback(
     app: QuickLaunchApp,

@@ -1,8 +1,8 @@
-import { Analysis } from "Applications";
-import { File } from "Files";
-import { Notification } from "Notifications"
+import {Analysis} from "Applications";
+import {File} from "Files";
+import {Notification} from "Notifications"
 
-export interface DashboardProps extends DashboardOperations, DashboardStateProps { }
+export type DashboardProps = DashboardOperations & DashboardStateProps;
 
 export interface DashboardStateProps {
     favoriteFiles: File[]

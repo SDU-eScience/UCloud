@@ -5,7 +5,12 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Box, Button, TextArea} from "ui-components";
 import {errorMessageOrDefault} from "UtilityFunctions";
 
-export class ErrorBoundary extends React.Component<{}, {hasError: boolean, error?: Error, errorInfo?: React.ErrorInfo}> {
+interface ErrorBoundaryState {
+    hasError: boolean;
+    error?: Error;
+    errorInfo?: React.ErrorInfo;
+}
+export class ErrorBoundary extends React.Component<{}, ErrorBoundaryState> {
     public static getDerivedStateFromError() {
         return {hasError: true, errorSent: false};
     }
@@ -67,7 +72,7 @@ export class ErrorBoundary extends React.Component<{}, {hasError: boolean, error
                 message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location.pathname},\nAdditional info: ${textAreaContent}`
             });
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"))
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
         }
         ErrorBoundary.redirectToDashboard();
     }

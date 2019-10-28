@@ -77,7 +77,8 @@ export default function Avatar(props: AvatarComponentProps) {
                             id="Avataaar"
                             strokeWidth="1"
                             fillRule="evenodd"
-                            mask="url(#mask-4)">
+                            mask="url(#mask-4)"
+                        >
                             <g id="Body" transform="translate(32.000000, 36.000000)">
                                 <mask id="mask-6" fill="white">
                                     <use xlinkHref="#path-5" />
@@ -94,7 +95,9 @@ export default function Avatar(props: AvatarComponentProps) {
                             </g>
                             <Clothe
                                 optionValue={props.clotheType}
-                                color={props.clotheColor} graphic={props.graphicType} />
+                                color={props.clotheColor}
+                                graphic={props.graphicType}
+                            />
                             <Face eyebrow={props.eyebrowType} eyes={props.eyeType} mouth={props.mouthType} />
                             <Top optionValue={props.topType} facialHair={props.facialHairType} {...props}>
                                 <Accessories optionValue={props.accessoriesType} />

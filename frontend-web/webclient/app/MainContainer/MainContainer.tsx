@@ -20,7 +20,16 @@ export interface MainContainerProps extends MainContainerStateProps {
     headerSize?: number;
 }
 
-export const _MainContainer = ({sidebar, main, additional, header, sidebarSize = 240, headerSize = 96, responsiveState}: MainContainerProps) => {
+// tslint:disable-next-line: variable-name
+export const _MainContainer = ({
+    sidebar,
+    main,
+    additional,
+    header,
+    sidebarSize = 240,
+    headerSize = 96,
+    responsiveState
+}: MainContainerProps) => {
     const leftSidebarSize = responsiveState!.greaterThan.xl ? 190 : 68; // main website sidebar H size
     const topMenuSize = 48; // main website top menu V size
     const pad = 14; // padding unit
@@ -98,12 +107,14 @@ export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerP
     const header = props.loading || props.error !== undefined ? props.fallbackHeader : props.header;
     const sidebar = props.loading || props.error !== undefined ? props.fallbackSidebar : props.sidebar;
 
-    return <MainContainer
-        {...props}
-        main={main}
-        header={header}
-        sidebar={sidebar}
-    />;
+    return (
+        <MainContainer
+            {...props}
+            main={main}
+            header={header}
+            sidebar={sidebar}
+        />
+    );
 };
 
 export interface LoadableMainContainerProps<T = any> extends MainContainerProps {
@@ -117,10 +128,13 @@ export function LoadableMainContainer(props: LoadableMainContainerProps): JSX.El
         const main = !!props.loadable.error ?
             <Heading.h2>{props.loadable.error.statusCode} - {props.loadable.error.errorMessage}</Heading.h2> :
             <Spinner />;
-        return <MainContainer
-            header={props.fallbackHeader}
-            sidebar={props.fallbackSidebar}
-            main={main} />;
+        return (
+            <MainContainer
+                header={props.fallbackHeader}
+                sidebar={props.fallbackSidebar}
+                main={main}
+            />
+        );
     } else {
         return <MainContainer {...props} />;
     }

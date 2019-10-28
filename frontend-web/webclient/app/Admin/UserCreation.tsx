@@ -43,13 +43,13 @@ function UserCreation(props: UserCreationOperations) {
     async function submit(e: React.SyntheticEvent) {
         e.preventDefault();
 
-        let usernameError = false;
-        let passwordError = false;
+        let hasUsernameError = false;
+        let hasPasswordError = false;
         const {username, password, repeatedPassword} = state;
-        if (!username) usernameError = true;
-        if (!password || password !== repeatedPassword) passwordError = true;
-        setState({...state, usernameError, passwordError});
-        if (!usernameError && !passwordError) {
+        if (!username) hasUsernameError = true;
+        if (!password || password !== repeatedPassword) hasPasswordError = true;
+        setState({...state, usernameError: hasUsernameError, passwordError: hasPasswordError});
+        if (!hasUsernameError && !hasPasswordError) {
             try {
                 props.setLoading(true);
                 await promiseKeeper.makeCancelable(
