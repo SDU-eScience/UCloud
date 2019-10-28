@@ -98,7 +98,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
     } = props;
     favoriteFiles.forEach(f => f.favorited = true);
     const main = (
-        <Flex>
+        <>
             <GridCardGroup minmax={290}>
                 <DashboardFavoriteFiles
                     files={favoriteFiles}
@@ -134,7 +134,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
                     </Box>
                 </Box>
             </GridCardGroup>
-        </Flex>
+        </>
     );
 
     return (<MainContainer main={main} />);
