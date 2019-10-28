@@ -94,12 +94,10 @@ interface TextLabelProps {
     title?: string;
 }
 
-export const SidebarTextLabel = (
-    {
-        icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-        iconSize = "24", space = "22px", textSize = 3, hover = true
-    }: TextLabelProps
-) => (
+export const SidebarTextLabel = ({
+    icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
+    iconSize = "24", space = "22px", textSize = 3, hover = true
+}: TextLabelProps) => (
         <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
             <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
             <Text fontSize={textSize}> {children} </Text>
