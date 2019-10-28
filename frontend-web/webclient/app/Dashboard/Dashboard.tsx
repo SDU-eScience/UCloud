@@ -84,7 +84,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
 
     const favoriteOrUnfavorite = (file: File) => {
         favoriteFile(file, Cloud);
-        props.receiveFavorites(favoriteFiles.filter(f => f.favorited));
+        props.receiveFavorites(favoriteFiles.filter(f => f.fileId !== file.fileId));
     };
 
     const {
@@ -96,7 +96,6 @@ function Dashboard(props: DashboardProps & {history: History}) {
         recentLoading,
         analysesLoading
     } = props;
-    favoriteFiles.forEach(f => f.favorited = true);
     const main = (
         <>
             <GridCardGroup minmax={290}>
