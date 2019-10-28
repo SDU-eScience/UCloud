@@ -98,7 +98,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
     } = props;
     favoriteFiles.forEach(f => f.favorited = true);
     const main = (
-        <>
+        <Flex>
             <GridCardGroup minmax={290}>
                 <DashboardFavoriteFiles
                     files={favoriteFiles}
@@ -121,16 +121,20 @@ function Dashboard(props: DashboardProps & {history: History}) {
                     notifications={notifications}
                     readAll={() => props.readAll()}
                 />
-
-                <DashboardCard title="Storage Used" isLoading={false}>
-                    <Accounting.Usage resource="storage" subResource="bytesUsed" />
-                </DashboardCard>
-
-                <DashboardCard title="Compute Time Used" isLoading={false}>
-                    <Accounting.Usage resource="compute" subResource="timeUsed" />
-                </DashboardCard>
+                <Box>
+                    <Box mb="6px" height="142px">
+                        <DashboardCard title="Storage Used" isLoading={false}>
+                            <Accounting.Usage resource="storage" subResource="bytesUsed" />
+                        </DashboardCard>
+                    </Box>
+                    <Box height="142px">
+                        <DashboardCard title="Compute Time Used" isLoading={false}>
+                            <Accounting.Usage resource="compute" subResource="timeUsed" />
+                        </DashboardCard>
+                    </Box>
+                </Box>
             </GridCardGroup>
-        </>
+        </Flex>
     );
 
     return (<MainContainer main={main} />);
