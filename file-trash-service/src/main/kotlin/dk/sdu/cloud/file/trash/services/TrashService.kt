@@ -73,13 +73,13 @@ class TrashService(
         backgroundScope.launch {
             runTask(wsServiceClient, backgroundScope, "Moving files to trash", username) {
 
-                this.status =  "Moving files to trash"
+                this.status = "Moving files to trash"
                 val progress = Progress("Number of files", 0, files.size)
                 this.progress = progress
 
                 files.forEach {
                     launch {
-                         moveFileToTrash(it, username, userCloud)
+                        moveFileToTrash(it, username, userCloud)
                         progress.current++
                     }
                 }
