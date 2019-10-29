@@ -17,6 +17,7 @@
 * [Avatar service](avatar-service/README.md)
 * [File storage service](storage-service/README.md)
     * [Files](storage-service/wiki/files.md)
+    * [Permissions](storage-service/wiki/permissions.md)
     * [Events](storage-service/wiki/events.md)
     * [Sensitivity](storage-service/wiki/sensitivity.md)
     * [Workspaces](storage-service/wiki/workspaces.md) 
