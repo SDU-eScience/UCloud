@@ -89,7 +89,8 @@ function Modification(props: AvataaarModificationOperations) {
                             update={value => setAvatar({...avatar, hatColor: value})}
                             options={Options.HatColor}
                             title="Hat color"
-                            disabled={!["Turban", "Hijab", "WinterHat1", "WinterHat2", "WinterHat3", "WinterHat4"].includes(avatar.top)}
+                            disabled={!["Turban", "Hijab", "WinterHat1", "WinterHat2", "WinterHat3", "WinterHat4"]
+                                        .includes(avatar.top)}
                         />
                         <AvatarSelect
                             defaultValue={avatar.topAccessory}
@@ -231,5 +232,5 @@ const defaultAvatar = ({
 });
 
 type AvatarType = typeof defaultAvatar;
-export default connect<AvataaarModificationStateProps, AvataaarModificationOperations>(mapStateToProps, mapDispatchToProps)(Modification);
+export default connect(mapStateToProps, mapDispatchToProps)(Modification);
 export {defaultAvatar, AvatarType};

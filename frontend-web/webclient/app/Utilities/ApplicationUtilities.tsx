@@ -190,7 +190,8 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
     map.forEach((r, key) => {
         const parameter = appParameters.find(it => it.name === key);
         if (!r.current) return;
-        if (("value" in r.current && !r.current.value) || ("checkValidity" in r.current && !r.current.checkValidity())) return;
+        if (("value" in r.current && !r.current.value) || ("checkValidity" in r.current && !r.current.checkValidity()))
+            return;
         if (!parameter) return;
         if ("value" in r.current) {
             switch (parameter.type) {

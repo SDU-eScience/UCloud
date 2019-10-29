@@ -32,7 +32,7 @@ export const multipartUpload = async ({
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                snackbarStore.addSnack({message: statusToError(request.status), type: SnackType.Failure})
+                snackbarStore.addSnack({message: statusToError(request.status), type: SnackType.Failure});
         }
     };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -73,7 +73,7 @@ export const bulkUpload = async (
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                snackbarStore.addSnack({message: statusToError(request.status), type: SnackType.Failure})
+                snackbarStore.addSnack({message: statusToError(request.status), type: SnackType.Failure});
     };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     let nextProgressUpdate = new Date().getTime();
@@ -117,7 +117,7 @@ function statusToError(status: number) {
             return "Internal Server Error Occurred";
         }
         default:
-            return "An error ocurred."
+            return "An error ocurred.";
     }
 }
 

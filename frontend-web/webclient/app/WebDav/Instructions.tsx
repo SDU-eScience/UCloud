@@ -17,7 +17,7 @@ const macos2 = require("Assets/Images/webdav/macos_dav_2.png");
 
 const nautilus1 = require("Assets/Images/webdav/nautilus_dav_1.png");
 
-export const Instructions: React.FunctionComponent<{ token: string }> = props => {
+export const Instructions: React.FunctionComponent<{token: string}> = props => {
     const server = inDevEnvironment() || window.location.host === "dev.cloud.sdu.dk" ?
         "https://webdav.dev.cloud.sdu.dk/" : "https://dav.cloud.sdu.dk/";
 
@@ -36,7 +36,7 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                                 Open up Explorer and right-click <i>"This PC"</i> -> select <i>"Map network
                                 drive..."</i>
                             </p>
-                            <Screenshot src={win1} alt={"Right click 'This PC' and select 'Map network drive...'"}/>
+                            <Screenshot src={win1} alt={"Right click 'This PC' and select 'Map network drive...'"} />
                         </Step>
 
                         <Step>
@@ -53,7 +53,7 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                                 And select the option <i>"Connect using different credentials"</i>
                             </p>
 
-                            <Screenshot src={win2} alt={"Screenshot of connecting to SDUCloud"}/>
+                            <Screenshot src={win2} alt={"Screenshot of connecting to SDUCloud"} />
                         </Step>
 
                         <Step>
@@ -62,8 +62,8 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                                 Connect with the following credentials:
                             </p>
 
-                            <CredentialsInstructions token={props.token}/>
-                            <Screenshot src={win3} alt={"Connect using the credentials above"}/>
+                            <CredentialsInstructions token={props.token} />
+                            <Screenshot src={win3} alt={"Connect using the credentials above"} />
                         </Step>
                     </Box>
                 )}
@@ -84,7 +84,7 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                                 <pre>{server}</pre>
                             </code>
 
-                            <Screenshot src={macos1} alt={"Connecting to SDUCloud via macOS"}/>
+                            <Screenshot src={macos1} alt={"Connecting to SDUCloud via macOS"} />
                         </Step>
 
                         <Step>
@@ -93,8 +93,8 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                                 Select <i>"Registered User"</i> and enter the following credentials:
                             </p>
 
-                            <CredentialsInstructions token={props.token}/>
-                            <Screenshot src={macos2} alt={"Connect using the credentials above"}/>
+                            <CredentialsInstructions token={props.token} />
+                            <Screenshot src={macos2} alt={"Connect using the credentials above"} />
                         </Step>
                     </Box>
                 )}
@@ -128,7 +128,7 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                                 <pre>{server}</pre>
                             </code>
 
-                            <Screenshot src={nautilus1} alt={"Connect to server via Nautilus"}/>
+                            <Screenshot src={nautilus1} alt={"Connect to server via Nautilus"} />
                         </Step>
 
                         <Step>
@@ -137,7 +137,7 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                                 When prompted for credentials enter the following:
                             </p>
 
-                            <CredentialsInstructions token={props.token}/>
+                            <CredentialsInstructions token={props.token} />
                         </Step>
                     </Box>
                 )}
@@ -173,7 +173,7 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
 
                             <p>When prompted for credentials enter the following:</p>
 
-                            <CredentialsInstructions token={props.token}/>
+                            <CredentialsInstructions token={props.token} />
                         </Step>
                     </Box>
                 )}
@@ -195,12 +195,12 @@ export const Instructions: React.FunctionComponent<{ token: string }> = props =>
                             With the following credentials:
                         </p>
 
-                        <CredentialsInstructions token={props.token}/>
+                        <CredentialsInstructions token={props.token} />
                     </Box>
                 )}
             />
 
-            <Box m={10}/>
+            <Box m={10} />
 
             <a href={"/app"}><Button fullWidth>Return to SDUCloud</Button></a>
         </ContentContainer>
@@ -223,7 +223,7 @@ const CollapsibleBox: React.FunctionComponent<CollapsibleBoxProps> = props => {
             <ClickableBox onClick={toggleOpen}>
                 <Spacer
                     left={<>{props.head}</>}
-                    right={<Icon name={"chevronDown"} rotation={isOpen ? 180 : 0}/>}
+                    right={<Icon name={"chevronDown"} rotation={isOpen ? 180 : 0} />}
                 />
             </ClickableBox>
             {!isOpen ? null : props.body}
@@ -252,11 +252,11 @@ const Step = styled("div")`
     margin-top: 16px;
 `;
 
-const CredentialsInstructions: React.FunctionComponent<{ token: string }> = props => {
+const CredentialsInstructions: React.FunctionComponent<{token: string}> = props => {
     return (
         <Box>
             <b>Username: </b>
-            <code>sducloud</code><br/>
+            <code>sducloud</code><br />
 
             <b>Password: </b>
             <code>{props.token}</code>

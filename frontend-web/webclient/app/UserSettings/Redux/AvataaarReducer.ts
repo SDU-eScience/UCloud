@@ -1,5 +1,5 @@
-import {AvatarType} from "UserSettings/Avataaar";
 import {initAvatar} from "DefaultObjects";
+import {AvatarType} from "UserSettings/Avataaar";
 import {AvatarActions} from "./AvataaarActions";
 
 export const AVATAR_SAVE = "AVATAR_SAVE";

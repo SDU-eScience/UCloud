@@ -9,9 +9,9 @@ import {
     SET_UPLOADER_VISIBLE
 } from "./UploaderReducer";
 
-type SetUploaderVisibleProps = PayloadAction<typeof SET_UPLOADER_VISIBLE, { visible: boolean, path: string }>;
-type SetUploadsProps = PayloadAction<typeof SET_UPLOADER_UPLOADS, { uploads: Upload[] }>;
-type SetUploaderCallbackProps = PayloadAction<typeof SET_UPLOADER_CALLBACK, { onFilesUploaded?: () => void }>;
+type SetUploaderVisibleProps = PayloadAction<typeof SET_UPLOADER_VISIBLE, {visible: boolean, path: string}>;
+type SetUploadsProps = PayloadAction<typeof SET_UPLOADER_UPLOADS, {uploads: Upload[]}>;
+type SetUploaderCallbackProps = PayloadAction<typeof SET_UPLOADER_CALLBACK, {onFilesUploaded?: () => void}>;
 
 interface AppendUploadProps {
     type: typeof APPEND_UPLOADS;
@@ -51,7 +51,7 @@ export const appendUpload = (upload: Upload): AppendUploadProps => ({
     upload
 });
 
-type SetLoading = PayloadAction<typeof SET_UPLOADER_LOADING, { loading: boolean }>;
+type SetLoading = PayloadAction<typeof SET_UPLOADER_LOADING, {loading: boolean}>;
 export const setLoading = (loading: boolean): SetLoading => ({
     type: SET_UPLOADER_LOADING,
     payload: {loading}

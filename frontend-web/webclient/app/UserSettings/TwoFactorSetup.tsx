@@ -3,7 +3,7 @@ import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Divider, ExternalLink, Flex, Image, Input} from "ui-components";
+import {Button, Divider, ExternalLink, Flex, Input} from "ui-components";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import {TwoFactorSetupState} from ".";
@@ -11,11 +11,22 @@ import {TwoFactorSetupState} from ".";
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
 
-export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading: boolean }, TwoFactorSetupState> {
+export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading: boolean}, TwoFactorSetupState> {
     public state = this.initialState();
 
     public componentDidMount() {
         this.loadStatus();
+    }
+
+    public render() {
+        return (
+            <React.StrictMode>
+                <Heading.h2>Two Factor Authentication</Heading.h2>
+                <b>{this.displayConnectedStatus()}</b>
+                <Divider />
+                {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
+            </React.StrictMode>
+        );
     }
 
     private async loadStatus() {
@@ -36,17 +47,6 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
             verificationCode: "",
             isConnectedToAccount: false
         };
-    }
-
-    render() {
-        return (
-            <React.StrictMode>
-                <Heading.h2>Two Factor Authentication</Heading.h2>
-                <b>{this.displayConnectedStatus()}</b>
-                <Divider />
-                {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
-            </React.StrictMode>
-        );
     }
 
     private displayConnectedStatus() {
@@ -71,16 +71,17 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
 
                 <Flex>
                     <ExternalLink
-                        href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
-                        <img height={"50px"} src={googlePlay} alt={"Get it on Google Play"} />
+                        href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
+                    >
+                        <img height="50px" src={googlePlay} alt={"Get it on Google Play"} />
                     </ExternalLink>
 
                     <ExternalLink href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
-                        <img height={"50px"} src={appStore}  alt={"Download on the App Store"} />
+                        <img height="50px" src={appStore} alt={"Download on the App Store"} />
                     </ExternalLink>
                 </Flex>
 
-                {this.state.challengeId === undefined ?
+                {this.state.challengeId === undefined ? (
                     <React.Fragment>
                         <p>Once you are ready click the button below to get started:</p>
 
@@ -88,9 +89,11 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                             color="green"
                             disabled={this.props.loading}
                             onClick={() => this.onSetupStart()}
-                        >Start setup</Button>
+                        >
+                            Start setup
+                        </Button>
                     </React.Fragment>
-                    :
+                ) :
                     this.displayQRCode()
                 }
             </Box>
@@ -105,40 +108,42 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
 
         return (
             <div>
-                <Divider/>
+                <Divider />
                 <h4>Step One</h4>
                 <p>Open the 'Google Authenticator' app on your phone</p>
-                <Divider/>
+                <Divider />
 
                 <h4>Step Two</h4>
                 <p>Add a new authenticator by tapping the '+' icon.</p>
-                <Divider/>
+                <Divider />
 
                 <h4>Step Three</h4>
                 <p>Use the 'Scan a barcode option'</p>
-                <Divider/>
+                <Divider />
 
                 <h4>Step Four</h4>
                 <p>Scan the barcode below using your phone's camera</p>
-                <img src={this.state.qrCode} alt="QRCode"/>
-                <Divider/>
+                <img src={this.state.qrCode} alt="QRCode" />
+                <Divider />
 
                 <h4>Step Five</h4>
                 <p>Enter the verification code from your app in the field below.</p>
 
-                <form onSubmit={e => {
-                    e.preventDefault();
-                    this.onVerificationSubmit()
-                }}>
+                <form
+                    onSubmit={e => {
+                        e.preventDefault();
+                        this.onVerificationSubmit();
+                    }}
+                >
                     <Input
                         placeholder="6-digit verification code"
                         value={this.state.verificationCode}
                         type="text"
-                        onChange={({target}) => {
+                        onChange={({target}) =>
                             this.setState(() => ({
                                 verificationCode: target.value
                             }))
-                        }}
+                        }
                     />
 
                     <Button
@@ -146,7 +151,9 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                         color="blue"
                         type="submit"
                         disabled={this.props.loading}
-                    >Submit code</Button>
+                    >
+                        Submit code
+                    </Button>
                 </form>
             </div>
         );
@@ -160,8 +167,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                 qrCode: res.response.qrCodeB64Data
             }));
 
-        }).catch(() => {
-        }).then(() => {
+        }).catch(() => { /* Do nothing */}).then(() => {
             this.props.setLoading(false);
         });
     }
@@ -176,7 +182,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
 
             this.setState(() => ({isConnectedToAccount: true}));
         } catch (res) {
-            let response = res.response;
+            const response = res.response;
             let why: string = "Could not submit verification code. Try again later";
             if (response !== undefined && response.why !== undefined) {
                 why = response.why;
