@@ -5,20 +5,11 @@ this document we describe what files are in the context of SDUCloud.
 
 The system only supports **files**, **directories**. There is no support for links.
 
-The file system provides a 'home' folder for every user. In the case of
-[projects](../../project-service) this is a shared folder among all project
-members. Each user has a home folder in `/home.` The user "DanThrane#1234"
-should have a folder in `/home/DanThrane#1234`.
+The file system provides a 'home' folder for every user. Each user has a home 
+folder in `/home.` The user "DanThrane#1234"should have a folder in
+`/home/DanThrane#1234`. Projects have a folder in `/projects` but otherwise act
+in a similar fashion.
 
-Each file has exactly one **canonical path**. It is possible to get the
-canonical path of a file by resolving all symlinks in the path. The canonical
-path is a unique reference to the file at a given location.
-
-We can find the **owner** of a file from its canonical path. A user owns all
-the files placed in their home directory. If Alice shares the directory
-`/home/alice/shared` with Bob then all files will remain owned by Alice. This
-includes all the files Bob creates. As a result Alice will not lose access to
-the files created by Bob when Bob leaves the share.
 
 Files have a **unique identifier**. The unique identifier should never be
 re-used for a single file. The unique identifier tracks the file as it is
@@ -36,9 +27,7 @@ The directory only counts the amount of bytes needed to keep track of its
 children. For soft symbolic links we only count the bytes needed to keep
 track of its target.
 
-The platform controls access to files via **access control lists**. End users
-don't have direct access to the ACL. Instead, they use higher-level features
-such as [shares](../../share-service) and [projects](../../project-service).
+You can read about file ownership and permissions [here](./permissions.md).
 
 All files have an associated __sensitivity level__. You can read more about
 file sensitivity [here](./sensitivity.md).
@@ -50,7 +39,7 @@ The table below summarize the properties of a file.
 | Property                 | Summary                                                                     |
 |--------------------------|-----------------------------------------------------------------------------|
 | `fileType`               | The type of file (`FILE`/`DIRECTORY`)                                       |
-| `path`/`canonicalPath`   | The path to reach the file starting from the root. Uses `/` as a separator. |
+| `path`                   | The path to reach the file starting from the root. Uses `/` as a separator. |
 | `owner`                  | The username of the file owner                                              |
 | `fileId`                 | A unique identifier for this file                                           |
 | `createdAt`/`modifiedAt` | Timestamps for the creation event and most recent modification              |
