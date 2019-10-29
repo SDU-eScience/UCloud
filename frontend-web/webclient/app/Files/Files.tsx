@@ -24,7 +24,6 @@ const Files: React.FunctionComponent<FilesOperations> = props => {
     const location = useLocation();
     const urlPath = getQueryParamOrElse({history, location}, "path", Cloud.homeFolder);
     useEffect(() => props.onInit(), []);
-
     return (
         <FileTable
             {...defaultVirtualFolders()}

@@ -1,9 +1,27 @@
+import * as AccountingRedux from "Accounting/Redux";
+import activity from "Activity/Redux/ActivityReducer";
+import * as AppRedux from "Applications/Redux";
+import analyses from "Applications/Redux/AnalysesReducer";
+import applications from "Applications/Redux/BrowseReducer";
+import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
+import * as TaskRedux from "BackgroundTasks/redux";
+import dashboard from "Dashboard/Redux/DashboardReducer";
 import {initObject, ReduxObject} from "DefaultObjects";
-import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
+import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
+import fileInfo from "Files/Redux/FileInfoReducer";
+import filePreview from "Files/Redux/FilePreviewReducer";
+import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
+import sidebar from "Navigation/Redux/SidebarReducer";
+import status from "Navigation/Redux/StatusReducer";
+import notifications from "Notifications/Redux/NotificationsReducer";
+import * as ProjectRedux from "Project/Redux";
 import {Action, AnyAction, combineReducers, createStore, Store} from "redux";
 import {composeWithDevTools} from "redux-devtools-extension";
-import {createResponsiveStateReducer} from "redux-responsive";
+import {createResponsiveStateReducer, responsiveStoreEnhancer} from "redux-responsive";
+import simpleSearch from "Search/Redux/SearchReducer";
 import {responsiveBP} from "ui-components/theme";
+import uploader from "Uploader/Redux/UploaderReducer";
+import avatar from "UserSettings/Redux/AvataaarReducer";
 
 export function configureStore(
     initialObject: Partial<ReduxObject>,
@@ -24,3 +42,40 @@ export const responsive = createResponsiveStateReducer(
     responsiveBP,
     {infinity: "xxl"}
 );
+
+export const store = configureStore(initObject(), {
+    activity,
+    dashboard,
+    analyses,
+    applications,
+    header,
+    status,
+    sidebar,
+    uploader,
+    notifications,
+    simpleSearch,
+    detailedFileSearch,
+    detailedApplicationSearch,
+    fileInfo,
+    filePreview,
+    ...AppRedux.reducers,
+    ...AccountingRedux.reducers,
+    avatar,
+    loading,
+    tasks: TaskRedux.reducer,
+    project: ProjectRedux.reducer,
+    responsive: createResponsiveStateReducer(
+        responsiveBP,
+        {infinity: "xxl"}),
+}, responsiveStoreEnhancer);
+
+function loading(state = false, action: {type: string}): boolean {
+    switch (action.type) {
+        case "LOADING_START":
+            return true;
+        case "LOADING_END":
+            return false;
+        default:
+            return state;
+    }
+}

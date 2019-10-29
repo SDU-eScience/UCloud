@@ -17,7 +17,7 @@ configure({adapter: new Adapter()});
 const store = configureStore({detailedFileSearch: initFilesDetailedSearch()}, {detailedFileSearch});
 
 describe("Detailed File Search", () => {
-    it("Mount file search", () => {
+    test("Mount file search", () => {
         expect(create(
             <Provider store={store}>
                 <ThemeProvider theme={theme}>

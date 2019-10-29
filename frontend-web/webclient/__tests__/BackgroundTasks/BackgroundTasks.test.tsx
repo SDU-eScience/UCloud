@@ -1,17 +1,18 @@
 import * as React from "react";
-import { create } from "react-test-renderer";
+import {Provider} from "react-redux";
+import {create} from "react-test-renderer";
 import BackgroundTasks from "../../app/BackgroundTasks/BackgroundTask";
-import { Provider } from "react-redux";
-import { configureStore } from "../../app/Utilities/ReduxUtilities";
+import {initUploads} from "../../app/DefaultObjects";
 import uploader from "../../app/Uploader/Redux/UploaderReducer";
-import { initUploads } from "../../app/DefaultObjects";
+import {configureStore} from "../../app/Utilities/ReduxUtilities";
 
 describe("BackgroundTasks", () => {
     test("Mount", () => {
 
         expect(create(
-            <Provider store={configureStore({ uploader: initUploads() }, { uploader })}>
+            <Provider store={configureStore({uploader: initUploads()}, {uploader})}>
                 <BackgroundTasks />
-            </Provider>)).toMatchSnapshot();
+            </Provider>
+        )).toMatchSnapshot();
     });
 });

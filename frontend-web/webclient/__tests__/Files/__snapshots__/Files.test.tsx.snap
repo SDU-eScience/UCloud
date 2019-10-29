@@ -1,0 +1,208 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Mount Files component 1`] = `
+<div
+  className="sc-htpNat gDfBLd"
+>
+  <div
+    className="sc-htpNat sc-bxivhb sc-kjoXOD cQydld"
+    height={96}
+    width={1}
+  >
+    <div
+      className="sc-bdVaJa fuBZyM"
+    >
+      <div
+        className="sc-htpNat exYHbV"
+      >
+        <svg
+          className="sc-htoDjs fTQtPU"
+          cursor="pointer"
+          fill="currentcolor"
+          height="30px"
+          onClick={[Function]}
+          viewBox="0 0 148.167 127.257"
+          width="30px"
+        >
+          <path
+            d="M0 63.5l10.583 10.583 63.5-52.916 63.5 52.916L148.167 63.5 74.083 0z"
+          />
+          <path
+            d="M74.083 28.149l-50.27 41.618v57.49h34.316V92.312c0-4.162 2.06-11.64 15.954-11.628 13.894.012 15.958 7.406 15.958 11.71v34.863h34.313v-57.49zM124.354 38.92l-19.553-17.224V5.252l19.553.04z"
+          />
+        </svg>
+        <div
+          className="sc-jTzLTM ivwLgz"
+          cursor="pointer"
+          fontSize="11px"
+          onClick={[Function]}
+        >
+          Go to home
+        </div>
+      </div>
+      <div
+        className="sc-jTzLTM jFNMAO"
+        cursor="inherit"
+        fontSize="25px"
+      >
+        |
+      </div>
+      <ul
+        className="sc-cIShpX dtxAhc"
+      >
+        <li
+          title="Home of jonas@hinchely.dk"
+        >
+          Home of jonas@hinche
+          ...
+        </li>
+      </ul>
+      <div
+        className="sc-htpNat btiFIV"
+      />
+      <div
+        className="sc-hzDkRC isPhWx"
+        data-tag="dropdown"
+      >
+        <span
+          className="sc-jTzLTM bjceot"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <span
+            className="sc-jTzLTM bnnwzT"
+            cursor="inherit"
+          >
+             
+            Files per page 25
+          </span>
+          <svg
+            className="sc-htoDjs krWwdJ"
+            clipRule="evenodd"
+            cursor="inherit"
+            fill="currentcolor"
+            fillRule="evenodd"
+            height=".7em"
+            ml=".7em"
+            viewBox="0 0 24 12"
+            width=".7em"
+          >
+            <path
+              d="M0 0l11.959 12 12-12H0z"
+            />
+          </svg>
+        </span>
+      </div>
+    </div>
+  </div>
+  <div
+    className="sc-htpNat sc-jKJlTe lopkwb"
+  >
+    <div
+      className="sc-htpNat sc-bxivhb sc-cHGsZl iIOJRB"
+      height="100%"
+      width={240}
+    >
+      <div
+        className="sc-htpNat eRCWhu"
+        height="calc(100% - 20px)"
+      >
+        <div
+          className="sc-bdVaJa sc-bRBYWo gaZbtS"
+        >
+          <button
+            className="sc-bZQynM cZIxad"
+            color="blue"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            <span>
+              Upload Files
+            </span>
+          </button>
+          <button
+            className="sc-bZQynM sc-gzVnrw hHlzxg"
+            color="blue"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            <span>
+              New Folder
+            </span>
+          </button>
+          <div
+            className="sc-htpNat gsvqod"
+          />
+          <a
+            href="/app/login?dav=true"
+          >
+            <button
+              className="sc-bZQynM sc-gzVnrw hHlzxg"
+              color="blue"
+            >
+              Use your files locally
+            </button>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="sc-htpNat gfqUsZ"
+  >
+    <div
+      className="sc-htpNat sc-jKJlTe fyzMpK"
+    >
+      <div
+        className="sc-htpNat eRCWhu"
+        height="calc(100% - 20px)"
+      >
+        <div
+          className="sc-bdVaJa sc-bRBYWo gaZbtS"
+        >
+          <button
+            className="sc-bZQynM cZIxad"
+            color="blue"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            <span>
+              Upload Files
+            </span>
+          </button>
+          <button
+            className="sc-bZQynM sc-gzVnrw hHlzxg"
+            color="blue"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            <span>
+              New Folder
+            </span>
+          </button>
+          <div
+            className="sc-htpNat gsvqod"
+          />
+          <a
+            href="/app/login?dav=true"
+          >
+            <button
+              className="sc-bZQynM sc-gzVnrw hHlzxg"
+              color="blue"
+            >
+              Use your files locally
+            </button>
+          </a>
+        </div>
+      </div>
+    </div>
+    <h3
+      className="sc-jTzLTM iUcSta"
+      cursor="inherit"
+      fontSize={4}
+    >
+      No files in current folder
+    </h3>
+  </div>
+</div>
+`;

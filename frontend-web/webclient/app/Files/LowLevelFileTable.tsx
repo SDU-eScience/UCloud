@@ -1010,7 +1010,6 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
         if (fileOp.disabled(filesInCallback)) return null;
-
         let As: typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
         if (fileOperations.length === 1) {
             As = OutlineButton;
@@ -1027,7 +1026,6 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
                 As = Flex;
             }
         }
-
         return (
             <As
                 cursor="pointer"

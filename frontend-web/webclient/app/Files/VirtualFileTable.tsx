@@ -9,7 +9,7 @@ import {Page} from "Types";
 import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 
-export type VirtualFileTableProps = LowLevelFileTableProps & VirtualFolderDefinition; 
+export type VirtualFileTableProps = LowLevelFileTableProps & VirtualFolderDefinition;
 
 export interface VirtualFolderDefinition {
     fakeFolders?: string[];
@@ -21,7 +21,7 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
     const mergedProperties = {...props};
     const asyncWorker = props.asyncWorker ? props.asyncWorker : useAsyncWork();
     mergedProperties.asyncWorker = asyncWorker;
-    const [pageLoading, pageError, submitPageLoaderJob] = asyncWorker;
+    const [,, submitPageLoaderJob] = asyncWorker;
 
     let fakeFolderToUse: string | undefined;
     if (props.fakeFolders !== undefined && props.loadFolder !== undefined) {
@@ -85,7 +85,6 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
 
         return base;
     }, [props.fakeFolders, props.loadFolder, props.injectedFiles, props.path]);
-
     return <LowLevelFileTable {...mergedProperties} />;
 };
 
