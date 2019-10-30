@@ -1,4 +1,4 @@
-import { History } from "history";
+import {History} from "history";
 
 export interface RouterLocationProps {
     history: History;

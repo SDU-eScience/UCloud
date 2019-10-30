@@ -123,7 +123,7 @@ export interface ApplicationDescription {
     authors: string[];
     title: string;
     description: string;
-    invocation: any[]; // FIXME: Add type
+    invocation: Invocation[];
     parameters: ApplicationParameter[];
     outputFileGlobs: string[];
     website?: string;

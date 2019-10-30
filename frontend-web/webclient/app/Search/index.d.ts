@@ -7,9 +7,14 @@ import {match} from "react-router-dom";
 import {Page} from "Types";
 import {RouterLocationProps} from "Utilities/URIUtilities";
 
-export interface SearchProps extends SimpleSearchOperations, SimpleSearchStateProps, RouterLocationProps {
+export interface SearchProps extends SimpleSearchOperations, SimpleSearchStateProps {
     match: match<{priority: string}>;
+    /* If extends interface with these, Jest complains */
     history: History;
+    location: {
+        // TODO There is more here
+        search: string
+    };
 }
 
 export interface SimpleSearchStateProps {
