@@ -147,10 +147,10 @@ function Header(props: HeaderProps) {
 }
 
 export const Refresh = ({
-                            onClick,
-                            spin,
-                            headerLoading
-                        }: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ? (
+    onClick,
+    spin,
+    headerLoading
+}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ? (
     <RefreshIcon
         data-tag="refreshButton"
         name="refresh"
@@ -339,11 +339,11 @@ const _Search = (props: SearchProps) => {
 };
 
 const mapSearchStateToProps = ({
-                                   header,
-                                   detailedFileSearch,
-                                   detailedApplicationSearch,
-                                   simpleSearch
-                               }: ReduxObject): SearchStateProps => ({
+    header,
+    detailedFileSearch,
+    detailedApplicationSearch,
+    simpleSearch
+}: ReduxObject): SearchStateProps => ({
     prioritizedSearch: header.prioritizedSearch,
     fileSearch: detailedFileSearch,
     appSearch: detailedApplicationSearch,

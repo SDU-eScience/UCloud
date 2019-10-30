@@ -1,9 +1,9 @@
+import {Avatar} from "AvataaarLib";
 import * as React from "react";
 import styled from "styled-components";
-import Flex from "ui-components/Flex";
 import {SpaceProps} from "styled-system";
+import Flex from "ui-components/Flex";
 import {AvatarType} from "UserSettings/Avataaar";
-import {Avatar} from "AvataaarLib";
 
 const ClippedBox = styled(Flex)`
     overflow: hidden;
@@ -32,4 +32,5 @@ export const UserAvatar = ({avatar, width = "60px"}: UserAvatar) => (
             mouthType={avatar.mouthTypes}
             skinColor={avatar.skinColors}
         />
-    </ClippedBox>);
+    </ClippedBox>
+);

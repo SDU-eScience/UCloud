@@ -72,4 +72,14 @@ describe("Initialize Redux Objects", () => {
     test("Init object", () =>
         expect(Defaults.initObject()).toBeDefined()
     );
+
+    test("Init responsive", () => {
+        expect(Defaults.initResponsive()).toMatchObject<Defaults.ResponsiveReduxObject>({
+            mediaType: "",
+            orientation: "",
+            lessThan: {},
+            greaterThan: {},
+            is: {},
+        });
+    });
 });

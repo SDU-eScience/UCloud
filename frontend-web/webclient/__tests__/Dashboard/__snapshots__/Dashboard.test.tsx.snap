@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Dashboard mount 1`] = `
+exports[`Dashboard Dashboard mount 1`] = `
 .c5 {
   display: -webkit-box;
   display: -webkit-flex;

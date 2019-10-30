@@ -114,7 +114,7 @@ const ViewMember: React.FunctionComponent<{
                         <ClickableDropdown
                             chevron
                             trigger={role}
-                            onChange={async (value: ProjectRole) => {
+                            onChange={async value => {
                                 setRole(value);
 
                                 await runCommand(changeRoleInProject({

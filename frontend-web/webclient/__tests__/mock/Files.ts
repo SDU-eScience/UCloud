@@ -57,7 +57,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
-            fileId: null,
+            fileId: "nullhey",
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
         }, {
             fileType: "DIRECTORY",
@@ -70,7 +70,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
-            fileId: null,
+            fileId: "null",
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
         }, {
             fileType: "DIRECTORY",
@@ -83,7 +83,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             favorited: true,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
-            fileId: null,
+            fileId: "nullyw",
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
         }, {
             fileType: "DIRECTORY",
@@ -97,7 +97,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
-            fileId: null
+            fileId: "nu"
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/Test",
@@ -110,7 +110,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
-            fileId: null
+            fileId: "nl"
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E",
@@ -122,7 +122,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
-            fileId: null,
+            fileId: "nul",
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
         }, {
             fileType: "DIRECTORY",
@@ -135,7 +135,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             creator: null,
-            fileId: null,
+            fileId: "ull",
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
         }],
     pagesInTotal: 2

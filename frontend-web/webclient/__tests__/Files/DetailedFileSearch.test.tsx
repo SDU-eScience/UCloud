@@ -6,15 +6,12 @@ import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
 import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
-import {initFilesDetailedSearch} from "../../app/DefaultObjects";
 import DetailedFileSearch from "../../app/Files/DetailedFileSearch";
-import detailedFileSearch from "../../app/Files/Redux/DetailedFileSearchReducer";
 import theme from "../../app/ui-components/theme";
-import {configureStore} from "../../app/Utilities/ReduxUtilities";
+import {store} from "../../app/Utilities/ReduxUtilities";
 
 configure({adapter: new Adapter()});
-
-const store = configureStore({detailedFileSearch: initFilesDetailedSearch()}, {detailedFileSearch});
+function noOp() {/*  */}
 
 describe("Detailed File Search", () => {
     test("Mount file search", () => {
@@ -22,7 +19,7 @@ describe("Detailed File Search", () => {
             <Provider store={store}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <DetailedFileSearch onSearch={() => undefined} />
+                        <DetailedFileSearch onSearch={noOp} />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>
