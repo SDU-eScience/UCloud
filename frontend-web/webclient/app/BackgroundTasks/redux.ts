@@ -26,7 +26,7 @@ export function taskLoadAction(page: Page<Task>): TaskLoadAction {
 type TypeActions = TaskUpdateAction | TaskLoadAction;
 
 export const reducer = (
-    state: any = ({}),
+    state: TaskReduxState = ({}),
     action: TypeActions
 ): TaskReduxState => {
     switch (action.type) {
