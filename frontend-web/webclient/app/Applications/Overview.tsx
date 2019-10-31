@@ -102,8 +102,8 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                     )}
                                 />
                             </div>
-                            <Box pl="10px" overflow="none" overflowX="scroll" pb="5px">
-                                <Grid pt="20px" gridTemplateRows={`repeat(3, 1fr)`} gridTemplateColumns={`repeat(7, 1fr)`} gridGap="15px" style={{gridAutoFlow: "column"}}>
+                            <Box pl="10px" style={{overflowX: "scroll"}} pb="5px">
+                                <Grid pt="20px" gridTemplateRows="repeat(3, 1fr)" gridTemplateColumns="repeat(7, 1fr)" gridGap="15px" style={{gridAutoFlow: "column"}}>
                                     {page.items.map((app, index) => (
                                         <ApplicationCard
                                             key={index}
