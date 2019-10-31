@@ -28,7 +28,7 @@ import * as Actions from "./Redux/BrowseActions";
 import {Type as ReduxType} from "./Redux/BrowseObject";
 
 
-const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
+export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
@@ -171,8 +171,8 @@ const ScrollBox = styled(Box)`
 const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
-    const url = Cloud.computeURL("/api", toolImageQuery(props.tag.toLowerCase().replace(/\s+/g, ""), props.cacheBust));
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
+    const url = Cloud.computeURL("/api", toolImageQuery(props.tag.toLowerCase().replace(/\s+/g, ""), props.cacheBust));
     const [, setLoadedImage] = useState(true);
     useEffect(() => setLoadedImage(true));
     return (
@@ -216,7 +216,9 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
                 </Grid>
             </ScrollBox>
             <Flex mt="14px" flexDirection={"row"} alignItems={"flex-start"} >
-                {[...tags].filter(it => it !== props.tag).map(tag => (<Tag key={tag} label={tag} />))}
+                {[...tags].filter(it => it !== props.tag).map(tag => (
+                    <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
+                ))}
             </Flex>
         </CardToolContainer>
     );
