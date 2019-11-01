@@ -262,7 +262,7 @@ interface DashboardNotificationProps {
 
 const DashboardNotifications = ({notifications, readAll, onNotificationAction}: DashboardNotificationProps) => (
     <Card height="auto" width={1} overflow="hidden" boxShadow="sm" borderWidth={1} borderRadius={6}>
-        <Flex bg="lightGray" color="darkGray" px={3} py={2}>
+        <Flex color="darkGray" px={3} py={2}>
             <Heading.h4>Recent Notifications</Heading.h4>
             <Box ml="auto" />
             <Icon

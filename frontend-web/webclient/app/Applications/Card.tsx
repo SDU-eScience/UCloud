@@ -40,7 +40,7 @@ const AppCardBase = styled(Link)`
     }
 
     & > ${EllipsedText} {
-        color: ${(props) => props.theme.colors.gray};
+        color: ${p => p.theme.colors.gray};
         flex-grow: 1;
     }
 
@@ -131,8 +131,8 @@ export const AppCard = styled(Link)`
     box-shadow: ${p => p.theme.shadows.sm};
     //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: transform ${p => `${p.theme.timingFunctions.easeIn} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
-    will-change: transform;
+    transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+    will-change: transform, opacity;
 
     &:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
@@ -165,7 +165,6 @@ export const AppCard = styled(Link)`
         opacity: 0;
         border-radius: ${props => props.theme.radius};
         pointer-events: none; //needed for star-badge
-        will-change: opacity;
     }
 
     &:hover:after {
@@ -265,7 +264,6 @@ export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
 const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
     ${({favorite}) => favorite ? null : css`transform: translate(0,-30px)`};
     transition: transform ease 0.1s;
-    will-change: transform;
 
     &: hover {
         transform: translate(0, 0);
@@ -375,7 +373,6 @@ export const CardToolContainer = styled(Box) <{appImage: string}>`
         height: 100%;
         top: 0;
         left: 0;
-        z-index: -1;
         background-color: ${props => props.theme.colors.appCard};
         background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
     }

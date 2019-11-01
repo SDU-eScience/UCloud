@@ -365,8 +365,22 @@ export const inDevEnvironment = () => process.env.NODE_ENV === "development";
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
     return (target = "default-target") => {
+        /* FIXME: use null coalescing  */
         const idCount = (store.get(target) || 0) + 1;
         store.set(target, idCount);
         return `${target}${idCount}`;
     };
 })();
+
+export function stopPropagation<T extends {stopPropagation(): void}>(e: T) {
+    e.stopPropagation();
+}
+
+export function preventDefault<T extends {preventDefault(): void}>(e: T) {
+    e.preventDefault();
+}
+
+export function stopPropagationAndPreventDefault<T extends {preventDefault(): void; stopPropagation(): void}>(e: T) {
+    preventDefault(e);
+    stopPropagation(e);
+}

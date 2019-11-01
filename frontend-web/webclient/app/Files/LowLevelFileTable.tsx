@@ -35,7 +35,7 @@ import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {Upload} from "Uploader";
-import {appendUpload, setUploaderCallback, setUploaderVisible, setUploads} from "Uploader/Redux/UploaderActions";
+import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {
     createFolder, favoriteFile,
     getFilenameFromPath,
@@ -489,7 +489,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                         left={(
                             <BreadCrumbs
                                 currentPath={props.path ? props.path : ""}
-                                navigate={path => onFileNavigation(path)}
+                                navigate={onFileNavigation}
                                 homeFolder={Cloud.homeFolder}
                             />
                         )}
@@ -500,7 +500,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                     {!isEmbedded && props.path ? null : (
                                         <Refresh
                                             spin={isAnyLoading}
-                                            onClick={() => callbacks.requestReload()}
+                                            onClick={callbacks.requestReload}
                                         />
                                     )}
 
@@ -569,7 +569,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                 alignItems="center"
                                 onClick={() => setSorting(SortBy.PATH, invertSortOrder(order))}
                             >
-                                <Box mx="9px" onClick={e => e.stopPropagation()}>
+                                <Box mx="9px" onClick={UF.stopPropagation}>
                                     {isEmbedded ? null : (
                                         <Label>
                                             <Checkbox
@@ -577,7 +577,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                 onClick={() => setChecked(allFiles, !isMasterChecked)}
                                                 checked={isMasterChecked}
                                                 disabled={isMasterDisabled}
-                                                onChange={e => e.stopPropagation()}
+                                                onChange={UF.stopPropagation}
                                             />
                                         </Label>
                                     )}
@@ -694,7 +694,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                     disabled={file.mockTag !== undefined}
                                                     checked={checkedFiles.has(file.fileId!) &&
                                                         file.mockTag === undefined}
-                                                    onChange={e => e.stopPropagation()}
+                                                    onChange={UF.stopPropagation}
                                                     onClick={() => setChecked([file])}
                                                 />
                                             </Label>
@@ -731,7 +731,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                     {/* Launch cell */}
                                     {checkedFiles.size > 0 || file.fileType !== "FILE" ||
                                         (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                        (typeof applications.get(file.path) === "undefined" || applications.get(file.path)!.length < 1) ? null : (
+                                        (!applications.has(file.path) || applications.get(file.path)!.length < 1) ? null : (
                                             <ClickableDropdown
                                                 width="175px"
                                                 left="-160px"
@@ -899,7 +899,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
         return (
             <>
-                <Flex data-tag={"fileName"} flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
+                <Flex data-tag="fileName" flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
                     <Box title={replaceHomeFolder(props.file.path, Cloud.homeFolder)} width="100%">
                         {props.file.fileType !== "DIRECTORY" ? nameComponent : (
                             <BaseLink
@@ -976,8 +976,8 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
             break;
     }
 
-    const badge = <SensitivityBadge data-tag={"sensitivityBadge"} bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip right={"0"} top={"1"} mb="50px" trigger={badge}>{def.text}</Tooltip>;
+    const badge = <SensitivityBadge data-tag="sensitivityBadge" bg={def.color}>{def.shortText}</SensitivityBadge>;
+    return <Tooltip right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`

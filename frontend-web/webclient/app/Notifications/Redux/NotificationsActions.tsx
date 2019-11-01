@@ -1,17 +1,17 @@
-import {
-    RECEIVE_SINGLE_NOTIFICATION,
-    RECEIVE_NOTIFICATIONS,
-    NOTIFICATION_READ,
-    SET_REDIRECT,
-    NOTIFICATIONS_ERROR, READ_ALL
-} from "./NotificationsReducer";
 import {Cloud} from "Authentication/SDUCloudObject";
-import {Page, PayloadAction} from "Types";
 import {Action} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Page, PayloadAction} from "Types";
+import {notificationsQuery, readAllNotificationsQuery, readNotificationQuery} from "Utilities/NotificationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Notification} from ".."
-import {notificationsQuery, readNotificationQuery, readAllNotificationsQuery} from "Utilities/NotificationUtilities";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {
+    NOTIFICATION_READ,
+    NOTIFICATIONS_ERROR,
+    READ_ALL,
+    RECEIVE_NOTIFICATIONS,
+    RECEIVE_SINGLE_NOTIFICATION, SET_REDIRECT
+} from "./NotificationsReducer";
 
 export type NotificationActions =
     ReceiveNotificationAction |
