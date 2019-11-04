@@ -195,6 +195,7 @@ class AppStoreService<DBSession>(
         user: SecurityPrincipal,
         query: String?,
         tagFilter: List<String>?,
+        showAllVersions: Boolean,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
         if (query.isNullOrBlank() && tagFilter == null) {
@@ -209,31 +210,42 @@ class AppStoreService<DBSession>(
 
         val results = elasticDAO.search(queryTerms, normalizedTags ?: emptyList())
 
-        val embeddedNameAndVersionList = results.hits.map {
-            val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)
-            EmbeddedNameAndVersion(result.name, result.version)
-        }
+        if (showAllVersions) {
+            val embeddedNameAndVersionList = results.hits.map {
+                val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)
+                EmbeddedNameAndVersion(result.name, result.version)
+            }
 
-        val dbResultList = db.withTransaction { session ->
-            applicationDAO.findAllByID(session, user, embeddedNameAndVersionList, paging)
-        }
+            val dbResultList = db.withTransaction { session ->
+                applicationDAO.findAllByID(session, user, embeddedNameAndVersionList, paging)
+            }
 
-        val map = dbResultList.associateBy (
-            {EmbeddedNameAndVersion(it.id.name.toLowerCase(),it.id.version.toLowerCase())}, {it}
-        )
+            val map = dbResultList.associateBy(
+                { EmbeddedNameAndVersion(it.id.name.toLowerCase(), it.id.version.toLowerCase()) }, { it }
+            )
 
-        val sortedList = mutableListOf<ApplicationEntity>()
+            val sortedList = mutableListOf<ApplicationEntity>()
 
-        results.hits.hits.forEach {
-            val foundEntity = map[EmbeddedNameAndVersion(it.sourceAsMap["name"].toString(),it.sourceAsMap["version"].toString())]
-            sortedList.add(foundEntity!!)
-        }
+            results.hits.hits.forEach {
+                val foundEntity =
+                    map[EmbeddedNameAndVersion(it.sourceAsMap["name"].toString(), it.sourceAsMap["version"].toString())]
+                sortedList.add(foundEntity!!)
+            }
 
-        val sortedResultsPage = sortedList.map { it.toModelWithInvocation() }.paginate(paging)
+            val sortedResultsPage = sortedList.map { it.toModelWithInvocation() }.paginate(paging)
 
-        return db.withTransaction { session ->
-            applicationDAO.preparePageForUser(session, user.username, sortedResultsPage)
-                .mapItems { it.withoutInvocation() }
+            return db.withTransaction { session ->
+                applicationDAO.preparePageForUser(session, user.username, sortedResultsPage)
+                    .mapItems { it.withoutInvocation() }
+            }
+        } else {
+            val titles = results.hits.map {
+                val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)
+                result.title
+            }
+            return db.withTransaction { session ->
+                applicationDAO.doMultiKeywordSearch(session, user.username, titles.toList(), paging)
+            }
         }
     }
 

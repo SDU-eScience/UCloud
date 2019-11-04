@@ -16,7 +16,8 @@ val normAppDesc = Application(
         ToolReference("tool", "1.0.0", null),
         mockk(relaxed = true),
         emptyList(),
-        listOf("glob")
+        listOf("glob"),
+        fileExtensions = emptyList()
     )
 )
 

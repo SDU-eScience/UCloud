@@ -4,14 +4,23 @@ import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.calls.RPCException
 import io.mockk.every
 import io.mockk.mockk
+import org.apache.lucene.search.TotalHits
+import org.elasticsearch.action.OriginalIndices
 import org.elasticsearch.action.admin.indices.flush.FlushResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.action.update.UpdateResponse
 import org.elasticsearch.client.IndicesClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.GetIndexRequest
+import org.elasticsearch.common.bytes.BytesArray
+import org.elasticsearch.common.document.DocumentField
+import org.elasticsearch.common.text.Text
+import org.elasticsearch.index.Index
+import org.elasticsearch.index.shard.ShardId
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
+import org.elasticsearch.search.SearchShardTarget
+import org.elasticsearch.search.internal.InternalSearchResponse
 import org.junit.Test
 import kotlin.test.assertEquals
 

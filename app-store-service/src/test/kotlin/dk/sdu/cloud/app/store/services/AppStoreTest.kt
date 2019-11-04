@@ -49,6 +49,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test1"),
+                true,
                 NormalizedPaginationRequest(10, 0)
             )
 
@@ -56,6 +57,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test2"),
+                true,
                 NormalizedPaginationRequest(10,0)
             )
 
@@ -63,6 +65,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test1", "test2"),
+                true,
                 NormalizedPaginationRequest(10,0)
             )
 
@@ -80,6 +83,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test1"),
+                true,
                 NormalizedPaginationRequest(10, 0)
             )
 
@@ -87,6 +91,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test2"),
+                true,
                 NormalizedPaginationRequest(10,0)
             )
 
@@ -94,6 +99,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test1", "test2"),
+                true,
                 NormalizedPaginationRequest(10,0)
             )
 
@@ -111,6 +117,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test1"),
+                true,
                 NormalizedPaginationRequest(10, 0)
             )
 
@@ -118,6 +125,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test2"),
+                true,
                 NormalizedPaginationRequest(10,0)
             )
 
@@ -125,6 +133,7 @@ class AppStoreTest{
                 TestUsers.admin,
                 "",
                 listOf("test1", "test2"),
+                true,
                 NormalizedPaginationRequest(10,0)
             )
 

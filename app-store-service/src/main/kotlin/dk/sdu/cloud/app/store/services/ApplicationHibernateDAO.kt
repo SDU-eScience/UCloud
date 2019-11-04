@@ -207,7 +207,7 @@ class ApplicationHibernateDAO(
         return doMultiKeywordSearch(session, user.username, firstTenKeywords, paging)
     }
 
-    private fun doMultiKeywordSearch(
+    override fun doMultiKeywordSearch(
         session: HibernateSession,
         user: String,
         keywords: List<String>,
@@ -759,7 +759,7 @@ class ApplicationHibernateDAO(
         embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity> {
-        val results = session.criteria<ApplicationEntity>(
+        return session.criteria<ApplicationEntity>(
             predicate = {
                 val idPredicate =
                     if (embeddedNameAndVersionList.isNotEmpty()) {
@@ -779,7 +779,6 @@ class ApplicationHibernateDAO(
                 allOf(anyOf(*idPredicate.toTypedArray()))
             }
         ).resultList.toList()
-        return results
     }
 
     private fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {

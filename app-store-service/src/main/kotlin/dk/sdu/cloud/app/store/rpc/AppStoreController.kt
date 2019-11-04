@@ -75,6 +75,7 @@ class AppStoreController<DBSession>(
                 ctx.securityPrincipal,
                 request.query,
                 request.tags,
+                request.showAllVersions,
                 request.normalize()
             ))
         }
